@@ -136,6 +136,7 @@ export type DynamoKeyAttributeSchemaType<Schema extends DynamoKeyAttributeSchema
 export type DynamoKeyAttributeSchemaDescription =
     | {readonly type: "Id"}
     | {readonly type: "Date"}
+    | {readonly type: "Boolean"}
     | {readonly type: "Integer"}
     | {readonly type: "Float"}
     | {readonly type: "OrderKey"}
@@ -198,6 +199,15 @@ export class DynamoKeyAttributeSchema<Value> {
             maxValue: maxIsoLexicographicallySortableDate,
         },
     );
+
+    /**
+     * Booleans are serialized to either the `true` or `false` string.
+     */
+    public static boolean = new DynamoKeyAttributeSchema<boolean>({
+        description: {type: "Boolean"},
+        serialize: value => (value ? "true" : "false") as DynamoKeyAttribute,
+        deserialize: value => value === "true",
+    });
 
     /**
      * Integers are serialized to an `ElenInteger`.

@@ -1004,7 +1004,7 @@ export function deletePostComment(
  * Gets both the post model and the first few comments for the post in
  * one request.
  */
-export async function getPostAndInitialCommentsFromStart(
+export async function getPostAndInitialComments(
     context: RequestContext,
     {
         postId,
@@ -1015,9 +1015,8 @@ export async function getPostAndInitialCommentsFromStart(
     },
 ): Promise<{
     post: PostModel;
-    postComments: Array<PostCommentModel>;
-    otherReferencedPostComments: Array<PostCommentModel>;
-    lastPostCommentChangeTime: Date | null;
+    initialPostComments: Array<PostCommentModel>;
+    initialOtherReferencedPostComments: Array<PostCommentModel>;
 } | null> {
     // Start querying before authorization so our query runs in parallel
     // with authorization.
@@ -1041,7 +1040,6 @@ export async function getPostAndInitialCommentsFromStart(
         spaceId: SpaceId;
         postPromise: Promise<PostModel>;
         postCommentPromises: Array<Promise<PostCommentModel>>;
-        lastPostCommentChangeTime: Date | null;
     } | null = null;
 
     const commentIndexes = new Set<number>();
@@ -1060,7 +1058,6 @@ export async function getPostAndInitialCommentsFromStart(
                         item,
                     ),
                     postCommentPromises: [],
-                    lastPostCommentChangeTime: item.commentsSummary.lastChangeTime,
                 };
                 break;
             }
@@ -1084,7 +1081,7 @@ export async function getPostAndInitialCommentsFromStart(
     }
 
     if (!state) return null;
-    const {spaceId, lastPostCommentChangeTime} = state;
+    const {spaceId} = state;
 
     const [post, postComments, otherReferencedPostComments] = await runAllPromises([
         state.postPromise,
@@ -1118,9 +1115,8 @@ export async function getPostAndInitialCommentsFromStart(
             post.commentCount < lastPostCommentIndex + 1
                 ? post.clone({commentCount: lastPostCommentIndex + 1})
                 : post,
-        postComments,
-        otherReferencedPostComments,
-        lastPostCommentChangeTime,
+        initialPostComments: postComments,
+        initialOtherReferencedPostComments: otherReferencedPostComments,
     };
 }
 

@@ -7,7 +7,7 @@ import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
-import {getPostAndInitialCommentsFromStart} from "~/server/dynamo/forum_table";
+import {getPostAndInitialComments} from "~/server/dynamo/forum_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
 import {NotFoundError} from "~/shared/error/error";
@@ -18,8 +18,8 @@ import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 
 const LoaderSchema = Schema.object({
     post: PostModel.schema(),
-    postComments: Schema.array(PostCommentModel.schema()),
-    otherReferencedPostComments: Schema.array(PostCommentModel.schema()),
+    initialPostComments: Schema.array(PostCommentModel.schema()),
+    initialOtherReferencedPostComments: Schema.array(PostCommentModel.schema()),
 });
 
 export async function loader({params, context}: LoaderArgs) {
@@ -27,13 +27,13 @@ export async function loader({params, context}: LoaderArgs) {
 
     const postCommentLimit = getInitialLoadMessageCount(context.loader.clientInfo);
 
-    const postResult = await getPostAndInitialCommentsFromStart(await context.auth.authenticate(), {
+    const postResult = await getPostAndInitialComments(await context.auth.authenticate(), {
         postId,
         postCommentLimit,
     });
     if (!postResult) throw new NotFoundError("Post not found");
 
-    const {post, postComments, otherReferencedPostComments} = postResult;
+    const {post, initialPostComments, initialOtherReferencedPostComments} = postResult;
 
     const propagateEventData: TracerEventData = {
         context: {
@@ -44,7 +44,7 @@ export async function loader({params, context}: LoaderArgs) {
 
     return jsonWithSchema(
         LoaderSchema,
-        {post, postComments, otherReferencedPostComments},
+        {post, initialPostComments, initialOtherReferencedPostComments},
         {propagateEventData},
     );
 }
@@ -61,7 +61,8 @@ export const meta: MetaFunction = ({data}) => {
 
 export default function PostRoute({isPeek}: {isPeek?: boolean}) {
     const [searchParams] = useSearchParams();
-    const {post, postComments, otherReferencedPostComments} = useLoaderDataWithSchema(LoaderSchema);
+    const {post, initialPostComments, initialOtherReferencedPostComments} =
+        useLoaderDataWithSchema(LoaderSchema);
 
     const postCommentIndexString = searchParams.get("comment");
     const postCommentIndex = postCommentIndexString ? parseInt(postCommentIndexString, 10) : null;
@@ -72,8 +73,8 @@ export default function PostRoute({isPeek}: {isPeek?: boolean}) {
                 // Remount when navigating to a different post.
                 key={post.id}
                 initialPost={post}
-                initialPostComments={postComments}
-                initialOtherReferencedPostComments={otherReferencedPostComments}
+                initialPostComments={initialPostComments}
+                initialOtherReferencedPostComments={initialOtherReferencedPostComments}
                 initialScrollToPostCommentIndex={postCommentIndex}
                 withMobileLayout={isPeek}
             />

@@ -19,17 +19,16 @@ import {
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error";
-import {compareArrays} from "~/shared/helpers/array/compare_arrays";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable";
+import {asyncIterableFromIterable} from "~/shared/helpers/iterable/async_iterable_from_iterable";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
-import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable";
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator";
+import {parallelFilterMapLimitAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_filter_map_limit_async_iterable_to_array";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {isObject} from "~/shared/helpers/object/is_object";
@@ -355,37 +354,144 @@ function hashMd5WithNodeModule(data: ArrayBuffer): ArrayBuffer {
 }
 
 /**
- * Sends a chat message to the provided accounts without knowing a `ChatId`
- * that includes all the relevant accounts. If a chat already exists with all
- * the relevant accounts (and no one else) then we will send the message to
- * that chat. If no chat exists between the relevant accounts then we will
- * create a new chat and send a message to that chat.
+ * Gets the chat shared by the authorized account and the other provided
+ * accounts and no one else. If an account does not exist yet for these
+ * accounts then we will create one.
  *
- * This is less efficient then `sendChatMessage()` so if you know the `ChatId`
- * use that instead. In the happy path for this function we can guess the right
- * `ChatId` by producing a hash of accounts in the chat and use that as the
- * `ChatId`. If a different chat lives at that hash then we have to search
- * through the shared chats between accounts we're trying to send a message to.
+ * This function is idempotent. You may call it multiple times in short
+ * succession and get the same result.
  */
-export function sendChatMessageToAccounts(
+export function getOrCreateChatForAccounts(
     context: RequestContext,
     {
         spaceId,
-        otherAccountIds: _otherAccountIds,
-        parentMessageIndex,
-        content,
+        otherAccountIds,
     }: {
         spaceId: SpaceId;
         otherAccountIds: ReadonlyArray<AccountId>;
-        parentMessageIndex: number | null;
-        content: MessageContent;
     },
-) {
+): Promise<ChatId> {
+    return actuallyGetOrCreateChatForAccounts(context, {
+        spaceId,
+        otherAccountIds,
+        initialSharedChatsPromise: null,
+    });
+}
+
+/**
+ * Called by the chat account picker component after the user has selected some
+ * accounts to send a message to. Tells us what the shared chat between those
+ * accounts is (and creates an empty chat for those accounts if one does not
+ * exist). Also returns some suggested accounts we will show in the chat
+ * account picker's autocomplete list.
+ *
+ * We only suggest chats that:
+ *
+ * - Have all the provided accounts
+ * - Have at least one message
+ *
+ * This function is very influenced by the needs of the chat account picker
+ * component. To understand it's implementation you need to understand that
+ * component's UX.
+ */
+export async function selectChatForAccounts(
+    context: RequestContext,
+    {
+        spaceId,
+        otherAccountIds,
+        messagesLimit,
+    }: {
+        spaceId: SpaceId;
+        otherAccountIds: ReadonlyArray<AccountId>;
+        messagesLimit: number;
+    },
+): Promise<{
+    selectedChat: {
+        chat: ChatModel;
+        initialMessages: ReadonlyArray<ChatMessageModel>;
+        initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
+    };
+    suggestedChats: ReadonlyArray<ChatModel>;
+}> {
+    // Make sure `otherAccountIds` is unique and doesn't include our
+    // authenticated account.
+    otherAccountIds = Array.from(new Set(otherAccountIds)).filter(
+        accountId => accountId !== context.auth.getAccountId(),
+    );
+
+    const sharedChatsPromise = getSharedChats(context, {
+        spaceId,
+        otherAccountIds,
+    });
+
+    const [selectedChat, suggestedChats] = await runAllPromises([
+        (async () => {
+            const chatId = await actuallyGetOrCreateChatForAccounts(context, {
+                spaceId,
+                otherAccountIds,
+                initialSharedChatsPromise: sharedChatsPromise,
+            });
+
+            return getChatAndInitialMessages(context, {
+                chatId,
+                messagesLimit,
+            });
+        })(),
+        (async () => {
+            const sharedChats = await sharedChatsPromise;
+
+            // Limit the number of chats we return since we need to load the full chat
+            // object. We sort shared chats by some heuristics to put more relevant chats
+            // first but the heuristics don't consider user activity. Ideally we would also
+            // sort with our affinity system. (I (@calebmer) have a rough idea of an
+            // affinity system I'd like to build.)
+            const suggestedChatLimit = 5;
+
+            return parallelFilterMapLimitAsyncIterableToArray(
+                asyncIterableFromIterable(sharedChats),
+                suggestedChatLimit,
+                async sharedChat => {
+                    // We only suggest chats with additional accounts on top of the ones
+                    // we requested.
+                    if (sharedChat.accountCount <= otherAccountIds.length + 1) return null;
+
+                    const chat = await getChat(context, sharedChat.id);
+                    if (!chat) return null;
+
+                    // Only suggest chats with some messages.
+                    if (chat.messageCount === 0) return null;
+
+                    return chat;
+                },
+            );
+        })(),
+    ]);
+
+    return {selectedChat, suggestedChats};
+}
+
+function actuallyGetOrCreateChatForAccounts(
+    context: RequestContext,
+    {
+        spaceId,
+        otherAccountIds,
+        initialSharedChatsPromise,
+    }: {
+        spaceId: SpaceId;
+        otherAccountIds: ReadonlyArray<AccountId>;
+        initialSharedChatsPromise: ReturnType<typeof getSharedChats> | null;
+    },
+): Promise<ChatId> {
+    let hasAlreadyAttempted = false;
+
     return retryWithExponentialBackoff(async retry => {
-        // Make sure `accountIds` is unique and doesn't include our
+        const isInitialAttempt = !hasAlreadyAttempted;
+        hasAlreadyAttempted = true;
+
+        // Make sure `otherAccountIds` is unique and doesn't include our
         // authenticated account.
-        const otherAccountIds = new Set(
-            _otherAccountIds.filter(accountId => accountId !== context.auth.getAccountId()),
+        otherAccountIds = Array.from(new Set(otherAccountIds)).filter(
+            accountId => accountId !== context.auth.getAccountId(),
         );
 
         const allSortedAccountIds = [...otherAccountIds, context.auth.getAccountId()].sort();
@@ -477,8 +583,11 @@ export function sendChatMessageToAccounts(
                     {
                         // If two processes try to create a chat at the same time for the same
                         // accounts, we want to treat this transaction as idempotent.
-                        clientRequestToken: `sendMessageToAccounts:${murmurhash
-                            .v3(`${spaceId}:${allSortedAccountIds.join("-")}`)
+                        //
+                        // We need to hash the request token because DynamoDB imposes a maximum
+                        // length on tokens.
+                        clientRequestToken: `${spaceId}:${murmurhash
+                            .v3(allSortedAccountIds.join("-"))
                             .toString(16)
                             .padStart(8, "0")}`,
                     },
@@ -523,13 +632,7 @@ export function sendChatMessageToAccounts(
         // optimistic `ChatId` and send a message there.
         if (!optimisticChatAndAccounts) {
             const optimisticChatItem = await createChatForAccounts(optimisticChatId);
-
-            return actuallySendChatMessage(context, {
-                chatId: optimisticChatId,
-                parentMessageIndex,
-                content,
-                initialAuthorizedChatItem: optimisticChatItem,
-            });
+            return optimisticChatItem.chatId;
         }
 
         // If the optimistic `ChatId` exists then we need to double check it matches
@@ -543,42 +646,22 @@ export function sendChatMessageToAccounts(
                 optimisticChatAndAccounts.chatAccountItems.map(item => item.accountId),
             )
         ) {
-            return actuallySendChatMessage(context, {
-                chatId: optimisticChatId,
-                parentMessageIndex,
-                content,
-                initialAuthorizedChatItem: optimisticChatAndAccounts.chatItem,
-            });
+            return optimisticChatAndAccounts.chatItem.chatId;
         }
 
-        const sharedChats = await getSharedChats(context, {
-            spaceId,
-            otherAccountIds,
-        });
+        const sharedChats = await ((isInitialAttempt ? initialSharedChatsPromise : null) ??
+            getSharedChats(context, {spaceId, otherAccountIds}));
 
         const firstSharedChat = sharedChats[0];
 
         // We found a chat that exactly matches the accounts we want to message! Send a
         // message to that chat.
-        if (
-            firstSharedChat?.includedOtherAccountIds.length === otherAccountIds.size &&
-            firstSharedChat.accountCount === otherAccountIds.size + 1
-        ) {
-            return actuallySendChatMessage(context, {
-                chatId: firstSharedChat.id,
-                parentMessageIndex,
-                content,
-            });
+        if (firstSharedChat?.accountCount === otherAccountIds.length + 1) {
+            return firstSharedChat.id;
         }
 
         const chatItem = await createChatForAccounts(generateId());
-
-        return actuallySendChatMessage(context, {
-            chatId: chatItem.chatId,
-            parentMessageIndex,
-            content,
-            initialAuthorizedChatItem: chatItem,
-        });
+        return chatItem.chatId;
     });
 }
 
@@ -601,52 +684,16 @@ export function sendChatMessage(
     index: number;
     createdTime: Date;
 }> {
-    return actuallySendChatMessage(context, {
-        chatId,
-        parentMessageIndex,
-        content,
-    });
-}
-
-function actuallySendChatMessage(
-    context: RequestContext,
-    {
-        chatId,
-        parentMessageIndex,
-        content,
-        initialAuthorizedChatItem,
-    }: {
-        chatId: ChatId;
-        parentMessageIndex: number | null;
-        content: MessageContent;
-        initialAuthorizedChatItem?: ChatAttributesItem;
-    },
-): Promise<{
-    chatId: ChatId;
-    index: number;
-    createdTime: Date;
-}> {
-    let hasMadeInitialAttempt = false;
-
     return retryDynamoConditionCheckErrors(async () => {
-        const isInitialAttempt = !hasMadeInitialAttempt;
-        hasMadeInitialAttempt = true;
-
         const [chatItem] = await runAllPromiseThunks(
             async () => {
-                const chatItem =
-                    (isInitialAttempt ? initialAuthorizedChatItem : null) ??
-                    (await ChatTable.getItem(context, {
-                        partitionType: "Chat",
-                        sortRangeType: "Attributes",
-                        chatId,
-                    }));
+                const chatItem = await ChatTable.getItem(context, {
+                    partitionType: "Chat",
+                    sortRangeType: "Attributes",
+                    chatId,
+                });
                 if (!chatItem) throw new NotFoundError("Chat not found");
-
-                if (chatItem !== initialAuthorizedChatItem) {
-                    await authorizeChatAccessWithItem(context, chatItem);
-                }
-
+                await authorizeChatAccessWithItem(context, chatItem);
                 return chatItem;
             },
             async () => {
@@ -760,11 +807,8 @@ async function authorizeChatAccessWithItem(
  * Get chats shared between the authenticated account and provided accounts in
  * the provided space.
  *
- * Returns an array of chats and the accounts we provided to this function
- * which are included in the chat. Chats with the most number of requested
- * accounts and least number of non-requested accounts come first in the
- * resulting array. If we find an exact match between our account and the
- * accounts we're searching it will be first in the list.
+ * Sorts chats with fewer accounts first. So if a chat that exclusively contains
+ * the provided accounts and authenticated account will be first.
  *
  * The current implementation isn't optimized. It loads all chats for each
  * account and finds intersecting chats.
@@ -780,33 +824,26 @@ async function authorizeChatAccessWithItem(
  * and the items are small enough it's not worth prematurely optimizing this
  * function.
  */
-export function getSharedChats(
+function getSharedChats(
     context: RequestContext,
     {
         spaceId,
-        otherAccountIds: _otherAccountIds,
+        otherAccountIds,
     }: {
         spaceId: SpaceId;
-        otherAccountIds: Iterable<AccountId>;
+        otherAccountIds: ReadonlyArray<AccountId>;
     },
 ): Promise<
     Array<{
         id: ChatId;
         accountCount: number;
-        /**
-         * The chat includes these accounts that were provided when you called the
-         * function. The chat may include more accounts! This is not the exclusive list
-         * of accounts in the chat.
-         */
-        includedOtherAccountIds: ReadonlyArray<AccountId>;
     }>
 > {
     return context.tracer.withSpan("getSharedChats", async context => {
-        const otherAccountIds = new Set(
-            filterIterable(
-                _otherAccountIds,
-                accountId => accountId !== context.auth.getAccountId(),
-            ),
+        // Make sure `otherAccountIds` is unique and doesn't include our
+        // authenticated account.
+        otherAccountIds = Array.from(new Set(otherAccountIds)).filter(
+            accountId => accountId !== context.auth.getAccountId(),
         );
 
         const chatById = new Map<
@@ -858,69 +895,43 @@ export function getSharedChats(
             },
         );
 
-        const chatsByIncludedOtherAccountIds = new Map<
-            string,
-            {
-                readonly includedOtherAccountIds: ReadonlyArray<AccountId>;
-                chats: Array<{id: ChatId; accountCount: number}>;
-            }
-        >();
+        const chats: Array<{id: ChatId; accountCount: number}> = [];
 
         for (const [chatId, chat] of chatById) {
-            // We only want to include chats that are shared between multiple users in our
-            // final result.
-            if (otherAccountIds.size > 0 && chat.includedAccountIds.size <= 1) continue;
-
-            // Do not include chats that do not include the authenticated account! You are
-            // not allowed to see what chats other accounts are members of.
+            // Only include accounts with every requested account and the
+            // authenticated account.
             if (!chat.includedAccountIds.has(context.auth.getAccountId())) continue;
+            if (!otherAccountIds.every(accountId => chat.includedAccountIds.has(accountId)))
+                continue;
 
-            const includedOtherAccountIds = Array.from(
-                filterIterable(
-                    chat.includedAccountIds,
-                    accountId => accountId !== context.auth.getAccountId(),
-                ),
-            ).sort(defaultCompareStrings);
-
-            getOrSetDefaultMapValue(
-                chatsByIncludedOtherAccountIds,
-                includedOtherAccountIds.join("-"),
-                () => ({
-                    includedOtherAccountIds,
-                    chats: [],
-                }),
-            ).chats.push({
-                id: chatId,
-                accountCount: chat.accountCount,
-            });
+            chats.push({id: chatId, accountCount: chat.accountCount});
         }
 
-        return Array.from(
-            flatMapIterable(
-                chatsByIncludedOtherAccountIds.values(),
-                ({includedOtherAccountIds, chats}) =>
-                    chats.map(chat => ({
-                        id: chat.id,
-                        accountCount: chat.accountCount,
-                        includedOtherAccountIds,
-                    })),
-            ),
-        ).sort(
-            (a, b) =>
-                // Put shared chats with more accounts in common first
-                (a.includedOtherAccountIds.length - b.includedOtherAccountIds.length) * -1 ||
-                // Then sort by accounts with fewer members (an exact matching chat should be first!)
-                a.accountCount - b.accountCount ||
-                // Then sort by account id order to be deterministic
-                compareArrays(
-                    a.includedOtherAccountIds,
-                    b.includedOtherAccountIds,
-                    defaultCompareStrings,
-                ) ||
-                // Sort by `ChatId` if the `AccountId` array is equal.
-                defaultCompareStrings(a.id, b.id),
+        return chats.sort(
+            (chat1, chat2) =>
+                // Put chats with fewer accounts first.
+                chat1.accountCount - chat2.accountCount ||
+                // Tiebreak with chat IDs for a deterministic order.
+                defaultCompareStrings(chat1.id, chat2.id),
         );
     });
+}
+
+/**
+ * Allow tests to call the `getSharedChats()` from a test.
+ */
+export function getSharedChatsForTest(
+    context: RequestContext,
+    {
+        spaceId,
+        otherAccountIds,
+    }: {
+        spaceId: SpaceId;
+        otherAccountIds: ReadonlyArray<AccountId>;
+    },
+) {
+    assert(process.env.NODE_ENV === "test");
+    return getSharedChats(context, {spaceId, otherAccountIds});
 }
 
 /**
@@ -1208,13 +1219,13 @@ export function deleteChatMessage(
 /**
  * Get our chat and initial messages that come with it efficiently at once.
  */
-export async function getChatAndInitialMessagesFromEnd(
+export async function getChatAndInitialMessages(
     context: RequestContext,
-    {chatId, messageLimit}: {chatId: ChatId; messageLimit: number},
+    {chatId, messagesLimit}: {chatId: ChatId; messagesLimit: number},
 ): Promise<{
     chat: ChatModel;
-    messages: ReadonlyArray<ChatMessageModel>;
-    otherReferencedMessages: ReadonlyArray<ChatMessageModel>;
+    initialMessages: ReadonlyArray<ChatMessageModel>;
+    initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
 }> {
     const chatPromise = getChat(context, chatId).then(chat => {
         if (!chat) throw new NotFoundError("Chat not found");
@@ -1226,7 +1237,7 @@ export async function getChatAndInitialMessagesFromEnd(
         getChatMessagesFromEndAssumingAuthorizedChat(context, {
             chatId,
             getSpaceId: () => chatPromise.then(({spaceId}) => spaceId),
-            limit: messageLimit,
+            limit: messagesLimit,
             afterMessageIndex: null,
             beforeMessageIndex: null,
         }),
@@ -1243,8 +1254,8 @@ export async function getChatAndInitialMessagesFromEnd(
                 lastMessageIndex + 1,
             ),
         }),
-        messages,
-        otherReferencedMessages,
+        initialMessages: messages,
+        initialOtherReferencedMessages: otherReferencedMessages,
     };
 }
 

@@ -8,18 +8,18 @@ import {
     getChatMessagesFromEnd,
     getChatMessagesFromStart,
     getOptimisticChatId,
-    getSharedChats,
+    getOrCreateChatForAccounts,
+    getSharedChatsForTest,
     sendChatMessage,
-    sendChatMessageToAccounts,
     sendChatMessageToAccountsBeforeCreateChatTestCheckpoint,
     updateChatMessageContent,
 } from "~/server/dynamo/chat_table";
+import {RequestContext} from "~/server/dynamo/context/request_context";
 import {getSpacesTableForTest} from "~/server/dynamo/spaces_table";
 import {testMessagingImplementation} from "~/server/dynamo/test_helpers/jest/test_messaging_implementation";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
-import {createSimpleMessageContent} from "~/shared/content/message_content_schema";
+import {MessageContent, createSimpleMessageContent} from "~/shared/content/message_content_schema";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error";
-import {compareArrays} from "~/shared/helpers/array/compare_arrays";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
@@ -367,27 +367,43 @@ function massageMessages(result: {
 
 function sortSharedChats(
     sharedChats: Array<{
-        includedOtherAccountIds: Array<AccountId>;
         id: ChatId;
         accountCount: number;
     }>,
 ) {
-    return sharedChats
-        .map(sharedChat => ({
-            ...sharedChat,
-            includedOtherAccountIds: sharedChat.includedOtherAccountIds.slice().sort(),
-        }))
-        .sort(
-            (a, b) =>
-                (a.includedOtherAccountIds.length - b.includedOtherAccountIds.length) * -1 ||
-                a.accountCount - b.accountCount ||
-                compareArrays(
-                    a.includedOtherAccountIds,
-                    b.includedOtherAccountIds,
-                    defaultCompareStrings,
-                ) ||
-                defaultCompareStrings(a.id, b.id),
-        );
+    return sharedChats.sort(
+        (a, b) => a.accountCount - b.accountCount || defaultCompareStrings(a.id, b.id),
+    );
+}
+
+// NOTE(calebmer): Initially `chat_table.ts` provided this function so we wrote
+// tests against that but the function was decomposed into
+// `getOrCreateChatForAccounts()` and `sendChatMessage()`. To avoid rewriting
+// tests the function is reconstructed here.
+async function sendChatMessageToAccounts(
+    context: RequestContext,
+    {
+        spaceId,
+        otherAccountIds,
+        parentMessageIndex,
+        content,
+    }: {
+        spaceId: SpaceId;
+        otherAccountIds: ReadonlyArray<AccountId>;
+        parentMessageIndex: number | null;
+        content: MessageContent;
+    },
+) {
+    const chatId = await getOrCreateChatForAccounts(context, {
+        spaceId,
+        otherAccountIds,
+    });
+
+    return sendChatMessage(context, {
+        chatId,
+        parentMessageIndex,
+        content,
+    });
 }
 
 test("can send initial messages to other accounts", async () => {
@@ -3239,7 +3255,7 @@ test("can get chats shared between an account and other accounts", async () => {
     const scenario = await createScenario();
 
     expect(
-        await getSharedChats(context.request(scenario.sessionA1), {
+        await getSharedChatsForTest(context.request(scenario.sessionA1), {
             spaceId: scenario.spaceA.id,
             otherAccountIds: [],
         }),
@@ -3346,177 +3362,85 @@ test("can get chats shared between an account and other accounts", async () => {
     });
 
     expect(
-        await getSharedChats(context.request(scenario.sessionA1), {
+        await getSharedChatsForTest(context.request(scenario.sessionA1), {
             spaceId: scenario.spaceA.id,
             otherAccountIds: [],
         }),
     ).toEqual(
         sortSharedChats([
-            {includedOtherAccountIds: [], id: message1.chatId, accountCount: 1},
-            {includedOtherAccountIds: [], id: message2.chatId, accountCount: 2},
-            {includedOtherAccountIds: [], id: message3.chatId, accountCount: 2},
-            {includedOtherAccountIds: [], id: message4.chatId, accountCount: 2},
-            {includedOtherAccountIds: [], id: message5.chatId, accountCount: 2},
-            {includedOtherAccountIds: [], id: message6.chatId, accountCount: 2},
-            {includedOtherAccountIds: [], id: message7.chatId, accountCount: 3},
-            {includedOtherAccountIds: [], id: message8.chatId, accountCount: 3},
-            {includedOtherAccountIds: [], id: message9.chatId, accountCount: 4},
-            {includedOtherAccountIds: [], id: message10.chatId, accountCount: 5},
-            {includedOtherAccountIds: [], id: message11.chatId, accountCount: 3},
+            {id: message1.chatId, accountCount: 1},
+            {id: message2.chatId, accountCount: 2},
+            {id: message3.chatId, accountCount: 2},
+            {id: message4.chatId, accountCount: 2},
+            {id: message5.chatId, accountCount: 2},
+            {id: message6.chatId, accountCount: 2},
+            {id: message7.chatId, accountCount: 3},
+            {id: message8.chatId, accountCount: 3},
+            {id: message9.chatId, accountCount: 4},
+            {id: message10.chatId, accountCount: 5},
+            {id: message11.chatId, accountCount: 3},
         ]),
     );
 
     expect(
-        await getSharedChats(context.request(scenario.sessionA1), {
+        await getSharedChatsForTest(context.request(scenario.sessionA1), {
             spaceId: scenario.spaceA.id,
             otherAccountIds: [scenario.sessionA2.accountId],
         }),
     ).toEqual(
         sortSharedChats([
-            {
-                includedOtherAccountIds: [scenario.sessionA2.accountId],
-                id: message2.chatId,
-                accountCount: 2,
-            },
-            {
-                includedOtherAccountIds: [scenario.sessionA2.accountId],
-                id: message7.chatId,
-                accountCount: 3,
-            },
-            {
-                includedOtherAccountIds: [scenario.sessionA2.accountId],
-                id: message9.chatId,
-                accountCount: 4,
-            },
-            {
-                includedOtherAccountIds: [scenario.sessionA2.accountId],
-                id: message10.chatId,
-                accountCount: 5,
-            },
-            {
-                includedOtherAccountIds: [scenario.sessionA2.accountId],
-                id: message11.chatId,
-                accountCount: 3,
-            },
+            {id: message2.chatId, accountCount: 2},
+            {id: message7.chatId, accountCount: 3},
+            {id: message9.chatId, accountCount: 4},
+            {id: message10.chatId, accountCount: 5},
+            {id: message11.chatId, accountCount: 3},
         ]),
     );
 
     expect(
-        await getSharedChats(context.request(scenario.sessionA2), {
+        await getSharedChatsForTest(context.request(scenario.sessionA2), {
             spaceId: scenario.spaceA.id,
             otherAccountIds: [scenario.sessionA1.accountId],
         }),
     ).toEqual(
         sortSharedChats([
-            {
-                includedOtherAccountIds: [scenario.sessionA1.accountId],
-                id: message2.chatId,
-                accountCount: 2,
-            },
-            {
-                includedOtherAccountIds: [scenario.sessionA1.accountId],
-                id: message7.chatId,
-                accountCount: 3,
-            },
-            {
-                includedOtherAccountIds: [scenario.sessionA1.accountId],
-                id: message9.chatId,
-                accountCount: 4,
-            },
-            {
-                includedOtherAccountIds: [scenario.sessionA1.accountId],
-                id: message10.chatId,
-                accountCount: 5,
-            },
-            {
-                includedOtherAccountIds: [scenario.sessionA1.accountId],
-                id: message11.chatId,
-                accountCount: 3,
-            },
+            {id: message2.chatId, accountCount: 2},
+            {id: message7.chatId, accountCount: 3},
+            {id: message9.chatId, accountCount: 4},
+            {id: message10.chatId, accountCount: 5},
+            {id: message11.chatId, accountCount: 3},
         ]),
     );
 
     expect(
-        await getSharedChats(context.request(scenario.sessionA1), {
+        await getSharedChatsForTest(context.request(scenario.sessionA1), {
             spaceId: scenario.spaceA.id,
             otherAccountIds: [scenario.sessionA3.accountId],
         }),
     ).toEqual(
         sortSharedChats([
-            {
-                includedOtherAccountIds: [scenario.sessionA3.accountId],
-                id: message3.chatId,
-                accountCount: 2,
-            },
-            {
-                includedOtherAccountIds: [scenario.sessionA3.accountId],
-                id: message7.chatId,
-                accountCount: 3,
-            },
-            {
-                includedOtherAccountIds: [scenario.sessionA3.accountId],
-                id: message9.chatId,
-                accountCount: 4,
-            },
-            {
-                includedOtherAccountIds: [scenario.sessionA3.accountId],
-                id: message10.chatId,
-                accountCount: 5,
-            },
+            {id: message3.chatId, accountCount: 2},
+            {id: message7.chatId, accountCount: 3},
+            {id: message9.chatId, accountCount: 4},
+            {id: message10.chatId, accountCount: 5},
         ]),
     );
 
     expect(
-        await getSharedChats(context.request(scenario.sessionA1), {
+        await getSharedChatsForTest(context.request(scenario.sessionA1), {
             spaceId: scenario.spaceA.id,
             otherAccountIds: [scenario.sessionA2.accountId, scenario.sessionA3.accountId],
         }),
     ).toEqual(
         sortSharedChats([
-            {
-                includedOtherAccountIds: [scenario.sessionA2.accountId],
-                id: message2.chatId,
-                accountCount: 2,
-            },
-            {
-                includedOtherAccountIds: [scenario.sessionA3.accountId],
-                id: message3.chatId,
-                accountCount: 2,
-            },
-            {
-                includedOtherAccountIds: [
-                    scenario.sessionA2.accountId,
-                    scenario.sessionA3.accountId,
-                ],
-                id: message7.chatId,
-                accountCount: 3,
-            },
-            {
-                includedOtherAccountIds: [
-                    scenario.sessionA2.accountId,
-                    scenario.sessionA3.accountId,
-                ],
-                id: message9.chatId,
-                accountCount: 4,
-            },
-            {
-                includedOtherAccountIds: [
-                    scenario.sessionA2.accountId,
-                    scenario.sessionA3.accountId,
-                ],
-                id: message10.chatId,
-                accountCount: 5,
-            },
-            {
-                includedOtherAccountIds: [scenario.sessionA2.accountId],
-                id: message11.chatId,
-                accountCount: 3,
-            },
+            {id: message7.chatId, accountCount: 3},
+            {id: message9.chatId, accountCount: 4},
+            {id: message10.chatId, accountCount: 5},
         ]),
     );
 
     expect(
-        await getSharedChats(context.request(scenario.sessionA1), {
+        await getSharedChatsForTest(context.request(scenario.sessionA1), {
             spaceId: scenario.spaceA.id,
             otherAccountIds: [
                 scenario.sessionA2.accountId,
@@ -3526,127 +3450,59 @@ test("can get chats shared between an account and other accounts", async () => {
         }),
     ).toEqual(
         sortSharedChats([
-            {
-                includedOtherAccountIds: [scenario.sessionA2.accountId],
-                id: message2.chatId,
-                accountCount: 2,
-            },
-            {
-                includedOtherAccountIds: [scenario.sessionA3.accountId],
-                id: message3.chatId,
-                accountCount: 2,
-            },
-            {
-                includedOtherAccountIds: [scenario.sessionX1.accountId],
-                id: message4.chatId,
-                accountCount: 2,
-            },
-            {
-                includedOtherAccountIds: [
-                    scenario.sessionA2.accountId,
-                    scenario.sessionA3.accountId,
-                ],
-                id: message7.chatId,
-                accountCount: 3,
-            },
-            {
-                includedOtherAccountIds: [scenario.sessionX1.accountId],
-                id: message8.chatId,
-                accountCount: 3,
-            },
-            {
-                includedOtherAccountIds: [
-                    scenario.sessionA2.accountId,
-                    scenario.sessionA3.accountId,
-                    scenario.sessionX1.accountId,
-                ],
-                id: message9.chatId,
-                accountCount: 4,
-            },
-            {
-                includedOtherAccountIds: [
-                    scenario.sessionA2.accountId,
-                    scenario.sessionA3.accountId,
-                    scenario.sessionX1.accountId,
-                ],
-                id: message10.chatId,
-                accountCount: 5,
-            },
-            {
-                includedOtherAccountIds: [
-                    scenario.sessionA2.accountId,
-                    scenario.sessionX1.accountId,
-                ],
-                id: message11.chatId,
-                accountCount: 3,
-            },
+            {id: message9.chatId, accountCount: 4},
+            {id: message10.chatId, accountCount: 5},
         ]),
     );
 
     expect(
-        await getSharedChats(context.request(scenario.sessionX1), {
+        await getSharedChatsForTest(context.request(scenario.sessionX1), {
             spaceId: scenario.spaceA.id,
             otherAccountIds: [],
         }),
     ).toEqual(
         sortSharedChats([
-            {includedOtherAccountIds: [], id: message4.chatId, accountCount: 2},
-            {includedOtherAccountIds: [], id: message8.chatId, accountCount: 3},
-            {includedOtherAccountIds: [], id: message9.chatId, accountCount: 4},
-            {includedOtherAccountIds: [], id: message10.chatId, accountCount: 5},
-            {includedOtherAccountIds: [], id: message11.chatId, accountCount: 3},
+            {id: message4.chatId, accountCount: 2},
+            {id: message8.chatId, accountCount: 3},
+            {id: message9.chatId, accountCount: 4},
+            {id: message10.chatId, accountCount: 5},
+            {id: message11.chatId, accountCount: 3},
         ]),
     );
 
     expect(
-        await getSharedChats(context.request(scenario.sessionX1), {
+        await getSharedChatsForTest(context.request(scenario.sessionX1), {
             spaceId: scenario.spaceB.id,
             otherAccountIds: [],
         }),
     ).toEqual(
         sortSharedChats([
-            {includedOtherAccountIds: [], id: message12.chatId, accountCount: 2},
-            {includedOtherAccountIds: [], id: message13.chatId, accountCount: 3},
+            {id: message13.chatId, accountCount: 3},
+            {id: message12.chatId, accountCount: 2},
         ]),
     );
 
     expect(
-        await getSharedChats(context.request(scenario.sessionX1), {
+        await getSharedChatsForTest(context.request(scenario.sessionX1), {
             spaceId: scenario.spaceA.id,
             otherAccountIds: [scenario.sessionX2.accountId],
         }),
     ).toEqual(
         sortSharedChats([
-            {
-                includedOtherAccountIds: [scenario.sessionX2.accountId],
-                id: message8.chatId,
-                accountCount: 3,
-            },
-            {
-                includedOtherAccountIds: [scenario.sessionX2.accountId],
-                id: message10.chatId,
-                accountCount: 5,
-            },
+            {id: message8.chatId, accountCount: 3},
+            {id: message10.chatId, accountCount: 5},
         ]),
     );
 
     expect(
-        await getSharedChats(context.request(scenario.sessionX1), {
+        await getSharedChatsForTest(context.request(scenario.sessionX1), {
             spaceId: scenario.spaceB.id,
             otherAccountIds: [scenario.sessionX2.accountId],
         }),
-    ).toEqual(
-        sortSharedChats([
-            {
-                includedOtherAccountIds: [scenario.sessionX2.accountId],
-                id: message13.chatId,
-                accountCount: 3,
-            },
-        ]),
-    );
+    ).toEqual(sortSharedChats([{id: message13.chatId, accountCount: 3}]));
 
     expect(
-        await getSharedChats(context.request(scenario.sessionX1), {
+        await getSharedChatsForTest(context.request(scenario.sessionX1), {
             spaceId: scenario.spaceB.id,
             otherAccountIds: [scenario.sessionA1.accountId],
         }),

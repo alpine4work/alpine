@@ -1,12 +1,11 @@
 /* eslint-disable @typescript-eslint/no-misused-promises */
 
-import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {useCallback, useRef} from "react";
 import {chatMessagingHeader} from "~/client/chat/chat_view";
 import {useWebSocket} from "~/client/cloudflare/use_web_socket";
-import {AppContextProvider, useAppContext} from "~/client/context/app_context";
+import {useAppContext} from "~/client/context/app_context";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {MessagingView} from "~/client/messaging/messaging_view";
-import {useSpaceContext} from "~/client/spaces/space_context";
 import {
     ChatRealtimeMessageFromClientSchema,
     ChatRealtimeMessageFromServer,
@@ -15,60 +14,19 @@ import {
 import {InternalError} from "~/shared/error/error";
 import {cast} from "~/shared/helpers/control/cast";
 import {MessagingRealtimeMessageFromServer} from "~/shared/messaging/messaging_realtime_schema";
-import {AccountModel} from "~/shared/models/account_model";
 import {ChatMessageModel, ChatModel} from "~/shared/models/chat_model";
-import {
-    getChatMessagesFromEnd,
-    getChatMessagesFromStart,
-    sendChatMessageToAccounts,
-} from "~/shared/rpc/chat_rpc_definitions";
+import {getChatMessagesFromEnd, getChatMessagesFromStart} from "~/shared/rpc/chat_rpc_definitions";
 
 export function NewChatMessagingView({
-    selectedAccounts,
-    exactMatch,
+    selectedChat,
 }: {
-    selectedAccounts: ReadonlyArray<AccountModel>;
-    exactMatch: {
+    selectedChat: {
         chat: ChatModel;
         initialMessages: ReadonlyArray<ChatMessageModel>;
         initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
     } | null;
 }) {
-    const {space, currentAccount} = useSpaceContext();
-
-    const chatKey = useMemo(
-        () =>
-            Array.from(
-                new Set([currentAccount.id, ...selectedAccounts.map(account => account.id)].sort()),
-            ).join("-"),
-        [currentAccount.id, selectedAccounts],
-    );
-
-    // We may not know the `ChatId` for this view initially but after sending a
-    // message we should discover the `ChatId` and put it in this state.
-    const [chatForChatKey, setChatForChatKey] = useState<{chatKey: string; chat: ChatModel | null}>(
-        {chatKey, chat: null},
-    );
-
-    // Reset the chat when `chatKey` changes.
-    useEffect(() => {
-        setChatForChatKey(chatForChatKey => {
-            if (chatForChatKey.chatKey === chatKey) return chatForChatKey;
-            return {chatKey, chat: null};
-        });
-    }, [chatKey]);
-
-    const chat =
-        exactMatch?.chat ?? (chatForChatKey?.chatKey === chatKey ? chatForChatKey.chat : null);
-
-    // Make sure we include the `ChatId` in our context's propagated data. Normally
-    // this is set by the route loader but because new chats may not know the
-    // `ChatId` in the URL we should set it again here.
-    const _context = useAppContext();
-    const context = useMemo(() => {
-        if (!chat) return _context;
-        return _context.tracer.withPropagatedData({context: {chatId: chat.id}});
-    }, [_context, chat]);
+    const context = useAppContext();
 
     const {
         isConnected: isRealtimeConnected,
@@ -77,7 +35,7 @@ export function NewChatMessagingView({
     } = useWebSocket(
         ChatRealtimeMessageFromClientSchema,
         ChatRealtimeMessageFromServerSchema,
-        chat ? `/durable-objects/chat/${chat.id}` : null,
+        selectedChat ? `/durable-objects/chat/${selectedChat.chat.id}` : null,
     );
 
     // This ref is used to preserve the message input state across React key
@@ -86,127 +44,88 @@ export function NewChatMessagingView({
     const inputStateRef = useRef(null);
 
     return (
-        <AppContextProvider value={context}>
-            <MessagingView
-                key={chatKey}
-                initialScrollOffset="bottom"
-                initialMessagesResult={
-                    exactMatch
-                        ? {
-                              messageCount: exactMatch.chat.messageCount,
-                              messages: exactMatch.initialMessages,
-                              otherReferencedMessages: exactMatch.initialOtherReferencedMessages,
-                              lastMessageChangeTime: exactMatch.chat.lastMessageChangeTime,
-                          }
-                        : {
-                              messageCount: 0,
-                              messages: [],
-                              otherReferencedMessages: [],
-                              lastMessageChangeTime: null,
-                          }
+        <MessagingView
+            key={selectedChat?.chat.id ?? "unknown"}
+            initialScrollOffset="bottom"
+            initialMessagesResult={
+                selectedChat
+                    ? {
+                          messageCount: selectedChat.chat.messageCount,
+                          messages: selectedChat.initialMessages,
+                          otherReferencedMessages: selectedChat.initialOtherReferencedMessages,
+                          lastMessageChangeTime: selectedChat.chat.lastMessageChangeTime,
+                      }
+                    : {
+                          messageCount: 0,
+                          messages: [],
+                          otherReferencedMessages: [],
+                          lastMessageChangeTime: null,
+                      }
+            }
+            header={chatMessagingHeader}
+            randomSeedForShimmer={selectedChat?.chat.id ?? "unknown"}
+            isMessageCreationDisabled={!selectedChat}
+            getMessagesFromStart={useEvent(input => {
+                if (!selectedChat) {
+                    throw new InternalError("Can not load messages when we don't know the chat");
                 }
-                header={chatMessagingHeader}
-                randomSeedForShimmer={chat?.id ?? chatKey}
-                isMessageCreationDisabled={selectedAccounts.length === 0}
-                getMessagesFromStart={useEvent(input => {
-                    if (!chat) {
+                return getChatMessagesFromStart(context, {...input, chatId: selectedChat.chat.id});
+            })}
+            getMessagesFromEnd={useEvent(input => {
+                if (!selectedChat) {
+                    throw new InternalError("Can not load messages when we don't know the chat");
+                }
+                return getChatMessagesFromEnd(context, {...input, chatId: selectedChat.chat.id});
+            })}
+            isRealtimeConnected={isRealtimeConnected}
+            sendRealtimeMessage={useCallback(
+                async message => {
+                    if (!selectedChat) {
                         throw new InternalError(
-                            "Can not load messages when we don't know the chat",
+                            "Can not send realtime message when we don't know the chat",
                         );
                     }
-                    return getChatMessagesFromStart(context, {...input, chatId: chat.id});
-                })}
-                getMessagesFromEnd={useEvent(input => {
-                    if (!chat) {
+                    return sendRealtimeMessage({type: "ChatMessages", message});
+                },
+                [selectedChat, sendRealtimeMessage],
+            )}
+            subscribeToRealtimeMessages={useCallback(
+                (
+                    subscriber: (
+                        message: MessagingRealtimeMessageFromServer<ChatMessageModel>,
+                    ) => void,
+                ) => {
+                    const actualSubscriber = (message: ChatRealtimeMessageFromServer) => {
+                        // TypeScript will error if we ever add other message types here. At that point
+                        // this code should turn into a switch.
+                        cast<"ChatMessages">(message.type);
+                        subscriber(message.message);
+                    };
+
+                    return subscribeToRealtimeMessages(actualSubscriber);
+                },
+                [subscribeToRealtimeMessages],
+            )}
+            getCopyLinkUrl={useCallback(
+                messageIndex => {
+                    // This should never throw through (mostly) coincidence. The only messages you
+                    // should see when we don't know the chat are optimistic messages. You can not
+                    // copy the link of an optimistic message because we don't know the index. We
+                    // get the index when we connect to realtime when we discover the chat ID.
+                    // Therefore to have a message index we need a chat.
+                    if (!selectedChat) {
                         throw new InternalError(
-                            "Can not load messages when we don't know the chat",
+                            "Should not be able to copy link of chat message when we don't know the chat",
                         );
                     }
-                    return getChatMessagesFromEnd(context, {...input, chatId: chat.id});
-                })}
-                isRealtimeConnected={isRealtimeConnected}
-                sendRealtimeMessage={useCallback(
-                    async message => {
-                        // When we don't know the `ChatId` we can use our `sendChatMessageToAccounts()`
-                        // function which will create a new chat for the provided accounts. Or if a
-                        // chat with the provided accounts already exists it will send to that chat.
-                        if (message.type === "CreateMessage" && !chat) {
-                            // TODO(calebmer): There's a pretty bad bug here! Because we create this
-                            // message by calling an RPC instead of sending a realtime message, then if a
-                            // chat already exists we won't send a realtime message to that chat's durable
-                            // object. This means chat realtime for anyone looking at the chat will stall
-                            // (because messaging realtime services can't send a message N + 1 until it
-                            // sends message N but in this case message N never arrives).
-                            //
-                            // Long-term, the way I want to architect this is the the implementation of
-                            // this function on the server (and functions like it including
-                            // `updateChatMessageContent()` and `deleteChatMessage()`) invokes a durable
-                            // object stub that sends an event to connected clients. Then you directly
-                            // invoke these functions directly instead of invoking them indirectly through
-                            // a durable object message type.
-                            //
-                            // I want to think a little more carefully about our services framework before
-                            // implementing this. I'd like the chat realtime service to expose a private
-                            // interface only to the `chat_table.ts` file to force developers to go through
-                            // `chat_table.ts`. This will require some Bazel gymnastics. Given I know I
-                            // want to move RPC execution to its own service in EC2 near DynamoDB (to
-                            // improve latencies) and I know I'll probably want an attachment service at
-                            // some point I'd like to save a larger services refactor for later.
-                            const {chat} = await sendChatMessageToAccounts(context, {
-                                spaceId: space.id,
-                                otherAccountIds: selectedAccounts.map(account => account.id),
-                                parentMessageIndex: message.parentMessageIndex,
-                                content: message.content,
-                            });
-
-                            setChatForChatKey(chatForChatKey => {
-                                if (chatForChatKey.chatKey !== chatKey) return chatForChatKey;
-                                return {chatKey, chat};
-                            });
-                        } else {
-                            await sendRealtimeMessage({type: "ChatMessages", message});
-                        }
-                    },
-                    [chat, chatKey, context, selectedAccounts, sendRealtimeMessage, space.id],
-                )}
-                subscribeToRealtimeMessages={useCallback(
-                    (
-                        subscriber: (
-                            message: MessagingRealtimeMessageFromServer<ChatMessageModel>,
-                        ) => void,
-                    ) => {
-                        const actualSubscriber = (message: ChatRealtimeMessageFromServer) => {
-                            // TypeScript will error if we ever add other message types here. At that point
-                            // this code should turn into a switch.
-                            cast<"ChatMessages">(message.type);
-                            subscriber(message.message);
-                        };
-
-                        return subscribeToRealtimeMessages(actualSubscriber);
-                    },
-                    [subscribeToRealtimeMessages],
-                )}
-                getCopyLinkUrl={useCallback(
-                    messageIndex => {
-                        // This should never throw through (mostly) coincidence. The only messages you
-                        // should see when we don't know the chat are optimistic messages. You can not
-                        // copy the link of an optimistic message because we don't know the index. We
-                        // get the index when we connect to realtime when we discover the chat ID.
-                        // Therefore to have a message index we need a chat.
-                        if (!chat) {
-                            throw new InternalError(
-                                "Should not be able to copy link of chat message when we don't know the chat",
-                            );
-                        }
-                        return new URL(
-                            `/s/${chat.spaceId}/chat/${chat.id}?message=${messageIndex}`,
-                            window.location.href,
-                        );
-                    },
-                    [chat],
-                )}
-                inputStateRef={inputStateRef}
-            />
-        </AppContextProvider>
+                    return new URL(
+                        `/s/${selectedChat.chat.spaceId}/chat/${selectedChat.chat.id}?message=${messageIndex}`,
+                        window.location.href,
+                    );
+                },
+                [selectedChat],
+            )}
+            inputStateRef={inputStateRef}
+        />
     );
 }

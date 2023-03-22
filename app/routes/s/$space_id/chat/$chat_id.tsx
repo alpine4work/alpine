@@ -9,7 +9,7 @@ import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
-import {getChatAndInitialMessagesFromEnd} from "~/server/dynamo/chat_table";
+import {getChatAndInitialMessages} from "~/server/dynamo/chat_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
 import {assert} from "~/shared/helpers/control/assert";
@@ -20,19 +20,19 @@ import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 
 const LoaderSchema = Schema.object({
     chat: ChatModel.schema(),
-    messages: Schema.array(ChatMessageModel.schema()),
-    otherReferencedMessages: Schema.array(ChatMessageModel.schema()),
+    initialMessages: Schema.array(ChatMessageModel.schema()),
+    initialOtherReferencedMessages: Schema.array(ChatMessageModel.schema()),
 });
 
 export async function loader({context: _context, params}: LoaderArgs) {
     const context = await _context.auth.authenticate();
     const chatId = Schema.id<ChatId>().deserialize(params.chat_id ?? null);
 
-    const {chat, messages, otherReferencedMessages} = await getChatAndInitialMessagesFromEnd(
+    const {chat, initialMessages, initialOtherReferencedMessages} = await getChatAndInitialMessages(
         context,
         {
             chatId,
-            messageLimit: getInitialLoadMessageCount(context.loader.clientInfo),
+            messagesLimit: getInitialLoadMessageCount(context.loader.clientInfo),
         },
     );
 
@@ -44,7 +44,7 @@ export async function loader({context: _context, params}: LoaderArgs) {
 
     return jsonWithSchema(
         LoaderSchema,
-        {chat, messages, otherReferencedMessages},
+        {chat, initialMessages, initialOtherReferencedMessages},
         {propagateEventData},
     );
 }
@@ -72,7 +72,8 @@ export const meta: MetaFunction = ({data, parentsData}) => {
 
 export default function ChatRoute({isPeek}: {isPeek?: boolean}) {
     const [searchParams] = useSearchParams();
-    const {chat, messages, otherReferencedMessages} = useLoaderDataWithSchema(LoaderSchema);
+    const {chat, initialMessages, initialOtherReferencedMessages} =
+        useLoaderDataWithSchema(LoaderSchema);
 
     const messageIndexString = searchParams.get("message");
     const messageIndex = messageIndexString ? parseInt(messageIndexString, 10) : null;
@@ -98,8 +99,8 @@ export default function ChatRoute({isPeek}: {isPeek?: boolean}) {
                     // Remount whenever we navigate to a different chat.
                     key={chat.id}
                     chat={chat}
-                    initialMessages={messages}
-                    initialOtherReferencedMessages={otherReferencedMessages}
+                    initialMessages={initialMessages}
+                    initialOtherReferencedMessages={initialOtherReferencedMessages}
                     initialScrollToMessageIndex={messageIndex}
                 />
             </Box>

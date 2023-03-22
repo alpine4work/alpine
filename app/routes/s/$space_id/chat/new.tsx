@@ -11,20 +11,26 @@ import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
 import {getAccountOrThrow} from "~/server/dynamo/accounts_table";
+import {selectChatForAccounts} from "~/server/dynamo/chat_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
-import {emptyArray} from "~/shared/helpers/array/empty_array";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {isObject} from "~/shared/helpers/object/is_object";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
-import {getRecommendedChats} from "~/shared/rpc/chat_rpc_definitions";
+import {ChatMessageModel, ChatModel} from "~/shared/models/chat_model";
 import {Schema} from "~/shared/schema/schema";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 
 const LoaderSchema = Schema.object({
     selectedAccounts: Schema.array(AccountModel.schema()),
-    recommendedChats: getRecommendedChats.outputSchema.nullable(),
+    selectedChat: Schema.object({
+        chat: ChatModel.schema(),
+        initialMessages: Schema.array(ChatMessageModel.schema()),
+        initialOtherReferencedMessages: Schema.array(ChatMessageModel.schema()),
+    }).nullable(),
+    suggestedChats: Schema.array(ChatModel.schema()),
 });
 
 export const meta: MetaFunction = () => {
@@ -43,24 +49,36 @@ export async function loader({request, context: _context, params}: LoaderArgs) {
         Schema.id<AccountId>().deserialize(accountId),
     );
 
-    const [selectedAccounts, recommendedChats] = await runAllPromises([
+    const [selectedAccounts, selectedChatResult] = await runAllPromises([
         runAllPromises(
             selectedAccountIds.map(accountId => getAccountOrThrow(context, spaceId, accountId)),
         ),
         // It's important that we check `selectedAccounts` is empty before removing the
         // current account ID. In case the user selects their own account.
         selectedAccountIds.length > 0
-            ? getRecommendedChats(context, {
+            ? selectChatForAccounts(context, {
                   spaceId,
                   otherAccountIds: selectedAccountIds,
-                  exactMatchInitialMessagesLimit: getInitialLoadMessageCount(
-                      context.loader.clientInfo,
-                  ),
+                  messagesLimit: getInitialLoadMessageCount(context.loader.clientInfo),
               })
             : null,
     ]);
 
-    return jsonWithSchema(LoaderSchema, {selectedAccounts, recommendedChats});
+    const propagateEventData: TracerEventData = {
+        context: {
+            chatId: selectedChatResult?.selectedChat.chat.id,
+        },
+    };
+
+    return jsonWithSchema(
+        LoaderSchema,
+        {
+            selectedAccounts,
+            selectedChat: selectedChatResult?.selectedChat ?? null,
+            suggestedChats: selectedChatResult?.suggestedChats ?? [],
+        },
+        {propagateEventData},
+    );
 }
 
 export default function NewChatRoute({isPeek}: {isPeek?: boolean}) {
@@ -136,18 +154,10 @@ export default function NewChatRoute({isPeek}: {isPeek?: boolean}) {
                         selectedAccounts={selectedAccounts}
                         onUpdateSelectedAccounts={setSelectedAccounts}
                         shouldShowPendingSpinner={shouldShowAccountPickerPendingSpinner}
-                        recommendedChats={
-                            loaderData.recommendedChats?.recommendedChats ?? emptyArray
-                        }
+                        suggestedChats={loaderData.suggestedChats}
                     />
                 </Box>
-                <NewChatMessagingView
-                    // We use `selectedAccounts` from our loader data since the loader data might be
-                    // stale while we're fetching new recommended chats. We want all props passed to
-                    // this function to be consistent.
-                    selectedAccounts={loaderData.selectedAccounts}
-                    exactMatch={loaderData.recommendedChats?.exactMatch ?? null}
-                />
+                <NewChatMessagingView selectedChat={loaderData.selectedChat} />
             </Box>
         </Box>
     );

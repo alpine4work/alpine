@@ -72,14 +72,14 @@ export function ChatAccountPicker({
     selectedAccounts,
     onUpdateSelectedAccounts,
     shouldShowPendingSpinner,
-    recommendedChats,
+    suggestedChats,
 }: {
     selectedAccounts: ReadonlyArray<AccountModel>;
     onUpdateSelectedAccounts: (
         update: (selectedAccounts: ReadonlyArray<AccountModel>) => ReadonlyArray<AccountModel>,
     ) => void;
     shouldShowPendingSpinner: boolean;
-    recommendedChats: ReadonlyArray<ChatModel>;
+    suggestedChats: ReadonlyArray<ChatModel>;
 }) {
     const {currentAccount} = useSpaceContext();
     const allUnsortedAccounts = useExpensivelyLoadAllSpaceAccounts() ?? emptyArray;
@@ -98,16 +98,16 @@ export function ChatAccountPicker({
         return accountById;
     }, [allAccounts]);
 
-    const recommendedChatById = useMemo(() => {
-        const recommendedChatById = new Map<ChatId, ChatModel>();
-        for (const chat of recommendedChats) recommendedChatById.set(chat.id, chat);
-        return recommendedChatById;
-    }, [recommendedChats]);
+    const suggestedChatById = useMemo(() => {
+        const suggestedChatById = new Map<ChatId, ChatModel>();
+        for (const chat of suggestedChats) suggestedChatById.set(chat.id, chat);
+        return suggestedChatById;
+    }, [suggestedChats]);
 
     const allItems = useMemo(() => {
         const items: Array<ChatAccountPickerItem> = [];
 
-        for (const chat of recommendedChats) {
+        for (const chat of suggestedChats) {
             assert(chat.accounts.length > 0);
 
             const otherAccounts = chat.accounts.filter(account => account.id !== currentAccount.id);
@@ -135,7 +135,7 @@ export function ChatAccountPicker({
         }
 
         return items;
-    }, [allAccounts, currentAccount.id, recommendedChats]);
+    }, [allAccounts, currentAccount.id, suggestedChats]);
 
     // Remove items that match our selection. Items should help the user
     // autocomplete. Items that won't add to their selection are not useful.
@@ -237,7 +237,7 @@ export function ChatAccountPicker({
             }
 
             if (key.startsWith("Chat:")) {
-                const chat = recommendedChatById.get(assertId(key.slice("Chat:".length)));
+                const chat = suggestedChatById.get(assertId(key.slice("Chat:".length)));
                 if (chat) {
                     onUpdateSelectedAccounts(selectedAccounts => {
                         const selectedAccountIds = new Set(
