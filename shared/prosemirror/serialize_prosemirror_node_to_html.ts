@@ -2,6 +2,8 @@ import escapeHTML from "escape-html";
 import voidHtmlTagNames from "html-tags/void";
 import {DOMOutputSpec, Fragment, Mark, Node} from "prosemirror-model";
 import {assert} from "~/shared/helpers/control/assert";
+import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {clamp} from "~/shared/helpers/number/clamp";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier";
 import {quote} from "~/shared/helpers/string/quote";
 
@@ -57,19 +59,54 @@ type ProsemirrorHtmlSerializationContext = {
             contentHtml?: ElementHtmlGenerator;
         };
     };
-    readonly decorationQueue: Array<ProsemirrorHtmlSerializationDecoration>;
+    readonly widgetDecorationQueue: Array<ProsemirrorHtmlSerializationWidgetDecoration>;
+    readonly inlineDecorationQueue: Array<ProsemirrorHtmlSerializationInlineDecoration>;
 };
 
+export type ProsemirrorHtmlSerializationDecoration =
+    | ProsemirrorHtmlSerializationWidgetDecoration
+    | ProsemirrorHtmlSerializationInlineDecoration;
+
 /**
- * Decorations to render within the content. Follows a similar API to the
- * [ProseMirror editor `Decoration` class][1].
+ * Creates a widget decoration, which is a DOM node that's shown in the
+ * document at the given position.
  *
- * [1]: https://prosemirror.net/docs/ref/#view.Decoration
+ * Similar to the [`prosemirror-view` widget decoration][1].
+ *
+ * [1]: https://prosemirror.net/docs/ref/#view.Decoration^widget
  */
-export type ProsemirrorHtmlSerializationDecoration = {
+export type ProsemirrorHtmlSerializationWidgetDecoration = {
     readonly type: "Widget";
     readonly pos: number;
     readonly html: ElementHtmlGenerator;
+};
+
+/**
+ * Creates an inline decoration, which adds the given attributes to each inline
+ * node between from and to.
+ *
+ * Similar to the [`prosemirror-view` inline decoration][1].
+ *
+ * Only supports creating new nodes around the inline nodes for now. So
+ * you'll note that the `nodeName` attr is not optional.
+ *
+ * We also haven't made sure inline decorations support all the same edge cases
+ * `prosemirror-view` inline decorations do. Known limitations:
+ *
+ * - Inline nodes should be styled with an inline decoration. We only style
+ *   text currently
+ * - Widget decorations within an inline decoration should be styled
+ *
+ * [1]: https://prosemirror.net/docs/ref/#view.Decoration^inline
+ */
+export type ProsemirrorHtmlSerializationInlineDecoration = {
+    readonly type: "Inline";
+    readonly from: number;
+    readonly to: number;
+    readonly attrs: {
+        readonly nodeName: string;
+        readonly [key: string]: string;
+    };
 };
 
 /**
@@ -83,12 +120,33 @@ export function serializeProsemirrorNodeToHtml(
     node: Node,
     options: ProsemirrorHtmlSerializationOptions = {},
 ): string {
+    const widgetDecorationQueue = [];
+    const inlineDecorationQueue = [];
+
+    for (const decoration of options.decorations ?? []) {
+        switch (decoration.type) {
+            case "Widget": {
+                widgetDecorationQueue.push(decoration);
+                break;
+            }
+            case "Inline": {
+                assert(decoration.from < decoration.to);
+                inlineDecorationQueue.push(decoration);
+                break;
+            }
+            default:
+                throw exhaustive(decoration);
+        }
+    }
+
+    widgetDecorationQueue.sort((a, b) => b.pos - a.pos);
+    inlineDecorationQueue.reverse().sort((a, b) => b.from - a.from);
+
     const context: ProsemirrorHtmlSerializationContext = {
         nodeRenderers: options.nodeRenderers ?? {},
         markRenderers: options.markRenderers ?? {},
-        decorationQueue: Array.from(options.decorations ?? []).sort(
-            (decoration1, decoration2) => decoration2.pos - decoration1.pos,
-        ),
+        widgetDecorationQueue,
+        inlineDecorationQueue,
     };
 
     return serializeProsemirrorRootNode(0, node, context).generateHtml();
@@ -105,12 +163,33 @@ export function serializeProsemirrorFragmentToHtml(
     fragment: Fragment,
     options: ProsemirrorHtmlSerializationOptions & {startPos?: number} = {},
 ): string {
+    const widgetDecorationQueue = [];
+    const inlineDecorationQueue = [];
+
+    for (const decoration of options.decorations ?? []) {
+        switch (decoration.type) {
+            case "Widget": {
+                widgetDecorationQueue.push(decoration);
+                break;
+            }
+            case "Inline": {
+                assert(decoration.from < decoration.to);
+                inlineDecorationQueue.push(decoration);
+                break;
+            }
+            default:
+                throw exhaustive(decoration);
+        }
+    }
+
+    widgetDecorationQueue.sort((a, b) => b.pos - a.pos);
+    inlineDecorationQueue.reverse().sort((a, b) => b.from - a.from);
+
     const context: ProsemirrorHtmlSerializationContext = {
         nodeRenderers: options.nodeRenderers ?? {},
         markRenderers: options.markRenderers ?? {},
-        decorationQueue: Array.from(options.decorations ?? []).sort(
-            (decoration1, decoration2) => decoration2.pos - decoration1.pos,
-        ),
+        widgetDecorationQueue,
+        inlineDecorationQueue,
     };
 
     return serializeProsemirrorFragment(
@@ -141,15 +220,18 @@ function serializeProsemirrorRootNode(
     let prependDecorationHtml: HtmlGenerator | undefined;
     let appendDecorationHtml: HtmlGenerator | undefined;
 
-    if (context.decorationQueue[context.decorationQueue.length - 1]?.pos === pos) {
-        const decoration = context.decorationQueue.pop()!;
+    if (context.widgetDecorationQueue[context.widgetDecorationQueue.length - 1]?.pos === pos) {
+        const decoration = context.widgetDecorationQueue.pop()!;
         prependDecorationHtml = decoration.html;
     }
 
     let html = serializeProsemirrorNode(pos, node, context);
 
-    if (context.decorationQueue[context.decorationQueue.length - 1]?.pos === pos + node.nodeSize) {
-        const decoration = context.decorationQueue.pop()!;
+    if (
+        context.widgetDecorationQueue[context.widgetDecorationQueue.length - 1]?.pos ===
+        pos + node.nodeSize
+    ) {
+        const decoration = context.widgetDecorationQueue.pop()!;
         appendDecorationHtml = decoration.html;
     }
 
@@ -196,36 +278,209 @@ function serializeProsemirrorNode(
     } else {
         const text = node.text!;
 
-        const lastDecoration = context.decorationQueue[context.decorationQueue.length - 1];
+        const textSegments: Array<
+            | {
+                  type: "Text";
+                  text: string;
+                  inlineDecoration: ProsemirrorHtmlSerializationInlineDecoration | null;
+              }
+            | {
+                  type: "WidgetDecoration";
+                  widgetDecoration: ProsemirrorHtmlSerializationWidgetDecoration;
+              }
+        > = [];
+
+        // Initialize our `textSegments` array with widget decorations in the
+        // right positions.
+        {
+            let textIndex = 0;
+
+            while (true) {
+                const lastWidgetDecoration =
+                    context.widgetDecorationQueue[context.widgetDecorationQueue.length - 1];
+                if (!lastWidgetDecoration) break;
+
+                const isWidgetInText =
+                    pos < lastWidgetDecoration.pos && lastWidgetDecoration.pos < pos + text.length;
+
+                if (!isWidgetInText) break;
+
+                context.widgetDecorationQueue.pop();
+
+                const nextTextIndex = lastWidgetDecoration.pos - pos;
+                const textSlice = text.slice(textIndex, nextTextIndex);
+                if (textSlice.length > 0)
+                    textSegments.push({type: "Text", text: textSlice, inlineDecoration: null});
+
+                textSegments.push({
+                    type: "WidgetDecoration",
+                    widgetDecoration: lastWidgetDecoration,
+                });
+
+                textIndex = nextTextIndex;
+            }
+
+            const lastTextSlice = text.slice(textIndex);
+            if (lastTextSlice.length > 0)
+                textSegments.push({type: "Text", text: lastTextSlice, inlineDecoration: null});
+        }
+
+        // Transform our `textSegments` array by applying any inline decorations.
+        {
+            let inlineDecorationQueueIndex = context.inlineDecorationQueue.length - 1;
+
+            while (inlineDecorationQueueIndex >= 0) {
+                const inlineDecoration = context.inlineDecorationQueue[inlineDecorationQueueIndex]!;
+
+                // The inline decoration is before our text and so will be before all nodes
+                // after. Remove it from the queue and try again.
+                if (inlineDecoration.to + 1 <= pos) {
+                    context.inlineDecorationQueue.splice(inlineDecorationQueueIndex, 1);
+                    inlineDecorationQueueIndex--;
+                    continue;
+                }
+
+                // All inline decorations in the queue before this one are outside the text
+                // (including this one). Stop iterating.
+                if (inlineDecoration.from + 1 >= pos + text.length) break;
+
+                let textIndex = 0;
+                for (
+                    let textSegmentIndex = 0;
+                    textSegmentIndex < textSegments.length;
+                    textSegmentIndex++
+                ) {
+                    const textSegment = textSegments[textSegmentIndex]!;
+
+                    // NOTE(calebmer): Inline decorations are applied to widgets in
+                    // `prosemirror-view` but we are not implementing this yet until we have a use
+                    // case and can more thoroughly test edge cases.
+                    if (textSegment.type === "WidgetDecoration") continue;
+
+                    if (textSegment.text.length === 0) continue;
+
+                    const inlineDecorationStartTextIndex = clamp(
+                        0,
+                        inlineDecoration.from + 1 - (pos + textIndex),
+                        textSegment.text.length,
+                    );
+                    const inlineDecorationEndTextIndex = clamp(
+                        0,
+                        inlineDecoration.to + 1 - (pos + textIndex),
+                        textSegment.text.length,
+                    );
+
+                    const beforeInlineDecorationTextSlice = textSegment.text.slice(
+                        0,
+                        inlineDecorationStartTextIndex,
+                    );
+                    const withinInlineDecorationTextSlice = textSegment.text.slice(
+                        inlineDecorationStartTextIndex,
+                        inlineDecorationEndTextIndex,
+                    );
+                    const afterInlineDecorationTextSlice = textSegment.text.slice(
+                        inlineDecorationEndTextIndex,
+                    );
+
+                    // If we don't apply an inline decoration to any text in this segment then skip.
+                    if (withinInlineDecorationTextSlice.length === 0) {
+                        textIndex += textSegment.text.length;
+                        continue;
+                    }
+
+                    const newTextSegments: Array<{
+                        type: "Text";
+                        text: string;
+                        inlineDecoration: ProsemirrorHtmlSerializationInlineDecoration | null;
+                    }> = [];
+
+                    let hasMergedWithLastDecoration = false;
+
+                    if (beforeInlineDecorationTextSlice.length > 0) {
+                        newTextSegments.push({
+                            type: "Text",
+                            text: beforeInlineDecorationTextSlice,
+                            inlineDecoration: textSegment.inlineDecoration,
+                        });
+                    } else if (textSegmentIndex >= 1) {
+                        const previousTextSegment = textSegments[textSegmentIndex - 1]!;
+                        if (
+                            previousTextSegment.type === "Text" &&
+                            previousTextSegment.inlineDecoration === inlineDecoration
+                        ) {
+                            hasMergedWithLastDecoration = true;
+                            previousTextSegment.text += withinInlineDecorationTextSlice;
+                        }
+                    }
+
+                    if (!hasMergedWithLastDecoration) {
+                        newTextSegments.push({
+                            type: "Text",
+                            text: withinInlineDecorationTextSlice,
+                            inlineDecoration,
+                        });
+                    }
+
+                    if (afterInlineDecorationTextSlice.length > 0) {
+                        newTextSegments.push({
+                            type: "Text",
+                            text: afterInlineDecorationTextSlice,
+                            inlineDecoration: textSegment.inlineDecoration,
+                        });
+                    }
+
+                    textSegments.splice(textSegmentIndex, 1, ...newTextSegments);
+
+                    textIndex += textSegment.text.length;
+                    textSegmentIndex += newTextSegments.length - 1;
+                }
+
+                // Go to the next inline decoration object in the next iteration...
+                inlineDecorationQueueIndex--;
+            }
+        }
+
+        // Turn our text segments into HTML.
         if (
-            !lastDecoration ||
-            !(pos + 1 <= lastDecoration.pos && lastDecoration.pos <= pos + 1 + text.length)
+            textSegments.length === 1 &&
+            textSegments[0]!.type === "Text" &&
+            !textSegments[0]!.inlineDecoration
         ) {
             html = new TextHtmlGenerator(text);
         } else {
             const fragmentHtml = new FragmentHtmlGenerator();
             html = fragmentHtml;
-            let lastTextIndex = 0;
 
-            while (true) {
-                const lastDecoration = context.decorationQueue[context.decorationQueue.length - 1];
-                if (!lastDecoration) break;
-
-                if (!(pos < lastDecoration.pos && lastDecoration.pos < pos + text.length)) break;
-
-                context.decorationQueue.pop();
-
-                const nextTextIndex = lastDecoration.pos - pos;
-                const textSlice = text.slice(lastTextIndex, nextTextIndex);
-                if (textSlice.length > 0)
-                    fragmentHtml.appendChild(new TextHtmlGenerator(textSlice));
-                fragmentHtml.appendChild(lastDecoration.html);
-                lastTextIndex = nextTextIndex;
+            for (const textSegment of textSegments) {
+                switch (textSegment.type) {
+                    case "Text": {
+                        if (!textSegment.inlineDecoration) {
+                            fragmentHtml.appendChild(new TextHtmlGenerator(textSegment.text));
+                        } else {
+                            const inlineDecorationHtml = new ElementHtmlGenerator(
+                                textSegment.inlineDecoration.attrs.nodeName,
+                            );
+                            for (const [key, value] of Object.entries(
+                                textSegment.inlineDecoration.attrs,
+                            )) {
+                                if (key === "nodeName") continue;
+                                inlineDecorationHtml.setAttribute(key, value);
+                            }
+                            inlineDecorationHtml.appendChild(
+                                new TextHtmlGenerator(textSegment.text),
+                            );
+                            fragmentHtml.appendChild(inlineDecorationHtml);
+                        }
+                        break;
+                    }
+                    case "WidgetDecoration": {
+                        fragmentHtml.appendChild(textSegment.widgetDecoration.html);
+                        break;
+                    }
+                    default:
+                        throw exhaustive(textSegment);
+                }
             }
-
-            const lastTextSlice = text.slice(lastTextIndex);
-            if (lastTextSlice.length > 0)
-                fragmentHtml.appendChild(new TextHtmlGenerator(lastTextSlice));
         }
     }
 
@@ -276,15 +531,18 @@ function serializeProsemirrorFragment(
     let currentTargetContainer: ContainerHtmlGenerator = targetContainer;
     let activeMarkContainers: Array<[Mark, ContainerHtmlGenerator]> | null = null;
 
-    if (context.decorationQueue[context.decorationQueue.length - 1]?.pos === pos) {
-        const decoration = context.decorationQueue.pop()!;
+    if (context.widgetDecorationQueue[context.widgetDecorationQueue.length - 1]?.pos === pos) {
+        const decoration = context.widgetDecorationQueue.pop()!;
         targetContainer.appendChild(decoration.html);
     }
 
     fragment.forEach((node, offset) => {
         if (!activeMarkContainers && node.marks.length === 0) {
-            if (context.decorationQueue[context.decorationQueue.length - 1]?.pos === pos + offset) {
-                const decoration = context.decorationQueue.pop()!;
+            if (
+                context.widgetDecorationQueue[context.widgetDecorationQueue.length - 1]?.pos ===
+                pos + offset
+            ) {
+                const decoration = context.widgetDecorationQueue.pop()!;
                 currentTargetContainer.appendChild(decoration.html);
             }
         } else {
@@ -320,8 +578,11 @@ function serializeProsemirrorFragment(
             }
 
             // Insert decoration between nodes at the point with the fewest marks.
-            if (context.decorationQueue[context.decorationQueue.length - 1]?.pos === pos + offset) {
-                const decoration = context.decorationQueue.pop()!;
+            if (
+                context.widgetDecorationQueue[context.widgetDecorationQueue.length - 1]?.pos ===
+                pos + offset
+            ) {
+                const decoration = context.widgetDecorationQueue.pop()!;
                 currentTargetContainer.appendChild(decoration.html);
             }
 
@@ -340,8 +601,11 @@ function serializeProsemirrorFragment(
         currentTargetContainer.appendChild(serializeProsemirrorNode(pos + offset, node, context));
     });
 
-    if (context.decorationQueue[context.decorationQueue.length - 1]?.pos === pos + fragment.size) {
-        const decoration = context.decorationQueue.pop()!;
+    if (
+        context.widgetDecorationQueue[context.widgetDecorationQueue.length - 1]?.pos ===
+        pos + fragment.size
+    ) {
+        const decoration = context.widgetDecorationQueue.pop()!;
         targetContainer.appendChild(decoration.html);
     }
 

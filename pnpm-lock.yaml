@@ -166,6 +166,7 @@ specifiers:
   dotenv: ^16.0.3
   dotenv-expand: ^9.0.0
   email-validator: ^2.0.4
+  emoji-regex: ^10.2.1
   env-paths: ^2.2.1
   esbuild: 0.17.10
   esbuild-jest: ^0.5.0
@@ -320,6 +321,7 @@ dependencies:
   dotenv: 16.0.3
   dotenv-expand: 9.0.0
   email-validator: 2.0.4
+  emoji-regex: 10.2.1
   env-paths: 2.2.1
   esbuild: 0.17.10
   esbuild-jest: 0.5.0_ngae2o7jbonwtjb5i3flctr4hq_esbuild@0.17.10
@@ -7963,6 +7965,10 @@ packages:
   /emittery/0.10.2:
     resolution: {integrity: sha512-aITqOwnLanpHLNXZJENbOgjUBeHocD+xsSJmNrjovKBW5HbSpW3d1pEls7GFQPUWXiwG9+0P4GtHfEqC/4M0Iw==}
     engines: {node: '>=12'}
+    dev: false
+
+  /emoji-regex/10.2.1:
+    resolution: {integrity: sha512-97g6QgOk8zlDRdgq1WxwgTMgEWGVAQvB5Fdpgc1MkNy56la5SKP9GsMXKDOdqwn90/41a8yPwIGk1Y6WVbeMQA==}
     dev: false
 
   /emoji-regex/8.0.0:

@@ -3,7 +3,8 @@ import {marks as basicMarks, nodes as basicNodes} from "prosemirror-schema-basic
 import {assert} from "~/shared/helpers/control/assert";
 import {
     ElementHtmlGenerator,
-    ProsemirrorHtmlSerializationDecoration,
+    ProsemirrorHtmlSerializationInlineDecoration,
+    ProsemirrorHtmlSerializationWidgetDecoration,
     serializeProsemirrorFragmentToHtml,
     serializeProsemirrorNodeToHtml,
 } from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
@@ -211,7 +212,7 @@ test("can insert a decoration widget anywhere", () => {
 
     const widgetHtml = new ElementHtmlGenerator("br");
 
-    const widget: Omit<ProsemirrorHtmlSerializationDecoration, "pos"> = {
+    const widget: Omit<ProsemirrorHtmlSerializationWidgetDecoration, "pos"> = {
         type: "Widget",
         html: widgetHtml,
     };
@@ -279,7 +280,7 @@ test("can insert multiple decoration widgets provided in any order", () => {
 
     const widgetHtml = new ElementHtmlGenerator("br");
 
-    const widget: Omit<ProsemirrorHtmlSerializationDecoration, "pos"> = {
+    const widget: Omit<ProsemirrorHtmlSerializationWidgetDecoration, "pos"> = {
         type: "Widget",
         html: widgetHtml,
     };
@@ -310,7 +311,7 @@ test("will insert a decoration widget outside of adjacent marks", () => {
 
     const widgetHtml = new ElementHtmlGenerator("br");
 
-    const widget: Omit<ProsemirrorHtmlSerializationDecoration, "pos"> = {
+    const widget: Omit<ProsemirrorHtmlSerializationWidgetDecoration, "pos"> = {
         type: "Widget",
         html: widgetHtml,
     };
@@ -358,4 +359,1083 @@ test("will insert a decoration widget outside of adjacent marks", () => {
     expect(serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, pos: 12}]})).toEqual(
         "<div><p>ab<strong>cd</strong>ef<em>gh</em></p></div><br>",
     );
+});
+
+test("can insert an inline decoration anywhere", () => {
+    const doc = node("doc", {}, [
+        node("paragraph", {}, [text("foo")]),
+        node("paragraph", {}, [text("bar")]),
+    ]);
+
+    const widget: Omit<ProsemirrorHtmlSerializationInlineDecoration, "from" | "to"> = {
+        type: "Inline",
+        attrs: {nodeName: "span"},
+    };
+
+    expect(serializeProsemirrorNodeToHtml(doc)).toEqual("<div><p>foo</p><p>bar</p></div>");
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 0, to: 1}]}),
+    ).toEqual("<div><p>foo</p><p>bar</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 0, to: 2}]}),
+    ).toEqual("<div><p><span>f</span>oo</p><p>bar</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 0, to: 3}]}),
+    ).toEqual("<div><p><span>fo</span>o</p><p>bar</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 0, to: 4}]}),
+    ).toEqual("<div><p><span>foo</span></p><p>bar</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 0, to: 5}]}),
+    ).toEqual("<div><p><span>foo</span></p><p>bar</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 0, to: 6}]}),
+    ).toEqual("<div><p><span>foo</span></p><p>bar</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 0, to: 7}]}),
+    ).toEqual("<div><p><span>foo</span></p><p><span>b</span>ar</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 0, to: 8}]}),
+    ).toEqual("<div><p><span>foo</span></p><p><span>ba</span>r</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 0, to: 9}]}),
+    ).toEqual("<div><p><span>foo</span></p><p><span>bar</span></p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 0, to: 10}]}),
+    ).toEqual("<div><p><span>foo</span></p><p><span>bar</span></p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 0, to: 11}]}),
+    ).toEqual("<div><p><span>foo</span></p><p><span>bar</span></p></div>");
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 1, to: 2}]}),
+    ).toEqual("<div><p><span>f</span>oo</p><p>bar</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 1, to: 3}]}),
+    ).toEqual("<div><p><span>fo</span>o</p><p>bar</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 1, to: 4}]}),
+    ).toEqual("<div><p><span>foo</span></p><p>bar</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 1, to: 5}]}),
+    ).toEqual("<div><p><span>foo</span></p><p>bar</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 1, to: 6}]}),
+    ).toEqual("<div><p><span>foo</span></p><p>bar</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 1, to: 7}]}),
+    ).toEqual("<div><p><span>foo</span></p><p><span>b</span>ar</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 1, to: 8}]}),
+    ).toEqual("<div><p><span>foo</span></p><p><span>ba</span>r</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 1, to: 9}]}),
+    ).toEqual("<div><p><span>foo</span></p><p><span>bar</span></p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 1, to: 10}]}),
+    ).toEqual("<div><p><span>foo</span></p><p><span>bar</span></p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 1, to: 11}]}),
+    ).toEqual("<div><p><span>foo</span></p><p><span>bar</span></p></div>");
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 2, to: 3}]}),
+    ).toEqual("<div><p>f<span>o</span>o</p><p>bar</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 2, to: 4}]}),
+    ).toEqual("<div><p>f<span>oo</span></p><p>bar</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 2, to: 5}]}),
+    ).toEqual("<div><p>f<span>oo</span></p><p>bar</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 2, to: 6}]}),
+    ).toEqual("<div><p>f<span>oo</span></p><p>bar</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 2, to: 7}]}),
+    ).toEqual("<div><p>f<span>oo</span></p><p><span>b</span>ar</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 2, to: 8}]}),
+    ).toEqual("<div><p>f<span>oo</span></p><p><span>ba</span>r</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 2, to: 9}]}),
+    ).toEqual("<div><p>f<span>oo</span></p><p><span>bar</span></p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 2, to: 10}]}),
+    ).toEqual("<div><p>f<span>oo</span></p><p><span>bar</span></p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 2, to: 11}]}),
+    ).toEqual("<div><p>f<span>oo</span></p><p><span>bar</span></p></div>");
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 3, to: 4}]}),
+    ).toEqual("<div><p>fo<span>o</span></p><p>bar</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 3, to: 5}]}),
+    ).toEqual("<div><p>fo<span>o</span></p><p>bar</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 3, to: 6}]}),
+    ).toEqual("<div><p>fo<span>o</span></p><p>bar</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 3, to: 7}]}),
+    ).toEqual("<div><p>fo<span>o</span></p><p><span>b</span>ar</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 3, to: 8}]}),
+    ).toEqual("<div><p>fo<span>o</span></p><p><span>ba</span>r</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 3, to: 9}]}),
+    ).toEqual("<div><p>fo<span>o</span></p><p><span>bar</span></p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 3, to: 10}]}),
+    ).toEqual("<div><p>fo<span>o</span></p><p><span>bar</span></p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 3, to: 11}]}),
+    ).toEqual("<div><p>fo<span>o</span></p><p><span>bar</span></p></div>");
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 4, to: 5}]}),
+    ).toEqual("<div><p>foo</p><p>bar</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 4, to: 6}]}),
+    ).toEqual("<div><p>foo</p><p>bar</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 4, to: 7}]}),
+    ).toEqual("<div><p>foo</p><p><span>b</span>ar</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 4, to: 8}]}),
+    ).toEqual("<div><p>foo</p><p><span>ba</span>r</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 4, to: 9}]}),
+    ).toEqual("<div><p>foo</p><p><span>bar</span></p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 4, to: 10}]}),
+    ).toEqual("<div><p>foo</p><p><span>bar</span></p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 4, to: 11}]}),
+    ).toEqual("<div><p>foo</p><p><span>bar</span></p></div>");
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 5, to: 6}]}),
+    ).toEqual("<div><p>foo</p><p>bar</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 5, to: 7}]}),
+    ).toEqual("<div><p>foo</p><p><span>b</span>ar</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 5, to: 8}]}),
+    ).toEqual("<div><p>foo</p><p><span>ba</span>r</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 5, to: 9}]}),
+    ).toEqual("<div><p>foo</p><p><span>bar</span></p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 5, to: 10}]}),
+    ).toEqual("<div><p>foo</p><p><span>bar</span></p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 5, to: 11}]}),
+    ).toEqual("<div><p>foo</p><p><span>bar</span></p></div>");
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 6, to: 7}]}),
+    ).toEqual("<div><p>foo</p><p><span>b</span>ar</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 6, to: 8}]}),
+    ).toEqual("<div><p>foo</p><p><span>ba</span>r</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 6, to: 9}]}),
+    ).toEqual("<div><p>foo</p><p><span>bar</span></p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 6, to: 10}]}),
+    ).toEqual("<div><p>foo</p><p><span>bar</span></p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 6, to: 11}]}),
+    ).toEqual("<div><p>foo</p><p><span>bar</span></p></div>");
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 7, to: 8}]}),
+    ).toEqual("<div><p>foo</p><p>b<span>a</span>r</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 7, to: 9}]}),
+    ).toEqual("<div><p>foo</p><p>b<span>ar</span></p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 7, to: 10}]}),
+    ).toEqual("<div><p>foo</p><p>b<span>ar</span></p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 7, to: 11}]}),
+    ).toEqual("<div><p>foo</p><p>b<span>ar</span></p></div>");
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 8, to: 9}]}),
+    ).toEqual("<div><p>foo</p><p>ba<span>r</span></p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 8, to: 10}]}),
+    ).toEqual("<div><p>foo</p><p>ba<span>r</span></p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 8, to: 11}]}),
+    ).toEqual("<div><p>foo</p><p>ba<span>r</span></p></div>");
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 9, to: 10}]}),
+    ).toEqual("<div><p>foo</p><p>bar</p></div>");
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 9, to: 11}]}),
+    ).toEqual("<div><p>foo</p><p>bar</p></div>");
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {decorations: [{...widget, from: 10, to: 11}]}),
+    ).toEqual("<div><p>foo</p><p>bar</p></div>");
+});
+
+test("can overlapping inline decorations anywhere", () => {
+    const doc = node("doc", {}, [node("paragraph", {}, [text("test")])]);
+
+    const widget1: Omit<ProsemirrorHtmlSerializationInlineDecoration, "from" | "to"> = {
+        type: "Inline",
+        attrs: {nodeName: "span", id: "1"},
+    };
+
+    const widget2: Omit<ProsemirrorHtmlSerializationInlineDecoration, "from" | "to"> = {
+        type: "Inline",
+        attrs: {nodeName: "span", id: "2"},
+    };
+
+    expect(serializeProsemirrorNodeToHtml(doc)).toEqual("<div><p>test</p></div>");
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 2},
+                {...widget2, from: 1, to: 2},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">t</span>est</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 3},
+                {...widget2, from: 1, to: 2},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">t</span><span id="1">e</span>st</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 4},
+                {...widget2, from: 1, to: 2},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">t</span><span id="1">es</span>t</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 5},
+                {...widget2, from: 1, to: 2},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">t</span><span id="1">est</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 2, to: 3},
+                {...widget2, from: 1, to: 2},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">t</span><span id="1">e</span>st</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 2, to: 4},
+                {...widget2, from: 1, to: 2},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">t</span><span id="1">es</span>t</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 2, to: 5},
+                {...widget2, from: 1, to: 2},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">t</span><span id="1">est</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 3, to: 4},
+                {...widget2, from: 1, to: 2},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">t</span>e<span id="1">s</span>t</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 3, to: 5},
+                {...widget2, from: 1, to: 2},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">t</span>e<span id="1">st</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 4, to: 5},
+                {...widget2, from: 1, to: 2},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">t</span>es<span id="1">t</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 2},
+                {...widget2, from: 1, to: 3},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">te</span>st</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 3},
+                {...widget2, from: 1, to: 3},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">te</span>st</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 4},
+                {...widget2, from: 1, to: 3},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">te</span><span id="1">s</span>t</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 5},
+                {...widget2, from: 1, to: 3},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">te</span><span id="1">st</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 2, to: 3},
+                {...widget2, from: 1, to: 3},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">t</span><span id="1">e</span>st</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 2, to: 4},
+                {...widget2, from: 1, to: 3},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">t</span><span id="1">es</span>t</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 2, to: 5},
+                {...widget2, from: 1, to: 3},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">t</span><span id="1">est</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 3, to: 4},
+                {...widget2, from: 1, to: 3},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">te</span><span id="1">s</span>t</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 3, to: 5},
+                {...widget2, from: 1, to: 3},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">te</span><span id="1">st</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 4, to: 5},
+                {...widget2, from: 1, to: 3},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">te</span>s<span id="1">t</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 2},
+                {...widget2, from: 1, to: 4},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">tes</span>t</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 3},
+                {...widget2, from: 1, to: 4},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">tes</span>t</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 4},
+                {...widget2, from: 1, to: 4},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">tes</span>t</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 5},
+                {...widget2, from: 1, to: 4},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">tes</span><span id="1">t</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 2, to: 3},
+                {...widget2, from: 1, to: 4},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">t</span><span id="1">e</span><span id="2">s</span>t</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 2, to: 4},
+                {...widget2, from: 1, to: 4},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">t</span><span id="1">es</span>t</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 2, to: 5},
+                {...widget2, from: 1, to: 4},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">t</span><span id="1">est</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 3, to: 4},
+                {...widget2, from: 1, to: 4},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">te</span><span id="1">s</span>t</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 3, to: 5},
+                {...widget2, from: 1, to: 4},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">te</span><span id="1">st</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 4, to: 5},
+                {...widget2, from: 1, to: 4},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">tes</span><span id="1">t</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 2},
+                {...widget2, from: 1, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">test</span></p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 3},
+                {...widget2, from: 1, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">test</span></p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 4},
+                {...widget2, from: 1, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">test</span></p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 5},
+                {...widget2, from: 1, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">test</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 2, to: 3},
+                {...widget2, from: 1, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">t</span><span id="1">e</span><span id="2">st</span></p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 2, to: 4},
+                {...widget2, from: 1, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">t</span><span id="1">es</span><span id="2">t</span></p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 2, to: 5},
+                {...widget2, from: 1, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">t</span><span id="1">est</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 3, to: 4},
+                {...widget2, from: 1, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">te</span><span id="1">s</span><span id="2">t</span></p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 3, to: 5},
+                {...widget2, from: 1, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">te</span><span id="1">st</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 4, to: 5},
+                {...widget2, from: 1, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p><span id="2">tes</span><span id="1">t</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 2},
+                {...widget2, from: 2, to: 3},
+            ],
+        }),
+    ).toEqual('<div><p><span id="1">t</span><span id="2">e</span>st</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 3},
+                {...widget2, from: 2, to: 3},
+            ],
+        }),
+    ).toEqual('<div><p><span id="1">t</span><span id="2">e</span>st</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 4},
+                {...widget2, from: 2, to: 3},
+            ],
+        }),
+    ).toEqual('<div><p><span id="1">t</span><span id="2">e</span><span id="1">s</span>t</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 5},
+                {...widget2, from: 2, to: 3},
+            ],
+        }),
+    ).toEqual('<div><p><span id="1">t</span><span id="2">e</span><span id="1">st</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 2, to: 3},
+                {...widget2, from: 2, to: 3},
+            ],
+        }),
+    ).toEqual('<div><p>t<span id="2">e</span>st</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 2, to: 4},
+                {...widget2, from: 2, to: 3},
+            ],
+        }),
+    ).toEqual('<div><p>t<span id="2">e</span><span id="1">s</span>t</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 2, to: 5},
+                {...widget2, from: 2, to: 3},
+            ],
+        }),
+    ).toEqual('<div><p>t<span id="2">e</span><span id="1">st</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 3, to: 4},
+                {...widget2, from: 2, to: 3},
+            ],
+        }),
+    ).toEqual('<div><p>t<span id="2">e</span><span id="1">s</span>t</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 3, to: 5},
+                {...widget2, from: 2, to: 3},
+            ],
+        }),
+    ).toEqual('<div><p>t<span id="2">e</span><span id="1">st</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 4, to: 5},
+                {...widget2, from: 2, to: 3},
+            ],
+        }),
+    ).toEqual('<div><p>t<span id="2">e</span>s<span id="1">t</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 2},
+                {...widget2, from: 2, to: 4},
+            ],
+        }),
+    ).toEqual('<div><p><span id="1">t</span><span id="2">es</span>t</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 3},
+                {...widget2, from: 2, to: 4},
+            ],
+        }),
+    ).toEqual('<div><p><span id="1">t</span><span id="2">es</span>t</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 4},
+                {...widget2, from: 2, to: 4},
+            ],
+        }),
+    ).toEqual('<div><p><span id="1">t</span><span id="2">es</span>t</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 5},
+                {...widget2, from: 2, to: 4},
+            ],
+        }),
+    ).toEqual('<div><p><span id="1">t</span><span id="2">es</span><span id="1">t</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 2, to: 3},
+                {...widget2, from: 2, to: 4},
+            ],
+        }),
+    ).toEqual('<div><p>t<span id="2">es</span>t</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 2, to: 4},
+                {...widget2, from: 2, to: 4},
+            ],
+        }),
+    ).toEqual('<div><p>t<span id="2">es</span>t</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 2, to: 5},
+                {...widget2, from: 2, to: 4},
+            ],
+        }),
+    ).toEqual('<div><p>t<span id="2">es</span><span id="1">t</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 3, to: 4},
+                {...widget2, from: 2, to: 4},
+            ],
+        }),
+    ).toEqual('<div><p>t<span id="2">e</span><span id="1">s</span>t</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 3, to: 5},
+                {...widget2, from: 2, to: 4},
+            ],
+        }),
+    ).toEqual('<div><p>t<span id="2">e</span><span id="1">st</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 4, to: 5},
+                {...widget2, from: 2, to: 4},
+            ],
+        }),
+    ).toEqual('<div><p>t<span id="2">es</span><span id="1">t</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 2},
+                {...widget2, from: 2, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p><span id="1">t</span><span id="2">est</span></p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 3},
+                {...widget2, from: 2, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p><span id="1">t</span><span id="2">est</span></p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 4},
+                {...widget2, from: 2, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p><span id="1">t</span><span id="2">est</span></p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 5},
+                {...widget2, from: 2, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p><span id="1">t</span><span id="2">est</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 2, to: 3},
+                {...widget2, from: 2, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p>t<span id="2">est</span></p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 2, to: 4},
+                {...widget2, from: 2, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p>t<span id="2">est</span></p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 2, to: 5},
+                {...widget2, from: 2, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p>t<span id="2">est</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 3, to: 4},
+                {...widget2, from: 2, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p>t<span id="2">e</span><span id="1">s</span><span id="2">t</span></p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 3, to: 5},
+                {...widget2, from: 2, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p>t<span id="2">e</span><span id="1">st</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 4, to: 5},
+                {...widget2, from: 2, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p>t<span id="2">es</span><span id="1">t</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 2},
+                {...widget2, from: 3, to: 4},
+            ],
+        }),
+    ).toEqual('<div><p><span id="1">t</span>e<span id="2">s</span>t</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 3},
+                {...widget2, from: 3, to: 4},
+            ],
+        }),
+    ).toEqual('<div><p><span id="1">te</span><span id="2">s</span>t</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 4},
+                {...widget2, from: 3, to: 4},
+            ],
+        }),
+    ).toEqual('<div><p><span id="1">te</span><span id="2">s</span>t</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 5},
+                {...widget2, from: 3, to: 4},
+            ],
+        }),
+    ).toEqual('<div><p><span id="1">te</span><span id="2">s</span><span id="1">t</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 2, to: 3},
+                {...widget2, from: 3, to: 4},
+            ],
+        }),
+    ).toEqual('<div><p>t<span id="1">e</span><span id="2">s</span>t</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 2, to: 4},
+                {...widget2, from: 3, to: 4},
+            ],
+        }),
+    ).toEqual('<div><p>t<span id="1">e</span><span id="2">s</span>t</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 2, to: 5},
+                {...widget2, from: 3, to: 4},
+            ],
+        }),
+    ).toEqual('<div><p>t<span id="1">e</span><span id="2">s</span><span id="1">t</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 3, to: 4},
+                {...widget2, from: 3, to: 4},
+            ],
+        }),
+    ).toEqual('<div><p>te<span id="2">s</span>t</p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 3, to: 5},
+                {...widget2, from: 3, to: 4},
+            ],
+        }),
+    ).toEqual('<div><p>te<span id="2">s</span><span id="1">t</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 4, to: 5},
+                {...widget2, from: 3, to: 4},
+            ],
+        }),
+    ).toEqual('<div><p>te<span id="2">s</span><span id="1">t</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 2},
+                {...widget2, from: 3, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p><span id="1">t</span>e<span id="2">st</span></p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 3},
+                {...widget2, from: 3, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p><span id="1">te</span><span id="2">st</span></p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 4},
+                {...widget2, from: 3, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p><span id="1">te</span><span id="2">st</span></p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 5},
+                {...widget2, from: 3, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p><span id="1">te</span><span id="2">st</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 2, to: 3},
+                {...widget2, from: 3, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p>t<span id="1">e</span><span id="2">st</span></p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 2, to: 4},
+                {...widget2, from: 3, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p>t<span id="1">e</span><span id="2">st</span></p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 2, to: 5},
+                {...widget2, from: 3, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p>t<span id="1">e</span><span id="2">st</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 3, to: 4},
+                {...widget2, from: 3, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p>te<span id="2">st</span></p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 3, to: 5},
+                {...widget2, from: 3, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p>te<span id="2">st</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 4, to: 5},
+                {...widget2, from: 3, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p>te<span id="2">s</span><span id="1">t</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 2},
+                {...widget2, from: 4, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p><span id="1">t</span>es<span id="2">t</span></p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 3},
+                {...widget2, from: 4, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p><span id="1">te</span>s<span id="2">t</span></p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 4},
+                {...widget2, from: 4, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p><span id="1">tes</span><span id="2">t</span></p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 1, to: 5},
+                {...widget2, from: 4, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p><span id="1">tes</span><span id="2">t</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 2, to: 3},
+                {...widget2, from: 4, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p>t<span id="1">e</span>s<span id="2">t</span></p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 2, to: 4},
+                {...widget2, from: 4, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p>t<span id="1">es</span><span id="2">t</span></p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 2, to: 5},
+                {...widget2, from: 4, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p>t<span id="1">es</span><span id="2">t</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 3, to: 4},
+                {...widget2, from: 4, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p>te<span id="1">s</span><span id="2">t</span></p></div>');
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 3, to: 5},
+                {...widget2, from: 4, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p>te<span id="1">s</span><span id="2">t</span></p></div>');
+
+    expect(
+        serializeProsemirrorNodeToHtml(doc, {
+            decorations: [
+                {...widget1, from: 4, to: 5},
+                {...widget2, from: 4, to: 5},
+            ],
+        }),
+    ).toEqual('<div><p>tes<span id="2">t</span></p></div>');
 });

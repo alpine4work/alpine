@@ -10,18 +10,17 @@ import {useSpaceContext} from "~/client/spaces/space_context";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis";
 import {ContentWithReferences} from "~/shared/models/content_references";
 import {
     ElementHtmlGenerator,
     ProsemirrorHtmlSerializationDecoration,
     TextHtmlGenerator,
 } from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
-import {contentSchemaStyles, contentViewStyles} from "~/shared/styles/styles";
+import {contentSchemaStyles, contentViewStyles, emojiFontFamily} from "~/shared/styles/styles";
 
 const {docClassName, linkClassName, emptyTitleClassName, emptyBodyClassName, paragraphClassName} =
     contentSchemaStyles;
-
-// TODO(calebmer): Focus rings around links in `<ContentView>`.
 
 /**
  * A read-only view of content. Used as a complement to `<ContentEditor>` when
@@ -134,6 +133,22 @@ export function ContentView({
                 html,
             });
         }
+
+        content.doc.descendants((node, pos) => {
+            if (!node.isText) return;
+
+            for (const {index, emoji} of iterateEmojis(node.text!)) {
+                decorations.push({
+                    type: "Inline",
+                    from: pos + index,
+                    to: pos + index + emoji.length,
+                    attrs: {
+                        nodeName: "span",
+                        style: `font-family:${emojiFontFamily}`,
+                    },
+                });
+            }
+        });
 
         return {
             html: renderContentFragmentToHtml(content, {

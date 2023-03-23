@@ -50,6 +50,16 @@ const firaCodeFontFace = fontFace({
     descentOverride: formatPercentage(interFontDescenderPercentage),
 });
 
+const emojiFontFace = fontFace({
+    // Emoji font stack is originally from: https://www.client9.com/css-color-emoji-stack/
+    src: 'local("Apple Color Emoji"), local("Segoe UI Emoji"), local("NotoColorEmoji"), local("Noto Color Emoji"), local("Segoe UI Symbol"), local("Android Emoji"), local("EmojiSymbols")',
+    // Use the same ascent/descent metrics for our emoji font face. This means
+    // `background-color`s, font sizes, line heights, everything set on this font
+    // will line up with our main font Inter.
+    ascentOverride: formatPercentage(interFontAscenderPercentage + interFontDescenderPercentage),
+    descentOverride: formatPercentage(interFontDescenderPercentage),
+});
+
 const fallbackFontFace = fontFace({
     src: 'local("Arial")',
     // Values taken from the fallback font `@next/font` generates for Inter.
@@ -67,6 +77,7 @@ const fallbackFontFace = fontFace({
 
 const interFontFamily = `${interFontFace}, ${fallbackFontFace}`;
 const firaCodeFontFamily = `${firaCodeFontFace}, ${fallbackFontFace}`;
+export const emojiFontFamily = emojiFontFace;
 
 /**
  * The typography styles available in our product.
