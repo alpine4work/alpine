@@ -1,6 +1,6 @@
 import {differenceInMinutes} from "date-fns";
 import {ArrowArcLeft, SpinnerGap} from "phosphor-react";
-import {Memo, MutableRefObject, useEffect, useMemo, useRef, useState} from "react";
+import {Fragment, Memo, MutableRefObject, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
 import {ContentView} from "~/client/content/content_view";
@@ -9,6 +9,8 @@ import {FocusRing} from "~/client/design/focus_ring";
 import {IconButton} from "~/client/design/icon_button";
 import {ModalDialog} from "~/client/design/modal_dialog";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
+import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date";
+import {Tooltip} from "~/client/design/tooltip";
 import {isElementOwnedBy} from "~/client/helpers/is_element_owned_by";
 import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/message_delete_confirmation_dialog";
 import {MessageViewActions} from "~/client/messaging/internal/message_view_actions";
@@ -16,6 +18,7 @@ import {
     MessageViewEditor,
     MessageViewEditorRef,
 } from "~/client/messaging/internal/message_view_editor";
+import {shouldDisplayTextAsBigEmojiMessage} from "~/client/messaging/internal/should_display_text_as_big_emoji_message";
 import {MessageEditing} from "~/client/messaging/message_editing";
 import {MessageList} from "~/client/messaging/message_list";
 import {useIsPeekAnimatingOpen} from "~/client/peek/peek_stack";
@@ -33,6 +36,7 @@ import {
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis";
 import {emptyContentReferences} from "~/shared/models/content_references";
 import {
     MessageContentWithReferences,
@@ -44,6 +48,7 @@ import {
     colorSchemeVars,
     contentSchemaStyles,
     contentViewStyles,
+    emojiFontFamily,
     fontSizesByPlatform,
     spinAnimationClassName,
     sprinkles,
@@ -292,11 +297,85 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         };
     }, [shouldHighlight]);
 
+    const messageTextForBigEmojiMessage = useMemo(() => {
+        if (message.payload.type !== "Content") return null;
+
+        if (
+            message.payload.content.doc.marks.length === 0 &&
+            message.payload.content.doc.childCount === 1 &&
+            message.payload.content.doc.firstChild!.type.name === "paragraph" &&
+            message.payload.content.doc.firstChild!.marks.length === 0 &&
+            message.payload.content.doc.firstChild!.childCount === 1 &&
+            message.payload.content.doc.firstChild!.firstChild!.type.name === "text" &&
+            message.payload.content.doc.firstChild!.firstChild!.marks.length === 0
+        ) {
+            const text = message.payload.content.doc.firstChild!.firstChild!.text!;
+            if (shouldDisplayTextAsBigEmojiMessage(text)) {
+                return text;
+            }
+        }
+        return null;
+    }, [message.payload]);
+
     // We try to memoize any UI in this component that changes infrequently to
     // speed up React rendering. Because `<MessageView>` renders during scroll
     // animations it's important to keep it fast.
     const contentPayloadNode = useMemo(() => {
         if (message.payload.type !== "Content") return null;
+
+        // Render the message as a big emoji message if the content is just emojis.
+        if (messageTextForBigEmojiMessage) {
+            const children = [];
+
+            let lastIndex = 0;
+            for (const {index, emoji} of iterateEmojis(messageTextForBigEmojiMessage)) {
+                if (lastIndex !== index)
+                    children.push(
+                        <Fragment key={lastIndex}>
+                            {messageTextForBigEmojiMessage.slice(lastIndex, index)}
+                        </Fragment>,
+                    );
+
+                children.push(
+                    <span key={index} style={{fontFamily: emojiFontFamily}}>
+                        {emoji}
+                    </span>,
+                );
+
+                lastIndex = index + emoji.length;
+            }
+
+            if (lastIndex !== messageTextForBigEmojiMessage.length - 1)
+                children.push(
+                    <Fragment key={lastIndex}>
+                        {messageTextForBigEmojiMessage.slice(lastIndex)}
+                    </Fragment>,
+                );
+
+            return (
+                <div className={sprinkles({fontSize: "600", userSelect: "text"})}>
+                    {children}
+                    {message.payload.contentUpdatedTime && (
+                        <Tooltip
+                            placement="bottom"
+                            content={
+                                <PrettyAbsoluteDateTooltipContent
+                                    date={message.payload.contentUpdatedTime}
+                                />
+                            }
+                        >
+                            <span
+                                className={contentViewStyles.updatedNoteClassName}
+                                style={{paddingLeft: spacing["1"]}}
+                            >
+                                {" "}
+                                (updated)
+                            </span>
+                        </Tooltip>
+                    )}
+                </div>
+            );
+        }
 
         return (
             <div
@@ -326,7 +405,12 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 />
             </div>
         );
-    }, [message.payload, shouldMergeWithNextMessage, shouldMergeWithPreviousMessage]);
+    }, [
+        message.payload,
+        messageTextForBigEmojiMessage,
+        shouldMergeWithNextMessage,
+        shouldMergeWithPreviousMessage,
+    ]);
 
     const deletedPayloadNode = useMemo(() => {
         if (message.payload.type !== "Deleted") return null;
@@ -376,11 +460,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     const parentMessageNode = useMemo(() => {
         if (!parentMessage) return null;
 
-        const height = addRemLengths(
-            spacing["1.5"],
-            contentViewStyles.truncatedHeight,
-            spacing["1.5"],
-        );
+        let height = addRemLengths(spacing["1.5"], contentViewStyles.truncatedHeight);
+
+        // Remove some vertical padding from the parent message to move it closer to a
+        // big emoji message which doesn't render in a bubble.
+        if (!messageTextForBigEmojiMessage) height = addRemLengths(height, spacing["1.5"]);
 
         const scaledHeight = `${
             Math.round(parseRemLengthNumber(height) * messageViewPreviewScale * 16) / 16
@@ -482,7 +566,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 </OverlayScopeContextProvider>
             </div>
         );
-    }, [messageStartOfSentenceNoun, onJumpToMessage, parentMessage]);
+    }, [messageStartOfSentenceNoun, messageTextForBigEmojiMessage, onJumpToMessage, parentMessage]);
 
     // IMPORTANT(calebmer): Be careful about what you put in this component!
     // `<MessageView>` needs to render fast for us to get good FPS when scrolling
