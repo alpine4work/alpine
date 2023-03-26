@@ -1,5 +1,5 @@
+import {SpinnerGap} from "@phosphor-icons/react";
 import {setInteractionModality} from "@react-aria/interactions";
-import {SpinnerGap} from "phosphor-react";
 import React, {
     ReactElement,
     ReactNode,

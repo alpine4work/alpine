@@ -1,5 +1,5 @@
+import {ArrowArcLeft, ArrowUp, X} from "@phosphor-icons/react";
 import {setInteractionModality, useInteractionModality} from "@react-aria/interactions";
-import {ArrowArcLeft, ArrowUp, X} from "phosphor-react";
 import {MutableRefObject, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
@@ -10,6 +10,7 @@ import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {IconButton} from "~/client/design/icon_button";
 import {useShowToast} from "~/client/design/toast";
+import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {MessageEditing} from "~/client/messaging/message_editing";
 import {MessageList} from "~/client/messaging/message_list";
@@ -29,6 +30,7 @@ import {isContentEmpty} from "~/shared/content/is_content_empty";
 import {MessageContent} from "~/shared/content/message_content_schema";
 import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable";
 import {generateId} from "~/shared/id/id";
@@ -52,6 +54,8 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
     replyingToMessage: _replyingToMessage,
     onClearReplyingToMessage,
     onJumpToMessage,
+    onShowTypingIndicator,
+    onHideTypingIndicator,
     withoutBorderTop = false,
     "data-testid": dataTestId,
     stateRef,
@@ -69,6 +73,8 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
     replyingToMessage: Message | null;
     onClearReplyingToMessage: () => void;
     onJumpToMessage: (message: Message) => void;
+    onShowTypingIndicator: () => void;
+    onHideTypingIndicator: () => void;
     withoutBorderTop?: boolean;
     "data-testid"?: string;
     stateRef?: MutableRefObject<ContentEditorState<MessageContent> | null>;
@@ -134,6 +140,13 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
         const tryCreatingMessage = () => {
             runPromiseWithoutAwaiting(async () => {
                 try {
+                    // Creating a message in our realtime messaging server should also clear this
+                    // connection's typing state atomically.
+                    if (typingIndicatorStateRef.current.shouldBeShowing) {
+                        typingIndicatorStateRef.current.timeout.clear();
+                        typingIndicatorStateRef.current = {shouldBeShowing: false};
+                    }
+
                     await createMessage({
                         parentMessageIndex: replyingToMessage?.message.index ?? null,
                         content: content.doc,
@@ -189,9 +202,44 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
         tryCreatingMessage();
     };
 
+    const interactionModality = useInteractionModality();
     const isSendButtonDisabled = isMessageCreationDisabled || isContentEmpty(state.getDoc());
 
-    const interactionModality = useInteractionModality();
+    const typingIndicatorStateRef = useRef<
+        {shouldBeShowing: true; timeout: Timeout} | {shouldBeShowing: false}
+    >({shouldBeShowing: false});
+
+    const showTypingIndicator = () => {
+        const typingIndicatorTimeout = 5000;
+
+        const shouldAlreadyByShowing = typingIndicatorStateRef.current.shouldBeShowing;
+        if (shouldAlreadyByShowing) typingIndicatorStateRef.current.timeout.clear();
+
+        typingIndicatorStateRef.current = {
+            shouldBeShowing: true,
+            timeout: createTimeout(hideTypingIndicator, typingIndicatorTimeout),
+        };
+
+        if (!shouldAlreadyByShowing) onShowTypingIndicator();
+    };
+
+    // NOTE(calebmer): We don't call `hideTypingIndicator()` after sending a
+    // message. Our messaging realtime backend should automatically atomically hide
+    // the typing indicator when the client creates a message.
+    const hideTypingIndicator = useEvent(() => {
+        if (typingIndicatorStateRef.current.shouldBeShowing) {
+            typingIndicatorStateRef.current.timeout.clear();
+            typingIndicatorStateRef.current = {shouldBeShowing: false};
+            onHideTypingIndicator();
+        }
+    });
+
+    // Hide our typing indicator if this component unmounts.
+    useEffect(() => {
+        return () => {
+            hideTypingIndicator();
+        };
+    }, [hideTypingIndicator]);
 
     return (
         <Box
@@ -340,7 +388,13 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                             <ContentEditor
                                 ref={editorRef}
                                 state={state}
-                                onChange={setState}
+                                onChange={(state, transaction) => {
+                                    setState(state);
+                                    if (transaction.docChanged) showTypingIndicator();
+                                }}
+                                onBlur={() => {
+                                    hideTypingIndicator();
+                                }}
                                 aria-label={`New ${messageNoun}`}
                                 placeholder={`Write a ${messageNoun}`}
                                 className={sprinkles({

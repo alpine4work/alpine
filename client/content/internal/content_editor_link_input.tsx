@@ -1,4 +1,4 @@
-import {Link as LinkIcon, X} from "phosphor-react";
+import {Link as LinkIcon, X} from "@phosphor-icons/react";
 import {Mark} from "prosemirror-model";
 import {EditorView} from "prosemirror-view";
 import {RefObject, useRef, useState} from "react";

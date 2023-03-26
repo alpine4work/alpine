@@ -1,5 +1,11 @@
+import {
+    Code,
+    Desktop,
+    DeviceMobileCamera,
+    EnvelopeSimple,
+    IconContext,
+} from "@phosphor-icons/react";
 import {Link, ShouldReloadFunction, useParams} from "@remix-run/react";
-import {Code, Desktop, DeviceMobileCamera, EnvelopeSimple, IconContext} from "phosphor-react";
 import {ReactNode, useRef} from "react";
 import {useButton} from "react-aria";
 import {Box} from "~/client/design/box";

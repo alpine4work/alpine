@@ -97,6 +97,7 @@ specifiers:
   '@miniflare/http-server': ^2.11.0
   '@miniflare/runner-vm': ^2.11.0
   '@miniflare/web-sockets': ^2.11.0
+  '@phosphor-icons/react': ^2.0.6
   '@playwright/test': ^1.31.1
   '@popperjs/core': ^2.11.6
   '@react-aria/interactions': ^3.12.0
@@ -204,7 +205,6 @@ specifiers:
   murmurhash: ^2.0.1
   node-fetch: '2'
   outdent: 0.8.0
-  phosphor-react: ^1.4.1
   playwright-core: ^1.31.1
   prettier: ^2.8.4
   pretty-ms: '7'
@@ -252,6 +252,7 @@ dependencies:
   '@miniflare/http-server': 2.11.0_ztiuxzlbgxjc73nj5w24no6ar4
   '@miniflare/runner-vm': 2.11.0_4sqfyt26snkgfwger7zzuolyhm
   '@miniflare/web-sockets': 2.11.0
+  '@phosphor-icons/react': 2.0.6_biqbaboplfbrettd7655fr4n2y
   '@playwright/test': 1.31.1_645z6zzf2yttz7gk24haek5rhi
   '@popperjs/core': 2.11.6
   '@react-aria/interactions': 3.12.0_2s5t4derzlr6pbwch3ibe7ygq4_react@18.2.0
@@ -359,7 +360,6 @@ dependencies:
   murmurhash: 2.0.1
   node-fetch: 2.6.7
   outdent: 0.8.0_ybnbpvk42g5zpvi2kytcsdr4wu
-  phosphor-react: 1.4.1_react@18.2.0
   playwright-core: 1.31.1
   prettier: 2.8.4
   pretty-ms: 7.0.1
@@ -4275,6 +4275,17 @@ packages:
     engines: {node: ^12.13.0 || ^14.15.0 || >=16.0.0}
     dependencies:
       json-parse-even-better-errors: 2.3.1
+    dev: false
+
+  /@phosphor-icons/react/2.0.6_biqbaboplfbrettd7655fr4n2y:
+    resolution: {integrity: sha512-vT5Tv+isibcRO1ATPW+cZs2w46n512SfShRX9kqZbETht8ME11CT387APBbcW9EAeBFEGM6buoYxP+0/IJJRKg==}
+    engines: {node: '>=10'}
+    peerDependencies:
+      react: '>= 16.8 || 18'
+      react-dom: '>= 16.8 || 18'
+    dependencies:
+      react: 18.2.0
+      react-dom: 18.2.0_react@18.2.0
     dev: false
 
   /@pkgr/utils/2.3.1:
@@ -12936,15 +12947,6 @@ packages:
     dependencies:
       estree-walker: 3.0.1
       is-reference: 3.0.0
-    dev: false
-
-  /phosphor-react/1.4.1_react@18.2.0:
-    resolution: {integrity: sha512-gO5j7U0xZrdglTAYDYPACU4xDOFBTJmptrrB/GeR+tHhCZF3nUMyGmV/0hnloKjuTrOmpSFlbfOY78H39rgjUQ==}
-    engines: {node: '>=10'}
-    peerDependencies:
-      react: '>=16 || 18'
-    dependencies:
-      react: 18.2.0
     dev: false
 
   /picocolors/1.0.0:

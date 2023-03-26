@@ -974,7 +974,9 @@ function VirtualizedScrollView(
                 // adjustments that doesn't disrupt the scroll.
                 if (newScrollAnchorAdjustmentDuringMobileWebKitScroll === null) {
                     scrollTop = scrollTop + scrollAdjustment;
-                    if (scrollTop !== originalScrollTop) scrollElement.scrollTop = scrollTop;
+                    if (scrollTop !== originalScrollTop) {
+                        scrollElement.scrollTop = scrollTop;
+                    }
                 } else {
                     newScrollAnchorAdjustmentDuringMobileWebKitScroll += scrollAdjustment;
                 }

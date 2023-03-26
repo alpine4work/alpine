@@ -1,4 +1,4 @@
-import {Moon, Sun} from "phosphor-react";
+import {Moon, Sun} from "@phosphor-icons/react";
 import {IconButton} from "~/client/design/icon_button";
 import {toggleColorScheme, useColorScheme} from "~/client/helpers/color_scheme";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";

@@ -1,4 +1,3 @@
-import {useHover, useInteractionModality} from "@react-aria/interactions";
 import {
     IconContext,
     Link as LinkIcon,
@@ -12,7 +11,8 @@ import {
     TextHTwo,
     TextItalic,
     TextStrikethrough,
-} from "phosphor-react";
+} from "@phosphor-icons/react";
+import {useHover, useInteractionModality} from "@react-aria/interactions";
 import {Mark} from "prosemirror-model";
 import {Command, EditorState, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";

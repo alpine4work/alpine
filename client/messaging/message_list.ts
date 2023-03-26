@@ -4,7 +4,9 @@ import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
 import {Id} from "~/shared/id/id";
+import {WebSocketConnectionId} from "~/shared/id/types/id_types";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema";
+import {MessagingTypingState} from "~/shared/messaging/messaging_realtime_schema";
 import {
     MessageModel,
     OptimisticMessageModel,
@@ -15,21 +17,25 @@ import {
 export type MessageListItem<Message extends MessageModel> =
     | MessageListLoadedItem<Message>
     | MessageListUnloadedItem
-    | MessageListOptimisticItem;
+    | MessageListOptimisticItem
+    | MessageListTypingIndicatorsItem;
 
 export type MessageListLoadedItem<Message extends MessageModel> = {
     readonly type: "Loaded";
     readonly message: Message;
+    readonly messageIndex: number;
 };
 
 export type MessageListUnloadedItem = {
     readonly type: "Unloaded";
-    readonly message: null;
+    readonly messageIndex: number;
+    readonly message?: undefined;
 };
 
 export type MessageListOptimisticItem = {
     readonly type: "Optimistic";
     readonly message: OptimisticMessageModel;
+    readonly messageIndex: number;
     /**
      * What is the index of this message relative to other optimistic messages? For
      * example, if this is the second optimistic message and we have 10 loaded
@@ -37,6 +43,12 @@ export type MessageListOptimisticItem = {
      * array.
      */
     readonly optimisticMessageIndex: number;
+};
+
+export type MessageListTypingIndicatorsItem = {
+    readonly type: "TypingIndicators";
+    readonly typingStateByConnectionId: ImmutableMap<WebSocketConnectionId, MessagingTypingState>;
+    readonly message?: undefined;
 };
 
 /**
@@ -49,6 +61,10 @@ export class MessageList<Message extends MessageModel> {
     private readonly _optimisticMessages: ReadonlyArray<OptimisticMessageModel>;
     private readonly _lastMessageChangeTime: Date | null;
     private readonly _unloadedMessageChangeByIndex: ImmutableMap<number, MessageChange>;
+    private readonly _typingStateByConnectionId: ImmutableMap<
+        WebSocketConnectionId,
+        MessagingTypingState
+    >;
 
     private constructor({
         messageCountExcludingOptimisticMessages,
@@ -56,12 +72,14 @@ export class MessageList<Message extends MessageModel> {
         optimisticMessages,
         lastMessageChangeTime,
         unloadedMessageChangeByIndex,
+        typingStateByConnectionId,
     }: {
         messageCountExcludingOptimisticMessages: number;
         messages: Tree<number, Message>;
         optimisticMessages: ReadonlyArray<OptimisticMessageModel>;
         lastMessageChangeTime: Date | null;
         unloadedMessageChangeByIndex: ImmutableMap<number, MessageChange>;
+        typingStateByConnectionId: ImmutableMap<WebSocketConnectionId, MessagingTypingState>;
     }) {
         if (process.env.NODE_ENV !== "production") {
             assert(
@@ -80,14 +98,17 @@ export class MessageList<Message extends MessageModel> {
         this._optimisticMessages = optimisticMessages;
         this._lastMessageChangeTime = lastMessageChangeTime;
         this._unloadedMessageChangeByIndex = unloadedMessageChangeByIndex;
+        this._typingStateByConnectionId = typingStateByConnectionId;
     }
 
     public static new<Message extends MessageModel>({
         messageCount,
         lastMessageChangeTime,
+        typingStateByConnectionId,
     }: {
         messageCount: number;
         lastMessageChangeTime: Date | null;
+        typingStateByConnectionId?: ReadonlyMap<WebSocketConnectionId, MessagingTypingState>;
     }): MessageList<Message> {
         return new MessageList({
             messageCountExcludingOptimisticMessages: messageCount,
@@ -95,14 +116,28 @@ export class MessageList<Message extends MessageModel> {
             optimisticMessages: [],
             lastMessageChangeTime,
             unloadedMessageChangeByIndex: ImmutableMap.empty(),
+            typingStateByConnectionId: typingStateByConnectionId
+                ? ImmutableMap.from(typingStateByConnectionId)
+                : ImmutableMap.empty(),
         });
     }
 
     /**
-     * Get the number of messages in the list. There may be more messages then we
-     * have loaded.
+     * Get the number of items in the list. Will mostly be messages but there may
+     * be some visual only items.
      */
-    public getMessageCount(): number {
+    public getItemCount(): number {
+        return (
+            this._messageCountExcludingOptimisticMessages +
+            this._optimisticMessages.length +
+            (this._typingStateByConnectionId.size > 0 ? 1 : 0)
+        );
+    }
+
+    /**
+     * Get the number of messages in this list including optimistic messages.
+     */
+    public getMessageCountIncludingOptimisticMessages(): number {
         return this._messageCountExcludingOptimisticMessages + this._optimisticMessages.length;
     }
 
@@ -114,6 +149,14 @@ export class MessageList<Message extends MessageModel> {
     }
 
     /**
+     * If this message list will return a typing indicators item then this returns
+     * true.
+     */
+    public hasTypingIndicatorsItem() {
+        return this._typingStateByConnectionId.size > 0;
+    }
+
+    /**
      * Get the last message change time our list knows about. We will use this to
      * backfill changes the list doesn't know about.
      */
@@ -122,23 +165,58 @@ export class MessageList<Message extends MessageModel> {
     }
 
     /**
+     * Transform a range against our list's items to a range just against the
+     * list's messages. Excludes any UI only items.
+     */
+    public getMessagesRange(range: {startIndex: number; endIndex: number} | null): {
+        startIndex: number;
+        endIndex: number;
+    } | null {
+        if (!range) return null;
+
+        assert(0 <= range.startIndex && range.startIndex < this.getItemCount());
+        assert(0 <= range.endIndex && range.endIndex < this.getItemCount());
+        assert(range.startIndex <= range.endIndex);
+
+        if (this._typingStateByConnectionId.size === 0) return range;
+
+        const startIndex = Math.min(range.startIndex, this.getItemCount() - 2);
+        const endIndex = Math.min(range.endIndex, this.getItemCount() - 2);
+
+        return {startIndex, endIndex};
+    }
+
+    /**
      * Get the message at the provided index. If we haven't loaded the message
      * we'll return `type: "Unloaded"`. Throws if the index is out of bounds.
      */
-    public getMessage(index: number): MessageListItem<Message> {
+    public getItem(index: number): MessageListItem<Message> {
         if (!Number.isSafeInteger(index))
             throw new InvalidArgumentError("Message index is not an integer");
-        if (index < 0 || index >= this.getMessageCount())
+        if (index < 0 || index >= this.getItemCount())
             throw new OutOfRangeError("Message index out of bounds");
+
+        if (
+            this._typingStateByConnectionId.size > 0 &&
+            index ===
+                this._messageCountExcludingOptimisticMessages + this._optimisticMessages.length
+        ) {
+            return {
+                type: "TypingIndicators",
+                typingStateByConnectionId: this._typingStateByConnectionId,
+            };
+        }
 
         if (index >= this._messageCountExcludingOptimisticMessages) {
             const optimisticMessageIndex = index - this._messageCountExcludingOptimisticMessages;
             const message = this._optimisticMessages[optimisticMessageIndex]!;
-            return {type: "Optimistic", message, optimisticMessageIndex};
+            return {type: "Optimistic", message, messageIndex: index, optimisticMessageIndex};
         }
 
         const message = this._messages.get(index);
-        return message ? {type: "Loaded", message} : {type: "Unloaded", message: null};
+        return message
+            ? {type: "Loaded", message, messageIndex: index}
+            : {type: "Unloaded", messageIndex: index};
     }
 
     /**
@@ -146,7 +224,7 @@ export class MessageList<Message extends MessageModel> {
      * return null. Throws if the index is out of bounds.
      */
     public getLoadedMessageIfExists(index: number): Message | null {
-        const message = this.getMessage(index);
+        const message = this.getItem(index);
         if (message.type !== "Loaded") return null;
         return message.message;
     }
@@ -205,14 +283,20 @@ export class MessageList<Message extends MessageModel> {
         const iterator = this._messages.ge(startIndex);
 
         while (iterator.valid) {
-            yield {type: "Loaded", message: iterator.value!};
+            yield {type: "Loaded", message: iterator.value!, messageIndex: iterator.key!};
             iterator.next();
         }
 
         for (const [optimisticMessageIndex, message] of this._optimisticMessages
             .slice(Math.max(0, startIndex - this._messages.length))
             .entries()) {
-            yield {type: "Optimistic", message, optimisticMessageIndex};
+            yield {
+                type: "Optimistic",
+                message,
+                messageIndex:
+                    this._messageCountExcludingOptimisticMessages + optimisticMessageIndex,
+                optimisticMessageIndex,
+            };
         }
     }
 
@@ -251,6 +335,7 @@ export class MessageList<Message extends MessageModel> {
             optimisticMessages: this._optimisticMessages,
             lastMessageChangeTime: this._lastMessageChangeTime,
             unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
+            typingStateByConnectionId: this._typingStateByConnectionId,
         });
     }
 
@@ -275,6 +360,7 @@ export class MessageList<Message extends MessageModel> {
             optimisticMessages: this._optimisticMessages,
             lastMessageChangeTime,
             unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
+            typingStateByConnectionId: this._typingStateByConnectionId,
         });
     }
 
@@ -332,6 +418,7 @@ export class MessageList<Message extends MessageModel> {
             optimisticMessages,
             lastMessageChangeTime: this._lastMessageChangeTime,
             unloadedMessageChangeByIndex,
+            typingStateByConnectionId: this._typingStateByConnectionId,
         });
     }
 
@@ -370,12 +457,14 @@ export class MessageList<Message extends MessageModel> {
         newMessages,
         newOtherReferencedMessages,
         messageChanges,
+        typingStateByConnectionId,
     }: {
         messageCount: number;
         lastMessageChangeTime: Date | null;
         newMessages: ReadonlyArray<Message>;
         newOtherReferencedMessages: ReadonlyArray<Message>;
         messageChanges: ReadonlyArray<MessageChange>;
+        typingStateByConnectionId: ReadonlyMap<WebSocketConnectionId, MessagingTypingState>;
     }) {
         let self = this.loadMessages({
             messageCount,
@@ -389,6 +478,8 @@ export class MessageList<Message extends MessageModel> {
             (messages, change) => messages.changeLoadedMessage(change),
             self,
         );
+
+        self = self._setTypingStateByConnectionId(typingStateByConnectionId);
 
         return self;
     }
@@ -415,6 +506,7 @@ export class MessageList<Message extends MessageModel> {
             optimisticMessages: [...this._optimisticMessages, message],
             lastMessageChangeTime: this._lastMessageChangeTime,
             unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
+            typingStateByConnectionId: this._typingStateByConnectionId,
         });
     }
 
@@ -451,6 +543,7 @@ export class MessageList<Message extends MessageModel> {
                             : change;
                     },
                 ),
+                typingStateByConnectionId: this._typingStateByConnectionId,
             });
         }
 
@@ -472,6 +565,7 @@ export class MessageList<Message extends MessageModel> {
                             ? change.contentUpdatedTime
                             : this._lastMessageChangeTime,
                     unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
+                    typingStateByConnectionId: this._typingStateByConnectionId,
                 });
             }
             case "Delete": {
@@ -489,6 +583,7 @@ export class MessageList<Message extends MessageModel> {
                             ? change.deletedTime
                             : this._lastMessageChangeTime,
                     unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
+                    typingStateByConnectionId: this._typingStateByConnectionId,
                 });
             }
             default:
@@ -514,6 +609,43 @@ export class MessageList<Message extends MessageModel> {
             ),
             lastMessageChangeTime: this._lastMessageChangeTime,
             unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
+            typingStateByConnectionId: this._typingStateByConnectionId,
+        });
+    }
+
+    /**
+     * Set the entire typing state by connection map to the provided value.
+     * Used when backfilling when we get new states.
+     */
+    private _setTypingStateByConnectionId(
+        typingStateByConnectionId: Iterable<[WebSocketConnectionId, MessagingTypingState]>,
+    ) {
+        return new MessageList({
+            messageCountExcludingOptimisticMessages: this._messageCountExcludingOptimisticMessages,
+            messages: this._messages,
+            optimisticMessages: this._optimisticMessages,
+            lastMessageChangeTime: this._lastMessageChangeTime,
+            unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
+            typingStateByConnectionId: ImmutableMap.from(typingStateByConnectionId),
+        });
+    }
+
+    /**
+     * Update the typing state of an individual connection.
+     */
+    public updateTypingState(
+        connectionId: WebSocketConnectionId,
+        typingState: MessagingTypingState | null,
+    ) {
+        return new MessageList({
+            messageCountExcludingOptimisticMessages: this._messageCountExcludingOptimisticMessages,
+            messages: this._messages,
+            optimisticMessages: this._optimisticMessages,
+            lastMessageChangeTime: this._lastMessageChangeTime,
+            unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
+            typingStateByConnectionId: typingState
+                ? this._typingStateByConnectionId.set(connectionId, typingState)
+                : this._typingStateByConnectionId.delete(connectionId),
         });
     }
 }

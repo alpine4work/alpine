@@ -1,4 +1,4 @@
-import {CaretRight, DotsThree} from "phosphor-react";
+import {CaretRight, DotsThree} from "@phosphor-icons/react";
 import {useEffect, useMemo, useState} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile";
 import {ContentView} from "~/client/content/content_view";
@@ -117,7 +117,7 @@ function PostContentViewFooter({
             marginX="5"
             borderTop="grey-5"
             borderBottom={
-                postCommentsState !== "Closed" && postComments.getMessageCount() > 0
+                postCommentsState !== "Closed" && postComments.getItemCount() > 0
                     ? "grey-5"
                     : "transparent"
             }
@@ -130,7 +130,10 @@ function PostContentViewFooter({
                 <PostCommentsAccountAvatarPile post={post} postComments={postComments} />
                 {postCommentsState === "AlwaysOpen" ? (
                     <Box paddingX="2">
-                        <PrettyNumber number={postComments.getMessageCount()} label="comment" />
+                        <PrettyNumber
+                            number={postComments.getMessageCountIncludingOptimisticMessages()}
+                            label="comment"
+                        />
                     </Box>
                 ) : (
                     <Button
@@ -162,10 +165,13 @@ function PostContentViewFooter({
                             for (
                                 let index = 0;
                                 index <
-                                Math.min(postComments.getMessageCount(), initialLoadMessageCount);
+                                Math.min(
+                                    postComments.getMessageCountExcludingOptimisticMessages(),
+                                    initialLoadMessageCount,
+                                );
                                 index++
                             ) {
-                                if (postComments.getMessage(index).type !== "Loaded") {
+                                if (postComments.getItem(index).type !== "Loaded") {
                                     areAllInitialMessagesLoaded = false;
                                     break;
                                 }
@@ -179,7 +185,8 @@ function PostContentViewFooter({
                             // We want to load comments again when we have less than the initial load count
                             // because maybe some users added comments while the comment section was closed?
                             if (
-                                postComments.getMessageCount() >= initialLoadMessageCount &&
+                                postComments.getMessageCountExcludingOptimisticMessages() >=
+                                    initialLoadMessageCount &&
                                 areAllInitialMessagesLoaded
                             ) {
                                 onTogglePostComments();
@@ -199,7 +206,10 @@ function PostContentViewFooter({
                             await postCommentsPromise;
                         }}
                     >
-                        <PrettyNumber number={postComments.getMessageCount()} label="comment" />
+                        <PrettyNumber
+                            number={postComments.getMessageCountIncludingOptimisticMessages()}
+                            label="comment"
+                        />
                     </Button>
                 )}
             </Box>
@@ -221,17 +231,18 @@ function PostCommentsAccountAvatarPile({
         accountById: ReadonlyMap<AccountId, AccountModel>;
     }>(() => ({
         // NOTE(calebmer): Intentionally using the `PostModel` comment count instead of
-        // `postComments.getMessageCount()` so that we use the comment count that
-        // `previewCommentAuthors` was loaded at.
+        // `postComments.getMessageCountExcludingOptimisticMessages()` so that we use the
+        // comment count that `previewCommentAuthors` was loaded at.
         endIndex: post.commentCount,
         accountById: new Map(),
     }));
 
     const additionalCommentAuthors = useMemo(
         () =>
-            _additionalCommentAuthors.endIndex < postComments.getMessageCount()
+            _additionalCommentAuthors.endIndex <
+            postComments.getMessageCountIncludingOptimisticMessages()
                 ? {
-                      endIndex: postComments.getMessageCount(),
+                      endIndex: postComments.getMessageCountIncludingOptimisticMessages(),
                       accountById: new Map(
                           concatIterables(
                               _additionalCommentAuthors.accountById,

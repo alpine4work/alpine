@@ -18,6 +18,7 @@ import {
     messagingRealtimeCreateMessageBeforeSendTestCheckpoint,
 } from "~/server/messaging/messaging_realtime_connection";
 import {createSimpleMessageContent} from "~/shared/content/message_content_schema";
+import {UnimplementedError} from "~/shared/error/error";
 import {SpaceId} from "~/shared/id/types/id_types";
 import {MessagingRealtimeMessageFromClient} from "~/shared/messaging/messaging_realtime_schema";
 import {MessagingRealtimeMessageFromServer} from "~/shared/messaging/messaging_realtime_schema";
@@ -30,6 +31,12 @@ type TestMessagingRealtimeConnection = {
         message: MessagingRealtimeMessageFromClient,
     ) => Promise<void>;
 };
+
+function sendMessageToOthers() {
+    throw new UnimplementedError(
+        "Sending message to other connections is unimplemented in unit tests",
+    );
+}
 
 /**
  * Tests the implementation of a realtime messaging connection.
@@ -56,6 +63,10 @@ export function testMessagingRealtimeImplementation<
             spaceId: SpaceId;
             roomKey: RoomKey;
             sendMessage: (
+                context: ProcessContext,
+                message: MessagingRealtimeMessageFromServer<MessageModel<RoomKey>>,
+            ) => void;
+            sendMessageToOthers: (
                 context: ProcessContext,
                 message: MessagingRealtimeMessageFromServer<MessageModel<RoomKey>>,
             ) => void;
@@ -122,6 +133,7 @@ export function testMessagingRealtimeImplementation<
                 spaceId: space.id,
                 roomKey: room.key,
                 sendMessage: (context, message) => connection1Messages.push(message),
+                sendMessageToOthers,
                 iterateOtherConnections: () => [],
             });
 
@@ -297,6 +309,7 @@ export function testMessagingRealtimeImplementation<
                 spaceId: space.id,
                 roomKey: room.key,
                 sendMessage: (context, message) => connection1Messages.push(message),
+                sendMessageToOthers,
                 iterateOtherConnections: () => [connection2, connection3],
             });
 
@@ -304,6 +317,7 @@ export function testMessagingRealtimeImplementation<
                 spaceId: space.id,
                 roomKey: room.key,
                 sendMessage: (context, message) => connection2Messages.push(message),
+                sendMessageToOthers,
                 iterateOtherConnections: () => [connection1, connection3],
             });
 
@@ -311,6 +325,7 @@ export function testMessagingRealtimeImplementation<
                 spaceId: space.id,
                 roomKey: room.key,
                 sendMessage: (context, message) => connection3Messages.push(message),
+                sendMessageToOthers,
                 iterateOtherConnections: () => [connection1, connection2],
             });
 
@@ -523,6 +538,7 @@ export function testMessagingRealtimeImplementation<
                 spaceId: space.id,
                 roomKey: room.key,
                 sendMessage: (context, message) => connection1Messages.push(message),
+                sendMessageToOthers,
                 iterateOtherConnections: () => [connection2, connection3],
             });
 
@@ -530,6 +546,7 @@ export function testMessagingRealtimeImplementation<
                 spaceId: space.id,
                 roomKey: room.key,
                 sendMessage: (context, message) => connection2Messages.push(message),
+                sendMessageToOthers,
                 iterateOtherConnections: () => [connection1, connection3],
             });
 
@@ -537,6 +554,7 @@ export function testMessagingRealtimeImplementation<
                 spaceId: space.id,
                 roomKey: room.key,
                 sendMessage: (context, message) => connection3Messages.push(message),
+                sendMessageToOthers,
                 iterateOtherConnections: () => [connection1, connection2],
             });
 
@@ -767,6 +785,7 @@ export function testMessagingRealtimeImplementation<
                 spaceId: space.id,
                 roomKey: room.key,
                 sendMessage: (context, message) => connection1Messages.push(message),
+                sendMessageToOthers,
                 iterateOtherConnections: () => [connection2, connection3],
             });
 
@@ -774,6 +793,7 @@ export function testMessagingRealtimeImplementation<
                 spaceId: space.id,
                 roomKey: room.key,
                 sendMessage: (context, message) => connection2Messages.push(message),
+                sendMessageToOthers,
                 iterateOtherConnections: () => [connection1, connection3],
             });
 
@@ -781,6 +801,7 @@ export function testMessagingRealtimeImplementation<
                 spaceId: space.id,
                 roomKey: room.key,
                 sendMessage: (context, message) => connection3Messages.push(message),
+                sendMessageToOthers,
                 iterateOtherConnections: () => [connection1, connection2],
             });
 
@@ -945,6 +966,7 @@ export function testMessagingRealtimeImplementation<
                 spaceId: space.id,
                 roomKey: room.key,
                 sendMessage: (context, message) => connection1Messages.push(message),
+                sendMessageToOthers,
                 iterateOtherConnections: () => [connection2, connection3],
             });
 
@@ -952,6 +974,7 @@ export function testMessagingRealtimeImplementation<
                 spaceId: space.id,
                 roomKey: room.key,
                 sendMessage: (context, message) => connection2Messages.push(message),
+                sendMessageToOthers,
                 iterateOtherConnections: () => [connection1, connection3],
             });
 
@@ -959,6 +982,7 @@ export function testMessagingRealtimeImplementation<
                 spaceId: space.id,
                 roomKey: room.key,
                 sendMessage: (context, message) => connection3Messages.push(message),
+                sendMessageToOthers,
                 iterateOtherConnections: () => [connection1, connection2],
             });
 
@@ -1139,6 +1163,7 @@ export function testMessagingRealtimeImplementation<
                 spaceId: space.id,
                 roomKey: room.key,
                 sendMessage: (context, message) => connection1Messages.push(message),
+                sendMessageToOthers,
                 iterateOtherConnections: () => [connection2, connection3],
             });
 
@@ -1146,6 +1171,7 @@ export function testMessagingRealtimeImplementation<
                 spaceId: space.id,
                 roomKey: room.key,
                 sendMessage: (context, message) => connection2Messages.push(message),
+                sendMessageToOthers,
                 iterateOtherConnections: () => [connection1, connection3],
             });
 
@@ -1153,6 +1179,7 @@ export function testMessagingRealtimeImplementation<
                 spaceId: space.id,
                 roomKey: room.key,
                 sendMessage: (context, message) => connection3Messages.push(message),
+                sendMessageToOthers,
                 iterateOtherConnections: () => [connection1, connection2],
             });
 
@@ -1348,6 +1375,7 @@ export function testMessagingRealtimeImplementation<
                 spaceId: space.id,
                 roomKey: room.key,
                 sendMessage: (context, message) => connection1Messages.push(message),
+                sendMessageToOthers,
                 iterateOtherConnections: () => [connection2],
             });
 
@@ -1355,6 +1383,7 @@ export function testMessagingRealtimeImplementation<
                 spaceId: space.id,
                 roomKey: room.key,
                 sendMessage: (context, message) => connection2Messages.push(message),
+                sendMessageToOthers,
                 iterateOtherConnections: () => [connection1],
             });
 
@@ -1477,6 +1506,7 @@ export function testMessagingRealtimeImplementation<
                 spaceId: space.id,
                 roomKey: room.key,
                 sendMessage: (context, message) => connection1Messages.push(message),
+                sendMessageToOthers,
                 iterateOtherConnections: () => [connection2],
             });
 
@@ -1484,6 +1514,7 @@ export function testMessagingRealtimeImplementation<
                 spaceId: space.id,
                 roomKey: room.key,
                 sendMessage: (context, message) => connection2Messages.push(message),
+                sendMessageToOthers,
                 iterateOtherConnections: () => [connection1],
             });
 
@@ -1650,6 +1681,7 @@ export function testMessagingRealtimeImplementation<
                 spaceId: space.id,
                 roomKey: room.key,
                 sendMessage: (context, message) => connection1Messages.push(message),
+                sendMessageToOthers,
                 iterateOtherConnections: () => [],
             });
 
@@ -1847,6 +1879,7 @@ export function testMessagingRealtimeImplementation<
                 spaceId: space.id,
                 roomKey: room.key,
                 sendMessage: (context, message) => connection1Messages.push(message),
+                sendMessageToOthers,
                 iterateOtherConnections: () => [connection2, connection3],
             });
 
@@ -1854,6 +1887,7 @@ export function testMessagingRealtimeImplementation<
                 spaceId: space.id,
                 roomKey: room.key,
                 sendMessage: (context, message) => connection2Messages.push(message),
+                sendMessageToOthers,
                 iterateOtherConnections: () => [connection1, connection3],
             });
 
@@ -1861,6 +1895,7 @@ export function testMessagingRealtimeImplementation<
                 spaceId: space.id,
                 roomKey: room.key,
                 sendMessage: (context, message) => connection3Messages.push(message),
+                sendMessageToOthers,
                 iterateOtherConnections: () => [connection1, connection2],
             });
 
@@ -2048,6 +2083,7 @@ export function testMessagingRealtimeImplementation<
                 spaceId: space.id,
                 roomKey: room.key,
                 sendMessage: (context, message) => connection1Messages.push(message),
+                sendMessageToOthers,
                 iterateOtherConnections: () => [connection2, connection3],
             });
 
@@ -2055,6 +2091,7 @@ export function testMessagingRealtimeImplementation<
                 spaceId: space.id,
                 roomKey: room.key,
                 sendMessage: (context, message) => connection2Messages.push(message),
+                sendMessageToOthers,
                 iterateOtherConnections: () => [connection1, connection3],
             });
 
@@ -2062,6 +2099,7 @@ export function testMessagingRealtimeImplementation<
                 spaceId: space.id,
                 roomKey: room.key,
                 sendMessage: (context, message) => connection3Messages.push(message),
+                sendMessageToOthers,
                 iterateOtherConnections: () => [connection1, connection2],
             });
 

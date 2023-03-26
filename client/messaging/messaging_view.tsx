@@ -12,6 +12,7 @@ import {
     useState,
 } from "react";
 import {ContentEditorState} from "~/client/content/content_editor_state";
+import {useAppContext} from "~/client/context/app_context";
 import {Spacer} from "~/client/design/spacer";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
@@ -25,6 +26,10 @@ import {
     messageViewMarginY,
     messageViewMinHeight,
 } from "~/client/messaging/message_view";
+import {
+    MessagingTypingIndicators,
+    messagingTypingIndicatorsMinHeight,
+} from "~/client/messaging/messaging_typing_indicators";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages";
@@ -77,7 +82,7 @@ class MessagingViewState<Message extends MessageModel> {
     }
 
     public getItemCount() {
-        return this.messages.getMessageCount() + (this._header ? 1 : 0);
+        return this.messages.getItemCount() + (this._header ? 1 : 0);
     }
 
     public getItem(index: number): MessagingViewStateItem<Message> {
@@ -92,7 +97,7 @@ class MessagingViewState<Message extends MessageModel> {
         }
 
         return {
-            ...this.messages.getMessage(index),
+            ...this.messages.getItem(index),
             messageIndex: index,
         };
     }
@@ -120,13 +125,13 @@ class MessagingViewState<Message extends MessageModel> {
 
         // Make sure we didn't adjust the range to an out of bounds range.
         if (
-            range.startIndex >= this.messages.getMessageCount() ||
-            range.endIndex >= this.messages.getMessageCount()
+            range.startIndex >= this.messages.getItemCount() ||
+            range.endIndex >= this.messages.getItemCount()
         ) {
             return null;
         }
 
-        return {startIndex, endIndex};
+        return this.messages.getMessagesRange({startIndex, endIndex});
     }
 
     /**
@@ -310,6 +315,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     },
     ref: Ref<MessagingViewRef>,
 ) {
+    const context = useAppContext();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
     const [messagesWithoutHeader, setMessages] = useState(() => {
@@ -482,7 +488,19 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     useScrollToNewMessages({
         viewRef,
         messages: state.messages,
-        getMessageViewKey: useCallback(postCommentIndex => `Message:${postCommentIndex}`, []),
+        getItemKey: useCallback((item: MessageListItem<Message>) => {
+            switch (item.type) {
+                case "Loaded":
+                case "Optimistic":
+                    return `Message:${item.messageIndex}`;
+                case "Unloaded":
+                    return `UnloadedMessage:${item.messageIndex}`;
+                case "TypingIndicators":
+                    return "TypingIndicators";
+                default:
+                    throw exhaustive(item);
+            }
+        }, []),
     });
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
@@ -611,6 +629,17 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         ),
                     };
                 }
+                case "TypingIndicators": {
+                    return {
+                        key: "TypingIndicators",
+                        minHeight: messagingTypingIndicatorsMinHeight,
+                        node: (
+                            <MessagingTypingIndicators
+                                typingStateByConnectionId={item.typingStateByConnectionId}
+                            />
+                        ),
+                    };
+                }
                 default:
                     throw exhaustive(item);
             }
@@ -656,6 +685,30 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                 replyingToMessage={replyingToMessage}
                 onClearReplyingToMessage={() => setReplyingToMessage(null)}
                 onJumpToMessage={handleJumpToMessage}
+                onShowTypingIndicator={() => {
+                    // Don't show an error updating typing indicators to the user. We will see an
+                    // error in our logs but the user won't see any weird behavior if the
+                    // request fails.
+                    actions
+                        .startTyping()
+                        .catch(error =>
+                            context.tracer
+                                .getRoot()
+                                .logUncaughtException("Couldn't update typing indicator", error),
+                        );
+                }}
+                onHideTypingIndicator={() => {
+                    // Don't show an error updating typing indicators to the user. We will see an
+                    // error in our logs but the user won't see any weird behavior if the
+                    // request fails.
+                    actions
+                        .stopTyping()
+                        .catch(error =>
+                            context.tracer
+                                .getRoot()
+                                .logUncaughtException("Couldn't update typing indicator", error),
+                        );
+                }}
                 stateRef={inputStateRef}
             />
         </div>

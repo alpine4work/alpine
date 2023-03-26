@@ -11,6 +11,7 @@ import {PostRealtimeConnection} from "~/server/posts/post_realtime_connection";
 import {createSimplePostContent} from "~/shared/content/post_content_schema";
 import {cast} from "~/shared/helpers/control/cast";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
+import {generateId} from "~/shared/id/id";
 import {PostId} from "~/shared/id/types/id_types";
 import {MessagingRealtimeMessageFromClient} from "~/shared/messaging/messaging_realtime_schema";
 import {PostCommentModel} from "~/shared/models/post_model";
@@ -44,13 +45,24 @@ testMessagingRealtimeImplementation<PostId, TestPostRealtimeConnection>(context,
             messageCount: 0,
         };
     },
-    createRealtimeConnection({spaceId, roomKey: postId, sendMessage, iterateOtherConnections}) {
+    createRealtimeConnection({
+        spaceId,
+        roomKey: postId,
+        sendMessage,
+        sendMessageToOthers,
+        iterateOtherConnections,
+    }) {
         const connection = new PostRealtimeConnection({
+            connectionId: generateId(),
             spaceId,
             postId,
             sendMessage: (context, message) => {
                 cast<"PostComments">(message.type);
                 return sendMessage(context, message.message);
+            },
+            sendMessageToOthers: (context, message) => {
+                cast<"PostComments">(message.type);
+                return sendMessageToOthers(context, message.message);
             },
             iterateOtherConnections: () =>
                 mapIterable(iterateOtherConnections(), connection => connection.actualConnection),

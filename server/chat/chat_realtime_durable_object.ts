@@ -65,11 +65,13 @@ class ChatRealtimeDurableObject {
             this._context,
             ChatRealtimeMessageFromClientSchema,
             ChatRealtimeMessageFromServerSchema,
-            ({sendMessage, iterateOtherConnections}) =>
+            ({connectionId, sendMessage, sendMessageToOthers, iterateOtherConnections}) =>
                 new ChatRealtimeConnection({
+                    connectionId,
                     spaceId,
                     chatId,
                     sendMessage,
+                    sendMessageToOthers,
                     iterateOtherConnections,
                 }),
         );

@@ -14,7 +14,7 @@ import {
 } from "~/shared/documents/document_collaboration_schema";
 import {FailedPreconditionError, InternalError, InvalidArgumentError} from "~/shared/error/error";
 import {isSystemError} from "~/shared/error/is_system_error_code";
-import {AsyncSequentialQueue} from "~/shared/helpers/async/async_sequential_queue";
+import {AsyncMutex} from "~/shared/helpers/async/async_mutex";
 import {assert} from "~/shared/helpers/control/assert";
 import {
     ContentEditorClientId,
@@ -31,15 +31,17 @@ import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_sele
 export class DocumentCollaborationContentManager {
     public readonly spaceId: SpaceId;
     public readonly id: DocumentId;
-    private _version: number;
-    private _content: DocumentContent;
     public readonly stepCache: DocumentCollaborationStepCache;
     private readonly _sendMessageToAll: (
         context: ProcessContext,
         message: DocumentCollaborationMessageFromServer,
     ) => void;
     private readonly _killProcess: (context: ProcessContext) => void;
-    private _updateSequentialQueue = new AsyncSequentialQueue();
+
+    private _state: AsyncMutex<{
+        version: number;
+        content: DocumentContent;
+    }>;
 
     private _persistenceState: {
         next: {
@@ -69,9 +71,11 @@ export class DocumentCollaborationContentManager {
     }) {
         this.spaceId = spaceId;
         this.id = id;
-        this._version = initialVersion;
-        this._content = initialContent;
-        this.stepCache = new DocumentCollaborationStepCache(id, this._version);
+        this._state = new AsyncMutex({
+            version: initialVersion,
+            content: initialContent,
+        });
+        this.stepCache = new DocumentCollaborationStepCache(id, initialVersion);
         this._sendMessageToAll = sendMessageToAll;
         this._killProcess = killProcess;
     }
@@ -86,7 +90,7 @@ export class DocumentCollaborationContentManager {
      * provided in the `update()` method.
      */
     public getCurrentVersion() {
-        return this._version;
+        return this._state.get().version;
     }
 
     /**
@@ -96,12 +100,14 @@ export class DocumentCollaborationContentManager {
         context: RequestContext,
         version: number,
     ): Promise<DocumentContent> {
-        if (version > this._version)
+        const state = this._state.get();
+
+        if (version > state.version)
             throw new FailedPreconditionError("Can not get document content at a future version");
 
-        let content = this._content;
+        let content = state.content;
 
-        const steps = await this.stepCache.getSteps(context, version, this._version);
+        const steps = await this.stepCache.getSteps(context, version, state.version);
 
         for (let i = steps.length - 1; i >= 0; i--) {
             const {invertedStep} = steps[i]!;
@@ -139,8 +145,8 @@ export class DocumentCollaborationContentManager {
         presenceState: DocumentCollaborationPresenceState | null;
         hasSentPresenceState: boolean;
     }> {
-        const {oldVersion, steps, presenceState} = await this._updateSequentialQueue.run(
-            async () => {
+        const {oldVersion, steps, presenceState} = await this._state.run(
+            async (state, setState) => {
                 if (
                     update.updateOurPresenceState.state &&
                     update.updateOurPresenceState.state.version !== update.version
@@ -150,12 +156,12 @@ export class DocumentCollaborationContentManager {
                     );
                 }
 
-                const oldVersion = this._version;
+                const oldVersion = state.version;
 
                 const {newContent, steps, invertedSteps, clientContent, mapping} =
                     await getUpdateDocumentContentResult({
-                        currentVersion: this._version,
-                        currentContent: this._content,
+                        currentVersion: state.version,
+                        currentContent: state.content,
                         clientVersion: update.version,
                         clientSteps: update.steps,
                         getSteps: (startVersion, endVersion) =>
@@ -183,8 +189,10 @@ export class DocumentCollaborationContentManager {
                 // If we had to rebase and all steps were removed, immediately return.
                 if (steps.length === 0) return {oldVersion, steps, presenceState};
 
-                this._version += steps.length;
-                this._content = newContent;
+                setState({
+                    version: state.version + steps.length,
+                    content: newContent,
+                });
 
                 // Populate our step cache with the new steps before telling other clients
                 // about the new steps.

@@ -22,7 +22,7 @@ export function tryLoadingMessages<Message extends MessageModel>({
 }: {
     viewHeight: number;
     messages: MessageList<Message>;
-    range: {startIndex: number; endIndex: number};
+    range: {startIndex: number; endIndex: number} | null;
     loadFromStart: (options: {
         limit: number;
         afterMessageIndex: number | null;
@@ -54,10 +54,13 @@ export function tryLoadingMessages<Message extends MessageModel>({
               otherReferencedMessages: ReadonlyArray<Message>;
           }>;
       } {
+    range = messages.getMessagesRange(range);
+    if (!range) return {isLoading: false};
+
     const remPx = getRemPxWithoutListening();
 
-    const startMessage = messages.getMessage(range.startIndex);
-    const endMessage = messages.getMessage(range.endIndex);
+    const startMessage = messages.getItem(range.startIndex);
+    const endMessage = messages.getItem(range.endIndex);
 
     const firstLoadedMessage = messages.getFirstLoadedMessageAfter(range.startIndex - 1);
     const hasLoadedMessage = firstLoadedMessage && firstLoadedMessage.index <= range.endIndex;

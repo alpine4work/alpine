@@ -1,12 +1,12 @@
-import {Triangle, Warning} from "phosphor-react";
+import {Triangle, Warning} from "@phosphor-icons/react";
 import {colorSchemeVars, sprinkles} from "~/shared/styles/styles";
 
 /**
  * The error icon is a red warning triangle. The warning triangle always has a
  * white exclamation mark in dark mode.
  *
- * This is a thin wrapper around the `phosphor-react` `<Warning>` icon that is
- * correctly colored.
+ * This is a thin wrapper around the `@phosphor-icons/react` `<Warning>` icon
+ * that is correctly colored.
  */
 export function ErrorIcon({size}: {size?: string}) {
     return (

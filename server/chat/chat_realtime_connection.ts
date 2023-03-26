@@ -20,29 +20,39 @@ import {
 } from "~/shared/chat/chat_realtime_schema";
 import {cast} from "~/shared/helpers/control/cast";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
-import {ChatId, SpaceId} from "~/shared/id/types/id_types";
+import {ChatId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types";
 import {ChatMessageModel} from "~/shared/models/chat_model";
 
 export class ChatRealtimeConnection {
     private readonly _messaging: MessagingRealtimeConnection<ChatId, ChatMessageModel>;
 
     constructor({
+        connectionId,
         spaceId,
         chatId,
         sendMessage,
+        sendMessageToOthers,
         iterateOtherConnections,
     }: {
+        connectionId: WebSocketConnectionId;
         spaceId: SpaceId;
         chatId: ChatId;
         sendMessage: (context: ProcessContext, message: ChatRealtimeMessageFromServer) => void;
+        sendMessageToOthers: (
+            context: ProcessContext,
+            message: ChatRealtimeMessageFromServer,
+        ) => void;
         iterateOtherConnections: () => Iterable<ChatRealtimeConnection>;
     }) {
         this._messaging = new MessagingRealtimeConnection({
+            connectionId,
             spaceId,
             roomKey: chatId,
 
             sendMessage: (context, message) =>
                 sendMessage(context, {type: "ChatMessages", message}),
+            sendMessageToOthers: (context, message) =>
+                sendMessageToOthers(context, {type: "ChatMessages", message}),
             iterateOtherConnections: () =>
                 mapIterable(iterateOtherConnections(), connection => connection._messaging),
 
@@ -63,6 +73,10 @@ export class ChatRealtimeConnection {
         cast<"ChatMessages">(message.type);
 
         return this._messaging.handleMessage(context, message.message);
+    }
+
+    public async handleClose(context: ProcessContext) {
+        return this._messaging.handleClose(context);
     }
 }
 

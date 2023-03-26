@@ -16,7 +16,7 @@ import {
 import {MessagingRealtimeConnection} from "~/server/messaging/messaging_realtime_connection";
 import {cast} from "~/shared/helpers/control/cast";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
-import {PostId, SpaceId} from "~/shared/id/types/id_types";
+import {PostId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types";
 import {PostCommentModel} from "~/shared/models/post_model";
 import {
     PostRealtimeMessageFromClient,
@@ -27,22 +27,32 @@ export class PostRealtimeConnection {
     private readonly _messaging: MessagingRealtimeConnection<PostId, PostCommentModel>;
 
     constructor({
+        connectionId,
         spaceId,
         postId,
         sendMessage,
+        sendMessageToOthers,
         iterateOtherConnections,
     }: {
+        connectionId: WebSocketConnectionId;
         spaceId: SpaceId;
         postId: PostId;
         sendMessage: (context: ProcessContext, message: PostRealtimeMessageFromServer) => void;
+        sendMessageToOthers: (
+            context: ProcessContext,
+            message: PostRealtimeMessageFromServer,
+        ) => void;
         iterateOtherConnections: () => Iterable<PostRealtimeConnection>;
     }) {
         this._messaging = new MessagingRealtimeConnection({
+            connectionId,
             spaceId,
             roomKey: postId,
 
             sendMessage: (context, message) =>
                 sendMessage(context, {type: "PostComments", message}),
+            sendMessageToOthers: (context, message) =>
+                sendMessageToOthers(context, {type: "PostComments", message}),
             iterateOtherConnections: () =>
                 mapIterable(iterateOtherConnections(), connection => connection._messaging),
 
@@ -63,6 +73,10 @@ export class PostRealtimeConnection {
         cast<"PostComments">(message.type);
 
         return this._messaging.handleMessage(context, message.message);
+    }
+
+    public async handleClose(context: ProcessContext) {
+        return this._messaging.handleClose(context);
     }
 }
 

@@ -65,11 +65,13 @@ class PostRealtimeDurableObject {
             this._context,
             PostRealtimeMessageFromClientSchema,
             PostRealtimeMessageFromServerSchema,
-            ({sendMessage, iterateOtherConnections}) =>
+            ({connectionId, sendMessage, sendMessageToOthers, iterateOtherConnections}) =>
                 new PostRealtimeConnection({
+                    connectionId,
                     spaceId,
                     postId,
                     sendMessage,
+                    sendMessageToOthers,
                     iterateOtherConnections,
                 }),
         );

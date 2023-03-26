@@ -10,6 +10,7 @@ import {testMessagingRealtimeImplementation} from "~/server/dynamo/test_helpers/
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
 import {cast} from "~/shared/helpers/control/cast";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
+import {generateId} from "~/shared/id/id";
 import {ChatId} from "~/shared/id/types/id_types";
 import {MessagingRealtimeMessageFromClient} from "~/shared/messaging/messaging_realtime_schema";
 import {ChatMessageModel} from "~/shared/models/chat_model";
@@ -38,13 +39,24 @@ testMessagingRealtimeImplementation<ChatId, TestChatRealtimeConnection>(context,
             messageCount: 0,
         };
     },
-    createRealtimeConnection({spaceId, roomKey: chatId, sendMessage, iterateOtherConnections}) {
+    createRealtimeConnection({
+        spaceId,
+        roomKey: chatId,
+        sendMessage,
+        sendMessageToOthers,
+        iterateOtherConnections,
+    }) {
         const connection = new ChatRealtimeConnection({
+            connectionId: generateId(),
             spaceId,
             chatId,
             sendMessage: (context, message) => {
                 cast<"ChatMessages">(message.type);
                 return sendMessage(context, message.message);
+            },
+            sendMessageToOthers: (context, message) => {
+                cast<"ChatMessages">(message.type);
+                return sendMessageToOthers(context, message.message);
             },
             iterateOtherConnections: () =>
                 mapIterable(iterateOtherConnections(), connection => connection.actualConnection),

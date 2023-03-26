@@ -1,12 +1,13 @@
 import {Key, Memo, RefObject, useRef} from "react";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {MessageList} from "~/client/messaging/message_list";
+import {MessageList, MessageListItem} from "~/client/messaging/message_list";
 import {
     messageViewMarginY,
     messageViewMergedMarginY,
     shouldMergeMessages,
 } from "~/client/messaging/message_view";
+import {messagingTypingIndicatorsMinHeight} from "~/client/messaging/messaging_typing_indicators";
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view";
 import {RemLength, convertRemLengthToPx, spacing} from "~/shared/design/spacing";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
@@ -17,12 +18,12 @@ import {MessageModel} from "~/shared/models/message_model";
 export function useScrollToNewMessages<Message extends MessageModel>({
     viewRef,
     messages,
-    getMessageViewKey,
+    getItemKey,
     stickyInputHeight = "0rem",
 }: {
     viewRef: RefObject<VirtualizedScrollViewRef>;
     messages: MessageList<Message>;
-    getMessageViewKey: Memo<(messageIndex: number) => Key>;
+    getItemKey: Memo<(item: MessageListItem<Message>) => Key>;
     stickyInputHeight?: RemLength;
 }) {
     // When new messages are added and the user is near the end of the scroll
@@ -34,46 +35,83 @@ export function useScrollToNewMessages<Message extends MessageModel>({
     //    they can see it.
     // 2. The user is actively having a conversation at the end of the messaging
     //    view and another person in the conversation sends a message.
-    const lastMessageCountRef = useRef(messages.getMessageCount());
+    const lastItemCountRef = useRef(messages.getItemCount());
+    const lastTypingIndicatorsHeightRef = useRef(0);
     useLayoutEffectWithoutServerSideWarning(() => {
-        const lastMessageCount = lastMessageCountRef.current;
-        const messageCount = messages.getMessageCount();
-        lastMessageCountRef.current = messageCount;
+        const lastItemCount = lastItemCountRef.current;
+        const itemCount = messages.getItemCount();
+        lastItemCountRef.current = itemCount;
 
-        // No new comments, don't perform a scroll adjustment.
-        if (lastMessageCount === messageCount) return;
+        const lastTypingIndicatorsHeight = lastTypingIndicatorsHeightRef.current;
+        const lastHasTypingIndicatorsItem = lastTypingIndicatorsHeight !== 0;
+        const hasTypingIndicatorsItem = messages.hasTypingIndicatorsItem();
+
+        // This should be set to the correct value in our `run()` function but just in
+        // case the effect is cancelled, set it to a default here so it's at least
+        // non-zero next effect run.
+        lastTypingIndicatorsHeightRef.current = hasTypingIndicatorsItem
+            ? convertRemLengthToPx(messagingTypingIndicatorsMinHeight, getRemPxWithoutListening())
+            : 0;
+
+        // No new item changes, don't perform a scroll adjustment.
+        if (lastItemCount === itemCount && lastHasTypingIndicatorsItem === hasTypingIndicatorsItem)
+            return;
 
         const run = () => {
             const view = assertExists(viewRef.current);
 
-            let newMessagesOffset: number | null = null;
-            let newMessagesHeight = 0;
-            for (let messageIndex = lastMessageCount; messageIndex < messageCount; messageIndex++) {
-                const position = view.getPositionByKeyIfExists(getMessageViewKey(messageIndex));
+            let newItemsOffset: number | null = null;
+            let newItemsHeight = 0;
+            let newTypingIndicatorsHeight = 0;
+
+            for (
+                let itemIndex =
+                    lastItemCount -
+                    // If we previously had the typing indicators item but now we don't, we want to
+                    // measure the height of the message which replaced the typing indicator.
+                    (lastHasTypingIndicatorsItem && !hasTypingIndicatorsItem ? 1 : 0);
+                itemIndex < itemCount;
+                itemIndex++
+            ) {
+                const item = messages.getItem(itemIndex);
+                const position = view.getPositionByKeyIfExists(getItemKey(item));
 
                 // If any position doesn't exist, don't perform a scroll adjustment.
                 if (!position) return;
 
-                if (newMessagesOffset === null) newMessagesOffset = position.offset;
-                newMessagesHeight += position.height;
+                if (newItemsOffset === null) newItemsOffset = position.offset;
+                newItemsHeight += position.height;
+
+                if (item.type === "TypingIndicators") newTypingIndicatorsHeight += position.height;
             }
 
+            // If this render removed our typing indicator then we want to scroll the
+            // difference of the old typing indicator height and the new message replacing
+            // the typing indicator.
+            if (lastHasTypingIndicatorsItem && !hasTypingIndicatorsItem)
+                newItemsHeight -= lastTypingIndicatorsHeight;
+
+            lastTypingIndicatorsHeightRef.current = newTypingIndicatorsHeight;
+
             // No new comments were found.
-            if (newMessagesOffset === null) return;
+            if (newItemsOffset === null) return;
 
             const previousMessage =
-                lastMessageCount > 0 ? messages.getMessage(lastMessageCount - 1).message : null;
-            const firstNewMessage = messages.getMessage(lastMessageCount).message;
+                lastItemCount > 0 ? messages.getItem(lastItemCount - 1).message ?? null : null;
+            const firstNewMessage =
+                lastItemCount < messages.getItemCount() - 1
+                    ? messages.getItem(lastItemCount).message ?? null
+                    : null;
 
             const remPx = getRemPxWithoutListening();
 
             const maybeNewScrollOffset =
                 view.getScrollOffset() +
-                newMessagesHeight -
+                newItemsHeight -
                 // When a new message is added we also remove some margin from the previous
                 // message. Adjust our new scroll height so we don't overshoot and consider the
                 // fact that some margin is lost.
-                (lastMessageCount > 0 &&
+                (lastItemCount > 0 &&
                 previousMessage &&
                 firstNewMessage &&
                 shouldMergeMessages(previousMessage, firstNewMessage)
@@ -90,8 +128,8 @@ export function useScrollToNewMessages<Message extends MessageModel>({
                 // If the new messages are completely visible with our existing scroll offset
                 // then don't perform an adjustment.
                 !(
-                    view.getScrollOffset() <= newMessagesOffset &&
-                    newMessagesOffset + newMessagesHeight <=
+                    view.getScrollOffset() <= newItemsOffset &&
+                    newItemsOffset + newItemsHeight <=
                         view.getScrollOffset() + viewHeightWithoutStickyInput
                 ) &&
                 // Only set the new scroll offset if it would put the new messages onscreen.
@@ -100,8 +138,8 @@ export function useScrollToNewMessages<Message extends MessageModel>({
                 areRangesOverlapping(
                     maybeNewScrollOffset,
                     maybeNewScrollOffset + viewHeightWithoutStickyInput,
-                    newMessagesOffset,
-                    newMessagesOffset + newMessagesHeight,
+                    newItemsOffset,
+                    newItemsOffset + newItemsHeight,
                 )
             ) {
                 view.setScrollOffset(maybeNewScrollOffset);
@@ -118,5 +156,5 @@ export function useScrollToNewMessages<Message extends MessageModel>({
         return () => {
             isCancelled = true;
         };
-    }, [getMessageViewKey, messages, stickyInputHeight, viewRef]);
+    }, [getItemKey, messages, stickyInputHeight, viewRef]);
 }

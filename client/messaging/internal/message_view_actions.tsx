@@ -1,4 +1,4 @@
-import {ArrowArcLeft, Check, DotsThree, KeyReturn, SpinnerGap, X} from "phosphor-react";
+import {ArrowArcLeft, Check, DotsThree, KeyReturn, SpinnerGap, X} from "@phosphor-icons/react";
 import {useEffect, useState} from "react";
 import {useFocusVisible, useFocusWithin} from "react-aria";
 import {Box} from "~/client/design/box";

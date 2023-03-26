@@ -1,4 +1,4 @@
-import {Bell, MagnifyingGlass} from "phosphor-react";
+import {Bell, MagnifyingGlass} from "@phosphor-icons/react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";

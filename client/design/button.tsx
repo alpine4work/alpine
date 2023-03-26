@@ -1,6 +1,6 @@
+import {IconContext, SpinnerGap} from "@phosphor-icons/react";
 import {PressEvent} from "@react-types/shared";
 import classNames from "classnames";
-import {IconContext, SpinnerGap} from "phosphor-react";
 import {ReactNode, Ref, forwardRef, useEffect, useRef, useState} from "react";
 import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";
 import {FocusRing} from "~/client/design/focus_ring";

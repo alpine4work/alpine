@@ -9,7 +9,7 @@ import {
     DocumentCollaborationPresenceState,
 } from "~/shared/documents/document_collaboration_schema";
 import {FailedPreconditionError, InternalError, NotFoundError} from "~/shared/error/error";
-import {AsyncSequentialQueue} from "~/shared/helpers/async/async_sequential_queue";
+import {AsyncMutex} from "~/shared/helpers/async/async_mutex";
 import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
@@ -31,8 +31,11 @@ export class DocumentCollaborationConnection {
     private readonly _iterateOtherConnections: () => Iterable<DocumentCollaborationConnection>;
     private readonly _killProcess: (context: ProcessContext) => void;
 
-    private _presenceState: DocumentCollaborationPresenceState | null = null;
-    private _sequentialQueue = new AsyncSequentialQueue();
+    private _state = new AsyncMutex<{
+        presenceState: DocumentCollaborationPresenceState | null;
+    }>({
+        presenceState: null,
+    });
 
     constructor({
         connectionId,
@@ -64,7 +67,7 @@ export class DocumentCollaborationConnection {
     }
 
     public getPresenceState() {
-        return this._presenceState;
+        return this._state.get().presenceState;
     }
 
     public handleMessage(
@@ -80,7 +83,7 @@ export class DocumentCollaborationConnection {
         // `UpdateContent` then a `UpdateOurPresenceState` is perhaps a better example.
         //
         // The client mostly sends messages in sequence anyway.
-        return this._sequentialQueue.run(async () => {
+        return this._state.run(async (state, setState) => {
             try {
                 switch (message.type) {
                     case "BackfillRequest": {
@@ -190,22 +193,24 @@ export class DocumentCollaborationConnection {
                     case "UpdateContent": {
                         const {presenceState, hasSentPresenceState} =
                             await this._contentManager.update(context, this.connectionId, message);
-                        this._presenceState = presenceState;
 
                         if (!hasSentPresenceState) {
                             this._sendMessageToOthers(context, {
                                 type: "UpdateOtherPresenceState",
                                 connectionId: this.connectionId,
-                                state: this._presenceState,
+                                state: presenceState,
                             });
                         }
+
+                        setState({...state, presenceState});
                         return;
                     }
                     case "UpdateOurPresenceState": {
                         // Make sure the new presence state is valid before we broadcast it to our
                         // other clients.
+                        let presenceState: DocumentCollaborationPresenceState | null;
                         if (!message.state) {
-                            this._presenceState = null;
+                            presenceState = null;
                         } else {
                             const isVersionValid =
                                 message.state.version >= 0 &&
@@ -225,14 +230,16 @@ export class DocumentCollaborationConnection {
                             // error will be thrown.
                             message.state.selection.getAndMaybeDeserialize(oldContent);
 
-                            this._presenceState = message.state;
+                            presenceState = message.state;
                         }
 
                         this._sendMessageToOthers(context, {
                             type: "UpdateOtherPresenceState",
                             connectionId: this.connectionId,
-                            state: this._presenceState,
+                            state: presenceState,
                         });
+
+                        setState({...state, presenceState});
                         return;
                     }
                     default:
@@ -255,10 +262,10 @@ export class DocumentCollaborationConnection {
             // Make sure we run in the queue in case we're wrapping up message handling. We
             // want to send our null presence state after we send any other
             // presence states.
-            this._sequentialQueue.run(async () => {
+            this._state.run(async state => {
                 // When the connection closes, clear the presence state in our other
                 // connections.
-                if (this._presenceState !== null) {
+                if (state.presenceState !== null) {
                     this._sendMessageToOthers(context, {
                         type: "UpdateOtherPresenceState",
                         connectionId: this.connectionId,

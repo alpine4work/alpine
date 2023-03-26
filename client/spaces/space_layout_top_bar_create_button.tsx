@@ -6,7 +6,7 @@ import {
     ListChecks,
     Plus,
     SpinnerGap,
-} from "phosphor-react";
+} from "@phosphor-icons/react";
 import {ReactNode} from "react";
 import {Box} from "~/client/design/box";
 import {IconButton} from "~/client/design/icon_button";

@@ -17,7 +17,8 @@ import {
     generateOrderKeyBetween,
     generateOrderKeysBetween,
 } from "~/shared/helpers/sort/order_key";
-import {PostId} from "~/shared/id/types/id_types";
+import {PostId, WebSocketConnectionId} from "~/shared/id/types/id_types";
+import {MessagingTypingState} from "~/shared/messaging/messaging_realtime_schema";
 import {ChannelModel} from "~/shared/models/channel_model";
 import {OptimisticMessageModel} from "~/shared/models/message_model";
 import {PostCommentModel, PostModel} from "~/shared/models/post_model";
@@ -143,7 +144,7 @@ export class PostList {
                     count +
                     assertExists(
                         this._postByOrderKey.get(postOrderKey),
-                    ).postComments.getMessageCount() +
+                    ).postComments.getItemCount() +
                     1,
                 0,
             );
@@ -205,7 +206,7 @@ export class PostList {
                 itemCount += 1;
 
                 if (this._postCommentsOpenStateByOrderKey.has(otherOrderKey)) {
-                    itemCount += otherPost.postComments.getMessageCount();
+                    itemCount += otherPost.postComments.getItemCount();
                     itemCount += 1;
                 }
             }
@@ -225,7 +226,7 @@ export class PostList {
             if (postCommentIndex < 0 || !Number.isSafeInteger(postCommentIndex))
                 throw new InvalidArgumentError("Post comment index must be a positive integer");
 
-            if (postCommentIndex >= post.postComments.getMessageCount())
+            if (postCommentIndex >= post.postComments.getItemCount())
                 throw new NotFoundError("Post comment index out of bounds");
 
             return postIndex + 1 + postCommentIndex;
@@ -289,7 +290,7 @@ export class PostList {
                     postContentItemIndex +
                     // The next post index is past any comments if the comment section is open
                     (this._postCommentsOpenStateByOrderKey.has(postOrderKey)
-                        ? postComments.getMessageCount() +
+                        ? postComments.getItemCount() +
                           // Add one for the post comment input index
                           1
                         : 0) +
@@ -340,7 +341,7 @@ export class PostList {
                 postContentItemIndex +
                 // The next post index is past any comments if the comment section is open
                 (this._postCommentsOpenStateByOrderKey.has(postOrderKey)
-                    ? postComments.getMessageCount() +
+                    ? postComments.getItemCount() +
                       // Add one for the post comment input index
                       1
                     : 0) +
@@ -383,7 +384,7 @@ export class PostList {
             postContentItemIndex,
             postCommentInputItemIndex:
                 postCommentsState !== "Closed"
-                    ? postContentItemIndex + postComments.getMessageCount() + 1
+                    ? postContentItemIndex + postComments.getItemCount() + 1
                     : null,
         };
     }
@@ -432,27 +433,27 @@ export class PostList {
                 postContentItemIndex,
                 postCommentInputItemIndex:
                     postCommentsState !== "Closed"
-                        ? postContentItemIndex + postComments.getMessageCount() + 1
+                        ? postContentItemIndex + postComments.getItemCount() + 1
                         : null,
             };
         }
 
         if (postCommentsState !== "Closed") {
             const postCommentIndex = index - (postContentItemIndex + 1);
-            const postCommentCount = postComments.getMessageCount();
+            const postCommentCount = postComments.getItemCount();
             const postCommentInputItemIndex =
-                postContentItemIndex + postComments.getMessageCount() + 1;
+                postContentItemIndex + postComments.getItemCount() + 1;
 
             if (0 <= postCommentIndex && postCommentIndex < postCommentCount) {
-                const postComment = postComments.getMessage(postCommentIndex);
-                switch (postComment.type) {
+                const item = postComments.getItem(postCommentIndex);
+                switch (item.type) {
                     case "Loaded": {
                         return {
                             type: "LoadedPostComment",
                             post,
                             postComments,
                             postCommentIndex,
-                            postComment: postComment.message,
+                            postComment: item.message,
                             postCommentInputItemIndex,
                         };
                     }
@@ -471,13 +472,22 @@ export class PostList {
                             post,
                             postComments,
                             postCommentIndex,
-                            postComment: postComment.message,
+                            postComment: item.message,
                             postCommentInputItemIndex,
-                            optimisticPostCommentIndex: postComment.optimisticMessageIndex,
+                            optimisticPostCommentIndex: item.optimisticMessageIndex,
+                        };
+                    }
+                    case "TypingIndicators": {
+                        return {
+                            type: "PostCommentsTypingIndicator",
+                            post,
+                            postComments,
+                            typingStateByConnectionId: item.typingStateByConnectionId,
+                            postCommentInputItemIndex,
                         };
                     }
                     default:
-                        throw exhaustive(postComment);
+                        throw exhaustive(item);
                 }
             }
 
@@ -870,6 +880,7 @@ export type PostListItem =
     | PostListLoadedPostCommentItem
     | PostListUnloadedPostCommentItem
     | PostListOptimisticPostCommentItem
+    | PostListPostCommentsTypingIndicator
     | PostListPostCommentInputItem
     | PostListMoreUnloadedPostsItem;
 
@@ -961,6 +972,22 @@ export type PostListOptimisticPostCommentItem = {
      * comment list?
      */
     readonly optimisticPostCommentIndex: number;
+};
+
+/**
+ * When users are actively typing new messages we show an indicator rendered in
+ * this item's position.
+ */
+export type PostListPostCommentsTypingIndicator = {
+    readonly type: "PostCommentsTypingIndicator";
+    readonly post: PostModel;
+    readonly postComments: MessageList<PostCommentModel>;
+    readonly typingStateByConnectionId: ImmutableMap<WebSocketConnectionId, MessagingTypingState>;
+    /**
+     * If the comment section is open, this will be the index of the post comment
+     * input in the full `PostList`.
+     */
+    readonly postCommentInputItemIndex: number;
 };
 
 /**

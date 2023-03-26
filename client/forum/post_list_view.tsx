@@ -1,4 +1,4 @@
-import {SpinnerGap} from "phosphor-react";
+import {SpinnerGap} from "@phosphor-icons/react";
 import {
     Memo,
     MutableRefObject,
@@ -36,6 +36,10 @@ import {
     messageViewMarginY,
     messageViewMinHeight,
 } from "~/client/messaging/message_view";
+import {
+    MessagingTypingIndicators,
+    messagingTypingIndicatorsMinHeight,
+} from "~/client/messaging/messaging_typing_indicators";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages";
 import {MessagingRealtimeActions} from "~/client/messaging/use_messaging_realtime";
@@ -953,6 +957,57 @@ function PostListView(
                                 }}
                             >
                                 {render(isScrolling)}
+                            </div>
+                        ),
+                    };
+                }
+
+                case "PostCommentsTypingIndicator": {
+                    return {
+                        key: `PostCommentsTypingIndicator:${item.post.id}`,
+                        minHeight: messagingTypingIndicatorsMinHeight,
+                        node: (
+                            <div
+                                className={sprinkles({
+                                    display: "flex",
+                                    justifyContent: "center",
+                                    overflow: "hidden",
+                                })}
+                            >
+                                <div
+                                    className={sprinkles({
+                                        width: "full",
+                                        paddingX: hasMargin ? postListViewMarginX : undefined,
+                                        overflow: "hidden",
+                                    })}
+                                    style={{
+                                        maxWidth: postViewMaxWidthWithMarginXRem,
+                                        flex: postViewFlex,
+                                    }}
+                                >
+                                    <div
+                                        className={sprinkles({
+                                            width: "full",
+                                            backgroundColor: "grey-0",
+                                            boxShadow: "elevation-5",
+                                        })}
+                                    >
+                                        <MessagingTypingIndicators
+                                            typingStateByConnectionId={
+                                                item.typingStateByConnectionId
+                                            }
+                                        />
+                                    </div>
+                                </div>
+                                {hasAside && (
+                                    <div
+                                        style={{
+                                            width: "100%",
+                                            maxWidth: postListViewAsideMaxWidthWithMarginXRem,
+                                            flex: postListViewAsideFlex,
+                                        }}
+                                    />
+                                )}
                             </div>
                         ),
                     };

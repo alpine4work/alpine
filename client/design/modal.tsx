@@ -1,4 +1,4 @@
-import {X} from "phosphor-react";
+import {X} from "@phosphor-icons/react";
 import {ReactNode, useEffect, useId, useState} from "react";
 import {FocusScope} from "react-aria";
 import {createPortal} from "react-dom";

@@ -19,6 +19,8 @@ export type MessagingRealtimeActions = {
     }): Promise<void>;
     updateMessageContent(input: {messageIndex: number; content: MessageContent}): Promise<void>;
     deleteMessage(input: {messageIndex: number}): Promise<void>;
+    startTyping(): Promise<void>;
+    stopTyping(): Promise<void>;
 };
 
 /**
@@ -65,6 +67,8 @@ export function useMessagingRealtime<
                                     newOtherReferencedMessages:
                                         realtimeMessage.newOtherReferencedMessages,
                                     messageChanges: realtimeMessage.messageChangesResult.changes,
+                                    typingStateByConnectionId:
+                                        realtimeMessage.typingStateByConnectionId,
                                 });
                             }
 
@@ -76,6 +80,8 @@ export function useMessagingRealtime<
                                 return MessageList.new({
                                     messageCount: realtimeMessage.messageCount,
                                     lastMessageChangeTime: realtimeMessage.lastMessageChangeTime,
+                                    typingStateByConnectionId:
+                                        realtimeMessage.typingStateByConnectionId,
                                 });
                             }
                             default:
@@ -85,12 +91,32 @@ export function useMessagingRealtime<
                     break;
                 }
                 case "NewMessage": {
-                    onUpdateMessages(messages => messages.addMessage(realtimeMessage.message));
+                    onUpdateMessages(messages => {
+                        messages = messages.addMessage(realtimeMessage.message);
+
+                        if (realtimeMessage.updateOtherTypingState) {
+                            messages = messages.updateTypingState(
+                                realtimeMessage.updateOtherTypingState.connectionId,
+                                realtimeMessage.updateOtherTypingState.typingState,
+                            );
+                        }
+
+                        return messages;
+                    });
                     break;
                 }
                 case "ChangeMessage": {
                     onUpdateMessages(messages =>
                         messages.changeLoadedMessage(realtimeMessage.change),
+                    );
+                    break;
+                }
+                case "UpdateOtherTypingState": {
+                    onUpdateMessages(messages =>
+                        messages.updateTypingState(
+                            realtimeMessage.connectionId,
+                            realtimeMessage.typingState,
+                        ),
                     );
                     break;
                 }
@@ -148,6 +174,8 @@ export function useMessagingRealtime<
                     type: "DeleteMessage",
                     ...input,
                 }),
+            startTyping: () => sendRealtimeMessage({type: "StartTyping"}),
+            stopTyping: () => sendRealtimeMessage({type: "StopTyping"}),
         };
     }, [sendRealtimeMessage]);
 

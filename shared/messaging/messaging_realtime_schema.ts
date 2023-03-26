@@ -1,7 +1,20 @@
 import {MessageContentSchema} from "~/shared/content/message_content_schema";
+import {WebSocketConnectionId} from "~/shared/id/types/id_types";
 import {MessageChange, MessageChangeSchema} from "~/shared/messaging/message_change_schema";
+import {AccountModel} from "~/shared/models/account_model";
 import {MessageModel} from "~/shared/models/message_model";
 import {Schema, SchemaType} from "~/shared/schema/schema";
+
+export type MessagingTypingState = SchemaType<typeof MessagingTypingStateSchema>;
+
+/**
+ * If a user is actively typing in their message input we will send typing state
+ */
+export const MessagingTypingStateSchema = Schema.object({
+    isTyping: Schema.value(true),
+    startTime: Schema.date,
+    account: AccountModel.schema(),
+});
 
 export type MessagingRealtimeMessageFromClient = SchemaType<
     typeof MessagingRealtimeMessageFromClientSchema
@@ -53,6 +66,20 @@ export const MessagingRealtimeMessageFromClientSchema = Schema.union({
         type: Schema.value("DeleteMessage"),
         messageIndex: Schema.integer,
     }),
+
+    /**
+     * Has the client started typing in their message input?
+     */
+    StartTyping: Schema.object({
+        type: Schema.value("StartTyping"),
+    }),
+
+    /**
+     * Has the client stopped typing in their message input?
+     */
+    StopTyping: Schema.object({
+        type: Schema.value("StopTyping"),
+    }),
 });
 
 export type MessagingRealtimeMessageFromServer<Message extends MessageModel> =
@@ -70,14 +97,27 @@ export type MessagingRealtimeMessageFromServer<Message extends MessageModel> =
               | {
                     readonly type: "Unavailable";
                 };
+          readonly typingStateByConnectionId: ReadonlyMap<
+              WebSocketConnectionId,
+              MessagingTypingState
+          >;
       }
     | {
           readonly type: "NewMessage";
           readonly message: Message;
+          readonly updateOtherTypingState: {
+              readonly connectionId: WebSocketConnectionId;
+              readonly typingState: MessagingTypingState | null;
+          } | null;
       }
     | {
           readonly type: "ChangeMessage";
           readonly change: MessageChange;
+      }
+    | {
+          readonly type: "UpdateOtherTypingState";
+          readonly connectionId: WebSocketConnectionId;
+          readonly typingState: MessagingTypingState | null;
       };
 
 export function createMessagingRealtimeMessageFromServerSchema<Message extends MessageModel>(
@@ -91,6 +131,11 @@ export function createMessagingRealtimeMessageFromServerSchema<Message extends M
         /**
          * Response to a `BackfillMessagesRequest` message. Contains the actual
          * message count and an array of new messages we should load.
+         *
+         * `typingStateByConnectionId` contains the typing state for all connected
+         * clients. If a client does not exist in this map it means they have no typing
+         * state. If you receive this message you should reset all your typing states
+         * and treat this map as the new state.
          *
          * Ordering guarantee: You will get no `NewMessage` WebSocket messages until
          * your first `BackfillMessagesResponse` WebSocket message.
@@ -110,6 +155,10 @@ export function createMessagingRealtimeMessageFromServerSchema<Message extends M
                     type: Schema.value("Unavailable"),
                 }),
             }),
+            typingStateByConnectionId: Schema.map(
+                Schema.id<WebSocketConnectionId>(),
+                MessagingTypingStateSchema,
+            ),
         }),
 
         /**
@@ -125,6 +174,14 @@ export function createMessagingRealtimeMessageFromServerSchema<Message extends M
         NewMessage: Schema.object({
             type: Schema.value("NewMessage"),
             message: MessageSchema,
+            /**
+             * Atomically update this other typing state in the same action as we send
+             * a message.
+             */
+            updateOtherTypingState: Schema.object({
+                connectionId: Schema.id<WebSocketConnectionId>(),
+                typingState: MessagingTypingStateSchema.nullable(),
+            }).nullable(),
         }),
 
         /**
@@ -138,6 +195,16 @@ export function createMessagingRealtimeMessageFromServerSchema<Message extends M
         ChangeMessage: Schema.object({
             type: Schema.value("ChangeMessage"),
             change: MessageChangeSchema,
+        }),
+
+        /**
+         * Update the typing state for some other connection to our realtime messaging
+         * service.
+         */
+        UpdateOtherTypingState: Schema.object({
+            type: Schema.value("UpdateOtherTypingState"),
+            connectionId: Schema.id<WebSocketConnectionId>(),
+            typingState: MessagingTypingStateSchema.nullable(),
         }),
     });
 }
