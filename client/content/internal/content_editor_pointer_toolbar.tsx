@@ -303,9 +303,12 @@ function ContentEditorPointerToolbarOverlay({
             ref={overlayRef}
             isVisible={true}
             placement="top-start"
-            // Since we position the overlay based on the start of the selection we can't
-            // flip down or else we might cover selection content.
-            canFlip={false}
+            // NOTE(calebmer): Ideally we wouldn't allow flipping since because we position
+            // the toolbar at the start of the selection, flipping down will cover the
+            // selection! However there are some scenarios where the toolbar would go
+            // offscreen so it's better to flip and potentially cover content then to
+            // occlude the toolbar.
+            // canFlip={false}
             offset="3"
             offsetAlong="-4"
             overlay={

@@ -245,7 +245,12 @@ function ContentEditorKeyboardHighlightFloater({
             placement="top-start"
             offset="3"
             offsetAlong="-5"
-            canFlip={false}
+            // NOTE(calebmer): Ideally we wouldn't allow flipping since because we position
+            // the toolbar at the start of the selection, flipping down will cover the
+            // selection! However there are some scenarios where the toolbar would go
+            // offscreen so it's better to flip and potentially cover content then to
+            // occlude the toolbar.
+            // canFlip={false}
             overlay={
                 <Box
                     ref={useOutsidePress(onClose)}
@@ -348,7 +353,12 @@ function ContentEditorKeyboardLinkFloater({
             placement="top-start"
             offset="3"
             offsetAlong="-5"
-            canFlip={false}
+            // NOTE(calebmer): Ideally we wouldn't allow flipping since because we position
+            // the toolbar at the start of the selection, flipping down will cover the
+            // selection! However there are some scenarios where the toolbar would go
+            // offscreen so it's better to flip and potentially cover content then to
+            // occlude the toolbar.
+            // canFlip={false}
             overlay={
                 <Box ref={useOutsidePress(onClose)}>
                     {isClosing ? (
@@ -469,7 +479,12 @@ function ContentEditorPointerLinkFloater({
             // a visual text selection indication for what it's targeting.
             offset="1.5"
             offsetAlong="-5"
-            canFlip={false}
+            // NOTE(calebmer): Ideally we wouldn't allow flipping since because we position
+            // the toolbar at the start of the selection, flipping down will cover the
+            // selection! However there are some scenarios where the toolbar would go
+            // offscreen so it's better to flip and potentially cover content then to
+            // occlude the toolbar.
+            // canFlip={false}
             overlay={
                 <Box {...hoverProps} ref={useOutsidePress(onClose)}>
                     <ContentEditorLinkInput

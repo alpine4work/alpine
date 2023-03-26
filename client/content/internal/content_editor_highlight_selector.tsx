@@ -236,8 +236,6 @@ function ContentEditorHighlightSelectorButton({
     return (
         <Tooltip
             placement="top"
-            // Don't allow flipping the tooltip down into selection content. Since we
-            // position the color selector on top of selected content.
             canFlip={false}
             // The hover bounding box for our button is larger than the button itself so
             // we want to show the tooltip when a child is focused.
