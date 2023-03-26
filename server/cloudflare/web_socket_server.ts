@@ -127,7 +127,7 @@ export class WebSocketServer<
                     if (otherConnection.id === connection.id) continue;
 
                     // Don't send new messages to soft closed connections.
-                    if (connection.isSoftClosed()) continue;
+                    if (otherConnection.isSoftClosed()) continue;
 
                     otherConnection.dangerouslySendRawMessageEvenWhenSoftClosed(
                         context,

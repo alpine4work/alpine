@@ -29,7 +29,7 @@ export class DocumentCollaborationConnection {
         message: DocumentCollaborationMessageFromServer,
     ) => void;
     private readonly _iterateOtherConnections: () => Iterable<DocumentCollaborationConnection>;
-    private readonly _destroyDurableObject: (context: ProcessContext) => void;
+    private readonly _killProcess: (context: ProcessContext) => void;
 
     private _presenceState: DocumentCollaborationPresenceState | null = null;
     private _sequentialQueue = new AsyncSequentialQueue();
@@ -40,7 +40,7 @@ export class DocumentCollaborationConnection {
         sendMessage,
         sendMessageToOthers,
         iterateOtherConnections,
-        destroyDurableObject,
+        killProcess,
     }: {
         connectionId: WebSocketConnectionId;
         contentManager: DocumentCollaborationContentManager;
@@ -53,14 +53,14 @@ export class DocumentCollaborationConnection {
             message: DocumentCollaborationMessageFromServer,
         ) => void;
         iterateOtherConnections: () => Iterable<DocumentCollaborationConnection>;
-        destroyDurableObject: (context: ProcessContext) => void;
+        killProcess: (context: ProcessContext) => void;
     }) {
         this.connectionId = connectionId;
         this._contentManager = contentManager;
         this._sendMessage = sendMessage;
         this._sendMessageToOthers = sendMessageToOthers;
         this._iterateOtherConnections = iterateOtherConnections;
-        this._destroyDurableObject = destroyDurableObject;
+        this._killProcess = killProcess;
     }
 
     public getPresenceState() {
@@ -98,7 +98,7 @@ export class DocumentCollaborationConnection {
                                 this._contentManager.id,
                             );
                             if (!documentPreview) {
-                                this._sendFatalErrorMessageAndDestroyDurableObject(
+                                this._sendFatalErrorMessageAndKillProcess(
                                     context,
                                     span,
                                     new NotFoundError(
@@ -108,7 +108,7 @@ export class DocumentCollaborationConnection {
                                 return;
                             }
                             if (documentPreview.version > version) {
-                                this._sendFatalErrorMessageAndDestroyDurableObject(
+                                this._sendFatalErrorMessageAndKillProcess(
                                     context,
                                     span,
                                     new InternalError(
@@ -269,7 +269,7 @@ export class DocumentCollaborationConnection {
         );
     }
 
-    private _sendFatalErrorMessageAndDestroyDurableObject(
+    private _sendFatalErrorMessageAndKillProcess(
         context: ProcessContext,
         span: TracerSpan,
         error: unknown,
@@ -284,6 +284,6 @@ export class DocumentCollaborationConnection {
             type: "Error",
             error,
         });
-        this._destroyDurableObject(context);
+        this._killProcess(context);
     }
 }

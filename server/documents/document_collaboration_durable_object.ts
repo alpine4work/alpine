@@ -85,7 +85,7 @@ class DocumentCollaborationDurableObject {
             initialContent,
             sendMessageToAll: (context, message) =>
                 this._webSocketServer.sendMessageToAll(context, message),
-            destroyDurableObject: context => this._destroy(context),
+            killProcess: context => this._destroy(context),
         });
         this._destroyCallback = destroy;
 
@@ -100,7 +100,7 @@ class DocumentCollaborationDurableObject {
                     sendMessage,
                     sendMessageToOthers,
                     iterateOtherConnections,
-                    destroyDurableObject: context => this._destroy(context),
+                    killProcess: context => this._destroy(context),
                 }),
         );
     }

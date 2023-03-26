@@ -38,7 +38,7 @@ export class DocumentCollaborationContentManager {
         context: ProcessContext,
         message: DocumentCollaborationMessageFromServer,
     ) => void;
-    private readonly _destroyDurableObject: (context: ProcessContext) => void;
+    private readonly _killProcess: (context: ProcessContext) => void;
     private _updateSequentialQueue = new AsyncSequentialQueue();
 
     private _persistenceState: {
@@ -55,7 +55,7 @@ export class DocumentCollaborationContentManager {
         initialVersion,
         initialContent,
         sendMessageToAll,
-        destroyDurableObject,
+        killProcess,
     }: {
         spaceId: SpaceId;
         id: DocumentId;
@@ -65,7 +65,7 @@ export class DocumentCollaborationContentManager {
             context: ProcessContext,
             message: DocumentCollaborationMessageFromServer,
         ) => void;
-        destroyDurableObject: (context: ProcessContext) => void;
+        killProcess: (context: ProcessContext) => void;
     }) {
         this.spaceId = spaceId;
         this.id = id;
@@ -73,7 +73,7 @@ export class DocumentCollaborationContentManager {
         this._content = initialContent;
         this.stepCache = new DocumentCollaborationStepCache(id, this._version);
         this._sendMessageToAll = sendMessageToAll;
-        this._destroyDurableObject = destroyDurableObject;
+        this._killProcess = killProcess;
     }
 
     /**
@@ -272,7 +272,7 @@ export class DocumentCollaborationContentManager {
                                             type: "Error",
                                             error,
                                         });
-                                        this._destroyDurableObject(context);
+                                        this._killProcess(context);
                                     }
                                 },
                             );
