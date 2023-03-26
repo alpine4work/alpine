@@ -714,6 +714,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         paddingBottom: !shouldMergeWithNextMessage
                             ? messageViewMarginY
                             : messageViewMergedMarginY,
+                        overflow: "hidden",
                     })}
                 >
                     {useMemo(
@@ -745,6 +746,8 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     {message.payload.type === "Content" ? (
                         <div
                             className={sprinkles({
+                                flexGrow: "1",
+                                overflow: "hidden",
                                 display: "flex",
                                 position: "relative",
                                 zIndex: "10",
