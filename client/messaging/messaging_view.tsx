@@ -192,6 +192,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         subscribeToRealtimeMessages,
         getCopyLinkUrl,
         inputStateRef,
+        roomDisplayedCreatedTime,
     }: {
         /**
          * What we call messages in UI copy. Defaults to "message". For example
@@ -312,6 +313,14 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
          * React `key` change.
          */
         inputStateRef?: MutableRefObject<ContentEditorState<MessageContent> | null>;
+
+        /**
+         * If we display the time at which the messaging room was created, pass it in
+         * here and we will not add a timestamp divider to the messaging view if the
+         * first message was sent shortly after room creation. If not provided we
+         * always render a time divider.
+         */
+        roomDisplayedCreatedTime?: Date;
     },
     ref: Ref<MessagingViewRef>,
 ) {
@@ -538,6 +547,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                                 messageNoun={messageNoun}
                                 messageStartOfSentenceNoun={messageStartOfSentenceNoun}
                                 message={item.message}
+                                isFirstMessage={item.messageIndex === 0}
                                 previousMessage={previousMessage}
                                 nextMessage={nextMessage}
                                 messages={state.messages}
@@ -563,6 +573,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                                     disableExpensiveFeaturesDuringScroll
                                 }
                                 getCopyLinkUrl={getCopyLinkUrl}
+                                roomDisplayedCreatedTime={roomDisplayedCreatedTime}
                             />
                         ) : (
                             <MessageShimmer

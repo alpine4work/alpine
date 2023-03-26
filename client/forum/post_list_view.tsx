@@ -794,6 +794,7 @@ function PostListView(
                                     messageNoun="comment"
                                     message={item.postComment}
                                     previousMessage={previousComment}
+                                    isFirstMessage={item.postCommentIndex === 0}
                                     nextMessage={nextComment}
                                     messages={item.postComments}
                                     messageEditing={messageEditing}
@@ -843,6 +844,7 @@ function PostListView(
                                             window.location.href,
                                         );
                                     }}
+                                    roomDisplayedCreatedTime={item.post.createdTime}
                                 />
                             ) : (
                                 <MessageShimmer

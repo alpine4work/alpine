@@ -22,6 +22,7 @@ import {shouldDisplayTextAsBigEmojiMessage} from "~/client/messaging/internal/sh
 import {MessageEditing} from "~/client/messaging/message_editing";
 import {MessageList} from "~/client/messaging/message_list";
 import {useIsPeekAnimatingOpen} from "~/client/peek/peek_stack";
+import {useClientInfo} from "~/client/remix/client_info_context";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -127,6 +128,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     messageNoun = "message",
     messageStartOfSentenceNoun = messageNoun.slice(0, 1).toUpperCase() + messageNoun.slice(1),
     message,
+    isFirstMessage,
     previousMessage,
     nextMessage,
     messages,
@@ -137,10 +139,12 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     onReplyToMessage,
     onDeleteMessage,
     getCopyLinkUrl,
+    roomDisplayedCreatedTime,
 }: {
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
     message: Message | OptimisticMessageModel;
+    isFirstMessage: boolean;
     previousMessage: MessageModelBase | null;
     nextMessage: MessageModelBase | null;
     messages: MessageList<Message>;
@@ -151,7 +155,10 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     onReplyToMessage: () => void;
     onDeleteMessage: () => Promise<void>;
     getCopyLinkUrl: (messageIndex: number) => URL;
+    roomDisplayedCreatedTime?: Date;
 }) {
+    const {timeZone} = useClientInfo();
+
     const shouldMergeWithPreviousMessage: boolean =
         !!previousMessage && shouldMergeMessages(previousMessage, message);
 
@@ -568,6 +575,74 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         );
     }, [messageStartOfSentenceNoun, messageTextForBigEmojiMessage, onJumpToMessage, parentMessage]);
 
+    const timestampDividerNode = useMemo(() => {
+        // If an hour passed without a message, insert a divider between messages. We
+        // use an hour since that's a pretty standard meeting time. If an hour long
+        // meeting has passed we assume context is lost so revealing the time
+        // is useful.
+        const minElapsedMinutes = 60;
+
+        const shouldShowTimestampBeforeMessage = isFirstMessage
+            ? !roomDisplayedCreatedTime ||
+              differenceInMinutes(message.createdTime, roomDisplayedCreatedTime) > minElapsedMinutes
+            : previousMessage &&
+              differenceInMinutes(message.createdTime, previousMessage.createdTime) >
+                  minElapsedMinutes;
+        if (!shouldShowTimestampBeforeMessage) return null;
+
+        const isCurrentYear = new Date().getFullYear() === message.createdTime.getFullYear();
+
+        const formatter = new Intl.DateTimeFormat("en-US", {
+            timeZone,
+            calendar: "iso8601",
+            year: !isCurrentYear ? "numeric" : undefined,
+            month: "short",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+        });
+
+        const formattedDate = formatter.format(message.createdTime);
+
+        return (
+            <div className={sprinkles({paddingTop: "6", paddingBottom: "3"})}>
+                <div
+                    className={sprinkles({
+                        position: "relative",
+                        zIndex: "0",
+                        display: "flex",
+                        justifyContent: "center",
+                    })}
+                >
+                    <div
+                        className={sprinkles({
+                            position: "relative",
+                            zIndex: "20",
+                            fontSize: "50",
+                            fontStyle: "truncate",
+                            color: "grey-50",
+                            backgroundColor: "grey-0",
+                            paddingX: "6",
+                        })}
+                    >
+                        {formattedDate}
+                    </div>
+                    <div
+                        className={sprinkles({
+                            position: "absolute",
+                            zIndex: "10",
+                            left: "12",
+                            right: "12",
+                            backgroundColor: "grey-5",
+                        })}
+                        style={{height: 1, top: "50%"}}
+                    />
+                </div>
+            </div>
+        );
+    }, [isFirstMessage, message.createdTime, previousMessage, roomDisplayedCreatedTime, timeZone]);
+
     // IMPORTANT(calebmer): Be careful about what you put in this component!
     // `<MessageView>` needs to render fast for us to get good FPS when scrolling
     // through messages. We've directly observed slow hook implementations or too
@@ -576,218 +651,228 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     // whether you could add it to a child component. Or inline some of the logic.
 
     return (
-        <div
-            className={sprinkles({position: "relative", zIndex: "0"})}
-            style={{
-                animation: shouldHighlight ? wiggleAnimation : undefined,
-            }}
-            data-testid={`MessageView:${
-                message.isOptimistic
-                    ? `optimistic:${message.optimisticId}`
-                    : `${message.getRoomKey()}:${message.index}`
-            }`}
-        >
-            {useMemo(
-                () =>
-                    !shouldMergeWithPreviousMessage && (
-                        <div
-                            className={sprinkles({
-                                fontSize: "50",
-                                fontStyle: "truncate",
-                                paddingTop: "0.5",
-                                paddingBottom: parentMessage === null ? "0.5" : "1",
-                                paddingRight: messageViewMarginX,
-                                color: "grey-50",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "0.5",
-                            })}
-                            style={{
-                                paddingLeft: addRemLengths(messageBubbleMarginLeft, spacing["0.5"]),
-                            }}
-                        >
-                            {parentMessage !== null && <ArrowArcLeft size={spacing["3"]} />}
-                            <span>
-                                <AccountShortName account={message.author} />
-                                {parentMessage !== null && (
-                                    <>
-                                        {" "}
-                                        replied to{" "}
-                                        {message.author.id === parentMessage.author.id ? (
-                                            "themself"
-                                        ) : (
-                                            <AccountShortName account={parentMessage.author} />
-                                        )}
-                                    </>
-                                )}
-                            </span>
-                        </div>
-                    ),
-                [message.author, parentMessage, shouldMergeWithPreviousMessage],
-            )}
-            {parentMessageNode}
+        <>
+            {timestampDividerNode}
             <div
-                ref={hoverRef}
-                className={sprinkles({
-                    display: "flex",
-                    paddingX: messageViewMarginX,
-                    paddingBottom: !shouldMergeWithNextMessage
-                        ? messageViewMarginY
-                        : messageViewMergedMarginY,
-                })}
+                className={sprinkles({position: "relative", zIndex: "0"})}
+                style={{
+                    animation: shouldHighlight ? wiggleAnimation : undefined,
+                }}
+                data-testid={`MessageView:${
+                    message.isOptimistic
+                        ? `optimistic:${message.optimisticId}`
+                        : `${message.getRoomKey()}:${message.index}`
+                }`}
             >
                 {useMemo(
-                    () => (
-                        <div
-                            className={sprinkles({
-                                flexShrink: "0",
-                                paddingRight: "2",
-                            })}
-                        >
+                    () =>
+                        !shouldMergeWithPreviousMessage && (
                             <div
                                 className={sprinkles({
-                                    width: "7",
-                                    height: "full",
+                                    fontSize: "50",
+                                    fontStyle: "truncate",
+                                    paddingTop: "0.5",
+                                    paddingBottom: parentMessage === null ? "0.5" : "1",
+                                    paddingRight: messageViewMarginX,
+                                    color: "grey-50",
                                     display: "flex",
-                                    alignItems: "flex-end",
+                                    alignItems: "center",
+                                    gap: "0.5",
                                 })}
+                                style={{
+                                    paddingLeft: addRemLengths(
+                                        messageBubbleMarginLeft,
+                                        spacing["0.5"],
+                                    ),
+                                }}
                             >
-                                {!shouldMergeWithNextMessage && (
-                                    <div className={sprinkles({paddingY: "0.5"})}>
-                                        <AccountAvatar account={message.author} size="7" />
-                                    </div>
-                                )}
+                                {parentMessage !== null && <ArrowArcLeft size={spacing["3"]} />}
+                                <span>
+                                    <AccountShortName account={message.author} />
+                                    {parentMessage !== null && (
+                                        <>
+                                            {" "}
+                                            replied to{" "}
+                                            {message.author.id === parentMessage.author.id ? (
+                                                "themself"
+                                            ) : (
+                                                <AccountShortName account={parentMessage.author} />
+                                            )}
+                                        </>
+                                    )}
+                                </span>
                             </div>
-                        </div>
-                    ),
-                    [message.author, shouldMergeWithNextMessage],
+                        ),
+                    [message.author, parentMessage, shouldMergeWithPreviousMessage],
                 )}
-                {message.payload.type === "Content" ? (
-                    <div
-                        className={sprinkles({display: "flex", position: "relative", zIndex: "10"})}
-                        onBlur={event => {
-                            // Ignore blur events where focus is moving within the element.
-                            //
-                            // We need to use element ownership instead of `document.body.contains()` to
-                            // handle modals.
-                            if (
-                                !event.relatedTarget ||
-                                !isElementOwnedBy(event.currentTarget, event.relatedTarget)
-                            ) {
-                                messageEditingForThisMessage?.dispatch({
-                                    type: "MaybeCancelEditing",
-                                });
-                            }
-                        }}
-                    >
-                        {!messageEditingForThisMessage ? (
-                            contentPayloadNode
-                        ) : (
-                            <MessageViewEditor
-                                ref={messageEditorRef}
-                                messageNoun={messageNoun}
-                                messageStartOfSentenceNoun={messageStartOfSentenceNoun}
-                                shouldMergeWithPreviousMessage={shouldMergeWithPreviousMessage}
-                                shouldMergeWithNextMessage={shouldMergeWithNextMessage}
-                                messageEditing={messageEditing}
-                            />
-                        )}
-                        <div
-                            className={sprinkles({
-                                alignSelf: "center",
-                                paddingLeft: "3",
-                            })}
-                        >
+                {parentMessageNode}
+                <div
+                    ref={hoverRef}
+                    className={sprinkles({
+                        display: "flex",
+                        paddingX: messageViewMarginX,
+                        paddingBottom: !shouldMergeWithNextMessage
+                            ? messageViewMarginY
+                            : messageViewMergedMarginY,
+                    })}
+                >
+                    {useMemo(
+                        () => (
                             <div
                                 className={sprinkles({
-                                    width: messageViewActionsWidth,
-                                    position: "relative",
-                                    zIndex: "20",
+                                    flexShrink: "0",
+                                    paddingRight: "2",
                                 })}
                             >
-                                {message.isOptimistic &&
-                                message.optimisticRequestErrorState.hasError ? (
-                                    <div>
-                                        <IconButton
-                                            // NOTE(calebmer): I think we can use "click" in copy here since the
-                                            // description is part of a tooltip which is fundamentally a mouse/pointer
-                                            // thing. On mobile we need to pop open a modal or alert or something.
-                                            description={`Couldn’t create ${messageNoun}. Click to try again`}
-                                            size="sm"
-                                            onPress={message.optimisticRequestErrorState.retry}
-                                        >
-                                            <ErrorIcon />
-                                        </IconButton>
-                                    </div>
-                                ) : shouldShowOptimisticLoadingIndicator ? (
-                                    <div>
-                                        <SpinnerGap
-                                            className={spinAnimationClassName}
-                                            size={spacing["4"]}
-                                        />
-                                    </div>
-                                ) : (
-                                    !message.isOptimistic &&
-                                    !disableExpensiveFeaturesDuringScroll &&
-                                    !shouldHighlight && (
-                                        <MessageViewActions
-                                            messageNoun={messageNoun}
-                                            message={message}
-                                            messagePayload={message.payload}
-                                            messageEditing={messageEditing}
-                                            isHovered={isHovered}
-                                            onReplyToMessage={onReplyToMessage}
-                                            onDeleteMessage={onDeleteMessage}
-                                            isEditing={!!messageEditingForThisMessage}
-                                            getCopyLinkUrl={getCopyLinkUrl}
-                                        />
-                                    )
-                                )}
+                                <div
+                                    className={sprinkles({
+                                        width: "7",
+                                        height: "full",
+                                        display: "flex",
+                                        alignItems: "flex-end",
+                                    })}
+                                >
+                                    {!shouldMergeWithNextMessage && (
+                                        <div className={sprinkles({paddingY: "0.5"})}>
+                                            <AccountAvatar account={message.author} size="7" />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ),
+                        [message.author, shouldMergeWithNextMessage],
+                    )}
+                    {message.payload.type === "Content" ? (
+                        <div
+                            className={sprinkles({
+                                display: "flex",
+                                position: "relative",
+                                zIndex: "10",
+                            })}
+                            onBlur={event => {
+                                // Ignore blur events where focus is moving within the element.
+                                //
+                                // We need to use element ownership instead of `document.body.contains()` to
+                                // handle modals.
+                                if (
+                                    !event.relatedTarget ||
+                                    !isElementOwnedBy(event.currentTarget, event.relatedTarget)
+                                ) {
+                                    messageEditingForThisMessage?.dispatch({
+                                        type: "MaybeCancelEditing",
+                                    });
+                                }
+                            }}
+                        >
+                            {!messageEditingForThisMessage ? (
+                                contentPayloadNode
+                            ) : (
+                                <MessageViewEditor
+                                    ref={messageEditorRef}
+                                    messageNoun={messageNoun}
+                                    messageStartOfSentenceNoun={messageStartOfSentenceNoun}
+                                    shouldMergeWithPreviousMessage={shouldMergeWithPreviousMessage}
+                                    shouldMergeWithNextMessage={shouldMergeWithNextMessage}
+                                    messageEditing={messageEditing}
+                                />
+                            )}
+                            <div
+                                className={sprinkles({
+                                    alignSelf: "center",
+                                    paddingLeft: "3",
+                                })}
+                            >
+                                <div
+                                    className={sprinkles({
+                                        width: messageViewActionsWidth,
+                                        position: "relative",
+                                        zIndex: "20",
+                                    })}
+                                >
+                                    {message.isOptimistic &&
+                                    message.optimisticRequestErrorState.hasError ? (
+                                        <div>
+                                            <IconButton
+                                                // NOTE(calebmer): I think we can use "click" in copy here since the
+                                                // description is part of a tooltip which is fundamentally a mouse/pointer
+                                                // thing. On mobile we need to pop open a modal or alert or something.
+                                                description={`Couldn’t create ${messageNoun}. Click to try again`}
+                                                size="sm"
+                                                onPress={message.optimisticRequestErrorState.retry}
+                                            >
+                                                <ErrorIcon />
+                                            </IconButton>
+                                        </div>
+                                    ) : shouldShowOptimisticLoadingIndicator ? (
+                                        <div>
+                                            <SpinnerGap
+                                                className={spinAnimationClassName}
+                                                size={spacing["4"]}
+                                            />
+                                        </div>
+                                    ) : (
+                                        !message.isOptimistic &&
+                                        !disableExpensiveFeaturesDuringScroll &&
+                                        !shouldHighlight && (
+                                            <MessageViewActions
+                                                messageNoun={messageNoun}
+                                                message={message}
+                                                messagePayload={message.payload}
+                                                messageEditing={messageEditing}
+                                                isHovered={isHovered}
+                                                onReplyToMessage={onReplyToMessage}
+                                                onDeleteMessage={onDeleteMessage}
+                                                isEditing={!!messageEditingForThisMessage}
+                                                getCopyLinkUrl={getCopyLinkUrl}
+                                            />
+                                        )
+                                    )}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                ) : (
-                    deletedPayloadNode
-                )}
+                    ) : (
+                        deletedPayloadNode
+                    )}
+                </div>
+                {messageEditingForThisMessage?.state.isEditing &&
+                    messageEditingForThisMessage.state.confirmationDialog === "Save" && (
+                        <ModalDialog
+                            title={`Save ${messageNoun}`}
+                            description={`Would you like to save the changes you made to this ${messageNoun}?`}
+                            onClose={() =>
+                                messageEditingForThisMessage.dispatch({
+                                    type: "CloseConfirmingDialog",
+                                    confirmationDialog: "Save",
+                                })
+                            }
+                            primaryButtonLabel="Save"
+                            onPrimaryButtonPress={() => {
+                                messageEditing.dispatch({
+                                    type: "SaveEditedContent",
+                                    messageNoun,
+                                });
+                            }}
+                            cancelButtonLabel="Discard changes"
+                            onCancelButtonPress={() => {
+                                messageEditing.dispatch({type: "CancelEditing"});
+                            }}
+                        />
+                    )}
+                {messageEditingForThisMessage?.state.isEditing &&
+                    messageEditingForThisMessage.state.confirmationDialog === "Delete" && (
+                        <MessageDeleteConfirmationDialog
+                            messageNoun={messageNoun}
+                            onClose={() =>
+                                messageEditingForThisMessage.dispatch({
+                                    type: "CloseConfirmingDialog",
+                                    confirmationDialog: "Delete",
+                                })
+                            }
+                            onDeleteMessage={onDeleteMessage}
+                        />
+                    )}
             </div>
-            {messageEditingForThisMessage?.state.isEditing &&
-                messageEditingForThisMessage.state.confirmationDialog === "Save" && (
-                    <ModalDialog
-                        title={`Save ${messageNoun}`}
-                        description={`Would you like to save the changes you made to this ${messageNoun}?`}
-                        onClose={() =>
-                            messageEditingForThisMessage.dispatch({
-                                type: "CloseConfirmingDialog",
-                                confirmationDialog: "Save",
-                            })
-                        }
-                        primaryButtonLabel="Save"
-                        onPrimaryButtonPress={() => {
-                            messageEditing.dispatch({
-                                type: "SaveEditedContent",
-                                messageNoun,
-                            });
-                        }}
-                        cancelButtonLabel="Discard changes"
-                        onCancelButtonPress={() => {
-                            messageEditing.dispatch({type: "CancelEditing"});
-                        }}
-                    />
-                )}
-            {messageEditingForThisMessage?.state.isEditing &&
-                messageEditingForThisMessage.state.confirmationDialog === "Delete" && (
-                    <MessageDeleteConfirmationDialog
-                        messageNoun={messageNoun}
-                        onClose={() =>
-                            messageEditingForThisMessage.dispatch({
-                                type: "CloseConfirmingDialog",
-                                confirmationDialog: "Delete",
-                            })
-                        }
-                        onDeleteMessage={onDeleteMessage}
-                    />
-                )}
-        </div>
+        </>
     );
 }
 
