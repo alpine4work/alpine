@@ -2490,10 +2490,13 @@ function getAndCheckDynamoTableSchemaDescriptions(
     // service in AWS. At that point we should re-enable backwards compatibility
     // checking in production since it's not that expensive. Or we should do
     // backwards compatibility checking lazily.
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.NODE_ENV !== "production") {
         if (lastDescription !== null) {
             try {
-                checkDynamoTableSchemaDescriptionBackwardsCompatibility(lastDescription, description);
+                checkDynamoTableSchemaDescriptionBackwardsCompatibility(
+                    lastDescription,
+                    description,
+                );
             } catch (error) {
                 readCompatibilityError = InternalError.from(
                     error,
@@ -2502,7 +2505,10 @@ function getAndCheckDynamoTableSchemaDescriptions(
             }
 
             try {
-                checkDynamoTableSchemaDescriptionBackwardsCompatibility(description, lastDescription);
+                checkDynamoTableSchemaDescriptionBackwardsCompatibility(
+                    description,
+                    lastDescription,
+                );
             } catch (error) {
                 writeCompatibilityError = InternalError.from(
                     error,

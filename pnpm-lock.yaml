@@ -206,7 +206,7 @@ specifiers:
   node-fetch: '2'
   outdent: 0.8.0
   playwright-core: ^1.31.1
-  prettier: ^2.8.4
+  prettier: ^2.8.7
   pretty-ms: '7'
   proper-lockfile: ^4.1.2
   prosemirror-collab: ^1.3.0
@@ -361,7 +361,7 @@ dependencies:
   node-fetch: 2.6.7
   outdent: 0.8.0_ybnbpvk42g5zpvi2kytcsdr4wu
   playwright-core: 1.31.1
-  prettier: 2.8.4
+  prettier: 2.8.7
   pretty-ms: 7.0.1
   proper-lockfile: 4.1.2
   prosemirror-collab: 1.3.0
@@ -13009,8 +13009,8 @@ packages:
     hasBin: true
     dev: false
 
-  /prettier/2.8.4:
-    resolution: {integrity: sha512-vIS4Rlc2FNh0BySk3Wkd6xmwxB0FpOndW5fisM5H8hsZSxU2VWVB5CWIkIjWvrHjIhxk2g3bfMKM87zNTrZddw==}
+  /prettier/2.8.7:
+    resolution: {integrity: sha512-yPngTo3aXUUmyuTjeTUT75txrf+aMh9FiD7q9ZE/i6r0bPb22g4FsE6Y338PQX1bmfy08i9QQCB7/rcUAVntfw==}
     engines: {node: '>=10.13.0'}
     hasBin: true
     dev: false
