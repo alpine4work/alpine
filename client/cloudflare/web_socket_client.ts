@@ -162,16 +162,16 @@ export class WebSocketClient<
             // If the user called `close()` then we consider the close to be expected and we
             // won't fire an error.
             const wasCloseExpected = this._state.type === "Closed";
+            if (!wasCloseExpected) this._state = {type: "Closed"};
 
-            this._state = {type: "Closed"};
             pingTimeout?.clear();
             checkConnectionInterval.clear();
 
-            // When the WebSocket closes, reject our ping promise resolver since we won't
-            // be getting a pong from our new connection.
-            pongPromiseResolver?.reject(
-                new UnavailableError("WebSocket closed before receiving pong"),
-            );
+            // When the WebSocket closes, resolve our ping promise since we won't
+            // be getting a pong from our new connection. We resolve instead of reject
+            // since it's expected we won't receive a pong if our socket closes. The socket
+            // closing itself may be in error but that will be reported elsewhere.
+            pongPromiseResolver?.resolve();
             pongPromiseResolver = undefined;
 
             // When the WebSocket closes, reject all messages that haven't been
@@ -194,7 +194,7 @@ export class WebSocketClient<
                 ? new UnavailableError(
                       `WebSocket closed unexpectedly with code ${event.code}${
                           event.reason ? quote`and reason ${event.reason}` : ""
-                      }${!event.wasClean ? " (did not exit cleanly)" : ""}`,
+                      }${!event.wasClean ? " (did not close cleanly)" : ""}`,
                   )
                 : null;
 
