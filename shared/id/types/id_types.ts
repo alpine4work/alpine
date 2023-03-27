@@ -23,6 +23,7 @@ export type TraceSpanId = NominalIdType<"TraceSpan">;
 export type RealmId = NominalIdType<"Realm">;
 export type SpaceId = NominalIdType<"Space">;
 export type DocumentId = NominalIdType<"Document">;
+export type DocumentCommentThreadId = NominalIdType<"DocumentCommentThread">;
 export type ChannelId = NominalIdType<"Channel">;
 export type PostId = NominalIdType<"Post">;
 export type WebSocketConnectionId = NominalIdType<"WebSocketConnection">;

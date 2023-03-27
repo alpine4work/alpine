@@ -25,15 +25,15 @@ const LoaderSchema = Schema.object({
 export async function loader({params, context}: LoaderArgs) {
     const postId = Schema.id<PostId>().deserialize(params.post_id ?? null);
 
-    const postCommentLimit = getInitialLoadMessageCount(context.loader.clientInfo);
+    const commentLimit = getInitialLoadMessageCount(context.loader.clientInfo);
 
     const postResult = await getPostAndInitialComments(await context.auth.authenticate(), {
         postId,
-        postCommentLimit,
+        commentLimit,
     });
     if (!postResult) throw new NotFoundError("Post not found");
 
-    const {post, initialPostComments, initialOtherReferencedPostComments} = postResult;
+    const {post, initialComments, initialOtherReferencedComments} = postResult;
 
     const propagateEventData: TracerEventData = {
         context: {
@@ -44,7 +44,11 @@ export async function loader({params, context}: LoaderArgs) {
 
     return jsonWithSchema(
         LoaderSchema,
-        {post, initialPostComments, initialOtherReferencedPostComments},
+        {
+            post,
+            initialPostComments: initialComments,
+            initialOtherReferencedPostComments: initialOtherReferencedComments,
+        },
         {propagateEventData},
     );
 }

@@ -146,11 +146,13 @@ const ChatTable = DynamoTableSchema.new({
                  * `changeTime` should be monotonically increasing which is managed by
                  * `lastChangeTime` in `messagesSummary`.
                  *
-                 * This log does not include new messages. Because message indexes are dense we
-                 * can take the last seen message index and load messages after that to
-                 * backfill.
+                 * This log does not include when messages are created, only updated or
+                 * deleted. Because message indexes are dense we can take the last seen message
+                 * index and load messages after that to backfill.
                  *
-                 * Log items will expire after a certain amount of time.
+                 * Log items will expire after a certain amount of time. If a client hasn't
+                 * backfilled in a long time it will need to fully reload since we won't know
+                 * what changed.
                  */
                 {
                     name: "MessageChangeLog",
@@ -160,14 +162,17 @@ const ChatTable = DynamoTableSchema.new({
                     withExpirationTime: "Required",
                     attributes: Schema.object({
                         messageIndex: Schema.integer,
-                        // The `contentUpdatedTime` or `deletedTime` is the `changeTime`.
                         change: Schema.union({
                             UpdateContent: Schema.object({
                                 type: Schema.value("UpdateContent"),
                                 content: MessageContentSchema,
+                                // `contentUpdatedTime` is the `changeTime` sort key attribute. We don't
+                                // duplicate it here.
                             }),
                             Delete: Schema.object({
                                 type: Schema.value("Delete"),
+                                // `deletedTime` is the `changeTime` sort key attribute. We don't
+                                // duplicate it here.
                             }),
                         }),
                     }),

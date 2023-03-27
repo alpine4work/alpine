@@ -2,16 +2,24 @@ import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceAroundStep, ReplaceStep, Step} from "prosemirror-transform";
 import {
     DocumentContentCacheForUpdate,
+    backfillDocumentComments,
     createDocument,
+    createDocumentComment,
+    deleteDocumentComment,
     documentContentCacheEvictionTimeoutMs,
     getDocument,
+    getDocumentComment,
+    getDocumentCommentsFromEnd,
+    getDocumentCommentsFromStart,
     getDocumentContentSteps,
     getDocumentPreview,
     getDocumentsTableForTest,
     getInternalDocumentTestCounter,
+    updateDocumentCommentContent,
     updateDocumentContent,
     updateDocumentContentBeforeExecuteTransactionTestCheckpoint,
 } from "~/server/dynamo/documents_table";
+import {testMessagingImplementation} from "~/server/dynamo/test_helpers/jest/test_messaging_implementation";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
 import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
@@ -29,9 +37,19 @@ import {
 } from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
+import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
 import {generateId} from "~/shared/id/id";
-import {ContentEditorClientId, DocumentId} from "~/shared/id/types/id_types";
-import {DocumentModel} from "~/shared/models/document_model";
+import {
+    ContentEditorClientId,
+    DocumentCommentThreadId,
+    DocumentId,
+} from "~/shared/id/types/id_types";
+import {
+    DocumentCommentRoomKey,
+    DocumentModel,
+    decodeDocumentCommentRoomKey,
+    encodeDocumentCommentRoomKey,
+} from "~/shared/models/document_model";
 
 jest.useFakeTimers();
 
@@ -2744,4 +2762,194 @@ test("can not update a document such that it would have invalid content even whe
     ).rejects.toThrow(
         new FailedPreconditionError('Updated content for "orderedListItem" node is not valid'),
     );
+});
+
+testMessagingImplementation<DocumentCommentRoomKey>(context, {
+    async createRoom(context, spaceId) {
+        const DocumentsTable = getDocumentsTableForTest();
+
+        const document = await createDocument(context, {
+            spaceId,
+            content: emptyDocumentContent,
+        });
+
+        const commentThreadId = generateId<DocumentCommentThreadId>();
+        const createdTime = new Date(Date.now());
+
+        await DocumentsTable.createItem(context, {
+            partitionType: "DocumentCommentThread",
+            sortRangeType: "Attributes",
+            documentId: document.id,
+            commentThreadId,
+            createdTime,
+            commentsSummary: {
+                nextCommentIndex: 0,
+                lastChangeTime: null,
+                commentCountByAuthorId: new Map(),
+            },
+        });
+
+        return {
+            key: encodeDocumentCommentRoomKey(document.id, commentThreadId),
+            spaceId,
+            createdTime,
+            messageCount: 0,
+        };
+    },
+
+    // TODO(calebmer): Implement when we can have private documents!
+    createPrivateRoom: "Unimplemented",
+
+    async getRoom(context, roomKey) {
+        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+        const DocumentsTable = getDocumentsTableForTest();
+
+        const document = await getDocument(context, documentId);
+        if (!document) throw new NotFoundError("Document not found");
+
+        const commentThreadItem = await DocumentsTable.getItem(context, {
+            partitionType: "DocumentCommentThread",
+            sortRangeType: "Attributes",
+            documentId,
+            commentThreadId,
+        });
+        if (!commentThreadItem) throw new NotFoundError("Document comment thread not found");
+
+        return {
+            key: roomKey,
+            spaceId: document.spaceId,
+            createdTime: commentThreadItem.createdTime,
+            messageCount: reduceIterable(
+                commentThreadItem.commentsSummary.commentCountByAuthorId.values(),
+                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
+                0,
+            ),
+        };
+    },
+    getMissingRoomKey() {
+        return encodeDocumentCommentRoomKey(generateId(), generateId());
+    },
+    async createMessage(context, {roomKey, parentMessageIndex: parentCommentIndex, content}) {
+        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+        const comment = await createDocumentComment(context, {
+            documentId,
+            commentThreadId,
+            parentCommentIndex,
+            content,
+        });
+
+        return {
+            index: comment.index,
+            createdTime: comment.createdTime,
+        };
+    },
+    async getMessage(context, {roomKey, messageIndex: commentIndex}) {
+        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+        return getDocumentComment(context, {documentId, commentThreadId, commentIndex});
+    },
+    async updateMessageContent(context, {roomKey, messageIndex: commentIndex, content}) {
+        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+        return updateDocumentCommentContent(context, {
+            documentId,
+            commentThreadId,
+            commentIndex,
+            content,
+        });
+    },
+    async deleteMessage(context, {roomKey, messageIndex: commentIndex}) {
+        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+        return deleteDocumentComment(context, {documentId, commentThreadId, commentIndex});
+    },
+    async getMessagesFromStart(
+        context,
+        {
+            roomKey,
+            limit,
+            afterMessageIndex: afterCommentIndex,
+            beforeMessageIndex: beforeCommentIndex,
+        },
+    ) {
+        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+        const {commentCount, comments, otherReferencedComments, lastCommentChangeTime} =
+            await getDocumentCommentsFromStart(context, {
+                documentId,
+                commentThreadId,
+                limit,
+                afterCommentIndex,
+                beforeCommentIndex,
+            });
+
+        return {
+            messageCount: commentCount,
+            messages: comments,
+            otherReferencedMessages: otherReferencedComments,
+            lastMessageChangeTime: lastCommentChangeTime,
+        };
+    },
+    async getMessagesFromEnd(
+        context,
+        {
+            roomKey,
+            limit,
+            afterMessageIndex: afterCommentIndex,
+            beforeMessageIndex: beforeCommentIndex,
+        },
+    ) {
+        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+        const {commentCount, comments, otherReferencedComments, lastCommentChangeTime} =
+            await getDocumentCommentsFromEnd(context, {
+                documentId,
+                commentThreadId,
+                limit,
+                afterCommentIndex,
+                beforeCommentIndex,
+            });
+
+        return {
+            messageCount: commentCount,
+            messages: comments,
+            otherReferencedMessages: otherReferencedComments,
+            lastMessageChangeTime: lastCommentChangeTime,
+        };
+    },
+    async backfillMessages(
+        context,
+        {
+            roomKey,
+            clientMessageCount: clientCommentCount,
+            clientLastMessageChangeTime: clientLastCommentChangeTime,
+            newMessageLimit: newCommentLimit,
+        },
+    ) {
+        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+        const {
+            commentCount,
+            lastCommentChangeTime,
+            newComments,
+            newOtherReferencedComments,
+            commentChangesResult,
+        } = await backfillDocumentComments(context, {
+            documentId,
+            commentThreadId,
+            clientCommentCount,
+            clientLastCommentChangeTime,
+            newCommentLimit,
+        });
+
+        return {
+            messageCount: commentCount,
+            lastMessageChangeTime: lastCommentChangeTime,
+            newMessages: newComments,
+            newOtherReferencedMessages: newOtherReferencedComments,
+            messageChangesResult: commentChangesResult,
+        };
+    },
 });

@@ -1,8 +1,11 @@
 import {DocumentContent, DocumentContentSchema} from "~/shared/content/document_content_schema";
 import {documentFallbackTitle} from "~/shared/content/document_fallback_title";
 import {assert} from "~/shared/helpers/control/assert";
-import {DocumentId, SpaceId} from "~/shared/id/types/id_types";
+import {assertId, isId} from "~/shared/id/id";
+import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types";
+import {AccountModel} from "~/shared/models/account_model";
 import {ContentReferencesSchema} from "~/shared/models/content_references";
+import {MessageModel, MessagePayloadModelSchema} from "~/shared/models/message_model";
 import {Model} from "~/shared/models/model";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 
@@ -111,5 +114,51 @@ export class DocumentPreviewModel
 
     public getTitleWithoutFallback() {
         return this.titleWithoutFallback;
+    }
+}
+
+/**
+ * An opaque room key for a document comment.
+ */
+export type DocumentCommentRoomKey = string & {readonly _DocumentCommentRoomKey: never};
+
+export function encodeDocumentCommentRoomKey(
+    documentId: DocumentId,
+    commentThreadId: DocumentCommentThreadId,
+): DocumentCommentRoomKey {
+    return `${documentId}-${commentThreadId}` as DocumentCommentRoomKey;
+}
+
+export function decodeDocumentCommentRoomKey(
+    roomKey: DocumentCommentRoomKey,
+): [DocumentId, DocumentCommentThreadId] {
+    const [documentId = "", commentThreadId = ""] = roomKey.split("-", 2);
+    assert(isId<DocumentId>(documentId));
+    assert(isId<DocumentCommentThreadId>(commentThreadId));
+    return [documentId, commentThreadId];
+}
+
+/**
+ * A comment on a document.
+ */
+export class DocumentCommentModel
+    extends Model(
+        Schema.object({
+            documentId: Schema.id<DocumentId>(),
+            commentThreadId: Schema.id<DocumentCommentThreadId>(),
+            index: Schema.integer,
+            author: AccountModel.schema(),
+            createdTime: Schema.date,
+            payload: MessagePayloadModelSchema,
+        }),
+    )
+    implements MessageModel<DocumentCommentRoomKey>
+{
+    // Make sure this property is available on this type and not just the
+    // interface.
+    public readonly isOptimistic?: undefined;
+
+    public getRoomKey() {
+        return encodeDocumentCommentRoomKey(this.documentId, this.commentThreadId);
     }
 }

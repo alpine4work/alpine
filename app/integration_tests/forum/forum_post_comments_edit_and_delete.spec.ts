@@ -30,7 +30,7 @@ test("can edit a post comment", async ({page, context: browserContext, isMobile}
 
     const comment = await createPostComment(context.request(session1), {
         postId: post.id,
-        parentPostCommentIndex: null,
+        parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
     });
 
@@ -86,7 +86,7 @@ test("can not edit a post comment that's not yours", async ({page, context: brow
 
     const comment = await createPostComment(context.request(session2), {
         postId: post.id,
-        parentPostCommentIndex: null,
+        parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
     });
 
@@ -123,7 +123,7 @@ test("can see a post comment edited in realtime", async ({
 
     const comment = await createPostComment(context.request(session2), {
         postId: post.id,
-        parentPostCommentIndex: null,
+        parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
     });
 
@@ -177,7 +177,7 @@ test("can delete a post comment", async ({page, context: browserContext}) => {
 
     const comment = await createPostComment(context.request(session1), {
         postId: post.id,
-        parentPostCommentIndex: null,
+        parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
     });
 
@@ -226,7 +226,7 @@ test("can not delete a post comment that's not yours", async ({page, context: br
 
     const comment = await createPostComment(context.request(session2), {
         postId: post.id,
-        parentPostCommentIndex: null,
+        parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
     });
 
@@ -262,7 +262,7 @@ test("can see a post comment deleted in realtime", async ({
 
     const comment = await createPostComment(context.request(session2), {
         postId: post.id,
-        parentPostCommentIndex: null,
+        parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
     });
 
@@ -319,7 +319,7 @@ test("will backfill an edit in realtime when comments are reopened", async ({
 
     const comment = await createPostComment(context.request(session2), {
         postId: post.id,
-        parentPostCommentIndex: null,
+        parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
     });
 
@@ -380,7 +380,7 @@ test("will backfill a delete in realtime when comments are reopened", async ({
 
     const comment = await createPostComment(context.request(session2), {
         postId: post.id,
-        parentPostCommentIndex: null,
+        parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
     });
 

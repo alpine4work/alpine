@@ -369,31 +369,31 @@ function PostListView(
                             endIndex: renderedPostCommentRangeEndIndex,
                         },
                         loadFromStart: async ({afterMessageIndex, beforeMessageIndex, limit}) => {
-                            const {postCommentCount, postComments, otherReferencedPostComments} =
+                            const {commentCount, comments, otherReferencedComments} =
                                 await getPostCommentsFromStart(context, {
                                     postId: item.post.id,
-                                    afterPostCommentIndex: afterMessageIndex,
-                                    beforePostCommentIndex: beforeMessageIndex,
+                                    afterCommentIndex: afterMessageIndex,
+                                    beforeCommentIndex: beforeMessageIndex,
                                     limit,
                                 });
                             return {
-                                messageCount: postCommentCount,
-                                messages: postComments,
-                                otherReferencedMessages: otherReferencedPostComments,
+                                messageCount: commentCount,
+                                messages: comments,
+                                otherReferencedMessages: otherReferencedComments,
                             };
                         },
                         loadFromEnd: async ({afterMessageIndex, beforeMessageIndex, limit}) => {
-                            const {postCommentCount, postComments, otherReferencedPostComments} =
+                            const {commentCount, comments, otherReferencedComments} =
                                 await getPostCommentsFromEnd(context, {
                                     postId: item.post.id,
-                                    afterPostCommentIndex: afterMessageIndex,
-                                    beforePostCommentIndex: beforeMessageIndex,
+                                    afterCommentIndex: afterMessageIndex,
+                                    beforeCommentIndex: beforeMessageIndex,
                                     limit,
                                 });
                             return {
-                                messageCount: postCommentCount,
-                                messages: postComments,
-                                otherReferencedMessages: otherReferencedPostComments,
+                                messageCount: commentCount,
+                                messages: comments,
+                                otherReferencedMessages: otherReferencedComments,
                             };
                         },
                     });
@@ -489,11 +489,11 @@ function PostListView(
                 const lastLoadedMessage = item.postComments.getLastLoadedMessageBefore(limit);
 
                 if (lastLoadedMessage === null || lastLoadedMessage.index < limit - 1) {
-                    const {postCommentCount, postComments, otherReferencedPostComments} =
+                    const {commentCount, comments, otherReferencedComments} =
                         await getPostCommentsFromStart(context, {
                             postId: item.post.id,
-                            afterPostCommentIndex: lastLoadedMessage?.index ?? null,
-                            beforePostCommentIndex: null,
+                            afterCommentIndex: lastLoadedMessage?.index ?? null,
+                            beforeCommentIndex: null,
                             limit:
                                 lastLoadedMessage !== null
                                     ? limit - (lastLoadedMessage.index + 1)
@@ -503,9 +503,9 @@ function PostListView(
                     setPosts(posts =>
                         posts.updatePostComments(item.post.id, list =>
                             list.loadMessages({
-                                messageCount: postCommentCount,
-                                messages: postComments,
-                                otherReferencedMessages: otherReferencedPostComments,
+                                messageCount: commentCount,
+                                messages: comments,
+                                otherReferencedMessages: otherReferencedComments,
                             }),
                         ),
                     );

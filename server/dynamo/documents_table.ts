@@ -1,8 +1,11 @@
 import {Node} from "prosemirror-model";
 import {Mapping, Step} from "prosemirror-transform";
+import {getAccountOrThrow} from "~/server/dynamo/accounts_table";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
 import {getContentReferencesFromNode} from "~/server/dynamo/helpers/get_content_references";
+import {createMessagePayloadModel} from "~/server/dynamo/helpers/messaging/create_message_payload_model";
+import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/dynamo/helpers/messaging/get_message_change_log_expiration_time_from_change_time";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
@@ -16,12 +19,14 @@ import {
     DocumentContentStepSchema,
     isDocumentContent,
 } from "~/shared/content/document_content_schema";
+import {MessageContent, MessageContentSchema} from "~/shared/content/message_content_schema";
 import {
     DataLossError,
     FailedPreconditionError,
     InternalError,
     InvalidArgumentError,
     NotFoundError,
+    PermissionDeniedError,
 } from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
@@ -29,17 +34,30 @@ import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable";
+import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
+import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array";
+import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
 import {clamp} from "~/shared/helpers/number/clamp";
 import {Replace} from "~/shared/helpers/types/replace";
 import {generateId} from "~/shared/id/id";
-import {ContentEditorClientId, DocumentId, SpaceId} from "~/shared/id/types/id_types";
 import {
+    AccountId,
+    ContentEditorClientId,
+    DocumentCommentThreadId,
+    DocumentId,
+    SpaceId,
+} from "~/shared/id/types/id_types";
+import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema";
+import {
+    DocumentCommentModel,
     DocumentModel,
     DocumentPreviewModel,
     getDocumentContentTitleWithoutFallback,
 } from "~/shared/models/document_model";
+import {MessagePayloadSchema} from "~/shared/models/message_model";
 import {ExhaustiveStep} from "~/shared/prosemirror/prosemirror_exhaustive_step";
 import {Schema} from "~/shared/schema/schema";
 
@@ -216,6 +234,115 @@ const DocumentsTable = DynamoTableSchema.new({
                 },
             ],
         },
+
+        /**
+         * Users can leave comments on ranges of text in a document. We annotate the
+         * commented range with a ProseMirror mark and store the comments back in our
+         * DynamoDB table here.
+         */
+        {
+            name: "DocumentCommentThread",
+            partitionKeyAttributes: {
+                documentId: DynamoKeyAttributeSchema.id<DocumentId>(),
+                commentThreadId: DynamoKeyAttributeSchema.id<DocumentCommentThreadId>(),
+            },
+            sortRanges: [
+                {
+                    name: "Attributes",
+                    sortKeyAttributes: {},
+                    attributes: Schema.object({
+                        /** The time at which the thread was created. */
+                        createdTime: Schema.date,
+
+                        /**
+                         * Information regarding the comment thread. Nested in an object so we can
+                         * update it at once.
+                         */
+                        commentsSummary: Schema.object({
+                            /**
+                             * The index of the next comment.
+                             */
+                            nextCommentIndex: Schema.integer.min(0),
+
+                            /**
+                             * The last time a comment was changed. This should equal the `changeTime` of
+                             * the highest item in `CommentChangeLog`.
+                             */
+                            lastChangeTime: Schema.date.nullable().default(null),
+
+                            /**
+                             * All the accounts which have commented in this thread and the number of comments
+                             * they have made. The map is ordered by when the account first commented on
+                             * the document comment thread.
+                             *
+                             * This map can grow unbounded. When a user deletes a comment it leaves a
+                             * gravestone so comment counts should never be decremented.
+                             */
+                            commentCountByAuthorId: Schema.map(
+                                Schema.id<AccountId>(),
+                                Schema.integer.min(1),
+                            ),
+                        }),
+                    }),
+                },
+
+                /**
+                 * Comments in the thread. Has all the attributes needed for a message in
+                 * `MessageInterface`.
+                 */
+                {
+                    name: "Comments",
+                    sortKeyAttributes: {
+                        commentIndex: DynamoKeyAttributeSchema.integer,
+                    },
+                    attributes: Schema.object({
+                        authorId: Schema.id<AccountId>(),
+                        createdTime: Schema.date,
+                        payload: MessagePayloadSchema,
+                    }),
+                },
+
+                /**
+                 * We keep a log of changes to comments so that when backfilling for realtime
+                 * we can send any missed updates between the last time data was loaded and
+                 * the backfill.
+                 *
+                 * `changeTime` should be monotonically increasing which is managed by
+                 * `lastChangeTime` in `commentsSummary`.
+                 *
+                 * This log does not include when comments are created, only updated or
+                 * deleted. Because comment indexes are dense we can take the last seen comment
+                 * index and load comments after that to backfill.
+                 *
+                 * Log items will expire after a certain amount of time. If a client hasn't
+                 * backfilled in a long time it will need to fully reload since we won't know
+                 * what changed.
+                 */
+                {
+                    name: "CommentChangeLog",
+                    sortKeyAttributes: {
+                        changeTime: DynamoKeyAttributeSchema.date,
+                    },
+                    withExpirationTime: "Required",
+                    attributes: Schema.object({
+                        commentIndex: Schema.integer,
+                        change: Schema.union({
+                            UpdateContent: Schema.object({
+                                type: Schema.value("UpdateContent"),
+                                content: MessageContentSchema,
+                                // `contentUpdatedTime` is the `changeTime` sort key attribute. We don't
+                                // duplicate it here.
+                            }),
+                            Delete: Schema.object({
+                                type: Schema.value("Delete"),
+                                // `deletedTime` is the `changeTime` sort key attribute. We don't
+                                // duplicate it here.
+                            }),
+                        }),
+                    }),
+                },
+            ],
+        },
     ],
 });
 
@@ -247,6 +374,18 @@ type DocumentStepTransactionItem =
     | DocumentStepTransactionBeforeSnapshotItem;
 
 type DocumentSnapshotItem = DynamoTableItemType<typeof DocumentsTable, "Document", "Snapshot">;
+
+type DocumentCommentThreadItem = DynamoTableItemType<
+    typeof DocumentsTable,
+    "DocumentCommentThread",
+    "Attributes"
+>;
+
+type DocumentCommentItem = DynamoTableItemType<
+    typeof DocumentsTable,
+    "DocumentCommentThread",
+    "Comments"
+>;
 
 /**
  * Creates a new document with no history using the initial content provided.
@@ -1989,4 +2128,910 @@ async function getDocumentStepTransactionContainingValidatedVersion(
     if (stepTransactionAfterSnapshot) return stepTransactionAfterSnapshot;
 
     throw new DataLossError("Could not find step transaction containing step");
+}
+
+/**
+ * Add a new comment to a document comment thread.
+ */
+export async function createDocumentComment(
+    context: RequestContext,
+    {
+        documentId,
+        commentThreadId,
+        parentCommentIndex,
+        content,
+    }: {
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+        parentCommentIndex: number | null;
+        content: MessageContent;
+    },
+): Promise<{
+    index: number;
+    createdTime: Date;
+}> {
+    return retryDynamoConditionCheckErrors(async () => {
+        const [documentItem, commentThreadItem, parentCommentItem] = await runAllPromises([
+            DocumentsTable.getItemOrThrow(context, {
+                partitionType: "Document",
+                sortRangeType: "Attributes",
+                documentId,
+            }),
+            DocumentsTable.getItemOrThrow(context, {
+                partitionType: "DocumentCommentThread",
+                sortRangeType: "Attributes",
+                documentId,
+                commentThreadId,
+            }),
+            typeof parentCommentIndex === "number"
+                ? DocumentsTable.getItemOrThrow(context, {
+                      partitionType: "DocumentCommentThread",
+                      sortRangeType: "Comments",
+                      documentId,
+                      commentThreadId,
+                      commentIndex: parentCommentIndex,
+                  })
+                : null,
+        ]);
+
+        await authorizeSpaceAccess(context, documentItem.spaceId);
+
+        const commentIndex = commentThreadItem.commentsSummary.nextCommentIndex;
+        const createdTime = new Date();
+        const authorId = context.auth.getAccountId();
+
+        const newCommentCountByAuthorId = new Map(
+            commentThreadItem.commentsSummary.commentCountByAuthorId,
+        );
+        newCommentCountByAuthorId.set(authorId, (newCommentCountByAuthorId.get(authorId) ?? 0) + 1);
+
+        await DynamoTableSchema.executeTransaction(context, [
+            DocumentsTable.transactionCreateItem({
+                partitionType: "DocumentCommentThread",
+                sortRangeType: "Comments",
+                documentId,
+                commentThreadId,
+                commentIndex,
+                authorId,
+                createdTime,
+                payload: {
+                    type: "Content",
+                    parentMessageIndex: parentCommentItem?.commentIndex ?? null,
+                    content,
+                    contentUpdatedTime: null,
+                },
+            }),
+            DocumentsTable.transactionDirectlyUpdateItemAttribute(
+                {
+                    partitionType: "DocumentCommentThread",
+                    sortRangeType: "Attributes",
+                    documentId,
+                    commentThreadId,
+                },
+                "commentsSummary",
+                {
+                    nextCommentIndex: commentThreadItem.commentsSummary.nextCommentIndex + 1,
+                    lastChangeTime: commentThreadItem.commentsSummary.lastChangeTime,
+                    commentCountByAuthorId: newCommentCountByAuthorId,
+                },
+                {updateLockVersion: commentThreadItem.updateLockVersion},
+            ),
+        ]);
+
+        return {
+            index: commentIndex,
+            createdTime,
+        };
+    });
+}
+
+/**
+ * Get a single document comment.
+ */
+export async function getDocumentComment(
+    context: RequestContext,
+    {
+        documentId,
+        commentThreadId,
+        commentIndex,
+    }: {
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+        commentIndex: number;
+    },
+): Promise<DocumentCommentModel | null> {
+    const [documentItem, , commentItem] = await runAllPromises([
+        DocumentsTable.getItemOrThrow(context, {
+            partitionType: "Document",
+            sortRangeType: "Attributes",
+            documentId,
+        }),
+        DocumentsTable.getItemOrThrow(context, {
+            partitionType: "DocumentCommentThread",
+            sortRangeType: "Attributes",
+            documentId,
+            commentThreadId,
+        }),
+        DocumentsTable.getItem(context, {
+            partitionType: "DocumentCommentThread",
+            sortRangeType: "Comments",
+            documentId,
+            commentThreadId,
+            commentIndex,
+        }),
+    ]);
+
+    await authorizeSpaceAccess(context, documentItem.spaceId);
+
+    if (!commentItem) return null;
+    return createDocumentCommentModelFromItem(context, documentItem.spaceId, commentItem);
+}
+
+async function createDocumentCommentModelFromItem(
+    context: RequestContext,
+    spaceId: SpaceId,
+    item: DocumentCommentItem,
+): Promise<DocumentCommentModel> {
+    const [author, payload] = await runAllPromises([
+        getAccountOrThrow(context, spaceId, item.authorId),
+        createMessagePayloadModel(context, spaceId, item.payload),
+    ]);
+
+    return new DocumentCommentModel({
+        documentId: item.documentId,
+        commentThreadId: item.commentThreadId,
+        index: item.commentIndex,
+        author,
+        createdTime: item.createdTime,
+        payload,
+    });
+}
+
+/**
+ * Update the content on one of your document comments.
+ */
+export function updateDocumentCommentContent(
+    context: RequestContext,
+    {
+        documentId,
+        commentThreadId,
+        commentIndex,
+        content,
+    }: {
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+        commentIndex: number;
+        content: MessageContent;
+    },
+): Promise<{
+    contentUpdatedTime: Date;
+}> {
+    return retryDynamoConditionCheckErrors(async () => {
+        const [documentItem, commentThreadItem, commentItem] = await runAllPromises([
+            DocumentsTable.getItemOrThrow(context, {
+                partitionType: "Document",
+                sortRangeType: "Attributes",
+                documentId,
+            }),
+            DocumentsTable.getItemOrThrow(context, {
+                partitionType: "DocumentCommentThread",
+                sortRangeType: "Attributes",
+                documentId,
+                commentThreadId,
+            }),
+            DocumentsTable.getItemOrThrow(context, {
+                partitionType: "DocumentCommentThread",
+                sortRangeType: "Comments",
+                documentId,
+                commentThreadId,
+                commentIndex,
+            }),
+        ]);
+
+        await authorizeSpaceAccess(context, documentItem.spaceId);
+
+        if (commentItem.authorId !== context.auth.getAccountId())
+            throw new PermissionDeniedError("Can only update comments you authored");
+
+        if (commentItem.payload.type !== "Content")
+            throw new FailedPreconditionError("Can not update comments with a non-content payload");
+
+        const contentUpdatedTime = new Date(
+            Math.max(
+                (
+                    commentThreadItem.commentsSummary.lastChangeTime ??
+                    commentThreadItem.createdTime
+                ).getTime() + 1,
+                Date.now(),
+            ),
+        );
+
+        // `lastChangeTime` should always be greater than or equal
+        // to `contentUpdatedTime`.
+        assert(
+            !commentItem.payload.contentUpdatedTime ||
+                contentUpdatedTime > commentItem.payload.contentUpdatedTime,
+        );
+
+        await DynamoTableSchema.executeTransaction(context, [
+            DocumentsTable.transactionDirectlyUpdateItem({
+                ...commentItem,
+                payload: {
+                    ...commentItem.payload,
+                    content,
+                    contentUpdatedTime,
+                },
+            }),
+            DocumentsTable.transactionDirectlyUpdateItemAttribute(
+                {
+                    partitionType: "DocumentCommentThread",
+                    sortRangeType: "Attributes",
+                    documentId,
+                    commentThreadId,
+                },
+                "commentsSummary",
+                {
+                    nextCommentIndex: commentThreadItem.commentsSummary.nextCommentIndex,
+                    lastChangeTime: contentUpdatedTime,
+                    commentCountByAuthorId:
+                        commentThreadItem.commentsSummary.commentCountByAuthorId,
+                },
+                {updateLockVersion: commentThreadItem.updateLockVersion},
+            ),
+            // Create-or-replace is safe because the change time is guaranteed to be unique
+            // and monotonically increasing.
+            DocumentsTable.transactionCreateOrReplaceItem({
+                partitionType: "DocumentCommentThread",
+                sortRangeType: "CommentChangeLog",
+                documentId,
+                commentThreadId,
+                changeTime: contentUpdatedTime,
+                commentIndex: commentItem.commentIndex,
+                change: {
+                    type: "UpdateContent",
+                    content,
+                },
+                expirationTime: getMessageChangeLogExpirationTimeFromChangeTime(contentUpdatedTime),
+            }),
+        ]);
+
+        return {contentUpdatedTime};
+    });
+}
+
+/**
+ * Delete a single document comment.
+ */
+export function deleteDocumentComment(
+    context: RequestContext,
+    {
+        documentId,
+        commentThreadId,
+        commentIndex,
+    }: {
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+        commentIndex: number;
+    },
+): Promise<{deletedTime: Date}> {
+    return retryDynamoConditionCheckErrors(async () => {
+        const [documentItem, commentThreadItem, commentItem] = await runAllPromises([
+            DocumentsTable.getItemOrThrow(context, {
+                partitionType: "Document",
+                sortRangeType: "Attributes",
+                documentId,
+            }),
+            DocumentsTable.getItemOrThrow(context, {
+                partitionType: "DocumentCommentThread",
+                sortRangeType: "Attributes",
+                documentId,
+                commentThreadId,
+            }),
+            DocumentsTable.getItemOrThrow(context, {
+                partitionType: "DocumentCommentThread",
+                sortRangeType: "Comments",
+                documentId,
+                commentThreadId,
+                commentIndex,
+            }),
+        ]);
+
+        await authorizeSpaceAccess(context, documentItem.spaceId);
+
+        if (commentItem.authorId !== context.auth.getAccountId())
+            throw new PermissionDeniedError("Can only delete comments you authored");
+
+        if (commentItem.payload.type !== "Content")
+            throw new FailedPreconditionError("Can not delete comments with a non-content payload");
+
+        const deletedTime = new Date(
+            Math.max(
+                (
+                    commentThreadItem.commentsSummary.lastChangeTime ??
+                    commentThreadItem.createdTime
+                ).getTime() + 1,
+                Date.now(),
+            ),
+        );
+
+        // `lastChangeTime` should always be greater than or equal
+        // to `deletedTime`.
+        assert(
+            !commentItem.payload.contentUpdatedTime ||
+                deletedTime > commentItem.payload.contentUpdatedTime,
+        );
+
+        await DynamoTableSchema.executeTransaction(context, [
+            DocumentsTable.transactionDirectlyUpdateItem({
+                ...commentItem,
+                payload: {type: "Deleted", deletedTime},
+            }),
+            DocumentsTable.transactionDirectlyUpdateItemAttribute(
+                {
+                    partitionType: "DocumentCommentThread",
+                    sortRangeType: "Attributes",
+                    documentId,
+                    commentThreadId,
+                },
+                "commentsSummary",
+                {
+                    nextCommentIndex: commentThreadItem.commentsSummary.nextCommentIndex,
+                    lastChangeTime: deletedTime,
+                    commentCountByAuthorId:
+                        commentThreadItem.commentsSummary.commentCountByAuthorId,
+                },
+                {updateLockVersion: commentThreadItem.updateLockVersion},
+            ),
+            // Create-or-replace is safe because the change time is guaranteed to be unique
+            // and monotonically increasing.
+            DocumentsTable.transactionCreateOrReplaceItem({
+                partitionType: "DocumentCommentThread",
+                sortRangeType: "CommentChangeLog",
+                documentId,
+                commentThreadId,
+                changeTime: deletedTime,
+                commentIndex: commentItem.commentIndex,
+                change: {type: "Delete"},
+                expirationTime: getMessageChangeLogExpirationTimeFromChangeTime(deletedTime),
+            }),
+        ]);
+
+        return {deletedTime};
+    });
+}
+
+/**
+ * Paginate through document comments from start to finish.
+ */
+export async function getDocumentCommentsFromStart(
+    context: RequestContext,
+    {
+        documentId,
+        commentThreadId,
+        limit,
+        afterCommentIndex,
+        beforeCommentIndex,
+    }: {
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+        limit: number;
+        afterCommentIndex: number | null;
+        beforeCommentIndex: number | null;
+    },
+): Promise<{
+    commentCount: number;
+    comments: Array<DocumentCommentModel>;
+    otherReferencedComments: Array<DocumentCommentModel>;
+    lastCommentChangeTime: Date | null;
+}> {
+    const documentItemPromise = DocumentsTable.getItemOrThrow(context, {
+        partitionType: "Document",
+        sortRangeType: "Attributes",
+        documentId,
+    });
+
+    const [, commentThreadItem, {comments, otherReferencedComments}] = await runAllPromises([
+        documentItemPromise,
+        DocumentsTable.getItemOrThrow(context, {
+            partitionType: "DocumentCommentThread",
+            sortRangeType: "Attributes",
+            documentId,
+            commentThreadId,
+        }),
+        getDocumentCommentsFromStartAssumingAuthorizedCommentThread(context, {
+            documentId,
+            commentThreadId,
+            getSpaceId: () => documentItemPromise.then(({spaceId}) => spaceId),
+            limit,
+            afterCommentIndex,
+            beforeCommentIndex,
+        }),
+        documentItemPromise.then(({spaceId}) => authorizeSpaceAccess(context, spaceId)),
+    ]);
+
+    const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
+
+    return {
+        commentCount: Math.max(
+            reduceIterable(
+                commentThreadItem.commentsSummary.commentCountByAuthorId.values(),
+                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
+                0,
+            ),
+            // Make sure `commentCount` is consistent with `comments` in case of eventual
+            // consistency race conditions.
+            lastCommentIndex + 1,
+        ),
+        comments,
+        otherReferencedComments,
+        lastCommentChangeTime: commentThreadItem.commentsSummary.lastChangeTime,
+    };
+}
+
+async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
+    context: RequestContext,
+    {
+        documentId,
+        commentThreadId,
+        getSpaceId,
+        limit,
+        afterCommentIndex,
+        beforeCommentIndex,
+    }: {
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+        getSpaceId: () => Promise<SpaceId>;
+        limit: number;
+        afterCommentIndex: number | null;
+        beforeCommentIndex: number | null;
+    },
+): Promise<{
+    comments: Array<DocumentCommentModel>;
+    otherReferencedComments: Array<DocumentCommentModel>;
+}> {
+    const commentIndexes = new Set<number>();
+    const parentCommentIndexes = new Set<number>();
+
+    // Don't wait for `getSpaceId` to start our comment query.
+    let spaceIdPromise: Promise<SpaceId> | null = null;
+    let spaceId: SpaceId | null = null;
+
+    const commentPromises = await arrayFromAsyncIterable(
+        mapAsyncIterableIterator(
+            DocumentsTable.query(context, {
+                partitionKey: {
+                    partitionType: "DocumentCommentThread",
+                    documentId,
+                    commentThreadId,
+                },
+                startSortKey: {
+                    sortRangeType: "Comments",
+                    commentIndex: typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+                },
+                endSortKey: {
+                    sortRangeType: "Comments",
+                    commentIndex:
+                        typeof beforeCommentIndex === "number"
+                            ? beforeCommentIndex - 1
+                            : Number.MAX_SAFE_INTEGER,
+                },
+                limit,
+            }),
+            async item => {
+                commentIndexes.add(item.commentIndex);
+
+                if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null)
+                    parentCommentIndexes.add(item.payload.parentMessageIndex);
+
+                if (spaceIdPromise === null) spaceIdPromise = getSpaceId();
+                if (spaceId === null) spaceId = await spaceIdPromise;
+                return createDocumentCommentModelFromItem(context, spaceId, item);
+            },
+        ),
+    );
+
+    const [comments, otherReferencedComments] = await runAllPromises([
+        runAllPromises(commentPromises),
+        runAllPromises(
+            filterMapIterable(parentCommentIndexes, parentCommentIndex => {
+                if (commentIndexes.has(parentCommentIndex)) return null;
+
+                return (async () => {
+                    const commentItem = await DocumentsTable.getItem(context, {
+                        partitionType: "DocumentCommentThread",
+                        sortRangeType: "Comments",
+                        documentId,
+                        commentThreadId,
+                        commentIndex: parentCommentIndex,
+                    });
+                    if (!commentItem) throw new InternalError("Parent comment not found");
+
+                    if (spaceIdPromise === null) spaceIdPromise = getSpaceId();
+                    if (spaceId === null) spaceId = await spaceIdPromise;
+                    return createDocumentCommentModelFromItem(context, spaceId, commentItem);
+                })();
+            }),
+        ),
+    ]);
+
+    return {
+        comments,
+        otherReferencedComments,
+    };
+}
+
+/**
+ * Paginate through document comments from finish to start.
+ */
+export async function getDocumentCommentsFromEnd(
+    context: RequestContext,
+    {
+        documentId,
+        commentThreadId,
+        limit,
+        afterCommentIndex,
+        beforeCommentIndex,
+    }: {
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+        limit: number;
+        afterCommentIndex: number | null;
+        beforeCommentIndex: number | null;
+    },
+): Promise<{
+    commentCount: number;
+    comments: Array<DocumentCommentModel>;
+    otherReferencedComments: Array<DocumentCommentModel>;
+    lastCommentChangeTime: Date | null;
+}> {
+    const documentItemPromise = DocumentsTable.getItemOrThrow(context, {
+        partitionType: "Document",
+        sortRangeType: "Attributes",
+        documentId,
+    });
+
+    const [, commentThreadItem, {comments, otherReferencedComments}] = await runAllPromises([
+        documentItemPromise,
+        DocumentsTable.getItemOrThrow(context, {
+            partitionType: "DocumentCommentThread",
+            sortRangeType: "Attributes",
+            documentId,
+            commentThreadId,
+        }),
+        getDocumentCommentsFromEndAssumingAuthorizedCommentThread(context, {
+            documentId,
+            commentThreadId,
+            getSpaceId: () => documentItemPromise.then(({spaceId}) => spaceId),
+            limit,
+            afterCommentIndex,
+            beforeCommentIndex,
+        }),
+        documentItemPromise.then(({spaceId}) => authorizeSpaceAccess(context, spaceId)),
+    ]);
+
+    const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
+
+    return {
+        commentCount: Math.max(
+            reduceIterable(
+                commentThreadItem.commentsSummary.commentCountByAuthorId.values(),
+                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
+                0,
+            ),
+            // Make sure `commentCount` is consistent with `comments` in case of eventual
+            // consistency race conditions.
+            lastCommentIndex + 1,
+        ),
+        comments,
+        otherReferencedComments,
+        lastCommentChangeTime: commentThreadItem.commentsSummary.lastChangeTime,
+    };
+}
+
+async function getDocumentCommentsFromEndAssumingAuthorizedCommentThread(
+    context: RequestContext,
+    {
+        documentId,
+        commentThreadId,
+        getSpaceId,
+        limit,
+        afterCommentIndex,
+        beforeCommentIndex,
+    }: {
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+        getSpaceId: () => Promise<SpaceId>;
+        limit: number;
+        afterCommentIndex: number | null;
+        beforeCommentIndex: number | null;
+    },
+): Promise<{
+    comments: Array<DocumentCommentModel>;
+    otherReferencedComments: Array<DocumentCommentModel>;
+}> {
+    const commentIndexes = new Set<number>();
+    const parentCommentIndexes = new Set<number>();
+
+    // Don't wait for `getSpaceId` to start our comment query.
+    let spaceIdPromise: Promise<SpaceId> | null = null;
+    let spaceId: SpaceId | null = null;
+
+    const commentPromises = await arrayFromAsyncIterable(
+        mapAsyncIterableIterator(
+            typeof beforeCommentIndex !== "number" || beforeCommentIndex > 0
+                ? DocumentsTable.query(context, {
+                      partitionKey: {
+                          partitionType: "DocumentCommentThread",
+                          documentId,
+                          commentThreadId,
+                      },
+                      startSortKey: {
+                          sortRangeType: "Comments",
+                          commentIndex:
+                              typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+                      },
+                      endSortKey: {
+                          sortRangeType: "Comments",
+                          commentIndex:
+                              typeof beforeCommentIndex === "number"
+                                  ? beforeCommentIndex - 1
+                                  : Number.MAX_SAFE_INTEGER,
+                      },
+                      limit,
+                      // Scan backwards from `endSortKey` to `startSortKey` so we can get comments
+                      // at the end instead of start.
+                      descending: true,
+                  })
+                : (async function* () {})(),
+            async item => {
+                commentIndexes.add(item.commentIndex);
+
+                if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null)
+                    parentCommentIndexes.add(item.payload.parentMessageIndex);
+
+                if (spaceIdPromise === null) spaceIdPromise = getSpaceId();
+                if (spaceId === null) spaceId = await spaceIdPromise;
+                return createDocumentCommentModelFromItem(context, spaceId, item);
+            },
+        ),
+    );
+
+    const [comments, otherReferencedComments] = await runAllPromises([
+        runAllPromises(commentPromises),
+        runAllPromises(
+            filterMapIterable(parentCommentIndexes, parentCommentIndex => {
+                if (commentIndexes.has(parentCommentIndex)) return null;
+
+                return (async () => {
+                    const commentItem = await DocumentsTable.getItem(context, {
+                        partitionType: "DocumentCommentThread",
+                        sortRangeType: "Comments",
+                        documentId,
+                        commentThreadId,
+                        commentIndex: parentCommentIndex,
+                    });
+                    if (!commentItem) throw new InternalError("Parent comment not found");
+
+                    if (spaceIdPromise === null) spaceIdPromise = getSpaceId();
+                    if (spaceId === null) spaceId = await spaceIdPromise;
+                    return createDocumentCommentModelFromItem(context, spaceId, commentItem);
+                })();
+            }),
+        ),
+    ]);
+
+    // We queried in descending order so put comments back in the right order.
+    comments.reverse();
+    otherReferencedComments.reverse();
+
+    return {
+        comments,
+        otherReferencedComments,
+    };
+}
+
+export type DocumentCommentChangesResult =
+    | {
+          type: "Available";
+          changes: Array<MessageChange>;
+      }
+    | {
+          type: "Unavailable";
+      };
+
+/**
+ * Backfills any missing comments or comment updates for a client. The client
+ * provides what it knows to be the comment count and last change time then we
+ * return any new comments or changes since then.
+ *
+ * We run this when the client establishes a new realtime connection to catch
+ * the client up between their last data load and the time the realtime
+ * connection was established.
+ *
+ * `newCommentLimit` allows you to load some new comments that the client
+ * may be missing but only up to the limit.
+ *
+ * We do not keep a log of document comment changes around forever, so it's
+ * possible that you get an `Unavailable` result for
+ * `commentChangesResult`. When this happens you should throw away all data
+ * your client has loaded and try loading the data again.
+ */
+export async function backfillDocumentComments(
+    context: RequestContext,
+    {
+        documentId,
+        commentThreadId,
+        clientCommentCount,
+        clientLastCommentChangeTime,
+        newCommentLimit,
+    }: {
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+        clientCommentCount: number;
+        clientLastCommentChangeTime: Date | null;
+        newCommentLimit: number;
+    },
+): Promise<{
+    commentCount: number;
+    lastCommentChangeTime: Date | null;
+    newComments: Array<DocumentCommentModel>;
+    newOtherReferencedComments: Array<DocumentCommentModel>;
+    commentChangesResult: DocumentCommentChangesResult;
+}> {
+    const documentItemPromise = DocumentsTable.getItemOrThrow(context, {
+        partitionType: "Document",
+        sortRangeType: "Attributes",
+        documentId,
+    });
+
+    const commentThreadItemPromise = DocumentsTable.getItemOrThrow(context, {
+        partitionType: "DocumentCommentThread",
+        sortRangeType: "Attributes",
+        documentId,
+        commentThreadId,
+    });
+
+    const [, commentThreadItem, {comments, otherReferencedComments}, commentChangesResult] =
+        await runAllPromises([
+            documentItemPromise,
+            commentThreadItemPromise,
+            getDocumentCommentsFromStartAssumingAuthorizedCommentThread(context, {
+                documentId,
+                commentThreadId,
+                getSpaceId: () => documentItemPromise.then(({spaceId}) => spaceId),
+                limit: newCommentLimit,
+                afterCommentIndex: clientCommentCount - 1,
+                beforeCommentIndex: null,
+            }),
+            runAllPromises([documentItemPromise, commentThreadItemPromise]).then(
+                ([documentItem, commentThreadItem]) =>
+                    queryDocumentCommentChangeLogAssumingAuthorizedDocumentCommentThread(context, {
+                        documentItem,
+                        commentThreadItem,
+                        lastCommentChangeTime: clientLastCommentChangeTime,
+                    }),
+            ),
+            documentItemPromise.then(({spaceId}) => authorizeSpaceAccess(context, spaceId)),
+        ]);
+
+    const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
+
+    const lastCommentChangeTime =
+        commentChangesResult.type === "Available" && commentChangesResult.changes.length > 0
+            ? getMessageChangeTime(
+                  commentChangesResult.changes[commentChangesResult.changes.length - 1]!,
+              )
+            : null;
+
+    return {
+        commentCount: Math.max(
+            reduceIterable(
+                commentThreadItem.commentsSummary.commentCountByAuthorId.values(),
+                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
+                0,
+            ),
+            // Make sure `commentCount` is consistent with `comments` in case of eventual
+            // consistency race conditions.
+            lastCommentIndex + 1,
+        ),
+        lastCommentChangeTime:
+            lastCommentChangeTime &&
+            // Make sure `lastCommentChangeTime` is consistent with
+            // `commentChangesResult` in case of eventual consistency race conditions.
+            (!commentThreadItem.commentsSummary.lastChangeTime ||
+                lastCommentChangeTime > commentThreadItem.commentsSummary.lastChangeTime)
+                ? lastCommentChangeTime
+                : commentThreadItem.commentsSummary.lastChangeTime,
+        newComments: comments,
+        newOtherReferencedComments: otherReferencedComments,
+        commentChangesResult,
+    };
+}
+
+async function queryDocumentCommentChangeLogAssumingAuthorizedDocumentCommentThread(
+    context: RequestContext,
+    {
+        documentItem,
+        commentThreadItem,
+        lastCommentChangeTime,
+    }: {
+        documentItem: DocumentAttributesItem;
+        commentThreadItem: DocumentCommentThreadItem;
+        lastCommentChangeTime: Date | null;
+    },
+): Promise<DocumentCommentChangesResult> {
+    // No changes occurred during the backfill period, there is nothing we need
+    // to query.
+    if (
+        commentThreadItem.commentsSummary.lastChangeTime?.getTime() ===
+        lastCommentChangeTime?.getTime()
+    ) {
+        return {type: "Available", changes: []};
+    }
+
+    const lastCommentChangeExpirationTime = getMessageChangeLogExpirationTimeFromChangeTime(
+        lastCommentChangeTime ?? commentThreadItem.createdTime,
+    );
+
+    // If our last change item has expired then other relevant changelog entries
+    // may have also expired. The client will need to fully reset its state since
+    // we don't have the data necessary to backfill.
+    //
+    // We subtract one day from the expiration time in this check in case our clock
+    // disagrees with DynamoDB's time-to-live clock (clock skew). If our clock is
+    // ahead and we believe an item exists that DynamoDB has in fact deleted that
+    // would be sad. One day feels like sufficient clock skew buffer.
+    if (lastCommentChangeExpirationTime.getTime() - 1000 * 60 * 60 * 24 < Date.now())
+        return {type: "Unavailable"};
+
+    const changes = await parallelMapAsyncIterableToArray(
+        DocumentsTable.query(context, {
+            partitionKey: {
+                partitionType: "DocumentCommentThread",
+                documentId: commentThreadItem.documentId,
+                commentThreadId: commentThreadItem.commentThreadId,
+            },
+            startSortKey: {
+                sortRangeType: "CommentChangeLog",
+                changeTime: new Date(
+                    (lastCommentChangeTime ?? commentThreadItem.createdTime).getTime() + 1,
+                ),
+            },
+            endSortKey: {
+                sortRangeType: "CommentChangeLog",
+                changeTime: DynamoKeyAttributeSchema.date.maxValue,
+            },
+            limit: "All",
+        }),
+        async (item): Promise<MessageChange> => {
+            switch (item.change.type) {
+                case "UpdateContent": {
+                    return {
+                        type: "UpdateContent",
+                        index: item.commentIndex,
+                        content: {
+                            doc: item.change.content,
+                            references: await getContentReferencesFromNode(
+                                context,
+                                documentItem.spaceId,
+                                item.change.content,
+                            ),
+                        },
+                        contentUpdatedTime: item.changeTime,
+                    };
+                }
+                case "Delete": {
+                    return {
+                        type: "Delete",
+                        index: item.commentIndex,
+                        deletedTime: item.changeTime,
+                    };
+                }
+                default:
+                    throw exhaustive(item.change);
+            }
+        },
+    );
+
+    return {type: "Available", changes};
 }

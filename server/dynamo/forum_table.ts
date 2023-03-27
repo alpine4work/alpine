@@ -129,8 +129,8 @@ const ForumTable = DynamoTableSchema.new({
                              * they have made. The map is ordered by when the account first commented on
                              * the post.
                              *
-                             * This map can grow unbounded but we do need the total number of accounts to
-                             * comment.
+                             * This map can grow unbounded. When a user deletes a comment it leaves a
+                             * gravestone so comment counts should never be decremented.
                              */
                             commentCountByAuthorId: Schema.map(
                                 Schema.id<AccountId>(),
@@ -164,11 +164,13 @@ const ForumTable = DynamoTableSchema.new({
                  * `changeTime` should be monotonically increasing which is managed by
                  * `lastChangeTime` in `commentsSummary`.
                  *
-                 * This log does not include new comments. Because comment indexes are dense we
-                 * can take the last seen comment index and load comments after that to
-                 * backfill.
+                 * This log does not include when comments are created, only updated or
+                 * deleted. Because comment indexes are dense we can take the last seen comment
+                 * index and load comments after that to backfill.
                  *
-                 * Log items will expire after a certain amount of time.
+                 * Log items will expire after a certain amount of time. If a client hasn't
+                 * backfilled in a long time it will need to fully reload since we won't know
+                 * what changed.
                  */
                 {
                     name: "CommentChangeLog",
@@ -178,14 +180,17 @@ const ForumTable = DynamoTableSchema.new({
                     withExpirationTime: "Required",
                     attributes: Schema.object({
                         commentIndex: Schema.integer,
-                        // The `contentUpdatedTime` or `deletedTime` is the `changeTime`.
                         change: Schema.union({
                             UpdateContent: Schema.object({
                                 type: Schema.value("UpdateContent"),
                                 content: MessageContentSchema,
+                                // `contentUpdatedTime` is the `changeTime` sort key attribute. We don't
+                                // duplicate it here.
                             }),
                             Delete: Schema.object({
                                 type: Schema.value("Delete"),
+                                // `deletedTime` is the `changeTime` sort key attribute. We don't
+                                // duplicate it here.
                             }),
                         }),
                     }),
@@ -679,11 +684,11 @@ export async function createPostComment(
     context: RequestContext,
     {
         postId,
-        parentPostCommentIndex,
+        parentCommentIndex,
         content,
     }: {
         postId: PostId;
-        parentPostCommentIndex: number | null;
+        parentCommentIndex: number | null;
         content: MessageContent;
     },
 ): Promise<{
@@ -715,7 +720,7 @@ export async function createPostComment(
                 return postItem;
             },
             async () => {
-                if (typeof parentPostCommentIndex !== "number") return;
+                if (typeof parentCommentIndex !== "number") return;
 
                 const parentCommentItem = await ForumTable.getPartialItem(
                     context,
@@ -723,7 +728,7 @@ export async function createPostComment(
                         partitionType: "Post",
                         sortRangeType: "Comments",
                         postId,
-                        commentIndex: parentPostCommentIndex,
+                        commentIndex: parentCommentIndex,
                     },
                     {
                         attributes: [],
@@ -750,7 +755,7 @@ export async function createPostComment(
                 createdTime,
                 payload: {
                     type: "Content",
-                    parentMessageIndex: parentPostCommentIndex,
+                    parentMessageIndex: parentCommentIndex,
                     content,
                     contentUpdatedTime: null,
                 },
@@ -779,7 +784,7 @@ export async function createPostComment(
  */
 export async function getPostComment(
     context: RequestContext,
-    {postId, postCommentIndex}: {postId: PostId; postCommentIndex: number},
+    {postId, commentIndex}: {postId: PostId; commentIndex: number},
 ): Promise<PostCommentModel | null> {
     const [{spaceId}, item] = await runAllPromises([
         authorizePostAccess(context, postId),
@@ -787,7 +792,7 @@ export async function getPostComment(
             partitionType: "Post",
             sortRangeType: "Comments",
             postId,
-            commentIndex: postCommentIndex,
+            commentIndex,
         }),
     ]);
 
@@ -821,18 +826,18 @@ export function updatePostCommentContent(
     context: RequestContext,
     {
         postId,
-        postCommentIndex,
+        commentIndex,
         content,
     }: {
         postId: PostId;
-        postCommentIndex: number;
+        commentIndex: number;
         content: MessageContent;
     },
 ): Promise<{
     contentUpdatedTime: Date;
 }> {
     return retryDynamoConditionCheckErrors(async () => {
-        const [postItem, postCommentItem] = await runAllPromises([
+        const [postItem, commentItem] = await runAllPromises([
             ForumTable.getPartialItem(
                 context,
                 {
@@ -853,19 +858,19 @@ export function updatePostCommentContent(
                 partitionType: "Post",
                 sortRangeType: "Comments",
                 postId,
-                commentIndex: postCommentIndex,
+                commentIndex,
             }),
         ]);
 
         if (!postItem) throw new NotFoundError("Post not found");
-        if (!postCommentItem) throw new NotFoundError("Post comment not found");
+        if (!commentItem) throw new NotFoundError("Post comment not found");
 
         await authorizeChannelAccess(context, postItem.channelId);
 
-        if (postCommentItem.authorId !== context.auth.getAccountId())
+        if (commentItem.authorId !== context.auth.getAccountId())
             throw new PermissionDeniedError("Can only update post comments you authored");
 
-        if (postCommentItem.payload.type !== "Content")
+        if (commentItem.payload.type !== "Content")
             throw new FailedPreconditionError("Can not update comments with a non-content payload");
 
         const contentUpdatedTime = new Date(
@@ -878,15 +883,15 @@ export function updatePostCommentContent(
         // `lastChangeTime` should always be greater than or equal
         // to `contentUpdatedTime`.
         assert(
-            !postCommentItem.payload.contentUpdatedTime ||
-                contentUpdatedTime > postCommentItem.payload.contentUpdatedTime,
+            !commentItem.payload.contentUpdatedTime ||
+                contentUpdatedTime > commentItem.payload.contentUpdatedTime,
         );
 
         await DynamoTableSchema.executeTransaction(context, [
             ForumTable.transactionDirectlyUpdateItem({
-                ...postCommentItem,
+                ...commentItem,
                 payload: {
-                    ...postCommentItem.payload,
+                    ...commentItem.payload,
                     content,
                     contentUpdatedTime,
                 },
@@ -908,7 +913,7 @@ export function updatePostCommentContent(
                 sortRangeType: "CommentChangeLog",
                 postId,
                 changeTime: contentUpdatedTime,
-                commentIndex: postCommentItem.commentIndex,
+                commentIndex: commentItem.commentIndex,
                 change: {
                     type: "UpdateContent",
                     content,
@@ -926,10 +931,10 @@ export function updatePostCommentContent(
  */
 export function deletePostComment(
     context: RequestContext,
-    {postId, postCommentIndex}: {postId: PostId; postCommentIndex: number},
+    {postId, commentIndex}: {postId: PostId; commentIndex: number},
 ): Promise<{deletedTime: Date}> {
     return retryDynamoConditionCheckErrors(async () => {
-        const [postItem, postCommentItem] = await runAllPromises([
+        const [postItem, commentItem] = await runAllPromises([
             ForumTable.getItem(context, {
                 partitionType: "Post",
                 sortRangeType: "Attributes",
@@ -939,19 +944,19 @@ export function deletePostComment(
                 partitionType: "Post",
                 sortRangeType: "Comments",
                 postId,
-                commentIndex: postCommentIndex,
+                commentIndex,
             }),
         ]);
 
         if (!postItem) throw new NotFoundError("Post not found");
-        if (!postCommentItem) throw new NotFoundError("Post comment not found");
+        if (!commentItem) throw new NotFoundError("Post comment not found");
 
         await authorizeChannelAccess(context, postItem.channelId);
 
-        if (postCommentItem.authorId !== context.auth.getAccountId())
+        if (commentItem.authorId !== context.auth.getAccountId())
             throw new PermissionDeniedError("Can only delete post comments you authored");
 
-        if (postCommentItem.payload.type !== "Content")
+        if (commentItem.payload.type !== "Content")
             throw new FailedPreconditionError("Can not delete comments with a non-content payload");
 
         const deletedTime = new Date(
@@ -964,13 +969,13 @@ export function deletePostComment(
         // `lastChangeTime` should always be greater than or equal
         // to `deletedTime`.
         assert(
-            !postCommentItem.payload.contentUpdatedTime ||
-                deletedTime > postCommentItem.payload.contentUpdatedTime,
+            !commentItem.payload.contentUpdatedTime ||
+                deletedTime > commentItem.payload.contentUpdatedTime,
         );
 
         await DynamoTableSchema.executeTransaction(context, [
             ForumTable.transactionDirectlyUpdateItem({
-                ...postCommentItem,
+                ...commentItem,
                 payload: {type: "Deleted", deletedTime},
             }),
             ForumTable.transactionDirectlyUpdateItemAttribute(
@@ -990,7 +995,7 @@ export function deletePostComment(
                 sortRangeType: "CommentChangeLog",
                 postId,
                 changeTime: deletedTime,
-                commentIndex: postCommentItem.commentIndex,
+                commentIndex: commentItem.commentIndex,
                 change: {type: "Delete"},
                 expirationTime: getMessageChangeLogExpirationTimeFromChangeTime(deletedTime),
             }),
@@ -1008,15 +1013,15 @@ export async function getPostAndInitialComments(
     context: RequestContext,
     {
         postId,
-        postCommentLimit,
+        commentLimit,
     }: {
         postId: PostId;
-        postCommentLimit: number;
+        commentLimit: number;
     },
 ): Promise<{
     post: PostModel;
-    initialPostComments: Array<PostCommentModel>;
-    initialOtherReferencedPostComments: Array<PostCommentModel>;
+    initialComments: Array<PostCommentModel>;
+    initialOtherReferencedComments: Array<PostCommentModel>;
 } | null> {
     // Start querying before authorization so our query runs in parallel
     // with authorization.
@@ -1033,13 +1038,13 @@ export async function getPostAndInitialComments(
             commentIndex: Number.MAX_SAFE_INTEGER,
         },
         // Add one to the limit for the post attributes item.
-        limit: postCommentLimit + 1,
+        limit: commentLimit + 1,
     });
 
     let state: {
         spaceId: SpaceId;
         postPromise: Promise<PostModel>;
-        postCommentPromises: Array<Promise<PostCommentModel>>;
+        commentPromises: Array<Promise<PostCommentModel>>;
     } | null = null;
 
     const commentIndexes = new Set<number>();
@@ -1057,7 +1062,7 @@ export async function getPostAndInitialComments(
                         authorizeChannelAccess(context, item.channelId),
                         item,
                     ),
-                    postCommentPromises: [],
+                    commentPromises: [],
                 };
                 break;
             }
@@ -1070,7 +1075,7 @@ export async function getPostAndInitialComments(
                 if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null)
                     parentCommentIndexes.add(item.payload.parentMessageIndex);
 
-                state.postCommentPromises.push(
+                state.commentPromises.push(
                     createPostCommentModelFromItem(context, state.spaceId, item),
                 );
                 break;
@@ -1083,9 +1088,9 @@ export async function getPostAndInitialComments(
     if (!state) return null;
     const {spaceId} = state;
 
-    const [post, postComments, otherReferencedPostComments] = await runAllPromises([
+    const [post, comments, otherReferencedComments] = await runAllPromises([
         state.postPromise,
-        runAllPromises(state.postCommentPromises),
+        runAllPromises(state.commentPromises),
         runAllPromises(
             filterMapIterable(parentCommentIndexes, parentCommentIndex => {
                 if (commentIndexes.has(parentCommentIndex)) return null;
@@ -1105,18 +1110,17 @@ export async function getPostAndInitialComments(
         ),
     ]);
 
-    const lastPostCommentIndex =
-        postComments.length > 0 ? postComments[postComments.length - 1]!.index : -1;
+    const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
 
     return {
         post:
             // Make sure `commentCount` is consistent with `comments` in case of eventual
             // consistency race conditions.
-            post.commentCount < lastPostCommentIndex + 1
-                ? post.clone({commentCount: lastPostCommentIndex + 1})
+            post.commentCount < lastCommentIndex + 1
+                ? post.clone({commentCount: lastCommentIndex + 1})
                 : post,
-        initialPostComments: postComments,
-        initialOtherReferencedPostComments: otherReferencedPostComments,
+        initialComments: comments,
+        initialOtherReferencedComments: otherReferencedComments,
     };
 }
 
@@ -1128,19 +1132,19 @@ export async function getPostCommentsFromStart(
     {
         postId,
         limit,
-        afterPostCommentIndex,
-        beforePostCommentIndex,
+        afterCommentIndex,
+        beforeCommentIndex,
     }: {
         postId: PostId;
         limit: number;
-        afterPostCommentIndex: number | null;
-        beforePostCommentIndex: number | null;
+        afterCommentIndex: number | null;
+        beforeCommentIndex: number | null;
     },
 ): Promise<{
-    postCommentCount: number;
-    postComments: Array<PostCommentModel>;
-    otherReferencedPostComments: Array<PostCommentModel>;
-    lastPostCommentChangeTime: Date | null;
+    commentCount: number;
+    comments: Array<PostCommentModel>;
+    otherReferencedComments: Array<PostCommentModel>;
+    lastCommentChangeTime: Date | null;
 }> {
     const postItemPromise = (async () => {
         const postItem = await ForumTable.getPartialItem(
@@ -1158,23 +1162,22 @@ export async function getPostCommentsFromStart(
         return postItem;
     })();
 
-    const [postItem, {postComments, otherReferencedPostComments}] = await runAllPromises([
+    const [postItem, {comments, otherReferencedComments}] = await runAllPromises([
         postItemPromise,
         getPostCommentsFromStartAssumingAuthorizedPost(context, {
             postId,
             getSpaceId: () => postItemPromise.then(({spaceId}) => spaceId),
             limit,
-            afterPostCommentIndex,
-            beforePostCommentIndex,
+            afterCommentIndex,
+            beforeCommentIndex,
         }),
         postItemPromise.then(({channelId}) => authorizeChannelAccess(context, channelId)),
     ]);
 
-    const lastCommentIndex =
-        postComments.length > 0 ? postComments[postComments.length - 1]!.index : -1;
+    const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
 
     return {
-        postCommentCount: Math.max(
+        commentCount: Math.max(
             reduceIterable(
                 postItem.commentsSummary.commentCountByAuthorId.values(),
                 (commentCount, authorCommentCount) => commentCount + authorCommentCount,
@@ -1184,9 +1187,9 @@ export async function getPostCommentsFromStart(
             // consistency race conditions.
             lastCommentIndex + 1,
         ),
-        postComments,
-        otherReferencedPostComments,
-        lastPostCommentChangeTime: postItem.commentsSummary.lastChangeTime,
+        comments,
+        otherReferencedComments,
+        lastCommentChangeTime: postItem.commentsSummary.lastChangeTime,
     };
 }
 
@@ -1196,18 +1199,18 @@ async function getPostCommentsFromStartAssumingAuthorizedPost(
         postId,
         getSpaceId,
         limit,
-        afterPostCommentIndex,
-        beforePostCommentIndex,
+        afterCommentIndex,
+        beforeCommentIndex,
     }: {
         postId: PostId;
         getSpaceId: () => Promise<SpaceId>;
         limit: number;
-        afterPostCommentIndex: number | null;
-        beforePostCommentIndex: number | null;
+        afterCommentIndex: number | null;
+        beforeCommentIndex: number | null;
     },
 ): Promise<{
-    postComments: Array<PostCommentModel>;
-    otherReferencedPostComments: Array<PostCommentModel>;
+    comments: Array<PostCommentModel>;
+    otherReferencedComments: Array<PostCommentModel>;
 }> {
     const commentIndexes = new Set<number>();
     const parentCommentIndexes = new Set<number>();
@@ -1225,14 +1228,13 @@ async function getPostCommentsFromStartAssumingAuthorizedPost(
                 },
                 startSortKey: {
                     sortRangeType: "Comments",
-                    commentIndex:
-                        typeof afterPostCommentIndex === "number" ? afterPostCommentIndex + 1 : 0,
+                    commentIndex: typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
                 },
                 endSortKey: {
                     sortRangeType: "Comments",
                     commentIndex:
-                        typeof beforePostCommentIndex === "number"
-                            ? beforePostCommentIndex - 1
+                        typeof beforeCommentIndex === "number"
+                            ? beforeCommentIndex - 1
                             : Number.MAX_SAFE_INTEGER,
                 },
                 limit,
@@ -1274,8 +1276,8 @@ async function getPostCommentsFromStartAssumingAuthorizedPost(
     ]);
 
     return {
-        postComments: comments,
-        otherReferencedPostComments: otherReferencedComments,
+        comments,
+        otherReferencedComments,
     };
 }
 
@@ -1287,19 +1289,19 @@ export async function getPostCommentsFromEnd(
     {
         postId,
         limit,
-        afterPostCommentIndex,
-        beforePostCommentIndex,
+        afterCommentIndex,
+        beforeCommentIndex,
     }: {
         postId: PostId;
         limit: number;
-        afterPostCommentIndex: number | null;
-        beforePostCommentIndex: number | null;
+        afterCommentIndex: number | null;
+        beforeCommentIndex: number | null;
     },
 ): Promise<{
-    postCommentCount: number;
-    postComments: Array<PostCommentModel>;
-    otherReferencedPostComments: Array<PostCommentModel>;
-    lastPostCommentChangeTime: Date | null;
+    commentCount: number;
+    comments: Array<PostCommentModel>;
+    otherReferencedComments: Array<PostCommentModel>;
+    lastCommentChangeTime: Date | null;
 }> {
     const postItemPromise = (async () => {
         const postItem = await ForumTable.getPartialItem(
@@ -1317,23 +1319,22 @@ export async function getPostCommentsFromEnd(
         return postItem;
     })();
 
-    const [postItem, {postComments, otherReferencedPostComments}] = await runAllPromises([
+    const [postItem, {comments, otherReferencedComments}] = await runAllPromises([
         postItemPromise,
         getPostCommentsFromEndAssumingAuthorizedPost(context, {
             postId,
             getSpaceId: () => postItemPromise.then(({spaceId}) => spaceId),
             limit,
-            afterPostCommentIndex,
-            beforePostCommentIndex,
+            afterCommentIndex,
+            beforeCommentIndex,
         }),
         postItemPromise.then(({channelId}) => authorizeChannelAccess(context, channelId)),
     ]);
 
-    const lastCommentIndex =
-        postComments.length > 0 ? postComments[postComments.length - 1]!.index : -1;
+    const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
 
     return {
-        postCommentCount: Math.max(
+        commentCount: Math.max(
             reduceIterable(
                 postItem.commentsSummary.commentCountByAuthorId.values(),
                 (commentCount, authorCommentCount) => commentCount + authorCommentCount,
@@ -1343,9 +1344,9 @@ export async function getPostCommentsFromEnd(
             // consistency race conditions.
             lastCommentIndex + 1,
         ),
-        postComments,
-        otherReferencedPostComments,
-        lastPostCommentChangeTime: postItem.commentsSummary.lastChangeTime,
+        comments,
+        otherReferencedComments,
+        lastCommentChangeTime: postItem.commentsSummary.lastChangeTime,
     };
 }
 
@@ -1355,18 +1356,18 @@ async function getPostCommentsFromEndAssumingAuthorizedPost(
         postId,
         getSpaceId,
         limit,
-        afterPostCommentIndex,
-        beforePostCommentIndex,
+        afterCommentIndex,
+        beforeCommentIndex,
     }: {
         postId: PostId;
         getSpaceId: () => Promise<SpaceId>;
         limit: number;
-        afterPostCommentIndex: number | null;
-        beforePostCommentIndex: number | null;
+        afterCommentIndex: number | null;
+        beforeCommentIndex: number | null;
     },
 ): Promise<{
-    postComments: Array<PostCommentModel>;
-    otherReferencedPostComments: Array<PostCommentModel>;
+    comments: Array<PostCommentModel>;
+    otherReferencedComments: Array<PostCommentModel>;
 }> {
     const commentIndexes = new Set<number>();
     const parentCommentIndexes = new Set<number>();
@@ -1377,7 +1378,7 @@ async function getPostCommentsFromEndAssumingAuthorizedPost(
 
     const commentPromises = await arrayFromAsyncIterable(
         mapAsyncIterableIterator(
-            typeof beforePostCommentIndex !== "number" || beforePostCommentIndex > 0
+            typeof beforeCommentIndex !== "number" || beforeCommentIndex > 0
                 ? ForumTable.query(context, {
                       partitionKey: {
                           partitionType: "Post",
@@ -1386,15 +1387,13 @@ async function getPostCommentsFromEndAssumingAuthorizedPost(
                       startSortKey: {
                           sortRangeType: "Comments",
                           commentIndex:
-                              typeof afterPostCommentIndex === "number"
-                                  ? afterPostCommentIndex + 1
-                                  : 0,
+                              typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
                       },
                       endSortKey: {
                           sortRangeType: "Comments",
                           commentIndex:
-                              typeof beforePostCommentIndex === "number"
-                                  ? beforePostCommentIndex - 1
+                              typeof beforeCommentIndex === "number"
+                                  ? beforeCommentIndex - 1
                                   : Number.MAX_SAFE_INTEGER,
                       },
                       limit,
@@ -1444,8 +1443,8 @@ async function getPostCommentsFromEndAssumingAuthorizedPost(
     otherReferencedComments.reverse();
 
     return {
-        postComments: comments,
-        otherReferencedPostComments: otherReferencedComments,
+        comments,
+        otherReferencedComments,
     };
 }
 
@@ -1467,33 +1466,33 @@ export type PostCommentChangesResult =
  * the client up between their last data load and the time the realtime
  * connection was established.
  *
- * `newPostCommentLimit` allows you to load some new comments that the client
+ * `newCommentLimit` allows you to load some new comments that the client
  * may be missing but only up to the limit.
  *
  * We do not keep a log of post comment changes around forever, so it's
  * possible that you get an `Unavailable` result for
- * `postCommentChangesResult`. When this happens you should throw away all data
+ * `commentChangesResult`. When this happens you should throw away all data
  * your client has loaded and try loading the data again.
  */
 export async function backfillPostComments(
     context: RequestContext,
     {
         postId,
-        clientPostCommentCount,
-        clientLastPostCommentChangeTime,
-        newPostCommentLimit,
+        clientCommentCount,
+        clientLastCommentChangeTime,
+        newCommentLimit,
     }: {
         postId: PostId;
-        clientPostCommentCount: number;
-        clientLastPostCommentChangeTime: Date | null;
-        newPostCommentLimit: number;
+        clientCommentCount: number;
+        clientLastCommentChangeTime: Date | null;
+        newCommentLimit: number;
     },
 ): Promise<{
-    postCommentCount: number;
-    lastPostCommentChangeTime: Date | null;
-    newPostComments: Array<PostCommentModel>;
-    newOtherReferencedPostComments: Array<PostCommentModel>;
-    postCommentChangesResult: PostCommentChangesResult;
+    commentCount: number;
+    lastCommentChangeTime: Date | null;
+    newComments: Array<PostCommentModel>;
+    newOtherReferencedComments: Array<PostCommentModel>;
+    commentChangesResult: PostCommentChangesResult;
 }> {
     const postItemPromise = (async () => {
         const postItem = await ForumTable.getPartialItem(
@@ -1511,37 +1510,36 @@ export async function backfillPostComments(
         return postItem;
     })();
 
-    const [postItem, {postComments, otherReferencedPostComments}, postCommentChangesResult] =
+    const [postItem, {comments, otherReferencedComments}, commentChangesResult] =
         await runAllPromises([
             postItemPromise,
             getPostCommentsFromStartAssumingAuthorizedPost(context, {
                 postId,
                 getSpaceId: () => postItemPromise.then(({spaceId}) => spaceId),
-                limit: newPostCommentLimit,
-                afterPostCommentIndex: clientPostCommentCount - 1,
-                beforePostCommentIndex: null,
+                limit: newCommentLimit,
+                afterCommentIndex: clientCommentCount - 1,
+                beforeCommentIndex: null,
             }),
             postItemPromise.then(postItem =>
                 queryPostCommentChangeLogAssumingAuthorizedPost(context, {
                     postItem,
-                    lastPostCommentChangeTime: clientLastPostCommentChangeTime,
+                    lastCommentChangeTime: clientLastCommentChangeTime,
                 }),
             ),
             postItemPromise.then(({channelId}) => authorizeChannelAccess(context, channelId)),
         ]);
 
-    const lastPostCommentIndex =
-        postComments.length > 0 ? postComments[postComments.length - 1]!.index : -1;
+    const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
 
-    const lastPostCommentChangeTime =
-        postCommentChangesResult.type === "Available" && postCommentChangesResult.changes.length > 0
+    const lastCommentChangeTime =
+        commentChangesResult.type === "Available" && commentChangesResult.changes.length > 0
             ? getMessageChangeTime(
-                  postCommentChangesResult.changes[postCommentChangesResult.changes.length - 1]!,
+                  commentChangesResult.changes[commentChangesResult.changes.length - 1]!,
               )
             : null;
 
     return {
-        postCommentCount: Math.max(
+        commentCount: Math.max(
             reduceIterable(
                 postItem.commentsSummary.commentCountByAuthorId.values(),
                 (commentCount, authorCommentCount) => commentCount + authorCommentCount,
@@ -1549,19 +1547,19 @@ export async function backfillPostComments(
             ),
             // Make sure `commentCount` is consistent with `comments` in case of eventual
             // consistency race conditions.
-            lastPostCommentIndex + 1,
+            lastCommentIndex + 1,
         ),
-        lastPostCommentChangeTime:
-            lastPostCommentChangeTime &&
-            // Make sure `lastPostCommentChangeTime` is consistent with
-            // `postCommentChangesResult` in case of eventual consistency race conditions.
+        lastCommentChangeTime:
+            lastCommentChangeTime &&
+            // Make sure `lastCommentChangeTime` is consistent with
+            // `commentChangesResult` in case of eventual consistency race conditions.
             (!postItem.commentsSummary.lastChangeTime ||
-                lastPostCommentChangeTime > postItem.commentsSummary.lastChangeTime)
-                ? lastPostCommentChangeTime
+                lastCommentChangeTime > postItem.commentsSummary.lastChangeTime)
+                ? lastCommentChangeTime
                 : postItem.commentsSummary.lastChangeTime,
-        newPostComments: postComments,
-        newOtherReferencedPostComments: otherReferencedPostComments,
-        postCommentChangesResult,
+        newComments: comments,
+        newOtherReferencedComments: otherReferencedComments,
+        commentChangesResult,
     };
 }
 
@@ -1569,22 +1567,22 @@ async function queryPostCommentChangeLogAssumingAuthorizedPost(
     context: RequestContext,
     {
         postItem,
-        lastPostCommentChangeTime,
+        lastCommentChangeTime,
     }: {
         postItem: Pick<
             PostAttributesItem,
             "postId" | "spaceId" | "createdTime" | "commentsSummary"
         >;
-        lastPostCommentChangeTime: Date | null;
+        lastCommentChangeTime: Date | null;
     },
 ): Promise<PostCommentChangesResult> {
     // No changes occurred during the backfill period, there is nothing we need
     // to query.
-    if (postItem.commentsSummary.lastChangeTime?.getTime() === lastPostCommentChangeTime?.getTime())
+    if (postItem.commentsSummary.lastChangeTime?.getTime() === lastCommentChangeTime?.getTime())
         return {type: "Available", changes: []};
 
-    const lastPostCommentChangeExpirationTime = getMessageChangeLogExpirationTimeFromChangeTime(
-        lastPostCommentChangeTime ?? postItem.createdTime,
+    const lastCommentChangeExpirationTime = getMessageChangeLogExpirationTimeFromChangeTime(
+        lastCommentChangeTime ?? postItem.createdTime,
     );
 
     // If our last change item has expired then other relevant changelog entries
@@ -1595,7 +1593,7 @@ async function queryPostCommentChangeLogAssumingAuthorizedPost(
     // disagrees with DynamoDB's time-to-live clock (clock skew). If our clock is
     // ahead and we believe an item exists that DynamoDB has in fact deleted that
     // would be sad. One day feels like sufficient clock skew buffer.
-    if (lastPostCommentChangeExpirationTime.getTime() - 1000 * 60 * 60 * 24 < Date.now())
+    if (lastCommentChangeExpirationTime.getTime() - 1000 * 60 * 60 * 24 < Date.now())
         return {type: "Unavailable"};
 
     const changes = await parallelMapAsyncIterableToArray(
@@ -1606,9 +1604,7 @@ async function queryPostCommentChangeLogAssumingAuthorizedPost(
             },
             startSortKey: {
                 sortRangeType: "CommentChangeLog",
-                changeTime: new Date(
-                    (lastPostCommentChangeTime ?? postItem.createdTime).getTime() + 1,
-                ),
+                changeTime: new Date((lastCommentChangeTime ?? postItem.createdTime).getTime() + 1),
             },
             endSortKey: {
                 sortRangeType: "CommentChangeLog",

@@ -82,14 +82,14 @@ export const getPostCommentsFromStart = defineRpc({
     input: {
         postId: Schema.id<PostId>(),
         limit: Schema.integer,
-        afterPostCommentIndex: Schema.integer.nullable(),
-        beforePostCommentIndex: Schema.integer.nullable(),
+        afterCommentIndex: Schema.integer.nullable(),
+        beforeCommentIndex: Schema.integer.nullable(),
     },
     output: {
-        postCommentCount: Schema.integer,
-        postComments: Schema.array(PostCommentModel.schema()),
-        otherReferencedPostComments: Schema.array(PostCommentModel.schema()),
-        lastPostCommentChangeTime: Schema.date.nullable(),
+        commentCount: Schema.integer,
+        comments: Schema.array(PostCommentModel.schema()),
+        otherReferencedComments: Schema.array(PostCommentModel.schema()),
+        lastCommentChangeTime: Schema.date.nullable(),
     },
 });
 
@@ -98,13 +98,13 @@ export const getPostCommentsFromEnd = defineRpc({
     input: {
         postId: Schema.id<PostId>(),
         limit: Schema.integer,
-        afterPostCommentIndex: Schema.integer.nullable(),
-        beforePostCommentIndex: Schema.integer.nullable(),
+        afterCommentIndex: Schema.integer.nullable(),
+        beforeCommentIndex: Schema.integer.nullable(),
     },
     output: {
-        postCommentCount: Schema.integer,
-        postComments: Schema.array(PostCommentModel.schema()),
-        otherReferencedPostComments: Schema.array(PostCommentModel.schema()),
-        lastPostCommentChangeTime: Schema.date.nullable(),
+        commentCount: Schema.integer,
+        comments: Schema.array(PostCommentModel.schema()),
+        otherReferencedComments: Schema.array(PostCommentModel.schema()),
+        lastCommentChangeTime: Schema.date.nullable(),
     },
 });

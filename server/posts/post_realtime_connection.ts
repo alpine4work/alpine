@@ -98,11 +98,11 @@ const createMessageModel: CreateMessageModelFunction<PostId, PostCommentModel> =
 
 const createMessage: CreateMessageFunction<PostId> = async (
     context,
-    {roomKey: postId, parentMessageIndex: parentPostCommentIndex, content},
+    {roomKey: postId, parentMessageIndex: parentCommentIndex, content},
 ) => {
     const comment = await createPostComment(context, {
         postId,
-        parentPostCommentIndex,
+        parentCommentIndex,
         content,
     });
 
@@ -114,48 +114,48 @@ const createMessage: CreateMessageFunction<PostId> = async (
 
 const updateMessageContent: UpdateMessageContentFunction<PostId> = async (
     context,
-    {roomKey: postId, messageIndex: postCommentIndex, content},
+    {roomKey: postId, messageIndex: commentIndex, content},
 ) => {
     return updatePostCommentContent(context, {
         postId,
-        postCommentIndex,
+        commentIndex,
         content,
     });
 };
 
 const deleteMessage: DeleteMessageFunction<PostId> = async (
     context,
-    {roomKey: postId, messageIndex: postCommentIndex},
+    {roomKey: postId, messageIndex: commentIndex},
 ) => {
-    return deletePostComment(context, {postId, postCommentIndex});
+    return deletePostComment(context, {postId, commentIndex});
 };
 
 const backfillMessages: BackfillMessagesFunction<PostId, PostCommentModel> = async (
     context,
     {
         roomKey: postId,
-        clientMessageCount: clientPostCommentCount,
-        clientLastMessageChangeTime: clientLastPostCommentChangeTime,
-        newMessageLimit: newPostCommentLimit,
+        clientMessageCount: clientCommentCount,
+        clientLastMessageChangeTime: clientLastCommentChangeTime,
+        newMessageLimit: newCommentLimit,
     },
 ) => {
     const {
-        postCommentCount,
-        lastPostCommentChangeTime,
-        newPostComments,
-        newOtherReferencedPostComments,
-        postCommentChangesResult,
+        commentCount,
+        lastCommentChangeTime,
+        newComments,
+        newOtherReferencedComments,
+        commentChangesResult,
     } = await backfillPostComments(context, {
         postId,
-        clientPostCommentCount,
-        clientLastPostCommentChangeTime,
-        newPostCommentLimit,
+        clientCommentCount,
+        clientLastCommentChangeTime,
+        newCommentLimit,
     });
     return {
-        messageCount: postCommentCount,
-        lastMessageChangeTime: lastPostCommentChangeTime,
-        newMessages: newPostComments,
-        newOtherReferencedMessages: newOtherReferencedPostComments,
-        messageChangesResult: postCommentChangesResult,
+        messageCount: commentCount,
+        lastMessageChangeTime: lastCommentChangeTime,
+        newMessages: newComments,
+        newOtherReferencedMessages: newOtherReferencedComments,
+        messageChangesResult: commentChangesResult,
     };
 };

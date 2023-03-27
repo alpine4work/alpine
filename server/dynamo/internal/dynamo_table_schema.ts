@@ -25,7 +25,12 @@ import {isDynamoResourceNotFoundError} from "~/server/dynamo/internal/is_dynamo_
 import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dynamo_condition_check_errors";
 import {DynamoTableSchemaTypes} from "~/server/dynamo/internal/types/dynamo_table_schema_types";
 import {checkSchemaBackwardsCompatibility} from "~/server/schema/check_schema_backwards_compatibility";
-import {DataLossError, InternalError, InvalidArgumentError} from "~/shared/error/error";
+import {
+    DataLossError,
+    InternalError,
+    InvalidArgumentError,
+    NotFoundError,
+} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {assert} from "~/shared/helpers/control/assert";
@@ -839,6 +844,29 @@ export class DynamoTableSchema<
                 throw new DataLossError(error.message, {cause: error});
             }
             throw error;
+        }
+
+        return item;
+    }
+
+    /**
+     * Gets an item with the provided key and if the item does not exist then we
+     * throw an error. Same as `getItem()` but throws an error instead of returning
+     * null when an item is missing.
+     */
+    public async getItemOrThrow<Key extends Types["ItemKey"]>(
+        context: DynamoContext,
+        key: Key,
+        options?: {
+            consistency?: DynamoReadConsistency;
+        },
+    ): Promise<MergeObjectIntersection<Types["Item"] & Key>> {
+        const item = await this.getItem(context, key, options);
+
+        if (!item) {
+            throw new NotFoundError(
+                `Item not found (partition type "${key.partitionType}", sort range type "${key.sortRangeType}")`,
+            );
         }
 
         return item;

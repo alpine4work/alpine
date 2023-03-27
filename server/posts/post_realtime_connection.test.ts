@@ -85,11 +85,11 @@ testMessagingRealtimeImplementation<PostId, TestPostRealtimeConnection>(context,
     },
     async createMessage(
         context,
-        {roomKey: postId, parentMessageIndex: parentPostCommentIndex, content},
+        {roomKey: postId, parentMessageIndex: parentCommentIndex, content},
     ) {
         const comment = await createPostComment(context, {
             postId,
-            parentPostCommentIndex,
+            parentCommentIndex,
             content,
         });
 
@@ -98,17 +98,14 @@ testMessagingRealtimeImplementation<PostId, TestPostRealtimeConnection>(context,
             createdTime: comment.createdTime,
         };
     },
-    async updateMessageContent(
-        context,
-        {roomKey: postId, messageIndex: postCommentIndex, content},
-    ) {
+    async updateMessageContent(context, {roomKey: postId, messageIndex: commentIndex, content}) {
         return updatePostCommentContent(context, {
             postId,
-            postCommentIndex,
+            commentIndex,
             content,
         });
     },
-    async deleteMessage(context, {roomKey: postId, messageIndex: postCommentIndex}) {
-        return deletePostComment(context, {postId, postCommentIndex});
+    async deleteMessage(context, {roomKey: postId, messageIndex: commentIndex}) {
+        return deletePostComment(context, {postId, commentIndex});
     },
 });

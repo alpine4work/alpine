@@ -2036,6 +2036,183 @@ export const dynamoGeneratedSchemaDescription: {
                             }
                         }
                     }
+                },
+                "DocumentCommentThread": {
+                    "partitionKeyAttributeByKey": {
+                        "documentId": {
+                            "type": "Id"
+                        },
+                        "commentThreadId": {
+                            "type": "Id"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "Attributes": {
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {},
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "createdTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "commentsSummary": {
+                                        "valueSchema": {
+                                            "type": "Object",
+                                            "propertySchemaByKey": {
+                                                "nextCommentIndex": {
+                                                    "valueSchema": {
+                                                        "type": "Integer"
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "lastChangeTime": {
+                                                    "valueSchema": {
+                                                        "type": "Nullable",
+                                                        "schema": {
+                                                            "type": "Date"
+                                                        }
+                                                    },
+                                                    "optional": true
+                                                },
+                                                "commentCountByAuthorId": {
+                                                    "valueSchema": {
+                                                        "type": "Map",
+                                                        "keySchema": {
+                                                            "type": "Id"
+                                                        },
+                                                        "valueSchema": {
+                                                            "type": "Integer"
+                                                        }
+                                                    },
+                                                    "optional": false
+                                                }
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        },
+                        "Comments": {
+                            "orderKey": "a1",
+                            "sortKeyAttributeByKey": {
+                                "commentIndex": {
+                                    "type": "Integer"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "authorId": {
+                                        "valueSchema": {
+                                            "type": "Id"
+                                        },
+                                        "optional": false
+                                    },
+                                    "createdTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "payload": {
+                                        "valueSchema": {
+                                            "type": "Reference",
+                                            "reuseReferenceId": "4444896a"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        },
+                        "CommentChangeLog": {
+                            "orderKey": "a2",
+                            "sortKeyAttributeByKey": {
+                                "changeTime": {
+                                    "type": "Date"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "commentIndex": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "change": {
+                                        "valueSchema": {
+                                            "type": "Union",
+                                            "typeKey": "type",
+                                            "variantSchemaByTypeValue": {
+                                                "UpdateContent": {
+                                                    "type": "Object",
+                                                    "propertySchemaByKey": {
+                                                        "type": {
+                                                            "valueSchema": {
+                                                                "type": "Value",
+                                                                "value": "UpdateContent"
+                                                            },
+                                                            "optional": false
+                                                        },
+                                                        "content": {
+                                                            "valueSchema": {
+                                                                "type": "Reference",
+                                                                "reuseReferenceId": "05d7837f"
+                                                            },
+                                                            "optional": false
+                                                        }
+                                                    }
+                                                },
+                                                "Delete": {
+                                                    "type": "Object",
+                                                    "propertySchemaByKey": {
+                                                        "type": {
+                                                            "valueSchema": {
+                                                                "type": "Value",
+                                                                "value": "Delete"
+                                                            },
+                                                            "optional": false
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    },
+                                    "expirationTime": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             },
             "indexes": []
