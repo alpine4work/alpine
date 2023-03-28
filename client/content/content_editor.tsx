@@ -1,6 +1,13 @@
 import classNames from "classnames";
 import {Node, Slice} from "prosemirror-model";
-import {AllSelection, EditorState, Selection, TextSelection, Transaction} from "prosemirror-state";
+import {
+    AllSelection,
+    Command,
+    EditorState,
+    Selection,
+    TextSelection,
+    Transaction,
+} from "prosemirror-state";
 import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
 import {
     FocusEvent,
@@ -29,7 +36,6 @@ import {createContentEditorMarkNodeViewConstructor} from "~/client/content/inter
 import {createContentEditorMentionNodeViewConstructor} from "~/client/content/internal/content_editor_mention_node_view";
 import {createContentEditorOrderedListItemNodeView} from "~/client/content/internal/content_editor_ordered_list_item_node_view";
 import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/content_editor_phantom_selection_cursor";
-import {trimSpacesFromRange} from "~/client/content/internal/content_editor_prosemirror_helpers";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools";
 import {FocusRing} from "~/client/design/focus_ring";
@@ -50,6 +56,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol";
 import {generateId} from "~/shared/id/id";
+import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range";
 import {
     colorSchemeVars,
     contentEditorStyles,
@@ -192,6 +199,17 @@ export type ContentEditorProps<Content extends Node> = {
      * represent the cursor position of other users.
      */
     phantomSelections?: ReadonlyArray<ContentEditorPhantomSelection>;
+
+    /**
+     * Command for adding a comment to some range of text. If your schema supports
+     * comment marks, you must provide this command to add them. `<ContentEditor>`
+     * knows almost nothing about how comments are implemented, only how they
+     * are styled.
+     *
+     * This does leak `EditorState` which normally we try to avoid but we find
+     * it acceptable in this advanced case.
+     */
+    addCommentCommand?: Command;
 } & (
     | {
           /**
@@ -268,6 +286,7 @@ function ContentEditor<Content extends Node>(
         onFocus,
         onBlur,
         phantomSelections,
+        addCommentCommand,
     } = props;
 
     // Preload space accounts so when the user tries to mention one they
@@ -974,6 +993,7 @@ function ContentEditor<Content extends Node>(
                 }}
                 isFocused={isFocused}
                 lastSelectionChangeTransactionTime={lastSelectionChangeTransactionTime}
+                addCommentCommand={addCommentCommand ?? null}
             />
             {selectedNodeElement && (
                 // TODO(calebmer): If you type "foo" in the title, then "bar" in the body, then
@@ -1048,7 +1068,7 @@ function handleLinkPaste(view: EditorView, event: ClipboardEvent): boolean {
 
     // 3. Instead of replacing the selected text with the replaced text we instead
     // add a link mark to the selection.
-    const range = trimSpacesFromRange(state.doc, state.selection);
+    const range = trimSpacesFromProsemirrorRange(state.doc, state.selection);
     view.dispatch(state.tr.addMark(range.from, range.to, state.schema.mark("link", {url})));
     return true;
 }

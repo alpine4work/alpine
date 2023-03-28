@@ -1,4 +1,5 @@
 import {
+    ChatCircleText,
     IconContext,
     Link as LinkIcon,
     ListBullets,
@@ -28,7 +29,6 @@ import {
     createToggleListItemsCommand,
     createToggleMarkCommand,
     getMarksSpanningAcrossEntireRange,
-    trimSpacesFromRange,
 } from "~/client/content/internal/content_editor_prosemirror_helpers";
 import {Box} from "~/client/design/box";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_press";
@@ -43,6 +43,7 @@ import {ContentProsemirrorSchema} from "~/shared/content/content_schema";
 import {spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range";
 import {
     overlayAnimateContainerClassName,
     overlayAnimateFadeInClassName,
@@ -57,11 +58,13 @@ export function ContentEditorPointerToolbar({
     viewRef,
     isFocused,
     lastSelectionChangeTransactionTime,
+    addCommentCommand,
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView | null>;
     isFocused: boolean;
     lastSelectionChangeTransactionTime: number | null;
+    addCommentCommand: Command | null;
 }) {
     const interactionModality = useInteractionModality();
 
@@ -263,6 +266,7 @@ export function ContentEditorPointerToolbar({
                     prevState.isShowing ? {...prevState, extraOverlay: null} : prevState,
                 )
             }
+            addCommentCommand={addCommentCommand}
         />
     );
 }
@@ -278,6 +282,7 @@ function ContentEditorPointerToolbarOverlay({
     isHighlightSelectorOpen,
     onHighlightSelectorOpen,
     onHighlightSelectorClose,
+    addCommentCommand,
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView | null>;
@@ -289,6 +294,7 @@ function ContentEditorPointerToolbarOverlay({
     isHighlightSelectorOpen: boolean;
     onHighlightSelectorOpen: () => void;
     onHighlightSelectorClose: () => void;
+    addCommentCommand: Command | null;
 }) {
     const overlayRef = useRef<OverlayRef>(null);
     const tooltipRefs = useRef<Set<TooltipRef>>(new Set());
@@ -341,6 +347,7 @@ function ContentEditorPointerToolbarOverlay({
                             isHighlightSelectorOpen={isHighlightSelectorOpen}
                             onHighlightSelectorOpen={onHighlightSelectorOpen}
                             onHighlightSelectorClose={onHighlightSelectorClose}
+                            addCommentCommand={addCommentCommand}
                         />
                     </Box>
                 </div>
@@ -375,6 +382,7 @@ function ContentEditorPointerToolbarButtons({
     isHighlightSelectorOpen,
     onHighlightSelectorOpen,
     onHighlightSelectorClose,
+    addCommentCommand,
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView | null>;
@@ -386,6 +394,7 @@ function ContentEditorPointerToolbarButtons({
     isHighlightSelectorOpen: boolean;
     onHighlightSelectorOpen: () => void;
     onHighlightSelectorClose: () => void;
+    addCommentCommand: Command | null;
 }) {
     const shouldDisableTooltips = isLinkInputOpen || isHighlightSelectorOpen;
 
@@ -582,6 +591,7 @@ function ContentEditorPointerToolbarButtons({
                         <TextHTwo />
                     </ContentEditorPointerToolbarButton>
                     <ContentEditorPointerToolbarButton
+                        dividerRight={!!state.schema.marks.comment}
                         description="Heading 3"
                         keyboardShortcutHint="### Hello"
                         viewRef={viewRef}
@@ -595,6 +605,20 @@ function ContentEditorPointerToolbarButtons({
                         <TextHThree />
                     </ContentEditorPointerToolbarButton>
                 </>
+            )}
+            {state.schema.marks.comment && addCommentCommand && (
+                <ContentEditorPointerToolbarButton
+                    dividerLeft
+                    description="Comment"
+                    keyboardShortcutHint={isMac ? "⌘+Shift+C" : "Ctrl+Shift+C"}
+                    viewRef={viewRef}
+                    isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
+                    sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
+                    isActive={false}
+                    command={addCommentCommand}
+                >
+                    <ChatCircleText />
+                </ContentEditorPointerToolbarButton>
             )}
         </>
     );
@@ -738,7 +762,7 @@ function ContentEditorPointerToolbarLinkButton({
     const wasJustClosedByOverlayRef = useRef(false);
 
     const range = useMemo(
-        () => trimSpacesFromRange(state.doc, state.selection),
+        () => trimSpacesFromProsemirrorRange(state.doc, state.selection),
         [state.doc, state.selection],
     );
 

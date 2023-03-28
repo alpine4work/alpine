@@ -16,7 +16,6 @@ import {
     openKeyboardHighlightFloaterMetaKey,
     openKeyboardLinkFloaterMetaKey,
 } from "~/client/content/internal/content_editor_plugin_keymap";
-import {trimSpacesFromRange} from "~/client/content/internal/content_editor_prosemirror_helpers";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema";
 import {InternalError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
@@ -28,6 +27,7 @@ import {
     ContentWithReferences,
     mergeContentReferences,
 } from "~/shared/models/content_references";
+import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range";
 
 function buildPlugins(schema: ContentProsemirrorSchema, contentReferences: ContentReferences) {
     return [
@@ -372,13 +372,13 @@ function contentEditorFloaterStatePlugin() {
                 if (transaction.getMeta(openKeyboardHighlightFloaterMetaKey)) {
                     return {
                         type: "KeyboardHighlight",
-                        range: trimSpacesFromRange(newState.doc, newState.selection),
+                        range: trimSpacesFromProsemirrorRange(newState.doc, newState.selection),
                     };
                 }
                 if (transaction.getMeta(openKeyboardLinkFloaterMetaKey)) {
                     return {
                         type: "KeyboardLink",
-                        range: trimSpacesFromRange(newState.doc, newState.selection),
+                        range: trimSpacesFromProsemirrorRange(newState.doc, newState.selection),
                     };
                 }
 

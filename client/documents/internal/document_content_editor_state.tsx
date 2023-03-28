@@ -30,6 +30,7 @@ import {
     DocumentContentProsemirrorSchema,
     isDocumentContent,
 } from "~/shared/content/document_content_schema";
+import {MessageContent} from "~/shared/content/message_content_schema";
 import {defaultThemeColor, themeColors} from "~/shared/design/theme_colors";
 import {
     DocumentCollaborationMessageFromClientSchema,
@@ -41,11 +42,18 @@ import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {Lazy} from "~/shared/helpers/control/lazy";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
+import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
-import {ContentEditorClientId, WebSocketConnectionId} from "~/shared/id/types/id_types";
+import {
+    ContentEditorClientId,
+    DocumentCommentThreadId,
+    WebSocketConnectionId,
+} from "~/shared/id/types/id_types";
 import {ContentReferences} from "~/shared/models/content_references";
 import {DocumentModel} from "~/shared/models/document_model";
 import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema";
+
+export const createDocumentCommentThreadMetaKey = "createCommentThread";
 
 export type DocumentContentEditorState = {
     /**
@@ -77,8 +85,12 @@ export type DocumentContentEditorState = {
      */
     readonly pendingSendableSteps: {
         readonly steps: ReadonlyArray<Step>;
-        readonly clientId: ContentEditorClientId;
         readonly version: number;
+        readonly clientId: ContentEditorClientId;
+        readonly createCommentThreads: ReadonlyArray<{
+            readonly commentThreadId: DocumentCommentThreadId;
+            readonly initialCommentContent: MessageContent;
+        }>;
     } | null;
 
     /**
@@ -186,6 +198,11 @@ export function reduceDocumentContentEditorState(
     if (!state.pendingSendableSteps) {
         const sendableSteps = state.editorState.sendableSteps();
         if (sendableSteps) {
+            const createCommentThreads = filterMapArray(
+                sendableSteps.origins,
+                transaction => transaction.getMeta(createDocumentCommentThreadMetaKey) ?? null,
+            );
+
             state = {
                 ...state,
                 pendingSendableSteps: sendableSteps
@@ -193,6 +210,7 @@ export function reduceDocumentContentEditorState(
                           steps: sendableSteps.steps,
                           version: sendableSteps.version,
                           clientId: sendableSteps.clientId,
+                          createCommentThreads,
                       }
                     : null,
                 // Make sure our presence state is up-to-date as well since we will send it to
@@ -605,6 +623,7 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
                 version: state.pendingSendableSteps.version,
                 steps: state.pendingSendableSteps.steps,
                 clientId: state.pendingSendableSteps.clientId,
+                createCommentThreads: state.pendingSendableSteps.createCommentThreads,
                 updateOurPresenceState: {
                     state: state.ourPresenceState
                         ? {

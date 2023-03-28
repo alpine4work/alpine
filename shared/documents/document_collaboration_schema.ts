@@ -1,6 +1,11 @@
 import {DocumentContentStepSchema} from "~/shared/content/document_content_schema";
+import {MessageContentSchema} from "~/shared/content/message_content_schema";
 import {ErrorSchema} from "~/shared/error/error_schema";
-import {ContentEditorClientId, WebSocketConnectionId} from "~/shared/id/types/id_types";
+import {
+    ContentEditorClientId,
+    DocumentCommentThreadId,
+    WebSocketConnectionId,
+} from "~/shared/id/types/id_types";
 import {ContentReferencesSchema} from "~/shared/models/content_references";
 import {ProsemirrorSelectionSchema} from "~/shared/prosemirror/prosemirror_selection_schema";
 import {Schema, SchemaType} from "~/shared/schema/schema";
@@ -28,6 +33,12 @@ export const DocumentCollaborationMessageFromClientSchema = Schema.union({
         version: Schema.integer,
         steps: Schema.array(DocumentContentStepSchema),
         clientId: Schema.id<ContentEditorClientId>(),
+        createCommentThreads: Schema.array(
+            Schema.object({
+                commentThreadId: Schema.id<DocumentCommentThreadId>(),
+                initialCommentContent: MessageContentSchema,
+            }),
+        ),
         /**
          * Atomically update our presence state in the same action as we update
          * our content.

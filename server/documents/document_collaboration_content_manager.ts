@@ -8,6 +8,7 @@ import {
 } from "~/server/dynamo/documents_table";
 import {getContentReferencesFromSteps} from "~/server/dynamo/helpers/get_content_references";
 import {DocumentContent, isDocumentContent} from "~/shared/content/document_content_schema";
+import {MessageContent} from "~/shared/content/message_content_schema";
 import {
     DocumentCollaborationMessageFromServer,
     DocumentCollaborationPresenceState,
@@ -18,6 +19,7 @@ import {AsyncMutex} from "~/shared/helpers/async/async_mutex";
 import {assert} from "~/shared/helpers/control/assert";
 import {
     ContentEditorClientId,
+    DocumentCommentThreadId,
     DocumentId,
     SpaceId,
     WebSocketConnectionId,
@@ -47,6 +49,10 @@ export class DocumentCollaborationContentManager {
         next: {
             readonly clientId: ContentEditorClientId;
             readonly steps: Array<Step>;
+            readonly createCommentThreads: Array<{
+                readonly commentThreadId: DocumentCommentThreadId;
+                readonly initialCommentContent: MessageContent;
+            }>;
         } | null;
         promise: Promise<void>;
     } | null = null;
@@ -139,6 +145,10 @@ export class DocumentCollaborationContentManager {
             version: number;
             steps: ReadonlyArray<Step>;
             clientId: ContentEditorClientId;
+            createCommentThreads: ReadonlyArray<{
+                commentThreadId: DocumentCommentThreadId;
+                initialCommentContent: MessageContent;
+            }>;
             updateOurPresenceState: {state: DocumentCollaborationPresenceState | null};
         },
     ): Promise<{
@@ -216,14 +226,19 @@ export class DocumentCollaborationContentManager {
                     for (const step of steps) {
                         this._persistenceState.next.steps.push(step);
                     }
+                    for (const createCommentThread of update.createCommentThreads) {
+                        this._persistenceState.next.createCommentThreads.push(createCommentThread);
+                    }
                 } else {
                     const lastPersistenceStatePromise = this._persistenceState?.promise;
                     const nextSteps = Array.from(steps);
+                    const nextCreateCommentThreads = Array.from(update.createCommentThreads);
 
                     this._persistenceState = {
                         next: {
                             clientId: update.clientId,
                             steps: nextSteps,
+                            createCommentThreads: nextCreateCommentThreads,
                         },
                         // NOTE(calebmer): We're careful to spawn the promise which updates content from
                         // this `update()` method so the DynamoDB network calls count against the
@@ -249,6 +264,7 @@ export class DocumentCollaborationContentManager {
                                                 version: oldVersion,
                                                 steps: nextSteps,
                                                 clientId: update.clientId,
+                                                createCommentThreads: nextCreateCommentThreads,
                                             },
                                         );
 

@@ -2833,10 +2833,12 @@ describe("Comments", () => {
             version: 1,
             steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
             clientId: generateId(),
-            createCommentThread: {
-                commentThreadId,
-                content: createSimpleMessageContent("Test message content 1"),
-            },
+            createCommentThreads: [
+                {
+                    commentThreadId,
+                    initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                },
+            ],
         });
 
         expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
@@ -2938,10 +2940,12 @@ describe("Comments", () => {
             version: 1,
             steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
             clientId: generateId(),
-            createCommentThread: {
-                commentThreadId,
-                content: createSimpleMessageContent("Test message content 1"),
-            },
+            createCommentThreads: [
+                {
+                    commentThreadId,
+                    initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                },
+            ],
         });
 
         expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
@@ -2964,10 +2968,12 @@ describe("Comments", () => {
                 version: 2,
                 steps: [new AddMarkStep(3, 8, schema.mark("comment", {commentThreadId}))],
                 clientId: generateId(),
-                createCommentThread: {
-                    commentThreadId,
-                    content: createSimpleMessageContent("Test message content 2"),
-                },
+                createCommentThreads: [
+                    {
+                        commentThreadId,
+                        initialCommentContent: createSimpleMessageContent("Test message content 2"),
+                    },
+                ],
             }),
         ).rejects.toThrow(
             new FailedPreconditionError(
@@ -3035,10 +3041,12 @@ describe("Comments", () => {
                 version: 1,
                 steps: [new AddMarkStep(10, 15, schema.mark("bold"))],
                 clientId: generateId(),
-                createCommentThread: {
-                    commentThreadId,
-                    content: createSimpleMessageContent("Test message content 1"),
-                },
+                createCommentThreads: [
+                    {
+                        commentThreadId,
+                        initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                    },
+                ],
             }),
         ).rejects.toThrow(InvalidArgumentError);
 
@@ -3244,10 +3252,12 @@ describe("Comments", () => {
             version: 1,
             steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
             clientId: generateId(),
-            createCommentThread: {
-                commentThreadId,
-                content: createSimpleMessageContent("Test message content 1"),
-            },
+            createCommentThreads: [
+                {
+                    commentThreadId,
+                    initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                },
+            ],
         });
 
         expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
@@ -3454,10 +3464,12 @@ describe("Comments", () => {
             version: 1,
             steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
             clientId: generateId(),
-            createCommentThread: {
-                commentThreadId,
-                content: createSimpleMessageContent("Test message content 1"),
-            },
+            createCommentThreads: [
+                {
+                    commentThreadId,
+                    initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                },
+            ],
         });
 
         expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
@@ -3605,10 +3617,12 @@ describe("Comments", () => {
                 version: 3,
                 steps: [new AddMarkStep(3, 8, schema.mark("comment", {commentThreadId}))],
                 clientId: generateId(),
-                createCommentThread: {
-                    commentThreadId,
-                    content: createSimpleMessageContent("Test message content 2"),
-                },
+                createCommentThreads: [
+                    {
+                        commentThreadId,
+                        initialCommentContent: createSimpleMessageContent("Test message content 2"),
+                    },
+                ],
             }),
         ).rejects.toThrow(
             new FailedPreconditionError(
@@ -3723,10 +3737,12 @@ describe("Comments", () => {
             version: 1,
             steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
             clientId: generateId(),
-            createCommentThread: {
-                commentThreadId,
-                content: createSimpleMessageContent("Test message content 1"),
-            },
+            createCommentThreads: [
+                {
+                    commentThreadId,
+                    initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                },
+            ],
         });
 
         expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
@@ -3999,10 +4015,12 @@ describe("Comments", () => {
                 ),
             ],
             clientId: generateId(),
-            createCommentThread: {
-                commentThreadId: commentThreadId1,
-                content: createSimpleMessageContent("Test message content 1"),
-            },
+            createCommentThreads: [
+                {
+                    commentThreadId: commentThreadId1,
+                    initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                },
+            ],
         });
 
         await updateDocumentContent(context.request(session), {
@@ -4031,10 +4049,12 @@ describe("Comments", () => {
                 ),
             ],
             clientId: generateId(),
-            createCommentThread: {
-                commentThreadId: commentThreadId2,
-                content: createSimpleMessageContent("Test message content 2"),
-            },
+            createCommentThreads: [
+                {
+                    commentThreadId: commentThreadId2,
+                    initialCommentContent: createSimpleMessageContent("Test message content 2"),
+                },
+            ],
         });
 
         expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
@@ -4182,10 +4202,12 @@ describe("Comments", () => {
             version: 1,
             steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
             clientId: generateId(),
-            createCommentThread: {
-                commentThreadId,
-                content: createSimpleMessageContent("Test message content 1"),
-            },
+            createCommentThreads: [
+                {
+                    commentThreadId,
+                    initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                },
+            ],
         });
 
         await updateDocumentContent(context.request(session), {
@@ -4357,10 +4379,12 @@ describe("Comments", () => {
             version: 1,
             steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
             clientId: generateId(),
-            createCommentThread: {
-                commentThreadId,
-                content: createSimpleMessageContent("Test message content 1"),
-            },
+            createCommentThreads: [
+                {
+                    commentThreadId,
+                    initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                },
+            ],
         });
 
         await updateDocumentContent(context.request(session), {
@@ -4541,10 +4565,12 @@ describe("Comments", () => {
             version: 1,
             steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
             clientId: generateId(),
-            createCommentThread: {
-                commentThreadId,
-                content: createSimpleMessageContent("Test message content 1"),
-            },
+            createCommentThreads: [
+                {
+                    commentThreadId,
+                    initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                },
+            ],
         });
 
         await updateDocumentContent(context.request(session), {

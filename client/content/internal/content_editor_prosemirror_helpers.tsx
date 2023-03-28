@@ -2,6 +2,7 @@ import {Attrs, Mark, Node, NodeType, ResolvedPos} from "prosemirror-model";
 import {Command, TextSelection, Transaction} from "prosemirror-state";
 import {findWrapping} from "prosemirror-transform";
 import {assert} from "~/shared/helpers/control/assert";
+import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range";
 
 /**
  * Get an array of marks that apply to all inline nodes in a given range that
@@ -13,7 +14,7 @@ export function getMarksSpanningAcrossEntireRange(
     parentNode: Node,
     range: {from: number; to: number},
 ): ReadonlyArray<Mark> {
-    range = trimSpacesFromRange(parentNode, range);
+    range = trimSpacesFromProsemirrorRange(parentNode, range);
 
     const previousInlineNodes: Array<{node: Node; $pos: ResolvedPos}> = [];
     let marks: Array<Mark> | null = null;
@@ -107,7 +108,7 @@ export function createToggleMarkCommand(mark: Mark): Command {
         if (doesEveryNodeAlreadyHaveMarkType === undefined)
             doesEveryNodeAlreadyHaveMarkType = false;
 
-        // If you hid Cmd-B then type, the text should be bold. That's what stored
+        // If you hit Cmd-B then type, the text should be bold. That's what stored
         // marks do.
         let changedStoredMarks = false;
         if (state.selection instanceof TextSelection && state.selection.$cursor) {
@@ -129,35 +130,13 @@ export function createToggleMarkCommand(mark: Mark): Command {
         }
 
         if (doesAnyNodeAllowMarkType) {
-            const range = trimSpacesFromRange(state.doc, state.selection);
+            const range = trimSpacesFromProsemirrorRange(state.doc, state.selection);
             dispatch?.(state.tr.addMark(range.from, range.to, mark).scrollIntoView());
             return true;
         }
 
         return changedStoredMarks;
     };
-}
-
-/**
- * Returns the provided range but any space characters at the beginning or end
- * have been removed.
- */
-export function trimSpacesFromRange(
-    parentNode: Node,
-    range: {from: number; to: number},
-): {from: number; to: number} {
-    let {from, to} = range;
-    const $from = parentNode.resolve(range.from);
-    const $to = parentNode.resolve(range.to);
-    const firstNode = $from.nodeAfter;
-    const lastNode = $to.nodeBefore;
-    const spaceStart = firstNode && firstNode.isText ? /^\s*/.exec(firstNode.text!)![0]!.length : 0;
-    const spaceEnd = lastNode && lastNode.isText ? /\s*$/.exec(lastNode.text!)![0]!.length : 0;
-    if (from + spaceStart < to) {
-        from += spaceStart;
-        to -= spaceEnd;
-    }
-    return {from, to};
 }
 
 /**

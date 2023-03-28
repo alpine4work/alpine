@@ -1405,17 +1405,17 @@ export async function updateDocumentContent(
         version: clientVersion,
         steps: clientSteps,
         clientId,
-        createCommentThread,
+        createCommentThreads = [],
         cacheOverrideForTest,
     }: {
         id: DocumentId;
         version: number;
         steps: ReadonlyArray<Step>;
         clientId: ContentEditorClientId;
-        createCommentThread?: {
+        createCommentThreads?: ReadonlyArray<{
             commentThreadId: DocumentCommentThreadId;
-            content: MessageContent;
-        };
+            initialCommentContent: MessageContent;
+        }>;
         // NOTE(calebmer): Do we really need the cache anymore now that we're using
         // Durable Objects for updating documents? For now, probably yes? Each Durable
         // Object should only have one document cached in memory and the document being
@@ -1464,7 +1464,7 @@ export async function updateDocumentContent(
             "Can only override the cache in Jest tests",
         );
 
-        if (createCommentThread) {
+        if (createCommentThreads.length > 0) {
             const stepCommentThreadIds = new Set<DocumentCommentThreadId>();
 
             for (const step of clientSteps) {
@@ -1477,10 +1477,13 @@ export async function updateDocumentContent(
                 });
             }
 
-            if (!stepCommentThreadIds.has(createCommentThread.commentThreadId))
-                throw new InvalidArgumentError(
-                    "When creating a comment thread the `commentThreadId` must be referenced in document update steps",
-                );
+            for (const createCommentThread of createCommentThreads) {
+                if (!stepCommentThreadIds.has(createCommentThread.commentThreadId)) {
+                    throw new InvalidArgumentError(
+                        "When creating a comment thread the `commentThreadId` must be referenced in document update steps",
+                    );
+                }
+            }
         }
 
         const internalDocument = await cache.getAndCacheDocument(context, id);
@@ -1583,7 +1586,16 @@ export async function updateDocumentContent(
         // If we were instructed to create a comment thread then extend our transaction
         // with entries that will atomically create a new comment thread within the
         // transaction.
-        if (createCommentThread) {
+        //
+        // NOTE(calebmer): There is a limit to how many entries you can have in a
+        // DynamoDB transaction. Currently it's 100. This means there's a limit on how
+        // many comment threads you can create in an `updateDocumentContent()` call.
+        // Reasonable clients should send one at a time. If a client is a bit behind it
+        // might send multiple. If a client was offline and comes online and syncs
+        // changes, that's when we might hit this limit. It may be reasonable to create
+        // comment threads asynchronously instead of in the same transaction to get
+        // around this limit should we find users hitting it.
+        for (const createCommentThread of createCommentThreads) {
             transaction.push(
                 DocumentsTable.transactionCreateItem({
                     partitionType: "Document",
@@ -1617,7 +1629,7 @@ export async function updateDocumentContent(
                     payload: {
                         type: "Content",
                         parentMessageIndex: null,
-                        content: createCommentThread.content,
+                        content: createCommentThread.initialCommentContent,
                         contentUpdatedTime: null,
                     },
                 }),

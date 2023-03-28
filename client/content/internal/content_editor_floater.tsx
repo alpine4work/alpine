@@ -1,6 +1,6 @@
 import {setInteractionModality, useHover} from "@react-aria/interactions";
 import {Mark} from "prosemirror-model";
-import {EditorState} from "prosemirror-state";
+import {Command, EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {RefObject, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {FocusScope} from "react-aria";
@@ -104,6 +104,7 @@ export function ContentEditorFloater({
     setFloaterState,
     isFocused,
     lastSelectionChangeTransactionTime,
+    addCommentCommand,
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView | null>;
@@ -111,6 +112,7 @@ export function ContentEditorFloater({
     setFloaterState: (floaterState: ContentEditorFloaterState) => void;
     isFocused: boolean;
     lastSelectionChangeTransactionTime: number | null;
+    addCommentCommand: Command | null;
 }) {
     switch (floaterState.type) {
         case "PointerToolbar": {
@@ -120,6 +122,7 @@ export function ContentEditorFloater({
                     viewRef={viewRef}
                     isFocused={isFocused}
                     lastSelectionChangeTransactionTime={lastSelectionChangeTransactionTime}
+                    addCommentCommand={addCommentCommand}
                 />
             );
         }
