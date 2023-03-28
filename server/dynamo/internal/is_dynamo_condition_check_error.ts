@@ -22,10 +22,11 @@ export function isDynamoConditionCheckError(error: unknown): boolean {
     if (
         error.__type === "TransactionCanceledException" &&
         Array.isArray(error.CancellationReasons) &&
-        error.CancellationReasons.some(
+        error.CancellationReasons.every(
             cancellationReason =>
                 isObject(cancellationReason) &&
-                cancellationReason.Code === "ConditionalCheckFailed",
+                (cancellationReason.Code === "None" ||
+                    cancellationReason.Code === "ConditionalCheckFailed"),
         )
     ) {
         return true;

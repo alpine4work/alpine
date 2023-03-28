@@ -19,10 +19,12 @@ import {
     dynamoKeySeparator,
 } from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {dynamoReservedWords} from "~/server/dynamo/internal/dynamo_reserved_words";
-import {getDynamoClient} from "~/server/dynamo/internal/get_dynamo_client";
+import {
+    getDynamoClient,
+    getDynamoRetryTransaction,
+} from "~/server/dynamo/internal/get_dynamo_client";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
 import {isDynamoResourceNotFoundError} from "~/server/dynamo/internal/is_dynamo_resource_not_found_error";
-import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dynamo_condition_check_errors";
 import {DynamoTableSchemaTypes} from "~/server/dynamo/internal/types/dynamo_table_schema_types";
 import {checkSchemaBackwardsCompatibility} from "~/server/schema/check_schema_backwards_compatibility";
 import {
@@ -31,6 +33,7 @@ import {
     InvalidArgumentError,
     NotFoundError,
 } from "~/shared/error/error";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {assert} from "~/shared/helpers/control/assert";
@@ -980,6 +983,10 @@ export class DynamoTableSchema<
                 "attribute_not_exists(partitionKey)",
                 DynamoConditionExpressionPrecedence.Function,
             ),
+            // Calling `createItem()` has the intent of there is a new item I want to
+            // create. It should not be used to implement upserts. Use
+            // `createOrReplaceItem()` or `updateItem()` for that.
+            isConditionCheckErrorRetriable: false,
         });
     }
 
@@ -1042,6 +1049,13 @@ export class DynamoTableSchema<
             condition: condition
                 ? itemExistsCondition.and(DynamoConditionExpression.from(condition))
                 : itemExistsCondition,
+            // Re-reading the item will continue to give us `null` so retrying the
+            // operation won't fix it.
+            //
+            // If the user provides a condition then we assume they are manually
+            // implementing an optimistic locking scheme so we allow this update to
+            // be retriable.
+            isConditionCheckErrorRetriable: !!condition,
         });
     }
 
@@ -1090,7 +1104,7 @@ export class DynamoTableSchema<
      * error. Then we call our update function and pass the new item into a
      * conditional [`PutItem`][3] command. If a concurrent writer made an update
      * _after_ our read but _before_ our write then the `PutItem` command will fail
-     * and we will try again with `retryDynamoConditionCheckErrors()`.
+     * and we will try again with `context.dynamo.retryTransaction()`.
      *
      * Be careful about what you put in the `update()` function. The `update()`
      * function may run multiple times if there are conflicting updates. Avoid
@@ -1111,7 +1125,7 @@ export class DynamoTableSchema<
         await context.tracer.withSpan("DynamoTableSchema.updateItem", async (context, span) => {
             span.addData({dynamodb: {tableName: this.getName()}});
 
-            await retryDynamoConditionCheckErrors(async () => {
+            await context.dynamo.retryTransaction(async context => {
                 const item = await this.getItem(context, key);
 
                 const newItem = await update(item);
@@ -1119,40 +1133,48 @@ export class DynamoTableSchema<
                 // Update was short-circuited.
                 if (item === newItem) return;
 
-                if (!item) {
-                    await this.createItem(context, {
+                await this._putItem(
+                    context,
+                    {
                         ...newItem,
-                        // Make sure to override the lock version if it was set. An undefined lock
-                        // version is the same as a lock version of 0. Except we can't set to 0 because
-                        // our conditional update looks for a lock version that does not exist.
-                        updateLockVersion: undefined,
-                    });
-                } else {
-                    await this.replaceItem(
-                        context,
-                        {
-                            ...newItem,
-                            // Increment the lock version in this new item.
-                            //
-                            // The `update()` function should not change the `updateLockVersion` property
-                            // itself. If it does (e.g. creates a new item without the property instead of
-                            // spreading the old object) then we override the change.
-                            updateLockVersion:
-                                typeof item.updateLockVersion === "number"
-                                    ? item.updateLockVersion + 1
-                                    : 1,
-                        },
-                        {
-                            condition: {
-                                // Verify that the lock version was not changed by a concurrent writer.
-                                updateLockVersion:
-                                    typeof item.updateLockVersion === "number"
-                                        ? DynamoConditionExpression.eq(item.updateLockVersion)
-                                        : DynamoConditionExpression.exists().not(),
-                            },
-                        },
-                    );
-                }
+                        // Increment the lock version in this new item.
+                        //
+                        // The `update()` function should not change the `updateLockVersion` property
+                        // itself. If it does (e.g. creates a new item without the property instead of
+                        // spreading the old object) then we override the change.
+                        //
+                        // An undefined lock version is the same as a lock version of 0. Except we
+                        // can't set to 0 because our conditional update looks for a lock version that
+                        // does not exist for version 0.
+                        updateLockVersion: !item
+                            ? undefined
+                            : typeof item.updateLockVersion === "number"
+                            ? item.updateLockVersion + 1
+                            : 1,
+                    },
+                    {
+                        condition: !item
+                            ? DynamoConditionExpression._unsafeRaw(
+                                  "attribute_not_exists(partitionKey)",
+                                  DynamoConditionExpressionPrecedence.Function,
+                              )
+                            : DynamoConditionExpression._unsafeRaw(
+                                  "attribute_exists(partitionKey)",
+                                  DynamoConditionExpressionPrecedence.Function,
+                              ).and(
+                                  DynamoConditionExpression.from({
+                                      // Verify that the lock version was not changed by a concurrent writer.
+                                      updateLockVersion:
+                                          typeof item.updateLockVersion === "number"
+                                              ? DynamoConditionExpression.eq(item.updateLockVersion)
+                                              : DynamoConditionExpression.exists().not(),
+                                  }),
+                              ),
+                        // This operation implements an optimistic locking scheme. Retrying the
+                        // operation should read the latest item version and eventually succeed.
+                        isConditionCheckErrorRetriable: true,
+                    },
+                );
             });
         });
     }
@@ -1169,11 +1191,11 @@ export class DynamoTableSchema<
      * the item then this update will fail with a condition check error.
      *
      * To use this method properly you should probably wrap in a
-     * `retryDynamoConditionCheckErrors()` call and you should call `getItem()`
+     * `context.dynamo.retryTransaction()` call and you should call `getItem()`
      * inside that retry block so you get a new version of the item after a retry.
      * The `updateItem()` method handles this for you so generally prefer using
      * that method but sometimes you may need to create your own
-     * `retryDynamoConditionCheckErrors()` loop. (Maybe you are executing a
+     * `context.dynamo.retryTransaction()` loop. (Maybe you are executing a
      * transaction?)
      *
      * [1]: https://en.wikipedia.org/wiki/Optimistic_concurrency_control
@@ -1198,6 +1220,9 @@ export class DynamoTableSchema<
                             ? DynamoConditionExpression.eq(item.updateLockVersion)
                             : DynamoConditionExpression.exists().not(),
                 },
+                // This operation implements an optimistic locking scheme. Retrying the
+                // operation should read the latest item version and eventually succeed.
+                isConditionCheckErrorRetriable: true,
             },
         );
     }
@@ -1228,9 +1253,27 @@ export class DynamoTableSchema<
         item: Item,
         {
             condition,
-        }: {
-            condition?: DynamoCondition<Item>;
-        } = {},
+            isConditionCheckErrorRetriable,
+        }:
+            | {
+                  condition: DynamoCondition<Item>;
+                  /**
+                   * Force `isConditionCheckErrorRetriable` to be provided when a `condition`
+                   * is set.
+                   *
+                   * True only when the condition is for optimistic locking schemes like
+                   * `updateLockVersion`. In these schemes retrying an operation which re-reads
+                   * an item should eventually succeed.
+                   *
+                   * If the user provides a condition we assume they are implementing their own
+                   * optimistic locking scheme and default this to true.
+                   */
+                  isConditionCheckErrorRetriable: boolean;
+              }
+            | {
+                  condition?: undefined;
+                  isConditionCheckErrorRetriable?: undefined;
+              } = {},
     ): Promise<void> {
         const client = await this._getClient(context, true);
 
@@ -1250,6 +1293,8 @@ export class DynamoTableSchema<
                 conditionCompilationContext,
             );
 
+            const retryTransaction = getDynamoRetryTransaction(context);
+
             return client.putItem(context.tracer.getTracer(), {
                 tableName: this._name,
                 key: {partitionKey, sortKey},
@@ -1259,22 +1304,73 @@ export class DynamoTableSchema<
                 expressionAttributeNames: new Map(
                     conditionCompilationContext.iterateAttributeNames(),
                 ),
+                retryConditionCheckError: isConditionCheckErrorRetriable ? retryTransaction : null,
             });
         }
+    }
+
+    /**
+     * Deletes an item from the database. If the item doesn't exist or the item
+     * does not match the item's update lock version, we throw a condition check
+     * error.
+     *
+     * Corresponds to the [`DeleteItem`][1] command with a condition.
+     *
+     * `deleteItemWithKeyIfExists()` is slightly more efficient but is less safe
+     * in general.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html
+     */
+    public async deleteItem<Item extends Types["Item"]>(
+        context: DynamoContext,
+        item: Item,
+        {
+            condition,
+        }: {
+            condition?: DynamoCondition<Item>;
+        } = {},
+    ): Promise<void> {
+        const itemExistsCondition = DynamoConditionExpression._unsafeRaw(
+            "attribute_exists(partitionKey)",
+            DynamoConditionExpressionPrecedence.Function,
+        );
+
+        // Verify that the lock version was not changed by a concurrent writer.
+        const updateLockVersionCondition = DynamoConditionExpression.from({
+            updateLockVersion:
+                typeof item.updateLockVersion === "number"
+                    ? DynamoConditionExpression.eq(item.updateLockVersion)
+                    : DynamoConditionExpression.exists().not(),
+        });
+
+        const baseCondition = itemExistsCondition.and(updateLockVersionCondition);
+
+        await this._deleteItem(context, item as any, {
+            condition: condition
+                ? baseCondition.and(DynamoConditionExpression.from(condition))
+                : baseCondition,
+            // This operation implements an optimistic locking scheme. Retrying the
+            // operation should read the latest item version and eventually succeed.
+            isConditionCheckErrorRetriable: true,
+        });
     }
 
     /**
      * Deletes an item from the database. If the item doesn't exist, we throw a
      * condition check error.
      *
+     * Unlike `deleteItem()` we do not require you to have the whole item to
+     * delete it. Just the key. This method does not consider concurrent writers.
+     * If a concurrent writer updated the item you won't know about it.
+     *
      * Corresponds to the [`DeleteItem`][1] command with a condition.
      *
      * If you don't need a condition, generally you should prefer to use
-     * `deleteItemIfExists()` because it is more efficient.
+     * `deleteItemWithKeyIfExists()` because it is more efficient.
      *
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html
      */
-    public async deleteItem<Key extends Types["ItemKey"]>(
+    public async deleteItemWithKey<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         key: Key,
         {
@@ -1292,6 +1388,13 @@ export class DynamoTableSchema<
             condition: condition
                 ? itemExistsCondition.and(DynamoConditionExpression.from(condition))
                 : itemExistsCondition,
+            // A plain delete is not implementing optimistic locking. Retrying this
+            // operation does not re-read the full item to get a latest lock value.
+            //
+            // If the user provides a condition then we assume they are manually
+            // implementing an optimistic locking scheme so we allow this update to
+            // be retriable.
+            isConditionCheckErrorRetriable: !!condition,
         });
     }
 
@@ -1302,14 +1405,14 @@ export class DynamoTableSchema<
      * times in parallel (without a condition) then we will batch the writes
      * together into a [`BatchWriteItem`][2] command.
      *
-     * This method is more efficient than `deleteItem()` because it does not need a
-     * [read capacity unit (RCU), it only needs a write capacity unit (WCU)][3].
+     * This method is more efficient than `deleteItemWithKey()` because it does not
+     * need a [read capacity unit (RCU), it only needs a write capacity unit (WCU)][3].
      *
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      * [3]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadWriteCapacityMode.html
      */
-    public async deleteItemIfExists<Key extends Types["ItemKey"]>(
+    public async deleteItemWithKeyIfExists<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         key: Key,
     ): Promise<void> {
@@ -1337,9 +1440,27 @@ export class DynamoTableSchema<
         key: Key,
         {
             condition,
-        }: {
-            condition?: DynamoCondition<Types["Item"] & Key>;
-        } = {},
+            isConditionCheckErrorRetriable,
+        }:
+            | {
+                  condition: DynamoCondition<Types["Item"] & Key>;
+                  /**
+                   * Force `isConditionCheckErrorRetriable` to be provided when a `condition`
+                   * is set.
+                   *
+                   * True only when the condition is for optimistic locking schemes like
+                   * `updateLockVersion`. In these schemes retrying an operation which re-reads
+                   * an item should eventually succeed.
+                   *
+                   * If the user provides a condition we assume they are implementing their own
+                   * optimistic locking scheme and default this to true.
+                   */
+                  isConditionCheckErrorRetriable: boolean;
+              }
+            | {
+                  condition?: undefined;
+                  isConditionCheckErrorRetriable?: undefined;
+              } = {},
     ): Promise<void> {
         const client = await this._getClient(context, true);
         const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
@@ -1357,6 +1478,8 @@ export class DynamoTableSchema<
                 conditionCompilationContext,
             );
 
+            const retryTransaction = getDynamoRetryTransaction(context);
+
             return client.deleteItem(context.tracer.getTracer(), {
                 tableName: this._name,
                 key: {partitionKey, sortKey},
@@ -1365,6 +1488,7 @@ export class DynamoTableSchema<
                 expressionAttributeNames: new Map(
                     conditionCompilationContext.iterateAttributeNames(),
                 ),
+                retryConditionCheckError: isConditionCheckErrorRetriable ? retryTransaction : null,
             });
         }
     }
@@ -1379,7 +1503,7 @@ export class DynamoTableSchema<
     public static async executeTransaction(
         context: DynamoContext,
         entries: ReadonlyArray<DynamoTransactionEntry>,
-        options?: {clientRequestToken?: string},
+        {clientRequestToken}: {clientRequestToken?: string} = {},
     ): Promise<void> {
         const client = getDynamoClient(context);
 
@@ -1403,7 +1527,10 @@ export class DynamoTableSchema<
             }),
         );
 
-        await client.executeTransaction(context.tracer.getTracer(), entries, options);
+        await client.executeTransaction(context.tracer.getTracer(), entries, {
+            clientRequestToken,
+            retryConditionCheckError: getDynamoRetryTransaction(context),
+        });
     }
 
     /**
@@ -1419,6 +1546,10 @@ export class DynamoTableSchema<
                 "attribute_not_exists(partitionKey)",
                 DynamoConditionExpressionPrecedence.Function,
             ),
+            // Calling `createItem()` has the intent of there is a new item I want to
+            // create. It should not be used to implement upserts. Use
+            // `createOrReplaceItem()` or `updateItem()` for that.
+            isConditionCheckErrorRetriable: false,
         });
     }
 
@@ -1446,6 +1577,13 @@ export class DynamoTableSchema<
             condition: condition
                 ? itemExistsCondition.and(DynamoConditionExpression.from(condition))
                 : itemExistsCondition,
+            // Re-reading the item will continue to give us `null` so retrying the
+            // operation won't fix it.
+            //
+            // If the user provides a condition then we assume they are manually
+            // implementing an optimistic locking scheme so we allow this update to
+            // be retriable.
+            isConditionCheckErrorRetriable: !!condition,
         });
     }
 
@@ -1481,7 +1619,7 @@ export class DynamoTableSchema<
      * in sequence.
      *
      * Unlike `updateItem()`, you must wrap your transaction in
-     * `retryDynamoConditionCheckErrors()` on your own! You must also make sure
+     * `context.dynamo.retryTransaction()` on your own! You must also make sure
      * that you read the item you are updating within that function so it may be
      * re-read when we retry.
      *
@@ -1507,6 +1645,9 @@ export class DynamoTableSchema<
                             ? DynamoConditionExpression.eq(item.updateLockVersion)
                             : DynamoConditionExpression.exists().not(),
                 },
+                // This operation implements an optimistic locking scheme. Retrying the
+                // operation should read the latest item version and eventually succeed.
+                isConditionCheckErrorRetriable: true,
             },
         );
     }
@@ -1528,9 +1669,27 @@ export class DynamoTableSchema<
         item: Item,
         {
             condition,
-        }: {
-            condition?: DynamoCondition<Item>;
-        } = {},
+            isConditionCheckErrorRetriable,
+        }:
+            | {
+                  condition: DynamoCondition<Item>;
+                  /**
+                   * Force `isConditionCheckErrorRetriable` to be provided when a `condition`
+                   * is set.
+                   *
+                   * True only when the condition is for optimistic locking schemes like
+                   * `updateLockVersion`. In these schemes retrying an operation which re-reads
+                   * an item should eventually succeed.
+                   *
+                   * If the user provides a condition we assume they are implementing their own
+                   * optimistic locking scheme and default this to true.
+                   */
+                  isConditionCheckErrorRetriable: boolean;
+              }
+            | {
+                  condition?: undefined;
+                  isConditionCheckErrorRetriable?: undefined;
+              } = {},
     ): DynamoTransactionEntry {
         // If our schema is write incompatible with the old schema then throw an error.
         // Do not allow writing to this table until the generated schema has been
@@ -1564,18 +1723,59 @@ export class DynamoTableSchema<
                 expressionAttributeNames: new Map(
                     conditionCompilationContext.iterateAttributeNames(),
                 ),
+                isConditionCheckErrorRetriable,
             });
         }
     }
 
     /**
      * Transaction entry for deleting an item in the database. Same semantics as
-     * `deleteItem()` but can be part of a transaction that atomically succeeds
-     * or fails.
+     * `deleteItem()` but can be part of a transaction that atomically
+     * succeeds or fails.
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
-    public transactionDeleteItem<Key extends Types["ItemKey"]>(
+    public transactionDeleteItem<Item extends Types["Item"]>(
+        item: Item,
+        {
+            condition,
+        }: {
+            condition?: DynamoCondition<Item>;
+        } = {},
+    ) {
+        const itemExistsCondition = DynamoConditionExpression._unsafeRaw(
+            "attribute_exists(partitionKey)",
+            DynamoConditionExpressionPrecedence.Function,
+        );
+
+        // Verify that the lock version was not changed by a concurrent writer.
+        const updateLockVersionCondition = DynamoConditionExpression.from({
+            updateLockVersion:
+                typeof item.updateLockVersion === "number"
+                    ? DynamoConditionExpression.eq(item.updateLockVersion)
+                    : DynamoConditionExpression.exists().not(),
+        });
+
+        const baseCondition = itemExistsCondition.and(updateLockVersionCondition);
+
+        return this._transactionDeleteItem(item as any, {
+            condition: condition
+                ? baseCondition.and(DynamoConditionExpression.from(condition))
+                : baseCondition,
+            // This operation implements an optimistic locking scheme. Retrying the
+            // operation should read the latest item version and eventually succeed.
+            isConditionCheckErrorRetriable: true,
+        });
+    }
+
+    /**
+     * Transaction entry for deleting an item in the database. Same semantics as
+     * `deleteItemWithKey()` but can be part of a transaction that atomically
+     * succeeds or fails.
+     *
+     * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
+     */
+    public transactionDeleteItemWithKey<Key extends Types["ItemKey"]>(
         key: Key,
         {
             condition,
@@ -1592,6 +1792,13 @@ export class DynamoTableSchema<
             condition: condition
                 ? itemExistsCondition.and(DynamoConditionExpression.from(condition))
                 : itemExistsCondition,
+            // A plain delete is not implementing optimistic locking. Retrying this
+            // operation does not re-read the full item to get a latest lock value.
+            //
+            // If the user provides a condition then we assume they are manually
+            // implementing an optimistic locking scheme so we allow this update to
+            // be retriable.
+            isConditionCheckErrorRetriable: !!condition,
         });
     }
 
@@ -1619,9 +1826,27 @@ export class DynamoTableSchema<
         key: Key,
         {
             condition,
-        }: {
-            condition?: DynamoCondition<Types["Item"] & Key>;
-        } = {},
+            isConditionCheckErrorRetriable,
+        }:
+            | {
+                  condition: DynamoCondition<Types["Item"] & Key>;
+                  /**
+                   * Force `isConditionCheckErrorRetriable` to be provided when a `condition`
+                   * is set.
+                   *
+                   * True only when the condition is for optimistic locking schemes like
+                   * `updateLockVersion`. In these schemes retrying an operation which re-reads
+                   * an item should eventually succeed.
+                   *
+                   * If the user provides a condition we assume they are implementing their own
+                   * optimistic locking scheme and default this to true.
+                   */
+                  isConditionCheckErrorRetriable: boolean;
+              }
+            | {
+                  condition?: undefined;
+                  isConditionCheckErrorRetriable?: undefined;
+              } = {},
     ): DynamoTransactionEntry {
         // If our schema is write incompatible with the old schema then throw an error.
         // Do not allow writing to this table until the generated schema has been
@@ -1655,6 +1880,7 @@ export class DynamoTableSchema<
                 expressionAttributeNames: new Map(
                     conditionCompilationContext.iterateAttributeNames(),
                 ),
+                isConditionCheckErrorRetriable,
             });
         }
     }
@@ -1740,7 +1966,7 @@ export class DynamoTableSchema<
      * You are expected to load the current `updateLockVersion` and pass it into
      * this function. Probably with `getPartialItem()`. If you pass in an incorrect
      * `updateLockVersion` there will be a condition check error. Probably what you
-     * want to do is to run a `retryDynamoConditionCheckErrors()` loop that loads
+     * want to do is to run a `context.dynamo.retryTransaction()` loop that loads
      * the old version of the property and the `updateLockVersion`. Then apply an
      * update and create this transaction entry. Or you can use
      * `updateItemAttribute()` which handles the retry loop for you.
@@ -1805,20 +2031,93 @@ export class DynamoTableSchema<
         }
 
         return DynamoTransactionEntry._newFromClient(DynamoClient, {
-            Update: {
-                TableName: this._name,
-                Key: intoDynamoAttributeValueObject({partitionKey, sortKey}),
-                UpdateExpression:
-                    serializedValue === undefined
-                        ? `REMOVE ${serializedKey} SET updateLockVersion = :newUpdateLockVersion`
-                        : `SET ${serializedKey} = :value, updateLockVersion = :newUpdateLockVersion`,
-                ConditionExpression:
-                    typeof updateLockVersion === "number"
-                        ? "updateLockVersion = :oldUpdateLockVersion"
-                        : "attribute_not_exists(updateLockVersion)",
-                ExpressionAttributeValues: expressionAttributeValues,
+            transactItem: {
+                Update: {
+                    TableName: this._name,
+                    Key: intoDynamoAttributeValueObject({partitionKey, sortKey}),
+                    UpdateExpression:
+                        serializedValue === undefined
+                            ? `REMOVE ${serializedKey} SET updateLockVersion = :newUpdateLockVersion`
+                            : `SET ${serializedKey} = :value, updateLockVersion = :newUpdateLockVersion`,
+                    ConditionExpression:
+                        typeof updateLockVersion === "number"
+                            ? "updateLockVersion = :oldUpdateLockVersion"
+                            : "attribute_not_exists(updateLockVersion)",
+                    ExpressionAttributeValues: expressionAttributeValues,
+                },
             },
+            isConditionCheckErrorRetriable: true,
         });
+    }
+
+    /**
+     * Gets multiple items from DynamoDB with a serializable transaction isolation
+     * level. Corresponds to the [`TransactGetItems`][1] command. Each item in the
+     * returned array corresponds to the provided key. If there was no item for the
+     * provided key then that slot in the array is null.
+     *
+     * Read more about DynamoDB transactions [here][2].
+     *
+     * If this function is wrapped in a `context.dynamo.retryTransaction()` then
+     * when there is a conflict we will retry the entire transaction. If this
+     * function is not wrapped in `context.dynamo.retryTransaction()` then we will
+     * run our own retry loop for this function.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactGetItems.html
+     * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html
+     */
+    public executeGetItemsTransaction<const Keys extends ReadonlyArray<Types["ItemKey"]>>(
+        context: DynamoContext,
+        keys: Keys,
+    ): Promise<{
+        [Index in keyof Keys]: MergeObjectIntersection<Types["Item"] & Keys[Index]> | null;
+    }> {
+        const run = async (retry: () => never) => {
+            const client = await this._getClient(context, false);
+            const serializedKeys = keys.map(key => this._serializeItemKey(key));
+
+            const serializedItems = await client.executeGetItemsTransaction(
+                context.tracer.getTracer(),
+                {
+                    tableName: this._name,
+                    keys: serializedKeys.map(({partitionKey, sortKey}) => ({
+                        partitionKey,
+                        sortKey,
+                    })),
+                    retryTransactionConflictError: retry,
+                },
+            );
+
+            assert(serializedItems.length === serializedKeys.length);
+
+            return serializedItems.map((serializedItem, index) => {
+                if (!serializedItem) return null;
+
+                const key = keys[index]!;
+                const {attributesSchema} = serializedKeys[index]!;
+
+                const item: any = {...key};
+                try {
+                    attributesSchema.deserializeInto(serializedItem, item);
+                } catch (error) {
+                    // Reclassify deserialization errors from data stored in the database as data
+                    // loss errors. It means we have corrupt data stored in the database!
+                    if (error instanceof SchemaDeserializationError) {
+                        throw new DataLossError(error.message, {cause: error});
+                    }
+                    throw error;
+                }
+
+                return item;
+            }) as any;
+        };
+
+        // NOTE(calebmer): Maybe it's always better to always run our own nested
+        // `retryWithExponentialBackoff()` for this function? Instead of plugging into
+        // the full DynamoDB transaction. Unclear to me.
+        const retryTransaction = getDynamoRetryTransaction(context);
+        if (retryTransaction) return run(retryTransaction);
+        return retryWithExponentialBackoff(run);
     }
 
     /**

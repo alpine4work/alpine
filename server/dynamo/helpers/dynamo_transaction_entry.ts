@@ -10,7 +10,16 @@ import {DynamoClient} from "~/server/dynamo/internal/dynamo_client";
  * Should be treated as an opaque object outside of `DynamoClient`.
  */
 export class DynamoTransactionEntry {
-    private constructor(private readonly _transactItem: types.TransactWriteItem) {}
+    private readonly _transactItem: types.TransactWriteItem;
+    public readonly isConditionCheckErrorRetriable: boolean;
+
+    private constructor(
+        transactItem: types.TransactWriteItem,
+        isConditionCheckErrorRetriable: boolean,
+    ) {
+        this._transactItem = transactItem;
+        this.isConditionCheckErrorRetriable = isConditionCheckErrorRetriable;
+    }
 
     /**
      * Should not call this outside of `DynamoClient`! Use functions like
@@ -20,9 +29,15 @@ export class DynamoTransactionEntry {
      */
     public static _newFromClient(
         client: typeof DynamoClient,
-        transactItem: types.TransactWriteItem,
+        {
+            transactItem,
+            isConditionCheckErrorRetriable,
+        }: {
+            transactItem: types.TransactWriteItem;
+            isConditionCheckErrorRetriable: boolean;
+        },
     ) {
-        return new DynamoTransactionEntry(transactItem);
+        return new DynamoTransactionEntry(transactItem, isConditionCheckErrorRetriable);
     }
 
     /**

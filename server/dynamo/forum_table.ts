@@ -7,7 +7,6 @@ import {createMessagePayloadModel} from "~/server/dynamo/helpers/messaging/creat
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/dynamo/helpers/messaging/get_message_change_log_expiration_time_from_change_time";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
-import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dynamo_condition_check_errors";
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
 import {
     MessageContent,
@@ -695,7 +694,7 @@ export async function createPostComment(
     index: number;
     createdTime: Date;
 }> {
-    return retryDynamoConditionCheckErrors(async () => {
+    return context.dynamo.retryTransaction(async context => {
         const [postItem] = await runAllPromiseThunks(
             async () => {
                 const postItem = await ForumTable.getPartialItem(
@@ -836,7 +835,7 @@ export function updatePostCommentContent(
 ): Promise<{
     contentUpdatedTime: Date;
 }> {
-    return retryDynamoConditionCheckErrors(async () => {
+    return context.dynamo.retryTransaction(async context => {
         const [postItem, commentItem] = await runAllPromises([
             ForumTable.getPartialItem(
                 context,
@@ -933,7 +932,7 @@ export function deletePostComment(
     context: RequestContext,
     {postId, commentIndex}: {postId: PostId; commentIndex: number},
 ): Promise<{deletedTime: Date}> {
-    return retryDynamoConditionCheckErrors(async () => {
+    return context.dynamo.retryTransaction(async context => {
         const [postItem, commentItem] = await runAllPromises([
             ForumTable.getItem(context, {
                 partitionType: "Post",

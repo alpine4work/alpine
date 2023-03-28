@@ -8,7 +8,6 @@ import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
-import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dynamo_condition_check_errors";
 import {authorizeSpaceAccess, isAccountMemberOfSpace} from "~/server/dynamo/spaces_table";
 import {EmailAddress} from "~/server/emails/email_address";
 import {FromEmailAddress} from "~/server/emails/from_email_address";
@@ -451,7 +450,7 @@ export function attemptOneTimePasswordSignIn(
     sessionId: SessionId;
     sessionAccountId: AccountId;
 }> {
-    return retryDynamoConditionCheckErrors(async () => {
+    return context.dynamo.retryTransaction(async context => {
         const accountEmailAddressItem = await AccountsTable.getItem(context, {
             partitionType: "AccountEmailAddress",
             sortRangeType: "Attributes",

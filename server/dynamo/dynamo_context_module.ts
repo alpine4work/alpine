@@ -3,6 +3,7 @@ import {DynamoClient, DynamoReadConsistency} from "~/server/dynamo/internal/dyna
 import {Context} from "~/shared/context/context";
 import {ContextModuleBase} from "~/shared/context/context_module_base";
 import {InternalError} from "~/shared/error/error";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff";
 import {assert} from "~/shared/helpers/control/assert";
 import {Replace} from "~/shared/helpers/types/replace";
 
@@ -21,9 +22,21 @@ export class DynamoContextModule<Modules extends {} = {}> extends ContextModuleB
      */
     public readonly defaultReadConsistency: DynamoReadConsistency;
 
+    /**
+     * If we are in a DynamoDB transaction then this will be set to a function
+     * which when called will retry the transaction.
+     */
+    private readonly _retryTransaction: (() => never) | null;
+
     private constructor(
         client: DynamoClient | null,
-        {defaultReadConsistency}: {defaultReadConsistency: DynamoReadConsistency},
+        {
+            defaultReadConsistency,
+            retryTransaction,
+        }: {
+            defaultReadConsistency: DynamoReadConsistency;
+            retryTransaction: (() => never) | null;
+        },
     ) {
         super();
 
@@ -42,11 +55,13 @@ export class DynamoContextModule<Modules extends {} = {}> extends ContextModuleB
         }
 
         this.defaultReadConsistency = defaultReadConsistency;
+        this._retryTransaction = retryTransaction;
     }
 
     public static new(client: AwsClient, url: string) {
         return new DynamoContextModule(new DynamoClient(client, url), {
             defaultReadConsistency: "Eventual",
+            retryTransaction: null,
         });
     }
 
@@ -63,6 +78,7 @@ export class DynamoContextModule<Modules extends {} = {}> extends ContextModuleB
 
         const contextModule = new DynamoContextModule(null, {
             defaultReadConsistency: "Eventual",
+            retryTransaction: null,
         });
 
         return Object.assign(contextModule, {
@@ -95,7 +111,39 @@ export class DynamoContextModule<Modules extends {} = {}> extends ContextModuleB
         defaultReadConsistency: DynamoReadConsistency,
     ): Context<Replace<Modules, {dynamo: DynamoContextModule}>> {
         return this._context.clone({
-            dynamo: new DynamoContextModule(this._client, {defaultReadConsistency}),
+            dynamo: new DynamoContextModule(this._client, {
+                defaultReadConsistency,
+                retryTransaction: this._retryTransaction,
+            }),
+        });
+    }
+
+    /**
+     * Creates a retry loop for expected transaction errors. You can not nest two
+     * retry transaction loops.
+     *
+     * Will retry if certain condition checks fail. For instance an
+     * `updateLockVersion` condition check failure.
+     */
+    public retryTransaction<Modules extends {}, Value>(
+        this: ContextModuleBase<Modules> & DynamoContextModule,
+        action: (
+            context: Context<Replace<Modules, {dynamo: DynamoContextModule}>>,
+        ) => Promise<Value>,
+    ): Promise<Value> {
+        if (this._retryTransaction)
+            throw new InternalError("Can not nest DynamoDB transaction retry loops");
+
+        return retryWithExponentialBackoff(retry => {
+            return this._context.with(
+                {
+                    dynamo: new DynamoContextModule(this._client, {
+                        defaultReadConsistency: this.defaultReadConsistency,
+                        retryTransaction: retry,
+                    }),
+                },
+                action,
+            );
         });
     }
 }

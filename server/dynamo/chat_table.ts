@@ -8,7 +8,6 @@ import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attr
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/internal/is_dynamo_idempotent_parameter_mismatch_error";
-import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dynamo_condition_check_errors";
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint";
 import {MessageContent, MessageContentSchema} from "~/shared/content/message_content_schema";
@@ -689,7 +688,7 @@ export function sendChatMessage(
     index: number;
     createdTime: Date;
 }> {
-    return retryDynamoConditionCheckErrors(async () => {
+    return context.dynamo.retryTransaction(async context => {
         const [chatItem] = await runAllPromiseThunks(
             async () => {
                 const chatItem = await ChatTable.getItem(context, {
@@ -1063,7 +1062,7 @@ export function updateChatMessageContent(
 ): Promise<{
     contentUpdatedTime: Date;
 }> {
-    return retryDynamoConditionCheckErrors(async () => {
+    return context.dynamo.retryTransaction(async context => {
         const [chatItem, chatMessageItem] = await runAllPromises([
             ChatTable.getItem(context, {
                 partitionType: "Chat",
@@ -1149,7 +1148,7 @@ export function deleteChatMessage(
     context: RequestContext,
     {chatId, messageIndex}: {chatId: ChatId; messageIndex: number},
 ): Promise<{deletedTime: Date}> {
-    return retryDynamoConditionCheckErrors(async () => {
+    return context.dynamo.retryTransaction(async context => {
         const [chatItem, chatMessageItem] = await runAllPromises([
             ChatTable.getItem(context, {
                 partitionType: "Chat",

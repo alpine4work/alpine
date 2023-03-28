@@ -5,6 +5,7 @@ import {AwsClient} from "aws4fetch";
 import {classifyDynamoError} from "~/server/dynamo/internal/classify_dynamo_error";
 import {isConstructedDynamoTableSchemaName} from "~/server/dynamo/internal/dynamo_table_schema";
 import {assert} from "~/shared/helpers/control/assert";
+import {generateId} from "~/shared/id/id";
 import {TraceId, TraceSpanId} from "~/shared/id/types/id_types";
 import {TracerBase} from "~/shared/tracer/tracer_base";
 import {TracerSpan} from "~/shared/tracer/tracer_span";
@@ -403,7 +404,64 @@ export class DynamoClientInternal {
             const output = await this._execute<
                 types.TransactWriteItemsInput,
                 types.TransactWriteItemsOutput
-            >(span, "TransactWriteItems", {...input, ReturnConsumedCapacity: "TOTAL"});
+            >(span, "TransactWriteItems", {
+                ...input,
+                // Make sure to include a `ClientRequestToken` in case the underlying
+                // `aws4fetch` module retries the transaction. If we were using the AWS SDK
+                // this would be handled for us. See:
+                // https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html#transaction-best-practices
+                ClientRequestToken: input.ClientRequestToken ?? generateId(),
+                ReturnConsumedCapacity: "TOTAL",
+            });
+
+            span.addData({
+                dynamodb: {
+                    consumedCapacity: getConsumedCapacityTracerEventData(
+                        output.ConsumedCapacity,
+                        "Read",
+                    ),
+                },
+            });
+
+            return output;
+        });
+    }
+
+    /**
+     * DynamoDB [`TransactGetItems`][1] action.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactGetItems.html
+     */
+    public TransactGetItems(
+        tracer: TracerBase,
+        input: types.TransactGetItemsInput,
+    ): Promise<types.TransactGetItemsOutput> {
+        return tracer.withSpan("DynamoDB TransactGetItems", async span => {
+            // We need to set `ReturnConsumedCapacity` for tracing.
+            assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "TOTAL");
+
+            const tableNames = new Set<string>();
+            let size = 0;
+
+            for (const transactItem of input.TransactItems ?? []) {
+                if (transactItem.Get) {
+                    if (transactItem.Get.TableName) tableNames.add(transactItem.Get.TableName);
+                    size++;
+                }
+            }
+
+            span.addData({
+                dynamodb: {
+                    action: "TransactGetItems",
+                    tableName: Array.from(tableNames).sort().join("+"),
+                    transactGet: {size},
+                },
+            });
+
+            const output = await this._execute<
+                types.TransactGetItemsInput,
+                types.TransactGetItemsOutput
+            >(span, "TransactGetItems", {...input, ReturnConsumedCapacity: "TOTAL"});
 
             span.addData({
                 dynamodb: {

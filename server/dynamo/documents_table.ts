@@ -3,13 +3,13 @@ import {Mapping, Step} from "prosemirror-transform";
 import {getAccountOrThrow} from "~/server/dynamo/accounts_table";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
+import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
 import {getContentReferencesFromNode} from "~/server/dynamo/helpers/get_content_references";
 import {createMessagePayloadModel} from "~/server/dynamo/helpers/messaging/create_message_payload_model";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/dynamo/helpers/messaging/get_message_change_log_expiration_time_from_change_time";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
-import {retryDynamoConditionCheckErrors} from "~/server/dynamo/internal/retry_dynamo_condition_check_errors";
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint";
 import {TestCounter} from "~/server/helpers/test/test_counter";
@@ -32,17 +32,20 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable";
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
+import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable";
 import {clamp} from "~/shared/helpers/number/clamp";
 import {Replace} from "~/shared/helpers/types/replace";
-import {generateId} from "~/shared/id/id";
+import {assertId, generateId} from "~/shared/id/id";
 import {
     AccountId,
     ContentEditorClientId,
@@ -53,12 +56,15 @@ import {
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema";
 import {
     DocumentCommentModel,
+    DocumentCommentThreadModel,
     DocumentModel,
     DocumentPreviewModel,
     getDocumentContentTitleWithoutFallback,
+    maxDocumentCommentThreadPreviewCommentAuthorCount,
 } from "~/shared/models/document_model";
 import {MessagePayloadSchema} from "~/shared/models/message_model";
 import {ExhaustiveStep} from "~/shared/prosemirror/prosemirror_exhaustive_step";
+import {visitProsemirrorNode, visitProsemirrorStep} from "~/shared/prosemirror/prosemirror_visitor";
 import {Schema} from "~/shared/schema/schema";
 
 const DocumentsTable = DynamoTableSchema.new({
@@ -184,6 +190,108 @@ const DocumentsTable = DynamoTableSchema.new({
                 },
 
                 /**
+                 * An item representing a document comment thread. The comments in the thread
+                 * live in the `DocumentCommentThread` partition. We put this item in the
+                 * `Document` partition so that you can query comment threads together with the
+                 * document. Then when you open a comment thread you can query the thread's
+                 * partition.
+                 *
+                 * This sort range is an approximation of all the comment threads currently
+                 * referenced in the document's content. The `ArchivedCommentThread` range
+                 * represents comment threads that used to be in the document's content but
+                 * were removed. Perhaps the user resolved the comment thread or deleted the
+                 * content which contained it. Comment threads are moved between these two
+                 * sort ranges with eventual consistency. (Currently during document snapshot
+                 * updates.) So you are not guaranteed that an archived comment thread is
+                 * unreferenced or that a referenced comment thread is actually unreferenced.
+                 */
+                {
+                    name: "ReferencedCommentThread",
+                    sortKeyAttributes: {
+                        commentThreadId: DynamoKeyAttributeSchema.id<DocumentCommentThreadId>(),
+                    },
+                    attributes: Schema.object({
+                        /** The time at which the thread was created. */
+                        createdTime: Schema.date,
+
+                        /**
+                         * Information regarding the comment thread. Nested in an object so we can
+                         * update it at once.
+                         */
+                        commentsSummary: Schema.object({
+                            /**
+                             * The index of the next comment.
+                             */
+                            nextCommentIndex: Schema.integer.min(0),
+
+                            /**
+                             * The last time a comment was changed. This should equal the `changeTime` of
+                             * the highest item in `CommentChangeLog`.
+                             */
+                            lastChangeTime: Schema.date.nullable().default(null),
+
+                            /**
+                             * All the accounts which have commented in this thread and the number of comments
+                             * they have made. The map is ordered by when the account first commented on
+                             * the document comment thread.
+                             *
+                             * This map can grow unbounded. When a user deletes a comment it leaves a
+                             * gravestone so comment counts should never be decremented.
+                             */
+                            commentCountByAuthorId: Schema.map(
+                                Schema.id<AccountId>(),
+                                Schema.integer.min(1),
+                            ),
+                        }),
+                    }),
+                },
+
+                /**
+                 * See the documentation for `ReferencedCommentThread` to understand this
+                 * sort range.
+                 */
+                {
+                    name: "ArchivedCommentThread",
+                    sortKeyAttributes: {
+                        commentThreadId: DynamoKeyAttributeSchema.id<DocumentCommentThreadId>(),
+                    },
+                    attributes: Schema.object({
+                        /** The time at which the thread was created. */
+                        createdTime: Schema.date,
+
+                        /**
+                         * Information regarding the comment thread. Nested in an object so we can
+                         * update it at once.
+                         */
+                        commentsSummary: Schema.object({
+                            /**
+                             * The index of the next comment.
+                             */
+                            nextCommentIndex: Schema.integer.min(0),
+
+                            /**
+                             * The last time a comment was changed. This should equal the `changeTime` of
+                             * the highest item in `CommentChangeLog`.
+                             */
+                            lastChangeTime: Schema.date.nullable().default(null),
+
+                            /**
+                             * All the accounts which have commented in this thread and the number of comments
+                             * they have made. The map is ordered by when the account first commented on
+                             * the document comment thread.
+                             *
+                             * This map can grow unbounded. When a user deletes a comment it leaves a
+                             * gravestone so comment counts should never be decremented.
+                             */
+                            commentCountByAuthorId: Schema.map(
+                                Schema.id<AccountId>(),
+                                Schema.integer.min(1),
+                            ),
+                        }),
+                    }),
+                },
+
+                /**
                  * Step transactions applied to the document before our latest snapshot.
                  *
                  * We keep around old steps for historical purposes. We will read these steps
@@ -239,6 +347,12 @@ const DocumentsTable = DynamoTableSchema.new({
          * Users can leave comments on ranges of text in a document. We annotate the
          * commented range with a ProseMirror mark and store the comments back in our
          * DynamoDB table here.
+         *
+         * What would normally be an `Attributes` item in this partition instead lives
+         * in the `Document` partition as `ReferencedCommentThread` and
+         * `ArchivedCommentThread`. This way we can query all the information regarding
+         * comment threads when loading a document at once. Then when you open a
+         * comment thread you load comments from this partition.
          */
         {
             name: "DocumentCommentThread",
@@ -247,45 +361,6 @@ const DocumentsTable = DynamoTableSchema.new({
                 commentThreadId: DynamoKeyAttributeSchema.id<DocumentCommentThreadId>(),
             },
             sortRanges: [
-                {
-                    name: "Attributes",
-                    sortKeyAttributes: {},
-                    attributes: Schema.object({
-                        /** The time at which the thread was created. */
-                        createdTime: Schema.date,
-
-                        /**
-                         * Information regarding the comment thread. Nested in an object so we can
-                         * update it at once.
-                         */
-                        commentsSummary: Schema.object({
-                            /**
-                             * The index of the next comment.
-                             */
-                            nextCommentIndex: Schema.integer.min(0),
-
-                            /**
-                             * The last time a comment was changed. This should equal the `changeTime` of
-                             * the highest item in `CommentChangeLog`.
-                             */
-                            lastChangeTime: Schema.date.nullable().default(null),
-
-                            /**
-                             * All the accounts which have commented in this thread and the number of comments
-                             * they have made. The map is ordered by when the account first commented on
-                             * the document comment thread.
-                             *
-                             * This map can grow unbounded. When a user deletes a comment it leaves a
-                             * gravestone so comment counts should never be decremented.
-                             */
-                            commentCountByAuthorId: Schema.map(
-                                Schema.id<AccountId>(),
-                                Schema.integer.min(1),
-                            ),
-                        }),
-                    }),
-                },
-
                 /**
                  * Comments in the thread. Has all the attributes needed for a message in
                  * `MessageInterface`.
@@ -375,10 +450,16 @@ type DocumentStepTransactionItem =
 
 type DocumentSnapshotItem = DynamoTableItemType<typeof DocumentsTable, "Document", "Snapshot">;
 
-type DocumentCommentThreadItem = DynamoTableItemType<
+type DocumentReferencedCommentThreadItem = DynamoTableItemType<
     typeof DocumentsTable,
-    "DocumentCommentThread",
-    "Attributes"
+    "Document",
+    "ReferencedCommentThread"
+>;
+
+type DocumentArchivedCommentThreadItem = DynamoTableItemType<
+    typeof DocumentsTable,
+    "Document",
+    "ArchivedCommentThread"
 >;
 
 type DocumentCommentItem = DynamoTableItemType<
@@ -444,17 +525,6 @@ export async function createDocument(
 }
 
 /**
- * Get the full document with the provided id.
- */
-export async function getDocument(
-    context: RequestContext,
-    id: DocumentId,
-): Promise<DocumentModel | null> {
-    const internalDocument = await getInternalDocument(context, id);
-    return internalDocument?.model ?? null;
-}
-
-/**
  * Get a preview of the document with the provided id.
  *
  * Cheaper than `getDocument()` since we don't return the full content.
@@ -486,17 +556,12 @@ type InternalDocument = {
     readonly attributes: DocumentAttributesItem;
     readonly stepTransactionsAfterSnapshot: ReadonlyArray<DocumentStepTransactionAfterSnapshotItem>;
     readonly snapshot: DocumentSnapshotItem;
-    readonly model: DocumentModel;
+    readonly version: number;
+    readonly content: DocumentContent;
 };
 
 export const getInternalDocumentTestCounter = new TestCounter();
 
-/**
- * Get the full document with the provided id.
- *
- * Not only returns the `Document` but also returns some of the document's
- * internal representation.
- */
 async function getInternalDocument(
     context: RequestContext,
     id: DocumentId,
@@ -600,21 +665,222 @@ async function getInternalDocument(
         attributes,
         stepTransactionsAfterSnapshot,
         snapshot,
-        model: new DocumentModel({
-            id: id,
-            createdTime: attributes.createdTime,
-            spaceId: attributes.spaceId,
-            version: attributes.version,
-            content: {
-                doc: content,
-                references: await getContentReferencesFromNode(
-                    context,
-                    attributes.spaceId,
-                    content,
-                ),
-            },
-        }),
+        version,
+        content,
     };
+}
+
+/**
+ * Get the full document with the provided id.
+ */
+export async function getDocument(
+    context: RequestContext,
+    id: DocumentId,
+): Promise<DocumentModel | null> {
+    getInternalDocumentTestCounter.incrementForTest(id);
+
+    let _attributes: DocumentAttributesItem | null = null;
+    let stepTransactionsAfterSnapshot: Array<DocumentStepTransactionAfterSnapshotItem> = [];
+    let maybeSnapshot: DocumentSnapshotItem | null = null;
+    const staleReferencedCommentThreadById = new Map<
+        DocumentCommentThreadId,
+        DocumentReferencedCommentThreadItem
+    >();
+
+    for await (const item of DocumentsTable.query(context, {
+        partitionKey: {
+            partitionType: "Document",
+            documentId: id,
+        },
+        startSortKey: {
+            sortRangeType: "Attributes",
+        },
+        endSortKey: {
+            sortRangeType: "ReferencedCommentThread",
+            commentThreadId: DynamoKeyAttributeSchema.id.getMaxValue(),
+        },
+        limit: "All",
+    })) {
+        switch (item.sortRangeType) {
+            case "Attributes":
+                _attributes = item;
+                break;
+            case "StepTransactionsAfterSnapshot":
+                stepTransactionsAfterSnapshot.push(item);
+                break;
+            case "Snapshot":
+                maybeSnapshot = item;
+                break;
+            case "ReferencedCommentThread":
+                staleReferencedCommentThreadById.set(item.commentThreadId, item);
+                break;
+            default:
+                throw exhaustive(item);
+        }
+    }
+
+    if (_attributes === null) {
+        assert(
+            !maybeSnapshot &&
+                stepTransactionsAfterSnapshot.length === 0 &&
+                staleReferencedCommentThreadById.size === 0,
+            "Document with no attributes should not have snapshot",
+        );
+        return null;
+    }
+    const attributes = _attributes;
+
+    await authorizeSpaceAccess(context, attributes.spaceId);
+
+    if (!maybeSnapshot)
+        throw new DataLossError("Document with attributes should also have a snapshot");
+    const snapshot = maybeSnapshot;
+
+    if (snapshot.version > attributes.version)
+        throw new DataLossError("Document snapshot version is ahead of version attribute");
+
+    // If we have some steps before the snapshot in
+    // `stepTransactionsAfterSnapshot`, that's fine. We may be in the middle of
+    // moving steps into the `StepTransactionsBeforeSnapshot` sort range.
+    //
+    // Drop any steps before the snapshot.
+    stepTransactionsAfterSnapshot = stepTransactionsAfterSnapshot.filter(stepTransaction => {
+        if (stepTransaction.startVersion < snapshot.version) {
+            // We assume step transactions are applied to the snapshot atomically. We don't
+            // support some steps in a transaction being before the snapshot and some steps
+            // in a transaction being after the snapshot. It's all or nothing for now.
+            if (stepTransaction.startVersion + stepTransaction.steps.length > snapshot.version)
+                throw new DataLossError(
+                    "Document snapshot version is in the middle of a step transaction",
+                );
+
+            return false;
+        }
+
+        return true;
+    });
+
+    let version = snapshot.version;
+    let content = snapshot.content;
+
+    for (const stepTransaction of stepTransactionsAfterSnapshot) {
+        if (stepTransaction.startVersion !== version)
+            throw new DataLossError(
+                "Mismatched document snapshot version and step transaction version",
+            );
+
+        for (const step of stepTransaction.steps) {
+            const stepResult = step.apply(content);
+            if (!stepResult.doc)
+                throw new DataLossError(
+                    `Step after document snapshot could not be applied: ${stepResult.failed!}`,
+                );
+
+            assert(isDocumentContent(stepResult.doc));
+            content = stepResult.doc;
+        }
+
+        version += stepTransaction.steps.length;
+    }
+
+    const referencedCommentThreadIds = getReferencedDocumentCommentThreadIds(content);
+
+    const [contentReferences, commentThreadById] = await runAllPromises([
+        getContentReferencesFromNode(context, attributes.spaceId, content),
+        runAllPromises(
+            mapIterable(
+                referencedCommentThreadIds,
+                async (
+                    commentThreadId,
+                ): Promise<[DocumentCommentThreadId, DocumentCommentThreadModel] | null> => {
+                    const commentThread =
+                        staleReferencedCommentThreadById.get(commentThreadId) ??
+                        // If our query didn't find the comment thread, it must be because our snapshot
+                        // update process hasn't moved it from the archive range back into the
+                        // referenced range. Try reading it from the archive range. Eventually the
+                        // comment thread should be in our referenced range.
+                        (await getDocumentCommentThreadItem(context, {
+                            documentId: id,
+                            commentThreadId,
+                            // Try reading from the archive range first because we already queried the
+                            // entire referenced comment thread range.
+                            shouldTryArchiveFirst: true,
+                        }));
+
+                    if (!commentThread) return null;
+
+                    return [
+                        commentThread.commentThreadId,
+                        await createDocumentCommentThreadModelFromItem(
+                            context,
+                            attributes.spaceId,
+                            commentThread,
+                        ),
+                    ];
+                },
+            ),
+        ).then(commentThreadById => new Map(filterIterable(commentThreadById, isNonNullable))),
+    ]);
+
+    return new DocumentModel({
+        id,
+        createdTime: attributes.createdTime,
+        spaceId: attributes.spaceId,
+        version: attributes.version,
+        content: {
+            doc: content,
+            references: {...contentReferences, commentThreadById},
+        },
+    });
+}
+
+/**
+ * Find all the `DocumentCommentThreadId`s currently referenced in the
+ * provided `DocumentContent`.
+ */
+function getReferencedDocumentCommentThreadIds(
+    content: DocumentContent,
+): Set<DocumentCommentThreadId> {
+    const commentThreadIds = new Set<DocumentCommentThreadId>();
+
+    visitProsemirrorNode(content, {
+        visitMark: mark => {
+            if (mark.type.name === "comment") {
+                commentThreadIds.add(assertId<DocumentCommentThreadId>(mark.attrs.commentThreadId));
+            }
+        },
+    });
+
+    return commentThreadIds;
+}
+
+async function createDocumentCommentThreadModelFromItem(
+    context: RequestContext,
+    spaceId: SpaceId,
+    item: DocumentReferencedCommentThreadItem | DocumentArchivedCommentThreadItem,
+) {
+    const previewCommentAuthors = await runAllPromises(
+        Array.from(
+            sliceIterable(
+                item.commentsSummary.commentCountByAuthorId.keys(),
+                0,
+                maxDocumentCommentThreadPreviewCommentAuthorCount,
+            ),
+            accountId => getAccountOrThrow(context, spaceId, accountId),
+        ),
+    );
+
+    return new DocumentCommentThreadModel({
+        createdTime: item.createdTime,
+        commentCount: reduceIterable(
+            item.commentsSummary.commentCountByAuthorId.values(),
+            (commentCount, authorCommentCount) => commentCount + authorCommentCount,
+            0,
+        ),
+        lastCommentChangeTime: item.commentsSummary.lastChangeTime,
+        commentAuthorCount: item.commentsSummary.commentCountByAuthorId.size,
+        previewCommentAuthors,
+    });
 }
 
 /**
@@ -691,10 +957,10 @@ export class DocumentContentCacheForUpdate {
             if (!internalDocument) return null;
 
             return {
-                createdTime: internalDocument.model.createdTime,
-                spaceId: internalDocument.model.spaceId,
-                version: internalDocument.model.version,
-                content: internalDocument.model.content.doc,
+                createdTime: internalDocument.attributes.createdTime,
+                spaceId: internalDocument.attributes.spaceId,
+                version: internalDocument.version,
+                content: internalDocument.content,
                 stepsAfterInitialSnapshot: new PushOnlyArray(
                     flatMapIterable(
                         internalDocument.stepTransactionsAfterSnapshot,
@@ -1094,10 +1360,27 @@ declare module "prosemirror-transform" {
 /**
  * Updates our document by applying some steps.
  *
- * - You may update a document no more than 20 steps at a time.
- * - The version number must be less than or equal to the current document
- *   version. If the version is less than we will rebase the steps you provided
- *   against the new document steps.
+ * The version number must be less than or equal to the current document
+ * version. If the version is less than we will rebase the steps you provided
+ * against the new document steps.
+ *
+ * ### Comments
+ *
+ * You may use this method to atomically create a comment thread along with
+ * updating the document's content. You will do this by adding a `comment` mark
+ * to some text and creating a comment thread with the same
+ * `DocumentCommentThreadId` as what is in your mark.
+ *
+ * You MAY NOT create a comment thread (with the `createCommentThread` option)
+ * if the comment thread is not somehow represented in the update steps.
+ *
+ * You MAY use the `comment` mark in steps with a comment thread that was
+ * previously created (maybe you are copy/pasting or undoing a change).
+ *
+ * We do not validate that `comment` marks you use correspond to a comment
+ * thread in the database. To do this we'd have to fetch all referenced comment
+ * threads in your steps which could get expensive if you were pasting a large
+ * amount of content.
  *
  * ### Performance
  *
@@ -1114,7 +1397,7 @@ declare module "prosemirror-transform" {
  */
 // TODO(calebmer): If this is being called outside our collaboration durable
 // object we should throw an error or restart the durable object or something.
-// Maybe the durable object could incorporate conflicting
+// Because the durable object's internal state will be wrong.
 export async function updateDocumentContent(
     context: RequestContext,
     {
@@ -1122,12 +1405,17 @@ export async function updateDocumentContent(
         version: clientVersion,
         steps: clientSteps,
         clientId,
+        createCommentThread,
         cacheOverrideForTest,
     }: {
         id: DocumentId;
         version: number;
         steps: ReadonlyArray<Step>;
         clientId: ContentEditorClientId;
+        createCommentThread?: {
+            commentThreadId: DocumentCommentThreadId;
+            content: MessageContent;
+        };
         // NOTE(calebmer): Do we really need the cache anymore now that we're using
         // Durable Objects for updating documents? For now, probably yes? Each Durable
         // Object should only have one document cached in memory and the document being
@@ -1166,7 +1454,7 @@ export async function updateDocumentContent(
      */
     conflictingSteps: ReadonlyArray<{step: Step; clientId: ContentEditorClientId}>;
 }> {
-    const result = await retryDynamoConditionCheckErrors(async () => {
+    const result = await context.dynamo.retryTransaction(async context => {
         if (!Number.isSafeInteger(clientVersion) || clientVersion < 0)
             throw new InvalidArgumentError("Expected a positive integer version number");
 
@@ -1175,6 +1463,25 @@ export async function updateDocumentContent(
             cache === globalDocumentContentCacheForUpdate || typeof jest !== "undefined",
             "Can only override the cache in Jest tests",
         );
+
+        if (createCommentThread) {
+            const stepCommentThreadIds = new Set<DocumentCommentThreadId>();
+
+            for (const step of clientSteps) {
+                visitProsemirrorStep(step, {
+                    visitMark: mark => {
+                        if (mark.type.name === "comment") {
+                            stepCommentThreadIds.add(assertId(mark.attrs.commentThreadId));
+                        }
+                    },
+                });
+            }
+
+            if (!stepCommentThreadIds.has(createCommentThread.commentThreadId))
+                throw new InvalidArgumentError(
+                    "When creating a comment thread the `commentThreadId` must be referenced in document update steps",
+                );
+        }
 
         const internalDocument = await cache.getAndCacheDocument(context, id);
         if (!internalDocument)
@@ -1238,8 +1545,11 @@ export async function updateDocumentContent(
             clientId,
         });
 
+        const transaction: Array<DynamoTransactionEntry> = [];
+        const createdTime = new Date();
+
         if (steps.length > 0) {
-            await DynamoTableSchema.executeTransaction(context, [
+            transaction.push(
                 DocumentsTable.transactionReplaceItem(
                     {
                         partitionType: "Document",
@@ -1265,10 +1575,60 @@ export async function updateDocumentContent(
                     steps: steps,
                     invertedSteps,
                     clientId,
-                    createdTime: new Date(),
+                    createdTime,
                 }),
-            ]);
+            );
+        }
 
+        // If we were instructed to create a comment thread then extend our transaction
+        // with entries that will atomically create a new comment thread within the
+        // transaction.
+        if (createCommentThread) {
+            transaction.push(
+                DocumentsTable.transactionCreateItem({
+                    partitionType: "Document",
+                    // Assume the new comment thread is referenced. The snapshot update process will
+                    // move it if it's not.
+                    sortRangeType: "ReferencedCommentThread",
+                    documentId: id,
+                    commentThreadId: createCommentThread.commentThreadId,
+                    createdTime,
+                    commentsSummary: {
+                        nextCommentIndex: 1,
+                        lastChangeTime: null,
+                        commentCountByAuthorId: new Map([[context.auth.getAccountId(), 1]]),
+                    },
+                }),
+                // Make sure an archive comment thread item also does not exist.
+                DocumentsTable.transactionDoesNotExistConditionCheck({
+                    partitionType: "Document",
+                    sortRangeType: "ArchivedCommentThread",
+                    documentId: id,
+                    commentThreadId: createCommentThread.commentThreadId,
+                }),
+                DocumentsTable.transactionCreateOrReplaceItem({
+                    partitionType: "DocumentCommentThread",
+                    sortRangeType: "Comments",
+                    documentId: id,
+                    commentThreadId: createCommentThread.commentThreadId,
+                    commentIndex: 0,
+                    authorId: context.auth.getAccountId(),
+                    createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: createCommentThread.content,
+                        contentUpdatedTime: null,
+                    },
+                }),
+            );
+        }
+
+        if (transaction.length > 0) {
+            await DynamoTableSchema.executeTransaction(context, transaction);
+        }
+
+        if (steps.length > 0) {
             // Update our cache so that the next update from this process doesn't need to
             // read content from the database.
             await internalDocument.updateCache({
@@ -1597,6 +1957,9 @@ const updateDocumentSnapshotAfterStepCount = 100;
 export const updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint =
     new TestCheckpoint<DocumentId>();
 
+export const updateDocumentSnapshotBeforeMovingCommentThreadTestCheckpoint =
+    new TestCheckpoint<DocumentId>();
+
 async function updateDocumentSnapshotAfterUpdatingContent(
     context: DynamoContext,
     {
@@ -1653,43 +2016,198 @@ async function updateDocumentSnapshotAfterUpdatingContent(
             throw error;
         }
 
-        // Then, for all steps before our new snapshot version, move them into the
-        // `StepTransactionsBeforeSnapshot` range so in the future when we read the
-        // full document we don't read those steps.
-        const stepTransactions = await arrayFromAsyncIterable(
-            DocumentsTable.query(context, {
-                partitionKey: {
-                    partitionType: "Document",
-                    documentId: id,
-                },
-                startSortKey: {
-                    sortRangeType: "StepTransactionsAfterSnapshot",
-                    startVersion: 0,
-                },
-                endSortKey: {
-                    sortRangeType: "StepTransactionsAfterSnapshot",
-                    startVersion: newVersion - 1,
-                },
-                limit: "All",
+        await runAllPromises([
+            // Move steps from the `StepTransactionsBeforeSnapshot` range to the
+            // `StepTransactionsAfterSnapshot` range. So we don't query unnecessary steps
+            // when loading our document.
+            context.tracer.withSpan("Moving step transactions", async context => {
+                // Then, for all steps before our new snapshot version, move them into the
+                // `StepTransactionsBeforeSnapshot` range so in the future when we read the
+                // full document we don't read those steps.
+                const stepTransactions = await arrayFromAsyncIterable(
+                    DocumentsTable.query(context, {
+                        partitionKey: {
+                            partitionType: "Document",
+                            documentId: id,
+                        },
+                        startSortKey: {
+                            sortRangeType: "StepTransactionsAfterSnapshot",
+                            startVersion: 0,
+                        },
+                        endSortKey: {
+                            sortRangeType: "StepTransactionsAfterSnapshot",
+                            startVersion: newVersion - 1,
+                        },
+                        limit: "All",
+                    }),
+                );
+
+                // Our writes should be batched under the hood if we dispatch them
+                // in parallel like this.
+                await runAllPromises(
+                    stepTransactions.map(async stepTransaction => {
+                        await DocumentsTable.createOrReplaceItem(context, {
+                            ...stepTransaction,
+                            sortRangeType: "StepTransactionsBeforeSnapshot",
+                        });
+
+                        await updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint.waitForTest(
+                            id,
+                        );
+
+                        // It's important that we wait for our put in the
+                        // `StepTransactionsBeforeSnapshot` to successfully complete before we delete.
+                        await DocumentsTable.deleteItemWithKeyIfExists(context, stepTransaction);
+                    }),
+                );
             }),
-        );
 
-        // Our writes should be batched under the hood if we dispatch them
-        // in parallel like this.
-        await runAllPromises(
-            stepTransactions.map(async stepTransaction => {
-                await DocumentsTable.createOrReplaceItem(context, {
-                    ...stepTransaction,
-                    sortRangeType: "StepTransactionsBeforeSnapshot",
-                });
+            // Archive comment threads that are no longer referenced in the document so we
+            // don't query them when loading our document.
+            context.tracer.withSpan("Reconciling referenced comment threads", async () => {
+                const actualReferencedCommentThreadIds =
+                    getReferencedDocumentCommentThreadIds(newContent);
 
-                await updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint.waitForTest(id);
+                const expectedReferencedCommentThreadItems = await arrayFromAsyncIterable(
+                    DocumentsTable.query(context, {
+                        partitionKey: {
+                            partitionType: "Document",
+                            documentId: id,
+                        },
+                        startSortKey: {
+                            sortRangeType: "ReferencedCommentThread",
+                            commentThreadId: DynamoKeyAttributeSchema.id.getMinValue(),
+                        },
+                        endSortKey: {
+                            sortRangeType: "ReferencedCommentThread",
+                            commentThreadId: DynamoKeyAttributeSchema.id.getMaxValue(),
+                        },
+                        limit: "All",
+                    }),
+                );
 
-                // It's important that we wait for our put in the
-                // `StepTransactionsBeforeSnapshot` to successfully complete before we delete.
-                await DocumentsTable.deleteItemIfExists(context, stepTransaction);
+                const expectedReferencedCommentThreadIds = new Set(
+                    expectedReferencedCommentThreadItems.map(
+                        ({commentThreadId}) => commentThreadId,
+                    ),
+                );
+
+                await runAllPromises([
+                    // Move from `ReferencedCommentThread` to `ArchivedCommentThread`:
+                    ...mapIterable(
+                        expectedReferencedCommentThreadItems,
+                        async expectedReferencedCommentThreadItem => {
+                            // Yay! This comment thread is actually referenced in the document. Otherwise we
+                            // need to archive the comment thread.
+                            if (
+                                actualReferencedCommentThreadIds.has(
+                                    expectedReferencedCommentThreadItem.commentThreadId,
+                                )
+                            ) {
+                                return;
+                            }
+
+                            let hasInitiallyExecuted = false;
+
+                            await context.dynamo.retryTransaction(async context => {
+                                const isInitialExecution = !hasInitiallyExecuted;
+                                hasInitiallyExecuted = true;
+
+                                // If we are retrying then load the latest comment thread item. We are probably
+                                // retrying because the update lock version was changed.
+                                const referencedCommentThreadItem = isInitialExecution
+                                    ? expectedReferencedCommentThreadItem
+                                    : await DocumentsTable.getItem(
+                                          context,
+                                          expectedReferencedCommentThreadItem,
+                                      );
+
+                                // If we can't find the referenced comment thread when retrying then a
+                                // concurrent writer probably moved it.
+                                if (!referencedCommentThreadItem) return;
+
+                                await updateDocumentSnapshotBeforeMovingCommentThreadTestCheckpoint.waitForTest(
+                                    id,
+                                );
+
+                                await DynamoTableSchema.executeTransaction(context, [
+                                    DocumentsTable.transactionDeleteItem(
+                                        referencedCommentThreadItem,
+                                    ),
+                                    DocumentsTable.transactionCreateOrReplaceItem({
+                                        ...referencedCommentThreadItem,
+                                        sortRangeType: "ArchivedCommentThread",
+                                    }),
+                                ]);
+                            });
+                        },
+                    ),
+
+                    // Move from `ArchivedCommentThread` to `ReferencedCommentThread`:
+                    ...mapIterable(
+                        actualReferencedCommentThreadIds,
+                        async actualReferencedCommentThreadId => {
+                            // Yay! This comment thread is in our referenced comment threads sort range. We
+                            // don't have to move it from the archived comment threads sort range.
+                            if (
+                                expectedReferencedCommentThreadIds.has(
+                                    actualReferencedCommentThreadId,
+                                )
+                            ) {
+                                return;
+                            }
+
+                            await context.dynamo.retryTransaction(async context => {
+                                const archivedCommentThreadItem = await DocumentsTable.getItem(
+                                    context,
+                                    {
+                                        partitionType: "Document",
+                                        sortRangeType: "ArchivedCommentThread",
+                                        documentId: id,
+                                        commentThreadId: actualReferencedCommentThreadId,
+                                    },
+                                );
+
+                                // If there is no referenced or archived comment thread item then the comment
+                                // thread may have never existed. Or a concurrent writer moved it.
+                                if (!archivedCommentThreadItem) return;
+
+                                await updateDocumentSnapshotBeforeMovingCommentThreadTestCheckpoint.waitForTest(
+                                    id,
+                                );
+
+                                await DynamoTableSchema.executeTransaction(context, [
+                                    DocumentsTable.transactionDeleteItem(archivedCommentThreadItem),
+                                    DocumentsTable.transactionCreateOrReplaceItem({
+                                        ...archivedCommentThreadItem,
+                                        sortRangeType: "ReferencedCommentThread",
+                                    }),
+                                ]);
+                            });
+                        },
+                    ),
+                ]);
             }),
-        );
+        ]);
+    });
+}
+
+/**
+ * Force an update of the document's snapshot in a test environment.
+ */
+export async function updateDocumentSnapshotForTest(
+    context: RequestContext,
+    documentId: DocumentId,
+): Promise<void> {
+    assert(typeof jest !== "undefined");
+
+    const document = await getInternalDocument(context, documentId);
+    if (!document) throw new NotFoundError("Document not found");
+
+    await updateDocumentSnapshotAfterUpdatingContent(context, {
+        id: documentId,
+        newVersion: document.version,
+        newContent: document.content,
     });
 }
 
@@ -2130,6 +2648,99 @@ async function getDocumentStepTransactionContainingValidatedVersion(
     throw new DataLossError("Could not find step transaction containing step");
 }
 
+export const getDocumentCommentThreadItemAfterFirstGetItemTestCheckpoint =
+    new TestCheckpoint<DocumentId>();
+
+/**
+ * A document comment thread could either be in the referenced or archived
+ * sort range.
+ *
+ * This function should not be exported! It does not implement authorization.
+ */
+async function getDocumentCommentThreadItem(
+    context: RequestContext,
+    {
+        documentId,
+        commentThreadId,
+        shouldTryArchiveFirst = false,
+    }: {
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+        /**
+         * Performance optimization hint to try reading from the
+         * `ArchivedCommentThread` range before the `ReferencedCommentThread`
+         * range.
+         */
+        shouldTryArchiveFirst?: boolean;
+    },
+): Promise<DocumentReferencedCommentThreadItem | DocumentArchivedCommentThreadItem | null> {
+    {
+        const commentThreadItem = await DocumentsTable.getItem(context, {
+            partitionType: "Document",
+            sortRangeType: !shouldTryArchiveFirst
+                ? "ReferencedCommentThread"
+                : "ArchivedCommentThread",
+            documentId,
+            commentThreadId,
+        });
+        if (commentThreadItem) return commentThreadItem;
+    }
+
+    await getDocumentCommentThreadItemAfterFirstGetItemTestCheckpoint.waitForTest(documentId);
+
+    {
+        const commentThreadItem = await DocumentsTable.getItem(context, {
+            partitionType: "Document",
+            sortRangeType: !shouldTryArchiveFirst
+                ? "ArchivedCommentThread"
+                : "ReferencedCommentThread",
+            documentId,
+            commentThreadId,
+        });
+        if (commentThreadItem) return commentThreadItem;
+    }
+
+    // If we could not find the comment thread in two separate `getItem()`s, then
+    // try a transaction that reads both at once. This way we support the case
+    // where a transaction was committed between our two `getItem()` requests
+    // moving the thread from one range to another.
+    {
+        const [commentThreadItem1, commentThreadItem2] =
+            await DocumentsTable.executeGetItemsTransaction(context, [
+                {
+                    partitionType: "Document",
+                    sortRangeType: "ReferencedCommentThread",
+                    documentId,
+                    commentThreadId,
+                },
+                {
+                    partitionType: "Document",
+                    sortRangeType: "ArchivedCommentThread",
+                    documentId,
+                    commentThreadId,
+                },
+            ]);
+        if (commentThreadItem1) return commentThreadItem1;
+        if (commentThreadItem2) return commentThreadItem2;
+        return null;
+    }
+}
+
+async function getDocumentCommentThreadItemOrThrow(
+    context: RequestContext,
+    {
+        documentId,
+        commentThreadId,
+    }: {
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+    },
+) {
+    const item = await getDocumentCommentThreadItem(context, {documentId, commentThreadId});
+    if (!item) throw new NotFoundError("Could not find document comment thread");
+    return item;
+}
+
 /**
  * Add a new comment to a document comment thread.
  */
@@ -2150,16 +2761,14 @@ export async function createDocumentComment(
     index: number;
     createdTime: Date;
 }> {
-    return retryDynamoConditionCheckErrors(async () => {
+    return context.dynamo.retryTransaction(async context => {
         const [documentItem, commentThreadItem, parentCommentItem] = await runAllPromises([
             DocumentsTable.getItemOrThrow(context, {
                 partitionType: "Document",
                 sortRangeType: "Attributes",
                 documentId,
             }),
-            DocumentsTable.getItemOrThrow(context, {
-                partitionType: "DocumentCommentThread",
-                sortRangeType: "Attributes",
+            getDocumentCommentThreadItemOrThrow(context, {
                 documentId,
                 commentThreadId,
             }),
@@ -2202,12 +2811,7 @@ export async function createDocumentComment(
                 },
             }),
             DocumentsTable.transactionDirectlyUpdateItemAttribute(
-                {
-                    partitionType: "DocumentCommentThread",
-                    sortRangeType: "Attributes",
-                    documentId,
-                    commentThreadId,
-                },
+                commentThreadItem,
                 "commentsSummary",
                 {
                     nextCommentIndex: commentThreadItem.commentsSummary.nextCommentIndex + 1,
@@ -2240,15 +2844,13 @@ export async function getDocumentComment(
         commentIndex: number;
     },
 ): Promise<DocumentCommentModel | null> {
-    const [documentItem, , commentItem] = await runAllPromises([
-        DocumentsTable.getItemOrThrow(context, {
+    const [documentItem, commentThreadItem, commentItem] = await runAllPromises([
+        DocumentsTable.getItem(context, {
             partitionType: "Document",
             sortRangeType: "Attributes",
             documentId,
         }),
-        DocumentsTable.getItemOrThrow(context, {
-            partitionType: "DocumentCommentThread",
-            sortRangeType: "Attributes",
+        getDocumentCommentThreadItem(context, {
             documentId,
             commentThreadId,
         }),
@@ -2260,6 +2862,9 @@ export async function getDocumentComment(
             commentIndex,
         }),
     ]);
+
+    if (!documentItem) return null;
+    if (!commentThreadItem) return null;
 
     await authorizeSpaceAccess(context, documentItem.spaceId);
 
@@ -2306,16 +2911,14 @@ export function updateDocumentCommentContent(
 ): Promise<{
     contentUpdatedTime: Date;
 }> {
-    return retryDynamoConditionCheckErrors(async () => {
+    return context.dynamo.retryTransaction(async context => {
         const [documentItem, commentThreadItem, commentItem] = await runAllPromises([
             DocumentsTable.getItemOrThrow(context, {
                 partitionType: "Document",
                 sortRangeType: "Attributes",
                 documentId,
             }),
-            DocumentsTable.getItemOrThrow(context, {
-                partitionType: "DocumentCommentThread",
-                sortRangeType: "Attributes",
+            getDocumentCommentThreadItemOrThrow(context, {
                 documentId,
                 commentThreadId,
             }),
@@ -2363,12 +2966,7 @@ export function updateDocumentCommentContent(
                 },
             }),
             DocumentsTable.transactionDirectlyUpdateItemAttribute(
-                {
-                    partitionType: "DocumentCommentThread",
-                    sortRangeType: "Attributes",
-                    documentId,
-                    commentThreadId,
-                },
+                commentThreadItem,
                 "commentsSummary",
                 {
                     nextCommentIndex: commentThreadItem.commentsSummary.nextCommentIndex,
@@ -2414,16 +3012,14 @@ export function deleteDocumentComment(
         commentIndex: number;
     },
 ): Promise<{deletedTime: Date}> {
-    return retryDynamoConditionCheckErrors(async () => {
+    return context.dynamo.retryTransaction(async context => {
         const [documentItem, commentThreadItem, commentItem] = await runAllPromises([
             DocumentsTable.getItemOrThrow(context, {
                 partitionType: "Document",
                 sortRangeType: "Attributes",
                 documentId,
             }),
-            DocumentsTable.getItemOrThrow(context, {
-                partitionType: "DocumentCommentThread",
-                sortRangeType: "Attributes",
+            getDocumentCommentThreadItemOrThrow(context, {
                 documentId,
                 commentThreadId,
             }),
@@ -2467,12 +3063,7 @@ export function deleteDocumentComment(
                 payload: {type: "Deleted", deletedTime},
             }),
             DocumentsTable.transactionDirectlyUpdateItemAttribute(
-                {
-                    partitionType: "DocumentCommentThread",
-                    sortRangeType: "Attributes",
-                    documentId,
-                    commentThreadId,
-                },
+                commentThreadItem,
                 "commentsSummary",
                 {
                     nextCommentIndex: commentThreadItem.commentsSummary.nextCommentIndex,
@@ -2532,9 +3123,7 @@ export async function getDocumentCommentsFromStart(
 
     const [, commentThreadItem, {comments, otherReferencedComments}] = await runAllPromises([
         documentItemPromise,
-        DocumentsTable.getItemOrThrow(context, {
-            partitionType: "DocumentCommentThread",
-            sortRangeType: "Attributes",
+        getDocumentCommentThreadItemOrThrow(context, {
             documentId,
             commentThreadId,
         }),
@@ -2692,9 +3281,7 @@ export async function getDocumentCommentsFromEnd(
 
     const [, commentThreadItem, {comments, otherReferencedComments}] = await runAllPromises([
         documentItemPromise,
-        DocumentsTable.getItemOrThrow(context, {
-            partitionType: "DocumentCommentThread",
-            sortRangeType: "Attributes",
+        getDocumentCommentThreadItemOrThrow(context, {
             documentId,
             commentThreadId,
         }),
@@ -2884,9 +3471,7 @@ export async function backfillDocumentComments(
         documentId,
     });
 
-    const commentThreadItemPromise = DocumentsTable.getItemOrThrow(context, {
-        partitionType: "DocumentCommentThread",
-        sortRangeType: "Attributes",
+    const commentThreadItemPromise = getDocumentCommentThreadItemOrThrow(context, {
         documentId,
         commentThreadId,
     });
@@ -2956,7 +3541,7 @@ async function queryDocumentCommentChangeLogAssumingAuthorizedDocumentCommentThr
         lastCommentChangeTime,
     }: {
         documentItem: DocumentAttributesItem;
-        commentThreadItem: DocumentCommentThreadItem;
+        commentThreadItem: DocumentReferencedCommentThreadItem | DocumentArchivedCommentThreadItem;
         lastCommentChangeTime: Date | null;
     },
 ): Promise<DocumentCommentChangesResult> {

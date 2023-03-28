@@ -18,6 +18,7 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
+import {isObject} from "~/shared/helpers/object/is_object";
 import {quote} from "~/shared/helpers/string/quote";
 import {SchemaSerializedObjectValue, SchemaSerializedValue} from "~/shared/schema/schema";
 import {TracerBase} from "~/shared/tracer/tracer_base";
@@ -149,6 +150,7 @@ export class DynamoClient {
             conditionExpression,
             expressionAttributeValues,
             expressionAttributeNames,
+            retryConditionCheckError = null,
         }: {
             tableName: string;
             key: SchemaSerializedObjectValue;
@@ -156,6 +158,7 @@ export class DynamoClient {
             conditionExpression?: string;
             expressionAttributeValues?: ReadonlyMap<string, SchemaSerializedValue>;
             expressionAttributeNames?: ReadonlyMap<string, string>;
+            retryConditionCheckError?: (() => never) | null;
         },
     ): Promise<void> {
         // Make sure that all the properties in our `key` also exist in our `item`.
@@ -170,24 +173,37 @@ export class DynamoClient {
         if (conditionExpression === undefined)
             return this._writeItemBatcher.putItem(tracer, tableName, key, item);
 
-        await this._client.PutItem(tracer, {
-            TableName: tableName,
-            Item: intoDynamoAttributeValueObject(item),
-            ConditionExpression: conditionExpression,
-            ExpressionAttributeValues:
-                expressionAttributeValues && expressionAttributeValues.size > 0
-                    ? Object.fromEntries(
-                          mapIterable(expressionAttributeValues, ([name, value]) => [
-                              name,
-                              intoDynamoAttributeValue(value),
-                          ]),
-                      )
-                    : undefined,
-            ExpressionAttributeNames:
-                conditionExpression && expressionAttributeNames && expressionAttributeNames.size > 0
-                    ? Object.fromEntries(expressionAttributeNames)
-                    : undefined,
-        });
+        try {
+            await this._client.PutItem(tracer, {
+                TableName: tableName,
+                Item: intoDynamoAttributeValueObject(item),
+                ConditionExpression: conditionExpression,
+                ExpressionAttributeValues:
+                    expressionAttributeValues && expressionAttributeValues.size > 0
+                        ? Object.fromEntries(
+                              mapIterable(expressionAttributeValues, ([name, value]) => [
+                                  name,
+                                  intoDynamoAttributeValue(value),
+                              ]),
+                          )
+                        : undefined,
+                ExpressionAttributeNames:
+                    conditionExpression &&
+                    expressionAttributeNames &&
+                    expressionAttributeNames.size > 0
+                        ? Object.fromEntries(expressionAttributeNames)
+                        : undefined,
+            });
+        } catch (error) {
+            let errorCause = error;
+            while (errorCause instanceof Error && "cause" in errorCause)
+                errorCause = errorCause.cause;
+
+            if (isObject(errorCause) && errorCause.__type === "ConditionalCheckFailedException")
+                retryConditionCheckError?.();
+
+            throw error;
+        }
     }
 
     /**
@@ -209,36 +225,51 @@ export class DynamoClient {
             conditionExpression,
             expressionAttributeValues,
             expressionAttributeNames,
+            retryConditionCheckError = null,
         }: {
             tableName: string;
             key: SchemaSerializedObjectValue;
             conditionExpression?: string;
             expressionAttributeValues?: ReadonlyMap<string, SchemaSerializedValue>;
             expressionAttributeNames?: ReadonlyMap<string, string>;
+            retryConditionCheckError?: (() => never) | null;
         },
     ): Promise<void> {
         // Writes without a condition may be batched.
         if (conditionExpression === undefined)
             return this._writeItemBatcher.deleteItem(tracer, tableName, key);
 
-        await this._client.DeleteItem(tracer, {
-            TableName: tableName,
-            Key: intoDynamoAttributeValueObject(key),
-            ConditionExpression: conditionExpression,
-            ExpressionAttributeValues:
-                expressionAttributeValues && expressionAttributeValues.size > 0
-                    ? Object.fromEntries(
-                          mapIterable(expressionAttributeValues, ([name, value]) => [
-                              name,
-                              intoDynamoAttributeValue(value),
-                          ]),
-                      )
-                    : undefined,
-            ExpressionAttributeNames:
-                conditionExpression && expressionAttributeNames && expressionAttributeNames.size > 0
-                    ? Object.fromEntries(expressionAttributeNames)
-                    : undefined,
-        });
+        try {
+            await this._client.DeleteItem(tracer, {
+                TableName: tableName,
+                Key: intoDynamoAttributeValueObject(key),
+                ConditionExpression: conditionExpression,
+                ExpressionAttributeValues:
+                    expressionAttributeValues && expressionAttributeValues.size > 0
+                        ? Object.fromEntries(
+                              mapIterable(expressionAttributeValues, ([name, value]) => [
+                                  name,
+                                  intoDynamoAttributeValue(value),
+                              ]),
+                          )
+                        : undefined,
+                ExpressionAttributeNames:
+                    conditionExpression &&
+                    expressionAttributeNames &&
+                    expressionAttributeNames.size > 0
+                        ? Object.fromEntries(expressionAttributeNames)
+                        : undefined,
+            });
+        } catch (error) {
+            let errorCause = error;
+            while (errorCause instanceof Error && "cause" in errorCause)
+                errorCause = errorCause.cause;
+
+            if (isObject(errorCause) && errorCause.__type === "ConditionalCheckFailedException")
+                retryConditionCheckError?.();
+
+            throw error;
+        }
     }
 
     /**
@@ -251,12 +282,41 @@ export class DynamoClient {
     public async executeTransaction(
         tracer: TracerBase,
         entries: ReadonlyArray<DynamoTransactionEntry>,
-        {clientRequestToken}: {clientRequestToken?: string} = {},
+        {
+            clientRequestToken,
+            retryConditionCheckError = null,
+        }: {
+            clientRequestToken?: string;
+            retryConditionCheckError?: (() => never) | null;
+        } = {},
     ): Promise<void> {
-        await this._client.TransactWriteItems(tracer, {
-            TransactItems: entries.map(entry => entry._getTransactItemForClient(DynamoClient)),
-            ClientRequestToken: clientRequestToken,
-        });
+        try {
+            await this._client.TransactWriteItems(tracer, {
+                TransactItems: entries.map(entry => entry._getTransactItemForClient(DynamoClient)),
+                ClientRequestToken: clientRequestToken,
+            });
+        } catch (error) {
+            let errorCause = error;
+            while (errorCause instanceof Error && "cause" in errorCause)
+                errorCause = errorCause.cause;
+
+            if (
+                isObject(errorCause) &&
+                errorCause.__type === "TransactionCanceledException" &&
+                Array.isArray(errorCause.CancellationReasons) &&
+                errorCause.CancellationReasons.every(
+                    (cancellationReason, index) =>
+                        isObject(cancellationReason) &&
+                        (cancellationReason.Code === "None" ||
+                            (entries[index]?.isConditionCheckErrorRetriable &&
+                                cancellationReason.Code === "ConditionalCheckFailed")),
+                )
+            ) {
+                retryConditionCheckError?.();
+            }
+
+            throw error;
+        }
     }
 
     /**
@@ -272,36 +332,41 @@ export class DynamoClient {
         conditionExpression,
         expressionAttributeValues,
         expressionAttributeNames,
+        isConditionCheckErrorRetriable = false,
     }: {
         tableName: string;
         item: SchemaSerializedObjectValue;
         conditionExpression?: string;
         expressionAttributeValues?: ReadonlyMap<string, SchemaSerializedValue>;
         expressionAttributeNames?: ReadonlyMap<string, string>;
+        isConditionCheckErrorRetriable?: boolean;
     }): DynamoTransactionEntry {
         return DynamoTransactionEntry._newFromClient(DynamoClient, {
-            Put: {
-                TableName: tableName,
-                Item: intoDynamoAttributeValueObject(item),
-                ConditionExpression: conditionExpression,
-                ExpressionAttributeValues:
-                    conditionExpression &&
-                    expressionAttributeValues &&
-                    expressionAttributeValues.size > 0
-                        ? Object.fromEntries(
-                              mapIterable(expressionAttributeValues, ([name, value]) => [
-                                  name,
-                                  intoDynamoAttributeValue(value),
-                              ]),
-                          )
-                        : undefined,
-                ExpressionAttributeNames:
-                    conditionExpression &&
-                    expressionAttributeNames &&
-                    expressionAttributeNames.size > 0
-                        ? Object.fromEntries(expressionAttributeNames)
-                        : undefined,
+            transactItem: {
+                Put: {
+                    TableName: tableName,
+                    Item: intoDynamoAttributeValueObject(item),
+                    ConditionExpression: conditionExpression,
+                    ExpressionAttributeValues:
+                        conditionExpression &&
+                        expressionAttributeValues &&
+                        expressionAttributeValues.size > 0
+                            ? Object.fromEntries(
+                                  mapIterable(expressionAttributeValues, ([name, value]) => [
+                                      name,
+                                      intoDynamoAttributeValue(value),
+                                  ]),
+                              )
+                            : undefined,
+                    ExpressionAttributeNames:
+                        conditionExpression &&
+                        expressionAttributeNames &&
+                        expressionAttributeNames.size > 0
+                            ? Object.fromEntries(expressionAttributeNames)
+                            : undefined,
+                },
             },
+            isConditionCheckErrorRetriable,
         });
     }
 
@@ -318,36 +383,41 @@ export class DynamoClient {
         conditionExpression,
         expressionAttributeValues,
         expressionAttributeNames,
+        isConditionCheckErrorRetriable = false,
     }: {
         tableName: string;
         key: SchemaSerializedObjectValue;
         conditionExpression?: string;
         expressionAttributeValues?: ReadonlyMap<string, SchemaSerializedValue>;
         expressionAttributeNames?: ReadonlyMap<string, string>;
+        isConditionCheckErrorRetriable?: boolean;
     }): DynamoTransactionEntry {
         return DynamoTransactionEntry._newFromClient(DynamoClient, {
-            Delete: {
-                TableName: tableName,
-                Key: intoDynamoAttributeValueObject(key),
-                ConditionExpression: conditionExpression,
-                ExpressionAttributeValues:
-                    conditionExpression &&
-                    expressionAttributeValues &&
-                    expressionAttributeValues.size > 0
-                        ? Object.fromEntries(
-                              mapIterable(expressionAttributeValues, ([name, value]) => [
-                                  name,
-                                  intoDynamoAttributeValue(value),
-                              ]),
-                          )
-                        : undefined,
-                ExpressionAttributeNames:
-                    conditionExpression &&
-                    expressionAttributeNames &&
-                    expressionAttributeNames.size > 0
-                        ? Object.fromEntries(expressionAttributeNames)
-                        : undefined,
+            transactItem: {
+                Delete: {
+                    TableName: tableName,
+                    Key: intoDynamoAttributeValueObject(key),
+                    ConditionExpression: conditionExpression,
+                    ExpressionAttributeValues:
+                        conditionExpression &&
+                        expressionAttributeValues &&
+                        expressionAttributeValues.size > 0
+                            ? Object.fromEntries(
+                                  mapIterable(expressionAttributeValues, ([name, value]) => [
+                                      name,
+                                      intoDynamoAttributeValue(value),
+                                  ]),
+                              )
+                            : undefined,
+                    ExpressionAttributeNames:
+                        conditionExpression &&
+                        expressionAttributeNames &&
+                        expressionAttributeNames.size > 0
+                            ? Object.fromEntries(expressionAttributeNames)
+                            : undefined,
+                },
             },
+            isConditionCheckErrorRetriable,
         });
     }
 
@@ -372,29 +442,93 @@ export class DynamoClient {
         expressionAttributeNames?: ReadonlyMap<string, string>;
     }): DynamoTransactionEntry {
         return DynamoTransactionEntry._newFromClient(DynamoClient, {
-            ConditionCheck: {
-                TableName: tableName,
-                Key: intoDynamoAttributeValueObject(key),
-                ConditionExpression: conditionExpression,
-                ExpressionAttributeValues:
-                    conditionExpression &&
-                    expressionAttributeValues &&
-                    expressionAttributeValues.size > 0
-                        ? Object.fromEntries(
-                              mapIterable(expressionAttributeValues, ([name, value]) => [
-                                  name,
-                                  intoDynamoAttributeValue(value),
-                              ]),
-                          )
-                        : undefined,
-                ExpressionAttributeNames:
-                    conditionExpression &&
-                    expressionAttributeNames &&
-                    expressionAttributeNames.size > 0
-                        ? Object.fromEntries(expressionAttributeNames)
-                        : undefined,
+            transactItem: {
+                ConditionCheck: {
+                    TableName: tableName,
+                    Key: intoDynamoAttributeValueObject(key),
+                    ConditionExpression: conditionExpression,
+                    ExpressionAttributeValues:
+                        conditionExpression &&
+                        expressionAttributeValues &&
+                        expressionAttributeValues.size > 0
+                            ? Object.fromEntries(
+                                  mapIterable(expressionAttributeValues, ([name, value]) => [
+                                      name,
+                                      intoDynamoAttributeValue(value),
+                                  ]),
+                              )
+                            : undefined,
+                    ExpressionAttributeNames:
+                        conditionExpression &&
+                        expressionAttributeNames &&
+                        expressionAttributeNames.size > 0
+                            ? Object.fromEntries(expressionAttributeNames)
+                            : undefined,
+                },
             },
+            isConditionCheckErrorRetriable: false,
         });
+    }
+
+    /**
+     * Gets multiple items from DynamoDB with a serializable transaction isolation
+     * level. Corresponds to the [`TransactGetItems`][1] command.
+     *
+     * Read more about DynamoDB transactions [here][2].
+     *
+     * You probably want to wrap this function in a call to
+     * `context.dynamo.retryTransaction()`. If there is a transaction in-progress
+     * then this method will throw.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactGetItems.html
+     * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html
+     */
+    public async executeGetItemsTransaction(
+        tracer: TracerBase,
+        {
+            tableName,
+            keys,
+            retryTransactionConflictError,
+        }: {
+            tableName: string;
+            keys: ReadonlyArray<SchemaSerializedObjectValue>;
+            retryTransactionConflictError: () => never;
+        },
+    ): Promise<Array<SchemaSerializedObjectValue | null>> {
+        try {
+            const output = await this._client.TransactGetItems(tracer, {
+                TransactItems: keys.map(key => ({
+                    Get: {
+                        TableName: tableName,
+                        Key: intoDynamoAttributeValueObject(key),
+                    },
+                })),
+            });
+
+            return (output.Responses ?? []).map(response =>
+                response.Item ? fromDynamoAttributeValueObject(response.Item) : null,
+            );
+        } catch (error) {
+            let errorCause = error;
+            while (errorCause instanceof Error && "cause" in errorCause)
+                errorCause = errorCause.cause;
+
+            if (
+                isObject(errorCause) &&
+                errorCause.__type === "TransactionCanceledException" &&
+                Array.isArray(errorCause.CancellationReasons) &&
+                errorCause.CancellationReasons.every(
+                    cancellationReason =>
+                        isObject(cancellationReason) &&
+                        (cancellationReason.Code === "None" ||
+                            cancellationReason.Code === "TransactionConflict"),
+                )
+            ) {
+                retryTransactionConflictError();
+            }
+
+            throw error;
+        }
     }
 
     /**

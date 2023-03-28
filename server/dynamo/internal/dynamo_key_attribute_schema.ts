@@ -19,7 +19,7 @@ import {
     encodeElenInteger,
 } from "~/shared/helpers/number/elen_integer";
 import {OrderKey, isOrderKey} from "~/shared/helpers/sort/order_key";
-import {Id, getMaxId, isId} from "~/shared/id/id";
+import {Id, getMaxId, getMinId, isId} from "~/shared/id/id";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 
 /**
@@ -160,6 +160,7 @@ export class DynamoKeyAttributeSchema<Value> {
     public static readonly id = Object.assign(
         <Value extends Id>(): DynamoKeyAttributeSchema<Value> => this._id as any,
         {
+            getMinValue: getMinId,
             getMaxValue: getMaxId,
         },
     );

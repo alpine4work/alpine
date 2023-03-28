@@ -12,6 +12,7 @@ import {
 import {contentStructuralProsemirrorNodeSpecs} from "~/shared/content/content_schema_extra";
 import {HighlightColor, isHighlightColor} from "~/shared/design/highlight_color";
 import {assert} from "~/shared/helpers/control/assert";
+import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
 import {createSchemaForProsemirrorSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema";
 import {Schema} from "~/shared/schema/schema";
 import {contentSchemaStyles} from "~/shared/styles/styles";
@@ -151,10 +152,32 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
                 },
             ],
         },
+
+        /**
+         * Users may leave comments on some range of text in a document with
+         * suggestions or feedback. Leaving a comment starts a comment thread where
+         * other users can join in on the conversation.
+         *
+         * You should not add this mark to the document without also creating the
+         * referenced comment thread! The `updateDocumentContent()` function has a
+         * `createCommentThread` option you may use for this purpose.
+         */
+        comment: {
+            attrs: {
+                commentThreadId: {
+                    schema: Schema.id<DocumentCommentThreadId>(),
+                },
+            },
+            inclusive: false,
+            // TODO(calebmer): Implement!
+            toDOM: node => ["mark", {}, 0],
+            // TODO(calebmer): Implement!
+            parseDOM: [],
+        },
     },
 });
 
-export type DocumentWithoutTitleContent = Node & {_DocumentWithoutTitleContent: never};
+export type DocumentWithoutTitleContent = Node & {readonly _DocumentWithoutTitleContent: never};
 
 export function isDocumentWithoutTitleContent(node: Node): node is DocumentWithoutTitleContent {
     return (

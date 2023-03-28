@@ -491,6 +491,12 @@ export type TracerEventData = {
             readonly clientRequestToken?: string;
         };
 
+        /** Information regarding a DynamoDB read transaction. */
+        readonly transactGet?: {
+            /** The number of items requested by the transaction. */
+            readonly size?: number;
+        };
+
         /** Information about an exception from DynamoDB itself. */
         readonly exception?: {
             /** The DynamoDB exception type. */

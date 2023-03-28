@@ -23,12 +23,16 @@ import {wait} from "~/shared/helpers/async/wait";
  * This is a [great article on retries from AWS][1]. This article from [AWS
  * explains why adding jitter is also important][2] and a good jitter strategy.
  *
+ * Carefully designed so that nested calls to this function don't create
+ * exponential blow up in failure scenarios. If a nested retry loop times out
+ * then parent retry loops won't retry. (Since their `retry()` function wasn't
+ * called.)
+ *
  * [1]: https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/
  * [2]: https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
  */
 export function retryWithExponentialBackoff<Value>(
     action: (retry: () => never) => Promise<Value>,
-    shouldRetryError?: (error: unknown) => boolean,
 ): Promise<Value> {
     const retryError = new CancelledError("Retry");
     const retry = (): never => {
@@ -41,7 +45,7 @@ export function retryWithExponentialBackoff<Value>(
             return value;
         } catch (error) {
             // Is this an error we should retry?
-            if (error !== retryError && !shouldRetryError?.(error)) throw error;
+            if (error !== retryError) throw error;
 
             const delayMs = 10 * 2 ** (attemptNumber - 1);
 

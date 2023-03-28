@@ -1,5 +1,11 @@
 import {Fragment, Slice} from "prosemirror-model";
-import {ReplaceAroundStep, ReplaceStep, Step} from "prosemirror-transform";
+import {
+    AddMarkStep,
+    RemoveMarkStep,
+    ReplaceAroundStep,
+    ReplaceStep,
+    Step,
+} from "prosemirror-transform";
 import {
     DocumentContentCacheForUpdate,
     backfillDocumentComments,
@@ -9,6 +15,7 @@ import {
     documentContentCacheEvictionTimeoutMs,
     getDocument,
     getDocumentComment,
+    getDocumentCommentThreadItemAfterFirstGetItemTestCheckpoint,
     getDocumentCommentsFromEnd,
     getDocumentCommentsFromStart,
     getDocumentContentSteps,
@@ -18,6 +25,8 @@ import {
     updateDocumentCommentContent,
     updateDocumentContent,
     updateDocumentContentBeforeExecuteTransactionTestCheckpoint,
+    updateDocumentSnapshotBeforeMovingCommentThreadTestCheckpoint,
+    updateDocumentSnapshotForTest,
 } from "~/server/dynamo/documents_table";
 import {testMessagingImplementation} from "~/server/dynamo/test_helpers/jest/test_messaging_implementation";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
@@ -28,6 +37,7 @@ import {
     isDocumentContent,
     DocumentContentProsemirrorSchema as schema,
 } from "~/shared/content/document_content_schema";
+import {createSimpleMessageContent} from "~/shared/content/message_content_schema";
 import {
     DataLossError,
     FailedPreconditionError,
@@ -1136,7 +1146,7 @@ test("can't read a corrupted document", async () => {
         content: emptyDocumentContent,
     });
 
-    await getDocumentsTableForTest().deleteItem(context, {
+    await getDocumentsTableForTest().deleteItemWithKey(context, {
         partitionType: "Document",
         documentId,
         sortRangeType: "Snapshot",
@@ -1153,7 +1163,7 @@ test("can't update a corrupted document", async () => {
         content: emptyDocumentContent,
     });
 
-    await getDocumentsTableForTest().deleteItem(context, {
+    await getDocumentsTableForTest().deleteItemWithKey(context, {
         partitionType: "Document",
         documentId,
         sortRangeType: "Snapshot",
@@ -1175,7 +1185,7 @@ test("won't cache a corrupted document while updating", async () => {
         content: emptyDocumentContent,
     });
 
-    await getDocumentsTableForTest().deleteItem(context, {
+    await getDocumentsTableForTest().deleteItemWithKey(context, {
         partitionType: "Document",
         documentId,
         sortRangeType: "Snapshot",
@@ -1288,7 +1298,7 @@ test("if a document was deleted in the database then the cache will pick that up
 
     expect(getCount()).toEqual(1);
 
-    await getDocumentsTableForTest().deleteItem(context, {
+    await getDocumentsTableForTest().deleteItemWithKey(context, {
         partitionType: "Document",
         documentId,
         sortRangeType: "Attributes",
@@ -2764,6 +2774,1868 @@ test("can not update a document such that it would have invalid content even whe
     );
 });
 
+describe("Comments", () => {
+    test("can create a comment thread while updating content", async () => {
+        const DocumentsTable = getDocumentsTableForTest();
+
+        const document = await createDocument(context.request(session), {
+            spaceId: space.id,
+            content: emptyDocumentContent,
+        });
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 0,
+            steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+            clientId: generateId(),
+        });
+
+        const commentThreadId = generateId<DocumentCommentThreadId>();
+
+        expect(
+            await getDocumentComment(context.request(session), {
+                documentId: document.id,
+                commentThreadId,
+                commentIndex: 0,
+            }),
+        ).toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+            version: 1,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("Hello, world!")]),
+                ])
+                .toJSON(),
+        });
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 1,
+            steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            clientId: generateId(),
+            createCommentThread: {
+                commentThreadId,
+                content: createSimpleMessageContent("Test message content 1"),
+            },
+        });
+
+        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+            version: 2,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [
+                        schema.text("Hello, "),
+                        schema.text("world", [schema.mark("comment", {commentThreadId})]),
+                        schema.text("!"),
+                    ]),
+                ])
+                .toJSON(),
+        });
+
+        expect(
+            await getDocumentComment(context.request(session), {
+                documentId: document.id,
+                commentThreadId,
+                commentIndex: 0,
+            }),
+        ).not.toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).not.toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+    });
+
+    test("can not create a comment thread with the same id twice", async () => {
+        const DocumentsTable = getDocumentsTableForTest();
+
+        const document = await createDocument(context.request(session), {
+            spaceId: space.id,
+            content: emptyDocumentContent,
+        });
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 0,
+            steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+            clientId: generateId(),
+        });
+
+        const commentThreadId = generateId<DocumentCommentThreadId>();
+
+        expect(
+            await getDocumentComment(context.request(session), {
+                documentId: document.id,
+                commentThreadId,
+                commentIndex: 0,
+            }),
+        ).toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+            version: 1,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("Hello, world!")]),
+                ])
+                .toJSON(),
+        });
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 1,
+            steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            clientId: generateId(),
+            createCommentThread: {
+                commentThreadId,
+                content: createSimpleMessageContent("Test message content 1"),
+            },
+        });
+
+        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+            version: 2,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [
+                        schema.text("Hello, "),
+                        schema.text("world", [schema.mark("comment", {commentThreadId})]),
+                        schema.text("!"),
+                    ]),
+                ])
+                .toJSON(),
+        });
+
+        await expect(() =>
+            updateDocumentContent(context.request(session), {
+                id: document.id,
+                version: 2,
+                steps: [new AddMarkStep(3, 8, schema.mark("comment", {commentThreadId}))],
+                clientId: generateId(),
+                createCommentThread: {
+                    commentThreadId,
+                    content: createSimpleMessageContent("Test message content 2"),
+                },
+            }),
+        ).rejects.toThrow(
+            new FailedPreconditionError(
+                "DynamoDB TransactionCanceledException: Transaction cancelled, please refer cancellation reasons for specific reasons [None, None, ConditionalCheckFailed, None, None]",
+            ),
+        );
+    });
+
+    test("can not create a comment thread if the comment thread id is not in steps", async () => {
+        const DocumentsTable = getDocumentsTableForTest();
+
+        const document = await createDocument(context.request(session), {
+            spaceId: space.id,
+            content: emptyDocumentContent,
+        });
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 0,
+            steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+            clientId: generateId(),
+        });
+
+        const commentThreadId = generateId<DocumentCommentThreadId>();
+
+        expect(
+            await getDocumentComment(context.request(session), {
+                documentId: document.id,
+                commentThreadId,
+                commentIndex: 0,
+            }),
+        ).toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+            version: 1,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("Hello, world!")]),
+                ])
+                .toJSON(),
+        });
+
+        await expect(() =>
+            updateDocumentContent(context.request(session), {
+                id: document.id,
+                version: 1,
+                steps: [new AddMarkStep(10, 15, schema.mark("bold"))],
+                clientId: generateId(),
+                createCommentThread: {
+                    commentThreadId,
+                    content: createSimpleMessageContent("Test message content 1"),
+                },
+            }),
+        ).rejects.toThrow(InvalidArgumentError);
+
+        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+            version: 1,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("Hello, world!")]),
+                ])
+                .toJSON(),
+        });
+
+        expect(
+            await getDocumentComment(context.request(session), {
+                documentId: document.id,
+                commentThreadId,
+                commentIndex: 0,
+            }),
+        ).toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+    });
+
+    test("can mark text with a comment style even if there is no related thread", async () => {
+        const DocumentsTable = getDocumentsTableForTest();
+
+        const document = await createDocument(context.request(session), {
+            spaceId: space.id,
+            content: emptyDocumentContent,
+        });
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 0,
+            steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+            clientId: generateId(),
+        });
+
+        const commentThreadId = generateId<DocumentCommentThreadId>();
+
+        expect(
+            await getDocumentComment(context.request(session), {
+                documentId: document.id,
+                commentThreadId,
+                commentIndex: 0,
+            }),
+        ).toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+            version: 1,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("Hello, world!")]),
+                ])
+                .toJSON(),
+        });
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 1,
+            steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            clientId: generateId(),
+        });
+
+        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+            version: 2,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [
+                        schema.text("Hello, "),
+                        schema.text("world", [schema.mark("comment", {commentThreadId})]),
+                        schema.text("!"),
+                    ]),
+                ])
+                .toJSON(),
+        });
+
+        expect(
+            await getDocumentComment(context.request(session), {
+                documentId: document.id,
+                commentThreadId,
+                commentIndex: 0,
+            }),
+        ).toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+    });
+
+    test("comment threads that are no longer referenced will be archived after a snapshot update", async () => {
+        const DocumentsTable = getDocumentsTableForTest();
+
+        const document = await createDocument(context.request(session), {
+            spaceId: space.id,
+            content: emptyDocumentContent,
+        });
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 0,
+            steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+            clientId: generateId(),
+        });
+
+        const commentThreadId = generateId<DocumentCommentThreadId>();
+
+        expect(
+            await getDocumentComment(context.request(session), {
+                documentId: document.id,
+                commentThreadId,
+                commentIndex: 0,
+            }),
+        ).toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+            version: 1,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("Hello, world!")]),
+                ])
+                .toJSON(),
+        });
+
+        expect(
+            (
+                await getDocument(context.request(session), document.id)
+            )?.content.references.commentThreadById.has(commentThreadId),
+        ).toEqual(false);
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 1,
+            steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            clientId: generateId(),
+            createCommentThread: {
+                commentThreadId,
+                content: createSimpleMessageContent("Test message content 1"),
+            },
+        });
+
+        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+            version: 2,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [
+                        schema.text("Hello, "),
+                        schema.text("world", [schema.mark("comment", {commentThreadId})]),
+                        schema.text("!"),
+                    ]),
+                ])
+                .toJSON(),
+        });
+
+        expect(
+            (
+                await getDocument(context.request(session), document.id)
+            )?.content.references.commentThreadById.has(commentThreadId),
+        ).toEqual(true);
+
+        expect(
+            await getDocumentComment(context.request(session), {
+                documentId: document.id,
+                commentThreadId,
+                commentIndex: 0,
+            }),
+        ).not.toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).not.toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 2,
+            steps: [new RemoveMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            clientId: generateId(),
+        });
+
+        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+            version: 3,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("Hello, world!")]),
+                ])
+                .toJSON(),
+        });
+
+        expect(
+            (
+                await getDocument(context.request(session), document.id)
+            )?.content.references.commentThreadById.has(commentThreadId),
+        ).toEqual(false);
+
+        expect(
+            await getDocumentComment(context.request(session), {
+                documentId: document.id,
+                commentThreadId,
+                commentIndex: 0,
+            }),
+        ).not.toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).not.toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        await updateDocumentSnapshotForTest(context.request(session), document.id);
+
+        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+            version: 3,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("Hello, world!")]),
+                ])
+                .toJSON(),
+        });
+
+        expect(
+            (
+                await getDocument(context.request(session), document.id)
+            )?.content.references.commentThreadById.has(commentThreadId),
+        ).toEqual(false);
+
+        expect(
+            await getDocumentComment(context.request(session), {
+                documentId: document.id,
+                commentThreadId,
+                commentIndex: 0,
+            }),
+        ).not.toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).not.toBeNull();
+    });
+
+    test("can not re-create a comment thread that has been archived", async () => {
+        const DocumentsTable = getDocumentsTableForTest();
+
+        const document = await createDocument(context.request(session), {
+            spaceId: space.id,
+            content: emptyDocumentContent,
+        });
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 0,
+            steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+            clientId: generateId(),
+        });
+
+        const commentThreadId = generateId<DocumentCommentThreadId>();
+
+        expect(
+            await getDocumentComment(context.request(session), {
+                documentId: document.id,
+                commentThreadId,
+                commentIndex: 0,
+            }),
+        ).toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+            version: 1,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("Hello, world!")]),
+                ])
+                .toJSON(),
+        });
+
+        expect(
+            (
+                await getDocument(context.request(session), document.id)
+            )?.content.references.commentThreadById.has(commentThreadId),
+        ).toEqual(false);
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 1,
+            steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            clientId: generateId(),
+            createCommentThread: {
+                commentThreadId,
+                content: createSimpleMessageContent("Test message content 1"),
+            },
+        });
+
+        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+            version: 2,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [
+                        schema.text("Hello, "),
+                        schema.text("world", [schema.mark("comment", {commentThreadId})]),
+                        schema.text("!"),
+                    ]),
+                ])
+                .toJSON(),
+        });
+
+        expect(
+            (
+                await getDocument(context.request(session), document.id)
+            )?.content.references.commentThreadById.has(commentThreadId),
+        ).toEqual(true);
+
+        expect(
+            await getDocumentComment(context.request(session), {
+                documentId: document.id,
+                commentThreadId,
+                commentIndex: 0,
+            }),
+        ).not.toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).not.toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 2,
+            steps: [new RemoveMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            clientId: generateId(),
+        });
+
+        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+            version: 3,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("Hello, world!")]),
+                ])
+                .toJSON(),
+        });
+
+        expect(
+            (
+                await getDocument(context.request(session), document.id)
+            )?.content.references.commentThreadById.has(commentThreadId),
+        ).toEqual(false);
+
+        expect(
+            await getDocumentComment(context.request(session), {
+                documentId: document.id,
+                commentThreadId,
+                commentIndex: 0,
+            }),
+        ).not.toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).not.toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        await updateDocumentSnapshotForTest(context.request(session), document.id);
+
+        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+            version: 3,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("Hello, world!")]),
+                ])
+                .toJSON(),
+        });
+
+        expect(
+            (
+                await getDocument(context.request(session), document.id)
+            )?.content.references.commentThreadById.has(commentThreadId),
+        ).toEqual(false);
+
+        expect(
+            await getDocumentComment(context.request(session), {
+                documentId: document.id,
+                commentThreadId,
+                commentIndex: 0,
+            }),
+        ).not.toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).not.toBeNull();
+
+        await expect(() =>
+            updateDocumentContent(context.request(session), {
+                id: document.id,
+                version: 3,
+                steps: [new AddMarkStep(3, 8, schema.mark("comment", {commentThreadId}))],
+                clientId: generateId(),
+                createCommentThread: {
+                    commentThreadId,
+                    content: createSimpleMessageContent("Test message content 2"),
+                },
+            }),
+        ).rejects.toThrow(
+            new FailedPreconditionError(
+                "DynamoDB TransactionCanceledException: Transaction cancelled, please refer cancellation reasons for specific reasons [None, None, None, ConditionalCheckFailed, None]",
+            ),
+        );
+
+        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+            version: 3,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("Hello, world!")]),
+                ])
+                .toJSON(),
+        });
+
+        expect(
+            (
+                await getDocument(context.request(session), document.id)
+            )?.content.references.commentThreadById.has(commentThreadId),
+        ).toEqual(false);
+
+        expect(
+            await getDocumentComment(context.request(session), {
+                documentId: document.id,
+                commentThreadId,
+                commentIndex: 0,
+            }),
+        ).not.toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).not.toBeNull();
+    });
+
+    test("comment threads that were unreferenced then re-referenced will be unarchived after a snapshot update", async () => {
+        const DocumentsTable = getDocumentsTableForTest();
+
+        const document = await createDocument(context.request(session), {
+            spaceId: space.id,
+            content: emptyDocumentContent,
+        });
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 0,
+            steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+            clientId: generateId(),
+        });
+
+        const commentThreadId = generateId<DocumentCommentThreadId>();
+
+        expect(
+            await getDocumentComment(context.request(session), {
+                documentId: document.id,
+                commentThreadId,
+                commentIndex: 0,
+            }),
+        ).toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+            version: 1,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("Hello, world!")]),
+                ])
+                .toJSON(),
+        });
+
+        expect(
+            (
+                await getDocument(context.request(session), document.id)
+            )?.content.references.commentThreadById.has(commentThreadId),
+        ).toEqual(false);
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 1,
+            steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            clientId: generateId(),
+            createCommentThread: {
+                commentThreadId,
+                content: createSimpleMessageContent("Test message content 1"),
+            },
+        });
+
+        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+            version: 2,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [
+                        schema.text("Hello, "),
+                        schema.text("world", [schema.mark("comment", {commentThreadId})]),
+                        schema.text("!"),
+                    ]),
+                ])
+                .toJSON(),
+        });
+
+        expect(
+            (
+                await getDocument(context.request(session), document.id)
+            )?.content.references.commentThreadById.has(commentThreadId),
+        ).toEqual(true);
+
+        expect(
+            await getDocumentComment(context.request(session), {
+                documentId: document.id,
+                commentThreadId,
+                commentIndex: 0,
+            }),
+        ).not.toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).not.toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 2,
+            steps: [new RemoveMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            clientId: generateId(),
+        });
+
+        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+            version: 3,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("Hello, world!")]),
+                ])
+                .toJSON(),
+        });
+
+        expect(
+            (
+                await getDocument(context.request(session), document.id)
+            )?.content.references.commentThreadById.has(commentThreadId),
+        ).toEqual(false);
+
+        expect(
+            await getDocumentComment(context.request(session), {
+                documentId: document.id,
+                commentThreadId,
+                commentIndex: 0,
+            }),
+        ).not.toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).not.toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        await updateDocumentSnapshotForTest(context.request(session), document.id);
+
+        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+            version: 3,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("Hello, world!")]),
+                ])
+                .toJSON(),
+        });
+
+        expect(
+            (
+                await getDocument(context.request(session), document.id)
+            )?.content.references.commentThreadById.has(commentThreadId),
+        ).toEqual(false);
+
+        expect(
+            await getDocumentComment(context.request(session), {
+                documentId: document.id,
+                commentThreadId,
+                commentIndex: 0,
+            }),
+        ).not.toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).not.toBeNull();
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 3,
+            steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            clientId: generateId(),
+        });
+
+        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+            version: 4,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [
+                        schema.text("Hello, "),
+                        schema.text("world", [schema.mark("comment", {commentThreadId})]),
+                        schema.text("!"),
+                    ]),
+                ])
+                .toJSON(),
+        });
+
+        expect(
+            (
+                await getDocument(context.request(session), document.id)
+            )?.content.references.commentThreadById.has(commentThreadId),
+        ).toEqual(true);
+
+        expect(
+            await getDocumentComment(context.request(session), {
+                documentId: document.id,
+                commentThreadId,
+                commentIndex: 0,
+            }),
+        ).not.toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).not.toBeNull();
+
+        await updateDocumentSnapshotForTest(context.request(session), document.id);
+
+        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+            version: 4,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [
+                        schema.text("Hello, "),
+                        schema.text("world", [schema.mark("comment", {commentThreadId})]),
+                        schema.text("!"),
+                    ]),
+                ])
+                .toJSON(),
+        });
+
+        expect(
+            (
+                await getDocument(context.request(session), document.id)
+            )?.content.references.commentThreadById.has(commentThreadId),
+        ).toEqual(true);
+
+        expect(
+            await getDocumentComment(context.request(session), {
+                documentId: document.id,
+                commentThreadId,
+                commentIndex: 0,
+            }),
+        ).not.toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).not.toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+    });
+
+    test("comment threads correctly archived or unarchived will be left alone after a snapshot update", async () => {
+        const DocumentsTable = getDocumentsTableForTest();
+
+        const document = await createDocument(context.request(session), {
+            spaceId: space.id,
+            content: emptyDocumentContent,
+        });
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 0,
+            steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+            clientId: generateId(),
+        });
+
+        const commentThreadId1 = generateId<DocumentCommentThreadId>();
+        const commentThreadId2 = generateId<DocumentCommentThreadId>();
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 1,
+            steps: [
+                new AddMarkStep(
+                    10,
+                    15,
+                    schema.mark("comment", {commentThreadId: commentThreadId1}),
+                ),
+            ],
+            clientId: generateId(),
+            createCommentThread: {
+                commentThreadId: commentThreadId1,
+                content: createSimpleMessageContent("Test message content 1"),
+            },
+        });
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 2,
+            steps: [
+                new RemoveMarkStep(
+                    10,
+                    15,
+                    schema.mark("comment", {commentThreadId: commentThreadId1}),
+                ),
+            ],
+            clientId: generateId(),
+        });
+
+        await updateDocumentSnapshotForTest(context.request(session), document.id);
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 3,
+            steps: [
+                new AddMarkStep(
+                    10,
+                    15,
+                    schema.mark("comment", {commentThreadId: commentThreadId2}),
+                ),
+            ],
+            clientId: generateId(),
+            createCommentThread: {
+                commentThreadId: commentThreadId2,
+                content: createSimpleMessageContent("Test message content 2"),
+            },
+        });
+
+        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+            version: 4,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [
+                        schema.text("Hello, "),
+                        schema.text("world", [
+                            schema.mark("comment", {commentThreadId: commentThreadId2}),
+                        ]),
+                        schema.text("!"),
+                    ]),
+                ])
+                .toJSON(),
+        });
+
+        expect(
+            await getDocumentComment(context.request(session), {
+                documentId: document.id,
+                commentThreadId: commentThreadId1,
+                commentIndex: 0,
+            }),
+        ).not.toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId: commentThreadId1,
+            }),
+        ).toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId: commentThreadId1,
+            }),
+        ).not.toBeNull();
+
+        expect(
+            await getDocumentComment(context.request(session), {
+                documentId: document.id,
+                commentThreadId: commentThreadId2,
+                commentIndex: 0,
+            }),
+        ).not.toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId: commentThreadId2,
+            }),
+        ).not.toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId: commentThreadId2,
+            }),
+        ).toBeNull();
+
+        await updateDocumentSnapshotForTest(context.request(session), document.id);
+
+        expect(
+            await getDocumentComment(context.request(session), {
+                documentId: document.id,
+                commentThreadId: commentThreadId1,
+                commentIndex: 0,
+            }),
+        ).not.toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId: commentThreadId1,
+            }),
+        ).toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId: commentThreadId1,
+            }),
+        ).not.toBeNull();
+
+        expect(
+            await getDocumentComment(context.request(session), {
+                documentId: document.id,
+                commentThreadId: commentThreadId2,
+                commentIndex: 0,
+            }),
+        ).not.toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId: commentThreadId2,
+            }),
+        ).not.toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId: commentThreadId2,
+            }),
+        ).toBeNull();
+    });
+
+    test("can archive a comment thread even when it is actively being updated", async () => {
+        const DocumentsTable = getDocumentsTableForTest();
+
+        const document = await createDocument(context.request(session), {
+            spaceId: space.id,
+            content: emptyDocumentContent,
+        });
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 0,
+            steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+            clientId: generateId(),
+        });
+
+        const commentThreadId = generateId<DocumentCommentThreadId>();
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 1,
+            steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            clientId: generateId(),
+            createCommentThread: {
+                commentThreadId,
+                content: createSimpleMessageContent("Test message content 1"),
+            },
+        });
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 2,
+            steps: [new RemoveMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            clientId: generateId(),
+        });
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toEqual({
+            partitionType: "Document",
+            sortRangeType: "ReferencedCommentThread",
+            documentId: document.id,
+            commentThreadId,
+            createdTime: expect.any(Date),
+            commentsSummary: {
+                nextCommentIndex: 1,
+                lastChangeTime: null,
+                commentCountByAuthorId: new Map([[session.account.id, 1]]),
+            },
+        });
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toEqual(null);
+
+        const pausePromise =
+            updateDocumentSnapshotBeforeMovingCommentThreadTestCheckpoint.pauseForTest(document.id);
+
+        const updateSnapshotPromise = updateDocumentSnapshotForTest(
+            context.request(session),
+            document.id,
+        );
+
+        const {unpause} = await pausePromise;
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toEqual({
+            partitionType: "Document",
+            sortRangeType: "ReferencedCommentThread",
+            documentId: document.id,
+            commentThreadId,
+            createdTime: expect.any(Date),
+            commentsSummary: {
+                nextCommentIndex: 1,
+                lastChangeTime: null,
+                commentCountByAuthorId: new Map([[session.account.id, 1]]),
+            },
+        });
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toEqual(null);
+
+        await createDocumentComment(context.request(session), {
+            documentId: document.id,
+            commentThreadId,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("Test message content 2"),
+        });
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toEqual({
+            partitionType: "Document",
+            sortRangeType: "ReferencedCommentThread",
+            documentId: document.id,
+            commentThreadId,
+            createdTime: expect.any(Date),
+            commentsSummary: {
+                nextCommentIndex: 2,
+                lastChangeTime: null,
+                commentCountByAuthorId: new Map([[session.account.id, 2]]),
+            },
+            updateLockVersion: 1,
+        });
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toEqual(null);
+
+        unpause();
+
+        await updateSnapshotPromise;
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toEqual(null);
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toEqual({
+            partitionType: "Document",
+            sortRangeType: "ArchivedCommentThread",
+            documentId: document.id,
+            commentThreadId,
+            createdTime: expect.any(Date),
+            commentsSummary: {
+                nextCommentIndex: 2,
+                lastChangeTime: null,
+                commentCountByAuthorId: new Map([[session.account.id, 2]]),
+            },
+            updateLockVersion: 1,
+        });
+    });
+
+    test("can unarchive a comment thread even when it is actively being updated", async () => {
+        const DocumentsTable = getDocumentsTableForTest();
+
+        const document = await createDocument(context.request(session), {
+            spaceId: space.id,
+            content: emptyDocumentContent,
+        });
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 0,
+            steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+            clientId: generateId(),
+        });
+
+        const commentThreadId = generateId<DocumentCommentThreadId>();
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 1,
+            steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            clientId: generateId(),
+            createCommentThread: {
+                commentThreadId,
+                content: createSimpleMessageContent("Test message content 1"),
+            },
+        });
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 2,
+            steps: [new RemoveMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            clientId: generateId(),
+        });
+
+        await updateDocumentSnapshotForTest(context.request(session), document.id);
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 3,
+            steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            clientId: generateId(),
+        });
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toEqual(null);
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toEqual({
+            partitionType: "Document",
+            sortRangeType: "ArchivedCommentThread",
+            documentId: document.id,
+            commentThreadId,
+            createdTime: expect.any(Date),
+            commentsSummary: {
+                nextCommentIndex: 1,
+                lastChangeTime: null,
+                commentCountByAuthorId: new Map([[session.account.id, 1]]),
+            },
+        });
+
+        const pausePromise =
+            updateDocumentSnapshotBeforeMovingCommentThreadTestCheckpoint.pauseForTest(document.id);
+
+        const updateSnapshotPromise = updateDocumentSnapshotForTest(
+            context.request(session),
+            document.id,
+        );
+
+        const {unpause} = await pausePromise;
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toEqual(null);
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toEqual({
+            partitionType: "Document",
+            sortRangeType: "ArchivedCommentThread",
+            documentId: document.id,
+            commentThreadId,
+            createdTime: expect.any(Date),
+            commentsSummary: {
+                nextCommentIndex: 1,
+                lastChangeTime: null,
+                commentCountByAuthorId: new Map([[session.account.id, 1]]),
+            },
+        });
+
+        await createDocumentComment(context.request(session), {
+            documentId: document.id,
+            commentThreadId,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("Test message content 2"),
+        });
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toEqual(null);
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toEqual({
+            partitionType: "Document",
+            sortRangeType: "ArchivedCommentThread",
+            documentId: document.id,
+            commentThreadId,
+            createdTime: expect.any(Date),
+            commentsSummary: {
+                nextCommentIndex: 2,
+                lastChangeTime: null,
+                commentCountByAuthorId: new Map([[session.account.id, 2]]),
+            },
+            updateLockVersion: 1,
+        });
+
+        unpause();
+
+        await updateSnapshotPromise;
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toEqual({
+            partitionType: "Document",
+            sortRangeType: "ReferencedCommentThread",
+            documentId: document.id,
+            commentThreadId,
+            createdTime: expect.any(Date),
+            commentsSummary: {
+                nextCommentIndex: 2,
+                lastChangeTime: null,
+                commentCountByAuthorId: new Map([[session.account.id, 2]]),
+            },
+            updateLockVersion: 1,
+        });
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toEqual(null);
+    });
+
+    test("reading a comment thread while unarchiving works", async () => {
+        const DocumentsTable = getDocumentsTableForTest();
+
+        const document = await createDocument(context.request(session), {
+            spaceId: space.id,
+            content: emptyDocumentContent,
+        });
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 0,
+            steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+            clientId: generateId(),
+        });
+
+        const commentThreadId = generateId<DocumentCommentThreadId>();
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 1,
+            steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            clientId: generateId(),
+            createCommentThread: {
+                commentThreadId,
+                content: createSimpleMessageContent("Test message content 1"),
+            },
+        });
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 2,
+            steps: [new RemoveMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            clientId: generateId(),
+        });
+
+        await updateDocumentSnapshotForTest(context.request(session), document.id);
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 3,
+            steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            clientId: generateId(),
+        });
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).not.toBeNull();
+
+        const pausePromise =
+            getDocumentCommentThreadItemAfterFirstGetItemTestCheckpoint.pauseForTest(document.id);
+
+        const commentPromise = getDocumentComment(context.request(session), {
+            documentId: document.id,
+            commentThreadId,
+            commentIndex: 0,
+        });
+
+        const {unpause} = await pausePromise;
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).not.toBeNull();
+
+        await updateDocumentSnapshotForTest(context.request(session), document.id);
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ReferencedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).not.toBeNull();
+
+        expect(
+            await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+            }),
+        ).toBeNull();
+
+        unpause();
+
+        expect(await commentPromise).not.toBeNull();
+    });
+});
+
 testMessagingImplementation<DocumentCommentRoomKey>(context, {
     async createRoom(context, spaceId) {
         const DocumentsTable = getDocumentsTableForTest();
@@ -2777,8 +4649,10 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
         const createdTime = new Date(Date.now());
 
         await DocumentsTable.createItem(context, {
-            partitionType: "DocumentCommentThread",
-            sortRangeType: "Attributes",
+            partitionType: "Document",
+            // NOTE(calebmer): Our messaging tests run against an archived comment thread
+            // since it's less common than a referenced comment thread.
+            sortRangeType: "ArchivedCommentThread",
             documentId: document.id,
             commentThreadId,
             createdTime,
@@ -2809,8 +4683,8 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
         if (!document) throw new NotFoundError("Document not found");
 
         const commentThreadItem = await DocumentsTable.getItem(context, {
-            partitionType: "DocumentCommentThread",
-            sortRangeType: "Attributes",
+            partitionType: "Document",
+            sortRangeType: "ArchivedCommentThread",
             documentId,
             commentThreadId,
         });

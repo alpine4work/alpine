@@ -1,7 +1,7 @@
 import {DocumentContent, DocumentContentSchema} from "~/shared/content/document_content_schema";
 import {documentFallbackTitle} from "~/shared/content/document_fallback_title";
 import {assert} from "~/shared/helpers/control/assert";
-import {assertId, isId} from "~/shared/id/id";
+import {isId} from "~/shared/id/id";
 import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
 import {ContentReferencesSchema} from "~/shared/models/content_references";
@@ -9,11 +9,83 @@ import {MessageModel, MessagePayloadModelSchema} from "~/shared/models/message_m
 import {Model} from "~/shared/models/model";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 
+/**
+ * A thread of comments on a document.
+ */
+export class DocumentCommentThreadModel extends Model(
+    Schema.object({
+        createdTime: Schema.date,
+        /**
+         * The total number of comments in the thread.
+         */
+        commentCount: Schema.integer,
+        /**
+         * The last time a comment in this thread changed.
+         */
+        lastCommentChangeTime: Schema.date.nullable(),
+        /**
+         * The number of accounts who authored a comment in this thread.
+         */
+        commentAuthorCount: Schema.integer,
+        /**
+         * Some of the authors who commented in this thread. Only the first 5 or so. If
+         * the length of this array is shorter than `commentAuthorCount` then you know
+         * there are more authors we aren't including.
+         */
+        previewCommentAuthors: Schema.array(AccountModel.schema()),
+    }),
+) {}
+
+/**
+ * A comment on a document.
+ */
+export class DocumentCommentModel
+    extends Model(
+        Schema.object({
+            documentId: Schema.id<DocumentId>(),
+            commentThreadId: Schema.id<DocumentCommentThreadId>(),
+            index: Schema.integer,
+            author: AccountModel.schema(),
+            createdTime: Schema.date,
+            payload: MessagePayloadModelSchema,
+        }),
+    )
+    implements MessageModel<DocumentCommentRoomKey>
+{
+    // Make sure this property is available on this type and not just the
+    // interface.
+    public readonly isOptimistic?: undefined;
+
+    public getRoomKey() {
+        return encodeDocumentCommentRoomKey(this.documentId, this.commentThreadId);
+    }
+}
+
+export type DocumentContentReferences = SchemaType<typeof DocumentContentReferencesSchema>;
+
+/**
+ * Documents may have content which needs data beyond what the base content
+ * type needs.
+ */
+export const DocumentContentReferencesSchema = ContentReferencesSchema.merge(
+    Schema.object({
+        /**
+         * The comment threads in our document. Deleting the text associated with a
+         * document comment does not delete the underlying thread but the thread will
+         * no longer be a part of this map.
+         */
+        commentThreadById: Schema.map(
+            Schema.id<DocumentCommentThreadId>(),
+            DocumentCommentThreadModel.schema(),
+        ),
+    }),
+);
+
 export type DocumentContentWithReferences = SchemaType<typeof DocumentContentWithReferencesSchema>;
 
 export const DocumentContentWithReferencesSchema = Schema.object({
     doc: DocumentContentSchema,
-    references: ContentReferencesSchema,
+    references: DocumentContentReferencesSchema,
 });
 
 /**
@@ -138,27 +210,4 @@ export function decodeDocumentCommentRoomKey(
     return [documentId, commentThreadId];
 }
 
-/**
- * A comment on a document.
- */
-export class DocumentCommentModel
-    extends Model(
-        Schema.object({
-            documentId: Schema.id<DocumentId>(),
-            commentThreadId: Schema.id<DocumentCommentThreadId>(),
-            index: Schema.integer,
-            author: AccountModel.schema(),
-            createdTime: Schema.date,
-            payload: MessagePayloadModelSchema,
-        }),
-    )
-    implements MessageModel<DocumentCommentRoomKey>
-{
-    // Make sure this property is available on this type and not just the
-    // interface.
-    public readonly isOptimistic?: undefined;
-
-    public getRoomKey() {
-        return encodeDocumentCommentRoomKey(this.documentId, this.commentThreadId);
-    }
-}
+export const maxDocumentCommentThreadPreviewCommentAuthorCount = 3;
