@@ -10,9 +10,9 @@ import {
     messageViewBubbleMergedBorderRadius,
     messageViewBubbleMinWidth,
 } from "~/client/messaging/message_view";
-import {MessageContent} from "~/shared/content/message_content_schema";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {MessageContentWithReferences} from "~/shared/models/message_model";
 import {colorSchemeVars, sprinkles} from "~/shared/styles/styles";
 
 export type MessageViewEditorRef = {
@@ -103,9 +103,9 @@ function MessageContentEditor({
 }: {
     parentRef: Ref<MessageViewEditorRef>;
     messageStartOfSentenceNoun: string;
-    state: ContentEditorState<MessageContent>;
+    state: ContentEditorState<MessageContentWithReferences>;
     isSaving: boolean;
-    onChange: (state: ContentEditorState<MessageContent>) => void;
+    onChange: (state: ContentEditorState<MessageContentWithReferences>) => void;
     onCancel: () => void;
     onSave: () => void;
 }) {

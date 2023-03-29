@@ -1,7 +1,7 @@
 import murmurhash from "murmurhash";
 import {getAccountOrThrow} from "~/server/dynamo/accounts_table";
 import {RequestContext} from "~/server/dynamo/context/request_context";
-import {getContentReferencesFromNode} from "~/server/dynamo/helpers/get_content_references";
+import {getContentReferencesForNode} from "~/server/dynamo/helpers/get_content_references";
 import {createMessagePayloadModel} from "~/server/dynamo/helpers/messaging/create_message_payload_model";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/dynamo/helpers/messaging/get_message_change_log_expiration_time_from_change_time";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
@@ -1726,7 +1726,7 @@ async function queryChatMessageChangeLogAssumingAuthorizedPost(
                         index: item.messageIndex,
                         content: {
                             doc: item.change.content,
-                            references: await getContentReferencesFromNode(
+                            references: await getContentReferencesForNode(
                                 context,
                                 chatItem.spaceId,
                                 item.change.content,

@@ -1,7 +1,7 @@
 import {CaretDown} from "@phosphor-icons/react";
 import {useEffect, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
-import {ContentEditorState} from "~/client/content/content_editor_state";
+import {ContentEditorState, reduceContentReferences} from "~/client/content/content_editor_state";
 import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
@@ -19,10 +19,10 @@ import {
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
-import {MessageContent} from "~/shared/content/message_content_schema";
 import {addRemLengths, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {ChannelModel} from "~/shared/models/channel_model";
+import {MessageContentWithReferences} from "~/shared/models/message_model";
 import {updateChannelDescription, updateChannelName} from "~/shared/rpc/forum_rpc_definitions";
 import {sprinkles} from "~/shared/styles/styles";
 
@@ -206,10 +206,14 @@ function ChannelEditDescriptionModal({
     const editorRef = useRef<ContentEditorRef>(null);
 
     const [{state, hasContentChanged}, setState] = useState<{
-        state: ContentEditorState<MessageContent>;
+        state: ContentEditorState<MessageContentWithReferences>;
         hasContentChanged: boolean;
     }>(() => ({
-        state: ContentEditorState.create(channel.description, {selectionAt: "end"}),
+        state: ContentEditorState.create({
+            content: channel.description,
+            reduceReferences: reduceContentReferences,
+            selectionAt: "end",
+        }),
         hasContentChanged: false,
     }));
     const [shouldConfirmClose, setShouldConfirmClose] = useState(false);

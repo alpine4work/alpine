@@ -7,14 +7,16 @@ import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schem
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title";
 import {SpaceRouteScrollView} from "~/client/spaces/space_route_scroll_view";
 import {createDocument, getDocument} from "~/server/dynamo/documents_table";
-import {getContentReferencesFromNode} from "~/server/dynamo/helpers/get_content_references";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
 import {emptyDocumentContent} from "~/shared/content/document_content_schema";
 import {FailedPreconditionError, NotFoundError} from "~/shared/error/error";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {DocumentId, SpaceId} from "~/shared/id/types/id_types";
-import {DocumentModel, getDocumentContentTitle} from "~/shared/models/document_model";
+import {
+    DocumentModel,
+    emptyDocumentContentReferences,
+    getDocumentContentTitle,
+} from "~/shared/models/document_model";
 import {Schema} from "~/shared/schema/schema";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 
@@ -36,21 +38,18 @@ export async function loader({params, context, request}: LoaderArgs) {
         try {
             const content = emptyDocumentContent;
 
-            const [newDocument, contentReferences] = await runAllPromises([
-                createDocument(await context.auth.authenticate(), {
-                    id: documentId,
-                    spaceId,
-                    content,
-                }),
-                getContentReferencesFromNode(await context.auth.authenticate(), spaceId, content),
-            ]);
+            const newDocument = await createDocument(await context.auth.authenticate(), {
+                id: documentId,
+                spaceId,
+                content,
+            });
 
             document = new DocumentModel({
                 ...newDocument,
                 spaceId,
                 content: {
                     doc: content,
-                    references: contentReferences,
+                    references: emptyDocumentContentReferences,
                 },
             });
         } catch (error) {

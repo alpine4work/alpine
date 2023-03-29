@@ -7,7 +7,7 @@ import {EditorView} from "prosemirror-view";
 import React, {useState} from "react";
 import {act} from "react-dom/test-utils";
 import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor";
-import {ContentEditorState} from "~/client/content/content_editor_state";
+import {ContentEditorState, reduceContentReferences} from "~/client/content/content_editor_state";
 import {emptyDocumentWithoutTitleContent} from "~/shared/content/document_content_schema";
 import {assert} from "~/shared/helpers/control/assert";
 import {emptyContentReferences} from "~/shared/models/content_references";
@@ -15,8 +15,11 @@ import {emptyContentReferences} from "~/shared/models/content_references";
 function TestContentEditor() {
     const [state, setState] = useState(() =>
         ContentEditorState.create({
-            doc: emptyDocumentWithoutTitleContent,
-            references: emptyContentReferences,
+            content: {
+                doc: emptyDocumentWithoutTitleContent,
+                references: emptyContentReferences,
+            },
+            reduceReferences: reduceContentReferences,
         }),
     );
     return <ContentEditor aria-label="Test" state={state} onChange={setState} />;

@@ -1,10 +1,11 @@
 import {DocumentContent, DocumentContentSchema} from "~/shared/content/document_content_schema";
 import {documentFallbackTitle} from "~/shared/content/document_fallback_title";
 import {assert} from "~/shared/helpers/control/assert";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables";
 import {isId} from "~/shared/id/id";
 import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
-import {ContentReferencesSchema} from "~/shared/models/content_references";
+import {ContentReferencesSchema, emptyContentReferences} from "~/shared/models/content_references";
 import {MessageModel, MessagePayloadModelSchema} from "~/shared/models/message_model";
 import {Model} from "~/shared/models/model";
 import {Schema, SchemaType} from "~/shared/schema/schema";
@@ -14,7 +15,7 @@ import {Schema, SchemaType} from "~/shared/schema/schema";
  */
 export class DocumentCommentThreadModel extends Model(
     Schema.object({
-        createdTime: Schema.date,
+        id: Schema.id<DocumentCommentThreadId>(),
         /**
          * The total number of comments in the thread.
          */
@@ -24,15 +25,12 @@ export class DocumentCommentThreadModel extends Model(
          */
         lastCommentChangeTime: Schema.date.nullable(),
         /**
-         * The number of accounts who authored a comment in this thread.
+         * All of the authors who commented on this thread.
+         *
+         * We include all authors instead of a limited preview so the list can update
+         * in realtime without needing to load the thread.
          */
-        commentAuthorCount: Schema.integer,
-        /**
-         * Some of the authors who commented in this thread. Only the first 5 or so. If
-         * the length of this array is shorter than `commentAuthorCount` then you know
-         * there are more authors we aren't including.
-         */
-        previewCommentAuthors: Schema.array(AccountModel.schema()),
+        commentAuthors: Schema.array(AccountModel.schema()),
     }),
 ) {}
 
@@ -80,6 +78,23 @@ export const DocumentContentReferencesSchema = ContentReferencesSchema.merge(
         ),
     }),
 );
+
+export const emptyDocumentContentReferences: DocumentContentReferences = {
+    ...emptyContentReferences,
+    commentThreadById: new Map(),
+};
+
+export function mergeDocumentContentReferences(
+    references1: DocumentContentReferences,
+    references2: DocumentContentReferences,
+): DocumentContentReferences {
+    return {
+        accountById: new Map(concatIterables(references1.accountById, references2.accountById)),
+        commentThreadById: new Map(
+            concatIterables(references1.commentThreadById, references2.commentThreadById),
+        ),
+    };
+}
 
 export type DocumentContentWithReferences = SchemaType<typeof DocumentContentWithReferencesSchema>;
 

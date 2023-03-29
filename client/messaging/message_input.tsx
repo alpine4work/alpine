@@ -35,6 +35,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable";
 import {generateId} from "~/shared/id/id";
 import {
+    MessageContentWithReferences,
     MessageModel,
     OptimisticMessageModel,
     emptyMessageContentWithReferences,
@@ -77,7 +78,7 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
     onHideTypingIndicator: () => void;
     withoutBorderTop?: boolean;
     "data-testid"?: string;
-    stateRef?: MutableRefObject<ContentEditorState<MessageContent> | null>;
+    stateRef?: MutableRefObject<ContentEditorState<MessageContentWithReferences> | null>;
 }) {
     const showToast = useShowToast();
     const {currentAccount} = useSpaceContext();
@@ -85,7 +86,9 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
     const [state, setState] = useState(
         () =>
             stateRef?.current ??
-            ContentEditorState.create<MessageContent>(emptyMessageContentWithReferences),
+            ContentEditorState.create<MessageContentWithReferences>(
+                emptyMessageContentWithReferences,
+            ),
     );
 
     useLayoutEffectWithoutServerSideWarning(() => {

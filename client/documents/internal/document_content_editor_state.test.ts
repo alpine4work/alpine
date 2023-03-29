@@ -11,7 +11,7 @@ import {
 import {generateId} from "~/shared/id/id";
 import {ContentEditorClientId} from "~/shared/id/types/id_types";
 import {emptyContentReferences} from "~/shared/models/content_references";
-import {DocumentModel} from "~/shared/models/document_model";
+import {DocumentModel, emptyDocumentContentReferences} from "~/shared/models/document_model";
 
 function textSlice(text: string) {
     if (text.length === 0) return Slice.empty;
@@ -34,7 +34,7 @@ test("can receive steps one at a time", () => {
                         schema.node("paragraph", {}, [schema.text("abc")]),
                     ]),
                 ),
-                references: emptyContentReferences,
+                references: emptyDocumentContentReferences,
             },
         }),
     );
@@ -128,7 +128,7 @@ test("can receive multiple steps at a time", () => {
                         schema.node("paragraph", {}, [schema.text("abc")]),
                     ]),
                 ),
-                references: emptyContentReferences,
+                references: emptyDocumentContentReferences,
             },
         }),
     );
@@ -240,7 +240,7 @@ test("can receive steps out of order", () => {
                         schema.node("paragraph", {}, [schema.text("ab")]),
                     ]),
                 ),
-                references: emptyContentReferences,
+                references: emptyDocumentContentReferences,
             },
         }),
     );
@@ -357,7 +357,7 @@ test("can receive steps multiple times", () => {
                         schema.node("paragraph", {}, [schema.text("abc")]),
                     ]),
                 ),
-                references: emptyContentReferences,
+                references: emptyDocumentContentReferences,
             },
         }),
     );
@@ -531,7 +531,7 @@ test("can receive large step backfill with duplicate steps at end of backfill", 
                         schema.node("paragraph", {}, [schema.text("abc")]),
                     ]),
                 ),
-                references: emptyContentReferences,
+                references: emptyDocumentContentReferences,
             },
         }),
     );
@@ -631,7 +631,7 @@ test("can receive large step backfill with duplicate steps at beginning of backf
                         schema.node("paragraph", {}, [schema.text("abc")]),
                     ]),
                 ),
-                references: emptyContentReferences,
+                references: emptyDocumentContentReferences,
             },
         }),
     );
@@ -719,7 +719,7 @@ test("can receive large step backfill with duplicate steps in the middle of back
                         schema.node("paragraph", {}, [schema.text("abc")]),
                     ]),
                 ),
-                references: emptyContentReferences,
+                references: emptyDocumentContentReferences,
             },
         }),
     );
@@ -799,7 +799,7 @@ test("reproduce receive steps assertion failure", () => {
                         schema.node("paragraph", {}, []),
                     ]),
                 ),
-                references: emptyContentReferences,
+                references: emptyDocumentContentReferences,
             },
         }),
     );

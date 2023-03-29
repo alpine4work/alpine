@@ -1067,7 +1067,7 @@ export class ObjectSchema<Value> extends Schema<Value> {
      */
     public merge<OtherValue>(
         otherSchema: ObjectSchema<OtherValue>,
-    ): ObjectSchema<MergeObjectIntersection<Value & OtherValue>> {
+    ): ObjectSchema<Value & OtherValue> {
         const propertySchemaByKey = new Map(this.propertySchemaByKey);
 
         for (const [key, propertySchema] of otherSchema.propertySchemaByKey) {

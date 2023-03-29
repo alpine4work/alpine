@@ -30,6 +30,8 @@ import {ProcessContextModule} from "~/shared/context/process_context_module";
 import {assert} from "~/shared/helpers/control/assert";
 import {generateId} from "~/shared/id/id";
 
+jest.setTimeout(1000 * 20);
+
 const context = createTestContext();
 const space = createTestSpace(context);
 const session = createTestSession(context, space);
@@ -45,7 +47,6 @@ beforeEach(() => {
 afterEach(() => {
     const hadNoTimers = jest.getTimerCount() === 0;
     jest.clearAllTimers();
-    // jest.useRealTimers();
     assert(hadNoTimers, "Expected all timers to be cleaned up by the end of each test");
 });
 

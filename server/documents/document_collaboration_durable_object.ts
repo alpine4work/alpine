@@ -116,6 +116,10 @@ class DocumentCollaborationDurableObject {
         return this._webSocketServer.upgrade(context, request);
     }
 
+    public connectForTest(context: RequestContext) {
+        return this._webSocketServer.connectForTest(context);
+    }
+
     private _destroy(context: ProcessContext) {
         this._webSocketServer.closeAll(context);
         this._destroyCallback();

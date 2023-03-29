@@ -40,7 +40,6 @@ import {
     VirtualizedScrollViewRenderItem,
     getInitialVirtualizedScrollViewRenderedItemCount,
 } from "~/client/virtualized/virtualized_scroll_view";
-import {MessageContent} from "~/shared/content/message_content_schema";
 import {wait} from "~/shared/helpers/async/wait";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -50,7 +49,7 @@ import {
     MessagingRealtimeMessageFromClient,
     MessagingRealtimeMessageFromServer,
 } from "~/shared/messaging/messaging_realtime_schema";
-import {MessageModel} from "~/shared/models/message_model";
+import {MessageContentWithReferences, MessageModel} from "~/shared/models/message_model";
 import {ClientInfo} from "~/shared/remix/client_info";
 import {sprinkles} from "~/shared/styles/styles";
 
@@ -312,7 +311,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
          * preserving message input contents across remounts e.g. remounting from a
          * React `key` change.
          */
-        inputStateRef?: MutableRefObject<ContentEditorState<MessageContent> | null>;
+        inputStateRef?: MutableRefObject<ContentEditorState<MessageContentWithReferences> | null>;
 
         /**
          * If we display the time at which the messaging room was created, pass it in
@@ -664,6 +663,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             messageNoun,
             messageStartOfSentenceNoun,
             randomSeedForShimmer,
+            roomDisplayedCreatedTime,
             state,
         ],
     );

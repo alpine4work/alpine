@@ -56,6 +56,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol";
 import {generateId} from "~/shared/id/id";
+import {ContentWithReferences} from "~/shared/models/content_references";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range";
 import {
     colorSchemeVars,
@@ -83,12 +84,16 @@ declare module "prosemirror-model" {
     }
 }
 
-function wrap<Content extends Node>(state: EditorState): ContentEditorState<Content> {
+function wrap<Content extends ContentWithReferences>(
+    state: EditorState,
+): ContentEditorState<Content> {
     // @ts-expect-error it's ok to wrap/unwrap editor state in this file.
     return new ContentEditorState(state);
 }
 
-function unwrap(state: ContentEditorState<Node>): EditorState & {schema: ContentProsemirrorSchema} {
+function unwrap(
+    state: ContentEditorState<ContentWithReferences>,
+): EditorState & {schema: ContentProsemirrorSchema} {
     // @ts-expect-error it's ok to wrap/unwrap editor state in this file.
     return state._state;
 }
@@ -105,12 +110,14 @@ export type ContentEditorRef = {
     selectAll(): void;
 };
 
-const ContentEditorForwardRef = forwardRef(ContentEditorWrapper) as <Content extends Node>(
+const ContentEditorForwardRef = forwardRef(ContentEditorWrapper) as <
+    Content extends ContentWithReferences,
+>(
     props: PropsWithoutRef<ContentEditorProps<Content>> & RefAttributes<ContentEditorRef>,
 ) => ReactElement;
 export {ContentEditorForwardRef as ContentEditor};
 
-export type ContentEditorProps<Content extends Node> = {
+export type ContentEditorProps<Content extends ContentWithReferences> = {
     /**
      * The current state of our content editor.
      *
@@ -240,7 +247,7 @@ export type ContentEditorPhantomSelection = {
 // When server-side rendering (initial app render), we render as a
 // `<ContentView>` then once React hydrates on the client we switch out the
 // non-editable `<ContentView>` for an editable `<ContentEditor>` component.
-function ContentEditorWrapper<Content extends Node>(
+function ContentEditorWrapper<Content extends ContentWithReferences>(
     props: ContentEditorProps<Content>,
     ref: Ref<ContentEditorRef>,
 ) {
@@ -272,7 +279,7 @@ function ContentEditorWrapper<Content extends Node>(
  *
  * [1]: https://prosemirror.net
  */
-function ContentEditor<Content extends Node>(
+function ContentEditor<Content extends ContentWithReferences>(
     props: ContentEditorProps<Content> & {editorRef: Ref<ContentEditorRef>},
 ) {
     const {

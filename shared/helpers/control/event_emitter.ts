@@ -9,13 +9,13 @@ import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_er
  * [1]: https://nodejs.org/api/events.html#class-eventemitter
  */
 export class EventEmitter<Event = void> {
-    private listeners: Set<(event: Event) => void> = new Set();
+    private _listeners: Set<(event: Event) => void> = new Set();
 
     /**
      * Emit an event to all subscribers of the event emitter.
      */
-    emit(event: Event): void {
-        for (const listener of this.listeners) {
+    public emit(event: Event): void {
+        for (const listener of this._listeners) {
             try {
                 listener(event);
             } catch (error) {
@@ -32,10 +32,10 @@ export class EventEmitter<Event = void> {
     /**
      * Subscribe to all events emit on this event emitter.
      */
-    subscribe(listener: (event: Event) => void): () => void {
-        this.listeners.add(listener);
+    public subscribe(listener: (event: Event) => void): () => void {
+        this._listeners.add(listener);
         return () => {
-            this.listeners.delete(listener);
+            this._listeners.delete(listener);
         };
     }
 }

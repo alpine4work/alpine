@@ -16,6 +16,7 @@ import {
     getDocument,
     getDocumentComment,
     getDocumentCommentThreadItemAfterFirstGetItemTestCheckpoint,
+    getDocumentCommentThreads,
     getDocumentCommentsFromEnd,
     getDocumentCommentsFromStart,
     getDocumentContentSteps,
@@ -4659,6 +4660,325 @@ describe("Comments", () => {
         unpause();
 
         expect(await commentPromise).not.toBeNull();
+    });
+
+    test("can get many comment threads at once", async () => {
+        const document = await createDocument(context.request(session), {
+            spaceId: space.id,
+            content: emptyDocumentContent,
+        });
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 0,
+            steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+            clientId: generateId(),
+        });
+
+        const commentThreadId1 = generateId<DocumentCommentThreadId>();
+        const commentThreadId2 = generateId<DocumentCommentThreadId>();
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 1,
+            steps: [
+                new AddMarkStep(
+                    10,
+                    15,
+                    schema.mark("comment", {commentThreadId: commentThreadId1}),
+                ),
+            ],
+            clientId: generateId(),
+            createCommentThreads: [
+                {
+                    commentThreadId: commentThreadId1,
+                    initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                },
+            ],
+        });
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 2,
+            steps: [
+                new RemoveMarkStep(
+                    10,
+                    15,
+                    schema.mark("comment", {commentThreadId: commentThreadId1}),
+                ),
+            ],
+            clientId: generateId(),
+        });
+
+        await updateDocumentSnapshotForTest(context.request(session), document.id);
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 3,
+            steps: [
+                new AddMarkStep(
+                    10,
+                    15,
+                    schema.mark("comment", {commentThreadId: commentThreadId2}),
+                ),
+            ],
+            clientId: generateId(),
+            createCommentThreads: [
+                {
+                    commentThreadId: commentThreadId2,
+                    initialCommentContent: createSimpleMessageContent("Test message content 2"),
+                },
+            ],
+        });
+
+        {
+            const commentThreads = await getDocumentCommentThreads(context.request(session), {
+                documentId: document.id,
+                commentThreadIds: [],
+            });
+
+            expect(commentThreads.length).toEqual(0);
+        }
+
+        {
+            const commentThreads = await getDocumentCommentThreads(context.request(session), {
+                documentId: document.id,
+                commentThreadIds: [commentThreadId1],
+            });
+
+            expect(commentThreads.length).toEqual(1);
+            expect(commentThreads[0]).not.toBeNull();
+        }
+
+        {
+            const commentThreads = await getDocumentCommentThreads(context.request(session), {
+                documentId: document.id,
+                commentThreadIds: [generateId()],
+            });
+
+            expect(commentThreads.length).toEqual(1);
+            expect(commentThreads[0]).toBeNull();
+        }
+
+        {
+            const commentThreads = await getDocumentCommentThreads(context.request(session), {
+                documentId: document.id,
+                commentThreadIds: [commentThreadId1, commentThreadId2, generateId()],
+            });
+
+            expect(commentThreads.length).toEqual(3);
+            expect(commentThreads[0]).not.toBeNull();
+            expect(commentThreads[1]).not.toBeNull();
+            expect(commentThreads[2]).toBeNull();
+        }
+
+        {
+            const commentThreads = await getDocumentCommentThreads(context.request(session), {
+                documentId: document.id,
+                commentThreadIds: [commentThreadId1, commentThreadId2, generateId()],
+            });
+
+            expect(commentThreads.length).toEqual(3);
+            expect(commentThreads[0]).not.toBeNull();
+            expect(commentThreads[1]).not.toBeNull();
+            expect(commentThreads[2]).toBeNull();
+        }
+    });
+
+    test("can not get comment threads for a document in another space", async () => {
+        const document = await createDocument(context.request(session), {
+            spaceId: space.id,
+            content: emptyDocumentContent,
+        });
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 0,
+            steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+            clientId: generateId(),
+        });
+
+        const commentThreadId1 = generateId<DocumentCommentThreadId>();
+        const commentThreadId2 = generateId<DocumentCommentThreadId>();
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 1,
+            steps: [
+                new AddMarkStep(
+                    10,
+                    15,
+                    schema.mark("comment", {commentThreadId: commentThreadId1}),
+                ),
+            ],
+            clientId: generateId(),
+            createCommentThreads: [
+                {
+                    commentThreadId: commentThreadId1,
+                    initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                },
+            ],
+        });
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 2,
+            steps: [
+                new RemoveMarkStep(
+                    10,
+                    15,
+                    schema.mark("comment", {commentThreadId: commentThreadId1}),
+                ),
+            ],
+            clientId: generateId(),
+        });
+
+        await updateDocumentSnapshotForTest(context.request(session), document.id);
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 3,
+            steps: [
+                new AddMarkStep(
+                    10,
+                    15,
+                    schema.mark("comment", {commentThreadId: commentThreadId2}),
+                ),
+            ],
+            clientId: generateId(),
+            createCommentThreads: [
+                {
+                    commentThreadId: commentThreadId2,
+                    initialCommentContent: createSimpleMessageContent("Test message content 2"),
+                },
+            ],
+        });
+
+        await expect(
+            getDocumentCommentThreads(context.request(otherSession), {
+                documentId: document.id,
+                commentThreadIds: [],
+            }),
+        ).rejects.toThrow(PermissionDeniedError);
+
+        await expect(
+            getDocumentCommentThreads(context.request(otherSession), {
+                documentId: document.id,
+                commentThreadIds: [commentThreadId1],
+            }),
+        ).rejects.toThrow(PermissionDeniedError);
+
+        await expect(
+            getDocumentCommentThreads(context.request(otherSession), {
+                documentId: document.id,
+                commentThreadIds: [generateId()],
+            }),
+        ).rejects.toThrow(PermissionDeniedError);
+
+        await expect(
+            getDocumentCommentThreads(context.request(otherSession), {
+                documentId: document.id,
+                commentThreadIds: [commentThreadId1, commentThreadId2, generateId()],
+            }),
+        ).rejects.toThrow(PermissionDeniedError);
+    });
+
+    test("can not get comment threads for a document that doesn't exist", async () => {
+        const document = await createDocument(context.request(session), {
+            spaceId: space.id,
+            content: emptyDocumentContent,
+        });
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 0,
+            steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+            clientId: generateId(),
+        });
+
+        const commentThreadId1 = generateId<DocumentCommentThreadId>();
+        const commentThreadId2 = generateId<DocumentCommentThreadId>();
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 1,
+            steps: [
+                new AddMarkStep(
+                    10,
+                    15,
+                    schema.mark("comment", {commentThreadId: commentThreadId1}),
+                ),
+            ],
+            clientId: generateId(),
+            createCommentThreads: [
+                {
+                    commentThreadId: commentThreadId1,
+                    initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                },
+            ],
+        });
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 2,
+            steps: [
+                new RemoveMarkStep(
+                    10,
+                    15,
+                    schema.mark("comment", {commentThreadId: commentThreadId1}),
+                ),
+            ],
+            clientId: generateId(),
+        });
+
+        await updateDocumentSnapshotForTest(context.request(session), document.id);
+
+        await updateDocumentContent(context.request(session), {
+            id: document.id,
+            version: 3,
+            steps: [
+                new AddMarkStep(
+                    10,
+                    15,
+                    schema.mark("comment", {commentThreadId: commentThreadId2}),
+                ),
+            ],
+            clientId: generateId(),
+            createCommentThreads: [
+                {
+                    commentThreadId: commentThreadId2,
+                    initialCommentContent: createSimpleMessageContent("Test message content 2"),
+                },
+            ],
+        });
+
+        await expect(
+            getDocumentCommentThreads(context.request(otherSession), {
+                documentId: generateId(),
+                commentThreadIds: [],
+            }),
+        ).rejects.toThrow(NotFoundError);
+
+        await expect(
+            getDocumentCommentThreads(context.request(otherSession), {
+                documentId: generateId(),
+                commentThreadIds: [commentThreadId1],
+            }),
+        ).rejects.toThrow(NotFoundError);
+
+        await expect(
+            getDocumentCommentThreads(context.request(otherSession), {
+                documentId: generateId(),
+                commentThreadIds: [generateId()],
+            }),
+        ).rejects.toThrow(NotFoundError);
+
+        await expect(
+            getDocumentCommentThreads(context.request(otherSession), {
+                documentId: generateId(),
+                commentThreadIds: [commentThreadId1, commentThreadId2, generateId()],
+            }),
+        ).rejects.toThrow(NotFoundError);
     });
 });
 

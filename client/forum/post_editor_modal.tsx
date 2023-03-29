@@ -10,11 +10,10 @@ import {useShowToast} from "~/client/design/toast";
 import {PostContentViewHeader} from "~/client/forum/post_content_view_header";
 import {postViewMaxWidth} from "~/client/forum/post_list_view";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
-import {PostContent} from "~/shared/content/post_content_schema";
 import {parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {PostModel} from "~/shared/models/post_model";
+import {PostContentWithReferences, PostModel} from "~/shared/models/post_model";
 import {updatePostContent} from "~/shared/rpc/forum_rpc_definitions";
 import {sprinkles} from "~/shared/styles/styles";
 
@@ -31,7 +30,7 @@ export function PostEditorModal({
     const showToast = useShowToast();
     const editorRef = useRef<ContentEditorRef>(null);
     const [{state, hasContentChanged}, setState] = useState<{
-        state: ContentEditorState<PostContent>;
+        state: ContentEditorState<PostContentWithReferences>;
         hasContentChanged: boolean;
     }>(() => ({
         state: ContentEditorState.create(post.content, {selectionAt: "end"}),

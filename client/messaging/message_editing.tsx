@@ -6,7 +6,10 @@ import {isContentEmpty} from "~/shared/content/is_content_empty";
 import {MessageContent} from "~/shared/content/message_content_schema";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {omitObject} from "~/shared/helpers/object/omit_object";
-import {MessageContentPayloadModel} from "~/shared/models/message_model";
+import {
+    MessageContentPayloadModel,
+    MessageContentWithReferences,
+} from "~/shared/models/message_model";
 
 export type MessageEditingState<RoomKey extends string> =
     | {
@@ -16,7 +19,7 @@ export type MessageEditingState<RoomKey extends string> =
           readonly isEditing: true;
           readonly messageRoomKey: RoomKey;
           readonly messageIndex: number;
-          readonly contentEditorState: ContentEditorState<MessageContent>;
+          readonly contentEditorState: ContentEditorState<MessageContentWithReferences>;
           readonly initialContent: MessageContent;
           readonly confirmationDialog: "Save" | "Delete" | null;
           readonly returnFocusAfterEditing: (() => void) | null;
@@ -41,7 +44,7 @@ export type MessageEditingAction<RoomKey extends string> =
       }
     | {
           readonly type: "ContentEditorStateChange";
-          readonly contentEditorState: ContentEditorState<MessageContent>;
+          readonly contentEditorState: ContentEditorState<MessageContentWithReferences>;
       }
     | {
           readonly type: "CancelEditing";

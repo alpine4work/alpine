@@ -4,7 +4,7 @@ import {render, screen} from "@testing-library/react";
 import {closeHistory} from "prosemirror-history";
 import {EditorState, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
-import React, {useCallback, useState} from "react";
+import {useCallback, useState} from "react";
 import {act} from "react-dom/test-utils";
 import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";

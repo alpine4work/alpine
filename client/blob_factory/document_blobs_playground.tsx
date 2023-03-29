@@ -5,8 +5,7 @@ import {
     DocumentBlobFactorySettings,
     useDocumentBlobSettings,
 } from "~/client/blob_factory/document_blobs";
-import {ContentEditor} from "~/client/content/content_editor";
-import {ContentEditorState} from "~/client/content/content_editor_state";
+import {ContentView} from "~/client/content/content_view";
 import {Box} from "~/client/design/box";
 import {IconButton} from "~/client/design/icon_button";
 import {ColorSchemeToggleButton} from "~/client/design/playground/color_scheme_toggle_button";
@@ -15,7 +14,6 @@ import {useConstant} from "~/client/helpers/lifecycle/use_constant";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer";
 import {dummyDocumentContent} from "~/shared/content/dummy_document_content";
 import {themeColors} from "~/shared/design/theme_colors";
-import {noop} from "~/shared/helpers/control/noop";
 import {generateId} from "~/shared/id/id";
 import {emptyContentReferences} from "~/shared/models/content_references";
 import {sprinkles} from "~/shared/styles/styles";
@@ -65,12 +63,10 @@ function DocumentBlobsPreview({settings}: {settings: DocumentBlobFactorySettings
     const id = useId().replace(/:/g, "_");
     const [containerRef, containerRect] = useResizeObserver();
 
-    const editorState = useConstant(() =>
-        ContentEditorState.create({
-            doc: dummyDocumentContent.get(),
-            references: emptyContentReferences,
-        }),
-    );
+    const content = useConstant(() => ({
+        doc: dummyDocumentContent.get(),
+        references: emptyContentReferences,
+    }));
 
     return (
         <Box
@@ -106,11 +102,8 @@ function DocumentBlobsPreview({settings}: {settings: DocumentBlobFactorySettings
                         }}
                     >
                         <DocumentBlobFactory settings={settings} containerId={id} />
-                        <ContentEditor
-                            state={editorState}
-                            onChange={noop}
-                            aria-label="Document editor"
-                            placeholder="Share your ideas…"
+                        <ContentView
+                            content={content}
                             className={sprinkles({paddingBottom: "24"})}
                         />
                     </div>

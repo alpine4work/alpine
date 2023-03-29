@@ -40,12 +40,10 @@ export const emptyContentReferences: ContentReferences = {
  * override references in the first.
  */
 export function mergeContentReferences(
-    contentReferences1: ContentReferences,
-    contentReferences2: ContentReferences,
+    references1: ContentReferences,
+    references2: ContentReferences,
 ): ContentReferences {
     return {
-        accountById: new Map(
-            concatIterables(contentReferences1.accountById, contentReferences2.accountById),
-        ),
+        accountById: new Map(concatIterables(references1.accountById, references2.accountById)),
     };
 }

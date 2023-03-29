@@ -1,5 +1,6 @@
 import {jwtVerify} from "jose";
 import {createAwsContextModulesFromEnv} from "~/server/aws/create_aws_context_modules_from_env";
+import {WebSocketServerTestConnection} from "~/server/cloudflare/web_socket_server";
 import {Session} from "~/server/dynamo/accounts_table";
 import {UnauthenticatedAuthContextModule} from "~/server/dynamo/context/auth_context_module";
 import {ProcessContext, ProcessContextModules} from "~/server/dynamo/context/process_context";
@@ -18,8 +19,11 @@ import {
     InternalError,
     InvalidArgumentError,
     NotFoundError,
+    UnimplementedError,
 } from "~/shared/error/error";
 import {isSystemError} from "~/shared/error/is_system_error_code";
+import {assert} from "~/shared/helpers/control/assert";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
 import {AccountId, SessionId} from "~/shared/id/types/id_types";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema";
@@ -49,6 +53,9 @@ export type DurableObjectEnv = {
 export function createDurableObject<
     DurableObject extends {
         fetch(context: RequestContext, request: Request): MaybePromise<Response>;
+        connectForTest?(
+            context: RequestContext,
+        ): WebSocketServerTestConnection<{type: string}, {type: string}>;
     },
 >({
     serviceName,
@@ -65,6 +72,12 @@ export function createDurableObject<
     new (state: DurableObjectState, env: DurableObjectEnv): {
         fetch(request: Request): Promise<Response>;
         alarm?(): Promise<void>;
+    };
+    test(context: ProcessContext): {
+        connectForTest: (
+            context: RequestContext,
+            idName: string,
+        ) => Promise<ReturnType<NonNullable<DurableObject["connectForTest"]>>>;
     };
 } {
     return class DurableObjectWrapper {
@@ -200,6 +213,57 @@ export function createDurableObject<
             return DurableObjectAuthenticationTokenSchema.deserialize(
                 payload as SchemaSerializedValue,
             );
+        }
+
+        /**
+         * Creates a durable object environment for use in Jest tests. Whenever you
+         * call `connectForTest()` on the returned object with the same `idName` you
+         * will get the same underlying durable object instance.
+         */
+        public static test(processContext: ProcessContext): {
+            connectForTest: (
+                context: RequestContext,
+                idName: string,
+            ) => Promise<ReturnType<NonNullable<DurableObject["connectForTest"]>>>;
+        } {
+            assert(typeof jest !== "undefined");
+
+            const objectByIdName = new Map<string, Promise<DurableObject>>();
+            let connections: Array<ReturnType<NonNullable<DurableObject["connectForTest"]>>> = [];
+
+            afterEach(() => {
+                const lastConnections = connections;
+                connections = [];
+                for (const connection of lastConnections) connection.close();
+
+                objectByIdName.clear();
+            });
+
+            return {
+                connectForTest: async (requestContext, idName) => {
+                    const object = await getOrSetDefaultMapValue(objectByIdName, idName, () =>
+                        initialize({
+                            processContext,
+                            initializeRequestContext: requestContext,
+                            idName,
+                            destroy: () => objectByIdName.delete(idName),
+                        }),
+                    );
+
+                    if (!object.connectForTest)
+                        throw new UnimplementedError(
+                            "Underlying durable object must implement `connectForTest()`",
+                        );
+
+                    const connection = object.connectForTest(requestContext) as ReturnType<
+                        NonNullable<DurableObject["connectForTest"]>
+                    >;
+
+                    connections.push(connection);
+
+                    return connection;
+                },
+            };
         }
     };
 }

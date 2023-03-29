@@ -164,6 +164,9 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
             items: Schema.string,
             clientRequestToken: Schema.string,
         },
+        transactGet: {
+            size: Schema.integer,
+        },
         exception: {
             type: LabelStringSchema,
             cancellationReasons: Schema.string,

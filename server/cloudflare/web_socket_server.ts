@@ -16,6 +16,7 @@ import {FailedPreconditionError, InvalidArgumentError, NotFoundError} from "~/sh
 import {isSystemError} from "~/shared/error/is_system_error_code";
 import {Interval, createInterval} from "~/shared/helpers/async/interval";
 import {assert} from "~/shared/helpers/control/assert";
+import {EventEmitter} from "~/shared/helpers/control/event_emitter";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {generateId} from "~/shared/id/id";
@@ -51,7 +52,6 @@ export class WebSocketServer<
         WebSocketMessageFromServer<MessageFromServer>
     >;
     private readonly _createConnection: (connection: {
-        request: Request;
         connectionId: WebSocketConnectionId;
         sendMessage: (context: ProcessContext, message: MessageFromServer) => void;
         sendMessageToOthers: (context: ProcessContext, message: MessageFromServer) => void;
@@ -60,7 +60,7 @@ export class WebSocketServer<
 
     private readonly _connections = new Map<
         WebSocketConnectionId,
-        WebSocketServerConnectionWrapper<MessageFromClient, MessageFromServer, Connection>
+        WebSocketServerConnectionWrapperBase<Connection>
     >();
     private _expirationInterval: Interval | null = null;
 
@@ -69,7 +69,6 @@ export class WebSocketServer<
         messageFromClientSchema: UnionSchema<MessageFromClient>,
         messageFromServerSchema: UnionSchema<MessageFromServer>,
         createConnection: (connection: {
-            request: Request;
             connectionId: WebSocketConnectionId;
             sendMessage: (context: ProcessContext, message: MessageFromServer) => void;
             sendMessageToOthers: (context: ProcessContext, message: MessageFromServer) => void;
@@ -84,10 +83,55 @@ export class WebSocketServer<
         this._createConnection = createConnection;
     }
 
+    private _maybeStartExpirationInterval() {
+        // When we get our first connection, start an interval to expire sockets we
+        // haven't received a message from in a while.
+        //
+        // We need to occasionally send a heartbeat to our clients. If the power goes
+        // out we'll have a connection that never closes itself.
+        if (this._connections.size === 0 || this._expirationInterval !== null) return;
+
+        let currentTimeMs = Date.now();
+
+        // TODO(calebmer): Implement this with durable object alarms so the time
+        // works correctly.
+        this._expirationInterval = createInterval(() => {
+            // This is a workaround for Cloudflare `Date.now()` always returning the same
+            // time for a given request. Whenever our interval runs, increment the time by
+            // the interval time.
+            // https://developers.cloudflare.com/workers/learning/security-model
+            currentTimeMs += webSocketExpirationTimeoutMs / 2;
+
+            void this._processContext.tracer.withSpan(
+                "Expiring idle WebSocket connections",
+                async context => {
+                    for (const connection of this._connections.values()) {
+                        connection.maybeExpire(context, currentTimeMs);
+
+                        // In case the `close` event hasn't fired yet (maybe the connection is in the
+                        // process of closing), look for closed connections in our expiration interval
+                        // loop and remove them from our connection set.
+                        //
+                        // NOTE(calebmer, 2022-12-27): I'm observing the `close` event not firing after
+                        // `serverSocket.close()` and I'm not sure whether it is a bug or not.
+                        //
+                        // NOTE(calebmer, 2023-02-23): I think what's happening is the WebSocket moves
+                        // into the closing state (so `isClosed()` returns true) but it hasn't fully
+                        // closed yet so the `close` event doesn't fire. We could clean the code up a
+                        // bit with this knowledge if it's true.
+                        if (connection.isClosed()) {
+                            this._handleConnectionClose(context, connection);
+                        }
+                    }
+                },
+            );
+        }, webSocketExpirationTimeoutMs / 2);
+    }
+
     /**
      * Upgrade an HTTP request to a WebSocket connection.
      */
-    public upgrade(requestContext: RequestContext, request: Request): Response {
+    public upgrade(connectRequestContext: RequestContext, request: Request): Response {
         if (request.headers.get("Upgrade") !== "websocket")
             throw new InvalidArgumentError("Not a WebSocket request");
 
@@ -105,43 +149,7 @@ export class WebSocketServer<
         };
 
         const sendMessageToOthers = (context: ProcessContext, message: MessageFromServer) => {
-            const {span, finishSpan} = context.tracer.startSpan(
-                "Sending all other WebSocket connections a message",
-            );
-            span.addData({
-                webSocket: {
-                    connectionId,
-                    messageType: message.type,
-                },
-            });
-            context = context.clone({tracer: new TracerContextModule(span)});
-
-            try {
-                const serializedMessage = this._messageFromServerSchema.serialize({
-                    type: "Message",
-                    message,
-                });
-                const serializedMessageString = JSON.stringify(serializedMessage);
-
-                for (const otherConnection of this._connections.values()) {
-                    if (otherConnection.id === connection.id) continue;
-
-                    // Don't send new messages to soft closed connections.
-                    if (otherConnection.isSoftClosed()) continue;
-
-                    otherConnection.dangerouslySendRawMessageEvenWhenSoftClosed(
-                        context,
-                        message.type,
-                        serializedMessageString,
-                    );
-                }
-
-                finishSpan();
-            } catch (error) {
-                span.addException(error);
-                finishSpan();
-                throw error;
-            }
+            this.sendMessageToOthers(context, connection.id, message);
         };
 
         const iterateOtherConnections = (): Iterable<Connection> => {
@@ -153,13 +161,12 @@ export class WebSocketServer<
         };
 
         const connectionProcessContext = this._processContext.tracer.withPropagatedData({
-            context: {accountId: requestContext.auth.getAccountId()},
+            context: {accountId: connectRequestContext.auth.getAccountId()},
         });
 
         const connectionId = generateId<WebSocketConnectionId>();
 
         const actualConnection = this._createConnection({
-            request,
             connectionId,
             sendMessage,
             sendMessageToOthers,
@@ -173,57 +180,14 @@ export class WebSocketServer<
             messageFromClientSchema: this._messageFromClientSchema,
             messageFromServerSchema: this._messageFromServerSchema,
             connection: actualConnection,
-            sessionId: requestContext.auth.getSessionId(),
-            sessionAccountId: requestContext.auth.getAccountId(),
+            sessionId: connectRequestContext.auth.getSessionId(),
+            sessionAccountId: connectRequestContext.auth.getAccountId(),
         });
 
         assert(!this._connections.has(connection.id));
         this._connections.set(connection.id, connection);
 
-        // When we get our first connection, start an interval to expire sockets we
-        // haven't received a message from in a while.
-        //
-        // We need to occasionally send a heartbeat to our clients. If the power goes
-        // out we'll have a connection that never closes itself.
-        if (this._connections.size === 1) {
-            assert(this._expirationInterval === null);
-
-            let currentTimeMs = Date.now();
-
-            // TODO(calebmer): Implement this with durable object alarms so the time
-            // works correctly.
-            this._expirationInterval = createInterval(() => {
-                // This is a workaround for Cloudflare `Date.now()` always returning the same
-                // time for a given request. Whenever our interval runs, increment the time by
-                // the interval time.
-                // https://developers.cloudflare.com/workers/learning/security-model
-                currentTimeMs += webSocketExpirationTimeoutMs / 2;
-
-                void this._processContext.tracer.withSpan(
-                    "Expiring idle WebSocket connections",
-                    async context => {
-                        for (const connection of this._connections.values()) {
-                            connection.maybeExpire(context, currentTimeMs);
-
-                            // In case the `close` event hasn't fired yet (maybe the connection is in the
-                            // process of closing), look for closed connections in our expiration interval
-                            // loop and remove them from our connection set.
-                            //
-                            // NOTE(calebmer, 2022-12-27): I'm observing the `close` event not firing after
-                            // `serverSocket.close()` and I'm not sure whether it is a bug or not.
-                            //
-                            // NOTE(calebmer, 2023-02-23): I think what's happening is the WebSocket moves
-                            // into the closing state (so `isClosed()` returns true) but it hasn't fully
-                            // closed yet so the `close` event doesn't fire. We could clean the code up a
-                            // bit with this knowledge if it's true.
-                            if (connection.isClosed()) {
-                                this._handleConnectionClose(context, connection);
-                            }
-                        }
-                    },
-                );
-            }, webSocketExpirationTimeoutMs / 2);
-        }
+        this._maybeStartExpirationInterval();
 
         serverSocket.addEventListener("close", () => {
             this._handleConnectionClose(
@@ -237,7 +201,7 @@ export class WebSocketServer<
         // @ts-expect-error: Why aren't my cloudflare types getting picked up properly?
         serverSocket.accept();
 
-        requestContext.tracer.log("WebSocket connected", {
+        connectRequestContext.tracer.log("WebSocket connected", {
             webSocket: {
                 connectionId: connection.id,
             },
@@ -254,11 +218,7 @@ export class WebSocketServer<
      */
     private _handleConnectionClose(
         context: ProcessContext,
-        connection: WebSocketServerConnectionWrapper<
-            MessageFromClient,
-            MessageFromServer,
-            Connection
-        >,
+        connection: WebSocketServerConnectionWrapperBase<Connection>,
     ) {
         const existingConnection = this._connections.get(connection.id);
         if (existingConnection && existingConnection === connection) {
@@ -327,6 +287,52 @@ export class WebSocketServer<
     }
 
     /**
+     * Send a message to connected clients besides the provided connection ID.
+     */
+    private sendMessageToOthers(
+        context: ProcessContext,
+        ourConnectionId: WebSocketConnectionId,
+        message: MessageFromServer,
+    ) {
+        const {span, finishSpan} = context.tracer.startSpan(
+            "Sending all other WebSocket connections a message",
+        );
+        span.addData({
+            webSocket: {
+                messageType: message.type,
+            },
+        });
+        context = context.clone({tracer: new TracerContextModule(span)});
+
+        try {
+            const serializedMessage = this._messageFromServerSchema.serialize({
+                type: "Message",
+                message,
+            });
+            const serializedMessageString = JSON.stringify(serializedMessage);
+
+            for (const connection of this._connections.values()) {
+                if (connection.id === ourConnectionId) continue;
+
+                // Don't send new messages to soft closed connections.
+                if (connection.isSoftClosed()) continue;
+
+                connection.dangerouslySendRawMessageEvenWhenSoftClosed(
+                    context,
+                    message.type,
+                    serializedMessageString,
+                );
+            }
+
+            finishSpan();
+        } catch (error) {
+            span.addException(error);
+            finishSpan();
+            throw error;
+        }
+    }
+
+    /**
      * Iterate through all connected clients.
      */
     public iterateAllConnections() {
@@ -359,13 +365,142 @@ export class WebSocketServer<
             throw error;
         }
     }
+
+    /**
+     * Creates a new test connection for our WebSocket server. Can only be used in
+     * Jest unit tests because it does not implement the full WebSocket
+     * client/server interface which only works in a trusted environment.
+     */
+    public connectForTest(
+        connectRequestContext: RequestContext,
+    ): WebSocketServerTestConnection<MessageFromClient, MessageFromServer, Connection> {
+        assert(typeof jest !== "undefined");
+
+        const sendMessage = (context: ProcessContext, message: MessageFromServer) => {
+            connection.sendMessage(message);
+        };
+
+        const sendMessageToOthers = (context: ProcessContext, message: MessageFromServer) => {
+            this.sendMessageToOthers(context, connection.id, message);
+        };
+
+        const iterateOtherConnections = (): Iterable<Connection> => {
+            return filterMapIterable(this._connections.values(), otherConnection =>
+                otherConnection.id !== connection.id && !otherConnection.isSoftClosed()
+                    ? otherConnection.connection
+                    : null,
+            );
+        };
+
+        const connectionProcessContext = this._processContext.tracer.withPropagatedData({
+            context: {accountId: connectRequestContext.auth.getAccountId()},
+        });
+
+        const connectionId = generateId<WebSocketConnectionId>();
+
+        const actualConnection = this._createConnection({
+            connectionId,
+            sendMessage,
+            sendMessageToOthers,
+            iterateOtherConnections,
+        });
+
+        const connection = new WebSocketServerTestConnectionWrapper({
+            id: connectionId,
+            processContext: connectionProcessContext,
+            messageFromClientSchema: this._messageFromClientSchema,
+            messageFromServerSchema: this._messageFromServerSchema,
+            connection: actualConnection,
+            sessionId: connectRequestContext.auth.getSessionId(),
+            sessionAccountId: connectRequestContext.auth.getAccountId(),
+        });
+
+        assert(!this._connections.has(connection.id));
+        this._connections.set(connection.id, connection);
+
+        this._maybeStartExpirationInterval();
+
+        connection.subscribeToClose(() => {
+            this._handleConnectionClose(
+                // Hopefully this is fired synchronously and we get the context object passed
+                // into our `close()` call.
+                contextForCloseEventListener ?? connectionProcessContext,
+                connection,
+            );
+        });
+
+        return {
+            id: connection.id,
+            connection: connection.connection,
+            sendMessage: message => connection.handleMessage(message),
+            takeMessages: () => connection.takeMessages(),
+            subscribeToMessages: listener => connection.subscribeToMessages(listener),
+            close: () => connection.close(),
+        };
+    }
+}
+
+/**
+ * WebSocket server connections are implemented either with a real WebSocket
+ * client or a test WebSocket client only available in unit tests.
+ */
+interface WebSocketServerConnectionWrapperBase<Connection> {
+    /**
+     * A unique identifier for this connection.
+     */
+    readonly id: WebSocketConnectionId;
+
+    /**
+     * The underlying connection object.
+     */
+    readonly connection: Connection;
+
+    /**
+     * Is the connection closed? When closed it accepts no more messages.
+     */
+    isClosed(): boolean;
+
+    /**
+     * Closes the connection. Does nothing if the connection is already closed.
+     */
+    close(context: ProcessContext, code?: number, reason?: string): void;
+
+    /**
+     * Is the connection soft closed? While soft closed we stop sending the
+     * connection new messages but wait to fully close until we've sent
+     * acknowledgements for any messages previously sent by the client. The client
+     * is responsible for fully closing the connection once it has received all of
+     * its acknowledgements.
+     */
+    isSoftClosed(): boolean;
+
+    /**
+     * Send a JSON stringified message to the connection. If the connection is
+     * closed this does nothing. If the connection is soft closed we still send
+     * this message! You should only be sending acknowledgements for previously
+     * sent messages to a soft closed client. So you should probably check
+     * `isSoftClosed()` before sending your message.
+     */
+    dangerouslySendRawMessageEvenWhenSoftClosed(
+        context: ProcessContext,
+        messageType: string,
+        message: string,
+    ): void;
+
+    /**
+     * The WebSocket server will try to occasionally expire connections that have
+     * gone offline. When the WebSocket server's expiration check timer triggers it
+     * calls this function. Does nothing if the connection is already closed.
+     */
+    maybeExpire(context: ProcessContext, currentTimeMs: number): void;
 }
 
 class WebSocketServerConnectionWrapper<
     MessageFromClient extends {type: string},
     MessageFromServer extends {type: string},
     Connection extends WebSocketServerConnectionBase<MessageFromClient>,
-> {
+> implements WebSocketServerConnectionWrapperBase<Connection>
+{
     public readonly id: WebSocketConnectionId;
     private readonly _processContext: ProcessContext;
     private readonly _socket: WebSocket;
@@ -663,6 +798,169 @@ class WebSocketServerConnectionWrapper<
         } finally {
             contextForCloseEventListener = previousContextForCloseEventListener;
         }
+    }
+}
+
+/**
+ * A connection object to be used for testing our WebSocket server.
+ */
+export interface WebSocketServerTestConnection<
+    MessageFromClient extends {type: string},
+    MessageFromServer extends {type: string},
+    Connection extends WebSocketServerConnectionBase<MessageFromClient>,
+> {
+    readonly id: WebSocketConnectionId;
+    readonly connection: Connection;
+
+    /**
+     * Send a message to the WebSocket connection as a client.
+     */
+    sendMessage(message: MessageFromClient): Promise<void>;
+
+    /**
+     * Get all messages sent by the WebSocket server to the client since the last
+     * `takeMessages()` call. Calling this function will clear the array so if
+     * you call it immediately it will be empty.
+     *
+     * If you have a subscriber with `subscribeToMessages()` then messages observed
+     * by that function will still show up in `takeMessages()`.
+     *
+     * This function allows you to pull new messages, `subscribeToMessages()` lets
+     * the server push new messages to you.
+     */
+    takeMessages(): Array<MessageFromServer>;
+
+    /**
+     * Subscribe to messages from the server as they are published. Returns a
+     * function that lets you unsubscribe.
+     */
+    subscribeToMessages(listener: (message: MessageFromServer) => void): () => void;
+
+    /**
+     * Close the connection. Does nothing if the connection is already closed.
+     */
+    close(): void;
+}
+
+class WebSocketServerTestConnectionWrapper<
+    MessageFromClient extends {type: string},
+    MessageFromServer extends {type: string},
+    Connection extends WebSocketServerConnectionBase<MessageFromClient>,
+> implements WebSocketServerConnectionWrapperBase<Connection>
+{
+    public readonly id: WebSocketConnectionId;
+    public readonly connection: Connection;
+    private readonly _processContext: ProcessContext;
+    private readonly _messageFromClientSchema: Schema<
+        WebSocketMessageFromClient<MessageFromClient>
+    >;
+    private readonly _messageFromServerSchema: Schema<
+        WebSocketMessageFromServer<MessageFromServer>
+    >;
+    private readonly _sessionId: SessionId;
+    private readonly _sessionAccountId: AccountId;
+    private _isClosed = false;
+    private readonly _closeEvent = new EventEmitter();
+    private _messages: Array<MessageFromServer> = [];
+    private readonly _messageEvent = new EventEmitter<MessageFromServer>();
+
+    constructor({
+        id,
+        processContext,
+        messageFromClientSchema,
+        messageFromServerSchema,
+        connection,
+        sessionId,
+        sessionAccountId,
+    }: {
+        id: WebSocketConnectionId;
+        processContext: ProcessContext;
+        messageFromClientSchema: Schema<WebSocketMessageFromClient<MessageFromClient>>;
+        messageFromServerSchema: Schema<WebSocketMessageFromServer<MessageFromServer>>;
+        connection: Connection;
+        sessionId: SessionId;
+        sessionAccountId: AccountId;
+    }) {
+        // Can only use test connections in Jest.
+        assert(typeof jest !== "undefined");
+
+        this.id = id;
+        this.connection = connection;
+        this._processContext = processContext;
+        this._messageFromClientSchema = messageFromClientSchema;
+        this._messageFromServerSchema = messageFromServerSchema;
+        this._sessionId = sessionId;
+        this._sessionAccountId = sessionAccountId;
+    }
+
+    public async handleMessage(message: MessageFromClient): Promise<void> {
+        await this._processContext.tracer.withSpan(
+            "Received test WebSocket message",
+            async (context, span) => {
+                // TODO(calebmer): Can we at least give this some kind of TTL in-memory cache??
+                const session = await Session.get(context, this._sessionId, this._sessionAccountId);
+                if (!session)
+                    throw new NotFoundError("Session was revoked after the connection began");
+
+                await context.with(
+                    {
+                        cache: new CacheContextModule(),
+                        auth: new AuthenticatedAuthContextModule(session),
+                    },
+                    async (context: RequestContext) => {
+                        // Thrown errors should be handled by the test. We do not send acknowledgement
+                        // messages in test connections.
+                        await this.connection.handleMessage(context, message, span);
+                    },
+                );
+            },
+        );
+    }
+
+    public takeMessages(): Array<MessageFromServer> {
+        const messages = this._messages;
+        this._messages = [];
+        return messages;
+    }
+
+    public subscribeToMessages(listener: (message: MessageFromServer) => void) {
+        return this._messageEvent.subscribe(listener);
+    }
+
+    public isClosed() {
+        return this._isClosed;
+    }
+
+    public close() {
+        if (this._isClosed) return;
+        this._isClosed = true;
+        this._closeEvent.emit();
+    }
+
+    public subscribeToClose(listener: () => void) {
+        return this._closeEvent.subscribe(listener);
+    }
+
+    public isSoftClosed() {
+        return this.isClosed();
+    }
+
+    public sendMessage(message: MessageFromServer) {
+        this._messages.push(message);
+        this._messageEvent.emit(message);
+    }
+
+    public dangerouslySendRawMessageEvenWhenSoftClosed(
+        context: ProcessContext,
+        messageType: string,
+        rawMessage: string,
+    ) {
+        const message = this._messageFromServerSchema.deserialize(JSON.parse(rawMessage));
+        if (message.type === "Message") this.sendMessage(message.message);
+    }
+
+    public maybeExpire() {
+        // Test connections never expire...
     }
 }
 

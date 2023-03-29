@@ -6,7 +6,7 @@ import {
     DocumentCommentThreadId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types";
-import {ContentReferencesSchema} from "~/shared/models/content_references";
+import {DocumentContentReferencesSchema} from "~/shared/models/document_model";
 import {ProsemirrorSelectionSchema} from "~/shared/prosemirror/prosemirror_selection_schema";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 
@@ -75,7 +75,7 @@ export const DocumentCollaborationMessageFromServerSchema = Schema.union({
                 clientId: Schema.id<ContentEditorClientId>(),
             }),
         ),
-        stepsContentReferences: ContentReferencesSchema,
+        stepsContentReferences: DocumentContentReferencesSchema,
         presenceStates: Schema.array(
             Schema.object({
                 connectionId: Schema.id<WebSocketConnectionId>(),
@@ -104,7 +104,7 @@ export const DocumentCollaborationMessageFromServerSchema = Schema.union({
         type: Schema.value("UpdateContentWithoutPersistence"),
         newVersion: Schema.integer,
         steps: Schema.array(DocumentContentStepSchema),
-        stepsContentReferences: ContentReferencesSchema,
+        stepsContentReferences: DocumentContentReferencesSchema,
         clientId: Schema.id<ContentEditorClientId>(),
         /**
          * Atomically update this other presence state in the same action as we update

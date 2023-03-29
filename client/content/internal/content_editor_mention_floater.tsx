@@ -143,10 +143,10 @@ export function ContentEditorMentionFloater({
                 range.to,
                 view.state.schema.node("mention", {mention}),
             ),
-            contentReferences => ({
-                ...contentReferences,
-                accountById: new Map([...contentReferences.accountById, [account.id, account]]),
-            }),
+            {
+                type: "AddAccount",
+                account,
+            },
         );
 
         // If, as a convenience, we shortened the mention then we want undo (cmd-z) to

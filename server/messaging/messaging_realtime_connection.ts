@@ -1,6 +1,6 @@
 import {ProcessContext} from "~/server/dynamo/context/process_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
-import {getContentReferencesFromNode} from "~/server/dynamo/helpers/get_content_references";
+import {getContentReferencesForNode} from "~/server/dynamo/helpers/get_content_references";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint";
 import {
     BackfillMessagesFunction,
@@ -318,7 +318,7 @@ export class MessagingRealtimeConnection<
                         roomKey: this._roomKey,
                     }),
                     context.auth.getAccount(),
-                    getContentReferencesFromNode(context, this._spaceId, realtimeMessage.content),
+                    getContentReferencesForNode(context, this._spaceId, realtimeMessage.content),
                 ]);
 
                 await messagingRealtimeCreateMessageBeforeSendTestCheckpoint.waitForTest(
@@ -366,7 +366,7 @@ export class MessagingRealtimeConnection<
                         ...realtimeMessage,
                         roomKey: this._roomKey,
                     }),
-                    getContentReferencesFromNode(context, this._spaceId, realtimeMessage.content),
+                    getContentReferencesForNode(context, this._spaceId, realtimeMessage.content),
                 ]);
 
                 const messageChange: MessageChange = {

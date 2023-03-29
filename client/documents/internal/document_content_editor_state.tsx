@@ -22,7 +22,10 @@ import {Mapping, Step, StepMap} from "prosemirror-transform";
 import {useCallback, useEffect, useMemo, useReducer, useRef, useState} from "react";
 import {useWebSocket} from "~/client/cloudflare/use_web_socket";
 import {ContentEditorPhantomSelection} from "~/client/content/content_editor";
-import {ContentEditorState} from "~/client/content/content_editor_state";
+import {
+    ContentEditorReferencesAction,
+    ContentEditorState,
+} from "~/client/content/content_editor_state";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
 import {
@@ -49,8 +52,12 @@ import {
     DocumentCommentThreadId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types";
-import {ContentReferences} from "~/shared/models/content_references";
-import {DocumentModel} from "~/shared/models/document_model";
+import {
+    DocumentContentReferences,
+    DocumentContentWithReferences,
+    DocumentModel,
+    mergeDocumentContentReferences,
+} from "~/shared/models/document_model";
 import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema";
 
 export const createDocumentCommentThreadMetaKey = "createCommentThread";
@@ -67,7 +74,7 @@ export type DocumentContentEditorState = {
     /**
      * The current state of the editor.
      */
-    readonly editorState: ContentEditorState<DocumentContent>;
+    readonly editorState: ContentEditorState<DocumentContentWithReferences>;
 
     /**
      * Remember some number of steps in our state to map phantom selections from
@@ -118,12 +125,34 @@ export type DocumentContentEditorState = {
     >;
 };
 
+export function reduceDocumentContentReferences(
+    references: DocumentContentReferences,
+    action: ContentEditorReferencesAction<DocumentContentReferences>,
+): DocumentContentReferences {
+    switch (action.type) {
+        case "Merge":
+            return mergeDocumentContentReferences(references, action.references);
+        case "AddAccount": {
+            return {
+                ...references,
+                accountById: new Map([
+                    ...references.accountById,
+                    [action.account.id, action.account],
+                ]),
+            };
+        }
+        default:
+            throw exhaustive(action);
+    }
+}
+
 export function getInitialDocumentContentEditorState(
     initialDocument: DocumentModel,
 ): DocumentContentEditorState {
-    const editorState = ContentEditorState.createCollaborative<DocumentContent>({
+    const editorState = ContentEditorState.createCollaborative<DocumentContentWithReferences>({
         version: initialDocument.version,
         content: initialDocument.content,
+        reduceReferences: reduceDocumentContentReferences,
     });
 
     return {
@@ -145,14 +174,14 @@ export type DocumentContentEditorAction =
 
 type EditDocumentContentEditorAction = {
     readonly type: "Edit";
-    readonly editorState: ContentEditorState<DocumentContent>;
+    readonly editorState: ContentEditorState<DocumentContentWithReferences>;
 };
 
 type ReceiveStepsDocumentContentEditorAction = {
     readonly type: "ReceiveSteps";
     readonly newVersion: number;
     readonly steps: ReadonlyArray<{readonly step: Step; readonly clientId: ContentEditorClientId}>;
-    readonly stepsContentReferences: ContentReferences;
+    readonly stepsContentReferences: DocumentContentReferences;
 };
 
 type AugmentRememberedStepsDocumentContentEditorAction = {
@@ -333,7 +362,7 @@ function actuallyReduceDocumentContentEditorState(
             // We discard steps when we don't need them to rebase presence states.
             let rememberedSteps;
             {
-                let content = new Lazy(() => oldState.editorState.getContentWithoutSendableSteps());
+                let content = new Lazy(() => oldState.editorState.getDocWithoutSendableSteps());
 
                 const newRememberedSteps = steps.map(({step}) => {
                     const previousContent = content;
@@ -382,7 +411,7 @@ function actuallyReduceDocumentContentEditorState(
 
             let content =
                 oldState.rememberedSteps[oldState.rememberedSteps.length - 1]?.contentBeforeStep ??
-                new Lazy(() => oldState.editorState.getContentWithoutSendableSteps());
+                new Lazy(() => oldState.editorState.getDocWithoutSendableSteps());
 
             const newRememberedSteps = [...rememberInvertedSteps].reverse().map(invertedStep => {
                 const previousContent = content;
@@ -719,7 +748,7 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
                 presenceStates.push({
                     connectionId,
                     selection: presenceState.selection.getAndMaybeDeserialize(
-                        state.editorState.getContentWithoutSendableSteps(),
+                        state.editorState.getDocWithoutSendableSteps(),
                     ),
                 });
             }
@@ -839,7 +868,7 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
 
     return {
         editorState: state.editorState,
-        onChangeEditorState: (editorState: ContentEditorState<DocumentContent>) =>
+        onChangeEditorState: (editorState: ContentEditorState<DocumentContentWithReferences>) =>
             dispatch([{type: "Edit", editorState}]),
         phantomSelections,
     };

@@ -20,8 +20,10 @@ import {ContentProsemirrorSchema} from "~/shared/content/content_schema";
 import {InternalError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {generateId, isId} from "~/shared/id/id";
 import {ContentEditorClientId} from "~/shared/id/types/id_types";
+import {AccountModel} from "~/shared/models/account_model";
 import {
     ContentReferences,
     ContentWithReferences,
@@ -29,13 +31,20 @@ import {
 } from "~/shared/models/content_references";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range";
 
-function buildPlugins(schema: ContentProsemirrorSchema, contentReferences: ContentReferences) {
+function buildPlugins<Content extends ContentWithReferences>(
+    schema: ContentProsemirrorSchema,
+    references: Content["references"],
+    reduceReferences: (
+        references: Content["references"],
+        action: ContentEditorReferencesAction<Content["references"]>,
+    ) => Content["references"],
+) {
     return [
         history(),
         buildInputRulesPlugin(schema),
         buildKeymapPlugin(schema),
         contentEditorFloaterStatePlugin(),
-        contentEditorReferencesPlugin(contentReferences),
+        contentEditorReferencesPlugin(references, reduceReferences),
         contentEditorQuickUndoPlugin(),
     ];
 }
@@ -48,17 +57,61 @@ function buildPlugins(schema: ContentProsemirrorSchema, contentReferences: Conte
  * Wraps around ProseMirror's own `EditorState` and provides a controlled
  * interface to the outside world.
  */
-export class ContentEditorState<Content extends Node> {
+export class ContentEditorState<Content extends ContentWithReferences> {
     /**
      * Creates a new state for our content editor.
+     *
+     * Simplified editor state creation for content with a normal
+     * `ContentReferences` object. You need to use `_create()` or
+     * `createCollaborative()` to customize the `ContentReferences` type.
      */
-    public static create<Content extends Node>(
-        content: ContentWithReferences,
-        {selectionAt = "start"}: {selectionAt?: "start" | "end"} = {},
-    ): ContentEditorState<Content> {
+    public static create<ContentDoc extends Node>(
+        content: ContentWithReferences & {doc: ContentDoc},
+        options: {
+            selectionAt?: "start" | "end";
+        } = {},
+    ): ContentEditorState<ContentWithReferences & {doc: ContentDoc}> {
+        return ContentEditorState._create({
+            ...options,
+            content,
+            reduceReferences: reduceContentReferences,
+        });
+    }
+
+    /**
+     * Creates a new state for our content editor allowing the user to customize
+     * the type of `ContentReferences`.
+     */
+    private static _create<Content extends ContentWithReferences>({
+        content,
+        reduceReferences,
+        selectionAt = "start",
+    }: {
+        /** The initial content of the editor. */
+        content: Content;
+
+        /**
+         * The editor may dispatch actions to update the content's references. This
+         * function implements the reducer for those actions. If the type of your
+         * references is `ContentReferences` you may use the provided
+         * `reduceContentReferences()` function. If you are not using
+         * `ContentReferences` (e.g. you're using `DocumentContentReferences`) then you
+         * need to implement this function yourself.
+         */
+        reduceReferences: (
+            references: Content["references"],
+            action: ContentEditorReferencesAction<Content["references"]>,
+        ) => Content["references"];
+
+        /**
+         * Where should we put our selection when the user first focuses the
+         * content editor?
+         */
+        selectionAt?: "start" | "end";
+    }): ContentEditorState<Content> {
         assert(content.doc.type.schema.topNodeType === content.doc.type);
 
-        const plugins = buildPlugins(content.doc.type.schema, content.references);
+        const plugins = buildPlugins(content.doc.type.schema, content.references, reduceReferences);
 
         return new ContentEditorState(
             EditorState.create({
@@ -75,9 +128,10 @@ export class ContentEditorState<Content extends Node> {
     /**
      * Creates a new collaborative state for our content editor.
      */
-    public static createCollaborative<Content extends Node>({
+    public static createCollaborative<Content extends ContentWithReferences>({
         version,
         content,
+        reduceReferences,
     }: {
         /**
          * The content version for collaborative editing.
@@ -88,12 +142,25 @@ export class ContentEditorState<Content extends Node> {
          * The initial content in the editor. If no content is provided then we
          * start with empty content.
          */
-        content: ContentWithReferences;
+        content: Content;
+
+        /**
+         * The editor may dispatch actions to update the content's references. This
+         * function implements the reducer for those actions. If the type of your
+         * references is `ContentReferences` you may use the provided
+         * `reduceContentReferences()` function. If you are not using
+         * `ContentReferences` (e.g. you're using `DocumentContentReferences`) then you
+         * need to implement this function yourself.
+         */
+        reduceReferences: (
+            references: Content["references"],
+            action: ContentEditorReferencesAction<Content["references"]>,
+        ) => Content["references"];
     }): ContentEditorState<Content> {
         assert(content.doc.type.schema.topNodeType === content.doc.type);
 
         const plugins = [
-            ...buildPlugins(content.doc.type.schema, content.references),
+            ...buildPlugins(content.doc.type.schema, content.references, reduceReferences),
             collab({
                 // Every client gets its own ID generated by the client. If a bad actor
                 // client impersonates another, known, client they can cause some annoying bugs
@@ -131,15 +198,15 @@ export class ContentEditorState<Content extends Node> {
      * Our state contains more information than just the content. For instance,
      * the cursor position.
      */
-    public getContent(): ContentWithReferences & {doc: Content} {
+    public getContent(): Content {
         return {
-            doc: this._state.doc as Content,
+            doc: this._state.doc,
             references: getContentEditorReferences(this._state),
-        };
+        } as Content;
     }
 
-    public getDoc(): Content {
-        return this._state.doc as Content;
+    public getDoc(): Content["doc"] {
+        return this._state.doc as Content["doc"];
     }
 
     /**
@@ -236,7 +303,7 @@ export class ContentEditorState<Content extends Node> {
         // We require you to pass in content references because if you have user
         // generated steps then there may also be references associated with those
         // steps you need to provide.
-        stepsContentReferences: ContentReferences,
+        stepsContentReferences: Content["references"],
     ): ContentEditorState<Content> {
         let state: ContentEditorState<Content> = this;
         let stepTransaction: Array<{step: Step; clientId: ContentEditorClientId}> = [];
@@ -269,7 +336,7 @@ export class ContentEditorState<Content extends Node> {
 
     private _receiveSteps(
         steps: Iterable<{step: Step; clientId: ContentEditorClientId}>,
-        stepsContentReferences: ContentReferences | null,
+        stepsContentReferences: Content["references"] | null,
     ): ContentEditorState<Content> {
         assert(this.isCollaborative());
 
@@ -301,41 +368,42 @@ export class ContentEditorState<Content extends Node> {
         });
 
         if (stepsContentReferences !== null) {
-            updateContentEditorReferences(transaction, contentReferences =>
-                mergeContentReferences(contentReferences, stepsContentReferences),
-            );
+            updateContentEditorReferences(transaction, {
+                type: "Merge",
+                references: stepsContentReferences,
+            });
         }
 
         return new ContentEditorState(this._state.apply(transaction));
     }
 
-    private _contentWithoutSendableSteps: Content | null = null;
+    private _docWithoutSendableSteps: Content["doc"] | null = null;
 
     /**
      * Get the underlying content as if there are no unconfirmed steps.
      *
      * This is the content as the server currently sees it.
      */
-    public getContentWithoutSendableSteps(): Content {
+    public getDocWithoutSendableSteps(): Content["doc"] {
         assert(this.isCollaborative());
 
-        if (!this._contentWithoutSendableSteps) {
+        if (!this._docWithoutSendableSteps) {
             assert(collabPluginKey);
             const {unconfirmed} = collabPluginKey.getState(this._state);
 
-            let content = this._state.doc;
+            let doc = this._state.doc;
 
             for (let i = unconfirmed.length - 1; i >= 0; i--) {
                 const invertedStep: Step = unconfirmed[i].inverted;
-                const stepResult = invertedStep.apply(content);
+                const stepResult = invertedStep.apply(doc);
                 assert(stepResult.doc);
-                content = stepResult.doc;
+                doc = stepResult.doc;
             }
 
-            this._contentWithoutSendableSteps = content as Content;
+            this._docWithoutSendableSteps = doc as Content["doc"];
         }
 
-        return this._contentWithoutSendableSteps;
+        return this._docWithoutSendableSteps;
     }
 }
 
@@ -515,17 +583,22 @@ const contentEditorReferencesPluginKey = new PluginKey<ContentReferences>(
 
 // We store content references in a plugin on our `ContentEditorState` so that
 // it is updated in lockstep with the underlying doc.
-function contentEditorReferencesPlugin(initialContentReferences: ContentReferences) {
-    return new Plugin<ContentReferences>({
+function contentEditorReferencesPlugin<References extends ContentReferences>(
+    initialReferences: References,
+    reduceReferences: (
+        references: References,
+        action: ContentEditorReferencesAction<References>,
+    ) => References,
+) {
+    return new Plugin<References>({
         key: contentEditorReferencesPluginKey,
         state: {
-            init: () => initialContentReferences,
-            apply: (transaction, contentReferences, oldState, newState) => {
-                const transactionUpdate:
-                    | ((contentReferences: ContentReferences) => ContentReferences)
-                    | undefined = transaction.getMeta(contentEditorReferencesPluginKey);
+            init: () => initialReferences,
+            apply: (transaction, references, oldState, newState) => {
+                const action: ContentEditorReferencesAction<References> | undefined =
+                    transaction.getMeta(contentEditorReferencesPluginKey);
 
-                return transactionUpdate ? transactionUpdate(contentReferences) : contentReferences;
+                return action ? reduceReferences(references, action) : references;
             },
         },
     });
@@ -535,11 +608,46 @@ export function getContentEditorReferences(state: EditorState): ContentReference
     return assertExists(contentEditorReferencesPluginKey.getState(state));
 }
 
-export function updateContentEditorReferences(
+export function updateContentEditorReferences<References extends ContentReferences>(
     transaction: Transaction,
-    update: (contentReferences: ContentReferences) => ContentReferences,
+    action: ContentEditorReferencesAction<References>,
 ): Transaction {
-    return transaction.setMeta(contentEditorReferencesPluginKey, update);
+    return transaction.setMeta(contentEditorReferencesPluginKey, action);
+}
+
+export type ContentEditorReferencesAction<References extends ContentReferences> =
+    | ContentEditorReferencesMergeAction<References>
+    | ContentEditorReferencesAddAccountAction;
+
+export type ContentEditorReferencesMergeAction<References extends ContentReferences> = {
+    readonly type: "Merge";
+    readonly references: References;
+};
+
+export type ContentEditorReferencesAddAccountAction = {
+    readonly type: "AddAccount";
+    readonly account: AccountModel;
+};
+
+export function reduceContentReferences(
+    references: ContentReferences,
+    action: ContentEditorReferencesAction<ContentReferences>,
+): ContentReferences {
+    switch (action.type) {
+        case "Merge":
+            return mergeContentReferences(references, action.references);
+        case "AddAccount": {
+            return {
+                ...references,
+                accountById: new Map([
+                    ...references.accountById,
+                    [action.account.id, action.account],
+                ]),
+            };
+        }
+        default:
+            throw exhaustive(action);
+    }
 }
 
 const contentEditorQuickUndoPluginKey = new PluginKey<Transaction | null>("contentEditorQuickUndo");
