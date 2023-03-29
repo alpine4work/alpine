@@ -1,12 +1,9 @@
 import {Command} from "prosemirror-state";
-import {useEffect, useMemo, useRef} from "react";
+import {useEffect, useRef} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
 import {Box} from "~/client/design/box";
 import {documentContentClassName} from "~/client/documents/document_content_view";
-import {
-    DocumentCommentThreadDecoration,
-    DocumentContentEditorSideDecorations,
-} from "~/client/documents/internal/document_content_editor_side_decorations";
+import {DocumentContentEditorSideDecorations} from "~/client/documents/internal/document_content_editor_side_decorations";
 import {
     createDocumentCommentThreadMetaKey,
     useDocumentContentEditorState,
@@ -18,13 +15,9 @@ import {
     DocumentContentProsemirrorSchema,
 } from "~/shared/content/document_content_schema";
 import {createSimpleMessageContent} from "~/shared/content/message_content_schema";
-import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
-import {assertId, generateId} from "~/shared/id/id";
+import {generateId} from "~/shared/id/id";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
 import {DocumentModel} from "~/shared/models/document_model";
-import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range";
 
 export function DocumentContentEditor({

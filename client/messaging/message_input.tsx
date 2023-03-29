@@ -84,11 +84,7 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
     const {currentAccount} = useSpaceContext();
     const editorRef = useRef<ContentEditorRef>(null);
     const [state, setState] = useState(
-        () =>
-            stateRef?.current ??
-            ContentEditorState.create<MessageContentWithReferences>(
-                emptyMessageContentWithReferences,
-            ),
+        () => stateRef?.current ?? ContentEditorState.create(emptyMessageContentWithReferences),
     );
 
     useLayoutEffectWithoutServerSideWarning(() => {

@@ -1,7 +1,7 @@
 import {CaretDown} from "@phosphor-icons/react";
 import {useEffect, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
-import {ContentEditorState, reduceContentReferences} from "~/client/content/content_editor_state";
+import {ContentEditorState} from "~/client/content/content_editor_state";
 import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
@@ -209,11 +209,7 @@ function ChannelEditDescriptionModal({
         state: ContentEditorState<MessageContentWithReferences>;
         hasContentChanged: boolean;
     }>(() => ({
-        state: ContentEditorState.create({
-            content: channel.description,
-            reduceReferences: reduceContentReferences,
-            selectionAt: "end",
-        }),
+        state: ContentEditorState.create(channel.description, {selectionAt: "end"}),
         hasContentChanged: false,
     }));
     const [shouldConfirmClose, setShouldConfirmClose] = useState(false);

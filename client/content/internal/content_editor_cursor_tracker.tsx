@@ -94,7 +94,7 @@ export function useContentEditorTracker({
             // Get our local element's offset due to scrolling.
             {
                 let node: Node | null = localRef.current;
-                while (node !== null) {
+                while (node !== null && node !== localRef.current.offsetParent) {
                     if (node instanceof HTMLElement) scrollOffset += node.scrollTop;
                     node = node.parentNode;
                 }

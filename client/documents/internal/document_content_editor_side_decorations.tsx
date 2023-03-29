@@ -7,6 +7,7 @@ import {useRemPx} from "~/client/design/helpers/use_rem_px";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {convertRemLengthToPx, spacing} from "~/shared/design/spacing";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
 import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array";
@@ -95,26 +96,38 @@ function DocumentContentEditorSideDecorationsInner({
             });
         }
 
-        const containerElement = assertExists(containerRef.current);
-        const editor = assertExists(editorRef.current);
+        const run = () => {
+            const containerElement = assertExists(containerRef.current);
+            const editor = assertExists(editorRef.current);
 
-        const {decorationByMarkTop} = collectDecorationByMarkTop(
-            {
-                containerRect: containerElement.getBoundingClientRect(),
-                editor,
-                decorationByMarkTop: new Map(),
-            },
-            content.doc,
-        );
+            const {decorationByMarkTop} = collectDecorationByMarkTop(
+                {
+                    containerRect: containerElement.getBoundingClientRect(),
+                    editor,
+                    decorationByMarkTop: new Map(),
+                },
+                content.doc,
+            );
 
-        setDecorationByMarkTop(previousDecorationByMarkTop => {
-            // Often the document will change but our decorations will not change. Do not
-            // re-render the component if our decorations did not change.
-            if (isDeepEqual(previousDecorationByMarkTop, decorationByMarkTop))
-                return previousDecorationByMarkTop;
+            setDecorationByMarkTop(previousDecorationByMarkTop => {
+                // Often the document will change but our decorations will not change. Do not
+                // re-render the component if our decorations did not change.
+                if (isDeepEqual(previousDecorationByMarkTop, decorationByMarkTop))
+                    return previousDecorationByMarkTop;
 
-            return decorationByMarkTop;
+                return decorationByMarkTop;
+            });
+        };
+
+        // Run in a microtask so the parent ref can populate.
+        let isCancelled = false;
+        scheduleMicrotask(() => {
+            if (isCancelled) return;
+            run();
         });
+        return () => {
+            isCancelled = true;
+        };
     }, [containerRef, content.doc, editorRef, shouldRenderCommentCount]);
 
     const suffixByKey = new Map<string, {suffix: number}>();

@@ -1,6 +1,9 @@
 import {jwtVerify} from "jose";
 import {createAwsContextModulesFromEnv} from "~/server/aws/create_aws_context_modules_from_env";
-import {WebSocketServerTestConnection} from "~/server/cloudflare/web_socket_server";
+import {
+    WebSocketServerConnectionBase,
+    WebSocketServerTestConnection,
+} from "~/server/cloudflare/web_socket_server";
 import {Session} from "~/server/dynamo/accounts_table";
 import {UnauthenticatedAuthContextModule} from "~/server/dynamo/context/auth_context_module";
 import {ProcessContext, ProcessContextModules} from "~/server/dynamo/context/process_context";
@@ -55,7 +58,11 @@ export function createDurableObject<
         fetch(context: RequestContext, request: Request): MaybePromise<Response>;
         connectForTest?(
             context: RequestContext,
-        ): WebSocketServerTestConnection<{type: string}, {type: string}>;
+        ): WebSocketServerTestConnection<
+            {type: string},
+            {type: string},
+            WebSocketServerConnectionBase<{type: string}>
+        >;
     },
 >({
     serviceName,

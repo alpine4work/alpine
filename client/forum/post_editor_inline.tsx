@@ -15,11 +15,7 @@ import {RemLength} from "~/shared/design/spacing";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {ChannelModel} from "~/shared/models/channel_model";
-import {
-    PostContentWithReferences,
-    PostModel,
-    emptyPostContentWithReferences,
-} from "~/shared/models/post_model";
+import {PostModel, emptyPostContentWithReferences} from "~/shared/models/post_model";
 import {createPost} from "~/shared/rpc/forum_rpc_definitions";
 import {sprinkles} from "~/shared/styles/styles";
 
@@ -43,7 +39,7 @@ export function PostEditorInline({
     const [phantomContentRef, phantomContentSize] = useResizeObserver();
     const editorRef = useRef<ContentEditorRef>(null);
     const [state, setState] = useState(() =>
-        ContentEditorState.create<PostContentWithReferences>(emptyPostContentWithReferences),
+        ContentEditorState.create(emptyPostContentWithReferences),
     );
     const [isPending, setIsPending] = useState(false);
 
