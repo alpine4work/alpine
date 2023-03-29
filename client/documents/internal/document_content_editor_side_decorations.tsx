@@ -236,8 +236,8 @@ function DocumentContentEditorCommentThreadSideDecoration({
                 height: markHeight,
             }}
         >
-            <Box display="flex" alignItems="center" gap="0.5" color="grey-50">
-                <ChatCircleText size={spacing["3"]} color={colorSchemeVars["grey-40"]} />
+            <Box display="flex" alignItems="center" gap="0.5" color="grey-40">
+                <ChatCircleText size={spacing["4"]} color={colorSchemeVars["grey-30"]} />
                 {commentCount <= 99 ? commentCount : "99+"}
             </Box>
             {shouldRenderCommentAvatars && (

@@ -12,6 +12,7 @@ import {
 import {contentStructuralProsemirrorNodeSpecs} from "~/shared/content/content_schema_extra";
 import {HighlightColor, isHighlightColor} from "~/shared/design/highlight_color";
 import {assert} from "~/shared/helpers/control/assert";
+import {isId} from "~/shared/id/id";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
 import {createSchemaForProsemirrorSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema";
 import {Schema} from "~/shared/schema/schema";
@@ -20,6 +21,7 @@ import {contentSchemaStyles} from "~/shared/styles/styles";
 const {
     checkListItemCheckedClassName,
     highlightClassNameByColor,
+    commentClassName,
     listItemClassName,
     listItemIndentationVar,
     titleClassName,
@@ -137,6 +139,9 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
                 {
                     tag: "mark",
                     getAttrs: node => {
+                        // If this is a `<mark>` for a comment then don't treat it as a highlight.
+                        if (node instanceof HTMLElement && node.dataset.comment) return false;
+
                         const attrs: {[key: string]: unknown} = {};
 
                         if (
@@ -171,10 +176,35 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
                 },
             },
             inclusive: false,
-            // TODO(calebmer): Implement!
-            toDOM: node => ["mark", {}, 0],
-            // TODO(calebmer): Implement!
-            parseDOM: [],
+            toDOM: node => [
+                "mark",
+                {class: commentClassName, "data-comment": node.attrs.commentThreadId},
+                0,
+            ],
+            parseDOM: [
+                {
+                    tag: "mark",
+                    getAttrs: node => {
+                        const attrs: {[key: string]: unknown} = {};
+
+                        // TODO(calebmer): If we are copying text with a comment from a different
+                        // document, ideally we would remove the marks when pasting. So we don't try to
+                        // load a comment that doesn't exist all the time. To do this we should include
+                        // the document ID in `data-comment` as well.
+                        if (
+                            node instanceof HTMLElement &&
+                            node.dataset.comment &&
+                            isId<DocumentCommentThreadId>(node.dataset.comment)
+                        ) {
+                            attrs.commentThreadId = node.dataset.comment;
+                        } else {
+                            return false;
+                        }
+
+                        return attrs;
+                    },
+                },
+            ],
         },
     },
 });

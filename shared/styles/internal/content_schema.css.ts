@@ -455,6 +455,16 @@ function extrapolateHighlightColor(
     return Color.rgb(red, green, blue, opacity).hexa();
 }
 
+export const commentClassName = style({
+    color: "inherit",
+    backgroundColor: Color(colors["yellow-50"]).fade(0.7).hexa(),
+    selectors: {
+        [`${darkColorSchemeSelector} &`]: {
+            backgroundColor: Color(colors["yellow-60"]).fade(0.7).hexa(),
+        },
+    },
+});
+
 export const linkClassName = style({
     color: colorSchemeVars["theme-60"],
     textDecorationLine: "underline",
