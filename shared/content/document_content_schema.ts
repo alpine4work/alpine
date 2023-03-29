@@ -145,6 +145,8 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
                             isHighlightColor(node.dataset.highlightColor)
                         ) {
                             attrs.color = node.dataset.highlightColor;
+                        } else {
+                            attrs.color = HighlightColor.Orange;
                         }
 
                         return attrs;

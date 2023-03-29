@@ -52,11 +52,11 @@ import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_conte
 import {ThemeColor} from "~/shared/design/theme_colors";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol";
 import {generateId} from "~/shared/id/id";
 import {ContentWithReferences} from "~/shared/models/content_references";
+import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range";
 import {
     colorSchemeVars,
@@ -104,10 +104,19 @@ function unwrap(
 export type ContentEditorRef = {
     focus(): void;
     blur(): void;
+
     /**
      * Select all content in the editor.
      */
     selectAll(): void;
+
+    /**
+     * Get the coordinates of the provided position. Directly calls
+     * [`EditorView.coordsAtPos()`][1].
+     *
+     * [1]: https://prosemirror.net/docs/ref/#view.EditorView.coordsAtPos
+     */
+    coordsAtPos(pos: number): {left: number; right: number; top: number; bottom: number};
 };
 
 const ContentEditorForwardRef = forwardRef(ContentEditorWrapper) as <
@@ -347,6 +356,10 @@ function ContentEditor<Content extends ContentWithReferences>(
             selectAll: () => {
                 const view = assertExists(viewRef.current);
                 view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc)));
+            },
+            coordsAtPos: pos => {
+                const view = assertExists(viewRef.current);
+                return view.coordsAtPos(pos);
             },
         }),
         [],
@@ -617,7 +630,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             decorations: state => {
                 let decorationSet = DecorationSet.empty;
 
-                decorationSet = addEmojiDecorations(decorationSet, state);
+                decorationSet = addEmojiDecorations(decorationSet, state.doc);
 
                 for (const decorationCallback of decorationCallbacks) {
                     decorationSet = decorationCallback(decorationSet, state);
@@ -1143,101 +1156,25 @@ function createSelectionDecorations(doc: Node, selection: Selection, color: stri
  *
  * Since traversing the entire doc can be expensive for large docs we have a
  * caching layer that takes advantage of structural sharing in the immutable
- * doc representation. Each node caches a function that adds its decorations.
- * The function takes the current doc and current offset of the node (since a
- * node's parents may change during editing). If a node has no emoji or its
- * children have no emojis then we cache null to avoid iterating back down that
- * part of the tree again.
+ * doc representation.
  */
-function addEmojiDecorations(decorationSet: DecorationSet, state: EditorState): DecorationSet {
-    const addDecorations = traverseNodeForEmojiDecorations(state.doc);
-    if (!addDecorations) return decorationSet;
-    return addDecorations(decorationSet, state.doc, -1);
-}
+const addEmojiDecorations = createProsemirrorIncrementalReducer<DecorationSet>(node => {
+    if (!node.isText) return null;
 
-const emojiDecorationCache = new WeakMap<
-    Node,
-    ((decorationSet: DecorationSet, doc: Node, offset: number) => DecorationSet) | null
->();
+    const text = node.text!;
+    const emojis = Array.from(iterateEmojis(text));
 
-function traverseNodeForEmojiDecorations(
-    node: Node,
-): ((decorationSet: DecorationSet, doc: Node, offset: number) => DecorationSet) | null {
-    return getOrSetDefaultMapValue(emojiDecorationCache, node, () => {
-        if (node.isText) {
-            const text = node.text!;
-            const emojis = Array.from(iterateEmojis(text));
+    if (emojis.length === 0) return null;
 
-            if (emojis.length === 0) return null;
-
-            return (decorations, doc, offset) => {
-                return decorations.add(
-                    doc,
-                    emojis.map(({index, emoji}) =>
-                        Decoration.inline(offset + index, offset + index + emoji.length, {
-                            nodeName: "span",
-                            style: `font-family:${emojiFontFamily}`,
-                        }),
-                    ),
-                );
-            };
-        } else {
-            const children: Array<
-                | {
-                      isDecorated: true;
-                      childNode: Node;
-                      addDecorations: (
-                          decorationSet: DecorationSet,
-                          doc: Node,
-                          offset: number,
-                      ) => DecorationSet;
-                  }
-                | {
-                      isDecorated: false;
-                      undecoratedNodeSize: number;
-                  }
-            > = [];
-
-            for (let childIndex = 0; childIndex < node.childCount; childIndex++) {
-                const childNode = node.child(childIndex);
-                const addDecorations = traverseNodeForEmojiDecorations(childNode);
-
-                if (addDecorations !== null) {
-                    children.push({
-                        isDecorated: true,
-                        childNode,
-                        addDecorations,
-                    });
-                } else {
-                    const lastChild = children[children.length - 1];
-                    if (lastChild && !lastChild.isDecorated) {
-                        lastChild.undecoratedNodeSize += childNode.nodeSize;
-                    } else {
-                        children.push({
-                            isDecorated: false,
-                            undecoratedNodeSize: childNode.nodeSize,
-                        });
-                    }
-                }
-            }
-
-            // Optimization: If no children have decorations then we can short-circuit
-            // decoration creation for this node.
-            if (children.every(child => !child.isDecorated)) return null;
-
-            return (decorationSet, doc, offset) => {
-                offset += 1;
-
-                for (const child of children) {
-                    if (child.isDecorated) {
-                        decorationSet = child.addDecorations(decorationSet, doc, offset);
-                        offset += child.childNode.nodeSize;
-                    } else {
-                        offset += child.undecoratedNodeSize;
-                    }
-                }
-                return decorationSet;
-            };
-        }
-    });
-}
+    return (decorations, doc, offset) => {
+        return decorations.add(
+            doc,
+            emojis.map(({index, emoji}) =>
+                Decoration.inline(offset + index, offset + index + emoji.length, {
+                    nodeName: "span",
+                    style: `font-family:${emojiFontFamily}`,
+                }),
+            ),
+        );
+    };
+});

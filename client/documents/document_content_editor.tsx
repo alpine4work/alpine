@@ -1,19 +1,30 @@
 import {Command} from "prosemirror-state";
-import {useEffect, useRef} from "react";
-import {ContentEditor} from "~/client/content/content_editor";
+import {useEffect, useMemo, useRef} from "react";
+import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
+import {Box} from "~/client/design/box";
 import {documentContentClassName} from "~/client/documents/document_content_view";
+import {
+    DocumentCommentThreadDecoration,
+    DocumentContentEditorSideDecorations,
+} from "~/client/documents/internal/document_content_editor_side_decorations";
 import {
     createDocumentCommentThreadMetaKey,
     useDocumentContentEditorState,
 } from "~/client/documents/internal/document_content_editor_state";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
+import {useResizeObserver} from "~/client/helpers/use_resize_observer";
 import {
     DocumentContent,
     DocumentContentProsemirrorSchema,
 } from "~/shared/content/document_content_schema";
 import {createSimpleMessageContent} from "~/shared/content/message_content_schema";
-import {generateId} from "~/shared/id/id";
+import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
+import {assertId, generateId} from "~/shared/id/id";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
 import {DocumentModel} from "~/shared/models/document_model";
+import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range";
 
 export function DocumentContentEditor({
@@ -41,17 +52,21 @@ function DocumentContentEditorStateful({
     initialDocument: DocumentModel;
     onDocumentContentChange?: (content: DocumentContent) => void;
 }) {
+    const editorRef = useRef<ContentEditorRef>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [containerResizeRef, containerSize] = useResizeObserver();
+
     const {editorState, onChangeEditorState, phantomSelections} =
         useDocumentContentEditorState(initialDocument);
 
-    const content = editorState.getContent().doc;
-    const lastContentRef = useRef(content);
+    const content = editorState.getContent();
+    const lastContentDocRef = useRef(content.doc);
     useEffect(() => {
-        if (content !== lastContentRef.current) {
-            onDocumentContentChange?.(content);
-            lastContentRef.current = content;
+        if (content.doc !== lastContentDocRef.current) {
+            onDocumentContentChange?.(content.doc);
+            lastContentDocRef.current = content.doc;
         }
-    }, [content, onDocumentContentChange]);
+    }, [content.doc, onDocumentContentChange]);
 
     // This command was adapted from `createToggleMarkCommand()`.
     const addCommentCommand: Command = (state, dispatch) => {
@@ -80,11 +95,7 @@ function DocumentContentEditorStateful({
             const range = trimSpacesFromProsemirrorRange(state.doc, state.selection);
             dispatch(
                 state.tr
-                    .addMark(
-                        range.from,
-                        range.to,
-                        DocumentContentProsemirrorSchema.marks.comment.create({commentThreadId}),
-                    )
+                    .addMark(range.from, range.to, state.schema.mark("comment", {commentThreadId}))
                     .setMeta(createDocumentCommentThreadMetaKey, {
                         commentThreadId,
                         initialCommentContent: createSimpleMessageContent("test"),
@@ -97,14 +108,28 @@ function DocumentContentEditorStateful({
     };
 
     return (
-        <ContentEditor
-            state={editorState}
-            onChange={onChangeEditorState}
-            aria-label="Document"
-            placeholder="Share your ideas…"
-            className={documentContentClassName}
-            phantomSelections={phantomSelections}
-            addCommentCommand={addCommentCommand}
-        />
+        <Box
+            ref={useMergedRefs<HTMLDivElement>(containerRef, containerResizeRef)}
+            position="relative"
+            height="full"
+            backgroundColor="grey-0"
+        >
+            <ContentEditor
+                ref={editorRef}
+                state={editorState}
+                onChange={onChangeEditorState}
+                aria-label="Document"
+                placeholder="Share your ideas…"
+                className={documentContentClassName}
+                phantomSelections={phantomSelections}
+                addCommentCommand={addCommentCommand}
+            />
+            <DocumentContentEditorSideDecorations
+                containerRef={containerRef}
+                containerSize={containerSize}
+                editorRef={editorRef}
+                content={content}
+            />
+        </Box>
     );
 }

@@ -15,7 +15,7 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
 import {AccountModel} from "~/shared/models/account_model";
 import {backgroundColorVar, spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
 
-export type AccountAvatarPileSize = "6" | "12";
+export type AccountAvatarPileSize = "4" | "6" | "12";
 
 export function AccountAvatarPile({
     size = "6",
@@ -35,6 +35,12 @@ export function AccountAvatarPile({
 
     const {avatarSize, avatarOverlapWidth, borderWidth, overflowFontSize} = (
         {
+            "4": {
+                avatarSize: "4",
+                avatarOverlapWidth: "3",
+                borderWidth: 1.5,
+                overflowFontSize: "50",
+            },
             "6": {
                 avatarSize: "6",
                 avatarOverlapWidth: "5",

@@ -4,6 +4,7 @@ import {colors} from "~/shared/design/colors";
 import {colorByHighlightColor} from "~/shared/design/highlight_color";
 import {
     RemLength,
+    addRemLengths,
     mobilePlatformMediaQuery,
     parseRemLengthNumber,
     spacing,
@@ -66,12 +67,18 @@ export const docClassName = style({
     fontFeatureSettings: '"liga" 0',
 });
 
-const blockWidth = spacing["192"];
+const blockMaxWidthWithoutPadding = spacing["192"];
 const blockPaddingX = spacing["2"];
+
+export const blockMaxWidth = addRemLengths(
+    blockPaddingX,
+    blockMaxWidthWithoutPadding,
+    blockPaddingX,
+);
 
 const blockStyles = {
     width: "100%",
-    maxWidth: `calc(${blockWidth} + ${blockPaddingX} * 2)`,
+    maxWidth: blockMaxWidth,
     paddingLeft: blockPaddingX,
     paddingRight: blockPaddingX,
     marginLeft: "auto",
@@ -331,7 +338,7 @@ export const checkListItemCheckboxPressedClassName = style({
 export const dividerClassName = style({
     ...blockStyles,
     width: `calc(100% - ${blockPaddingX} * 2)`,
-    maxWidth: blockWidth,
+    maxWidth: blockMaxWidthWithoutPadding,
     paddingLeft: 0,
     paddingRight: 0,
     marginTop: headerTopMargin,
