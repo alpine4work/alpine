@@ -208,7 +208,7 @@ function ContentEditorKeyboardHighlightFloater({
 
     const onClose = useCallback(() => {
         assert(viewRef.current);
-        viewRef.current.focus();
+        viewRef.current.dom.focus({preventScroll: true});
         setIsClosing(true);
     }, [viewRef]);
 
@@ -326,7 +326,7 @@ function ContentEditorKeyboardLinkFloater({
 
     const onClose = useCallback(() => {
         assert(viewRef.current);
-        viewRef.current.focus();
+        viewRef.current.dom.focus({preventScroll: true});
         setIsClosing(true);
     }, [viewRef]);
 

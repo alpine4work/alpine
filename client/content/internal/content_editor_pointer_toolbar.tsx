@@ -821,7 +821,7 @@ function ContentEditorPointerToolbarLinkButton({
                             event.target instanceof Element &&
                             isElementOwnedBy(assertExists(view.dom.parentElement), event.target)
                         ) {
-                            view.dom.focus();
+                            view.dom.focus({preventScroll: true});
                         }
 
                         onLinkInputClose();
@@ -843,7 +843,7 @@ function ContentEditorPointerToolbarLinkButton({
                         mark={activeLinkMark}
                         autoFocus={true}
                         onClose={() => {
-                            assertExists(viewRef.current).dom.focus();
+                            assertExists(viewRef.current).dom.focus({preventScroll: true});
                             onLinkInputClose();
                         }}
                     />

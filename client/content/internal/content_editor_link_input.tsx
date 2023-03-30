@@ -1,12 +1,11 @@
 import {Link as LinkIcon, X} from "@phosphor-icons/react";
 import {Mark} from "prosemirror-model";
 import {EditorView} from "prosemirror-view";
-import {RefObject, useRef, useState} from "react";
+import {RefObject, useEffect, useRef, useState} from "react";
 import {useButton, useHover} from "react-aria";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {Tooltip} from "~/client/design/tooltip";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -31,10 +30,10 @@ export function ContentEditorLinkInput({
     const [url, setUrl] = useState<string>(mark?.attrs.url ?? "");
 
     const hasInitiallyRenderedRef = useRef(false);
-    useLayoutEffectWithoutServerSideWarning(() => {
+    useEffect(() => {
         if (hasInitiallyRenderedRef.current) return;
         hasInitiallyRenderedRef.current = true;
-        if (autoFocus) assertExists(inputRef.current).focus();
+        if (autoFocus) assertExists(inputRef.current).focus({preventScroll: true});
     }, [autoFocus]);
 
     const save = () => {
