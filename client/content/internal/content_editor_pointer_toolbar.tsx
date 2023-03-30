@@ -38,6 +38,7 @@ import {Tooltip, TooltipRef, TooltipState} from "~/client/design/tooltip";
 import {isMac} from "~/client/helpers/browser/is_mac";
 import {isElementOwnedBy} from "~/client/helpers/is_element_owned_by";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
+import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema";
 import {spacing} from "~/shared/design/spacing";
@@ -67,6 +68,41 @@ export function ContentEditorPointerToolbar({
     addCommentCommand: Command | null;
 }) {
     const interactionModality = useInteractionModality();
+    const [
+        hasPointerMovedDuringNonPointerInteractionModality,
+        setHasPointerMovedDuringNonPointerInteractionModality,
+    ] = useStateWithDependencies(false, [interactionModality]);
+
+    // Quality of life: If the user selects some text with their keyboard then
+    // moves their mouse then we want to show the toolbar. `react-aria` updates the
+    // interaction modality on the `pointermove` event but does not trigger an
+    // update for the `useInteractionModality()` hook! So if we observe a
+    // `pointermove` event then we want to consider the modality changed.
+    //
+    // See:
+    // - https://github.com/adobe/react-spectrum/blob/ec55e9512835f6d918bb14899a1f55f019f558b8/packages/%40react-aria/interactions/src/useFocusVisible.ts#L142
+    // - https://github.com/adobe/react-spectrum/blob/ec55e9512835f6d918bb14899a1f55f019f558b8/packages/%40react-aria/interactions/src/useFocusVisible.ts#L74-L77
+    useEffect(() => {
+        if (
+            interactionModality === "pointer" &&
+            !hasPointerMovedDuringNonPointerInteractionModality
+        ) {
+            return;
+        }
+
+        const handler = () => {
+            setHasPointerMovedDuringNonPointerInteractionModality(true);
+        };
+
+        document.addEventListener("pointermove", handler, true);
+        return () => {
+            document.removeEventListener("pointermove", handler, true);
+        };
+    }, [
+        hasPointerMovedDuringNonPointerInteractionModality,
+        interactionModality,
+        setHasPointerMovedDuringNonPointerInteractionModality,
+    ]);
 
     const shouldShowIgnoringInteractionModality =
         isFocused &&
@@ -84,7 +120,7 @@ export function ContentEditorPointerToolbar({
         shouldShowIgnoringInteractionModality &&
         // The toolbar overlay is intended for pointer use only. You can use keyboard
         // shortcuts to accomplish everything in the toolbar.
-        interactionModality === "pointer";
+        (interactionModality === "pointer" || hasPointerMovedDuringNonPointerInteractionModality);
 
     const initialSelection = useConstant(() => state.selection);
 
