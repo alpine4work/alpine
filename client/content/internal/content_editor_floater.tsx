@@ -253,7 +253,7 @@ function ContentEditorKeyboardHighlightFloater({
             // selection! However there are some scenarios where the toolbar would go
             // offscreen so it's better to flip and potentially cover content then to
             // occlude the toolbar.
-            // canFlip={false}
+            fallbackPlacements={["bottom-start"]}
             overlay={
                 <Box
                     ref={useOutsidePress(onClose)}
@@ -361,7 +361,7 @@ function ContentEditorKeyboardLinkFloater({
             // selection! However there are some scenarios where the toolbar would go
             // offscreen so it's better to flip and potentially cover content then to
             // occlude the toolbar.
-            // canFlip={false}
+            fallbackPlacements={["bottom-start"]}
             overlay={
                 <Box ref={useOutsidePress(onClose)}>
                     {isClosing ? (
@@ -487,7 +487,7 @@ function ContentEditorPointerLinkFloater({
             // selection! However there are some scenarios where the toolbar would go
             // offscreen so it's better to flip and potentially cover content then to
             // occlude the toolbar.
-            // canFlip={false}
+            fallbackPlacements={["bottom-start"]}
             overlay={
                 <Box {...hoverProps} ref={useOutsidePress(onClose)}>
                     <ContentEditorLinkInput

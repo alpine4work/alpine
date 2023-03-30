@@ -248,12 +248,14 @@ export type TooltipProps = {
     placement?: OverlayPlacement;
 
     /**
-     * If true, changes the `placement` of a popper to make sure it stays visible
-     * within the nearest parent `<OverlayScopeContextProvider>`.
+     * Placements to try if `placement` would put the overlay out of bounds. If
+     * it's an empty array then the overlay will never flip from `placement`.
      *
-     * Defaults to `true`.
+     * If undefined the overlay can flip anywhere.
+     *
+     * Does not work with the special `center` placement.
      */
-    canFlip?: boolean;
+    fallbackPlacements?: ReadonlyArray<OverlayPlacement>;
 
     /**
      * Offset of the tooltip from the target.
@@ -305,7 +307,7 @@ function Tooltip(
         isDisabled = false,
         isDisabledWithoutAnimation = false,
         placement = "top",
-        canFlip = true,
+        fallbackPlacements,
         offset = defaultTooltipOffset,
         visibleWhenFocusWithin = false,
         children: actualChildren,
@@ -751,7 +753,7 @@ function Tooltip(
                 ref={overlayRef}
                 isVisible={isVisible}
                 placement={placement}
-                canFlip={canFlip}
+                fallbackPlacements={fallbackPlacements}
                 offset={offset}
                 overlay={
                     <Box
@@ -788,7 +790,7 @@ function Tooltip(
     }, [
         isVisible,
         placement,
-        canFlip,
+        fallbackPlacements,
         offset,
         tooltipId,
         state.isFadingOut,

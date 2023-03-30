@@ -25,6 +25,7 @@ import {
     addResizeListenerForElement,
     removeResizeListenerForElement,
 } from "~/client/helpers/use_resize_observer";
+import {useStableJsonValue} from "~/client/helpers/use_stable_json_value";
 import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/spacing";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {assert} from "~/shared/helpers/control/assert";
@@ -72,11 +73,18 @@ export type OverlayProps = {
 
     /**
      * Where should the overlay content be placed relative to the target element?
-     *
-     * If there's not enough space on screen for this placement, then we will canFlip
-     * the placement along the same axis.
      */
     placement: OverlayPlacement;
+
+    /**
+     * Placements to try if `placement` would put the overlay out of bounds. If
+     * it's an empty array then the overlay will never flip from `placement`.
+     *
+     * If undefined the overlay can flip anywhere.
+     *
+     * Does not work with the special `center` placement.
+     */
+    fallbackPlacements?: ReadonlyArray<OverlayPlacement>;
 
     /**
      * The overlay element to be positioned relative to the target element. Must
@@ -109,14 +117,6 @@ export type OverlayProps = {
      * Defaults to `true`.
      */
     preventOverflow?: boolean;
-
-    /**
-     * If true, changes the `placement` of a popper to make sure it stays visible
-     * within the nearest parent `<OverlayScopeContextProvider>`.
-     *
-     * Defaults to `true`.
-     */
-    canFlip?: boolean;
 
     /**
      * Makes the overlay width the same width as the content the overlay is
@@ -172,11 +172,11 @@ function Overlay(
     {
         isVisible: actuallyIsVisible = false,
         placement,
+        fallbackPlacements: _fallbackPlacements,
         overlay: actualOverlay,
         offset,
         offsetAlong,
         preventOverflow = true,
-        canFlip = true,
         sameWidth = false,
         sameHeight = false,
         children,
@@ -195,6 +195,7 @@ function Overlay(
     // Always hide overlays when we don't yet have the portal element. This means
     // overlays can't be rendered on the server.
     const isVisible = overlaySink.portalElement !== null && actuallyIsVisible;
+    const fallbackPlacements = useStableJsonValue(_fallbackPlacements ?? null);
 
     const overlayRef = useRef<HTMLDivElement>(null);
     const popperRef = useRef<Instance | null>(null);
@@ -242,7 +243,8 @@ function Overlay(
                     },
                     {
                         name: "flip",
-                        enabled: canFlip && placement !== "center",
+                        enabled: placement !== "center",
+                        options: {fallbackPlacements},
                     },
                     // When placing in the center, add a custom offset modifier that positions the
                     // overlay on top of the element underneath.
@@ -368,7 +370,7 @@ function Overlay(
             isVisible,
             placement,
             preventOverflow,
-            canFlip,
+            fallbackPlacements,
             offsetAlong,
             offset,
             sameWidth,

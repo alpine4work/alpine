@@ -157,7 +157,7 @@ function ContentEditorLinkInputClearButton({
     return (
         <Tooltip
             placement="top"
-            canFlip={false}
+            fallbackPlacements={[]}
             visibleWhenFocusWithin={true}
             content={description}
         >

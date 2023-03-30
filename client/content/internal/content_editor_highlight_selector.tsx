@@ -236,7 +236,7 @@ function ContentEditorHighlightSelectorButton({
     return (
         <Tooltip
             placement="top"
-            canFlip={false}
+            fallbackPlacements={[]}
             // The hover bounding box for our button is larger than the button itself so
             // we want to show the tooltip when a child is focused.
             visibleWhenFocusWithin={true}

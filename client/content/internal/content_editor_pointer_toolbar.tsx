@@ -350,7 +350,7 @@ function ContentEditorPointerToolbarOverlay({
             // selection! However there are some scenarios where the toolbar would go
             // offscreen so it's better to flip and potentially cover content then to
             // occlude the toolbar.
-            // canFlip={false}
+            fallbackPlacements={["bottom-start"]}
             offset="3"
             offsetAlong="-4"
             overlay={
@@ -710,7 +710,7 @@ function ContentEditorPointerToolbarButton({
             isDisabledWithoutAnimation={isTooltipDisabledWithoutAnimation}
             placement="top"
             // Don't allow flipping the tooltip down into selection content.
-            canFlip={false}
+            fallbackPlacements={[]}
             content={
                 <Box paddingY="0.5">
                     {description}
@@ -808,7 +808,7 @@ function ContentEditorPointerToolbarLinkButton({
         <OverlayAnimated
             isVisible={isLinkInputOpen && !isToolbarFadingOut}
             placement="top"
-            canFlip={false}
+            fallbackPlacements={[]}
             offset="1.5"
             // Don't animate if we have an open tooltip. It looks weird if the tooltip
             // immediately disappears then this overlay moves in.
@@ -922,7 +922,7 @@ function ContentEditorPointerToolbarHighlightButton({
         <OverlayAnimated
             isVisible={isHighlightSelectorOpen && !isToolbarFadingOut}
             placement="top"
-            canFlip={false}
+            fallbackPlacements={[]}
             offset="1.5"
             // Don't animate if we have an open tooltip. It looks weird if the tooltip
             // immediately disappears then this overlay moves in.
