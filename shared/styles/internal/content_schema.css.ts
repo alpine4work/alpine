@@ -12,6 +12,7 @@ import {
 import {assert} from "~/shared/helpers/control/assert";
 import {lerp} from "~/shared/helpers/number/lerp";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
+import {omitObject} from "~/shared/helpers/object/omit_object";
 import {borderRadius} from "~/shared/styles/internal/border_radius.css";
 import {
     CssVarFunction,
@@ -419,31 +420,60 @@ const commentHoverDarkColor = Color(colors["yellow-50"]).fade(0.4).hexa();
 
 export const hoveredCommentClassName = style({});
 
+const commentBackgroundColorBySelectorForLightColorScheme = {
+    "&": commentPassiveLightColor,
+    [`&${hoveredCommentClassName}`]: commentHoverLightColor,
+};
+
+const commentBackgroundColorBySelectorForDarkColorScheme = {
+    "&": commentPassiveDarkColor,
+    [`&${hoveredCommentClassName}`]: commentHoverDarkColor,
+};
+
+const commentBackgroundColorBySelector: {[key: string]: string} = Object.fromEntries([
+    ...Object.entries(commentBackgroundColorBySelectorForLightColorScheme),
+    ...Object.entries(commentBackgroundColorBySelectorForDarkColorScheme).map(
+        ([selector, backgroundColor]) => [
+            `${darkColorSchemeSelector} ${selector}`,
+            backgroundColor,
+        ],
+    ),
+    ...Object.entries(commentBackgroundColorBySelectorForLightColorScheme).map(
+        ([selector, backgroundColor]) => {
+            const color1 = blendColors(colors["grey-0"], commentPassiveLightColor);
+            const color2 = blendColors(colors["grey-0"], backgroundColor);
+            return [
+                `& ${selector}`,
+                color1 !== color2
+                    ? extrapolateHighlightColor(color1, color2, Color(backgroundColor).alpha())
+                    : "transparent",
+            ];
+        },
+    ),
+    ...Object.entries(commentBackgroundColorBySelectorForDarkColorScheme).map(
+        ([selector, backgroundColor]) => {
+            const color1 = blendColors(invertedColors["grey-0"], commentPassiveDarkColor);
+            const color2 = blendColors(invertedColors["grey-0"], backgroundColor);
+            return [
+                `${darkColorSchemeSelector} & ${selector}`,
+                color1 !== color2
+                    ? extrapolateHighlightColor(color1, color2, Color(backgroundColor).alpha())
+                    : "transparent",
+            ];
+        },
+    ),
+]);
+
 export const commentClassName = style({
     color: "inherit",
-    backgroundColor: commentPassiveLightColor,
+    backgroundColor: commentBackgroundColorBySelector["&"],
     // Extend the comment background color to the line height.
     paddingTop: `${(backgroundFontSizePercentage - 1) / 2}em`,
     paddingBottom: `${(backgroundFontSizePercentage - 1) / 2}em`,
-    selectors: {
-        [`& &:not(${hoveredCommentClassName})`]: {
-            backgroundColor: "transparent !important",
-        },
-        [`${darkColorSchemeSelector} &`]: {
-            backgroundColor: commentPassiveDarkColor,
-        },
-        // Give comments a hover color to make them feel interactive. The yellow
-        // background color alone isn't affordance enough. We have just a hint of the
-        // yellow background color to communicate "there is something here", it is a
-        // light background color to try and communicate "it is interactive". Then the
-        // hover tells the user "oh this is definitely interactive".
-        [`&${hoveredCommentClassName}`]: {
-            backgroundColor: commentHoverLightColor,
-        },
-        [`${darkColorSchemeSelector} &${hoveredCommentClassName}`]: {
-            backgroundColor: commentHoverDarkColor,
-        },
-    },
+    selectors: mapObjectValues(
+        omitObject(commentBackgroundColorBySelector, ["&"]),
+        backgroundColor => ({backgroundColor}),
+    ),
 });
 
 const highlightOpacity = 2 / 3;
@@ -513,7 +543,9 @@ export const highlightClassNameByColor = mapObjectValues(colorByHighlightColor, 
 type RawColor = {r: number; g: number; b: number; alpha: number};
 
 function parseRawColor(color: string): RawColor {
-    return Color(color).object() as RawColor;
+    const rawColor = Color(color).object() as RawColor;
+    rawColor.alpha ??= 1;
+    return rawColor;
 }
 
 function printRawColor(color: RawColor): string {
@@ -528,7 +560,6 @@ function extrapolateHighlightRawColorWithoutBounds(
     const r = lerp(backgroundColor.r, highlightColor.r, 1 / opacity);
     const g = lerp(backgroundColor.g, highlightColor.g, 1 / opacity);
     const b = lerp(backgroundColor.b, highlightColor.b, 1 / opacity);
-
     return {r, g, b, alpha: opacity};
 }
 
@@ -575,11 +606,14 @@ function extrapolateHighlightColorFlippingCommentHighlightColorStackingOrder(
 
     // Get the background color when the comment highlight is rendering on top
     // of it.
-    const commentHighlightOnBackgroundColor = blendColors(backgroundColor, commentHighlightColor);
+    const commentHighlightOnBackgroundColor = blendRawColors(
+        backgroundColor,
+        commentHighlightColor,
+    );
 
     // Get the highlight color when the comment highlight is rendering on top
     // of it.
-    const commentHighlightOnHighlightColor = blendColors(highlightColor, commentHighlightColor);
+    const commentHighlightOnHighlightColor = blendRawColors(highlightColor, commentHighlightColor);
 
     // Get a color that will be our desired highlight color on top of the background
     // with the comment highlight color.
@@ -602,12 +636,16 @@ function extrapolateHighlightColorFlippingCommentHighlightColorStackingOrder(
     return printRawColor(color);
 }
 
-function blendColors(color1: RawColor, color2: RawColor): RawColor {
+function blendRawColors(color1: RawColor, color2: RawColor): RawColor {
     const r = lerp(color1.r, color2.r, color2.alpha);
     const g = lerp(color1.g, color2.g, color2.alpha);
     const b = lerp(color1.b, color2.b, color2.alpha);
     const alpha = color1.alpha + color2.alpha * (1 - color1.alpha);
     return {r, g, b, alpha};
+}
+
+function blendColors(color1: string, color2: string): string {
+    return printRawColor(blendRawColors(parseRawColor(color1), parseRawColor(color2)));
 }
 
 export const linkClassName = style({
