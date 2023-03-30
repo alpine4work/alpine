@@ -19,7 +19,11 @@ import {
     darkColorSchemeSelector,
     invertedColors,
 } from "~/shared/styles/internal/color_scheme.css";
-import {fontSizes, fontStyles} from "~/shared/styles/internal/fonts.css";
+import {
+    backgroundFontSizePercentage,
+    fontSizes,
+    fontStyles,
+} from "~/shared/styles/internal/fonts.css";
 import {inputPlaceholderColor} from "~/shared/styles/internal/input_placeholder_color.css";
 import {peekContainerClassName} from "~/shared/styles/internal/peek.css";
 
@@ -413,10 +417,18 @@ const commentPassiveDarkColor = Color(colors["yellow-60"]).fade(0.7).hexa();
 const commentHoverLightColor = Color(colors["yellow-50"]).fade(0.3).hexa();
 const commentHoverDarkColor = Color(colors["yellow-50"]).fade(0.4).hexa();
 
+export const hoveredCommentClassName = style({});
+
 export const commentClassName = style({
     color: "inherit",
     backgroundColor: commentPassiveLightColor,
+    // Extend the comment background color to the line height.
+    paddingTop: `${(backgroundFontSizePercentage - 1) / 2}em`,
+    paddingBottom: `${(backgroundFontSizePercentage - 1) / 2}em`,
     selectors: {
+        [`& &:not(${hoveredCommentClassName})`]: {
+            backgroundColor: "transparent !important",
+        },
         [`${darkColorSchemeSelector} &`]: {
             backgroundColor: commentPassiveDarkColor,
         },
@@ -425,10 +437,10 @@ export const commentClassName = style({
         // yellow background color to communicate "there is something here", it is a
         // light background color to try and communicate "it is interactive". Then the
         // hover tells the user "oh this is definitely interactive".
-        "&:hover": {
+        [`&${hoveredCommentClassName}`]: {
             backgroundColor: commentHoverLightColor,
         },
-        [`${darkColorSchemeSelector} &:hover`]: {
+        [`${darkColorSchemeSelector} &${hoveredCommentClassName}`]: {
             backgroundColor: commentHoverDarkColor,
         },
     },
@@ -476,7 +488,7 @@ export const highlightClassNameByColor = mapObjectValues(colorByHighlightColor, 
                         highlightOpacity,
                     ),
             },
-            [`${commentClassName}:hover &`]: {
+            [`${commentClassName}${hoveredCommentClassName} &`]: {
                 backgroundColor:
                     extrapolateHighlightColorFlippingCommentHighlightColorStackingOrder(
                         colors["grey-0"],
@@ -485,7 +497,7 @@ export const highlightClassNameByColor = mapObjectValues(colorByHighlightColor, 
                         highlightOpacity,
                     ),
             },
-            [`${darkColorSchemeSelector} ${commentClassName}:hover &`]: {
+            [`${darkColorSchemeSelector} ${commentClassName}${hoveredCommentClassName} &`]: {
                 backgroundColor:
                     extrapolateHighlightColorFlippingCommentHighlightColorStackingOrder(
                         invertedColors["grey-0"],

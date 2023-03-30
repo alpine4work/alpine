@@ -123,6 +123,10 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
                 },
             },
             inclusive: false,
+            // Allow multiple comment marks to be applied to the same range of text.
+            // Especially useful when you have one long comment and a smaller comment
+            // within it.
+            excludes: "",
             toDOM: node => [
                 "mark",
                 {class: commentClassName, "data-comment": node.attrs.commentThreadId},

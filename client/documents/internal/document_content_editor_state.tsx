@@ -45,7 +45,7 @@ import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {Lazy} from "~/shared/helpers/control/lazy";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
-import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {
     ContentEditorClientId,
@@ -227,9 +227,16 @@ export function reduceDocumentContentEditorState(
     if (!state.pendingSendableSteps) {
         const sendableSteps = state.editorState.sendableSteps();
         if (sendableSteps) {
-            const createCommentThreads = filterMapArray(
-                sendableSteps.origins,
-                transaction => transaction.getMeta(createDocumentCommentThreadMetaKey) ?? null,
+            // We can have multiple steps from the same origin transaction. So uniquify our
+            // new comment thread objects.
+            const createCommentThreads = Array.from(
+                new Set(
+                    filterMapIterable(
+                        sendableSteps.origins,
+                        transaction =>
+                            transaction.getMeta(createDocumentCommentThreadMetaKey) ?? null,
+                    ),
+                ),
             );
 
             state = {

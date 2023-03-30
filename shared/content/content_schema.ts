@@ -362,7 +362,18 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
                     tag: "a",
                     getAttrs: node => {
                         if (!(node instanceof HTMLAnchorElement)) return false;
-                        return {url: node.href};
+
+                        // It is important that we use `getAttribute()` here instead of `node.href`!
+                        // `node.href` will run the [WhatWG URL serialization][1] algorithm which may
+                        // result in a different URL than what is stored in our ProseMirror node. This
+                        // confuses ProseMirror since it sees a difference between the DOM and our
+                        // ProseMirror node and it ends up making unwanted changes to the document.
+                        //
+                        // `getAttribute()` returns exactly the value we set on the DOM and doesn't
+                        // have this problem.
+                        //
+                        // [1]: https://url.spec.whatwg.org/#concept-url-serializer
+                        return {url: node.getAttribute("href")};
                     },
                 },
             ],

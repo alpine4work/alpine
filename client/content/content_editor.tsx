@@ -29,6 +29,7 @@ import {
 } from "~/client/content/content_editor_state";
 import {ContentView} from "~/client/content/content_view";
 import {createContentEditorCheckListItemNodeView} from "~/client/content/internal/content_editor_check_list_item_node_view";
+import {createContentEditorCommentMarkView} from "~/client/content/internal/content_editor_comment_mark_view";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer";
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser";
 import {ContentEditorFloater} from "~/client/content/internal/content_editor_floater";
@@ -465,6 +466,10 @@ function ContentEditor<Content extends ContentWithReferences>(
                     },
                     onNavigate: to => navigateRef.current(to),
                 }),
+
+                // We don't have a `<ContentView>` implementation of this yet. Unclear how we
+                // should support comments in `<ContentView>` at this moment.
+                comment: createContentEditorCommentMarkView,
             },
 
             handlePaste,
