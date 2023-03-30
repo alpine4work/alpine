@@ -6,7 +6,7 @@ import {Box} from "~/client/design/box";
 import {useRemPx} from "~/client/design/helpers/use_rem_px";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useClientInfo} from "~/client/remix/client_info_context";
-import {convertRemLengthToPx, spacing} from "~/shared/design/spacing";
+import {convertRemLengthToPx} from "~/shared/design/spacing";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
@@ -104,6 +104,7 @@ function DocumentContentEditorSideDecorationsInner({
                 {
                     containerRect: containerElement.getBoundingClientRect(),
                     editor,
+                    seenCommentThreadIds: new Set(),
                     decorationByMarkTop: new Map(),
                 },
                 content.doc,
@@ -160,6 +161,7 @@ function DocumentContentEditorSideDecorationsInner({
 const collectDecorationByMarkTop = createProsemirrorIncrementalReducer<{
     containerRect: DOMRect;
     editor: ContentEditorRef;
+    seenCommentThreadIds: Set<DocumentCommentThreadId>;
     decorationByMarkTop: Map<
         number,
         {markHeight: number; commentThreadIds: Set<DocumentCommentThreadId>}
@@ -177,12 +179,15 @@ const collectDecorationByMarkTop = createProsemirrorIncrementalReducer<{
         const markTop = coords.top - state.containerRect.top;
         const markHeight = coords.bottom - coords.top;
 
-        const decoration = getOrSetDefaultMapValue(state.decorationByMarkTop, markTop, () => ({
-            markHeight,
-            commentThreadIds: new Set<DocumentCommentThreadId>(),
-        }));
-
         for (const commentThreadId of commentThreadIds) {
+            if (state.seenCommentThreadIds.has(commentThreadId)) continue;
+
+            const decoration = getOrSetDefaultMapValue(state.decorationByMarkTop, markTop, () => ({
+                markHeight,
+                commentThreadIds: new Set<DocumentCommentThreadId>(),
+            }));
+
+            state.seenCommentThreadIds.add(commentThreadId);
             decoration.commentThreadIds.add(commentThreadId);
         }
 
