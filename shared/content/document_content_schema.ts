@@ -103,6 +103,57 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
         },
     },
     marks: {
+        // It is important that the `comment` mark comes first so that in the DOM it
+        // wraps other marks. That way when you hover the comment mark or press on it,
+        // the entire comment is highlighted.
+
+        /**
+         * Users may leave comments on some range of text in a document with
+         * suggestions or feedback. Leaving a comment starts a comment thread where
+         * other users can join in on the conversation.
+         *
+         * You should not add this mark to the document without also creating the
+         * referenced comment thread! The `updateDocumentContent()` function has a
+         * `createCommentThread` option you may use for this purpose.
+         */
+        comment: {
+            attrs: {
+                commentThreadId: {
+                    schema: Schema.id<DocumentCommentThreadId>(),
+                },
+            },
+            inclusive: false,
+            toDOM: node => [
+                "mark",
+                {class: commentClassName, "data-comment": node.attrs.commentThreadId},
+                0,
+            ],
+            parseDOM: [
+                {
+                    tag: "mark",
+                    getAttrs: node => {
+                        const attrs: {[key: string]: unknown} = {};
+
+                        // TODO(calebmer): If we are copying text with a comment from a different
+                        // document, ideally we would remove the marks when pasting. So we don't try to
+                        // load a comment that doesn't exist all the time. To do this we should include
+                        // the document ID in `data-comment` as well.
+                        if (
+                            node instanceof HTMLElement &&
+                            node.dataset.comment &&
+                            isId<DocumentCommentThreadId>(node.dataset.comment)
+                        ) {
+                            attrs.commentThreadId = node.dataset.comment;
+                        } else {
+                            return false;
+                        }
+
+                        return attrs;
+                    },
+                },
+            ],
+        },
+
         ...contentBaseProsemirrorSchemaSpec.marks,
 
         /**
@@ -152,53 +203,6 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
                             attrs.color = node.dataset.highlightColor;
                         } else {
                             attrs.color = HighlightColor.Orange;
-                        }
-
-                        return attrs;
-                    },
-                },
-            ],
-        },
-
-        /**
-         * Users may leave comments on some range of text in a document with
-         * suggestions or feedback. Leaving a comment starts a comment thread where
-         * other users can join in on the conversation.
-         *
-         * You should not add this mark to the document without also creating the
-         * referenced comment thread! The `updateDocumentContent()` function has a
-         * `createCommentThread` option you may use for this purpose.
-         */
-        comment: {
-            attrs: {
-                commentThreadId: {
-                    schema: Schema.id<DocumentCommentThreadId>(),
-                },
-            },
-            inclusive: false,
-            toDOM: node => [
-                "mark",
-                {class: commentClassName, "data-comment": node.attrs.commentThreadId},
-                0,
-            ],
-            parseDOM: [
-                {
-                    tag: "mark",
-                    getAttrs: node => {
-                        const attrs: {[key: string]: unknown} = {};
-
-                        // TODO(calebmer): If we are copying text with a comment from a different
-                        // document, ideally we would remove the marks when pasting. So we don't try to
-                        // load a comment that doesn't exist all the time. To do this we should include
-                        // the document ID in `data-comment` as well.
-                        if (
-                            node instanceof HTMLElement &&
-                            node.dataset.comment &&
-                            isId<DocumentCommentThreadId>(node.dataset.comment)
-                        ) {
-                            attrs.commentThreadId = node.dataset.comment;
-                        } else {
-                            return false;
                         }
 
                         return attrs;

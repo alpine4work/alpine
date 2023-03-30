@@ -408,6 +408,32 @@ export const strikeClassName = style({
     textDecorationThickness: 1,
 });
 
+const commentPassiveLightColor = Color(colors["yellow-50"]).fade(0.7).hexa();
+const commentPassiveDarkColor = Color(colors["yellow-60"]).fade(0.7).hexa();
+const commentHoverLightColor = Color(colors["yellow-50"]).fade(0.3).hexa();
+const commentHoverDarkColor = Color(colors["yellow-50"]).fade(0.4).hexa();
+
+export const commentClassName = style({
+    color: "inherit",
+    backgroundColor: commentPassiveLightColor,
+    selectors: {
+        [`${darkColorSchemeSelector} &`]: {
+            backgroundColor: commentPassiveDarkColor,
+        },
+        // Give comments a hover color to make them feel interactive. The yellow
+        // background color alone isn't affordance enough. We have just a hint of the
+        // yellow background color to communicate "there is something here", it is a
+        // light background color to try and communicate "it is interactive". Then the
+        // hover tells the user "oh this is definitely interactive".
+        "&:hover": {
+            backgroundColor: commentHoverLightColor,
+        },
+        [`${darkColorSchemeSelector} &:hover`]: {
+            backgroundColor: commentHoverDarkColor,
+        },
+    },
+});
+
 const highlightOpacity = 2 / 3;
 
 // We want the highlight color to equal a color in our color scheme. We also
@@ -416,8 +442,8 @@ const highlightOpacity = 2 / 3;
 // through the highlight. We accomplish this by extrapolating a color that when
 // rendered on top of our background color will equal the target
 // highlight color.
-export const highlightClassNameByColor = mapObjectValues(colorByHighlightColor, color =>
-    style({
+export const highlightClassNameByColor = mapObjectValues(colorByHighlightColor, color => {
+    return style({
         color: "inherit",
         backgroundColor: extrapolateHighlightColor(
             colors["grey-0"],
@@ -432,38 +458,145 @@ export const highlightClassNameByColor = mapObjectValues(colorByHighlightColor, 
                     highlightOpacity,
                 ),
             },
+            [`${commentClassName} &`]: {
+                backgroundColor:
+                    extrapolateHighlightColorFlippingCommentHighlightColorStackingOrder(
+                        colors["grey-0"],
+                        commentPassiveLightColor,
+                        colors[color],
+                        highlightOpacity,
+                    ),
+            },
+            [`${darkColorSchemeSelector} ${commentClassName} &`]: {
+                backgroundColor:
+                    extrapolateHighlightColorFlippingCommentHighlightColorStackingOrder(
+                        invertedColors["grey-0"],
+                        commentPassiveDarkColor,
+                        invertedColors[color],
+                        highlightOpacity,
+                    ),
+            },
+            [`${commentClassName}:hover &`]: {
+                backgroundColor:
+                    extrapolateHighlightColorFlippingCommentHighlightColorStackingOrder(
+                        colors["grey-0"],
+                        commentHoverLightColor,
+                        colors[color],
+                        highlightOpacity,
+                    ),
+            },
+            [`${darkColorSchemeSelector} ${commentClassName}:hover &`]: {
+                backgroundColor:
+                    extrapolateHighlightColorFlippingCommentHighlightColorStackingOrder(
+                        invertedColors["grey-0"],
+                        commentHoverDarkColor,
+                        invertedColors[color],
+                        highlightOpacity,
+                    ),
+            },
         },
-    }),
-);
+    });
+});
 
-function extrapolateHighlightColor(
-    _backgroundColor: string,
-    _targetColor: string,
-    opacity: number,
-): string {
-    const backgroundColor = Color(_backgroundColor);
-    const targetColor = Color(_targetColor);
+type RawColor = {r: number; g: number; b: number; alpha: number};
 
-    const red = lerp(backgroundColor.red(), targetColor.red(), 1 / opacity);
-    const green = lerp(backgroundColor.green(), targetColor.green(), 1 / opacity);
-    const blue = lerp(backgroundColor.blue(), targetColor.blue(), 1 / opacity);
-
-    assert(0 <= red && red <= 255, "Can not extrapolate outside RGB color space");
-    assert(0 <= green && green <= 255, "Can not extrapolate outside RGB color space");
-    assert(0 <= blue && blue <= 255, "Can not extrapolate outside RGB color space");
-
-    return Color.rgb(red, green, blue, opacity).hexa();
+function parseRawColor(color: string): RawColor {
+    return Color(color).object() as RawColor;
 }
 
-export const commentClassName = style({
-    color: "inherit",
-    backgroundColor: Color(colors["yellow-50"]).fade(0.7).hexa(),
-    selectors: {
-        [`${darkColorSchemeSelector} &`]: {
-            backgroundColor: Color(colors["yellow-60"]).fade(0.7).hexa(),
-        },
-    },
-});
+function printRawColor(color: RawColor): string {
+    return Color(color).hexa();
+}
+
+function extrapolateHighlightRawColorWithoutBounds(
+    backgroundColor: RawColor,
+    highlightColor: RawColor,
+    opacity: number,
+): RawColor {
+    const r = lerp(backgroundColor.r, highlightColor.r, 1 / opacity);
+    const g = lerp(backgroundColor.g, highlightColor.g, 1 / opacity);
+    const b = lerp(backgroundColor.b, highlightColor.b, 1 / opacity);
+
+    return {r, g, b, alpha: opacity};
+}
+
+function extrapolateHighlightColor(
+    backgroundColor: string,
+    highlightColor: string,
+    opacity: number,
+): string {
+    const color = extrapolateHighlightRawColorWithoutBounds(
+        parseRawColor(backgroundColor),
+        parseRawColor(highlightColor),
+        opacity,
+    );
+
+    assert(
+        0 <= color.r &&
+            color.r <= 255 &&
+            0 <= color.g &&
+            color.g <= 255 &&
+            0 <= color.b &&
+            color.b <= 255,
+        `Can not extrapolate outside RGB color space, got color: rgb(${color.r}, ${color.g}, ${color.b})`,
+    );
+
+    return printRawColor(color);
+}
+
+/**
+ * The highlight mark renders on top of the comment mark in the DOM. This is
+ * necessary so that when we hover/click the highlight mark it acts as one unit.
+ * However, we want the visual appearance of the comment highlight color rendering
+ * on top of the highlight color. So with some color math we compute a color to
+ * produce this effect.
+ */
+function extrapolateHighlightColorFlippingCommentHighlightColorStackingOrder(
+    _backgroundColor: string,
+    _commentHighlightColor: string,
+    _highlightColor: string,
+    opacity: number,
+) {
+    const backgroundColor = parseRawColor(_backgroundColor);
+    const commentHighlightColor = parseRawColor(_commentHighlightColor);
+    const highlightColor = parseRawColor(_highlightColor);
+
+    // Get the background color when the comment highlight is rendering on top
+    // of it.
+    const commentHighlightOnBackgroundColor = blendColors(backgroundColor, commentHighlightColor);
+
+    // Get the highlight color when the comment highlight is rendering on top
+    // of it.
+    const commentHighlightOnHighlightColor = blendColors(highlightColor, commentHighlightColor);
+
+    // Get a color that will be our desired highlight color on top of the background
+    // with the comment highlight color.
+    const color = extrapolateHighlightRawColorWithoutBounds(
+        commentHighlightOnBackgroundColor,
+        commentHighlightOnHighlightColor,
+        opacity,
+    );
+
+    assert(
+        0 <= color.r &&
+            color.r <= 255 &&
+            0 <= color.g &&
+            color.g <= 255 &&
+            0 <= color.b &&
+            color.b <= 255,
+        `Can not extrapolate outside RGB color space, got color: rgb(${color.r}, ${color.g}, ${color.b})`,
+    );
+
+    return printRawColor(color);
+}
+
+function blendColors(color1: RawColor, color2: RawColor): RawColor {
+    const r = lerp(color1.r, color2.r, color2.alpha);
+    const g = lerp(color1.g, color2.g, color2.alpha);
+    const b = lerp(color1.b, color2.b, color2.alpha);
+    const alpha = color1.alpha + color2.alpha * (1 - color1.alpha);
+    return {r, g, b, alpha};
+}
 
 export const linkClassName = style({
     color: colorSchemeVars["theme-60"],

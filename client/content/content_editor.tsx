@@ -32,7 +32,7 @@ import {createContentEditorCheckListItemNodeView} from "~/client/content/interna
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer";
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser";
 import {ContentEditorFloater} from "~/client/content/internal/content_editor_floater";
-import {createContentEditorMarkNodeViewConstructor} from "~/client/content/internal/content_editor_link_node_view";
+import {createContentEditorLinkMarkViewConstructor} from "~/client/content/internal/content_editor_link_mark_view";
 import {createContentEditorMentionNodeViewConstructor} from "~/client/content/internal/content_editor_mention_node_view";
 import {createContentEditorOrderedListItemNodeView} from "~/client/content/internal/content_editor_ordered_list_item_node_view";
 import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/content_editor_phantom_selection_cursor";
@@ -429,7 +429,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             // have a matching custom renderer in `markRenderers` in
             // `renderContentToHtml()`.
             markViews: {
-                link: createContentEditorMarkNodeViewConstructor({
+                link: createContentEditorLinkMarkViewConstructor({
                     onPointerEnterAfterDelay: ({mark, range}) => {
                         view.dispatch(
                             setContentEditorFloaterState(view.state.tr, {

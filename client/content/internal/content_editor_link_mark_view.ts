@@ -12,7 +12,7 @@ import {assert} from "~/shared/helpers/control/assert";
  * Opens the link when the node is clicked instead of selecting text. We're
  * optimizing for reading content here over writing.
  */
-export function createContentEditorMarkNodeViewConstructor({
+export function createContentEditorLinkMarkViewConstructor({
     onPointerEnterAfterDelay,
     onPointerEnter,
     onPointerLeave,
