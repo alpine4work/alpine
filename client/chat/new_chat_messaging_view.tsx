@@ -106,7 +106,7 @@ export function NewChatMessagingView({
                 },
                 [subscribeToRealtimeMessages],
             )}
-            getCopyLinkUrl={useCallback(
+            getMessageUrl={useCallback(
                 messageIndex => {
                     // This should never throw through (mostly) coincidence. The only messages you
                     // should see when we don't know the chat are optimistic messages. You can not

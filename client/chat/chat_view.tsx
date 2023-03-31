@@ -206,7 +206,7 @@ function ChatMessagingView({
                 },
                 [subscribeToRealtimeMessages],
             )}
-            getCopyLinkUrl={useCallback(
+            getMessageUrl={useCallback(
                 messageIndex =>
                     new URL(
                         `/s/${chat.spaceId}/chat/${chat.id}?message=${messageIndex}`,

@@ -189,7 +189,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         isRealtimeConnected,
         sendRealtimeMessage,
         subscribeToRealtimeMessages,
-        getCopyLinkUrl,
+        getMessageUrl,
         inputStateRef,
         roomDisplayedCreatedTime,
     }: {
@@ -303,7 +303,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
          * Copies a link to a message. Opening this link should scroll the messaging
          * view to this message and highlight it.
          */
-        getCopyLinkUrl: Memo<(messageIndex: number) => URL>;
+        getMessageUrl: Memo<(messageIndex: number) => URL>;
 
         /**
          * A ref that we will use to initialize the content in `<MessageInput>`. We
@@ -571,7 +571,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                                 disableExpensiveFeaturesDuringScroll={
                                     disableExpensiveFeaturesDuringScroll
                                 }
-                                getCopyLinkUrl={getCopyLinkUrl}
+                                getMessageUrl={getMessageUrl}
                                 roomDisplayedCreatedTime={roomDisplayedCreatedTime}
                             />
                         ) : (
@@ -656,7 +656,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         },
         [
             actions,
-            getCopyLinkUrl,
+            getMessageUrl,
             handleJumpToMessage,
             highlightMessage,
             messageEditing,

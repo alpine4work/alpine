@@ -138,7 +138,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     onJumpToMessage,
     onReplyToMessage,
     onDeleteMessage,
-    getCopyLinkUrl,
+    getMessageUrl,
     roomDisplayedCreatedTime,
 }: {
     messageNoun?: string;
@@ -154,7 +154,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     onJumpToMessage: Memo<(message: Message) => void>;
     onReplyToMessage: () => void;
     onDeleteMessage: () => Promise<void>;
-    getCopyLinkUrl: (messageIndex: number) => URL;
+    getMessageUrl: (messageIndex: number) => URL;
     roomDisplayedCreatedTime?: Date;
 }) {
     const {timeZone} = useClientInfo();
@@ -360,7 +360,13 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 );
 
             return (
-                <div className={sprinkles({fontSize: "600", userSelect: "text"})}>
+                <div
+                    className={sprinkles({
+                        fontSize: "600",
+                        userSelect: "text",
+                        pointerEvents: "auto",
+                    })}
+                >
                     {children}
                     {message.payload.contentUpdatedTime && (
                         <Tooltip
@@ -403,6 +409,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         ? messageViewBubbleBorderRadius
                         : messageViewBubbleMergedBorderRadius,
                     borderBottomRightRadius: messageViewBubbleBorderRadius,
+                    pointerEvents: "auto",
                 })}
             >
                 <ContentView
@@ -751,6 +758,10 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                 display: "flex",
                                 position: "relative",
                                 zIndex: "10",
+                                // No pointer events so if we are a small message rendering on top of a large
+                                // parent message then the part of the parent message that underlaps our
+                                // message bubble is clickable.
+                                pointerEvents: "none",
                             })}
                             onBlur={event => {
                                 // Ignore blur events where focus is moving within the element.
@@ -783,6 +794,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                 className={sprinkles({
                                     alignSelf: "center",
                                     paddingLeft: "3",
+                                    pointerEvents: "auto",
                                 })}
                             >
                                 <div
@@ -826,7 +838,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                                 onReplyToMessage={onReplyToMessage}
                                                 onDeleteMessage={onDeleteMessage}
                                                 isEditing={!!messageEditingForThisMessage}
-                                                getCopyLinkUrl={getCopyLinkUrl}
+                                                getMessageUrl={getMessageUrl}
                                             />
                                         )
                                     )}

@@ -24,7 +24,7 @@ interface MessageViewActionsProps<RoomKey extends string> {
     onReplyToMessage: () => void;
     onDeleteMessage: () => Promise<void>;
     isEditing: boolean;
-    getCopyLinkUrl: (messageIndex: number) => URL;
+    getMessageUrl: (messageIndex: number) => URL;
 }
 
 export function MessageViewActions<RoomKey extends string>(
@@ -106,7 +106,7 @@ export function StandardMessageViewActions<RoomKey extends string>({
     isHovered,
     onReplyToMessage,
     onDeleteMessage,
-    getCopyLinkUrl,
+    getMessageUrl,
 }: MessageViewActionsProps<RoomKey>) {
     const {currentAccount} = useSpaceContext();
 
@@ -127,7 +127,7 @@ export function StandardMessageViewActions<RoomKey extends string>({
         label: "Copy link",
         pressErrorTitle: `Couldn’t copy ${messageNoun} link`,
         onPress: async () => {
-            await writeTextToClipboard(getCopyLinkUrl(message.index).toString());
+            await writeTextToClipboard(getMessageUrl(message.index).toString());
         },
     });
 
