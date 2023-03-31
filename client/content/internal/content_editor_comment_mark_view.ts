@@ -1,113 +1,101 @@
-import {DOMSerializer, Mark} from "prosemirror-model";
-import {EditorView} from "prosemirror-view";
+import {To} from "history";
+import {DOMSerializer} from "prosemirror-model";
+import {MarkViewConstructor} from "prosemirror-view";
+import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event";
 import {assert} from "~/shared/helpers/control/assert";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
 import {contentSchemaStyles} from "~/shared/styles/styles";
 
-const stateByCommentThreadIdByEditorView = new WeakMap<
-    EditorView,
-    Map<
-        DocumentCommentThreadId,
-        {
-            isHovered: boolean;
-            changeListeners: Set<() => void>;
-        }
-    >
->();
+export function createContentEditorCommentMarkViewConstructor({
+    getCommentThreadUrl,
+    pushPeek,
+}: {
+    getCommentThreadUrl: (commentThreadId: DocumentCommentThreadId) => URL;
+    pushPeek: (to: To, options?: {focus?: boolean}) => Promise<void>;
+}): MarkViewConstructor {
+    return (mark, view, inline) => {
+        const commentThreadId: DocumentCommentThreadId = mark.attrs.commentThreadId;
 
-/**
- * We have a custom mark view for comments so that hovering a comment mark
- * highlights every mark for that comment thread in the document.
- */
-export function createContentEditorCommentMarkView(
-    mark: Mark,
-    view: EditorView,
-    inline: boolean,
-): {
-    dom: HTMLElement;
-    contentDOM?: HTMLElement;
-} {
-    const commentThreadId: DocumentCommentThreadId = mark.attrs.commentThreadId;
+        const {dom, contentDOM} = DOMSerializer.renderSpec(
+            document,
+            mark.type.spec.toDOM!(mark, inline),
+        );
 
-    const stateByCommentThreadId = getOrSetDefaultMapValue(
-        stateByCommentThreadIdByEditorView,
-        view,
-        () => new Map(),
-    );
-    const state = getOrSetDefaultMapValue(stateByCommentThreadId, commentThreadId, () => ({
-        isHovered: false,
-        changeListeners: new Set<() => void>(),
-    }));
+        assert(dom instanceof HTMLElement);
 
-    const {dom, contentDOM} = DOMSerializer.renderSpec(
-        document,
-        mark.type.spec.toDOM!(mark, inline),
-    );
+        function isChildOfOurCommentMarkWithoutOverridingParentCommentMark(targetNode: Node) {
+            let node: Node | null = targetNode;
+            while (node !== null) {
+                if (node === dom) return true;
 
-    assert(dom instanceof HTMLElement);
+                if (
+                    node instanceof HTMLElement &&
+                    node.classList.contains(contentSchemaStyles.commentClassName)
+                ) {
+                    return false;
+                }
 
-    if (state.isHovered) {
-        dom.classList.add(contentSchemaStyles.hoveredCommentClassName);
-    }
-
-    const stateChangeListener = () => {
-        // Cleanup change listeners for elements that have been removed from the DOM
-        // lazily because mark views don't provide a destroy hook.
-        if (!document.body.contains(dom)) {
-            state.changeListeners.delete(stateChangeListener);
-            return;
-        }
-
-        if (state.isHovered) {
-            if (!dom.classList.contains(contentSchemaStyles.hoveredCommentClassName)) {
-                dom.classList.add(contentSchemaStyles.hoveredCommentClassName);
+                node = node.parentNode;
             }
-        } else {
-            if (dom.classList.contains(contentSchemaStyles.hoveredCommentClassName)) {
-                dom.classList.remove(contentSchemaStyles.hoveredCommentClassName);
-            }
+            return false;
         }
-    };
 
-    state.changeListeners.add(stateChangeListener);
+        let isPointerDownAndOver = false;
+        let isNavigationPending = false;
 
-    function isChildOfOurMarkWithoutIntermediateParentCommentMark(targetNode: Node) {
-        let node: Node | null = targetNode;
-        while (node !== null) {
-            if (node === dom) return true;
-
+        dom.addEventListener("pointerdown", event => {
+            // If we have overlapping comment marks only one should activate.
             if (
-                node instanceof HTMLElement &&
-                node.classList.contains(contentSchemaStyles.commentClassName)
+                !(event.target instanceof Node) ||
+                !isChildOfOurCommentMarkWithoutOverridingParentCommentMark(event.target)
             ) {
-                return false;
+                return;
             }
 
-            node = node.parentNode;
-        }
-        return false;
-    }
+            isPointerDownAndOver = true;
+        });
 
-    const handleHoverEvent = (event: PointerEvent) => {
-        const isHovered =
-            event.type === "pointerover"
-                ? event.target instanceof Node &&
-                  isChildOfOurMarkWithoutIntermediateParentCommentMark(event.target)
-                : event.relatedTarget instanceof Node &&
-                  isChildOfOurMarkWithoutIntermediateParentCommentMark(event.relatedTarget);
+        dom.addEventListener("pointerup", event => {
+            const wasPointerDownAndOver = isPointerDownAndOver;
+            isPointerDownAndOver = false;
 
-        if (isHovered !== state.isHovered) {
-            state.isHovered = isHovered;
-            for (const changeListener of state.changeListeners) changeListener();
-        }
-    };
+            // Only process pointer up events that started on our element.
+            if (!wasPointerDownAndOver) return;
 
-    dom.addEventListener("pointerover", handleHoverEvent);
-    dom.addEventListener("pointerout", handleHoverEvent);
+            // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
+            // modifier. Unless the click was meant to open the link in a separate tab. We
+            // need to implement that manually here given the text is editable.
+            if (event.button !== 0 || isModifiedPointerEvent(event)) {
+                return;
+            }
 
-    return {
-        dom,
-        contentDOM,
+            // If we have overlapping comment marks only one should activate.
+            if (
+                !(event.target instanceof Node) ||
+                !isChildOfOurCommentMarkWithoutOverridingParentCommentMark(event.target)
+            ) {
+                return;
+            }
+
+            // If we are currently navigating, don't navigate again...
+            if (!isNavigationPending) {
+                // TODO(calebmer): Global navigation spinner?
+                const navigationPromise = pushPeek(getCommentThreadUrl(commentThreadId));
+
+                isNavigationPending = true;
+                navigationPromise.finally(() => {
+                    isNavigationPending = false;
+                });
+            }
+        });
+
+        dom.addEventListener("pointerleave", () => {
+            isPointerDownAndOver = false;
+        });
+
+        return {
+            dom,
+            contentDOM,
+        };
     };
 }

@@ -3144,6 +3144,72 @@ export function deleteDocumentComment(
 }
 
 /**
+ * Get a document comment thread and some initial comments for that thread.
+ */
+export async function getDocumentCommentThreadAndInitialComments(
+    context: RequestContext,
+    {
+        documentId,
+        commentThreadId,
+        limit,
+    }: {
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+        limit: number;
+    },
+): Promise<{
+    commentThread: DocumentCommentThreadModel;
+    initialComments: Array<DocumentCommentModel>;
+    initialOtherReferencedComments: Array<DocumentCommentModel>;
+} | null> {
+    const documentItemPromise = DocumentsTable.getItemOrThrow(context, {
+        partitionType: "Document",
+        sortRangeType: "Attributes",
+        documentId,
+    });
+
+    const [, commentThread, {comments, otherReferencedComments}] = await runAllPromises([
+        documentItemPromise,
+        (async () => {
+            const commentThreadItem = await getDocumentCommentThreadItem(context, {
+                documentId,
+                commentThreadId,
+            });
+            if (!commentThreadItem) return null;
+
+            const {spaceId} = await documentItemPromise;
+            return createDocumentCommentThreadModelFromItem(context, spaceId, commentThreadItem);
+        })(),
+        getDocumentCommentsFromStartAssumingAuthorizedCommentThread(context, {
+            documentId,
+            commentThreadId,
+            getSpaceId: () => documentItemPromise.then(({spaceId}) => spaceId),
+            limit,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        }),
+        documentItemPromise.then(({spaceId}) => authorizeSpaceAccess(context, spaceId)),
+    ]);
+
+    if (!commentThread) return null;
+
+    const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
+
+    return {
+        commentThread: commentThread.clone({
+            commentCount: Math.max(
+                commentThread.commentCount,
+                // Make sure `commentCount` is consistent with `comments` in case of eventual
+                // consistency race conditions.
+                lastCommentIndex + 1,
+            ),
+        }),
+        initialComments: comments,
+        initialOtherReferencedComments: otherReferencedComments,
+    };
+}
+
+/**
  * Paginate through document comments from start to finish.
  */
 export async function getDocumentCommentsFromStart(

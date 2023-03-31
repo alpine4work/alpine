@@ -45,6 +45,8 @@ function DocumentContentEditorStateful({
     initialDocument: DocumentModel;
     onDocumentContentChange?: (content: DocumentContent) => void;
 }) {
+    const {spaceId, id: documentId} = initialDocument;
+
     const editorRef = useRef<ContentEditorRef>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [containerResizeRef, containerSize] = useResizeObserver();
@@ -116,6 +118,12 @@ function DocumentContentEditorStateful({
                 className={documentContentClassName}
                 phantomSelections={phantomSelections}
                 addCommentCommand={addCommentCommand}
+                getCommentThreadUrl={commentThreadId =>
+                    new URL(
+                        `/s/${spaceId}/documents/${documentId}/comments/${commentThreadId}`,
+                        window.location.href,
+                    )
+                }
             />
             <DocumentContentEditorSideDecorations
                 containerRef={containerRef}

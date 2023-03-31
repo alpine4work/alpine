@@ -17,6 +17,10 @@ export class DocumentCommentThreadModel extends Model(
     Schema.object({
         id: Schema.id<DocumentCommentThreadId>(),
         /**
+         * The document this comment thread is for.
+         */
+        documentId: Schema.id<DocumentId>(),
+        /**
          * The total number of comments in the thread.
          */
         commentCount: Schema.integer,

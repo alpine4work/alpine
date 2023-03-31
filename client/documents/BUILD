@@ -17,6 +17,7 @@ ts_project(
         "//client/content",
         "//client/dev",
         "//client/helpers",
+        "//client/virtualized",
         "//shared/design",
         "//shared/documents",
         "//shared/helpers",

@@ -16,7 +16,7 @@ import {useAppContext} from "~/client/context/app_context";
 import {Spacer} from "~/client/design/spacer";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {useMessageEditing} from "~/client/messaging/message_editing";
+import {MessageEditing, useMessageEditing} from "~/client/messaging/message_editing";
 import {MessageInput} from "~/client/messaging/message_input";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list";
 import {MessageShimmer} from "~/client/messaging/message_shimmer";
@@ -99,6 +99,10 @@ class MessagingViewState<Message extends MessageModel> {
             ...this.messages.getItem(index),
             messageIndex: index,
         };
+    }
+
+    public hasHeader() {
+        return !!this._header;
     }
 
     /**
@@ -419,7 +423,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     }, [state, tryLoadingMoreData]);
 
     // Manages which comment `<MessageInput>` is currently replying to.
-    const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
+    const [replyingToMessageIndex, setReplyingToMessageIndex] = useState<number | null>(null);
 
     // A message to highlight for the user. We currently highlight messages with a
     // little wiggle animation (see `wiggle_animation.css.ts` for more information).
@@ -522,136 +526,33 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         key: "Header",
                     };
                 }
-                case "Loaded":
-                case "Unloaded":
-                case "Optimistic": {
-                    const previousItem = index > 0 ? state.getItem(index - 1) : null;
-                    const nextItem =
-                        index < state.getItemCount() - 1 ? state.getItem(index + 1) : null;
-
-                    const previousMessage =
-                        previousItem?.type === "Loaded" || previousItem?.type === "Optimistic"
-                            ? previousItem.message
-                            : null;
-                    const nextMessage =
-                        nextItem?.type === "Loaded" || nextItem?.type === "Optimistic"
-                            ? nextItem.message
-                            : null;
-
-                    const actuallyRender = (
-                        disableExpensiveFeaturesDuringScroll: boolean,
-                    ): ReactElement => {
-                        return item.type === "Loaded" || item.type === "Optimistic" ? (
-                            <MessageView
-                                messageNoun={messageNoun}
-                                messageStartOfSentenceNoun={messageStartOfSentenceNoun}
-                                message={item.message}
-                                isFirstMessage={item.messageIndex === 0}
-                                previousMessage={previousMessage}
-                                nextMessage={nextMessage}
-                                messages={state.messages}
-                                messageEditing={messageEditing}
-                                shouldHighlightRef={
-                                    !item.message.isOptimistic &&
-                                    highlightMessage?.messageIndex === item.message.index
-                                        ? highlightMessage.shouldHighlightRef
-                                        : null
-                                }
-                                onJumpToMessage={handleJumpToMessage}
-                                onReplyToMessage={() => {
-                                    if (item.message.isOptimistic) return;
-                                    setReplyingToMessage(item.message);
-                                }}
-                                onDeleteMessage={async () => {
-                                    if (item.message.isOptimistic) return;
-                                    await actions.deleteMessage({
-                                        messageIndex: item.message.index,
-                                    });
-                                }}
-                                disableExpensiveFeaturesDuringScroll={
-                                    disableExpensiveFeaturesDuringScroll
-                                }
-                                getMessageUrl={getMessageUrl}
-                                roomDisplayedCreatedTime={roomDisplayedCreatedTime}
-                            />
-                        ) : (
-                            <MessageShimmer
-                                randomSeed={randomSeedForShimmer}
-                                index={item.messageIndex}
-                                previousMessage={previousMessage}
-                                nextMessage={nextMessage}
-                                messages={state.messages}
-                            />
-                        );
-                    };
-
-                    // It's important to reuse nodes across renders because then React won't try to
-                    // re-render the component.
-                    let nodeWithExpensiveFeaturesDisabled: ReactElement | null = null;
-                    let nodeWithoutExpensiveFeaturesDisabled: ReactElement | null = null;
-
-                    const render = (isScrolling: boolean) => {
-                        // If we already rendered the node without expensive features disabled, don't
-                        // render a new version since that will cause a frame drop right at the start
-                        // of the scroll as React re-renders every message.
-                        if (nodeWithoutExpensiveFeaturesDisabled !== null)
-                            return nodeWithoutExpensiveFeaturesDisabled;
-
-                        if (isScrolling) {
-                            nodeWithExpensiveFeaturesDisabled ??= actuallyRender(true);
-                            return nodeWithExpensiveFeaturesDisabled;
-                        } else {
-                            nodeWithoutExpensiveFeaturesDisabled ??= actuallyRender(false);
-                            return nodeWithoutExpensiveFeaturesDisabled;
-                        }
-                    };
-
-                    return {
-                        key:
-                            item.type === "Loaded" || item.type === "Optimistic"
-                                ? `Message:${item.messageIndex}`
-                                : `UnloadedMessage:${item.messageIndex}`,
-                        minHeight: messageViewMinHeight,
-                        withManualLayout: true,
-                        render: ({
-                            ref,
-                            shouldRenderWithRelativePositioning,
-                            offset,
-                            isScrolling,
-                        }) => (
-                            <div
-                                ref={ref}
-                                style={{
-                                    minHeight: messageViewMinHeight,
-                                    ...(shouldRenderWithRelativePositioning
-                                        ? {position: "relative"}
-                                        : {
-                                              position: "absolute",
-                                              top: offset,
-                                              left: 0,
-                                              right: 0,
-                                          }),
-                                }}
-                            >
-                                {index === 0 && <Spacer space={messageViewMarginY} />}
-                                {render(isScrolling)}
-                            </div>
-                        ),
-                    };
+                default: {
+                    return renderMessageListItem({
+                        messageNoun,
+                        messageStartOfSentenceNoun,
+                        messages: state.messages,
+                        index: state.hasHeader() ? index - 1 : index,
+                        item,
+                        randomSeedForShimmer,
+                        messageEditing,
+                        shouldHighlightRef:
+                            item.message &&
+                            !item.message.isOptimistic &&
+                            highlightMessage?.messageIndex === item.message.index
+                                ? highlightMessage.shouldHighlightRef
+                                : null,
+                        onJumpToMessage: handleJumpToMessage,
+                        onReplyToMessage: message => setReplyingToMessageIndex(message.index),
+                        onDeleteMessage: async message => {
+                            await actions.deleteMessage({
+                                messageIndex: message.index,
+                            });
+                        },
+                        getMessageUrl,
+                        roomDisplayedCreatedTime,
+                        shouldAddMarginTop: index === 0,
+                    });
                 }
-                case "TypingIndicators": {
-                    return {
-                        key: "TypingIndicators",
-                        minHeight: messagingTypingIndicatorsMinHeight,
-                        node: (
-                            <MessagingTypingIndicators
-                                typingStateByConnectionId={item.typingStateByConnectionId}
-                            />
-                        ),
-                    };
-                }
-                default:
-                    throw exhaustive(item);
             }
         },
         [
@@ -693,15 +594,19 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                 onUpdateMessages={update => setMessages(update)}
                 createMessage={input => actions.createMessage(input)}
                 messageEditing={messageEditing}
-                replyingToMessage={replyingToMessage}
-                onClearReplyingToMessage={() => setReplyingToMessage(null)}
+                replyingToMessage={
+                    replyingToMessageIndex !== null
+                        ? state.messages.getLoadedMessageIfExists(replyingToMessageIndex)
+                        : null
+                }
+                onClearReplyingToMessage={() => setReplyingToMessageIndex(null)}
                 onJumpToMessage={handleJumpToMessage}
                 onShowTypingIndicator={() => {
-                    // Don't show an error updating typing indicators to the user. We will see an
-                    // error in our logs but the user won't see any weird behavior if the
-                    // request fails.
                     actions
                         .startTyping()
+                        // Don't show an error updating typing indicators to the user. We will see an
+                        // error in our logs but the user won't see any weird behavior if the
+                        // request fails.
                         .catch(error =>
                             context.tracer
                                 .getRoot()
@@ -709,11 +614,11 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         );
                 }}
                 onHideTypingIndicator={() => {
-                    // Don't show an error updating typing indicators to the user. We will see an
-                    // error in our logs but the user won't see any weird behavior if the
-                    // request fails.
                     actions
                         .stopTyping()
+                        // Don't show an error updating typing indicators to the user. We will see an
+                        // error in our logs but the user won't see any weird behavior if the
+                        // request fails.
                         .catch(error =>
                             context.tracer
                                 .getRoot()
@@ -724,4 +629,166 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             />
         </div>
     );
+}
+
+/**
+ * If you are manually implementing a `<VirtualizedScrollView>` for your
+ * `MessageList` (not recommended) then you may call this function to render
+ * a `MessageListItem`.
+ */
+// NOTE(calebmer): Ideally `<PostListView>` would reuse some code with this
+// function but `<PostListView>` was written before `<MessagingView>` so it'll
+// take some work to migrate.
+export function renderMessageListItem<
+    RoomKey extends string,
+    Message extends MessageModel<RoomKey>,
+>({
+    messageNoun,
+    messageStartOfSentenceNoun,
+    messages,
+    index,
+    item,
+    randomSeedForShimmer,
+    messageEditing,
+    shouldHighlightRef,
+    onJumpToMessage,
+    onReplyToMessage,
+    onDeleteMessage,
+    getMessageUrl,
+    roomDisplayedCreatedTime,
+    shouldAddMarginTop = index === 0,
+}: {
+    messageNoun?: string;
+    messageStartOfSentenceNoun?: string;
+    messages: MessageList<Message>;
+    index: number;
+    item: MessageListItem<Message>;
+    randomSeedForShimmer: string;
+    messageEditing: MessageEditing<RoomKey>;
+    shouldHighlightRef: MutableRefObject<boolean> | null;
+    onJumpToMessage: Memo<(message: Message) => void>;
+    onReplyToMessage: (message: Message) => void;
+    onDeleteMessage: (message: Message) => Promise<void>;
+    getMessageUrl: (messageIndex: number) => URL;
+    roomDisplayedCreatedTime?: Date | undefined;
+    shouldAddMarginTop?: boolean;
+}): VirtualizedScrollViewItem {
+    switch (item.type) {
+        case "Loaded":
+        case "Unloaded":
+        case "Optimistic": {
+            const previousItem = index > 0 ? messages.getItem(index - 1) : null;
+            const nextItem =
+                index < messages.getItemCount() - 1 ? messages.getItem(index + 1) : null;
+
+            const previousMessage =
+                previousItem?.type === "Loaded" || previousItem?.type === "Optimistic"
+                    ? previousItem.message
+                    : null;
+            const nextMessage =
+                nextItem?.type === "Loaded" || nextItem?.type === "Optimistic"
+                    ? nextItem.message
+                    : null;
+
+            const actuallyRender = (
+                disableExpensiveFeaturesDuringScroll: boolean,
+            ): ReactElement => {
+                return item.type === "Loaded" || item.type === "Optimistic" ? (
+                    <MessageView
+                        messageNoun={messageNoun}
+                        messageStartOfSentenceNoun={messageStartOfSentenceNoun}
+                        message={item.message}
+                        isFirstMessage={item.messageIndex === 0}
+                        previousMessage={previousMessage}
+                        nextMessage={nextMessage}
+                        messages={messages}
+                        messageEditing={messageEditing}
+                        shouldHighlightRef={shouldHighlightRef}
+                        onJumpToMessage={onJumpToMessage}
+                        onReplyToMessage={() => {
+                            if (item.message.isOptimistic) return;
+                            onReplyToMessage(item.message);
+                        }}
+                        onDeleteMessage={async () => {
+                            if (item.message.isOptimistic) return;
+                            await onDeleteMessage(item.message);
+                        }}
+                        disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
+                        getMessageUrl={getMessageUrl}
+                        roomDisplayedCreatedTime={roomDisplayedCreatedTime}
+                    />
+                ) : (
+                    <MessageShimmer
+                        randomSeed={randomSeedForShimmer}
+                        index={item.messageIndex}
+                        previousMessage={previousMessage}
+                        nextMessage={nextMessage}
+                        messages={messages}
+                    />
+                );
+            };
+
+            // It's important to reuse nodes across renders because then React won't try to
+            // re-render the component.
+            let nodeWithExpensiveFeaturesDisabled: ReactElement | null = null;
+            let nodeWithoutExpensiveFeaturesDisabled: ReactElement | null = null;
+
+            const render = (isScrolling: boolean) => {
+                // If we already rendered the node without expensive features disabled, don't
+                // render a new version since that will cause a frame drop right at the start
+                // of the scroll as React re-renders every message.
+                if (nodeWithoutExpensiveFeaturesDisabled !== null)
+                    return nodeWithoutExpensiveFeaturesDisabled;
+
+                if (isScrolling) {
+                    nodeWithExpensiveFeaturesDisabled ??= actuallyRender(true);
+                    return nodeWithExpensiveFeaturesDisabled;
+                } else {
+                    nodeWithoutExpensiveFeaturesDisabled ??= actuallyRender(false);
+                    return nodeWithoutExpensiveFeaturesDisabled;
+                }
+            };
+
+            return {
+                key:
+                    item.type === "Loaded" || item.type === "Optimistic"
+                        ? `Message:${item.messageIndex}`
+                        : `UnloadedMessage:${item.messageIndex}`,
+                minHeight: messageViewMinHeight,
+                withManualLayout: true,
+                render: ({ref, shouldRenderWithRelativePositioning, offset, isScrolling}) => (
+                    <div
+                        ref={ref}
+                        style={{
+                            minHeight: messageViewMinHeight,
+                            ...(shouldRenderWithRelativePositioning
+                                ? {position: "relative"}
+                                : {
+                                      position: "absolute",
+                                      top: offset,
+                                      left: 0,
+                                      right: 0,
+                                  }),
+                        }}
+                    >
+                        {shouldAddMarginTop && <Spacer space={messageViewMarginY} />}
+                        {render(isScrolling)}
+                    </div>
+                ),
+            };
+        }
+        case "TypingIndicators": {
+            return {
+                key: "TypingIndicators",
+                minHeight: messagingTypingIndicatorsMinHeight,
+                node: (
+                    <MessagingTypingIndicators
+                        typingStateByConnectionId={item.typingStateByConnectionId}
+                    />
+                ),
+            };
+        }
+        default:
+            throw exhaustive(item);
+    }
 }

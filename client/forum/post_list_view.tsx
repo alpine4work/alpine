@@ -9,9 +9,11 @@ import {
     useCallback,
     useEffect,
     useImperativeHandle,
+    useMemo,
     useRef,
     useState,
 } from "react";
+import {useStateWithDeps} from "swr/_internal";
 import {useAppContext} from "~/client/context/app_context";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {Spacer} from "~/client/design/spacer";
@@ -263,13 +265,10 @@ function PostListView(
         return posts.setChannelHeader(channelHeader ?? null);
     });
 
-    const posts = postsWithoutChannelHeader.setChannelHeader(channelHeader ?? null);
-    useEffect(() => {
-        setPosts(previousPosts => {
-            if (previousPosts === postsWithoutChannelHeader) return posts;
-            return previousPosts.setChannelHeader(channelHeader ?? null);
-        });
-    }, [channelHeader, posts, postsWithoutChannelHeader]);
+    const posts = useMemo(
+        () => postsWithoutChannelHeader.setChannelHeader(channelHeader ?? null),
+        [channelHeader, postsWithoutChannelHeader],
+    );
 
     // Always pin the post comment input to the bottom of the list view on mobile
     // layout of a single post. We use a heuristic of one post with always open

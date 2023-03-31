@@ -1,5 +1,10 @@
 import {DocumentContentStepSchema} from "~/shared/content/document_content_schema";
-import {ContentEditorClientId, DocumentId} from "~/shared/id/types/id_types";
+import {
+    ContentEditorClientId,
+    DocumentCommentThreadId,
+    DocumentId,
+} from "~/shared/id/types/id_types";
+import {DocumentCommentModel} from "~/shared/models/document_model";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc";
 import {Schema} from "~/shared/schema/schema";
 
@@ -18,5 +23,39 @@ export const getDocumentContentSteps = defineRpc({
                 clientId: Schema.id<ContentEditorClientId>(),
             }),
         ),
+    },
+});
+
+export const getDocumentCommentsFromStart = defineRpc({
+    name: "getDocumentCommentsFromStart",
+    input: {
+        documentId: Schema.id<DocumentId>(),
+        commentThreadId: Schema.id<DocumentCommentThreadId>(),
+        limit: Schema.integer,
+        afterCommentIndex: Schema.integer.nullable(),
+        beforeCommentIndex: Schema.integer.nullable(),
+    },
+    output: {
+        commentCount: Schema.integer,
+        comments: Schema.array(DocumentCommentModel.schema()),
+        otherReferencedComments: Schema.array(DocumentCommentModel.schema()),
+        lastCommentChangeTime: Schema.date.nullable(),
+    },
+});
+
+export const getDocumentCommentsFromEnd = defineRpc({
+    name: "getDocumentCommentsFromEnd",
+    input: {
+        documentId: Schema.id<DocumentId>(),
+        commentThreadId: Schema.id<DocumentCommentThreadId>(),
+        limit: Schema.integer,
+        afterCommentIndex: Schema.integer.nullable(),
+        beforeCommentIndex: Schema.integer.nullable(),
+    },
+    output: {
+        commentCount: Schema.integer,
+        comments: Schema.array(DocumentCommentModel.schema()),
+        otherReferencedComments: Schema.array(DocumentCommentModel.schema()),
+        lastCommentChangeTime: Schema.date.nullable(),
     },
 });
