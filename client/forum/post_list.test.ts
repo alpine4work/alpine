@@ -82,7 +82,9 @@ function getItems(list: PostList) {
         } = assertExists(item);
 
         if (remainingItem.type === "PostContent") {
-            expect(list.getPostById((remainingItem.post as any).id).getPostIndex()).toEqual(index);
+            expect(list.getPostById((remainingItem.post as any).id).postContentItemIndex).toEqual(
+                index,
+            );
         }
 
         return remainingItem;
@@ -522,7 +524,7 @@ test("can toggle the comments for a post open", () => {
         {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 
-    list = list.togglePostComments(3);
+    list = list.togglePostComments(post4.id);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post1, postCommentsState: "Closed"},
@@ -534,7 +536,7 @@ test("can toggle the comments for a post open", () => {
         {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 
-    list = list.togglePostComments(2);
+    list = list.togglePostComments(post3.id);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post1, postCommentsState: "Closed"},
@@ -567,7 +569,7 @@ test("can toggle the comments for a post open", () => {
         {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 
-    list = list.togglePostComments(0);
+    list = list.togglePostComments(post1.id);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post1, postCommentsState: "Open"},
@@ -606,7 +608,7 @@ test("can toggle the comments for a post open", () => {
         {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 
-    list = list.togglePostComments(7);
+    list = list.togglePostComments(post2.id);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post1, postCommentsState: "Open"},
@@ -646,7 +648,7 @@ test("can toggle the comments for a post open", () => {
         {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 
-    list = list.togglePostComments(9);
+    list = list.togglePostComments(post3.id);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post1, postCommentsState: "Open"},
@@ -665,7 +667,7 @@ test("can toggle the comments for a post open", () => {
         {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 
-    list = list.togglePostComments(7);
+    list = list.togglePostComments(post2.id);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post1, postCommentsState: "Open"},
@@ -683,7 +685,7 @@ test("can toggle the comments for a post open", () => {
         {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 
-    list = list.togglePostComments(0);
+    list = list.togglePostComments(post1.id);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post1, postCommentsState: "Closed"},
@@ -695,7 +697,7 @@ test("can toggle the comments for a post open", () => {
         {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 
-    list = list.togglePostComments(3);
+    list = list.togglePostComments(post4.id);
 
     expect(getItems(list)).toEqual([
         {type: "PostContent", post: post1, postCommentsState: "Closed"},

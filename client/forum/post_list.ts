@@ -1,5 +1,5 @@
-import createTree, {Tree} from "functional-red-black-tree";
 import {MessageList} from "~/client/messaging/message_list";
+import {VirtualizedTree} from "~/client/virtualized/virtualized_tree";
 import {
     FailedPreconditionError,
     InternalError,
@@ -7,16 +7,8 @@ import {
     NotFoundError,
     OutOfRangeError,
 } from "~/shared/error/error";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
-import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
-import {
-    OrderKey,
-    generateOrderKeyBetween,
-    generateOrderKeysBetween,
-} from "~/shared/helpers/sort/order_key";
 import {PostId, WebSocketConnectionId} from "~/shared/id/types/id_types";
 import {MessagingTypingState} from "~/shared/messaging/messaging_realtime_schema";
 import {ChannelModel} from "~/shared/models/channel_model";
@@ -32,10 +24,10 @@ type PostCommentsOpenState = "Open" | "AlwaysOpen";
 
 /**
  * An immutable representation of a list of posts to be rendered by our
- * `<PostsView>` component. Our `<PostsView>` component virtualizes our list of
- * posts since we may have too many to render on screen at once. Posts may also
- * expand their comments inline so if comments are expanded then we also need
- * to virtualize those!
+ * `<PostListView>` component. Our `<PostListView>` component virtualizes our
+ * list of posts since we may have too many to render on screen at once. Posts
+ * may also expand their comments inline so if comments are expanded then we
+ * also need to virtualize those!
  *
  * Keeping track of which posts are open/closed and how that affects comment
  * indexing is a little complex. This class manages that complexity.
@@ -44,110 +36,39 @@ export class PostList {
     private readonly _channelHeader: PostListChannelHeader | null;
     private readonly _hasMorePosts: boolean;
 
-    /**
-     * Our list of posts. But this is a map not a list you may say. Yes! It is a
-     * map keyed by an `OrderKey`. This allows us to efficiently insert items at
-     * any position in the map (beginning or end) without needing to increase
-     * indexes of following items.
-     *
-     * Also, indexing into this list sometimes gives you a comment. Since we want
-     * to virtualize comments along with posts. So the post index is not equal to
-     * the list item index.
-     *
-     * In order to get an item by index we iterate through this map, jumping the
-     * index forward when a post has open comments. Each post also has an extra
-     * item rendered after comments for a comment input.
-     */
-    private readonly _postByOrderKey: ImmutableMap<
-        OrderKey,
+    // NOTE(calebmer): The API of this class predates the introduction of
+    // `VirtualizedTree`. There are probably methods we could clean up to
+    // simplify things.
+    private readonly _posts: VirtualizedTree<
+        PostId,
         {
             readonly post: PostModel;
             readonly postComments: MessageList<PostCommentModel>;
-        }
+            readonly postCommentsState: PostCommentsState;
+        },
+        Exclude<PostListItem, PostListChannelHeaderItem | PostListMoreUnloadedPostsItem>
     >;
-
-    /**
-     * A map of the order keys for posts.
-     */
-    private readonly _orderKeyByPostId: ImmutableMap<PostId, OrderKey>;
-
-    /**
-     * What state the comments for a post are in. If a key is not present in the
-     * map then the answer is `Closed`. If a key is present then the comment
-     * section will be open.
-     */
-    private readonly _postCommentsOpenStateByOrderKey: ImmutableMap<
-        OrderKey,
-        PostCommentsOpenState
-    >;
-
-    /**
-     * Cache of index to post. So when we are trying to get an item in this list by
-     * index we can find the post it lives in then index in further if the index is
-     * a post comment index.
-     *
-     * This is a sparse cache. It starts as empty regardless of how many posts we
-     * have. When we try to get a post by index we will initialize and populate
-     * this cache so that in the future we can quickly respond to the same request
-     * and quickly respond to requests for indexes nearby the previous one we
-     * looked up.
-     *
-     * Mutable since we update this cache during reads. But it's a persistent
-     * red-black tree so that we can partially reuse the tree on updates. For
-     * example, when a comment section opens all indexes after are invalidated but
-     * all indexes before we can keep.
-     */
-    private _postOrderKeyByPostContentItemIndex: Tree<number, OrderKey>;
-
-    /**
-     * The number of items in the list pre-computed ahead of time.
-     */
-    private readonly _itemCount: number;
 
     private constructor({
         channelHeader,
         hasMorePosts,
-        postByOrderKey,
-        orderKeyByPostId,
-        postCommentsOpenStateByOrderKey,
-        postOrderKeyByPostContentItemIndex,
+        posts,
     }: {
         channelHeader: PostListChannelHeader | null;
         hasMorePosts: boolean;
-        postByOrderKey: ImmutableMap<
-            OrderKey,
+        posts: VirtualizedTree<
+            PostId,
             {
                 readonly post: PostModel;
                 readonly postComments: MessageList<PostCommentModel>;
-            }
+                readonly postCommentsState: PostCommentsState;
+            },
+            Exclude<PostListItem, PostListChannelHeaderItem | PostListMoreUnloadedPostsItem>
         >;
-        orderKeyByPostId: ImmutableMap<PostId, OrderKey>;
-        postCommentsOpenStateByOrderKey: ImmutableMap<OrderKey, PostCommentsOpenState>;
-        postOrderKeyByPostContentItemIndex: Tree<number, OrderKey>;
     }) {
         this._channelHeader = channelHeader;
         this._hasMorePosts = hasMorePosts;
-        this._postByOrderKey = postByOrderKey;
-        this._orderKeyByPostId = orderKeyByPostId;
-        this._postCommentsOpenStateByOrderKey = postCommentsOpenStateByOrderKey;
-        this._postOrderKeyByPostContentItemIndex = postOrderKeyByPostContentItemIndex;
-
-        this._itemCount =
-            (this._channelHeader ? 1 : 0) +
-            (this._hasMorePosts ? 1 : 0) +
-            this._postByOrderKey.size +
-            // For all posts with open comments, add the size of the comment sections plus
-            // one for the comment input.
-            reduceIterable(
-                this._postCommentsOpenStateByOrderKey,
-                (count, [postOrderKey]) =>
-                    count +
-                    assertExists(
-                        this._postByOrderKey.get(postOrderKey),
-                    ).postComments.getItemCount() +
-                    1,
-                0,
-            );
+        this._posts = posts;
     }
 
     /**
@@ -156,235 +77,175 @@ export class PostList {
     public static empty = new PostList({
         channelHeader: null,
         hasMorePosts: false,
-        postByOrderKey: ImmutableMap.empty(),
-        orderKeyByPostId: ImmutableMap.empty(),
-        postCommentsOpenStateByOrderKey: ImmutableMap.empty(),
-        postOrderKeyByPostContentItemIndex: createTree(),
+        posts: VirtualizedTree.new({
+            getNodeKey: ({post}) => post.id,
+            getNodeItemCount: ({postComments, postCommentsState}) =>
+                1 + (postCommentsState !== "Closed" ? postComments.getItemCount() + 1 : 0),
+            getNodeItem: ({post, postComments, postCommentsState}, index, postContentItemIndex) => {
+                if (index === 0) {
+                    return {
+                        type: "PostContent",
+                        post,
+                        postComments,
+                        postCommentsState,
+                        postContentItemIndex,
+                        postCommentInputItemIndex:
+                            postCommentsState !== "Closed"
+                                ? postContentItemIndex + postComments.getItemCount() + 1
+                                : null,
+                    };
+                }
+
+                if (postCommentsState !== "Closed") {
+                    const postCommentIndex = index - 1;
+                    const postCommentCount = postComments.getItemCount();
+                    const postCommentInputItemIndex =
+                        postContentItemIndex + postComments.getItemCount() + 1;
+
+                    if (0 <= postCommentIndex && postCommentIndex < postCommentCount) {
+                        const item = postComments.getItem(postCommentIndex);
+                        switch (item.type) {
+                            case "Loaded": {
+                                return {
+                                    type: "LoadedPostComment",
+                                    post,
+                                    postComments,
+                                    postCommentIndex,
+                                    postComment: item.message,
+                                    postCommentInputItemIndex,
+                                };
+                            }
+                            case "Unloaded": {
+                                return {
+                                    type: "UnloadedPostComment",
+                                    post,
+                                    postComments,
+                                    postCommentIndex,
+                                    postCommentInputItemIndex,
+                                };
+                            }
+                            case "Optimistic": {
+                                return {
+                                    type: "OptimisticPostComment",
+                                    post,
+                                    postComments,
+                                    postCommentIndex,
+                                    postComment: item.message,
+                                    postCommentInputItemIndex,
+                                    optimisticPostCommentIndex: item.optimisticMessageIndex,
+                                };
+                            }
+                            case "TypingIndicators": {
+                                return {
+                                    type: "PostCommentsTypingIndicator",
+                                    post,
+                                    postComments,
+                                    typingStateByConnectionId: item.typingStateByConnectionId,
+                                    postCommentInputItemIndex,
+                                };
+                            }
+                            default:
+                                throw exhaustive(item);
+                        }
+                    }
+
+                    if (index === postCommentCount + 1) {
+                        return {
+                            type: "PostCommentInput",
+                            post,
+                            postComments,
+                            postContentItemIndex,
+                        };
+                    }
+                }
+
+                throw new OutOfRangeError("Index out of bounds");
+            },
+        }),
     });
 
     /**
      * Get the total number of items in the list.
      */
     public getItemCount() {
-        return this._itemCount;
+        return (
+            this._posts.getItemCount() +
+            (this._channelHeader ? 1 : 0) +
+            (this._hasMorePosts ? 1 : 0)
+        );
     }
 
     /**
      * Get the number of posts in this list.
      */
     public getPostCount() {
-        return this._postByOrderKey.size;
+        return this._posts.getNodeCount();
     }
 
     /**
-     * Get the total number of items before this post id.
+     * Get a post by its `PostId`.
      */
     public getPostById(postId: PostId): {
         post: PostModel;
         postComments: MessageList<PostCommentModel>;
-        /**
-         * Get the index of the post in our list.
-         *
-         * Getting the index is O(posts)! Don't use in performance critical paths.
-         */
-        getPostIndex: () => number;
+        postContentItemIndex: number;
         /**
          * Get the index of the post comment in our list. If comments are not open on
          * this post or if the comment index is out of bounds this will throw an error.
          */
         getPostCommentIndex: (postCommentIndex: number) => number;
     } {
-        const orderKey = this._orderKeyByPostId.get(postId);
-        if (!orderKey) throw new NotFoundError("Post id not found");
-        const post = this._postByOrderKey.get(orderKey);
-        if (!post) throw new InternalError("Post not found for order key");
+        const nodeResult = this._posts.getNodeByKey(postId);
+        if (!nodeResult) throw new InternalError("Post not found");
+        const {node, startItemIndex} = nodeResult;
 
-        const getPostIndex = () => {
-            let itemCount = this._channelHeader ? 1 : 0;
-
-            for (const [otherOrderKey, otherPost] of this._postByOrderKey.entriesBefore(orderKey)) {
-                itemCount += 1;
-
-                if (this._postCommentsOpenStateByOrderKey.has(otherOrderKey)) {
-                    itemCount += otherPost.postComments.getItemCount();
-                    itemCount += 1;
-                }
-            }
-
-            return itemCount;
-        };
+        const postContentItemIndex = startItemIndex + (this._channelHeader ? 1 : 0);
 
         const getPostCommentIndex = (postCommentIndex: number) => {
-            const postIndex = getPostIndex();
+            const postIndex = postContentItemIndex;
 
-            const postCommentsState =
-                this._postCommentsOpenStateByOrderKey.get(orderKey) ?? "Closed";
-
-            if (postCommentsState === "Closed")
+            if (node.postCommentsState === "Closed")
                 throw new FailedPreconditionError("Post comments are closed");
 
             if (postCommentIndex < 0 || !Number.isSafeInteger(postCommentIndex))
                 throw new InvalidArgumentError("Post comment index must be a positive integer");
 
-            if (postCommentIndex >= post.postComments.getItemCount())
+            if (postCommentIndex >= node.postComments.getItemCount())
                 throw new NotFoundError("Post comment index out of bounds");
 
             return postIndex + 1 + postCommentIndex;
         };
 
         return {
-            post: post.post,
-            postComments: post.postComments,
-            getPostIndex,
+            post: node.post,
+            postComments: node.postComments,
+            postContentItemIndex,
             getPostCommentIndex,
         };
     }
 
     /**
-     * Get the post this index is referring to. Throws an error if the index is out
-     * of range. Every item in this list is associated with a post.
-     */
-    private _getPost(index: number): {
-        postContentItemIndex: number;
-        postOrderKey: OrderKey;
-        post: PostModel;
-        postComments: MessageList<PostCommentModel>;
-    } | null {
-        if (index < 0 || !Number.isSafeInteger(index))
-            throw new OutOfRangeError("Index should be a positive integer");
-
-        // We are in the channel header, not a post.
-        if (this._channelHeader && index === 0) return null;
-
-        // We are in the has more posts loading item, not a post.
-        if (this._hasMorePosts && index === this.getItemCount() - 1) return null;
-
-        let startAfterOrderKey: OrderKey | null;
-        let nextPostContentItemIndex: number;
-
-        // Check if the cache for the first entry before the search index.
-        //
-        // - If there is no entry, we need to iterate through posts starting from
-        //   the beginning.
-        // - If there is an entry and the index falls inside that entry, hooray! We can
-        //   immediately return an item.
-        // - Otherwise we need to iterate through posts starting from the entry we
-        //   found.
-        {
-            const iterator = this._postOrderKeyByPostContentItemIndex.le(index);
-            if (!iterator.valid) {
-                startAfterOrderKey = null;
-                nextPostContentItemIndex = this._channelHeader ? 1 : 0;
-            } else {
-                const postNode = iterator.node!;
-
-                const postContentItemIndex = postNode.key;
-                const postOrderKey = postNode.value;
-                const {post, postComments} = assertExists(
-                    this._postByOrderKey.get(postOrderKey),
-                    "Expected order key at index to exist",
-                );
-
-                startAfterOrderKey = postOrderKey;
-                nextPostContentItemIndex =
-                    postContentItemIndex +
-                    // The next post index is past any comments if the comment section is open
-                    (this._postCommentsOpenStateByOrderKey.has(postOrderKey)
-                        ? postComments.getItemCount() +
-                          // Add one for the post comment input index
-                          1
-                        : 0) +
-                    // Add one again to get the next post index
-                    1;
-
-                // If this index is before the next content item index then the index is inside
-                // the post content item we found!
-                if (index < nextPostContentItemIndex) {
-                    return {
-                        postContentItemIndex,
-                        postOrderKey,
-                        post,
-                        postComments,
-                    };
-                }
-            }
-        }
-
-        // If we are looking for an index before the start of posts, there is no post
-        // for this index but we are still in range.
-        if (index < nextPostContentItemIndex) {
-            return null;
-        }
-
-        // Iterate through posts to find the post which contains our search index.
-        // Cache the index of each post as we find it so that future calls to this
-        // function don't need to iterate through posts.
-        for (const [postOrderKey, {post, postComments}] of startAfterOrderKey !== null
-            ? this._postByOrderKey.entriesAfter(startAfterOrderKey)
-            : this._postByOrderKey.entries()) {
-            const postContentItemIndex = nextPostContentItemIndex;
-
-            // Update the cache with the index for this post so we don't need to iterate
-            // through posts next time.
-            {
-                const iterator =
-                    this._postOrderKeyByPostContentItemIndex.find(postContentItemIndex);
-                this._postOrderKeyByPostContentItemIndex = iterator.valid
-                    ? iterator.update(postOrderKey)
-                    : this._postOrderKeyByPostContentItemIndex.insert(
-                          postContentItemIndex,
-                          postOrderKey,
-                      );
-            }
-
-            nextPostContentItemIndex =
-                postContentItemIndex +
-                // The next post index is past any comments if the comment section is open
-                (this._postCommentsOpenStateByOrderKey.has(postOrderKey)
-                    ? postComments.getItemCount() +
-                      // Add one for the post comment input index
-                      1
-                    : 0) +
-                // Add one again to get the next post index
-                1;
-
-            // If our index is in this range, yay! Return the specific item.
-            if (postContentItemIndex <= index && index < nextPostContentItemIndex) {
-                return {
-                    postContentItemIndex,
-                    postOrderKey,
-                    post,
-                    postComments,
-                };
-            }
-        }
-
-        throw new OutOfRangeError("Out of bounds index");
-    }
-
-    /**
      * Get the post content item for the provided index. If this index is pointing
      * at a comment then we will return the item for the post the comment is a part
-     * of. Will throw an error if the index is out of bounds. Every index in this
+     * of. Will return null if the index is out of bounds. Every index in this
      * list is associated to a post.
      */
     public getPostContentItem(index: number): PostListPostContentItem | null {
-        const postResult = this._getPost(index);
-        if (!postResult) return null;
+        const nodeResult = this._posts.getNodeByItemIndex(index - (this._channelHeader ? 1 : 0));
+        if (!nodeResult) return null;
+        const {node, startItemIndex} = nodeResult;
 
-        const {postContentItemIndex, postOrderKey, post, postComments} = postResult;
-        const postCommentsState =
-            this._postCommentsOpenStateByOrderKey.get(postOrderKey) ?? "Closed";
+        const postContentItemIndex = startItemIndex + (this._channelHeader ? 1 : 0);
 
         return {
             type: "PostContent",
-            post,
-            postComments,
-            postCommentsState,
+            post: node.post,
+            postComments: node.postComments,
+            postCommentsState: node.postCommentsState,
             postContentItemIndex,
             postCommentInputItemIndex:
-                postCommentsState !== "Closed"
-                    ? postContentItemIndex + postComments.getItemCount() + 1
+                node.postCommentsState !== "Closed"
+                    ? postContentItemIndex + node.postComments.getItemCount() + 1
                     : null,
         };
     }
@@ -400,10 +261,10 @@ export class PostList {
     }
 
     /**
-     * Get the item at the provided index. Throws an error if the index is out
+     * Get the item at the provided index. Returns null if the index is out
      * of bounds.
      */
-    public getItem(index: number): PostListItem {
+    public getItem(index: number): PostListItem | null {
         if (this._channelHeader && index === 0) {
             return {
                 type: "ChannelHeader",
@@ -417,91 +278,41 @@ export class PostList {
             };
         }
 
-        const {postContentItemIndex, postOrderKey, post, postComments} = assertExists(
-            this._getPost(index),
-            "Expected unsupported non-post indexes to be handled",
-        );
-        const postCommentsState =
-            this._postCommentsOpenStateByOrderKey.get(postOrderKey) ?? "Closed";
+        const item = this._posts.getItem(index - (this._channelHeader ? 1 : 0));
+        if (!item) return item;
 
-        if (index === postContentItemIndex) {
-            return {
-                type: "PostContent",
-                post,
-                postComments,
-                postCommentsState,
-                postContentItemIndex,
-                postCommentInputItemIndex:
-                    postCommentsState !== "Closed"
-                        ? postContentItemIndex + postComments.getItemCount() + 1
-                        : null,
-            };
-        }
-
-        if (postCommentsState !== "Closed") {
-            const postCommentIndex = index - (postContentItemIndex + 1);
-            const postCommentCount = postComments.getItemCount();
-            const postCommentInputItemIndex =
-                postContentItemIndex + postComments.getItemCount() + 1;
-
-            if (0 <= postCommentIndex && postCommentIndex < postCommentCount) {
-                const item = postComments.getItem(postCommentIndex);
-                switch (item.type) {
-                    case "Loaded": {
-                        return {
-                            type: "LoadedPostComment",
-                            post,
-                            postComments,
-                            postCommentIndex,
-                            postComment: item.message,
-                            postCommentInputItemIndex,
-                        };
-                    }
-                    case "Unloaded": {
-                        return {
-                            type: "UnloadedPostComment",
-                            post,
-                            postComments,
-                            postCommentIndex,
-                            postCommentInputItemIndex,
-                        };
-                    }
-                    case "Optimistic": {
-                        return {
-                            type: "OptimisticPostComment",
-                            post,
-                            postComments,
-                            postCommentIndex,
-                            postComment: item.message,
-                            postCommentInputItemIndex,
-                            optimisticPostCommentIndex: item.optimisticMessageIndex,
-                        };
-                    }
-                    case "TypingIndicators": {
-                        return {
-                            type: "PostCommentsTypingIndicator",
-                            post,
-                            postComments,
-                            typingStateByConnectionId: item.typingStateByConnectionId,
-                            postCommentInputItemIndex,
-                        };
-                    }
-                    default:
-                        throw exhaustive(item);
-                }
-            }
-
-            if (index === postContentItemIndex + postCommentCount + 1) {
+        // Adjust any item indexes to consider items that come before posts in
+        // our `PostList`.
+        switch (item.type) {
+            case "PostContent": {
                 return {
-                    type: "PostCommentInput",
-                    post,
-                    postComments,
-                    postContentItemIndex,
+                    ...item,
+                    postContentItemIndex: item.postContentItemIndex + (this._channelHeader ? 1 : 0),
+                    postCommentInputItemIndex:
+                        item.postCommentInputItemIndex !== null
+                            ? item.postCommentInputItemIndex + (this._channelHeader ? 1 : 0)
+                            : null,
                 };
             }
+            case "LoadedPostComment":
+            case "UnloadedPostComment":
+            case "OptimisticPostComment":
+            case "PostCommentsTypingIndicator": {
+                return {
+                    ...item,
+                    postCommentInputItemIndex:
+                        item.postCommentInputItemIndex + (this._channelHeader ? 1 : 0),
+                };
+            }
+            case "PostCommentInput": {
+                return {
+                    ...item,
+                    postContentItemIndex: item.postContentItemIndex + (this._channelHeader ? 1 : 0),
+                };
+            }
+            default:
+                throw exhaustive(item);
         }
-
-        throw new InternalError("Index is not actually in post");
     }
 
     /**
@@ -514,12 +325,7 @@ export class PostList {
         return new PostList({
             channelHeader,
             hasMorePosts: this._hasMorePosts,
-            postByOrderKey: this._postByOrderKey,
-            orderKeyByPostId: this._orderKeyByPostId,
-            postCommentsOpenStateByOrderKey: this._postCommentsOpenStateByOrderKey,
-            // We have to throw away the entire cache for post content indexes because
-            // the channel header offsets everything by one.
-            postOrderKeyByPostContentItemIndex: createTree(),
+            posts: this._posts,
         });
     }
 
@@ -533,11 +339,7 @@ export class PostList {
         return new PostList({
             channelHeader: this._channelHeader,
             hasMorePosts,
-            postByOrderKey: this._postByOrderKey,
-            orderKeyByPostId: this._orderKeyByPostId,
-            postCommentsOpenStateByOrderKey: this._postCommentsOpenStateByOrderKey,
-            // We get to keep the index cache because the more posts item is at the end.
-            postOrderKeyByPostContentItemIndex: this._postOrderKeyByPostContentItemIndex,
+            posts: this._posts,
         });
     }
 
@@ -557,11 +359,6 @@ export class PostList {
             };
         } = {},
     ): PostList {
-        const postOrderKey = generateOrderKeyBetween(
-            null,
-            this._postByOrderKey.getFirstEntry()?.[0] ?? null,
-        );
-
         let postComments = MessageList.new<PostCommentModel>({
             messageCount: post.commentCount,
             lastMessageChangeTime: post.lastCommentChangeTime,
@@ -574,30 +371,18 @@ export class PostList {
             });
         }
 
-        const postByOrderKey = this._postByOrderKey.set(postOrderKey, {
-            post,
-            postComments,
-        });
-
-        const orderKeyByPostId = this._orderKeyByPostId.update(post.id, lastOrderKey => {
-            assert(!lastOrderKey, "Post already exists in the list");
-            return postOrderKey;
-        });
-
-        const postCommentsOpenStateByOrderKey =
-            postCommentsState !== "Closed"
-                ? this._postCommentsOpenStateByOrderKey.set(postOrderKey, postCommentsState)
-                : this._postCommentsOpenStateByOrderKey;
+        const posts = this._posts.insertNodesAtStart([
+            {
+                post,
+                postComments,
+                postCommentsState,
+            },
+        ]);
 
         return new PostList({
             channelHeader: this._channelHeader,
             hasMorePosts: this._hasMorePosts,
-            postByOrderKey,
-            orderKeyByPostId,
-            postCommentsOpenStateByOrderKey,
-            // We have to throw away the entire cache for post content indexes because
-            // inserting at the beginning means all indexes after are different.
-            postOrderKeyByPostContentItemIndex: createTree(),
+            posts,
         });
     }
 
@@ -617,11 +402,6 @@ export class PostList {
             };
         } = {},
     ): PostList {
-        const postOrderKey = generateOrderKeyBetween(
-            this._postByOrderKey.getLastEntry()?.[0] ?? null,
-            null,
-        );
-
         let postComments = MessageList.new<PostCommentModel>({
             messageCount: post.commentCount,
             lastMessageChangeTime: post.lastCommentChangeTime,
@@ -634,30 +414,18 @@ export class PostList {
             });
         }
 
-        const postByOrderKey = this._postByOrderKey.set(postOrderKey, {
-            post,
-            postComments,
-        });
-
-        const orderKeyByPostId = this._orderKeyByPostId.update(post.id, lastOrderKey => {
-            assert(!lastOrderKey, "Post already exists in the list");
-            return postOrderKey;
-        });
-
-        const postCommentsOpenStateByOrderKey =
-            postCommentsState !== "Closed"
-                ? this._postCommentsOpenStateByOrderKey.set(postOrderKey, postCommentsState)
-                : this._postCommentsOpenStateByOrderKey;
+        const posts = this._posts.insertNodesAtEnd([
+            {
+                post,
+                postComments,
+                postCommentsState,
+            },
+        ]);
 
         return new PostList({
             channelHeader: this._channelHeader,
             hasMorePosts: this._hasMorePosts,
-            postByOrderKey,
-            orderKeyByPostId,
-            postCommentsOpenStateByOrderKey,
-            // We can keep the existing cache for post content indexes because inserting at
-            // the end does not change the indexes of items that come before.
-            postOrderKeyByPostContentItemIndex: this._postOrderKeyByPostContentItemIndex,
+            posts,
         });
     }
 
@@ -666,42 +434,19 @@ export class PostList {
      * comments closed.
      */
     public insertManyPostsAtStart(posts: ReadonlyArray<PostModel>) {
-        const postOrderKeys = generateOrderKeysBetween(
-            null,
-            this._postByOrderKey.getFirstEntry()?.[0] ?? null,
-            posts.length,
-        );
-
-        let postByOrderKey = this._postByOrderKey;
-        let orderKeyByPostId = this._orderKeyByPostId;
-
-        for (let i = 0; i < posts.length; i++) {
-            const post = posts[i]!;
-            const postOrderKey = postOrderKeys[i]!;
-
-            postByOrderKey = postByOrderKey.set(postOrderKey, {
-                post,
-                postComments: MessageList.new({
-                    messageCount: post.commentCount,
-                    lastMessageChangeTime: post.lastCommentChangeTime,
-                }),
-            });
-
-            orderKeyByPostId = orderKeyByPostId.update(post.id, lastOrderKey => {
-                assert(!lastOrderKey, "Post already exists in the list");
-                return postOrderKey;
-            });
-        }
-
         return new PostList({
             channelHeader: this._channelHeader,
             hasMorePosts: this._hasMorePosts,
-            postByOrderKey,
-            orderKeyByPostId,
-            postCommentsOpenStateByOrderKey: this._postCommentsOpenStateByOrderKey,
-            // We have to throw away the entire cache for post content indexes because
-            // inserting at the beginning means all indexes after are different.
-            postOrderKeyByPostContentItemIndex: createTree(),
+            posts: this._posts.insertNodesAtStart(
+                posts.map(post => ({
+                    post,
+                    postComments: MessageList.new({
+                        messageCount: post.commentCount,
+                        lastMessageChangeTime: post.lastCommentChangeTime,
+                    }),
+                    postCommentsState: "Closed",
+                })),
+            ),
         });
     }
 
@@ -710,97 +455,41 @@ export class PostList {
      * comments closed.
      */
     public insertManyPostsAtEnd(posts: ReadonlyArray<PostModel>) {
-        const postOrderKeys = generateOrderKeysBetween(
-            this._postByOrderKey.getLastEntry()?.[0] ?? null,
-            null,
-            posts.length,
-        );
-
-        let postByOrderKey = this._postByOrderKey;
-        let orderKeyByPostId = this._orderKeyByPostId;
-
-        for (let i = 0; i < posts.length; i++) {
-            const post = posts[i]!;
-            const postOrderKey = postOrderKeys[i]!;
-
-            postByOrderKey = postByOrderKey.set(postOrderKey, {
-                post,
-                postComments: MessageList.new({
-                    messageCount: post.commentCount,
-                    lastMessageChangeTime: post.lastCommentChangeTime,
-                }),
-            });
-
-            orderKeyByPostId = orderKeyByPostId.update(post.id, lastOrderKey => {
-                assert(!lastOrderKey, "Post already exists in the list");
-                return postOrderKey;
-            });
-        }
-
         return new PostList({
             channelHeader: this._channelHeader,
             hasMorePosts: this._hasMorePosts,
-            postByOrderKey,
-            orderKeyByPostId,
-            postCommentsOpenStateByOrderKey: this._postCommentsOpenStateByOrderKey,
-            // We can keep the existing cache for post content indexes because inserting at
-            // the end does not change the indexes of items that come before.
-            postOrderKeyByPostContentItemIndex: this._postOrderKeyByPostContentItemIndex,
+            posts: this._posts.insertNodesAtEnd(
+                posts.map(post => ({
+                    post,
+                    postComments: MessageList.new({
+                        messageCount: post.commentCount,
+                        lastMessageChangeTime: post.lastCommentChangeTime,
+                    }),
+                    postCommentsState: "Closed",
+                })),
+            ),
         });
     }
 
     /**
-     * Toggle the post's comment section as open or closed. The index must point to
-     * the post's content. Otherwise we will throw.
+     * Toggle the post's comment section as open or closed.
      */
-    // NOTE(calebmer): The current implementation needs this to be `index` instead
-    // of `postId` (which it would be ideally). So we can find `index` in our tree
-    // cache and clear everything after it. We should consider using an approach
-    // like `VirtualizedScrollViewState` where we cache item counts on subtrees.
-    // Then we could use `postId` here.
-    public togglePostComments(index: number): PostList {
-        const item = this.getItem(index);
-
-        if (item.type !== "PostContent")
-            throw new InternalError("Expected the index for post content");
-
-        const iterator = this._postOrderKeyByPostContentItemIndex.find(index);
-        if (!iterator.valid)
-            throw new InternalError(
-                "Expected finding the post content item to populate the post content index cache",
-            );
-        const postOrderKey = iterator.value!;
-
-        const postCommentsOpenState = this._postCommentsOpenStateByOrderKey.get(postOrderKey);
-
-        // Can not toggle post comments if it is always open.
-        if (postCommentsOpenState === "AlwaysOpen")
-            throw new FailedPreconditionError("Can not toggle post comments that are always open");
-
-        const postCommentsOpenStateByOrderKey = postCommentsOpenState
-            ? this._postCommentsOpenStateByOrderKey.delete(postOrderKey)
-            : this._postCommentsOpenStateByOrderKey.set(postOrderKey, "Open");
-
-        // Keep the `left` side of the `postOrderKeyByPostContentItemIndex` cache and throw
-        // away the `right` side which is now invalid.
-        const postOrderKeyByPostContentItemIndex = (() => {
-            // HACK(calebmer): Hackishly get the constructor for a
-            // `functional-red-black-tree` tree and construct it with the left-hand-side
-            // subtree since there's not an official API.
-            const leftTree = new (this._postOrderKeyByPostContentItemIndex as any).constructor(
-                (this._postOrderKeyByPostContentItemIndex as any)._compare,
-                iterator.node!.left,
-            );
-            return leftTree.insert(index, postOrderKey);
-        })();
-
+    public togglePostComments(postId: PostId): PostList {
         return new PostList({
             channelHeader: this._channelHeader,
             hasMorePosts: this._hasMorePosts,
-            postByOrderKey: this._postByOrderKey,
-            orderKeyByPostId: this._orderKeyByPostId,
-            postCommentsOpenStateByOrderKey,
-            postOrderKeyByPostContentItemIndex,
+            posts: this._posts.updateNode(postId, node => {
+                // Can not toggle post comments if it is always open.
+                if (node.postCommentsState === "AlwaysOpen")
+                    throw new FailedPreconditionError(
+                        "Can not toggle post comments that are always open",
+                    );
+
+                return {
+                    ...node,
+                    postCommentsState: node.postCommentsState === "Closed" ? "Open" : "Closed",
+                };
+            }),
         });
     }
 
@@ -809,29 +498,18 @@ export class PostList {
      * a noop.
      */
     public updatePost(postId: PostId, update: (post: PostModel) => PostModel): PostList {
-        const postOrderKey = this._orderKeyByPostId.get(postId);
-        if (!postOrderKey) return this;
-
-        const postByOrderKey = this._postByOrderKey.update(postOrderKey, post => {
-            if (!post) throw new InternalError("Post not found for order key");
-
-            const newPost = update(post.post);
-
-            return {
-                post: newPost,
-                postComments: post.postComments,
-            };
+        const newPosts = this._posts.updateNode(postId, node => {
+            const newPost = update(node.post);
+            if (newPost === node.post) return node;
+            return {...node, post: newPost};
         });
+
+        if (newPosts === this._posts) return this;
 
         return new PostList({
             channelHeader: this._channelHeader,
             hasMorePosts: this._hasMorePosts,
-            postByOrderKey,
-            orderKeyByPostId: this._orderKeyByPostId,
-            postCommentsOpenStateByOrderKey: this._postCommentsOpenStateByOrderKey,
-            // We can keep the index cache because we are replacing an existing post which
-            // should not add any new items.
-            postOrderKeyByPostContentItemIndex: this._postOrderKeyByPostContentItemIndex,
+            posts: newPosts,
         });
     }
 
@@ -843,30 +521,18 @@ export class PostList {
         postId: PostId,
         update: (postComments: MessageList<PostCommentModel>) => MessageList<PostCommentModel>,
     ): PostList {
-        const postOrderKey = this._orderKeyByPostId.get(postId);
-        if (!postOrderKey) return this;
-
-        const postByOrderKey = this._postByOrderKey.update(postOrderKey, post => {
-            if (!post) throw new InternalError("Post not found for order key");
-
-            const newPostComments = update(post.postComments);
-
-            return {
-                post: post.post,
-                postComments: newPostComments,
-            };
+        const newPosts = this._posts.updateNode(postId, node => {
+            const newPostComments = update(node.postComments);
+            if (newPostComments === node.postComments) return node;
+            return {...node, postComments: newPostComments};
         });
+
+        if (newPosts === this._posts) return this;
 
         return new PostList({
             channelHeader: this._channelHeader,
             hasMorePosts: this._hasMorePosts,
-            postByOrderKey,
-            orderKeyByPostId: this._orderKeyByPostId,
-            postCommentsOpenStateByOrderKey: this._postCommentsOpenStateByOrderKey,
-            // We don't know what index our post was at so we have to clear the entire
-            // index tree. Maybe we should build our index cache like
-            // `VirtualizedScrollViewState` where we sum up the item count of subtrees?
-            postOrderKeyByPostContentItemIndex: createTree(),
+            posts: newPosts,
         });
     }
 }

@@ -414,7 +414,7 @@ function PostListView(
 
                 // If we are not loading any comments and the unloaded posts item is rendered,
                 // try loading that...
-                const renderedRangeEndItem = posts.getItem(renderedRange.endIndex);
+                const renderedRangeEndItem = assertExists(posts.getItem(renderedRange.endIndex));
                 if (renderedRangeEndItem.type === "MoreUnloadedPosts") {
                     return {
                         isLoading: true,
@@ -622,7 +622,7 @@ function PostListView(
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
-            const item = posts.getItem(index);
+            const item = assertExists(posts.getItem(index));
             switch (item.type) {
                 case "ChannelHeader": {
                     return {
@@ -739,7 +739,9 @@ function PostListView(
                                             postCommentsState={item.postCommentsState}
                                             onEditPost={() => setEditingPost(item.post)}
                                             onTogglePostComments={() =>
-                                                setPosts(posts => posts.togglePostComments(index))
+                                                setPosts(posts =>
+                                                    posts.togglePostComments(item.post.id),
+                                                )
                                             }
                                             onLoadInitialPostComments={() =>
                                                 loadInitialPostComments(item)
@@ -838,7 +840,7 @@ function PostListView(
                                     disableExpensiveFeaturesDuringScroll={
                                         disableExpensiveFeaturesDuringScroll
                                     }
-                                    getCopyLinkUrl={messageIndex => {
+                                    getMessageUrl={messageIndex => {
                                         return new URL(
                                             `/s/${item.post.spaceId}/posts/${item.post.id}?comment=${messageIndex}`,
                                             window.location.href,

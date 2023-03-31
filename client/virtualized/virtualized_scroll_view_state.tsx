@@ -500,8 +500,8 @@ export class VirtualizedScrollViewState {
         let itemCount = this._itemCountSubtreeCache.get(node);
 
         if (itemCount === undefined) {
-            const leftItemCount = this._getSubtreeItemCount(node.left);
-            const rightItemCount = this._getSubtreeItemCount(node.right);
+            const leftItemCount = node.left !== null ? this._getSubtreeItemCount(node.left) : 0;
+            const rightItemCount = node.right !== null ? this._getSubtreeItemCount(node.right) : 0;
 
             itemCount = leftItemCount + valueItemCount + rightItemCount;
             this._itemCountSubtreeCache.set(node, itemCount);
@@ -569,8 +569,10 @@ export class VirtualizedScrollViewState {
         let contentHeight = this._contentHeightSubtreeCache.get(node);
 
         if (contentHeight === undefined) {
-            const leftContentHeight = this._getSubtreeContentHeight(node.left);
-            const rightContentHeight = this._getSubtreeContentHeight(node.right);
+            const leftContentHeight =
+                node.left !== null ? this._getSubtreeContentHeight(node.left) : 0;
+            const rightContentHeight =
+                node.right !== null ? this._getSubtreeContentHeight(node.right) : 0;
 
             contentHeight = leftContentHeight + valueContentHeight + rightContentHeight;
             this._contentHeightSubtreeCache.set(node, contentHeight);
