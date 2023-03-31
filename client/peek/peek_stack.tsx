@@ -747,7 +747,7 @@ function PeekOverlay({
                 },
                 {
                     easing: spring({
-                        stiffness: 250,
+                        stiffness: 290,
                         damping: 28,
                     }),
                 },
