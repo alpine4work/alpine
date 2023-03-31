@@ -49,7 +49,12 @@ import {
 import {PeekRemixEmbed} from "~/client/peek/internal/peek_remix_embed";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {NavigationEventContextProvider} from "~/client/remix/use_navigate";
-import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
+import {
+    addRemLengths,
+    convertRemLengthToPx,
+    parseRemLengthNumber,
+    spacing,
+} from "~/shared/design/spacing";
 import {InternalError} from "~/shared/error/error";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
@@ -738,17 +743,19 @@ function PeekOverlay({
 
             const overlayContainerElement = assertExists(overlayContainerRef.current);
 
-            overlayContainerElement.style.transform = `translateY(${translateY})`;
-
             const animation = animate(
                 overlayContainerElement,
                 {
-                    transform: "translateY(0)",
+                    // Can't use `transform: translateY()` because `spring()` only animates
+                    // independent transforms like `y` with a spring so it can overshoot
+                    // correctly.
+                    // https://motion.dev/dom/spring
+                    y: [convertRemLengthToPx(translateY, getRemPxWithoutListening()), 0],
                 },
                 {
                     easing: spring({
-                        stiffness: 290,
-                        damping: 28,
+                        stiffness: 400,
+                        damping: 35,
                     }),
                 },
             );
@@ -791,12 +798,16 @@ function PeekOverlay({
             const animation = animate(
                 overlayContainerElement,
                 {
-                    transform: `translateY(${translateY})`,
+                    // Can't use `transform: translateY()` because `spring()` only animates
+                    // independent transforms like `y` with a spring so it can overshoot
+                    // correctly.
+                    // https://motion.dev/dom/spring
+                    y: [0, convertRemLengthToPx(translateY, getRemPxWithoutListening())],
                 },
                 {
                     easing: spring({
-                        stiffness: 320,
-                        damping: 28,
+                        stiffness: 350,
+                        damping: 35,
                     }),
                 },
             );
