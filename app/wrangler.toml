@@ -23,6 +23,10 @@ class_name = "DocumentCollaborationDurableObject"
 name = "PostRealtimeDurableObjectNamespace"
 class_name = "PostRealtimeDurableObject"
 
+[[durable_objects.bindings]]
+name = "ChatRealtimeDurableObjectNamespace"
+class_name = "ChatRealtimeDurableObject"
+
 [[migrations]]
 tag = "v1"
 new_classes = ["DocumentCollaborationDurableObject"]
