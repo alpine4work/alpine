@@ -483,6 +483,9 @@ function ContentEditorPointerToolbarButtons({
         [state.doc, state.schema.nodes.heading, state.selection],
     );
 
+    // Document comments are not ready for production yet.
+    const areCommentsEnabled = process.env.NODE_ENV !== "production";
+
     return (
         <>
             <ContentEditorPointerToolbarButton
@@ -627,7 +630,7 @@ function ContentEditorPointerToolbarButtons({
                         <TextHTwo />
                     </ContentEditorPointerToolbarButton>
                     <ContentEditorPointerToolbarButton
-                        dividerRight={!!state.schema.marks.comment}
+                        dividerRight={!!state.schema.marks.comment && areCommentsEnabled}
                         description="Heading 3"
                         keyboardShortcutHint="### Hello"
                         viewRef={viewRef}
@@ -642,7 +645,7 @@ function ContentEditorPointerToolbarButtons({
                     </ContentEditorPointerToolbarButton>
                 </>
             )}
-            {state.schema.marks.comment && addCommentCommand && (
+            {areCommentsEnabled && state.schema.marks.comment && addCommentCommand && (
                 <ContentEditorPointerToolbarButton
                     dividerLeft
                     description="Comment"
