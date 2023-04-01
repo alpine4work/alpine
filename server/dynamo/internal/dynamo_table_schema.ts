@@ -2820,28 +2820,45 @@ function getAndCheckDynamoTableSchemaDescriptions(
     let readCompatibilityError: Error | null = null;
     let writeCompatibilityError: Error | null = null;
 
-    if (lastDescription !== null) {
-        try {
-            checkDynamoTableSchemaDescriptionBackwardsCompatibility(lastDescription, description);
-        } catch (error) {
-            readCompatibilityError = InternalError.from(
-                error,
-                "Can not read from table with new schema",
-            );
-        }
+    // Skip backwards compatibility checking in production for performance. Tests
+    // should have already validated that our DynamoDB table schema is backwards
+    // compatible.
+    //
+    // TODO(calebmer): Only doing this because Cloudflare Workers has strict
+    // startup time limits. The plan is to eventually move this code into a Node.js
+    // service in AWS. At that point we should re-enable backwards compatibility
+    // checking in production since it's not that expensive. Or we should do
+    // backwards compatibility checking lazily.
+    if (process.env.NODE_ENV !== "production") {
+        if (lastDescription !== null) {
+            try {
+                checkDynamoTableSchemaDescriptionBackwardsCompatibility(
+                    lastDescription,
+                    description,
+                );
+            } catch (error) {
+                readCompatibilityError = InternalError.from(
+                    error,
+                    "Can not read from table with new schema",
+                );
+            }
 
-        try {
-            checkDynamoTableSchemaDescriptionBackwardsCompatibility(description, lastDescription);
-        } catch (error) {
-            writeCompatibilityError = InternalError.from(
-                error,
+            try {
+                checkDynamoTableSchemaDescriptionBackwardsCompatibility(
+                    description,
+                    lastDescription,
+                );
+            } catch (error) {
+                writeCompatibilityError = InternalError.from(
+                    error,
+                    "Can not write to table with new schema until you run `bazel run //server/dynamo:write_schema`",
+                );
+            }
+        } else {
+            writeCompatibilityError = new InternalError(
                 "Can not write to table with new schema until you run `bazel run //server/dynamo:write_schema`",
             );
         }
-    } else {
-        writeCompatibilityError = new InternalError(
-            "Can not write to table with new schema until you run `bazel run //server/dynamo:write_schema`",
-        );
     }
 
     return {
