@@ -199,13 +199,6 @@ module.exports = {
                         message: "Import `useNavigate()` from `~/client/remix/use_navigate`",
                     },
                 ],
-                patterns: [
-                    {
-                        group: ["@remix-run/react/dist/*", "!@remix-run/react/dist/esm"],
-                        message:
-                            "All Remix internal imports must be from the `esm` directory like this `@remix-run/react/dist/esm/*`",
-                    },
-                ],
             },
         ],
 

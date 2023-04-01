@@ -1,5 +1,5 @@
-import {X} from "@phosphor-icons/react";
 import {addSeconds} from "date-fns";
+import {X} from "phosphor-react";
 import {
     Memo,
     ReactNode,

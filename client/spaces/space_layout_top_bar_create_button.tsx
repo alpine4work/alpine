@@ -6,13 +6,14 @@ import {
     ListChecks,
     Plus,
     SpinnerGap,
-} from "@phosphor-icons/react";
+} from "phosphor-react";
 import {ReactNode} from "react";
 import {Box} from "~/client/design/box";
 import {IconButton} from "~/client/design/icon_button";
 import {MenuButton} from "~/client/design/menu_button";
 import {useShowToast} from "~/client/design/toast";
 import {usePeekStackContext} from "~/client/peek/peek_stack";
+import {useNavigate} from "~/client/remix/use_navigate";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {spacing} from "~/shared/design/spacing";
 import {UnimplementedError} from "~/shared/error/error";
@@ -23,6 +24,7 @@ import {spinAnimationClassName} from "~/shared/styles/styles";
 export function SpaceLayoutTopBarCreateButton() {
     const {space} = useSpaceContext();
     const showToast = useShowToast();
+    const navigate = useNavigate();
     const peekStackContext = usePeekStackContext();
 
     return (
@@ -47,17 +49,24 @@ export function SpaceLayoutTopBarCreateButton() {
                 },
                 {
                     withCustomLayout: true,
-                    onPress: () => {
-                        showToast({
-                            type: "Error",
-                            title: "Can not find a channel to post in",
-                            error: new UnimplementedError(
-                                "Channel explorer has not been implemented yet",
-                                {
-                                    displayMessage: errorDisplayMessage`Channel explorer has not been implemented yet.`,
-                                },
-                            ),
-                        });
+                    pressErrorTitle: "Can not find a channel to post in",
+                    onPress: async () => {
+                        if (space.alphaAccessDefaultChannelId) {
+                            await navigate(
+                                `/s/${space.id}/channels/${space.alphaAccessDefaultChannelId}`,
+                            );
+                        } else {
+                            showToast({
+                                type: "Error",
+                                title: "Can not find a channel to post in",
+                                error: new UnimplementedError(
+                                    "Channel explorer has not been implemented yet",
+                                    {
+                                        displayMessage: errorDisplayMessage`Channel explorer has not been implemented yet.`,
+                                    },
+                                ),
+                            });
+                        }
                     },
                     render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (
                         <SpaceLayoutTopBarCreateButtonItem

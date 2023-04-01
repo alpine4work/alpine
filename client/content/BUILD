@@ -11,11 +11,11 @@ ts_project(
         "//client:__subpackages__",
     ],
     deps = [
-        "//:node_modules/@phosphor-icons/react",
         "//:node_modules/@react-aria/interactions",
         "//:node_modules/@types/jest",
         "//:node_modules/@types/react",
         "//:node_modules/fuse.js",
+        "//:node_modules/phosphor-react",
         "//:node_modules/prosemirror-collab",
         "//:node_modules/prosemirror-commands",
         "//:node_modules/prosemirror-history",

@@ -1,4 +1,4 @@
-import {Bell, MagnifyingGlass} from "@phosphor-icons/react";
+import {Bell, MagnifyingGlass} from "phosphor-react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
@@ -17,6 +17,7 @@ import {SpaceModel} from "~/shared/models/space_model";
 
 export function SpaceLayoutTopBar({space}: {space: SpaceModel}) {
     const showToast = useShowToast();
+    const navigate = useNavigate();
 
     return (
         <Box
@@ -38,17 +39,24 @@ export function SpaceLayoutTopBar({space}: {space: SpaceModel}) {
             >
                 <Button
                     paddingX="2"
-                    onPress={() => {
-                        showToast({
-                            type: "Error",
-                            title: "Can not navigate to home page",
-                            error: new UnimplementedError(
-                                "Home page has not been implemented yet",
-                                {
-                                    displayMessage: errorDisplayMessage`Home page has not been implemented yet.`,
-                                },
-                            ),
-                        });
+                    pressErrorTitle="Can not navigate to home page"
+                    onPress={async () => {
+                        if (space.alphaAccessDefaultChannelId) {
+                            await navigate(
+                                `/s/${space.id}/channels/${space.alphaAccessDefaultChannelId}`,
+                            );
+                        } else {
+                            showToast({
+                                type: "Error",
+                                title: "Can not navigate to home page",
+                                error: new UnimplementedError(
+                                    "Home page has not been implemented yet",
+                                    {
+                                        displayMessage: errorDisplayMessage`Home page has not been implemented yet.`,
+                                    },
+                                ),
+                            });
+                        }
                     }}
                 >
                     <Box fontSize="200" fontStyle="truncate-semi-bold">

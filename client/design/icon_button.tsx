@@ -1,5 +1,5 @@
-import {IconContext, SpinnerGap} from "@phosphor-icons/react";
 import {PressEvent} from "@react-types/shared";
+import {IconContext, SpinnerGap} from "phosphor-react";
 import {ButtonHTMLAttributes, ReactNode, Ref, forwardRef, useEffect, useRef, useState} from "react";
 import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";
 import {Box} from "~/client/design/box";

@@ -40,6 +40,7 @@ import {
     DocumentCollaborationMessageFromServerSchema,
     DocumentCollaborationPresenceState,
 } from "~/shared/documents/document_collaboration_schema";
+import {UnimplementedError} from "~/shared/error/error";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
@@ -611,6 +612,10 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
                         error: message.error,
                     });
                     break;
+                }
+                case "Comments": {
+                    // NOCOMMIT
+                    throw new UnimplementedError("TODO");
                 }
                 default:
                     throw exhaustive(message);

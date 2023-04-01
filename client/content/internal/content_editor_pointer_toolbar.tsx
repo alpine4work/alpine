@@ -1,3 +1,4 @@
+import {useHover, useInteractionModality} from "@react-aria/interactions";
 import {
     ChatCircleText,
     IconContext,
@@ -12,8 +13,7 @@ import {
     TextHTwo,
     TextItalic,
     TextStrikethrough,
-} from "@phosphor-icons/react";
-import {useHover, useInteractionModality} from "@react-aria/interactions";
+} from "phosphor-react";
 import {Mark} from "prosemirror-model";
 import {Command, EditorState, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";

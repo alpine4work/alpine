@@ -196,6 +196,7 @@ export function testMessagingRealtimeImplementation<
                     ],
                     newOtherReferencedMessages: [],
                     messageChangesResult: {type: "Available", changes: []},
+                    typingStateByConnectionId: new Map(),
                 },
             ]);
             connection1Messages = [];
@@ -240,6 +241,7 @@ export function testMessagingRealtimeImplementation<
                     ],
                     newOtherReferencedMessages: [],
                     messageChangesResult: {type: "Available", changes: []},
+                    typingStateByConnectionId: new Map(),
                 },
             ]);
             connection1Messages = [];
@@ -284,6 +286,7 @@ export function testMessagingRealtimeImplementation<
                     ],
                     newOtherReferencedMessages: [],
                     messageChangesResult: {type: "Available", changes: []},
+                    typingStateByConnectionId: new Map(),
                 },
             ]);
             connection1Messages = [];
@@ -360,6 +363,7 @@ export function testMessagingRealtimeImplementation<
                     newMessages: [],
                     newOtherReferencedMessages: [],
                     messageChangesResult: {type: "Available", changes: []},
+                    typingStateByConnectionId: new Map(),
                 },
             ]);
             expect(connection2Messages).toEqual([
@@ -370,6 +374,7 @@ export function testMessagingRealtimeImplementation<
                     newMessages: [],
                     newOtherReferencedMessages: [],
                     messageChangesResult: {type: "Available", changes: []},
+                    typingStateByConnectionId: new Map(),
                 },
             ]);
             expect(connection3Messages).toEqual([]);
@@ -398,6 +403,7 @@ export function testMessagingRealtimeImplementation<
                             contentUpdatedTime: null,
                         },
                     }),
+                    updateOtherTypingState: null,
                 },
             ]);
             expect(connection2Messages).toEqual([
@@ -415,6 +421,7 @@ export function testMessagingRealtimeImplementation<
                             contentUpdatedTime: null,
                         },
                     }),
+                    updateOtherTypingState: null,
                 },
             ]);
             expect(connection3Messages).toEqual([]);
@@ -443,6 +450,7 @@ export function testMessagingRealtimeImplementation<
                             contentUpdatedTime: null,
                         },
                     }),
+                    updateOtherTypingState: null,
                 },
             ]);
             expect(connection2Messages).toEqual([
@@ -460,6 +468,7 @@ export function testMessagingRealtimeImplementation<
                             contentUpdatedTime: null,
                         },
                     }),
+                    updateOtherTypingState: null,
                 },
             ]);
             expect(connection3Messages).toEqual([]);
@@ -509,6 +518,7 @@ export function testMessagingRealtimeImplementation<
                     ],
                     newOtherReferencedMessages: [],
                     messageChangesResult: {type: "Available", changes: []},
+                    typingStateByConnectionId: new Map(),
                 },
             ]);
             connection1Messages = [];
@@ -606,6 +616,7 @@ export function testMessagingRealtimeImplementation<
                     newMessages: [],
                     newOtherReferencedMessages: [],
                     messageChangesResult: {type: "Available", changes: []},
+                    typingStateByConnectionId: new Map(),
                 },
             ]);
             expect(connection2Messages).toEqual([
@@ -616,6 +627,7 @@ export function testMessagingRealtimeImplementation<
                     newMessages: [],
                     newOtherReferencedMessages: [],
                     messageChangesResult: {type: "Available", changes: []},
+                    typingStateByConnectionId: new Map(),
                 },
             ]);
             expect(connection3Messages).toEqual([]);
@@ -644,6 +656,7 @@ export function testMessagingRealtimeImplementation<
                             contentUpdatedTime: null,
                         },
                     }),
+                    updateOtherTypingState: null,
                 },
             ]);
             expect(connection2Messages).toEqual([
@@ -661,6 +674,7 @@ export function testMessagingRealtimeImplementation<
                             contentUpdatedTime: null,
                         },
                     }),
+                    updateOtherTypingState: null,
                 },
             ]);
             expect(connection3Messages).toEqual([]);
@@ -689,6 +703,7 @@ export function testMessagingRealtimeImplementation<
                             contentUpdatedTime: null,
                         },
                     }),
+                    updateOtherTypingState: null,
                 },
             ]);
             expect(connection2Messages).toEqual([
@@ -706,6 +721,7 @@ export function testMessagingRealtimeImplementation<
                             contentUpdatedTime: null,
                         },
                     }),
+                    updateOtherTypingState: null,
                 },
             ]);
             expect(connection3Messages).toEqual([]);
@@ -726,6 +742,7 @@ export function testMessagingRealtimeImplementation<
                     newMessages: [],
                     newOtherReferencedMessages: [],
                     messageChangesResult: {type: "Available", changes: []},
+                    typingStateByConnectionId: new Map(),
                 },
                 {
                     type: "NewMessage",
@@ -741,6 +758,7 @@ export function testMessagingRealtimeImplementation<
                             contentUpdatedTime: null,
                         },
                     }),
+                    updateOtherTypingState: null,
                 },
                 {
                     type: "NewMessage",
@@ -756,6 +774,7 @@ export function testMessagingRealtimeImplementation<
                             contentUpdatedTime: null,
                         },
                     }),
+                    updateOtherTypingState: null,
                 },
             ]);
             connection1Messages = [];
@@ -853,6 +872,7 @@ export function testMessagingRealtimeImplementation<
                     newMessages: [],
                     newOtherReferencedMessages: [],
                     messageChangesResult: {type: "Available", changes: []},
+                    typingStateByConnectionId: new Map(),
                 },
             ]);
             expect(connection2Messages).toEqual([
@@ -863,6 +883,7 @@ export function testMessagingRealtimeImplementation<
                     newMessages: [],
                     newOtherReferencedMessages: [],
                     messageChangesResult: {type: "Available", changes: []},
+                    typingStateByConnectionId: new Map(),
                 },
             ]);
             expect(connection3Messages).toEqual([]);
@@ -891,6 +912,7 @@ export function testMessagingRealtimeImplementation<
                             contentUpdatedTime: null,
                         },
                     }),
+                    updateOtherTypingState: null,
                 },
             ]);
             expect(connection2Messages).toEqual([
@@ -908,6 +930,7 @@ export function testMessagingRealtimeImplementation<
                             contentUpdatedTime: null,
                         },
                     }),
+                    updateOtherTypingState: null,
                 },
             ]);
             expect(connection3Messages).toEqual([]);
@@ -928,6 +951,7 @@ export function testMessagingRealtimeImplementation<
                     newMessages: [],
                     newOtherReferencedMessages: [],
                     messageChangesResult: {type: "Available", changes: []},
+                    typingStateByConnectionId: new Map(),
                 },
                 {
                     type: "NewMessage",
@@ -943,6 +967,7 @@ export function testMessagingRealtimeImplementation<
                             contentUpdatedTime: null,
                         },
                     }),
+                    updateOtherTypingState: null,
                 },
             ]);
             connection1Messages = [];
@@ -1024,6 +1049,7 @@ export function testMessagingRealtimeImplementation<
                     newMessages: [],
                     newOtherReferencedMessages: [],
                     messageChangesResult: {type: "Available", changes: []},
+                    typingStateByConnectionId: new Map(),
                 },
             ]);
             expect(connection2Messages).toEqual([
@@ -1034,6 +1060,7 @@ export function testMessagingRealtimeImplementation<
                     newMessages: [],
                     newOtherReferencedMessages: [],
                     messageChangesResult: {type: "Available", changes: []},
+                    typingStateByConnectionId: new Map(),
                 },
             ]);
             expect(connection3Messages).toEqual([
@@ -1044,6 +1071,7 @@ export function testMessagingRealtimeImplementation<
                     newMessages: [],
                     newOtherReferencedMessages: [],
                     messageChangesResult: {type: "Available", changes: []},
+                    typingStateByConnectionId: new Map(),
                 },
             ]);
             connection1Messages = [];
@@ -1108,6 +1136,7 @@ export function testMessagingRealtimeImplementation<
                             contentUpdatedTime: null,
                         },
                     }),
+                    updateOtherTypingState: null,
                 },
                 {
                     type: "NewMessage",
@@ -1123,6 +1152,7 @@ export function testMessagingRealtimeImplementation<
                             contentUpdatedTime: null,
                         },
                     }),
+                    updateOtherTypingState: null,
                 },
                 {
                     type: "NewMessage",
@@ -1138,6 +1168,7 @@ export function testMessagingRealtimeImplementation<
                             contentUpdatedTime: null,
                         },
                     }),
+                    updateOtherTypingState: null,
                 },
             ]);
             expect(connection2Messages).toEqual(connection1Messages);
@@ -1221,6 +1252,7 @@ export function testMessagingRealtimeImplementation<
                     newMessages: [],
                     newOtherReferencedMessages: [],
                     messageChangesResult: {type: "Available", changes: []},
+                    typingStateByConnectionId: new Map(),
                 },
             ]);
             expect(connection2Messages).toEqual([
@@ -1231,6 +1263,7 @@ export function testMessagingRealtimeImplementation<
                     newMessages: [],
                     newOtherReferencedMessages: [],
                     messageChangesResult: {type: "Available", changes: []},
+                    typingStateByConnectionId: new Map(),
                 },
             ]);
             expect(connection3Messages).toEqual([
@@ -1241,6 +1274,7 @@ export function testMessagingRealtimeImplementation<
                     newMessages: [],
                     newOtherReferencedMessages: [],
                     messageChangesResult: {type: "Available", changes: []},
+                    typingStateByConnectionId: new Map(),
                 },
             ]);
             connection1Messages = [];
@@ -1323,6 +1357,7 @@ export function testMessagingRealtimeImplementation<
                             contentUpdatedTime: null,
                         },
                     }),
+                    updateOtherTypingState: null,
                 },
                 {
                     type: "NewMessage",
@@ -1338,6 +1373,7 @@ export function testMessagingRealtimeImplementation<
                             contentUpdatedTime: null,
                         },
                     }),
+                    updateOtherTypingState: null,
                 },
                 {
                     type: "NewMessage",
@@ -1353,6 +1389,7 @@ export function testMessagingRealtimeImplementation<
                             contentUpdatedTime: null,
                         },
                     }),
+                    updateOtherTypingState: null,
                 },
             ]);
             expect(connection2Messages).toEqual(connection1Messages);
@@ -1410,6 +1447,7 @@ export function testMessagingRealtimeImplementation<
                     newMessages: [],
                     newOtherReferencedMessages: [],
                     messageChangesResult: {type: "Available", changes: []},
+                    typingStateByConnectionId: new Map(),
                 },
             ]);
             expect(connection2Messages).toEqual([]);
@@ -1464,6 +1502,7 @@ export function testMessagingRealtimeImplementation<
                     ],
                     newOtherReferencedMessages: [],
                     messageChangesResult: {type: "Available", changes: []},
+                    typingStateByConnectionId: new Map(),
                 },
             ]);
             connection1Messages = [];
@@ -1487,6 +1526,7 @@ export function testMessagingRealtimeImplementation<
                             contentUpdatedTime: null,
                         },
                     }),
+                    updateOtherTypingState: null,
                 },
             ]);
             expect(connection2Messages).toEqual([]);
@@ -1541,6 +1581,7 @@ export function testMessagingRealtimeImplementation<
                     newMessages: [],
                     newOtherReferencedMessages: [],
                     messageChangesResult: {type: "Available", changes: []},
+                    typingStateByConnectionId: new Map(),
                 },
             ]);
             expect(connection2Messages).toEqual([]);
@@ -1606,6 +1647,7 @@ export function testMessagingRealtimeImplementation<
                             contentUpdatedTime: null,
                         },
                     }),
+                    updateOtherTypingState: null,
                 },
             ]);
             expect(connection2Messages).toEqual([]);
@@ -1637,6 +1679,7 @@ export function testMessagingRealtimeImplementation<
                     ],
                     newOtherReferencedMessages: [],
                     messageChangesResult: {type: "Available", changes: []},
+                    typingStateByConnectionId: new Map(),
                 },
             ]);
             connection1Messages = [];
@@ -1722,6 +1765,7 @@ export function testMessagingRealtimeImplementation<
                             },
                         ],
                     },
+                    typingStateByConnectionId: new Map(),
                 },
             ]);
             connection1Messages = [];
@@ -1750,6 +1794,7 @@ export function testMessagingRealtimeImplementation<
                             },
                         ],
                     },
+                    typingStateByConnectionId: new Map(),
                 },
             ]);
             connection1Messages = [];
@@ -1769,6 +1814,7 @@ export function testMessagingRealtimeImplementation<
                     newMessages: [],
                     newOtherReferencedMessages: [],
                     messageChangesResult: {type: "Available", changes: []},
+                    typingStateByConnectionId: new Map(),
                 },
             ]);
             connection1Messages = [];
@@ -1815,6 +1861,7 @@ export function testMessagingRealtimeImplementation<
                             },
                         ],
                     },
+                    typingStateByConnectionId: new Map(),
                 },
             ]);
             connection1Messages = [];
@@ -1844,6 +1891,7 @@ export function testMessagingRealtimeImplementation<
                             },
                         ],
                     },
+                    typingStateByConnectionId: new Map(),
                 },
             ]);
             connection1Messages = [];
@@ -1930,6 +1978,7 @@ export function testMessagingRealtimeImplementation<
                     newMessages: [],
                     newOtherReferencedMessages: [],
                     messageChangesResult: {type: "Available", changes: []},
+                    typingStateByConnectionId: new Map(),
                 },
             ]);
             expect(connection2Messages).toEqual([
@@ -1940,6 +1989,7 @@ export function testMessagingRealtimeImplementation<
                     newMessages: [],
                     newOtherReferencedMessages: [],
                     messageChangesResult: {type: "Available", changes: []},
+                    typingStateByConnectionId: new Map(),
                 },
             ]);
             expect(connection3Messages).toEqual([]);
@@ -2042,6 +2092,7 @@ export function testMessagingRealtimeImplementation<
                             },
                         ],
                     },
+                    typingStateByConnectionId: new Map(),
                 },
             ]);
             connection1Messages = [];
@@ -2151,6 +2202,7 @@ export function testMessagingRealtimeImplementation<
                     newMessages: [],
                     newOtherReferencedMessages: [],
                     messageChangesResult: {type: "Available", changes: []},
+                    typingStateByConnectionId: new Map(),
                 },
             ]);
             expect(connection2Messages).toEqual([
@@ -2161,6 +2213,7 @@ export function testMessagingRealtimeImplementation<
                     newMessages: [],
                     newOtherReferencedMessages: [],
                     messageChangesResult: {type: "Available", changes: []},
+                    typingStateByConnectionId: new Map(),
                 },
             ]);
             expect(connection3Messages).toEqual([]);
@@ -2244,6 +2297,7 @@ export function testMessagingRealtimeImplementation<
                     newMessages: [],
                     newOtherReferencedMessages: [],
                     messageChangesResult: {type: "Available", changes: []},
+                    typingStateByConnectionId: new Map(),
                 },
                 {
                     type: "ChangeMessage",

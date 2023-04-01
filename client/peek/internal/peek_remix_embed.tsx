@@ -1,7 +1,9 @@
-import {RemixEntryContext} from "@remix-run/react/dist/esm/components";
-import {AppState} from "@remix-run/react/dist/esm/errors";
-import {matchClientRoutes} from "@remix-run/react/dist/esm/routeMatching";
-import {createTransitionManager} from "@remix-run/react/dist/esm/transition";
+import {
+    AppState,
+    RemixEntryContext,
+    createTransitionManager,
+    matchClientRoutes,
+} from "@remix-run/react";
 import {MemoryHistory} from "history";
 import {
     Context,

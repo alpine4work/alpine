@@ -1,5 +1,5 @@
 import {Outlet} from "@remix-run/react";
-import {RemixEntryContext} from "@remix-run/react/dist/esm/components";
+import {RemixEntryContext} from "@remix-run/react";
 import {useContext, useMemo} from "react";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context";
 import {usePeekContext} from "~/client/peek/peek_stack";

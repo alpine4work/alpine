@@ -184,8 +184,6 @@ function DocumentCommentThreadListView(
     const context = useAppContext();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
-    const hasMargin = !isMobile;
-
     const [tree, setTree] = useState(() =>
         createEmptyDocumentCommentThreadTree().insertNodesAtEnd([
             {

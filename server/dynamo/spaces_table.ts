@@ -15,7 +15,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array";
 import {getMaxId, getMinId} from "~/shared/id/id";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types";
+import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
 import {SpaceModel} from "~/shared/models/space_model";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
@@ -54,6 +54,13 @@ const SpacesTable = DynamoTableSchema.new({
                     attributes: Schema.object({
                         name: LabelStringSchema,
                         createdTime: Schema.date,
+
+                        /**
+                         * During our alpha phase, you can manually set this property in the database
+                         * and it will be used for some navigation elements until we have proper
+                         * implementations.
+                         */
+                        alphaAccessDefaultChannelId: Schema.id<ChannelId>().optional(),
                     }),
                 },
 
@@ -237,6 +244,7 @@ export async function getSpace(
     return new SpaceModel({
         id: spaceItem.spaceId,
         name: spaceItem.name,
+        alphaAccessDefaultChannelId: spaceItem.alphaAccessDefaultChannelId,
     });
 }
 

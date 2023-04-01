@@ -1,4 +1,4 @@
-import {CaretRight, DotsThree} from "@phosphor-icons/react";
+import {CaretRight, DotsThree} from "phosphor-react";
 import {useEffect, useMemo, useState} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile";
 import {ContentView} from "~/client/content/content_view";

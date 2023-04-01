@@ -1,4 +1,4 @@
-import {ChatCircleText} from "@phosphor-icons/react";
+import {ChatCircleText} from "phosphor-react";
 import {RefObject, useLayoutEffect, useMemo, useState} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile";
 import {ContentEditorRef} from "~/client/content/content_editor";

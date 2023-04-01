@@ -1,4 +1,4 @@
-import {CaretDown} from "@phosphor-icons/react";
+import {CaretDown} from "phosphor-react";
 import {useEffect, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";

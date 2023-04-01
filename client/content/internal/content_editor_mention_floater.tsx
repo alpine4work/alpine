@@ -1,6 +1,6 @@
-import {MagnifyingGlass, SpinnerGap} from "@phosphor-icons/react";
 import {isFocusVisible as getIsFocusVisible} from "@react-aria/interactions";
 import Fuse from "fuse.js";
+import {MagnifyingGlass, SpinnerGap} from "phosphor-react";
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {

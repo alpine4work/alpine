@@ -1,5 +1,4 @@
-import {matchClientRoutes} from "@remix-run/react/dist/esm/routeMatching";
-import {ClientRoute} from "@remix-run/react/dist/esm/routes";
+import {ClientRoute, matchClientRoutes} from "@remix-run/react";
 import {Path, To} from "history";
 import {convertSpacePathToPeekPath} from "~/client/peek/internal/peek_path_helpers";
 import {InternalError, NotFoundError} from "~/shared/error/error";

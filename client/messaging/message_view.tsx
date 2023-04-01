@@ -1,5 +1,5 @@
-import {ArrowArcLeft, SpinnerGap} from "@phosphor-icons/react";
 import {differenceInMinutes} from "date-fns";
+import {ArrowArcLeft, SpinnerGap} from "phosphor-react";
 import {Fragment, Memo, MutableRefObject, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";

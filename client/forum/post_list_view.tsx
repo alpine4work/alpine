@@ -1,4 +1,4 @@
-import {SpinnerGap} from "@phosphor-icons/react";
+import {SpinnerGap} from "phosphor-react";
 import {
     Memo,
     MutableRefObject,
@@ -13,7 +13,6 @@ import {
     useRef,
     useState,
 } from "react";
-import {useStateWithDeps} from "swr/_internal";
 import {useAppContext} from "~/client/context/app_context";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {Spacer} from "~/client/design/spacer";

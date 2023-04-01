@@ -17,7 +17,12 @@ import {
  * The "Test" service is a generic service we use for executing unit tests.
  * Usually the tests are executed with Jest.
  */
-export type TracerServiceName = "Test" | "AppClient" | "AppServer" | DurableObjectServiceName;
+export type TracerServiceName =
+    | "Adhoc"
+    | "Test"
+    | "AppClient"
+    | "AppServer"
+    | DurableObjectServiceName;
 
 /**
  * The names of services that run as Cloudflare Durable Objects.

@@ -4,12 +4,20 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "adhoc_lib",
     deps = [
+        "//:node_modules/@aws-sdk/credential-providers",
+        "//:node_modules/@types/fs-extra",
         "//:node_modules/@types/node",
+        "//:node_modules/aws4fetch",
+        "//:node_modules/fs-extra",
+        "//admin/helpers",
         "//server/dynamo",
+        "//server/tracer",
         "//shared/content",
+        "//shared/context",
         "//shared/error",
         "//shared/helpers",
         "//shared/schema",
+        "//shared/tracer",
     ],
 )
 

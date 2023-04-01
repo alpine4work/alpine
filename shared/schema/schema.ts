@@ -11,7 +11,6 @@ import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier";
 import {quote} from "~/shared/helpers/string/quote";
-import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
 import {Optionalize} from "~/shared/helpers/types/optionalize";
 import {Id, isId} from "~/shared/id/id";
 import {

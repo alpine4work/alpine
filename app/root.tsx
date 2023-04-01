@@ -1,4 +1,3 @@
-import {IconContext} from "@phosphor-icons/react";
 import {LinkDescriptor} from "@remix-run/cloudflare";
 import {
     Links,
@@ -10,7 +9,8 @@ import {
     ThrownResponse,
     useCatch,
 } from "@remix-run/react";
-import {RemixEntryContext} from "@remix-run/react/dist/esm/components";
+import {RemixEntryContext} from "@remix-run/react";
+import {IconContext} from "phosphor-react";
 import prosemirrorStylesHref from "prosemirror-view/style/prosemirror.css";
 import {useCallback, useContext, useEffect, useMemo} from "react";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context";

@@ -7,6 +7,7 @@ ts_project(
         "//shared/content",
         "//shared/error",
         "//shared/id",
+        "//shared/messaging",
         "//shared/models",
         "//shared/schema",
     ],

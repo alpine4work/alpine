@@ -1,4 +1,4 @@
-import {Check} from "@phosphor-icons/react";
+import {Check} from "phosphor-react";
 
 // Hardcode Phosphor check icon SVG since we don't want to mount a React root
 // for every checkbox. And since we need to generate HTML without React.

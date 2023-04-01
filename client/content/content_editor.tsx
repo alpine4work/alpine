@@ -44,7 +44,7 @@ import {isMac} from "~/client/helpers/browser/is_mac";
 import {isVirtualKeyboardEvent} from "~/client/helpers/events/is_virtual_keyboard_event";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
-import {usePeekContext, usePeekStackContext} from "~/client/peek/peek_stack";
+import {usePeekStackContext} from "~/client/peek/peek_stack";
 import {useNavigate} from "~/client/remix/use_navigate";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts";

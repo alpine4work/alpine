@@ -1,5 +1,5 @@
-import {ArrowArcLeft, ArrowUp, X} from "@phosphor-icons/react";
 import {setInteractionModality, useInteractionModality} from "@react-aria/interactions";
+import {ArrowArcLeft, ArrowUp, X} from "phosphor-react";
 import {MutableRefObject, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";

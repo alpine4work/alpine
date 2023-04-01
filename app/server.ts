@@ -1,5 +1,3 @@
-import "~/app/debugger_statement";
-
 import {AppLoadContext} from "@remix-run/cloudflare";
 import {createRequestHandler, handleAsset} from "@remix-run/cloudflare-workers";
 import * as build from "@remix-run/dev/server-build";

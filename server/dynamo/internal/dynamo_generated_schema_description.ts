@@ -1044,6 +1044,24 @@ export const dynamoGeneratedSchemaDescription: {
                                                                     "type": "Union",
                                                                     "typeKey": "type",
                                                                     "variantSchemaByTypeValue": {
+                                                                        "commentThreadId": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "commentThreadId"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "value": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Id"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
                                                                         "url": {
                                                                             "type": "Object",
                                                                             "propertySchemaByKey": {
@@ -1082,24 +1100,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                             "blue",
                                                                                             "purple"
                                                                                         ]
-                                                                                    },
-                                                                                    "optional": false
-                                                                                }
-                                                                            }
-                                                                        },
-                                                                        "commentThreadId": {
-                                                                            "type": "Object",
-                                                                            "propertySchemaByKey": {
-                                                                                "type": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Value",
-                                                                                        "value": "commentThreadId"
-                                                                                    },
-                                                                                    "optional": false
-                                                                                },
-                                                                                "value": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Id"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -1211,6 +1211,32 @@ export const dynamoGeneratedSchemaDescription: {
                                                                     "type": "Union",
                                                                     "typeKey": "type",
                                                                     "variantSchemaByTypeValue": {
+                                                                        "comment": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "comment"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "attrs": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Object",
+                                                                                        "propertySchemaByKey": {
+                                                                                            "commentThreadId": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Id"
+                                                                                                },
+                                                                                                "optional": false
+                                                                                            }
+                                                                                        }
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
                                                                         "code": {
                                                                             "type": "Object",
                                                                             "propertySchemaByKey": {
@@ -1309,32 +1335,6 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                         "blue",
                                                                                                         "purple"
                                                                                                     ]
-                                                                                                },
-                                                                                                "optional": false
-                                                                                            }
-                                                                                        }
-                                                                                    },
-                                                                                    "optional": false
-                                                                                }
-                                                                            }
-                                                                        },
-                                                                        "comment": {
-                                                                            "type": "Object",
-                                                                            "propertySchemaByKey": {
-                                                                                "type": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Value",
-                                                                                        "value": "comment"
-                                                                                    },
-                                                                                    "optional": false
-                                                                                },
-                                                                                "attrs": {
-                                                                                    "valueSchema": {
-                                                                                        "type": "Object",
-                                                                                        "propertySchemaByKey": {
-                                                                                            "commentThreadId": {
-                                                                                                "valueSchema": {
-                                                                                                    "type": "Id"
                                                                                                 },
                                                                                                 "optional": false
                                                                                             }
@@ -3005,6 +3005,12 @@ export const dynamoGeneratedSchemaDescription: {
                                             "type": "Date"
                                         },
                                         "optional": false
+                                    },
+                                    "alphaAccessDefaultChannelId": {
+                                        "valueSchema": {
+                                            "type": "Id"
+                                        },
+                                        "optional": true
                                     },
                                     "updateLockVersion": {
                                         "valueSchema": {

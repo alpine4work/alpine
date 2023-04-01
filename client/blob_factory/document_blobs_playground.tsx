@@ -1,4 +1,4 @@
-import {ArrowClockwise} from "@phosphor-icons/react";
+import {ArrowClockwise} from "phosphor-react";
 import {useId, useState} from "react";
 import {
     DocumentBlobFactory,
