@@ -24,7 +24,7 @@ import {ChatId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types
 import {ChatMessageModel} from "~/shared/models/chat_model";
 
 export class ChatRealtimeConnection {
-    private readonly _messaging: MessagingRealtimeConnection<ChatId, ChatMessageModel>;
+    private readonly _connection: MessagingRealtimeConnection<ChatId, ChatMessageModel>;
 
     constructor({
         connectionId,
@@ -44,7 +44,7 @@ export class ChatRealtimeConnection {
         ) => void;
         iterateOtherConnections: () => Iterable<ChatRealtimeConnection>;
     }) {
-        this._messaging = new MessagingRealtimeConnection({
+        this._connection = new MessagingRealtimeConnection({
             connectionId,
             spaceId,
             roomKey: chatId,
@@ -54,7 +54,7 @@ export class ChatRealtimeConnection {
             sendMessageToOthers: (context, message) =>
                 sendMessageToOthers(context, {type: "ChatMessages", message}),
             iterateOtherConnections: () =>
-                mapIterable(iterateOtherConnections(), connection => connection._messaging),
+                mapIterable(iterateOtherConnections(), connection => connection._connection),
 
             createMessageModel,
             createMessage,
@@ -72,11 +72,11 @@ export class ChatRealtimeConnection {
         // this code should turn into a switch.
         cast<"ChatMessages">(message.type);
 
-        return this._messaging.handleMessage(context, message.message);
+        return this._connection.handleMessage(context, message.message);
     }
 
     public async handleClose(context: ProcessContext) {
-        return this._messaging.handleClose(context);
+        return this._connection.handleClose(context);
     }
 }
 

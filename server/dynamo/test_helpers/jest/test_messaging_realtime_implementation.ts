@@ -41,6 +41,11 @@ function sendMessageToOthers() {
 /**
  * Tests the implementation of a realtime messaging connection.
  */
+// TODO(calebmer): This should be rewritten to use
+// `WebSocketServerTestConnection`. Currently we don't test document comment
+// realtime with this suite because we need to use
+// `WebSocketServerTestConnection`. When this rewrite happens run this suite
+// against document comments.
 export function testMessagingRealtimeImplementation<
     RoomKey extends string,
     Connection extends TestMessagingRealtimeConnection,

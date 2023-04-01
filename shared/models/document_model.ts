@@ -21,6 +21,10 @@ export class DocumentCommentThreadModel extends Model(
          */
         documentId: Schema.id<DocumentId>(),
         /**
+         * The time at which this comment thread was created.
+         */
+        createdTime: Schema.date,
+        /**
          * The total number of comments in the thread.
          */
         commentCount: Schema.integer,

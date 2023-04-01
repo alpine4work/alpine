@@ -6,7 +6,14 @@ import {
     DocumentCommentThreadId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types";
-import {DocumentContentReferencesSchema} from "~/shared/models/document_model";
+import {
+    MessagingRealtimeMessageFromClientSchema,
+    createMessagingRealtimeMessageFromServerSchema,
+} from "~/shared/messaging/messaging_realtime_schema";
+import {
+    DocumentCommentModel,
+    DocumentContentReferencesSchema,
+} from "~/shared/models/document_model";
 import {ProsemirrorSelectionSchema} from "~/shared/prosemirror/prosemirror_selection_schema";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 
@@ -58,6 +65,14 @@ export const DocumentCollaborationMessageFromClientSchema = Schema.union({
     UpdateOurPresenceState: Schema.object({
         type: Schema.value("UpdateOurPresenceState"),
         state: DocumentCollaborationPresenceStateSchema.nullable(),
+    }),
+    /**
+     * Some realtime message regarding the document's comments.
+     */
+    Comments: Schema.object({
+        type: Schema.value("Comments"),
+        commentThreadId: Schema.id<DocumentCommentThreadId>(),
+        message: MessagingRealtimeMessageFromClientSchema,
     }),
 });
 
@@ -131,5 +146,13 @@ export const DocumentCollaborationMessageFromServerSchema = Schema.union({
     Error: Schema.object({
         type: Schema.value("Error"),
         error: ErrorSchema,
+    }),
+    /**
+     * Some realtime message regarding this document's comments.
+     */
+    Comments: Schema.object({
+        type: Schema.value("Comments"),
+        commentThreadId: Schema.id<DocumentCommentThreadId>(),
+        message: createMessagingRealtimeMessageFromServerSchema(DocumentCommentModel.schema()),
     }),
 });

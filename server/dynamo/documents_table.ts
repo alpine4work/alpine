@@ -1,3 +1,4 @@
+import {differenceInMinutes} from "date-fns";
 import {Node} from "prosemirror-model";
 import {Mapping, Step} from "prosemirror-transform";
 import {getAccountOrThrow} from "~/server/dynamo/accounts_table";
@@ -864,6 +865,7 @@ async function createDocumentCommentThreadModelFromItem(
     return new DocumentCommentThreadModel({
         id: item.commentThreadId,
         documentId: item.documentId,
+        createdTime: item.createdTime,
         commentCount: reduceIterable(
             item.commentsSummary.commentCountByAuthorId.values(),
             (commentCount, authorCommentCount) => commentCount + authorCommentCount,
@@ -1455,6 +1457,12 @@ export async function updateDocumentContent(
         createCommentThreads?: ReadonlyArray<{
             commentThreadId: DocumentCommentThreadId;
             initialCommentContent: MessageContent;
+            /**
+             * Optionally allow the caller to specify the time at which we report the
+             * thread was created. Used by our document collaboration service to use the
+             * optimistic creation time of the comment thread.
+             */
+            createdTime?: Date;
         }>;
         // NOTE(calebmer): Do we really need the cache anymore now that we're using
         // Durable Objects for updating documents? For now, probably yes? Each Durable
@@ -1504,6 +1512,8 @@ export async function updateDocumentContent(
             "Can only override the cache in Jest tests",
         );
 
+        const currentTime = new Date();
+
         if (createCommentThreads.length > 0) {
             const stepCommentThreadIds = new Set<DocumentCommentThreadId>();
 
@@ -1521,6 +1531,18 @@ export async function updateDocumentContent(
                 if (!stepCommentThreadIds.has(createCommentThread.commentThreadId)) {
                     throw new InvalidArgumentError(
                         "When creating a comment thread the `commentThreadId` must be referenced in document update steps",
+                    );
+                }
+
+                // `createdTime` shouldn't be wholly inaccurate but allow for some clock drift.
+                // In some cases `createdTime` may be set a couple minutes before when
+                // optimistically creating comment threads.
+                if (
+                    createCommentThread.createdTime &&
+                    Math.abs(differenceInMinutes(currentTime, createCommentThread.createdTime)) > 20
+                ) {
+                    throw new InvalidArgumentError(
+                        "When creating a comment thread `createdTime` should be within 20 minutes of the current time",
                     );
                 }
             }
@@ -1589,7 +1611,6 @@ export async function updateDocumentContent(
         });
 
         const transaction: Array<DynamoTransactionEntry> = [];
-        const createdTime = new Date();
 
         if (steps.length > 0) {
             transaction.push(
@@ -1618,7 +1639,7 @@ export async function updateDocumentContent(
                     steps: steps,
                     invertedSteps,
                     clientId,
-                    createdTime,
+                    createdTime: currentTime,
                 }),
             );
         }
@@ -1636,6 +1657,8 @@ export async function updateDocumentContent(
         // comment threads asynchronously instead of in the same transaction to get
         // around this limit should we find users hitting it.
         for (const createCommentThread of createCommentThreads) {
+            const createdTime = createCommentThread.createdTime ?? currentTime;
+
             transaction.push(
                 DocumentsTable.transactionCreateItem({
                     partitionType: "Document",

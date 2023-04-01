@@ -1,8 +1,19 @@
 import {DocumentCollaborationContentManager} from "~/server/documents/document_collaboration_content_manager";
+import {getAccountOrThrow} from "~/server/dynamo/accounts_table";
 import {ProcessContext} from "~/server/dynamo/context/process_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
-import {getDocumentPreview} from "~/server/dynamo/documents_table";
-import {getContentReferencesForSteps} from "~/server/dynamo/helpers/get_content_references";
+import {
+    backfillDocumentComments,
+    createDocumentComment,
+    deleteDocumentComment,
+    getDocumentPreview,
+    updateDocumentCommentContent,
+} from "~/server/dynamo/documents_table";
+import {
+    getContentReferencesForNode,
+    getContentReferencesForSteps,
+} from "~/server/dynamo/helpers/get_content_references";
+import {MessagingRealtimeConnection} from "~/server/messaging/messaging_realtime_connection";
 import {
     DocumentCollaborationMessageFromClient,
     DocumentCollaborationMessageFromServer,
@@ -13,7 +24,15 @@ import {AsyncMutex} from "~/shared/helpers/async/async_mutex";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
-import {WebSocketConnectionId} from "~/shared/id/types/id_types";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
+import {DefaultMap} from "~/shared/helpers/map/default_map";
+import {DocumentCommentThreadId, WebSocketConnectionId} from "~/shared/id/types/id_types";
+import {
+    DocumentCommentModel,
+    DocumentCommentRoomKey,
+    decodeDocumentCommentRoomKey,
+    encodeDocumentCommentRoomKey,
+} from "~/shared/models/document_model";
 import {TracerSpan} from "~/shared/tracer/tracer_span";
 
 export class DocumentCollaborationConnection {
@@ -74,11 +93,20 @@ export class DocumentCollaborationConnection {
         return this._state.get().presenceState;
     }
 
-    public handleMessage(
+    public async handleMessage(
         context: RequestContext,
         message: DocumentCollaborationMessageFromClient,
         span: TracerSpan,
     ) {
+        // Handle comment messages without blocking other document content
+        // related messages.
+        if (message.type === "Comments") {
+            const commentThreadConnection = this._commentThreadConnectionById.getOrSetDefault(
+                message.commentThreadId,
+            );
+            return commentThreadConnection.handleMessage(context, message.message);
+        }
+
         // Handle all messages for this connection in sequence as a defense against
         // race conditions.
         //
@@ -87,7 +115,7 @@ export class DocumentCollaborationConnection {
         // `UpdateContent` then a `UpdateOurPresenceState` is perhaps a better example.
         //
         // The client mostly sends messages in sequence anyway.
-        return this._state.run(async (state, setState) => {
+        await this._state.run(async (state, setState) => {
             switch (message.type) {
                 case "BackfillRequest": {
                     const version = this._contentManager.getCurrentVersion();
@@ -281,6 +309,14 @@ export class DocumentCollaborationConnection {
                 }
             }),
         );
+
+        context.process.waitUntil(async () => {
+            await runAllPromises(
+                mapIterable(this._commentThreadConnectionById.values(), commentThreadConnection =>
+                    commentThreadConnection.handleClose(context),
+                ),
+            );
+        });
     }
 
     private _sendFatalErrorMessageAndKillProcess(
@@ -300,4 +336,191 @@ export class DocumentCollaborationConnection {
         });
         this._killProcess(context);
     }
+
+    private readonly _commentThreadConnectionById: DefaultMap<
+        DocumentCommentThreadId,
+        MessagingRealtimeConnection<DocumentCommentRoomKey, DocumentCommentModel>
+    > = new DefaultMap(commentThreadId => {
+        return new MessagingRealtimeConnection({
+            connectionId: this.connectionId,
+            spaceId: this._contentManager.spaceId,
+            roomKey: encodeDocumentCommentRoomKey(this._contentManager.id, commentThreadId),
+            sendMessage: (context, message) =>
+                this._sendMessage(context, {type: "Comments", commentThreadId, message}),
+            sendMessageToOthers: (context, message) =>
+                this._sendMessageToOthers(context, {type: "Comments", commentThreadId, message}),
+            iterateOtherConnections: () =>
+                mapIterable(this._iterateOtherConnections(), connection =>
+                    connection._commentThreadConnectionById.getOrSetDefault(commentThreadId),
+                ),
+            createMessageModel: ({roomKey, index, createdTime, author, payload}) => {
+                const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+                return new DocumentCommentModel({
+                    documentId,
+                    commentThreadId,
+                    index,
+                    createdTime,
+                    author,
+                    payload,
+                });
+            },
+            createMessage: async (
+                context,
+                {roomKey, parentMessageIndex: parentCommentIndex, content},
+            ) => {
+                const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+                // Wait for our optimistic comment thread to persist before talking to
+                // the database.
+                const optimisticCommentThread =
+                    this._contentManager.getOptimisticCommentThread(commentThreadId);
+                if (optimisticCommentThread) {
+                    await context.tracer.withSpan(
+                        "Waiting for comment thread to persist",
+                        () => optimisticCommentThread.persistedPromise,
+                    );
+                }
+
+                const comment = await createDocumentComment(context, {
+                    documentId,
+                    commentThreadId,
+                    parentCommentIndex,
+                    content,
+                });
+
+                return {
+                    index: comment.index,
+                    createdTime: comment.createdTime,
+                };
+            },
+            updateMessageContent: async (
+                context,
+                {roomKey, messageIndex: commentIndex, content},
+            ) => {
+                const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+                // Wait for our optimistic comment thread to persist before talking to
+                // the database.
+                const optimisticCommentThread =
+                    this._contentManager.getOptimisticCommentThread(commentThreadId);
+                if (optimisticCommentThread) {
+                    await context.tracer.withSpan(
+                        "Waiting for comment thread to persist",
+                        () => optimisticCommentThread.persistedPromise,
+                    );
+                }
+
+                return updateDocumentCommentContent(context, {
+                    documentId,
+                    commentThreadId,
+                    commentIndex,
+                    content,
+                });
+            },
+            deleteMessage: async (context, {roomKey, messageIndex: commentIndex}) => {
+                const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+                // Wait for our optimistic comment thread to persist before talking to
+                // the database.
+                const optimisticCommentThread =
+                    this._contentManager.getOptimisticCommentThread(commentThreadId);
+                if (optimisticCommentThread) {
+                    await context.tracer.withSpan(
+                        "Waiting for comment thread to persist",
+                        () => optimisticCommentThread.persistedPromise,
+                    );
+                }
+
+                return deleteDocumentComment(context, {documentId, commentThreadId, commentIndex});
+            },
+            backfillMessages: async (
+                context,
+                {
+                    roomKey,
+                    clientMessageCount: clientCommentCount,
+                    clientLastMessageChangeTime: clientLastCommentChangeTime,
+                    newMessageLimit: newCommentLimit,
+                },
+            ) => {
+                const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+                // We manually implement `backfillMessages` when we have an optimistic comment
+                // thread since going to the database would throw an error. That way the user
+                // can immediately open a comment thread even if it's not persisted.
+                const optimisticCommentThread =
+                    this._contentManager.getOptimisticCommentThread(commentThreadId);
+                if (optimisticCommentThread) {
+                    return context.tracer.withSpan(
+                        "Comment thread hasn't persisted so returning optimistic backfill",
+                        async context => {
+                            const [author, contentReferences] = await runAllPromises([
+                                getAccountOrThrow(
+                                    context,
+                                    this._contentManager.spaceId,
+                                    optimisticCommentThread.initialComment.authorId,
+                                ),
+                                getContentReferencesForNode(
+                                    context,
+                                    this._contentManager.spaceId,
+                                    optimisticCommentThread.initialComment.content,
+                                ),
+                            ]);
+
+                            return {
+                                messageCount: 1,
+                                lastMessageChangeTime: null,
+                                newMessages:
+                                    clientCommentCount < 1 && newCommentLimit > 0
+                                        ? [
+                                              new DocumentCommentModel({
+                                                  documentId: this._contentManager.id,
+                                                  commentThreadId,
+                                                  index: 0,
+                                                  author,
+                                                  createdTime: optimisticCommentThread.createdTime,
+                                                  payload: {
+                                                      type: "Content",
+                                                      parentMessageIndex: null,
+                                                      content: {
+                                                          doc: optimisticCommentThread
+                                                              .initialComment.content,
+                                                          references: contentReferences,
+                                                      },
+                                                      contentUpdatedTime: null,
+                                                  },
+                                              }),
+                                          ]
+                                        : [],
+                                newOtherReferencedMessages: [],
+                                messageChangesResult: {type: "Available", changes: []},
+                            };
+                        },
+                    );
+                }
+
+                const {
+                    commentCount,
+                    lastCommentChangeTime,
+                    newComments,
+                    newOtherReferencedComments,
+                    commentChangesResult,
+                } = await backfillDocumentComments(context, {
+                    documentId,
+                    commentThreadId,
+                    clientCommentCount,
+                    clientLastCommentChangeTime,
+                    newCommentLimit,
+                });
+
+                return {
+                    messageCount: commentCount,
+                    lastMessageChangeTime: lastCommentChangeTime,
+                    newMessages: newComments,
+                    newOtherReferencedMessages: newOtherReferencedComments,
+                    messageChangesResult: commentChangesResult,
+                };
+            },
+        });
+    });
 }

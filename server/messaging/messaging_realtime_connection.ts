@@ -126,49 +126,57 @@ export class MessagingRealtimeConnection<
         this._backfillMessages = backfillMessages;
     }
 
-    private _sendNewMessageAndClearTypingState(
+    private static _sendNewMessageAndClearTypingState<
+        RoomKey extends string,
+        Message extends MessageModel<RoomKey>,
+    >(
         context: RequestContext,
-        fromConnectionId: WebSocketConnectionId,
+        fromConnection: MessagingRealtimeConnection<RoomKey, Message>,
+        toConnection: MessagingRealtimeConnection<RoomKey, Message>,
         message: Message,
     ) {
         // If this is not the next message for our client, either queue it for later or
         // ignore it if the message is behind our client.
-        if (message.index !== this._nextMessageIndexToSend) {
+        if (message.index !== toConnection._nextMessageIndexToSend) {
             if (
-                this._nextMessageIndexToSend === null ||
-                message.index > this._nextMessageIndexToSend
+                toConnection._nextMessageIndexToSend === null ||
+                message.index > toConnection._nextMessageIndexToSend
             ) {
                 // If the message needs to be queued for sending later, we still want to
                 // immediately send our typing state update. In case another typing state
                 // update happens later we don't want to clobber the update from this function.
-                if (fromConnectionId !== this._connectionId) {
-                    this._sendRealtimeMessage(context, {
+                if (
+                    fromConnection._connectionId !== toConnection._connectionId &&
+                    fromConnection._typingState.get() !== null
+                ) {
+                    toConnection._sendRealtimeMessage(context, {
                         type: "UpdateOtherTypingState",
-                        connectionId: fromConnectionId,
+                        connectionId: fromConnection._connectionId,
                         typingState: null,
                     });
                 }
 
-                this._queuedNewMessages.push(message);
+                toConnection._queuedNewMessages.push(message);
             }
             return;
         }
 
-        this._sendRealtimeMessage(context, {
+        toConnection._sendRealtimeMessage(context, {
             type: "NewMessage",
             message,
             updateOtherTypingState:
-                fromConnectionId !== this._connectionId
+                fromConnection._connectionId !== toConnection._connectionId &&
+                fromConnection._typingState.get() !== null
                     ? {
-                          connectionId: fromConnectionId,
+                          connectionId: fromConnection._connectionId,
                           typingState: null,
                       }
                     : null,
         });
-        this._nextMessageIndexToSend = message.index + 1;
+        toConnection._nextMessageIndexToSend = message.index + 1;
 
         // Flush any queued messages now that our next message index has moved forward.
-        this._flushQueuedMessages(context);
+        toConnection._flushQueuedMessages(context);
     }
 
     private _flushQueuedMessages(context: RequestContext) {
@@ -345,18 +353,21 @@ export class MessagingRealtimeConnection<
                         },
                     });
 
-                    this._sendNewMessageAndClearTypingState(
+                    MessagingRealtimeConnection._sendNewMessageAndClearTypingState(
                         context,
-                        this._connectionId,
+                        this,
+                        this,
                         newMessage,
                     );
 
-                    for (const connection of this._iterateOtherConnections())
-                        connection._sendNewMessageAndClearTypingState(
+                    for (const connection of this._iterateOtherConnections()) {
+                        MessagingRealtimeConnection._sendNewMessageAndClearTypingState(
                             context,
-                            this._connectionId,
+                            this,
+                            connection,
                             newMessage,
                         );
+                    }
                 });
                 break;
             }

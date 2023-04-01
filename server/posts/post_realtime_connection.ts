@@ -24,7 +24,7 @@ import {
 } from "~/shared/posts/post_realtime_schema";
 
 export class PostRealtimeConnection {
-    private readonly _messaging: MessagingRealtimeConnection<PostId, PostCommentModel>;
+    private readonly _connection: MessagingRealtimeConnection<PostId, PostCommentModel>;
 
     constructor({
         connectionId,
@@ -44,7 +44,7 @@ export class PostRealtimeConnection {
         ) => void;
         iterateOtherConnections: () => Iterable<PostRealtimeConnection>;
     }) {
-        this._messaging = new MessagingRealtimeConnection({
+        this._connection = new MessagingRealtimeConnection({
             connectionId,
             spaceId,
             roomKey: postId,
@@ -54,7 +54,7 @@ export class PostRealtimeConnection {
             sendMessageToOthers: (context, message) =>
                 sendMessageToOthers(context, {type: "PostComments", message}),
             iterateOtherConnections: () =>
-                mapIterable(iterateOtherConnections(), connection => connection._messaging),
+                mapIterable(iterateOtherConnections(), connection => connection._connection),
 
             createMessageModel,
             createMessage,
@@ -72,11 +72,11 @@ export class PostRealtimeConnection {
         // this code should turn into a switch.
         cast<"PostComments">(message.type);
 
-        return this._messaging.handleMessage(context, message.message);
+        return this._connection.handleMessage(context, message.message);
     }
 
     public async handleClose(context: ProcessContext) {
-        return this._messaging.handleClose(context);
+        return this._connection.handleClose(context);
     }
 }
 

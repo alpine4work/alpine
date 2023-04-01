@@ -12,6 +12,7 @@ ts_project(
         "//server/cloudflare",
         "//server/dynamo",
         "//server/helpers",
+        "//server/messaging",
         "//server/rpc",
         "//server/tracer",
         "//shared/content",
