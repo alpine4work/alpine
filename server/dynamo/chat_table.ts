@@ -398,7 +398,7 @@ export function getOrCreateChatForAccounts(
  * component. To understand it's implementation you need to understand that
  * component's UX.
  */
-export async function selectChatForAccounts(
+export function selectChatForAccounts(
     context: RequestContext,
     {
         spaceId,
@@ -417,61 +417,63 @@ export async function selectChatForAccounts(
     };
     suggestedChats: ReadonlyArray<ChatModel>;
 }> {
-    // Make sure `otherAccountIds` is unique and doesn't include our
-    // authenticated account.
-    otherAccountIds = Array.from(new Set(otherAccountIds)).filter(
-        accountId => accountId !== context.auth.getAccountId(),
-    );
+    return context.tracer.withSpan("selectChatForAccounts", async context => {
+        // Make sure `otherAccountIds` is unique and doesn't include our
+        // authenticated account.
+        otherAccountIds = Array.from(new Set(otherAccountIds)).filter(
+            accountId => accountId !== context.auth.getAccountId(),
+        );
 
-    const sharedChatsPromise = getSharedChats(context, {
-        spaceId,
-        otherAccountIds,
+        const sharedChatsPromise = getSharedChats(context, {
+            spaceId,
+            otherAccountIds,
+        });
+
+        const [selectedChat, suggestedChats] = await runAllPromises([
+            (async () => {
+                const chatId = await actuallyGetOrCreateChatForAccounts(context, {
+                    spaceId,
+                    otherAccountIds,
+                    initialSharedChatsPromise: sharedChatsPromise,
+                });
+
+                return getChatAndInitialMessages(context, {
+                    chatId,
+                    messagesLimit,
+                });
+            })(),
+            (async () => {
+                const sharedChats = await sharedChatsPromise;
+
+                // Limit the number of chats we return since we need to load the full chat
+                // object. We sort shared chats by some heuristics to put more relevant chats
+                // first but the heuristics don't consider user activity. Ideally we would also
+                // sort with our affinity system. (I (@calebmer) have a rough idea of an
+                // affinity system I'd like to build.)
+                const suggestedChatLimit = 5;
+
+                return parallelFilterMapLimitAsyncIterableToArray(
+                    asyncIterableFromIterable(sharedChats),
+                    suggestedChatLimit,
+                    async sharedChat => {
+                        // We only suggest chats with additional accounts on top of the ones
+                        // we requested.
+                        if (sharedChat.accountCount <= otherAccountIds.length + 1) return null;
+
+                        const chat = await getChat(context, sharedChat.id);
+                        if (!chat) return null;
+
+                        // Only suggest chats with some messages.
+                        if (chat.messageCount === 0) return null;
+
+                        return chat;
+                    },
+                );
+            })(),
+        ]);
+
+        return {selectedChat, suggestedChats};
     });
-
-    const [selectedChat, suggestedChats] = await runAllPromises([
-        (async () => {
-            const chatId = await actuallyGetOrCreateChatForAccounts(context, {
-                spaceId,
-                otherAccountIds,
-                initialSharedChatsPromise: sharedChatsPromise,
-            });
-
-            return getChatAndInitialMessages(context, {
-                chatId,
-                messagesLimit,
-            });
-        })(),
-        (async () => {
-            const sharedChats = await sharedChatsPromise;
-
-            // Limit the number of chats we return since we need to load the full chat
-            // object. We sort shared chats by some heuristics to put more relevant chats
-            // first but the heuristics don't consider user activity. Ideally we would also
-            // sort with our affinity system. (I (@calebmer) have a rough idea of an
-            // affinity system I'd like to build.)
-            const suggestedChatLimit = 5;
-
-            return parallelFilterMapLimitAsyncIterableToArray(
-                asyncIterableFromIterable(sharedChats),
-                suggestedChatLimit,
-                async sharedChat => {
-                    // We only suggest chats with additional accounts on top of the ones
-                    // we requested.
-                    if (sharedChat.accountCount <= otherAccountIds.length + 1) return null;
-
-                    const chat = await getChat(context, sharedChat.id);
-                    if (!chat) return null;
-
-                    // Only suggest chats with some messages.
-                    if (chat.messageCount === 0) return null;
-
-                    return chat;
-                },
-            );
-        })(),
-    ]);
-
-    return {selectedChat, suggestedChats};
 }
 
 function actuallyGetOrCreateChatForAccounts(
@@ -486,186 +488,191 @@ function actuallyGetOrCreateChatForAccounts(
         initialSharedChatsPromise: ReturnType<typeof getSharedChats> | null;
     },
 ): Promise<ChatId> {
-    let hasAlreadyAttempted = false;
+    return context.tracer.withSpan("getOrCreateChatForAccounts", async context => {
+        let hasAlreadyAttempted = false;
 
-    return retryWithExponentialBackoff(async retry => {
-        const isInitialAttempt = !hasAlreadyAttempted;
-        hasAlreadyAttempted = true;
+        return retryWithExponentialBackoff(async retry => {
+            const isInitialAttempt = !hasAlreadyAttempted;
+            hasAlreadyAttempted = true;
 
-        // Make sure `otherAccountIds` is unique and doesn't include our
-        // authenticated account.
-        otherAccountIds = Array.from(new Set(otherAccountIds)).filter(
-            accountId => accountId !== context.auth.getAccountId(),
-        );
-
-        const allSortedAccountIds = [...otherAccountIds, context.auth.getAccountId()].sort();
-
-        const getChatAndAccounts = async (
-            chatId: ChatId,
-        ): Promise<{
-            chatItem: ChatAttributesItem;
-            chatAccountItems: Array<ChatAccountItem>;
-        } | null> => {
-            let chatItem: ChatAttributesItem | undefined;
-            const chatAccountItems: Array<ChatAccountItem> = [];
-
-            for await (const item of ChatTable.query(context, {
-                partitionKey: {
-                    partitionType: "Chat",
-                    chatId,
-                },
-                startSortKey: {
-                    sortRangeType: "Attributes",
-                },
-                endSortKey: {
-                    sortRangeType: "Account",
-                    accountId: DynamoKeyAttributeSchema.id.getMaxValue<AccountId>(),
-                },
-                limit: "All",
-            })) {
-                switch (item.sortRangeType) {
-                    case "Attributes": {
-                        assert(!chatItem);
-                        chatItem = item;
-                        break;
-                    }
-                    case "Account": {
-                        assert(chatItem);
-                        chatAccountItems.push(item);
-                        break;
-                    }
-                    default:
-                        throw exhaustive(item);
-                }
-            }
-
-            if (!chatItem) return null;
-
-            return {
-                chatItem,
-                chatAccountItems,
-            };
-        };
-
-        const createChatForAccounts = async (chatId: ChatId) => {
-            await sendChatMessageToAccountsBeforeCreateChatTestCheckpoint.waitForTest(
-                context.auth.getSessionId(),
+            // Make sure `otherAccountIds` is unique and doesn't include our
+            // authenticated account.
+            otherAccountIds = Array.from(new Set(otherAccountIds)).filter(
+                accountId => accountId !== context.auth.getAccountId(),
             );
 
-            try {
-                const createdTime = new Date();
+            const allSortedAccountIds = [...otherAccountIds, context.auth.getAccountId()].sort();
 
-                const chatItem: ChatAttributesItem = {
-                    partitionType: "Chat",
-                    sortRangeType: "Attributes",
-                    chatId,
-                    spaceId,
-                    createdTime,
-                    messagesSummary: {
-                        nextMessageIndex: 0,
-                        lastChangeTime: null,
-                        messageCount: 0,
+            const getChatAndAccounts = async (
+                chatId: ChatId,
+            ): Promise<{
+                chatItem: ChatAttributesItem;
+                chatAccountItems: Array<ChatAccountItem>;
+            } | null> => {
+                let chatItem: ChatAttributesItem | undefined;
+                const chatAccountItems: Array<ChatAccountItem> = [];
+
+                for await (const item of ChatTable.query(context, {
+                    partitionKey: {
+                        partitionType: "Chat",
+                        chatId,
                     },
-                };
-
-                await DynamoTableSchema.executeTransaction(
-                    context,
-                    [
-                        ChatTable.transactionCreateItem(chatItem),
-                        ...Array.from(allSortedAccountIds, accountId =>
-                            ChatTable.transactionCreateOrReplaceItem({
-                                partitionType: "Chat",
-                                sortRangeType: "Account",
-                                spaceId,
-                                chatId,
-                                accountId,
-                                joinedTime: createdTime,
-                                chatAccountCount: allSortedAccountIds.length,
-                            }),
-                        ),
-                    ],
-                    {
-                        // If two processes try to create a chat at the same time for the same
-                        // accounts, we want to treat this transaction as idempotent.
-                        //
-                        // We need to hash the request token because DynamoDB imposes a maximum
-                        // length on tokens.
-                        clientRequestToken: `${spaceId}:${murmurhash
-                            .v3(allSortedAccountIds.join("-"))
-                            .toString(16)
-                            .padStart(8, "0")}`,
+                    startSortKey: {
+                        sortRangeType: "Attributes",
                     },
-                );
-
-                return chatItem;
-            } catch (error) {
-                // If we have a race condition where some other process created this chat
-                // before us then retry our action. Retrying should load the chat created by
-                // the other process.
-                if (
-                    isDynamoConditionCheckError(error) ||
-                    isDynamoIdempotentParameterMismatchError(error)
-                ) {
-                    retry();
+                    endSortKey: {
+                        sortRangeType: "Account",
+                        accountId: DynamoKeyAttributeSchema.id.getMaxValue<AccountId>(),
+                    },
+                    limit: "All",
+                })) {
+                    switch (item.sortRangeType) {
+                        case "Attributes": {
+                            assert(!chatItem);
+                            chatItem = item;
+                            break;
+                        }
+                        case "Account": {
+                            assert(chatItem);
+                            chatAccountItems.push(item);
+                            break;
+                        }
+                        default:
+                            throw exhaustive(item);
+                    }
                 }
 
-                throw error;
-            }
-        };
+                if (!chatItem) return null;
 
-        const [{optimisticChatId, optimisticChatAndAccounts}] = await runAllPromises([
-            (async () => {
-                const optimisticChatId = await getOptimisticChatId(spaceId, allSortedAccountIds);
-                const optimisticChatAndAccounts = await getChatAndAccounts(optimisticChatId);
-                return {optimisticChatId, optimisticChatAndAccounts};
-            })(),
+                return {
+                    chatItem,
+                    chatAccountItems,
+                };
+            };
 
-            // Make sure the authenticated account has access to the space.
-            authorizeSpaceAccess(context, spaceId),
+            const createChatForAccounts = async (chatId: ChatId) => {
+                await sendChatMessageToAccountsBeforeCreateChatTestCheckpoint.waitForTest(
+                    context.auth.getSessionId(),
+                );
 
-            // Make sure all accounts we are sending a message to are a part of the
-            // provided space.
-            runAllPromises(
-                Array.from(otherAccountIds, accountId =>
-                    getAccountOrThrow(context, spaceId, accountId),
+                try {
+                    const createdTime = new Date();
+
+                    const chatItem: ChatAttributesItem = {
+                        partitionType: "Chat",
+                        sortRangeType: "Attributes",
+                        chatId,
+                        spaceId,
+                        createdTime,
+                        messagesSummary: {
+                            nextMessageIndex: 0,
+                            lastChangeTime: null,
+                            messageCount: 0,
+                        },
+                    };
+
+                    await DynamoTableSchema.executeTransaction(
+                        context,
+                        [
+                            ChatTable.transactionCreateItem(chatItem),
+                            ...Array.from(allSortedAccountIds, accountId =>
+                                ChatTable.transactionCreateOrReplaceItem({
+                                    partitionType: "Chat",
+                                    sortRangeType: "Account",
+                                    spaceId,
+                                    chatId,
+                                    accountId,
+                                    joinedTime: createdTime,
+                                    chatAccountCount: allSortedAccountIds.length,
+                                }),
+                            ),
+                        ],
+                        {
+                            // If two processes try to create a chat at the same time for the same
+                            // accounts, we want to treat this transaction as idempotent.
+                            //
+                            // We need to hash the request token because DynamoDB imposes a maximum
+                            // length on tokens.
+                            clientRequestToken: `${spaceId}:${murmurhash
+                                .v3(allSortedAccountIds.join("-"))
+                                .toString(16)
+                                .padStart(8, "0")}`,
+                        },
+                    );
+
+                    return chatItem;
+                } catch (error) {
+                    // If we have a race condition where some other process created this chat
+                    // before us then retry our action. Retrying should load the chat created by
+                    // the other process.
+                    if (
+                        isDynamoConditionCheckError(error) ||
+                        isDynamoIdempotentParameterMismatchError(error)
+                    ) {
+                        retry();
+                    }
+
+                    throw error;
+                }
+            };
+
+            const [{optimisticChatId, optimisticChatAndAccounts}] = await runAllPromises([
+                (async () => {
+                    const optimisticChatId = await getOptimisticChatId(
+                        spaceId,
+                        allSortedAccountIds,
+                    );
+                    const optimisticChatAndAccounts = await getChatAndAccounts(optimisticChatId);
+                    return {optimisticChatId, optimisticChatAndAccounts};
+                })(),
+
+                // Make sure the authenticated account has access to the space.
+                authorizeSpaceAccess(context, spaceId),
+
+                // Make sure all accounts we are sending a message to are a part of the
+                // provided space.
+                runAllPromises(
+                    Array.from(otherAccountIds, accountId =>
+                        getAccountOrThrow(context, spaceId, accountId),
+                    ),
                 ),
-            ),
-        ]);
+            ]);
 
-        // If the optimistic `ChatId` does not exist then create a new chat with the
-        // optimistic `ChatId` and send a message there.
-        if (!optimisticChatAndAccounts) {
-            const optimisticChatItem = await createChatForAccounts(optimisticChatId);
-            return optimisticChatItem.chatId;
-        }
+            // If the optimistic `ChatId` does not exist then create a new chat with the
+            // optimistic `ChatId` and send a message there.
+            if (!optimisticChatAndAccounts) {
+                const optimisticChatItem = await createChatForAccounts(optimisticChatId);
+                return optimisticChatItem.chatId;
+            }
 
-        // If the optimistic `ChatId` exists then we need to double check it matches
-        // our expected space and accounts. If it does then hooray! We can send a chat
-        // message here.
-        if (
-            optimisticChatAndAccounts.chatItem.spaceId === spaceId &&
-            isDeepEqual(
-                allSortedAccountIds,
-                // Chat account items should be sorted by DynamoDB.
-                optimisticChatAndAccounts.chatAccountItems.map(item => item.accountId),
-            )
-        ) {
-            return optimisticChatAndAccounts.chatItem.chatId;
-        }
+            // If the optimistic `ChatId` exists then we need to double check it matches
+            // our expected space and accounts. If it does then hooray! We can send a chat
+            // message here.
+            if (
+                optimisticChatAndAccounts.chatItem.spaceId === spaceId &&
+                isDeepEqual(
+                    allSortedAccountIds,
+                    // Chat account items should be sorted by DynamoDB.
+                    optimisticChatAndAccounts.chatAccountItems.map(item => item.accountId),
+                )
+            ) {
+                return optimisticChatAndAccounts.chatItem.chatId;
+            }
 
-        const sharedChats = await ((isInitialAttempt ? initialSharedChatsPromise : null) ??
-            getSharedChats(context, {spaceId, otherAccountIds}));
+            const sharedChats = await ((isInitialAttempt ? initialSharedChatsPromise : null) ??
+                getSharedChats(context, {spaceId, otherAccountIds}));
 
-        const firstSharedChat = sharedChats[0];
+            const firstSharedChat = sharedChats[0];
 
-        // We found a chat that exactly matches the accounts we want to message! Send a
-        // message to that chat.
-        if (firstSharedChat?.accountCount === otherAccountIds.length + 1) {
-            return firstSharedChat.id;
-        }
+            // We found a chat that exactly matches the accounts we want to message! Send a
+            // message to that chat.
+            if (firstSharedChat?.accountCount === otherAccountIds.length + 1) {
+                return firstSharedChat.id;
+            }
 
-        const chatItem = await createChatForAccounts(generateId());
-        return chatItem.chatId;
+            const chatItem = await createChatForAccounts(generateId());
+            return chatItem.chatId;
+        });
     });
 }
 
