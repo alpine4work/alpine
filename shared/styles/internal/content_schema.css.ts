@@ -49,6 +49,10 @@ import {peekContainerClassName} from "~/shared/styles/internal/peek.css";
 // - Bold labels in dark mode don't have enough contrast? See
 //   https://cyberworlds.dev/s/111hc413nfdxa6vwspnhm3ejsc/documents/wshttcjr5egq22e11k92tq1z7m
 // - Checkboxes are misaligned with new line height
+// - Documents feel like they need a tighter width and more whitespace (more
+//   line height + more space between paragraphs). Thinking about this while
+//   writing:
+//   https://cyberworlds.dev/s/111hc413nfdxa6vwspnhm3ejsc/documents/r0jzswspqf11nmy1g0zh3n6y4r
 
 const paragraphMargin = spacing["2"];
 const headerTopMargin = "1.5em";
@@ -279,7 +283,10 @@ export const checkListItemCheckboxContainerClassName = style({
             2
     }rem)`,
     borderRadius: "100%",
-    padding: spacing["1"],
+    paddingLeft: spacing["1"],
+    paddingRight: spacing["1"],
+    paddingTop: spacing["0.5"],
+    paddingBottom: spacing["0.5"],
     cursor: "default",
     userSelect: "none",
     "@media": {

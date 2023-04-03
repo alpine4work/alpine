@@ -5,6 +5,7 @@ import {Button} from "~/client/design/button";
 import {IconButton} from "~/client/design/icon_button";
 import {MenuButton} from "~/client/design/menu_button";
 import {useShowToast} from "~/client/design/toast";
+import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {useNavigate} from "~/client/remix/use_navigate";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {SpaceLayoutTopBarCreateButton} from "~/client/spaces/space_layout_top_bar_create_button";
@@ -18,6 +19,7 @@ import {SpaceModel} from "~/shared/models/space_model";
 export function SpaceLayoutTopBar({space}: {space: SpaceModel}) {
     const showToast = useShowToast();
     const navigate = useNavigate();
+    const isMobile = useIsMobile();
 
     return (
         <Box
@@ -64,35 +66,42 @@ export function SpaceLayoutTopBar({space}: {space: SpaceModel}) {
                     </Box>
                 </Button>
             </Box>
-            <Box flexGrow="1" display="flex" justifyContent="center" alignItems="center">
-                <Box
-                    minWidth="48"
-                    maxWidth="128"
-                    width="full"
-                    backgroundColor="grey-5"
-                    border="grey-10"
-                    borderRadius="md"
-                    display="flex"
-                    justifyContent="center"
-                    alignItems="center"
-                    padding="1"
-                    gap="1"
-                    color="grey-50"
-                    cursor="text"
-                    onClick={() => {
-                        showToast({
-                            type: "Error",
-                            title: "Can not open search",
-                            error: new UnimplementedError("Search has not been implemented yet", {
-                                displayMessage: errorDisplayMessage`Search has not been implemented yet.`,
-                            }),
-                        });
-                    }}
-                >
-                    <MagnifyingGlass size={spacing["4"]} />
-                    <Box fontStyle="truncate">Search {space.name}…</Box>
+            {!isMobile && (
+                // NOTE(calebmer): For now the search bar looks whack on mobile. Since it's not
+                // even implemented and only used to frame the design, hide it for now.
+                <Box flexGrow="1" display="flex" justifyContent="center" alignItems="center">
+                    <Box
+                        minWidth="48"
+                        maxWidth="128"
+                        width="full"
+                        backgroundColor="grey-5"
+                        border="grey-10"
+                        borderRadius="md"
+                        display="flex"
+                        justifyContent="center"
+                        alignItems="center"
+                        padding="1"
+                        gap="1"
+                        color="grey-50"
+                        cursor="text"
+                        onClick={() => {
+                            showToast({
+                                type: "Error",
+                                title: "Can not open search",
+                                error: new UnimplementedError(
+                                    "Search has not been implemented yet",
+                                    {
+                                        displayMessage: errorDisplayMessage`Search has not been implemented yet.`,
+                                    },
+                                ),
+                            });
+                        }}
+                    >
+                        <MagnifyingGlass size={spacing["4"]} />
+                        <Box fontStyle="truncate">Search {space.name}…</Box>
+                    </Box>
                 </Box>
-            </Box>
+            )}
             <Box
                 width="48"
                 display="flex"
