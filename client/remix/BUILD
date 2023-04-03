@@ -13,6 +13,7 @@ ts_project(
         "//:node_modules/@types/react",
         "//:node_modules/js-cookie",
         "//:node_modules/react",
+        "//:node_modules/react-router-dom",
         "//client/helpers",
         "//shared/design",
         "//shared/helpers",

@@ -1,12 +1,11 @@
 import {useSearchParams} from "@remix-run/react";
-import {MetaFunction} from "@remix-run/server-runtime";
 import {LoaderSchema as SpaceRouteLoaderSchema} from "~/app/routes/s/$space_id";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name";
 import {ChatView} from "~/client/chat/chat_view";
 import {Box} from "~/client/design/box";
 import {joinPrettyConjunctionList} from "~/client/design/pretty_conjunction_list";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
-import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema";
+import {createMetaFunction} from "~/client/remix/create_meta_function";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
 import {getChatAndInitialMessages} from "~/server/dynamo/chat_table";
@@ -49,14 +48,13 @@ export async function loader({context: _context, params}: LoaderArgs) {
     );
 }
 
-export const meta: MetaFunction = ({data, parentsData}) => {
-    const {currentAccount} = getLoaderDataWithSchema(
-        SpaceRouteLoaderSchema,
-        parentsData["routes/s/$space_id"],
-    );
-    const {chat} = getLoaderDataWithSchema(LoaderSchema, data);
+export const meta = createMetaFunction(LoaderSchema, ({data: {chat}, getParentsData}) => {
+    const spaceRouteData = getParentsData("routes/s/$space_id", SpaceRouteLoaderSchema);
+
     assert(chat.accounts.length > 0);
-    const otherChatAccounts = chat.accounts.filter(account => account.id !== currentAccount.id);
+    const otherChatAccounts = chat.accounts.filter(
+        account => account.id !== spaceRouteData?.currentAccount.id,
+    );
 
     return {
         title:
@@ -68,7 +66,7 @@ export const meta: MetaFunction = ({data, parentsData}) => {
                       ),
                   )}${metaTitlePostfix}`,
     };
-};
+});
 
 export default function ChatRoute({isPeek}: {isPeek?: boolean}) {
     const [searchParams] = useSearchParams();

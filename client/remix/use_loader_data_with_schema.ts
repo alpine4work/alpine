@@ -1,6 +1,6 @@
 import {useLoaderData} from "@remix-run/react";
 import {useMemo} from "react";
-import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema";
+import {getLoaderDataWithSchema} from "~/client/remix/internal/get_loader_data_with_schema";
 import {Schema} from "~/shared/schema/schema";
 
 /**

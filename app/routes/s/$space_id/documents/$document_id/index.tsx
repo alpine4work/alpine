@@ -1,8 +1,7 @@
 import {ShouldReloadFunction, useSearchParams} from "@remix-run/react";
-import {MetaFunction} from "@remix-run/server-runtime";
 import {useEffect} from "react";
 import {DocumentContentEditor} from "~/client/documents/document_content_editor";
-import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema";
+import {createMetaFunction} from "~/client/remix/create_meta_function";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title";
 import {SpaceRouteScrollView} from "~/client/spaces/space_route_scroll_view";
@@ -73,13 +72,9 @@ export async function loader({params, context, request}: LoaderArgs) {
     return jsonWithSchema(LoaderSchema, {document}, {propagateEventData});
 }
 
-export const meta: MetaFunction = ({data}) => {
-    const {document} = getLoaderDataWithSchema(LoaderSchema, data);
-
-    return {
-        title: `${document.getTitle()}${metaTitlePostfix}`,
-    };
-};
+export const meta = createMetaFunction(LoaderSchema, ({data: {document}}) => ({
+    title: document.getTitle(),
+}));
 
 // If only the `create` search param on the URL changed, we don't need to reload.
 export const unstable_shouldReload: ShouldReloadFunction = ({url: _url, prevUrl: _prevUrl}) => {

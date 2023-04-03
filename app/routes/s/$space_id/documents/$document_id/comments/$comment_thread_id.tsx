@@ -1,8 +1,7 @@
-import {MetaFunction} from "@remix-run/server-runtime";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name";
 import {DocumentCommentThreadListView} from "~/client/documents/document_comment_thread_list_view";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
-import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema";
+import {createMetaFunction} from "~/client/remix/create_meta_function";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
 import {getDocumentCommentThreadAndInitialComments} from "~/server/dynamo/documents_table";
@@ -38,9 +37,7 @@ export async function loader({params, context}: LoaderArgs) {
     return jsonWithSchema(LoaderSchema, commentThreadResult);
 }
 
-export const meta: MetaFunction = ({data}) => {
-    const {commentThread} = getLoaderDataWithSchema(LoaderSchema, data);
-
+export const meta = createMetaFunction(LoaderSchema, ({data: {commentThread}}) => {
     if (commentThread.commentAuthors.length === 0) {
         return {title: `Document comment thread${metaTitlePostfix}`};
     }
@@ -50,7 +47,7 @@ export const meta: MetaFunction = ({data}) => {
             commentThread.commentAuthors[0]!,
         )}${metaTitlePostfix}`,
     };
-};
+});
 
 export default function DocumentCommentThreadRoute({isPeek}: {isPeek?: boolean}) {
     const {commentThread, initialComments, initialOtherReferencedComments} =

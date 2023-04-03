@@ -1,8 +1,6 @@
-import {MetaFunction} from "@remix-run/server-runtime";
 import {DocumentContentView} from "~/client/documents/document_content_view";
-import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema";
+import {createMetaFunction} from "~/client/remix/create_meta_function";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
-import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
 import {SpaceRouteScrollView} from "~/client/spaces/space_route_scroll_view";
 import {getDocument} from "~/server/dynamo/documents_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
@@ -30,13 +28,9 @@ export async function loader({params, context}: LoaderArgs) {
     return jsonWithSchema(LoaderSchema, {document}, {propagateEventData});
 }
 
-export const meta: MetaFunction = ({data}) => {
-    const {document} = getLoaderDataWithSchema(LoaderSchema, data);
-
-    return {
-        title: `${document.getTitle()}${metaTitlePostfix}`,
-    };
-};
+export const meta = createMetaFunction(LoaderSchema, ({data: {document}}) => ({
+    title: document.getTitle(),
+}));
 
 export default function DocumentViewRoute() {
     const {document} = useLoaderDataWithSchema(LoaderSchema);

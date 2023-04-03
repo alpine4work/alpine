@@ -1,10 +1,9 @@
-import {MetaFunction} from "@remix-run/server-runtime";
 import {useSearchParams} from "react-router-dom";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name";
 import {Box} from "~/client/design/box";
 import {PostView} from "~/client/forum/post_view";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
-import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema";
+import {createMetaFunction} from "~/client/remix/create_meta_function";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
 import {getPostAndInitialComments} from "~/server/dynamo/forum_table";
@@ -53,15 +52,11 @@ export async function loader({params, context}: LoaderArgs) {
     );
 }
 
-export const meta: MetaFunction = ({data}) => {
-    const {post} = getLoaderDataWithSchema(LoaderSchema, data);
-
-    return {
-        title: `Post by ${getAccountShortNameWithoutFullNameTooltip(post.author)} in ${
-            post.channel.name
-        }${metaTitlePostfix}`,
-    };
-};
+export const meta = createMetaFunction(LoaderSchema, ({data: {post}}) => ({
+    title: `Post by ${getAccountShortNameWithoutFullNameTooltip(post.author)} in ${
+        post.channel.name
+    }${metaTitlePostfix}`,
+}));
 
 export default function PostRoute({isPeek}: {isPeek?: boolean}) {
     const [searchParams] = useSearchParams();

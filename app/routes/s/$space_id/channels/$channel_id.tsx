@@ -1,10 +1,8 @@
-import {MetaFunction} from "@remix-run/server-runtime";
 import {Box} from "~/client/design/box";
 import {ChannelView} from "~/client/forum/channel_view";
 import {postContentViewMinHeight} from "~/client/forum/post_content_view";
-import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema";
+import {createMetaFunction} from "~/client/remix/create_meta_function";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
-import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view";
 import {getChannel} from "~/server/dynamo/forum_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
@@ -50,13 +48,9 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
     return jsonWithSchema(LoaderSchema, {channel, channelPostsResult}, {propagateEventData});
 }
 
-export const meta: MetaFunction = ({data}) => {
-    const {channel} = getLoaderDataWithSchema(LoaderSchema, data);
-
-    return {
-        title: `${channel.name}${metaTitlePostfix}`,
-    };
-};
+export const meta = createMetaFunction(LoaderSchema, ({data: {channel}}) => ({
+    title: channel.name,
+}));
 
 export default function ChannelRoute() {
     const {channel, channelPostsResult} = useLoaderDataWithSchema(LoaderSchema);

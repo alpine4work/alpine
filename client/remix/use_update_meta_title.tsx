@@ -2,11 +2,16 @@ import {Memo, ReactNode, createContext, useContext} from "react";
 import {InternalError} from "~/shared/error/error";
 
 /**
+ * Default string we use for the title of browser tabs.
+ */
+export const metaDefaultTitle = "Cyberworlds";
+
+/**
  * String we put at the end of titles to identify our product in the user's
  * browser tab. If we use a title for a peek then we will strip this postfix
  * since it's clear what product we're in.
  */
-export const metaTitlePostfix = " | Cyberworlds";
+export const metaTitlePostfix = ` | ${metaDefaultTitle}`;
 
 const noopUpdateMetaTitle = (title => {}) as Memo<(title: string) => void>;
 

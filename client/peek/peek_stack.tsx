@@ -1251,6 +1251,7 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
                                 description="Expand"
                                 tooltipPlacement="top"
                                 pressErrorTitle="Couldn’t expand"
+                                // TODO(calebmer): Command-click should open in a new tab.
                                 onPress={async () => {
                                     expandingIdRef.current = entry.id;
                                     try {
