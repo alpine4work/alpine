@@ -596,9 +596,15 @@ function ContentEditor<Content extends ContentWithReferences>(
                 const oldState = view.state;
 
                 // By default, applying a transaction will clear the editor's stored
-                // marks. We don't want that behavior! Instead we want to preserve marks
-                // until a user explicitly toggles them off.
-                if (oldState.storedMarks && !transaction.storedMarksSet) {
+                // marks. We don't want that behavior! Instead we want to preserve stored marks
+                // until a user either explicitly toggles them off or moves their selection
+                // somewhere else in the document.
+                const shouldResetStoredMarks = !transaction.docChanged && transaction.selectionSet;
+                if (
+                    !shouldResetStoredMarks &&
+                    oldState.storedMarks &&
+                    !transaction.storedMarksSet
+                ) {
                     transaction.setStoredMarks(oldState.storedMarks);
                 }
 
