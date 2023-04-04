@@ -1061,7 +1061,7 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
 ) {
     const contentRef = useRef<HTMLDivElement>(null);
     const closeButtonRef = useRef<HTMLButtonElement>(null);
-    const onExpandRef = useRef<(() => Promise<void>) | null>(null);
+    const onExpandPressRef = useRef<((event: PressEvent) => Promise<void>) | null>(null);
 
     useImperativeHandle(
         ref,
@@ -1251,11 +1251,10 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
                                 description="Expand"
                                 tooltipPlacement="top"
                                 pressErrorTitle="Couldn’t expand"
-                                // TODO(calebmer): Command-click should open in a new tab.
-                                onPress={async () => {
+                                onPress={async event => {
                                     expandingIdRef.current = entry.id;
                                     try {
-                                        await onExpandRef.current?.();
+                                        await onExpandPressRef.current?.(event);
                                     } finally {
                                         expandingIdRef.current = null;
                                     }
@@ -1279,7 +1278,7 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
                         <PeekRemixEmbed
                             loaderDataRef={loaderDataRefResult.value}
                             history={entry.history}
-                            onExpandRef={onExpandRef}
+                            onExpandPressRef={onExpandPressRef}
                         />
                     ) : (
                         <Box

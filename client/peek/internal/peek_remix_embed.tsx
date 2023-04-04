@@ -1,10 +1,11 @@
+import {PressEvent} from "@react-types/shared";
 import {
     AppState,
     RemixEntryContext,
     createTransitionManager,
     matchClientRoutes,
 } from "@remix-run/react";
-import {MemoryHistory} from "history";
+import {MemoryHistory, createPath} from "history";
 import {
     Context,
     MutableRefObject,
@@ -18,6 +19,7 @@ import {
 } from "react";
 import {Navigator, UNSAFE_RouteContext as RouteContext} from "react-router";
 import {Router, useRoutes} from "react-router-dom";
+import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {
     convertPeekPathToSpacePath,
@@ -42,11 +44,11 @@ type RemixEntryContextType = typeof RemixEntryContext extends Context<infer Cont
 export function PeekRemixEmbed({
     loaderDataRef,
     history,
-    onExpandRef,
+    onExpandPressRef,
 }: {
     loaderDataRef: MutableRefObject<{[key: string]: unknown}>;
     history: MemoryHistory;
-    onExpandRef: Ref<(() => Promise<void>) | null>;
+    onExpandPressRef: Ref<((event: PressEvent) => Promise<void>) | null>;
 }) {
     const remixEntryContext = useContext(RemixEntryContext);
     assert(remixEntryContext, "Expected Remix entry context");
@@ -233,11 +235,22 @@ export function PeekRemixEmbed({
     }, [history, navigate, remixEntryContext.clientRoutes]);
 
     useImperativeHandle(
-        onExpandRef,
-        () => async () => {
+        onExpandPressRef,
+        () => async event => {
             const spacePath = convertPeekPathToSpacePath(historyState.location);
             if (!spacePath) throw new InternalError("Can only expand peek routes");
-            await navigate(spacePath);
+
+            if (isOpenLinkInSeparateTabPointerEvent(event)) {
+                window.open(
+                    createPath(spacePath),
+                    "_blank",
+                    // Important security measure. See:
+                    // https://mathiasbynens.github.io/rel-noopener
+                    "noopener noreferrer",
+                );
+            } else {
+                await navigate(spacePath);
+            }
         },
         [historyState.location, navigate],
     );
