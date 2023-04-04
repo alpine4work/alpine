@@ -61,9 +61,9 @@ jobs:
             # Unfortunate that Bazel can't install these since they're global dependencies.
             - name: Install Playwright dependencies
               run:
-                  sudo apt-get install libvpx7 libevent-2.1-7 libopus0 libwoff1 libharfbuzz-icu0
-                  libgstreamer-plugins-base1.0-0 libgstreamer-gl1.0-0 libhyphen0 libmanette-0.2-0
-                  libgles2 gstreamer1.0-libav
+                  sudo apt-get update && sudo apt-get install libvpx7 libevent-2.1-7 libopus0
+                  libwoff1 libharfbuzz-icu0 libgstreamer-plugins-base1.0-0 libgstreamer-gl1.0-0
+                  libhyphen0 libmanette-0.2-0 libgles2 gstreamer1.0-libav
 
             - name: Get date
               id: date
