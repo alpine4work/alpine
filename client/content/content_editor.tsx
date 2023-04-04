@@ -106,6 +106,7 @@ function unwrap(
 // the server and mounting as editable on the client after hydration.
 
 export type ContentEditorRef = {
+    isFocused(): boolean;
     focus(): void;
     blur(): void;
 
@@ -359,6 +360,10 @@ function ContentEditor<Content extends ContentWithReferences>(
     useImperativeHandle(
         editorRef,
         () => ({
+            isFocused: () => {
+                const view = assertExists(viewRef.current);
+                return document.activeElement === view.dom;
+            },
             focus: () => {
                 const view = assertExists(viewRef.current);
                 (view.dom as HTMLDivElement).focus();

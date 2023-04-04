@@ -194,7 +194,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         sendRealtimeMessage,
         subscribeToRealtimeMessages,
         getMessageUrl,
-        inputStateRef,
+        inputRestoreStateRef,
         roomDisplayedCreatedTime,
     }: {
         /**
@@ -315,7 +315,10 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
          * preserving message input contents across remounts e.g. remounting from a
          * React `key` change.
          */
-        inputStateRef?: MutableRefObject<ContentEditorState<MessageContentWithReferences> | null>;
+        inputRestoreStateRef?: MutableRefObject<{
+            state: ContentEditorState<MessageContentWithReferences>;
+            isFocused: boolean;
+        } | null>;
 
         /**
          * If we display the time at which the messaging room was created, pass it in
@@ -625,7 +628,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                                 .logUncaughtException("Couldn't update typing indicator", error),
                         );
                 }}
-                stateRef={inputStateRef}
+                restoreStateRef={inputRestoreStateRef}
             />
         </div>
     );

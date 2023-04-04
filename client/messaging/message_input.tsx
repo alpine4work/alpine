@@ -59,7 +59,7 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
     onHideTypingIndicator,
     withoutBorderTop = false,
     "data-testid": dataTestId,
-    stateRef,
+    restoreStateRef,
 }: {
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
@@ -78,17 +78,39 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
     onHideTypingIndicator: () => void;
     withoutBorderTop?: boolean;
     "data-testid"?: string;
-    stateRef?: MutableRefObject<ContentEditorState<MessageContentWithReferences> | null>;
+    restoreStateRef?: MutableRefObject<{
+        state: ContentEditorState<MessageContentWithReferences>;
+        isFocused: boolean;
+    } | null>;
 }) {
     const showToast = useShowToast();
     const {currentAccount} = useSpaceContext();
     const editorRef = useRef<ContentEditorRef>(null);
     const [state, setState] = useState(
-        () => stateRef?.current ?? ContentEditorState.create(emptyMessageContentWithReferences),
+        () =>
+            restoreStateRef?.current?.state ??
+            ContentEditorState.create(emptyMessageContentWithReferences),
     );
 
+    const hasInitiallyMountedRef = useRef(false);
+
     useLayoutEffectWithoutServerSideWarning(() => {
-        if (stateRef) stateRef.current = state;
+        const isInitialMount = !hasInitiallyMountedRef.current;
+        hasInitiallyMountedRef.current = true;
+
+        if (!restoreStateRef) return;
+
+        const editor = assertExists(editorRef.current);
+
+        // If we are restoring a message input that was focused then refocus it.
+        if (isInitialMount && restoreStateRef.current?.isFocused) {
+            editor.focus();
+        }
+
+        restoreStateRef.current = {
+            state,
+            isFocused: restoreStateRef.current?.isFocused ?? editor.isFocused() ?? false,
+        };
     });
 
     const replyingToMessage = useMemo(() => {
@@ -391,7 +413,14 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                                     setState(state);
                                     if (transaction.docChanged) showTypingIndicator();
                                 }}
+                                onFocus={() => {
+                                    if (restoreStateRef?.current)
+                                        restoreStateRef.current.isFocused = true;
+                                }}
                                 onBlur={() => {
+                                    if (restoreStateRef?.current)
+                                        restoreStateRef.current.isFocused = false;
+
                                     hideTypingIndicator();
                                 }}
                                 aria-label={`New ${messageNoun}`}

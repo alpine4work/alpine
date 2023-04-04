@@ -41,7 +41,7 @@ export function NewChatMessagingView({
     // This ref is used to preserve the message input state across React key
     // changes. `<MessageInput>` will write state changes to the ref and initialize
     // its state from the ref on remount.
-    const inputStateRef = useRef(null);
+    const inputRestoreStateRef = useRef(null);
 
     return (
         <MessagingView
@@ -125,7 +125,7 @@ export function NewChatMessagingView({
                 },
                 [selectedChat],
             )}
-            inputStateRef={inputStateRef}
+            inputRestoreStateRef={inputRestoreStateRef}
         />
     );
 }
