@@ -13,6 +13,7 @@ ts_project(
         "//:node_modules/@types/react",
         "//:node_modules/@types/react-dom",
         "//:node_modules/classnames",
+        "//:node_modules/history",
         "//:node_modules/phosphor-react",
         "//:node_modules/react",
         "//:node_modules/react-aria",

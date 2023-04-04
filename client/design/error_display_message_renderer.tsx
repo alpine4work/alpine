@@ -1,4 +1,5 @@
-import {Link} from "@remix-run/react";
+import {Link, useLocation} from "@remix-run/react";
+import {createPath} from "history";
 import {Fragment, useRef} from "react";
 import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
@@ -31,6 +32,7 @@ export function ErrorDisplayMessageRenderer({
     isSingleLine?: boolean;
 }) {
     const context = useAppContext();
+    const location = useLocation();
     const displayMessage = error instanceof ErrorBase ? error.displayMessage : null;
 
     const errorToReportRef = useRef({error, hasReported: false});
@@ -75,7 +77,15 @@ export function ErrorDisplayMessageRenderer({
                                     </a>
                                 ) : (
                                     <Link
-                                        to={displayMessageSegment.url}
+                                        to={
+                                            displayMessageSegment.url === "/sign-in"
+                                                ? // Special-case `/sign-in` URL to provide a `to` search param that will take us
+                                                  // back to the URL which erred.
+                                                  `${
+                                                      displayMessageSegment.url
+                                                  }?to=${encodeURIComponent(createPath(location))}`
+                                                : displayMessageSegment.url
+                                        }
                                         className={contentSchemaStyles.linkClassName}
                                     >
                                         {displayMessageSegment.text}

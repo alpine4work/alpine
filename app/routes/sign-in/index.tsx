@@ -25,9 +25,15 @@ export function meta() {
     };
 }
 
-export async function loader({context}: LoaderArgs) {
+export async function loader({request, context}: LoaderArgs) {
+    const url = new URL(request.url);
+    const toPath = url.searchParams.get("to");
+
     // Can not access this page while signed in.
-    if (await context.auth.isAuthenticated()) return redirectToAuthenticatedHome(context);
+    if (await context.auth.isAuthenticated()) {
+        if (toPath?.startsWith("/")) return redirect(toPath);
+        return redirectToAuthenticatedHome(context);
+    }
 
     return json({});
 }
@@ -39,6 +45,8 @@ const ActionSchema = Schema.object({
 
 export async function action({request, context}: LoaderArgs) {
     try {
+        const url = new URL(request.url);
+        const toPath = url.searchParams.get("to");
         const formData = await request.formData();
         const emailAddress = formData.get("emailAddress");
 
@@ -52,7 +60,11 @@ export async function action({request, context}: LoaderArgs) {
 
         // After we send the email, challenge the user to sign in using the code
         // we sent them.
-        return redirect(`/sign-in/${encodeURIComponent(emailAddress)}`);
+        return redirect(
+            `/sign-in/${encodeURIComponent(emailAddress)}${
+                toPath ? `?to=${encodeURIComponent(toPath)}` : ""
+            }`,
+        );
     } catch (error) {
         return jsonWithSchema(
             ActionSchema,

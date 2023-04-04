@@ -1,4 +1,4 @@
-import {json} from "@remix-run/cloudflare";
+import {json, redirect} from "@remix-run/cloudflare";
 import {Form, useParams, useSubmit, useTransition} from "@remix-run/react";
 import {useEffect, useRef, useState} from "react";
 import {redirectToAuthenticatedHome} from "~/app/helpers/redirect_to_authenticated_home";
@@ -26,9 +26,15 @@ export function meta() {
     };
 }
 
-export async function loader({context}: LoaderArgs) {
+export async function loader({request, context}: LoaderArgs) {
+    const url = new URL(request.url);
+    const toPath = url.searchParams.get("to");
+
     // Can not access this page while signed in.
-    if (await context.auth.isAuthenticated()) return redirectToAuthenticatedHome(context);
+    if (await context.auth.isAuthenticated()) {
+        if (toPath?.startsWith("/")) return redirect(toPath);
+        return redirectToAuthenticatedHome(context);
+    }
 
     return json({});
 }
@@ -40,6 +46,8 @@ const ActionSchema = Schema.object({
 
 export async function action({request, context, params}: LoaderArgs) {
     try {
+        const url = new URL(request.url);
+        const toPath = url.searchParams.get("to");
         const emailAddress = params.email_address;
 
         const formData = await request.formData();
@@ -68,6 +76,7 @@ export async function action({request, context, params}: LoaderArgs) {
             sessionAccountId,
         );
 
+        if (toPath?.startsWith("/")) return redirect(toPath);
         return redirectToAuthenticatedHome(context);
     } catch (error) {
         return jsonWithSchema(
