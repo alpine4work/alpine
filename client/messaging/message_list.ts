@@ -180,6 +180,10 @@ export class MessageList<Message extends MessageModel> {
 
         if (this._typingStateByConnectionId.size === 0) return range;
 
+        // If our rendered range starts at the typing indicators item then there are no
+        // messages in this range.
+        if (range.startIndex >= this.getItemCount() - 1) return null;
+
         const startIndex = Math.min(range.startIndex, this.getItemCount() - 2);
         const endIndex = Math.min(range.endIndex, this.getItemCount() - 2);
 

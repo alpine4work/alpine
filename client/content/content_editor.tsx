@@ -52,7 +52,7 @@ import {ContentProsemirrorSchema} from "~/shared/content/content_schema";
 import {documentFallbackTitle} from "~/shared/content/document_fallback_title";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty";
 import {ThemeColor} from "~/shared/design/theme_colors";
-import {InternalError} from "~/shared/error/error";
+import {InternalError, UnimplementedError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis";
@@ -275,20 +275,58 @@ function ContentEditorWrapper<Content extends ContentWithReferences>(
     const isInitialAppRender = useIsInitialAppRender();
 
     if (isInitialAppRender) {
-        return (
-            <div className={classNames(containerClassName, props.containerClassName)}>
-                <ContentView
-                    content={props.state.getContent()}
-                    placeholder={props.placeholder}
-                    className={props.className}
-                    aria-label={props["aria-label"]}
-                    aria-labelledby={props["aria-labelledby"]}
-                />
-            </div>
-        );
+        return <ContentEditorInitialAppRender {...props} editorRef={ref} />;
     } else {
         return <ContentEditor {...props} editorRef={ref} />;
     }
+}
+
+function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
+    state,
+    placeholder,
+    className,
+    "aria-label": ariaLabel,
+    "aria-labelledby": ariaLabelledBy,
+    containerClassName,
+    editorRef,
+}: ContentEditorProps<Content> & {editorRef: Ref<ContentEditorRef>}) {
+    useImperativeHandle(
+        editorRef,
+        () => ({
+            isFocused: () => false,
+            focus: () => {
+                throw new UnimplementedError(
+                    "Focusing content editor on initial render is not implemented",
+                );
+            },
+            blur: () => {
+                // Nothing to blur
+            },
+            selectAll: () => {
+                throw new UnimplementedError(
+                    "Selecting all text in content editor on initial render is not implemented",
+                );
+            },
+            coordsAtPos: () => {
+                throw new UnimplementedError(
+                    "Getting coordinates for position in content editor on initial render is not implemented",
+                );
+            },
+        }),
+        [],
+    );
+
+    return (
+        <div className={classNames(containerClassName, containerClassName)}>
+            <ContentView
+                content={state.getContent()}
+                placeholder={placeholder}
+                className={className}
+                aria-label={ariaLabel}
+                aria-labelledby={ariaLabelledBy}
+            />
+        </div>
+    );
 }
 
 /**
