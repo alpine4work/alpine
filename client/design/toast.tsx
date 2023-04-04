@@ -369,8 +369,11 @@ function ToastViewTimer({startTime, expirationTime}: {startTime: Date; expiratio
             <Box position="absolute" inset="0" color={{light: "grey-10", dark: "grey-20"}}>
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    width={spacing["3"]}
-                    height={spacing["3"]}
+                    style={{
+                        // Safari logs a warning when using `width` or `height` with rem units.
+                        width: spacing["3"],
+                        height: spacing["3"],
+                    }}
                     fill="currentColor"
                     viewBox="0 0 256 256"
                 >
@@ -389,8 +392,11 @@ function ToastViewTimer({startTime, expirationTime}: {startTime: Date; expiratio
             <Box position="absolute" inset="0" color="grey-70" style={{transform: "rotate(90deg)"}}>
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    width={spacing["3"]}
-                    height={spacing["3"]}
+                    style={{
+                        // Safari logs a warning when using `width` or `height` with rem units.
+                        width: spacing["3"],
+                        height: spacing["3"],
+                    }}
                     fill="currentColor"
                     viewBox="0 0 256 256"
                 >

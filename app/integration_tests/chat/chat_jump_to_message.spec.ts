@@ -32,21 +32,21 @@ test("can jump to message in chat", async ({context: browserContext, page}) => {
     await expect(page.getByText("Message 299", {exact: true})).toBeVisible();
     await expect(page.getByText("Message 279", {exact: true})).toBeVisible();
     await expect(page.getByText("Message 0", {exact: true})).toBeHidden();
-    await expect(page.getByText("Message 19", {exact: true})).toBeHidden();
+    await expect(page.getByText("Message 5", {exact: true})).toBeHidden();
     await expect(page.getByText("Message 149", {exact: true})).toBeHidden();
 
     await page.goto(`/s/${space.id}/chat/${chatId}?message=0`);
 
     await expect(page.getByText("Message 0", {exact: true})).toBeVisible();
-    await expect(page.getByText("Message 19", {exact: true})).toBeVisible();
+    await expect(page.getByText("Message 5", {exact: true})).toBeVisible();
     await expect(page.getByText("Message 149", {exact: true})).toBeHidden();
     await expect(page.getByText("Message 279", {exact: true})).toBeHidden();
     await expect(page.getByText("Message 299", {exact: true})).toBeHidden();
 
-    await page.goto(`/s/${space.id}/chat/${chatId}?message=19`);
+    await page.goto(`/s/${space.id}/chat/${chatId}?message=5`);
 
     await expect(page.getByText("Message 0", {exact: true})).toBeVisible();
-    await expect(page.getByText("Message 19", {exact: true})).toBeVisible();
+    await expect(page.getByText("Message 5", {exact: true})).toBeVisible();
     await expect(page.getByText("Message 149", {exact: true})).toBeHidden();
     await expect(page.getByText("Message 279", {exact: true})).toBeHidden();
     await expect(page.getByText("Message 299", {exact: true})).toBeHidden();
@@ -55,7 +55,7 @@ test("can jump to message in chat", async ({context: browserContext, page}) => {
 
     await expect(page.getByText("Message 149", {exact: true})).toBeVisible();
     await expect(page.getByText("Message 0", {exact: true})).toBeHidden();
-    await expect(page.getByText("Message 19", {exact: true})).toBeHidden();
+    await expect(page.getByText("Message 5", {exact: true})).toBeHidden();
     await expect(page.getByText("Message 279", {exact: true})).toBeHidden();
     await expect(page.getByText("Message 299", {exact: true})).toBeHidden();
 
@@ -65,7 +65,7 @@ test("can jump to message in chat", async ({context: browserContext, page}) => {
     await expect(page.getByText("Message 299", {exact: true})).toBeVisible();
     await expect(page.getByText("Message 149", {exact: true})).toBeHidden();
     await expect(page.getByText("Message 0", {exact: true})).toBeHidden();
-    await expect(page.getByText("Message 19", {exact: true})).toBeHidden();
+    await expect(page.getByText("Message 5", {exact: true})).toBeHidden();
 
     await page.goto(`/s/${space.id}/chat/${chatId}?message=279`);
 
@@ -73,5 +73,5 @@ test("can jump to message in chat", async ({context: browserContext, page}) => {
     await expect(page.getByText("Message 299", {exact: true})).toBeVisible();
     await expect(page.getByText("Message 149", {exact: true})).toBeHidden();
     await expect(page.getByText("Message 0", {exact: true})).toBeHidden();
-    await expect(page.getByText("Message 19", {exact: true})).toBeHidden();
+    await expect(page.getByText("Message 5", {exact: true})).toBeHidden();
 });
