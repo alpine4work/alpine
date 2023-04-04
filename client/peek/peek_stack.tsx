@@ -36,6 +36,7 @@ import {FocusRing} from "~/client/design/focus_ring";
 import {getNextFocusableElement} from "~/client/design/helpers/get_next_focusable_element";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {IconButton} from "~/client/design/icon_button";
+import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {usePromise} from "~/client/helpers/use_promise";
@@ -66,6 +67,7 @@ import {PeekId} from "~/shared/id/types/id_types";
 import {Schema} from "~/shared/schema/schema";
 import {
     colorSchemeVars,
+    greyElevatedClassName,
     peekContainerClassName,
     spinAnimationClassName,
     sprinkles,
@@ -959,8 +961,9 @@ function PeekOverlay({
                     ref={overlayRef}
                     overflow="hidden"
                     borderTopRadius="md"
-                    backgroundColor="grey-0"
                     boxShadow={index === 0 ? "elevation-40" : "elevation-30"}
+                    backgroundColor="grey-0"
+                    className={greyElevatedClassName}
                     style={{
                         width: peekWidth,
                         height: addRemLengths(peekHeight, peekBottomBuffer),
@@ -974,19 +977,23 @@ function PeekOverlay({
                             height="full"
                             overflow="hidden"
                         >
-                            <PeekOverlayContent
-                                ref={overlayContentRef}
-                                state={state}
-                                dispatch={dispatch}
-                                entry={entry}
-                                index={index}
-                                isDragging={isDragging}
-                                isKeyboardDragging={isKeyboardDragging}
-                                draggableAttributes={draggableAttributes}
-                                draggableListeners={draggableListeners}
-                                expandingIdRef={expandingIdRef}
-                                isAnimatingOpen={isAnimatingOpen}
-                            />
+                            <OverlayScopeContextProvider
+                            // Render overlays here so they get the `greyElevatedClassName` styles.
+                            >
+                                <PeekOverlayContent
+                                    ref={overlayContentRef}
+                                    state={state}
+                                    dispatch={dispatch}
+                                    entry={entry}
+                                    index={index}
+                                    isDragging={isDragging}
+                                    isKeyboardDragging={isKeyboardDragging}
+                                    draggableAttributes={draggableAttributes}
+                                    draggableListeners={draggableListeners}
+                                    expandingIdRef={expandingIdRef}
+                                    isAnimatingOpen={isAnimatingOpen}
+                                />
+                            </OverlayScopeContextProvider>
                         </Box>
                     )}
                 </Box>

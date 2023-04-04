@@ -1,10 +1,8 @@
 import {assignVars, createGlobalTheme, globalStyle, style} from "@vanilla-extract/css";
 import {Color, colors} from "~/shared/design/colors";
-import {elevation} from "~/shared/design/elevation";
 import {ThemeColor, defaultThemeColor, themeColors} from "~/shared/design/theme_colors";
 import {assert} from "~/shared/helpers/control/assert";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
-import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
 
 /**
  * The color scheme which identifies whether we are in dark mode.
@@ -43,12 +41,15 @@ export const hiddenIfLightColorSchemeClassName = style({
 const colorByShadeByName = new Map<string, Map<number, string>>();
 
 for (const [nameAndShade, color] of Object.entries(colors)) {
-    const [name, shadeString] = nameAndShade.split("-", 2);
+    const shadeStartIndex = nameAndShade.indexOf("-");
+    assert(shadeStartIndex >= 0);
+    const name = nameAndShade.slice(0, shadeStartIndex);
+    const shadeString = nameAndShade.slice(shadeStartIndex + 1);
     assert(name && shadeString);
     const shade = parseInt(shadeString, 10);
 
     // Ignore colors which do not have a shade number.
-    if (isNaN(shade)) continue;
+    if (!/^\d+$/.test(shadeString) || isNaN(shade)) continue;
 
     getOrSetDefaultMapValue(colorByShadeByName, name, () => new Map()).set(shade, color);
 }
@@ -221,17 +222,19 @@ export const colorSchemeVars = {
 };
 
 /**
- * Box shadow variables that change based on whether we're in light mode or
- * dark mode.
+ * When you put this class on an element then all children will use "elevated"
+ * colors. This has no effect in light mode but in dark mode elevated colors are
+ * slightly lighter. Since we can't use shadows in dark mode to simulate depth we
+ * instead give surfaces that are "higher up" a lighter background. We use this
+ * for peeks and since peeks contain arbitrary content we need to implement
+ * these lighter backgrounds at the color system level.
  */
-export const elevationVars: {[K in keyof typeof elevation]: CssVarFunction} = createGlobalTheme(
-    ":root",
-    mapObjectValues(elevation, ({light}): string => light),
-);
+export const greyElevatedClassName = style({});
 
-globalStyle(darkColorSchemeSelector, {
-    vars: assignVars(
-        elevationVars,
-        mapObjectValues(elevation, ({dark}) => dark),
-    ),
+globalStyle(`${darkColorSchemeSelector} ${greyElevatedClassName}`, {
+    vars: {
+        [colorSchemeVars["grey-0"]]: colors["grey-90-elevated"],
+        [colorSchemeVars["grey-5"]]: colors["grey-80-elevated"],
+        [colorSchemeVars["grey-10"]]: colors["grey-70-elevated"],
+    },
 });

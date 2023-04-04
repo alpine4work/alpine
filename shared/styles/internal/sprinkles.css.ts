@@ -22,9 +22,9 @@ import {
     CssVarFunction,
     colorSchemeVars,
     darkColorSchemeSelector,
-    elevationVars,
     lightColorSchemeSelector,
 } from "~/shared/styles/internal/color_scheme.css";
+import {elevationVars} from "~/shared/styles/internal/elevation.css";
 import {fontSizes, fontStyles} from "~/shared/styles/internal/fonts.css";
 
 const properties = defineProperties({

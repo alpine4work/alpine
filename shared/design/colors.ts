@@ -38,6 +38,20 @@ export const colors = {
     // because `grey-0` does not map to this color.
     "grey-dark": "#0b0b0d",
 
+    // We have a set of slightly lighter greys for elevated surfaces in dark mode.
+    // When we render peeks on top of other content you have arbitrary peek content
+    // above other arbitrary content. In dark mode we can't use shadows to simulate
+    // depth and differentiate elements. So instead we make surfaces that are
+    // "higher up" lighter as if they're closer to a light source.
+    //
+    // Since peeks can contain arbitrary content we bake this property into the
+    // color system instead of writing a bunch of `isPeek` logic. These grey colors
+    // are just a hair lighter in peeks, it's a small detail that's almost
+    // unnoticeable but it helps reinforce a sense of depth subconsciously.
+    "grey-70-elevated": "#45454a",
+    "grey-80-elevated": "#37373b",
+    "grey-90-elevated": "#28282b",
+
     "red-5": "#fcf1e8",
     "red-10": "#ffd4c2",
     "red-20": "#fab29a",

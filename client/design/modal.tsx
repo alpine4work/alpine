@@ -143,7 +143,7 @@ export function Modal({
                             zIndex: "0",
                             width: "full",
                             maxHeight: "full",
-                            backgroundColor: "grey-0",
+                            backgroundColor: {light: "grey-0", dark: "grey-90-elevated"},
                             boxShadow: "elevation-40-with-dark-color-scheme-lighter-border",
                             borderRadius: "md",
                             display: "flex",

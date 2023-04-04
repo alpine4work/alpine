@@ -1,9 +1,10 @@
 import {Node} from "prosemirror-model";
 import {Step} from "prosemirror-transform";
-import {getAccountOrThrow} from "~/server/dynamo/accounts_table";
+import {getAccount, getAccountOrThrow} from "~/server/dynamo/accounts_table";
 import {RequestContext} from "~/server/dynamo/context/request_context";
 import {ContentMention} from "~/shared/content/content_mention";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
@@ -50,7 +51,7 @@ async function getContentReferences(
     spaceId: SpaceId,
     visit: (visitor: ProsemirrorVisitor) => void,
 ): Promise<ContentReferences> {
-    const accountPromiseById = new Map<AccountId, Promise<AccountModel>>();
+    const accountPromiseById = new Map<AccountId, Promise<AccountModel | null>>();
 
     visit({
         visitNode: node => {
@@ -60,7 +61,7 @@ async function getContentReferences(
                 const accountPromise = getOrSetDefaultMapValue(
                     accountPromiseById,
                     mention.accountId,
-                    () => getAccountOrThrow(context, spaceId, mention.accountId),
+                    () => getAccount(context, spaceId, mention.accountId),
                 );
 
                 // We await all promises below.
@@ -70,7 +71,12 @@ async function getContentReferences(
     });
 
     const accounts = await runAllPromises(accountPromiseById.values());
-    const accountById = new Map(accounts.map(account => [account.id, account]));
+    const accountById = new Map(
+        filterMapIterable(accounts, account => {
+            if (!account) return null;
+            return [account.id, account];
+        }),
+    );
 
     return {
         accountById,
