@@ -8,6 +8,7 @@ import {
 } from "~/client/blob_factory/internal/draw_blob_factory";
 import {useDevConsoleSettingsObject} from "~/client/dev/dev_console";
 import {useColorScheme} from "~/client/helpers/color_scheme";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer";
 import {colors} from "~/shared/design/colors";
@@ -133,10 +134,27 @@ export function DocumentBlobFactory({
     settings: DocumentBlobFactorySettings;
     containerId: string;
 }) {
+    const isInitialAppRender = useIsInitialAppRender();
+
+    // Don't server-render blobs since we require JavaScript to paint a `<canvas>`.
+    // This avoids a flash of the gradient with the wrong color since we don't know
+    // the color scheme on the server.
+    if (isInitialAppRender) return null;
+
+    return <DocumentBlobFactoryCanvas settings={settings} containerId={containerId} />;
+}
+
+function DocumentBlobFactoryCanvas({
+    settings,
+    containerId,
+}: {
+    settings: DocumentBlobFactorySettings;
+    containerId: string;
+}) {
     const displayCanvasRef = useRef<HTMLCanvasElement>(null);
     const [containerRef, containerRect] = useResizeObserver();
 
-    const colorScheme = useColorScheme();
+    const colorScheme = assertExists(useColorScheme());
     const [textFill, setTextFill] = useState<{url: string; offsetX: number; size: Vector2} | null>(
         null,
     );

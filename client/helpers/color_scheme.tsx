@@ -1,4 +1,5 @@
 import {useEffect, useState} from "react";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error";
 import {assert} from "~/shared/helpers/control/assert";
 
@@ -65,9 +66,14 @@ export function toggleColorScheme() {
 /**
  * Get the color scheme and re-render the component when the color
  * scheme changes.
+ *
+ * Will return null when rendering on the server.
  */
 export function useColorScheme(): ColorScheme | null {
-    const [colorScheme, setColorScheme] = useState<ColorScheme | null>(null);
+    const isInitialAppRender = useIsInitialAppRender();
+    const [colorScheme, setColorScheme] = useState<ColorScheme | null>(
+        isInitialAppRender ? null : getColorSchemeWithoutListening(),
+    );
 
     useEffect(() => {
         setColorScheme(getColorSchemeWithoutListening());
