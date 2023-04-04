@@ -27,8 +27,9 @@ export function createMetaFunction<Data>(
     }) => HtmlMetaDescriptor,
 ): MetaFunction {
     return args => {
-        // If there is an error, data will be undefined so return error case meta.
-        if (!args.data) {
+        // If there is an error, data will sometimes be undefined and sometimes be an
+        // `Error` object. In that case return some default meta.
+        if (!args.data || args.data instanceof Error) {
             return {
                 title: metaDefaultTitle,
                 // Ask Google to not index error pages.
@@ -40,7 +41,8 @@ export function createMetaFunction<Data>(
         const metaDescriptor = meta({
             data,
             getParentsData: (parentRouteId, schema) =>
-                args.parentsData[parentRouteId]
+                args.parentsData[parentRouteId] &&
+                !(args.parentsData[parentRouteId] instanceof Error)
                     ? getLoaderDataWithSchema(schema, args.parentsData[parentRouteId])
                     : null,
             params: args.params,
