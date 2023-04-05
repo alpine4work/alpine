@@ -1,10 +1,12 @@
 import {Command} from "prosemirror-state";
-import {useEffect, useRef} from "react";
+import {useCallback, useEffect, useRef} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
 import {Box} from "~/client/design/box";
+import {useDevConsoleTool} from "~/client/dev/dev_console";
 import {documentContentClassName} from "~/client/documents/document_content_view";
 import {DocumentContentEditorSideDecorations} from "~/client/documents/internal/document_content_editor_side_decorations";
 import {createDocumentCommentThreadMetaKey} from "~/client/documents/internal/document_content_editor_web_socket_client";
+import {useDocumentContentEditorPhantomSelections} from "~/client/documents/internal/use_document_content_editor_phantom_selections";
 import {useDocumentContentEditorWebSocket} from "~/client/documents/internal/use_document_content_editor_web_socket";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer";
@@ -49,8 +51,30 @@ function DocumentContentEditorStateful({
     const containerRef = useRef<HTMLDivElement>(null);
     const [containerResizeRef, containerSize] = useResizeObserver();
 
-    const {editorState, onChangeEditorState, phantomSelections} =
-        useDocumentContentEditorWebSocket(initialDocument);
+    const {
+        editorState,
+        onChangeEditorState,
+        otherPresenceStateByConnectionId,
+        rememberedSteps,
+        toggleShouldConnect,
+    } = useDocumentContentEditorWebSocket(initialDocument);
+
+    const phantomSelections = useDocumentContentEditorPhantomSelections({
+        editorState,
+        otherPresenceStateByConnectionId,
+        rememberedSteps,
+    });
+
+    useDevConsoleTool(
+        "documentContentEditor",
+        useCallback(
+            () => ({
+                prosemirrorSchema: DocumentContentProsemirrorSchema,
+                toggleShouldConnect,
+            }),
+            [toggleShouldConnect],
+        ),
+    );
 
     const content = editorState.getContent();
     const lastContentDocRef = useRef(content.doc);

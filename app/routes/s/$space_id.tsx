@@ -3,6 +3,7 @@ import {LinkDescriptor} from "@remix-run/server-runtime";
 import {useEffect} from "react";
 import {Box} from "~/client/design/box";
 import {attachDevConsoleForAccountInProduction} from "~/client/dev/dev_console";
+import {DocumentRouteContextProvider} from "~/client/documents/document_route_context_provider";
 import {PeekStackContextProvider} from "~/client/peek/peek_stack";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {SpaceContextProvider} from "~/client/spaces/space_context";
@@ -88,10 +89,20 @@ export default function SpaceLayout() {
                 position="relative"
                 zIndex="0"
             >
-                <PeekStackContextProvider>
-                    <SpaceLayoutTopBar space={space} />
-                    <Outlet />
-                </PeekStackContextProvider>
+                <DocumentRouteContextProvider
+                // When visiting the document route we want to share a WebSocket connection
+                // between comment thread peeks rendered on top of the document and the
+                // document content itself. That means this context needs to go above both
+                // `<PeekStackContextProvider>` and `<Outlet>`.
+                //
+                // We carefully wrote the `<DocumentRouteContextProvider>` component to avoid
+                // pulling in unrelated document code into the space bundle.
+                >
+                    <PeekStackContextProvider>
+                        <SpaceLayoutTopBar space={space} />
+                        <Outlet />
+                    </PeekStackContextProvider>
+                </DocumentRouteContextProvider>
             </Box>
         </SpaceContextProvider>
     );

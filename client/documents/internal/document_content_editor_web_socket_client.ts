@@ -28,6 +28,7 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {
     ContentEditorClientId,
     DocumentCommentThreadId,
+    DocumentId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types";
 import {
@@ -495,11 +496,11 @@ function actuallyReduceDocumentContentEditorState(
  *   1's cursor. (This exercises `rememberedSteps`.)
  */
 export class DocumentContentEditorWebSocketClient {
+    public readonly documentId: DocumentId;
     private readonly _client: WebSocketClient<
         DocumentCollaborationMessageFromClient,
         DocumentCollaborationMessageFromServer
     >;
-
     private readonly _state: ValueStore<DocumentContentEditorState>;
     private _disconnect: (() => void) | null = null;
 
@@ -508,13 +509,13 @@ export class DocumentContentEditorWebSocketClient {
     }
 
     constructor(getContext: () => AppContext, initialDocument: DocumentModel) {
+        this.documentId = initialDocument.id;
         this._client = new WebSocketClient(
             getContext,
             DocumentCollaborationMessageFromClientSchema,
             DocumentCollaborationMessageFromServerSchema,
             `/durable-objects/documents/${initialDocument.id}`,
         );
-
         this._state = new ValueStore(getInitialDocumentContentEditorState(initialDocument));
     }
 

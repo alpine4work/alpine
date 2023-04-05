@@ -26,6 +26,7 @@ import {
 import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useStableValue} from "~/client/helpers/use_stable_value";
 import {ClientInfoContextProvider, defaultClientInfo} from "~/client/remix/client_info_context";
+import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema";
 import {IsMobileContextProvider} from "~/client/remix/use_is_mobile";
 import {WaitForNavigationContextProvider} from "~/client/remix/use_navigate";
 import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title";
@@ -41,7 +42,7 @@ import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
 import {quote} from "~/shared/helpers/string/quote";
 import {ClientInfoSchema} from "~/shared/remix/client_info";
 import {propagatedEventDataKey} from "~/shared/remix/json_with_schema_shared";
-import {Schema, SchemaType} from "~/shared/schema/schema";
+import {Schema} from "~/shared/schema/schema";
 import {sprinkles} from "~/shared/styles/styles";
 import sharedStylesHref from "~/shared/styles/styles.css";
 import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data";
@@ -127,10 +128,10 @@ export default function Root({error}: {error?: unknown}) {
     const loaderData = useMemo(
         () =>
             remixEntryContext.routeData.root
-                ? LoaderSchema.deserialize(remixEntryContext.routeData.root)
+                ? getLoaderDataWithSchema(LoaderSchema, remixEntryContext.routeData.root)
                 : null,
         [remixEntryContext.routeData.root],
-    ) as SchemaType<typeof LoaderSchema> | null;
+    );
 
     const caught = useCatch() as ThrownResponse | undefined;
 
