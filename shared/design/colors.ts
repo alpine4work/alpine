@@ -50,7 +50,7 @@ export const colors = {
     // unnoticeable but it helps reinforce a sense of depth subconsciously.
     "grey-70-elevated": "#45454a",
     "grey-80-elevated": "#37373b",
-    "grey-90-elevated": "#28282b",
+    "grey-90-elevated": "#262629",
 
     "red-5": "#fcf1e8",
     "red-10": "#ffd4c2",
