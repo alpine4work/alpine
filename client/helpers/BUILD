@@ -8,6 +8,7 @@ ts_project(
     ],
     deps = [
         "//:node_modules/@react-aria/ssr",
+        "//:node_modules/@react-types/shared",
         "//:node_modules/@types/color",
         "//:node_modules/@types/dedent",
         "//:node_modules/@types/jest",

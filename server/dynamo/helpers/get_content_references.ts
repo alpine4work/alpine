@@ -1,6 +1,6 @@
 import {Node} from "prosemirror-model";
 import {Step} from "prosemirror-transform";
-import {getAccount, getAccountOrThrow} from "~/server/dynamo/accounts_table";
+import {getAccount} from "~/server/dynamo/accounts_table";
 import {RequestContext} from "~/server/dynamo/context/request_context";
 import {ContentMention} from "~/shared/content/content_mention";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
