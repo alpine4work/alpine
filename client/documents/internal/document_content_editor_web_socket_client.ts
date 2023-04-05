@@ -31,6 +31,7 @@ import {
     DocumentId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types";
+import {MessagingRealtimeMessageFromClient} from "~/shared/messaging/messaging_realtime_schema";
 import {
     DocumentContentReferences,
     DocumentContentWithReferences,
@@ -767,5 +768,16 @@ export class DocumentContentEditorWebSocketClient {
         assert(this._disconnect !== null, "WebSocket is already disconnected");
         this._disconnect();
         this._disconnect = null;
+    }
+
+    public async sendCommentThreadMessage(
+        commentThreadId: DocumentCommentThreadId,
+        message: MessagingRealtimeMessageFromClient,
+    ) {
+        await this._client.sendMessage({
+            type: "Comments",
+            commentThreadId,
+            message,
+        });
     }
 }

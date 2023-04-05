@@ -10,6 +10,7 @@ import {
 } from "react";
 import {useAppContext} from "~/client/context/app_context";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
+import {useDocumentContentEditorWebSocket} from "~/client/documents/internal/use_document_content_editor_web_socket";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useMessageEditing} from "~/client/messaging/message_editing";
 import {MessageInput} from "~/client/messaging/message_input";
@@ -30,7 +31,7 @@ import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
+import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types";
 import {
     DocumentCommentModel,
     DocumentCommentRoomKey,
@@ -154,9 +155,12 @@ function createEmptyDocumentCommentThreadTree(): DocumentCommentThreadTree {
  */
 function DocumentCommentThreadListView(
     {
+        documentId,
         initialCommentThreadsResult,
         withMobileLayout = false,
     }: {
+        documentId: DocumentId;
+
         /**
          * The initial comment threads loaded to populate this view. We will use this
          * to construct a `DocumentCommentThreadTree` class.
@@ -178,6 +182,12 @@ function DocumentCommentThreadListView(
     },
     ref: Ref<DocumentCommentThreadListViewRef>,
 ) {
+    const {sendCommentThreadMessage} = useDocumentContentEditorWebSocket(
+        documentId,
+        // TODO(calebmer): Should load this when page is expanded
+        null,
+    );
+
     const isActuallyMobile = useIsMobile();
     const isMobile = isActuallyMobile || withMobileLayout;
 
@@ -448,6 +458,9 @@ function DocumentCommentThreadListView(
             const item = assertExists(tree.getItem(index));
             switch (item.type) {
                 case "DocumentCommentThreadPreview": {
+                    // All comment threads should be in the same document.
+                    assert(item.commentThread.documentId === documentId);
+
                     // NOCOMMIT
                     return {
                         key: `DocumentCommentThreadPreview:${item.commentThread.id}`,
@@ -485,9 +498,11 @@ function DocumentCommentThreadListView(
                                 },
                             );
                         },
-                        onDeleteMessage: () => {
-                            // NOCOMMIT
-                            throw new UnimplementedError("TODO");
+                        onDeleteMessage: async message => {
+                            await sendCommentThreadMessage(item.commentThread.id, {
+                                type: "DeleteMessage",
+                                messageIndex: message.index,
+                            });
                         },
                         getMessageUrl: commentIndex => {
                             // NOCOMMIT
@@ -507,7 +522,14 @@ function DocumentCommentThreadListView(
                     throw exhaustive(item);
             }
         },
-        [tree, messageEditing, highlightComment, handleJumpToComment],
+        [
+            tree,
+            documentId,
+            messageEditing,
+            highlightComment,
+            handleJumpToComment,
+            sendCommentThreadMessage,
+        ],
     );
 
     return (
@@ -562,9 +584,11 @@ function DocumentCommentThreadListView(
                                         })),
                                     )
                                 }
-                                createMessage={() => {
-                                    // NOCOMMIT
-                                    throw new UnimplementedError("TODO");
+                                createMessage={async input => {
+                                    await sendCommentThreadMessage(item.commentThread.id, {
+                                        type: "CreateMessage",
+                                        ...input,
+                                    });
                                 }}
                                 messageEditing={messageEditing}
                                 replyingToMessage={replyingToComment}
@@ -582,12 +606,36 @@ function DocumentCommentThreadListView(
                                 }}
                                 onJumpToMessage={handleJumpToComment}
                                 onShowTypingIndicator={() => {
-                                    // NOCOMMIT
-                                    throw new UnimplementedError("TODO");
+                                    sendCommentThreadMessage(item.commentThread.id, {
+                                        type: "StartTyping",
+                                    })
+                                        // Don't show an error updating typing indicators to the user. We will see an
+                                        // error in our logs but the user won't see any weird behavior if the
+                                        // request fails.
+                                        .catch(error =>
+                                            context.tracer
+                                                .getRoot()
+                                                .logUncaughtException(
+                                                    "Couldn't update typing indicator",
+                                                    error,
+                                                ),
+                                        );
                                 }}
                                 onHideTypingIndicator={() => {
-                                    // NOCOMMIT
-                                    throw new UnimplementedError("TODO");
+                                    sendCommentThreadMessage(item.commentThread.id, {
+                                        type: "StopTyping",
+                                    })
+                                        // Don't show an error updating typing indicators to the user. We will see an
+                                        // error in our logs but the user won't see any weird behavior if the
+                                        // request fails.
+                                        .catch(error =>
+                                            context.tracer
+                                                .getRoot()
+                                                .logUncaughtException(
+                                                    "Couldn't update typing indicator",
+                                                    error,
+                                                ),
+                                        );
                                 }}
                             />
                         );

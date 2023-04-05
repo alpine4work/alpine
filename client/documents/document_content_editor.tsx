@@ -57,7 +57,7 @@ function DocumentContentEditorStateful({
         otherPresenceStateByConnectionId,
         rememberedSteps,
         toggleShouldConnect,
-    } = useDocumentContentEditorWebSocket(initialDocument);
+    } = useDocumentContentEditorWebSocket(initialDocument.id, initialDocument);
 
     const phantomSelections = useDocumentContentEditorPhantomSelections({
         editorState,

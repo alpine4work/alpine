@@ -13,6 +13,7 @@ import {DocumentCommentModel, DocumentCommentThreadModel} from "~/shared/models/
 import {Schema} from "~/shared/schema/schema";
 
 const LoaderSchema = Schema.object({
+    documentId: Schema.id<DocumentId>(),
     commentThread: DocumentCommentThreadModel.schema(),
     initialComments: Schema.array(DocumentCommentModel.schema()),
     initialOtherReferencedComments: Schema.array(DocumentCommentModel.schema()),
@@ -34,7 +35,7 @@ export async function loader({params, context}: LoaderArgs) {
     );
     if (!commentThreadResult) throw new NotFoundError("Comment thread not found");
 
-    return jsonWithSchema(LoaderSchema, commentThreadResult);
+    return jsonWithSchema(LoaderSchema, {documentId, ...commentThreadResult});
 }
 
 export const meta = createMetaFunction(LoaderSchema, ({data: {commentThread}}) => {
@@ -50,11 +51,12 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {commentThread}}) =
 });
 
 export default function DocumentCommentThreadRoute({isPeek}: {isPeek?: boolean}) {
-    const {commentThread, initialComments, initialOtherReferencedComments} =
+    const {documentId, commentThread, initialComments, initialOtherReferencedComments} =
         useLoaderDataWithSchema(LoaderSchema);
 
     return (
         <DocumentCommentThreadListView
+            documentId={documentId}
             initialCommentThreadsResult={{
                 commentThread,
                 comments: initialComments,
