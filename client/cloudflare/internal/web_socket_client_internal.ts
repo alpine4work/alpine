@@ -20,7 +20,7 @@ import {generateId} from "~/shared/id/id";
 import {WebSocketMessageId} from "~/shared/id/types/id_types";
 import {Schema, SchemaDeserializationError, UnionSchema} from "~/shared/schema/schema";
 
-type WebsocketClientState =
+type WebsocketClientInternalState =
     | {
           readonly type: "Connecting";
           readonly pendingSerializedMessages: Array<string>;
@@ -67,7 +67,7 @@ function resolveWebSocketUrl(url: string) {
  * reconnect after a network interruption and closing the connection when the
  * browser tab is hidden.
  */
-export class WebSocketClient<
+export class WebSocketClientInternal<
     MessageFromClient extends {type: string},
     MessageFromServer extends {type: string},
 > {
@@ -82,7 +82,7 @@ export class WebSocketClient<
     private readonly _openPromiseResolver = createPromiseResolver();
     private readonly _closePromiseResolver = createPromiseResolver();
     private readonly _socket: WebSocket;
-    private _state: WebsocketClientState;
+    private _state: WebsocketClientInternalState;
     private _lastMessageReceived = Date.now();
     private readonly _acknowledgementPromiseResolverByMessageId = new Map<
         WebSocketMessageId,

@@ -1,5 +1,5 @@
 import {Memo, useCallback, useEffect, useRef, useState} from "react";
-import {WebSocketClient} from "~/client/cloudflare/web_socket_client";
+import {WebSocketClientInternal} from "~/client/cloudflare/internal/web_socket_client_internal";
 import {useAppContext} from "~/client/context/app_context";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
@@ -80,7 +80,7 @@ export function useWebSocket<
     const [_clientState, setClientState] = useState<
         | {
               url: string;
-              client: WebSocketClient<MessageFromClient, MessageFromServer>;
+              client: WebSocketClientInternal<MessageFromClient, MessageFromServer>;
               isConnected: boolean;
               hasError: false;
           }
@@ -124,11 +124,11 @@ export function useWebSocket<
         let reconnectAttempts = 0;
         let isCancelled = false;
 
-        let client: WebSocketClient<MessageFromClient, MessageFromServer>;
+        let client: WebSocketClientInternal<MessageFromClient, MessageFromServer>;
         connect();
 
         function connect() {
-            client = new WebSocketClient(
+            client = new WebSocketClientInternal(
                 () => contextRef.current,
                 messageFromClientSchema,
                 messageFromServerSchema,
