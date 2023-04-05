@@ -166,6 +166,8 @@ export class WebSocketClientConnection<
             // If the user called `close()` then we consider the close to be expected and we
             // won't fire an error.
             const wasCloseExpected = this._state.type === "Closed";
+            const wasOpen = this._state.type === "Open";
+            const wasConnecting = this._state.type === "Connecting";
             if (!wasCloseExpected) this._state = {type: "Closed"};
 
             pingTimeout?.clear();
@@ -199,6 +201,13 @@ export class WebSocketClientConnection<
                       `WebSocket closed unexpectedly with code ${event.code}${
                           event.reason ? quote`and reason ${event.reason}` : ""
                       }${!event.wasClean ? " (did not close cleanly)" : ""}`,
+                      {
+                          displayMessage: wasConnecting
+                              ? errorDisplayMessage`Could not connect to the internet. Make sure you are online and try again.`
+                              : wasOpen
+                              ? errorDisplayMessage`Your connection to our servers was ended unexpectedly. Please try again.`
+                              : undefined,
+                      },
                   )
                 : null;
 

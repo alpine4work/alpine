@@ -56,6 +56,9 @@ export function useWebSocket<
     }, [messageFromClientSchema, messageFromServerSchema, url]);
 
     const clientState = useStore(client?.state ?? null);
+
+    // TODO(calebmer): This should probably be an interrupting error modal with a
+    // retry button instead of a component crash.
     if (clientState?.hasError) throw clientState.error;
 
     const [shouldConnect, setShouldConnect] = useState(true);
@@ -66,6 +69,10 @@ export function useWebSocket<
         client.connect();
         return () => client.disconnect();
     }, [client, shouldConnect]);
+
+    const toggleShouldConnect = useCallback(() => {
+        setShouldConnect(shouldConnect => !shouldConnect);
+    }, []);
 
     // Subscribe to any messages coming from our client.
     const actuallyHandleMessage = useEvent(handleMessage);
@@ -90,9 +97,6 @@ export function useWebSocket<
             subscriber => client?.subscribeToMessages(subscriber) ?? noop,
             [client],
         ),
-        toggleShouldConnect: useCallback(
-            () => setShouldConnect(shouldConnect => !shouldConnect),
-            [],
-        ),
+        toggleShouldConnect,
     };
 }

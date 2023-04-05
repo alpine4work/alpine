@@ -1,47 +1,24 @@
-/**
- * Test cases I've used when working on this file:
- *
- * - Setup 2-4 browsers with a `while` loop around
- *   `ContentEditorDebugTools.simulateTyping()`. Make sure they can run forever
- *   without crashing.
- *
- *     - Open a separate browser and reload the page a couple times. It
- *       probably loads the document at an old version but should eventually
- *       see all the typing.
- *
- * - Open three browsers. In browser 1 put your cursor somewhere in the
- *   document, in browser 2 add network throttling, in browser 3 make some
- *   changes. Then reload browser 2 and while browser 2 is loading make changes
- *   with browser 3. Browser 2 should eventually see all the updates and browser
- *   1's cursor. (This exercises `rememberedSteps`.)
- */
-
-import murmurhash from "murmurhash";
-import {Selection, TextSelection} from "prosemirror-state";
-import {Mapping, Step, StepMap} from "prosemirror-transform";
-import {useCallback, useEffect, useMemo, useReducer, useRef, useState} from "react";
-import {useWebSocket} from "~/client/cloudflare/use_web_socket";
-import {ContentEditorPhantomSelection} from "~/client/content/content_editor";
+import {Selection} from "prosemirror-state";
+import {Step, StepMap} from "prosemirror-transform";
+import {WebSocketClient} from "~/client/cloudflare/web_socket_client";
 import {
     ContentEditorReferencesAction,
     ContentEditorState,
 } from "~/client/content/content_editor_state";
-import {useDevConsoleTool} from "~/client/dev/dev_console";
-import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
-import {
-    DocumentContent,
-    DocumentContentProsemirrorSchema,
-    isDocumentContent,
-} from "~/shared/content/document_content_schema";
+import {AppContext} from "~/client/context/app_context";
+import {Store} from "~/client/helpers/store/store";
+import {ValueStore} from "~/client/helpers/store/value_store";
+import {DocumentContent, isDocumentContent} from "~/shared/content/document_content_schema";
 import {MessageContent} from "~/shared/content/message_content_schema";
-import {defaultThemeColor, themeColors} from "~/shared/design/theme_colors";
 import {
+    DocumentCollaborationMessageFromClient,
     DocumentCollaborationMessageFromClientSchema,
+    DocumentCollaborationMessageFromServer,
     DocumentCollaborationMessageFromServerSchema,
     DocumentCollaborationPresenceState,
 } from "~/shared/documents/document_collaboration_schema";
 import {UnimplementedError} from "~/shared/error/error";
-import {createTimeout} from "~/shared/helpers/async/timeout";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {Lazy} from "~/shared/helpers/control/lazy";
@@ -70,7 +47,7 @@ export type DocumentContentEditorState = {
      * action for a future version we put it in this array and re-apply the action
      * when older steps are applied.
      */
-    readonly pendingActions: Array<ReceiveStepsDocumentContentEditorAction>;
+    readonly pendingActions: Array<DocumentContentEditorReceiveStepsAction>;
 
     /**
      * The current state of the editor.
@@ -124,6 +101,13 @@ export type DocumentContentEditorState = {
         WebSocketConnectionId,
         DocumentCollaborationPresenceState
     >;
+
+    /**
+     * Is there an error from our WebSocket?
+     */
+    readonly errorState:
+        | {readonly hasError: false}
+        | {readonly hasError: true; readonly error: unknown};
 };
 
 export function reduceDocumentContentReferences(
@@ -163,35 +147,37 @@ export function getInitialDocumentContentEditorState(
         pendingSendableSteps: null,
         ourPresenceState: null,
         otherPresenceStateByConnectionId: ImmutableMap.empty(),
+        errorState: {hasError: false},
     };
 }
 
 export type DocumentContentEditorAction =
-    | EditDocumentContentEditorAction
-    | ReceiveStepsDocumentContentEditorAction
-    | AugmentRememberedStepsDocumentContentEditorAction
-    | SetAllOtherPresenceStatesDocumentContentEditorAction
-    | UpdateOtherPresenceStateDocumentContentEditorAction;
+    | DocumentContentEditorEditAction
+    | DocumentContentEditorReceiveStepsAction
+    | DocumentContentEditorAugmentRememberedStepsAction
+    | DocumentContentEditorSetAllOtherPresenceStatesAction
+    | DocumentContentEditorUpdateOtherPresenceStateAction
+    | DocumentContentEditorErrorAction;
 
-type EditDocumentContentEditorAction = {
+type DocumentContentEditorEditAction = {
     readonly type: "Edit";
     readonly editorState: ContentEditorState<DocumentContentWithReferences>;
 };
 
-type ReceiveStepsDocumentContentEditorAction = {
+type DocumentContentEditorReceiveStepsAction = {
     readonly type: "ReceiveSteps";
     readonly newVersion: number;
     readonly steps: ReadonlyArray<{readonly step: Step; readonly clientId: ContentEditorClientId}>;
     readonly stepsContentReferences: DocumentContentReferences;
 };
 
-type AugmentRememberedStepsDocumentContentEditorAction = {
+type DocumentContentEditorAugmentRememberedStepsAction = {
     readonly type: "AugmentRememberedSteps";
     readonly startVersion: number;
     readonly invertedSteps: ReadonlyArray<Step>;
 };
 
-type SetAllOtherPresenceStatesDocumentContentEditorAction = {
+type DocumentContentEditorSetAllOtherPresenceStatesAction = {
     readonly type: "SetAllOtherPresenceStates";
     readonly stateByConnectionId: ImmutableMap<
         WebSocketConnectionId,
@@ -199,10 +185,15 @@ type SetAllOtherPresenceStatesDocumentContentEditorAction = {
     >;
 };
 
-type UpdateOtherPresenceStateDocumentContentEditorAction = {
+type DocumentContentEditorUpdateOtherPresenceStateAction = {
     readonly type: "UpdateOtherPresenceState";
     readonly connectionId: WebSocketConnectionId;
     readonly state: DocumentCollaborationPresenceState | null;
+};
+
+type DocumentContentEditorErrorAction = {
+    readonly type: "Error";
+    readonly error: unknown;
 };
 
 export function reduceDocumentContentEditorState(
@@ -462,73 +453,112 @@ function actuallyReduceDocumentContentEditorState(
                     : oldState.otherPresenceStateByConnectionId.delete(action.connectionId),
             };
         }
+        case "Error": {
+            return {
+                ...oldState,
+                errorState: {hasError: true, error: action.error},
+            };
+        }
         default:
             throw exhaustive(action);
     }
 }
 
-export function useDocumentContentEditorState(initialDocument: DocumentModel) {
-    const documentId = initialDocument.id;
+/**
+ * Object representing our connection to the document collaboration service for
+ * our `<DocumentContentEditor>` component. When connected we will backfill the
+ * document loaded from the server and listen to all future realtime changes.
+ *
+ * This class used to be implemented as a React hook called
+ * `useDocumentContentEditorState()` where the state lived in a `useReducer()`.
+ * Which is why we have an immutable state object with `dispatch()` function.
+ * We would have kept as a React hook except we want to share this object
+ * between a document route and a document comment thread peek rendered on top
+ * of the document. Peeks are rendered at the space level and we can't pass
+ * props up the component tree so instead we have an external store of document
+ * content editor WebSocket connections accessible from anywhere.
+ *
+ * Useful test cases I've (@calebmer) used when working on this file:
+ *
+ * - Setup 2-4 browsers with a `while` loop around
+ *   `ContentEditorDebugTools.simulateTyping()`. Make sure they can run forever
+ *   without crashing.
+ *
+ *     - Open a separate browser and reload the page a couple times. It
+ *       probably loads the document at an old version but should eventually
+ *       see all the typing.
+ *
+ * - Open three browsers. In browser 1 put your cursor somewhere in the
+ *   document, in browser 2 add network throttling, in browser 3 make some
+ *   changes. Then reload browser 2 and while browser 2 is loading make changes
+ *   with browser 3. Browser 2 should eventually see all the updates and browser
+ *   1's cursor. (This exercises `rememberedSteps`.)
+ */
+export class DocumentContentEditorWebSocketClient {
+    private readonly _client: WebSocketClient<
+        DocumentCollaborationMessageFromClient,
+        DocumentCollaborationMessageFromServer
+    >;
 
-    const [state, _dispatch] = useReducer(
-        reduceDocumentContentEditorState,
-        initialDocument,
-        getInitialDocumentContentEditorState,
-    );
+    private readonly _state: ValueStore<DocumentContentEditorState>;
+    private _disconnect: (() => void) | null = null;
 
-    const dispatch = useCallback((actions: ReadonlyArray<DocumentContentEditorAction>) => {
-        // It is essential for correctness that actions which change `editorState` run
-        // immediately. Consider the case where we receive some steps from the server
-        // (`ReceiveSteps` action) and the user makes an edit (`Edit` action) at the
-        // exact same time.
-        //
-        // React gives the `ReceiveSteps` action a lower priority since it came from a
-        // WebSocket message. It runs the reducer then *cancels* the React re-render
-        // since an `Edit` comes in at a high, user interaction, priority.
-        //
-        // When we receive an action that changes `editorState`, we need React to
-        // immediately re-render the component with the new state so if a user types in
-        // their ProseMirror `EditorView` it is applied on top of the `editorState` we
-        // received from the server.
-        let shouldRunWithImmediatePriority = false;
-        for (const action of actions) {
-            switch (action.type) {
-                case "Edit":
-                case "ReceiveSteps":
-                    shouldRunWithImmediatePriority = true;
-                    break;
-                case "AugmentRememberedSteps":
-                case "SetAllOtherPresenceStates":
-                case "UpdateOtherPresenceState":
-                    break;
-                default:
-                    throw exhaustive(action);
+    public get state(): Store<DocumentContentEditorState> {
+        return this._state;
+    }
+
+    constructor(getContext: () => AppContext, initialDocument: DocumentModel) {
+        this._client = new WebSocketClient(
+            getContext,
+            DocumentCollaborationMessageFromClientSchema,
+            DocumentCollaborationMessageFromServerSchema,
+            `/durable-objects/documents/${initialDocument.id}`,
+        );
+
+        this._state = new ValueStore(getInitialDocumentContentEditorState(initialDocument));
+    }
+
+    private _dispatchBatch(actions: ReadonlyArray<DocumentContentEditorAction>) {
+        this._state.set(reduceDocumentContentEditorState(this._state.getSnapshot(), actions));
+    }
+
+    private _dispatch(action: DocumentContentEditorAction) {
+        this._state.set(reduceDocumentContentEditorState(this._state.getSnapshot(), [action]));
+    }
+
+    public changeEditorState(editorState: ContentEditorState<DocumentContentWithReferences>) {
+        this._dispatch({type: "Edit", editorState});
+    }
+
+    public connect() {
+        assert(this._disconnect === null, "WebSocket is already connected");
+
+        let isConnected = false;
+
+        this._client.connect();
+
+        const unsubscribeFromClientState = this._client.state.subscribe(() => {
+            const clientState = this._client.state.getSnapshot();
+
+            if (isConnected !== clientState.isConnected) {
+                isConnected = clientState.isConnected;
+
+                // Whenever we successfully connect to the WebSocket, send a backfill request
+                // so we can get any steps we missed while disconnected from the WebSocket.
+                if (isConnected) {
+                    this._client
+                        .sendMessage({
+                            type: "BackfillRequest",
+                            version: this._state.getSnapshot().editorState.getVersion(),
+                        })
+                        .catch(error => this._dispatch({type: "Error", error}));
+
+                    maybeSendUpdatesToServer();
+                }
             }
-        }
+        });
 
-        if (!shouldRunWithImmediatePriority) {
-            _dispatch(actions);
-        } else {
-            runWithImmediatePriority(() => {
-                _dispatch(actions);
-            });
-        }
-    }, []);
-
-    const [errorState, setErrorState] = useState<
-        {hasError: false} | {hasError: true; error: unknown}
-    >({hasError: false});
-
-    // TODO(calebmer): We probably want some retry mechanism for the user? But
-    // until the user retries, we don't want an infinite loop where we keep trying
-    // to update the document content.
-    if (errorState.hasError) throw errorState.error;
-
-    const {isConnected, sendMessage, toggleShouldConnect} = useWebSocket(
-        DocumentCollaborationMessageFromClientSchema,
-        DocumentCollaborationMessageFromServerSchema,
-        `/durable-objects/documents/${documentId}`,
-        message => {
+        const unsubscribeFromClientMessages = this._client.subscribeToMessages(message => {
             switch (message.type) {
                 case "BackfillResponse": {
                     const actions: Array<DocumentContentEditorAction> = [];
@@ -563,7 +593,7 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
 
                     // One dispatch call just to make sure React applies these actions atomically
                     // and doesn't do any scheduling weirdness.
-                    dispatch(actions);
+                    this._dispatchBatch(actions);
                     break;
                 }
                 case "UpdateContentWithoutPersistence": {
@@ -581,7 +611,7 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
 
                     // If this was an acknowledgement message from our own client, don't add the
                     // presence state to our map.
-                    if (message.clientId !== state.editorState.getClientId()) {
+                    if (message.clientId !== this._state.getSnapshot().editorState.getClientId()) {
                         actions.push({
                             type: "UpdateOtherPresenceState",
                             connectionId: message.updateOtherPresenceState.connectionId,
@@ -589,7 +619,7 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
                         });
                     }
 
-                    dispatch(actions);
+                    this._dispatchBatch(actions);
                     break;
                 }
                 case "PersistedContent": {
@@ -597,20 +627,15 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
                     break;
                 }
                 case "UpdateOtherPresenceState": {
-                    dispatch([
-                        {
-                            type: "UpdateOtherPresenceState",
-                            connectionId: message.connectionId,
-                            state: message.state,
-                        },
-                    ]);
+                    this._dispatch({
+                        type: "UpdateOtherPresenceState",
+                        connectionId: message.connectionId,
+                        state: message.state,
+                    });
                     break;
                 }
                 case "Error": {
-                    setErrorState({
-                        hasError: true,
-                        error: message.error,
-                    });
+                    this._dispatch({type: "Error", error: message.error});
                     break;
                 }
                 case "Comments": {
@@ -620,268 +645,126 @@ export function useDocumentContentEditorState(initialDocument: DocumentModel) {
                 default:
                     throw exhaustive(message);
             }
-        },
-    );
+        });
 
-    const versionRef = useRef(state.editorState.getVersion());
-    useEffect(() => {
-        versionRef.current = state.editorState.getVersion();
-    });
+        const unsubscribeFromState = this._state.subscribe(() => {
+            maybeSendUpdatesToServer();
+        });
 
-    // Whenever we successfully connect to the WebSocket, send a backfill request
-    // so we can get any steps we missed while disconnected from the WebSocket.
-    useEffect(() => {
-        if (isConnected) {
-            sendMessage({
-                type: "BackfillRequest",
-                version: versionRef.current,
-            }).catch(error => setErrorState({hasError: true, error}));
-        }
+        let lastPendingSendableStepsVersionSentToServer: number | null = null;
+        let lastOurPresenceStateSentToServer: {
+            readonly version: number;
+            readonly selection: Selection;
+        } | null = null;
+        let cursorDisappearTimeout: Timeout | null = null;
 
-        // NOTE(calebmer): Be careful about what you put into this dependency array! We
-        // only want to re-run this effect when the `isConnected` flag flips.
-    }, [isConnected, sendMessage]);
+        // NOTE(calebmer): Originally this function (and everything around it) was
+        // implemented as a `useDocumentContentEditorState()` hook. This function
+        // specifically was was in a `useEffect()` so the code style makes more sense
+        // in that context. This function was written assuming it could be called on
+        // basically any update.
+        const maybeSendUpdatesToServer = () => {
+            const state = this._state.getSnapshot();
 
-    const lastPendingSendableStepsVersionSentToServerRef = useRef<number | null>(null);
-    const lastOurPresenceStateSentToServerRef = useRef<{
-        readonly version: number;
-        readonly selection: Selection;
-    } | null>(null);
-
-    // Send any updates we have in state to the server when we are connected! Only
-    // sends each update to the server once. Tracks whether we have sent updates
-    // with a ref.
-    useEffect(() => {
-        if (!isConnected) return;
-
-        if (
-            state.pendingSendableSteps &&
-            lastPendingSendableStepsVersionSentToServerRef.current !==
-                state.pendingSendableSteps.version
-        ) {
-            sendMessage({
-                type: "UpdateContent",
-                version: state.pendingSendableSteps.version,
-                steps: state.pendingSendableSteps.steps,
-                clientId: state.pendingSendableSteps.clientId,
-                createCommentThreads: state.pendingSendableSteps.createCommentThreads,
-                updateOurPresenceState: {
-                    state: state.ourPresenceState
-                        ? {
-                              version: state.ourPresenceState.version,
-                              selection: ProsemirrorSelectionWrapper.new(
-                                  state.ourPresenceState.selection,
-                              ),
-                          }
-                        : null,
-                },
-            }).catch(error => setErrorState({hasError: true, error}));
-
-            lastPendingSendableStepsVersionSentToServerRef.current =
-                state.pendingSendableSteps.version;
-            lastOurPresenceStateSentToServerRef.current = state.ourPresenceState;
-        }
-
-        if (
-            (lastOurPresenceStateSentToServerRef.current === null) !==
-                (state.ourPresenceState === null) ||
-            (lastOurPresenceStateSentToServerRef.current !== null &&
-                state.ourPresenceState !== null &&
-                (lastOurPresenceStateSentToServerRef.current.version !==
-                    state.ourPresenceState.version ||
-                    lastOurPresenceStateSentToServerRef.current.selection !==
-                        state.ourPresenceState.selection))
-        ) {
-            sendMessage({
-                type: "UpdateOurPresenceState",
-                state: state.ourPresenceState
-                    ? {
-                          version: state.ourPresenceState.version,
-                          selection: ProsemirrorSelectionWrapper.new(
-                              state.ourPresenceState.selection,
-                          ),
-                      }
-                    : null,
-            }).catch(error => setErrorState({hasError: true, error}));
-
-            lastOurPresenceStateSentToServerRef.current = state.ourPresenceState;
-        }
-    }, [isConnected, sendMessage, state.pendingSendableSteps, state.ourPresenceState]);
-
-    // Clear our presence state after some period of inactivity so you don't have a
-    // bunch of cursors laying around the document.
-    useEffect(() => {
-        if (!isConnected) return;
-        if (!state.ourPresenceState) return;
-
-        // We have a much shorter timeout if our presence state is just a cursor. If
-        // the user has selected some text, we take longer to clear that timeout since
-        // maybe the user was intentionally trying to highlight text to show someone?
-        const cursorDisappearTimeoutMs =
-            state.ourPresenceState.selection.from === state.ourPresenceState.selection.to
-                ? 15 * 1000
-                : 15 * 60 * 1000;
-
-        const timeout = createTimeout(() => {
-            sendMessage({
-                type: "UpdateOurPresenceState",
-                state: null,
-            }).catch(error => setErrorState({hasError: true, error}));
-        }, cursorDisappearTimeoutMs);
-
-        return () => {
-            timeout.clear();
-        };
-    }, [isConnected, sendMessage, state.ourPresenceState]);
-
-    // The presence states we get from our presence channel may be outdated because
-    // when the document updates and the cursor needs to move, we do not send a
-    // `UpdateOtherPresenceState` update as this would cause a thundering herd of
-    // presence updates on every content update.
-    //
-    // There may be some performance optimizations we could be doing here. If you
-    // have 100 cursors but only 1 is moving you only need to recompute that 1.
-    const presenceStates = useMemo(() => {
-        let presenceStates: Array<{
-            connectionId: WebSocketConnectionId;
-            selection: Selection;
-        }> = [];
-
-        for (const [connectionId, presenceState] of state.otherPresenceStateByConnectionId) {
-            /* ========================================================================== *\
-             * 1. Fast-forward outdated presence states if we can, otherwise drop         *
-            \* ========================================================================== */
-
-            const editorVersion = state.editorState.getVersion();
-
-            // If the presence state version is equal to our editor version, then we don't
-            // need to transform the selection.
-            if (presenceState.version === editorVersion) {
-                presenceStates.push({
-                    connectionId,
-                    selection: presenceState.selection.getAndMaybeDeserialize(
-                        state.editorState.getDocWithoutSendableSteps(),
-                    ),
-                });
+            if (!isConnected) {
+                cursorDisappearTimeout?.clear();
+                cursorDisappearTimeout = null;
+                return;
             }
-            // We don't update presence states if the document changes but the selection
-            // doesn't move. Instead clients are responsible for updating selections that
-            // didn't move to the new document locally.
-            //
-            // We may not have enough `rememberedSteps` to fast-forward the presence state.
-            // In this case we will drop the presence state. We then fetch
-            // steps required to fast-forward the presence state asynchronously.
-            //
-            // It's important that we record `smallestPresenceStateVersion` before this
-            // step since we're about to update all our presence state versions.
-            else if (
-                presenceState.version < editorVersion &&
-                presenceState.version >= editorVersion - state.rememberedSteps.length
+
+            if (
+                state.pendingSendableSteps &&
+                lastPendingSendableStepsVersionSentToServer !== state.pendingSendableSteps.version
             ) {
-                const oldContent =
-                    state.rememberedSteps[
-                        state.rememberedSteps.length - (editorVersion - presenceState.version)
-                    ]!.contentBeforeStep.get();
+                cursorDisappearTimeout?.clear();
+                cursorDisappearTimeout = null;
 
-                let selection = presenceState.selection.getAndMaybeDeserialize(oldContent);
+                this._client
+                    .sendMessage({
+                        type: "UpdateContent",
+                        version: state.pendingSendableSteps.version,
+                        steps: state.pendingSendableSteps.steps,
+                        clientId: state.pendingSendableSteps.clientId,
+                        createCommentThreads: state.pendingSendableSteps.createCommentThreads,
+                        updateOurPresenceState: {
+                            state: state.ourPresenceState
+                                ? {
+                                      version: state.ourPresenceState.version,
+                                      selection: ProsemirrorSelectionWrapper.new(
+                                          state.ourPresenceState.selection,
+                                      ),
+                                  }
+                                : null,
+                        },
+                    })
+                    .catch(error => this._dispatch({type: "Error", error}));
 
-                for (let version = presenceState.version; version < editorVersion; version++) {
-                    if (!selection) break;
-
-                    const {stepMap, contentAfterStep} =
-                        state.rememberedSteps[
-                            state.rememberedSteps.length - (editorVersion - version)
-                        ]!;
-
-                    selection = selection.map(contentAfterStep.get(), stepMap);
-                }
-
-                presenceStates.push({
-                    connectionId,
-                    selection,
-                });
-            } else {
-                // The remaining cases here are:
-                //
-                // 1. Presence states at a future version. (Should not happen.)
-                // 2. Presence states that we couldn't catch because we don't have enough
-                //    `rememberedSteps`. We will try to fetch more `rememberedSteps` to
-                //    render these.
-                //
-                // We are ok dropping these presence states. In case 2 we will send a network
-                // request to load more steps and re-render the component. At this point the
-                // presence states will be shown.
+                lastPendingSendableStepsVersionSentToServer = state.pendingSendableSteps.version;
+                lastOurPresenceStateSentToServer = state.ourPresenceState;
             }
-        }
 
-        /* ========================================================================== *\
-         * 2. Apply local, unconfirmed, steps to presence states                      *
-        \* ========================================================================== */
+            if (
+                (lastOurPresenceStateSentToServer === null) !== (state.ourPresenceState === null) ||
+                (lastOurPresenceStateSentToServer !== null &&
+                    state.ourPresenceState !== null &&
+                    (lastOurPresenceStateSentToServer.version !== state.ourPresenceState.version ||
+                        lastOurPresenceStateSentToServer.selection !==
+                            state.ourPresenceState.selection))
+            ) {
+                cursorDisappearTimeout?.clear();
+                cursorDisappearTimeout = null;
 
-        // Other clients do not know about our local, unconfirmed, steps in
-        // `sendableSteps()`. So we need to apply those steps to every single presence
-        // state.
-        const sendableSteps = state.editorState.sendableSteps();
-        if (sendableSteps) {
-            const doc = state.editorState.getDoc();
+                this._client
+                    .sendMessage({
+                        type: "UpdateOurPresenceState",
+                        state: state.ourPresenceState
+                            ? {
+                                  version: state.ourPresenceState.version,
+                                  selection: ProsemirrorSelectionWrapper.new(
+                                      state.ourPresenceState.selection,
+                                  ),
+                              }
+                            : null,
+                    })
+                    .catch(error => this._dispatch({type: "Error", error}));
 
-            const mapping = new Mapping();
-            for (const step of sendableSteps.steps) mapping.appendMap(step.getMap());
+                lastOurPresenceStateSentToServer = state.ourPresenceState;
 
-            presenceStates = presenceStates.map(presenceState => ({
-                connectionId: presenceState.connectionId,
-                selection: presenceState.selection.map(doc, mapping),
-            }));
-        }
+                // Clear our presence state after some period of inactivity so you don't have a
+                // bunch of cursors laying around the document.
+                if (state.ourPresenceState) {
+                    // We have a much shorter timeout if our presence state is just a cursor. If
+                    // the user has selected some text, we take longer to clear that timeout since
+                    // maybe the user was intentionally trying to highlight text to show someone?
+                    const cursorDisappearTimeoutMs =
+                        state.ourPresenceState.selection.from ===
+                        state.ourPresenceState.selection.to
+                            ? 15 * 1000
+                            : 15 * 60 * 1000;
 
-        return presenceStates;
-    }, [state.editorState, state.otherPresenceStateByConnectionId, state.rememberedSteps]);
+                    cursorDisappearTimeout = createTimeout(() => {
+                        this._client
+                            .sendMessage({
+                                type: "UpdateOurPresenceState",
+                                state: null,
+                            })
+                            .catch(error => this._dispatch({type: "Error", error}));
+                    }, cursorDisappearTimeoutMs);
+                }
+            }
+        };
 
-    // Transform the presence states of our connected clients into cursor
-    // decorations. We drop any cursors from before our document loaded because we
-    // don't have the steps to map their positions.
-    const phantomSelections = useMemo(() => {
-        const phantomSelections: Array<ContentEditorPhantomSelection> = [];
+        this._disconnect = () => {
+            unsubscribeFromClientState();
+            unsubscribeFromClientMessages();
+            unsubscribeFromState();
+            this._client.disconnect();
+        };
+    }
 
-        const filteredThemeColors = themeColors.filter(
-            // TODO(calebmer): When the theme color is configurable, we should use that
-            // instead of the default theme color.
-            themeColor => themeColor !== defaultThemeColor && themeColor !== "yellow",
-        );
-
-        for (const presenceState of presenceStates) {
-            const color =
-                filteredThemeColors[
-                    murmurhash.v3(presenceState.connectionId) % filteredThemeColors.length
-                ]!;
-
-            phantomSelections.push({
-                key: presenceState.connectionId,
-                color,
-                anchor: presenceState.selection.anchor,
-                head: presenceState.selection.head,
-                isTextSelection: presenceState.selection instanceof TextSelection,
-            });
-        }
-
-        return phantomSelections;
-    }, [presenceStates]);
-
-    useDevConsoleTool(
-        "documentContentEditor",
-        useCallback(
-            () => ({
-                prosemirrorSchema: DocumentContentProsemirrorSchema,
-                toggleShouldConnect,
-            }),
-            [toggleShouldConnect],
-        ),
-    );
-
-    return {
-        editorState: state.editorState,
-        onChangeEditorState: (editorState: ContentEditorState<DocumentContentWithReferences>) =>
-            dispatch([{type: "Edit", editorState}]),
-        phantomSelections,
-    };
+    public disconnect() {
+        assert(this._disconnect !== null, "WebSocket is already disconnected");
+        this._disconnect();
+        this._disconnect = null;
+    }
 }
