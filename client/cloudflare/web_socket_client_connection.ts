@@ -20,7 +20,7 @@ import {generateId} from "~/shared/id/id";
 import {WebSocketMessageId} from "~/shared/id/types/id_types";
 import {Schema, SchemaDeserializationError, UnionSchema} from "~/shared/schema/schema";
 
-type WebsocketClientInternalState =
+type WebsocketClientConnectionState =
     | {
           readonly type: "Connecting";
           readonly pendingSerializedMessages: Array<string>;
@@ -53,6 +53,10 @@ function resolveWebSocketUrl(url: string) {
  * A helper for communicating over WebSockets. See `WebSocketServer` for the
  * server side of this helper.
  *
+ * This represents a single WebSocket connection. Over the course of an
+ * application there may be transient WebSocket errors we want to reconnect.
+ * This is managed by `WebSocketClient`.
+ *
  * Features:
  *
  * - Type safe messages using our schema framework.
@@ -63,11 +67,11 @@ function resolveWebSocketUrl(url: string) {
  *   `/hello/world`.
  *
  * You probably shouldn't use this class directly and instead should be using
- * `useWebSocket()` which adds a couple other essential features. Like trying to
+ * `WebSocketClient` which adds a couple other essential features. Like trying to
  * reconnect after a network interruption and closing the connection when the
  * browser tab is hidden.
  */
-export class WebSocketClientInternal<
+export class WebSocketClientConnection<
     MessageFromClient extends {type: string},
     MessageFromServer extends {type: string},
 > {
@@ -82,7 +86,7 @@ export class WebSocketClientInternal<
     private readonly _openPromiseResolver = createPromiseResolver();
     private readonly _closePromiseResolver = createPromiseResolver();
     private readonly _socket: WebSocket;
-    private _state: WebsocketClientInternalState;
+    private _state: WebsocketClientConnectionState;
     private _lastMessageReceived = Date.now();
     private readonly _acknowledgementPromiseResolverByMessageId = new Map<
         WebSocketMessageId,
@@ -328,7 +332,7 @@ export class WebSocketClientInternal<
      *
      * Will only fire when the socket is connected.
      */
-    public subscribeToMessage(handler: (message: MessageFromServer) => void): () => void {
+    public subscribeToMessages(handler: (message: MessageFromServer) => void): () => void {
         return this._messageEvent.subscribe(handler);
     }
 

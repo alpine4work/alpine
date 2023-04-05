@@ -9,7 +9,7 @@ import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_er
  * [1]: https://nodejs.org/api/events.html#class-eventemitter
  */
 export class EventEmitter<Event = void> {
-    private _listeners: Set<(event: Event) => void> = new Set();
+    private _listeners = new Set<(event: Event) => void>();
 
     /**
      * Emit an event to all subscribers of the event emitter.
