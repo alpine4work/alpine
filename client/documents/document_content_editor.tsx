@@ -1,6 +1,7 @@
 import {Command} from "prosemirror-state";
 import {useCallback, useEffect, useRef} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
+import {updateContentEditorReferences} from "~/client/content/content_editor_state";
 import {Box} from "~/client/design/box";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
 import {documentContentClassName} from "~/client/documents/document_content_view";
@@ -10,6 +11,7 @@ import {useDocumentContentEditorPhantomSelections} from "~/client/documents/inte
 import {useDocumentContentEditorWebSocket} from "~/client/documents/internal/use_document_content_editor_web_socket";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer";
+import {useSpaceContext} from "~/client/spaces/space_context";
 import {
     DocumentContent,
     DocumentContentProsemirrorSchema,
@@ -47,6 +49,7 @@ function DocumentContentEditorStateful({
 }) {
     const {spaceId, id: documentId} = initialDocument;
 
+    const {currentAccount} = useSpaceContext();
     const editorRef = useRef<ContentEditorRef>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [containerResizeRef, containerSize] = useResizeObserver();
@@ -111,13 +114,25 @@ function DocumentContentEditorStateful({
             const commentThreadId = generateId<DocumentCommentThreadId>();
             const range = trimSpacesFromProsemirrorRange(state.doc, state.selection);
             dispatch(
-                state.tr
-                    .addMark(range.from, range.to, state.schema.mark("comment", {commentThreadId}))
-                    .setMeta(createDocumentCommentThreadMetaKey, {
+                updateContentEditorReferences(
+                    state.tr
+                        .addMark(
+                            range.from,
+                            range.to,
+                            state.schema.mark("comment", {commentThreadId}),
+                        )
+                        .setMeta(createDocumentCommentThreadMetaKey, {
+                            commentThreadId,
+                            initialCommentContent: createSimpleMessageContent("test"),
+                        })
+                        .scrollIntoView(),
+                    {
+                        type: "UpdateDocumentCommentThread",
                         commentThreadId,
-                        initialCommentContent: createSimpleMessageContent("test"),
-                    })
-                    .scrollIntoView(),
+                        commentCount: 1,
+                        addCommentAuthor: currentAccount,
+                    },
+                ),
             );
         }
 

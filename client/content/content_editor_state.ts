@@ -22,7 +22,7 @@ import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {generateId, isId} from "~/shared/id/id";
-import {ContentEditorClientId} from "~/shared/id/types/id_types";
+import {ContentEditorClientId, DocumentCommentThreadId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
 import {
     ContentReferences,
@@ -405,6 +405,17 @@ export class ContentEditorState<Content extends ContentWithReferences> {
 
         return this._docWithoutSendableSteps;
     }
+
+    /**
+     * Update the references in our state with an action.
+     */
+    public updateReferences(
+        action: ContentEditorReferencesAction<Content["references"]>,
+    ): ContentEditorState<Content> {
+        return new ContentEditorState(
+            this._state.apply(updateContentEditorReferences(this._state.tr, action)),
+        );
+    }
 }
 
 let collabPluginKey: PluginKey;
@@ -617,7 +628,8 @@ export function updateContentEditorReferences<References extends ContentReferenc
 
 export type ContentEditorReferencesAction<References extends ContentReferences> =
     | ContentEditorReferencesMergeAction<References>
-    | ContentEditorReferencesAddAccountAction;
+    | ContentEditorReferencesAddAccountAction
+    | ContentEditorReferencesUpdateDocumentCommentThreadAction;
 
 export type ContentEditorReferencesMergeAction<References extends ContentReferences> = {
     readonly type: "Merge";
@@ -627,6 +639,19 @@ export type ContentEditorReferencesMergeAction<References extends ContentReferen
 export type ContentEditorReferencesAddAccountAction = {
     readonly type: "AddAccount";
     readonly account: AccountModel;
+};
+
+/**
+ * This action is designed to be idempotent and runnable out-of-order. You can
+ * run it as often as you'd like. You can run it optimistically and then run it
+ * again after you get a response back from the server. References will
+ * converge to the correct value.
+ */
+export type ContentEditorReferencesUpdateDocumentCommentThreadAction = {
+    readonly type: "UpdateDocumentCommentThread";
+    readonly commentThreadId: DocumentCommentThreadId;
+    readonly commentCount: number;
+    readonly addCommentAuthor: AccountModel | null;
 };
 
 export function reduceContentReferences(
@@ -645,6 +670,9 @@ export function reduceContentReferences(
                 ]),
             };
         }
+        // These actions are only used with `DocumentContentReferences`.
+        case "UpdateDocumentCommentThread":
+            return references;
         default:
             throw exhaustive(action);
     }

@@ -228,6 +228,9 @@ function DocumentContentEditorCommentThreadSideDecoration({
         };
     }, [commentThreadIds, content.references.commentThreadById]);
 
+    // Don't show decoration when there are no comments.
+    if (commentCount === 0 || commentAuthors.length === 0) return null;
+
     return (
         <Box
             position="absolute"

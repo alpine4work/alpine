@@ -82,7 +82,11 @@ export const DocumentContentReferencesSchema = ContentReferencesSchema.merge(
          */
         commentThreadById: Schema.map(
             Schema.id<DocumentCommentThreadId>(),
-            DocumentCommentThreadModel.schema(),
+            // A subset of the full `DocumentCommentThreadModel`.
+            Schema.object({
+                commentCount: Schema.integer,
+                commentAuthors: Schema.array(AccountModel.schema()),
+            }),
         ),
     }),
 );
@@ -96,11 +100,33 @@ export function mergeDocumentContentReferences(
     references1: DocumentContentReferences,
     references2: DocumentContentReferences,
 ): DocumentContentReferences {
+    const commentThreadById = new Map<
+        DocumentCommentThreadId,
+        {
+            commentCount: number;
+            commentAuthors: ReadonlyArray<AccountModel>;
+        }
+    >();
+
+    // Merge comment threads together by taking the one with the higher comment
+    // count. Comments may never be deleted so the comment thread with more
+    // comments is guaranteed to be newer.
+    for (const [commentThreadId, commentThread] of concatIterables(
+        references1.commentThreadById,
+        references2.commentThreadById,
+    )) {
+        const existingCommentThread = commentThreadById.get(commentThreadId);
+        if (
+            !existingCommentThread ||
+            existingCommentThread.commentCount < commentThread.commentCount
+        ) {
+            commentThreadById.set(commentThreadId, commentThread);
+        }
+    }
+
     return {
         accountById: new Map(concatIterables(references1.accountById, references2.accountById)),
-        commentThreadById: new Map(
-            concatIterables(references1.commentThreadById, references2.commentThreadById),
-        ),
+        commentThreadById,
     };
 }
 

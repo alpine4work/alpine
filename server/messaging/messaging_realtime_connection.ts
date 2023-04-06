@@ -56,11 +56,15 @@ export class MessagingRealtimeConnection<
     /**
      * True while we are backfilling messages.
      */
-    private _isBackfilling = true;
+    private _isBackfilling = false;
 
     /**
-     * The next message index we will send to our client. We send messages to
-     * clients in strict chronological order.
+     * The next message index we will send to our client. If set then we will
+     * send messages to clients in strict chronological order. If null then we
+     * will send messages to clients when we get them.
+     *
+     * This "chaos" mode where messages are sent in any order is how the connection
+     * starts but then we go into strict sequential mode after the first backfill.
      */
     private _nextMessageIndexToSend: number | null = null;
 
@@ -135,9 +139,14 @@ export class MessagingRealtimeConnection<
         toConnection: MessagingRealtimeConnection<RoomKey, Message>,
         message: Message,
     ) {
-        // If this is not the next message for our client, either queue it for later or
-        // ignore it if the message is behind our client.
-        if (message.index !== toConnection._nextMessageIndexToSend) {
+        // If the connection is backfilling or we received this message out of order,
+        // queue it for later. If we have not received a message yet then we want to
+        // send it and start waiting for the message after it.
+        if (
+            toConnection._isBackfilling ||
+            (toConnection._nextMessageIndexToSend !== null &&
+                message.index !== toConnection._nextMessageIndexToSend)
+        ) {
             if (
                 toConnection._nextMessageIndexToSend === null ||
                 message.index > toConnection._nextMessageIndexToSend
@@ -173,14 +182,20 @@ export class MessagingRealtimeConnection<
                       }
                     : null,
         });
-        toConnection._nextMessageIndexToSend = message.index + 1;
+
+        // If `_nextMessageIndexToSend` is null and the client hasn't backfilled then
+        // we send messages in whatever order we receive them. Since we don't know if
+        // we missed an earlier message. If we did miss an earlier message then the
+        // connection would stall and send no new messages.
+        if (toConnection._nextMessageIndexToSend !== null)
+            toConnection._nextMessageIndexToSend = message.index + 1;
 
         // Flush any queued messages now that our next message index has moved forward.
         toConnection._flushQueuedMessages(context);
     }
 
     private _flushQueuedMessages(context: RequestContext) {
-        // If this is null we won't be sending any messages.
+        // If this is null then nothing should be queued.
         if (this._nextMessageIndexToSend === null) return;
 
         while (true) {

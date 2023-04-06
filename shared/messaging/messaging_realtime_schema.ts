@@ -165,11 +165,18 @@ export function createMessagingRealtimeMessageFromServerSchema<Message extends M
          * A new message was created! The message could have been created by our
          * account or a different account. Or our account on a different browser.
          *
-         * Ordering guarantee: You will get no `NewMessage` WebSocket messages until
-         * you have sent `BackfillMessagesRequest` and received a
-         * `BackfillMessagesResponse`. After that you are guaranteed to get every
-         * message in order. You will not get message N+1 before message N, you'll
-         * always get message N first and then message N+1.
+         * Ordering guarantee: After you have sent a `BackfillMessagesRequest` and
+         * received a `BackfillMessagesResponse`. After that you are guaranteed to get
+         * every message in order. You will not get message N+1 before message N,
+         * you'll always get message N first and then message N+1.
+         *
+         * You will not get new messages during a backfill. Before a backfill you will
+         * receive new messages in any arbitrary order. So message N+1 may arrive
+         * before message N. Generally you should ignore this message until after your
+         * backfill finishes. This behavior is useful for documents where we want to
+         * update the comment thread count when new messages are created but we don't
+         * care about strict message ordering until the user opens the comment thread
+         * (and we send the backfill request).
          */
         NewMessage: Schema.object({
             type: Schema.value("NewMessage"),
@@ -188,7 +195,8 @@ export function createMessagingRealtimeMessageFromServerSchema<Message extends M
          * A message was changed.
          *
          * Ordering guarantee: There are no ordering guarantees. You may receive an
-         * update message at any time in any order. You should make sure to only show
+         * update message at any time in any order. You may receive this message before
+         * a backfill but not during a backfill. You should make sure to only show
          * the update with the greatest change time. Change time will increase
          * monotonically for each message on each update.
          */

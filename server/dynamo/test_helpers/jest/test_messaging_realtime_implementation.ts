@@ -424,7 +424,24 @@ export function testMessagingRealtimeImplementation<
                     updateOtherTypingState: null,
                 },
             ]);
-            expect(connection3Messages).toEqual([]);
+            expect(connection3Messages).toEqual([
+                {
+                    type: "NewMessage",
+                    message: createMessageModel({
+                        roomKey: room.key,
+                        index: 1,
+                        author: session2.account,
+                        createdTime: expect.any(Date),
+                        payload: {
+                            type: "Content",
+                            parentMessageIndex: null,
+                            content: content2WithReferences,
+                            contentUpdatedTime: null,
+                        },
+                    }),
+                    updateOtherTypingState: null,
+                },
+            ]);
             connection1Messages = [];
             connection2Messages = [];
             connection3Messages = [];
@@ -471,7 +488,24 @@ export function testMessagingRealtimeImplementation<
                     updateOtherTypingState: null,
                 },
             ]);
-            expect(connection3Messages).toEqual([]);
+            expect(connection3Messages).toEqual([
+                {
+                    type: "NewMessage",
+                    message: createMessageModel({
+                        roomKey: room.key,
+                        index: 2,
+                        author: session2.account,
+                        createdTime: expect.any(Date),
+                        payload: {
+                            type: "Content",
+                            parentMessageIndex: null,
+                            content: content3WithReferences,
+                            contentUpdatedTime: null,
+                        },
+                    }),
+                    updateOtherTypingState: null,
+                },
+            ]);
             connection1Messages = [];
             connection2Messages = [];
             connection3Messages = [];
@@ -1403,6 +1437,280 @@ export function testMessagingRealtimeImplementation<
             expect(connection3Messages).toEqual([]);
         });
 
+        test("will send messages from other connections in order only after backfill", async () => {
+            const room = await createRoom(context.request(session1), space.id);
+
+            let connection1Messages: Array<
+                MessagingRealtimeMessageFromServer<MessageModel<RoomKey>>
+            > = [];
+            let connection2Messages: Array<
+                MessagingRealtimeMessageFromServer<MessageModel<RoomKey>>
+            > = [];
+            let connection3Messages: Array<
+                MessagingRealtimeMessageFromServer<MessageModel<RoomKey>>
+            > = [];
+            let connection4Messages: Array<
+                MessagingRealtimeMessageFromServer<MessageModel<RoomKey>>
+            > = [];
+
+            const connection1 = createRealtimeConnection({
+                spaceId: space.id,
+                roomKey: room.key,
+                sendMessage: (context, message) => connection1Messages.push(message),
+                sendMessageToOthers,
+                iterateOtherConnections: () => [connection2, connection3, connection4],
+            });
+
+            const connection2 = createRealtimeConnection({
+                spaceId: space.id,
+                roomKey: room.key,
+                sendMessage: (context, message) => connection2Messages.push(message),
+                sendMessageToOthers,
+                iterateOtherConnections: () => [connection1, connection3, connection4],
+            });
+
+            const connection3 = createRealtimeConnection({
+                spaceId: space.id,
+                roomKey: room.key,
+                sendMessage: (context, message) => connection3Messages.push(message),
+                sendMessageToOthers,
+                iterateOtherConnections: () => [connection1, connection2, connection4],
+            });
+
+            const connection4 = createRealtimeConnection({
+                spaceId: space.id,
+                roomKey: room.key,
+                sendMessage: (context, message) => connection4Messages.push(message),
+                sendMessageToOthers,
+                iterateOtherConnections: () => [connection1, connection2, connection3],
+            });
+
+            expect(connection1Messages).toEqual([]);
+            expect(connection2Messages).toEqual([]);
+            expect(connection3Messages).toEqual([]);
+            expect(connection4Messages).toEqual([]);
+
+            await connection1.handleMessage(context.request(session1), {
+                type: "BackfillMessagesRequest",
+                clientMessageCount: 0,
+                clientLastMessageChangeTime: null,
+                newMessageLimit: 100,
+            });
+
+            await connection2.handleMessage(context.request(session2), {
+                type: "BackfillMessagesRequest",
+                clientMessageCount: 0,
+                clientLastMessageChangeTime: null,
+                newMessageLimit: 100,
+            });
+
+            await connection3.handleMessage(context.request(session2), {
+                type: "BackfillMessagesRequest",
+                clientMessageCount: 0,
+                clientLastMessageChangeTime: null,
+                newMessageLimit: 100,
+            });
+
+            expect(connection1Messages).toEqual([
+                {
+                    type: "BackfillMessagesResponse",
+                    messageCount: 0,
+                    lastMessageChangeTime: null,
+                    newMessages: [],
+                    newOtherReferencedMessages: [],
+                    messageChangesResult: {type: "Available", changes: []},
+                    typingStateByConnectionId: new Map(),
+                },
+            ]);
+            expect(connection2Messages).toEqual([
+                {
+                    type: "BackfillMessagesResponse",
+                    messageCount: 0,
+                    lastMessageChangeTime: null,
+                    newMessages: [],
+                    newOtherReferencedMessages: [],
+                    messageChangesResult: {type: "Available", changes: []},
+                    typingStateByConnectionId: new Map(),
+                },
+            ]);
+            expect(connection3Messages).toEqual([
+                {
+                    type: "BackfillMessagesResponse",
+                    messageCount: 0,
+                    lastMessageChangeTime: null,
+                    newMessages: [],
+                    newOtherReferencedMessages: [],
+                    messageChangesResult: {type: "Available", changes: []},
+                    typingStateByConnectionId: new Map(),
+                },
+            ]);
+            expect(connection4Messages).toEqual([]);
+            connection1Messages = [];
+            connection2Messages = [];
+            connection3Messages = [];
+            connection4Messages = [];
+
+            const pausePromise =
+                messagingRealtimeCreateMessageBeforeSendTestCheckpoint.pauseForTest(session1.id);
+
+            const connection1CreateMessagePromise = connection1.handleMessage(
+                context.request(session1),
+                {
+                    type: "CreateMessage",
+                    parentMessageIndex: null,
+                    content: content1,
+                },
+            );
+
+            const {unpause} = await pausePromise;
+
+            expect(connection1Messages).toEqual([]);
+            expect(connection2Messages).toEqual([]);
+            expect(connection3Messages).toEqual([]);
+            expect(connection4Messages).toEqual([]);
+            connection1Messages = [];
+            connection2Messages = [];
+            connection3Messages = [];
+            connection4Messages = [];
+
+            await connection2.handleMessage(context.request(session2), {
+                type: "CreateMessage",
+                parentMessageIndex: null,
+                content: content2,
+            });
+
+            await connection3.handleMessage(context.request(session3), {
+                type: "CreateMessage",
+                parentMessageIndex: null,
+                content: content3,
+            });
+
+            expect(connection1Messages).toEqual([]);
+            expect(connection2Messages).toEqual([]);
+            expect(connection3Messages).toEqual([]);
+            expect(connection4Messages).toEqual([
+                {
+                    type: "NewMessage",
+                    message: createMessageModel({
+                        roomKey: room.key,
+                        index: 1,
+                        author: session2.account,
+                        createdTime: expect.any(Date),
+                        payload: {
+                            type: "Content",
+                            parentMessageIndex: null,
+                            content: content2WithReferences,
+                            contentUpdatedTime: null,
+                        },
+                    }),
+                    updateOtherTypingState: null,
+                },
+                {
+                    type: "NewMessage",
+                    message: createMessageModel({
+                        roomKey: room.key,
+                        index: 2,
+                        author: session3.account,
+                        createdTime: expect.any(Date),
+                        payload: {
+                            type: "Content",
+                            parentMessageIndex: null,
+                            content: content3WithReferences,
+                            contentUpdatedTime: null,
+                        },
+                    }),
+                    updateOtherTypingState: null,
+                },
+            ]);
+            connection1Messages = [];
+            connection2Messages = [];
+            connection3Messages = [];
+            connection4Messages = [];
+
+            unpause();
+            await connection1CreateMessagePromise;
+
+            expect(connection1Messages).toEqual([
+                {
+                    type: "NewMessage",
+                    message: createMessageModel({
+                        roomKey: room.key,
+                        index: 0,
+                        author: session1.account,
+                        createdTime: expect.any(Date),
+                        payload: {
+                            type: "Content",
+                            parentMessageIndex: null,
+                            content: content1WithReferences,
+                            contentUpdatedTime: null,
+                        },
+                    }),
+                    updateOtherTypingState: null,
+                },
+                {
+                    type: "NewMessage",
+                    message: createMessageModel({
+                        roomKey: room.key,
+                        index: 1,
+                        author: session2.account,
+                        createdTime: expect.any(Date),
+                        payload: {
+                            type: "Content",
+                            parentMessageIndex: null,
+                            content: content2WithReferences,
+                            contentUpdatedTime: null,
+                        },
+                    }),
+                    updateOtherTypingState: null,
+                },
+                {
+                    type: "NewMessage",
+                    message: createMessageModel({
+                        roomKey: room.key,
+                        index: 2,
+                        author: session3.account,
+                        createdTime: expect.any(Date),
+                        payload: {
+                            type: "Content",
+                            parentMessageIndex: null,
+                            content: content3WithReferences,
+                            contentUpdatedTime: null,
+                        },
+                    }),
+                    updateOtherTypingState: null,
+                },
+            ]);
+            expect(connection2Messages).toEqual(connection1Messages);
+            expect(connection3Messages).toEqual(connection1Messages);
+            expect(connection4Messages).toEqual([
+                {
+                    type: "NewMessage",
+                    message: createMessageModel({
+                        roomKey: room.key,
+                        index: 0,
+                        author: session1.account,
+                        createdTime: expect.any(Date),
+                        payload: {
+                            type: "Content",
+                            parentMessageIndex: null,
+                            content: content1WithReferences,
+                            contentUpdatedTime: null,
+                        },
+                    }),
+                    updateOtherTypingState: null,
+                },
+            ]);
+            connection1Messages = [];
+            connection2Messages = [];
+            connection3Messages = [];
+            connection4Messages = [];
+
+            expect(connection1Messages).toEqual([]);
+            expect(connection2Messages).toEqual([]);
+            expect(connection3Messages).toEqual([]);
+            expect(connection4Messages).toEqual([]);
+        });
+
         test("will ignore new messages if they are part of the backfill", async () => {
             const room = await createRoom(context.request(session1), space.id);
 
@@ -2025,7 +2333,17 @@ export function testMessagingRealtimeImplementation<
                     },
                 },
             ]);
-            expect(connection3Messages).toEqual([]);
+            expect(connection3Messages).toEqual([
+                {
+                    type: "ChangeMessage",
+                    change: {
+                        type: "UpdateContent",
+                        index: message2.index,
+                        content: content2WithReferences,
+                        contentUpdatedTime: expect.any(Date),
+                    },
+                },
+            ]);
             connection1Messages = [];
             connection2Messages = [];
             connection3Messages = [];
@@ -2055,7 +2373,16 @@ export function testMessagingRealtimeImplementation<
                     },
                 },
             ]);
-            expect(connection3Messages).toEqual([]);
+            expect(connection3Messages).toEqual([
+                {
+                    type: "ChangeMessage",
+                    change: {
+                        type: "Delete",
+                        index: message2.index,
+                        deletedTime: expect.any(Date),
+                    },
+                },
+            ]);
             connection1Messages = [];
             connection2Messages = [];
             connection3Messages = [];

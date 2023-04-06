@@ -17,7 +17,6 @@ import {
     DocumentCollaborationMessageFromServerSchema,
     DocumentCollaborationPresenceState,
 } from "~/shared/documents/document_collaboration_schema";
-import {UnimplementedError} from "~/shared/error/error";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
@@ -35,6 +34,7 @@ import {
     MessagingRealtimeMessageFromClient,
     MessagingRealtimeMessageFromServer,
 } from "~/shared/messaging/messaging_realtime_schema";
+import {AccountModel} from "~/shared/models/account_model";
 import {
     DocumentCommentModel,
     DocumentContentReferences,
@@ -140,6 +140,37 @@ export function reduceDocumentContentReferences(
                 ]),
             };
         }
+        // This action should be idempotent and runnable out-of-order. We don't have
+        // strong comment thread correctness guarantees but it should converge to a
+        // correct value as you use the product.
+        case "UpdateDocumentCommentThread": {
+            const commentThread = references.commentThreadById.get(action.commentThreadId);
+            const newCommentThreadById = new Map(references.commentThreadById);
+            const {commentThreadId, commentCount, addCommentAuthor} = action;
+
+            if (commentThread) {
+                newCommentThreadById.set(commentThreadId, {
+                    commentCount: Math.max(commentThread.commentCount, commentCount),
+                    commentAuthors:
+                        addCommentAuthor &&
+                        commentThread.commentAuthors.every(
+                            account => account.id !== addCommentAuthor.id,
+                        )
+                            ? [...commentThread.commentAuthors, addCommentAuthor]
+                            : commentThread.commentAuthors,
+                });
+            } else {
+                newCommentThreadById.set(commentThreadId, {
+                    commentCount,
+                    commentAuthors: addCommentAuthor ? [addCommentAuthor] : [],
+                });
+            }
+
+            return {
+                ...references,
+                commentThreadById: newCommentThreadById,
+            };
+        }
         default:
             throw exhaustive(action);
     }
@@ -174,7 +205,8 @@ export type DocumentContentEditorAction =
     | DocumentContentEditorAugmentRememberedStepsAction
     | DocumentContentEditorSetAllOtherPresenceStatesAction
     | DocumentContentEditorUpdateOtherPresenceStateAction
-    | DocumentContentEditorErrorAction;
+    | DocumentContentEditorErrorAction
+    | DocumentContentEditorUpdateCommentThreadAction;
 
 type DocumentContentEditorEditAction = {
     readonly type: "Edit";
@@ -218,6 +250,13 @@ type DocumentContentEditorUpdateOtherPresenceStateAction = {
 type DocumentContentEditorErrorAction = {
     readonly type: "Error";
     readonly error: unknown;
+};
+
+type DocumentContentEditorUpdateCommentThreadAction = {
+    readonly type: "UpdateCommentThread";
+    readonly commentThreadId: DocumentCommentThreadId;
+    readonly commentCount: number;
+    readonly addCommentAuthor: AccountModel | null;
 };
 
 export function reduceDocumentContentEditorState(
@@ -544,6 +583,20 @@ function actuallyReduceDocumentContentEditorState(
                 errorState: {hasError: true, error: action.error},
             };
         }
+        case "UpdateCommentThread": {
+            // If there is no old state, the editor should be inert.
+            if (!oldState.editorState) return oldState;
+
+            return {
+                ...oldState,
+                editorState: oldState.editorState.updateReferences({
+                    type: "UpdateDocumentCommentThread",
+                    commentThreadId: action.commentThreadId,
+                    commentCount: action.commentCount,
+                    addCommentAuthor: action.addCommentAuthor,
+                }),
+            };
+        }
         default:
             throw exhaustive(action);
     }
@@ -781,8 +834,33 @@ export class DocumentContentEditorWebSocketClient {
                     break;
                 }
                 case "Comments": {
-                    // Do nothing. Comment realtime events are handled by
-                    // `subscribeToCommentThreadMessages()`.
+                    // Comment realtime events are handled by callers to
+                    // `subscribeToCommentThreadMessages()`. Keep our editor state up to date here
+                    // by dispatching an action to update our references.
+                    //
+                    // We keep comment threads up-to-date with best effort. There are likely a
+                    // handful of rare correctness bugs. For instance, we don't backfill comment
+                    // counts! So if you miss a new comment while the page is loading you may see an
+                    // old comment count. However, the UI will eventually converge to the correct
+                    // comment count on the next realtime message or if the user opens the comment
+                    // thread. However the UI may not converge on the right set of comment authors
+                    // since the full author list is not included in realtime events unlike the full
+                    // comment count. We consider this acceptable.
+                    if (message.message.type === "NewMessage") {
+                        this._dispatch({
+                            type: "UpdateCommentThread",
+                            commentThreadId: message.commentThreadId,
+                            commentCount: message.message.message.index + 1,
+                            addCommentAuthor: message.message.message.author,
+                        });
+                    } else if (message.message.type === "BackfillMessagesResponse") {
+                        this._dispatch({
+                            type: "UpdateCommentThread",
+                            commentThreadId: message.commentThreadId,
+                            commentCount: message.message.messageCount,
+                            addCommentAuthor: null,
+                        });
+                    }
                     break;
                 }
                 default:

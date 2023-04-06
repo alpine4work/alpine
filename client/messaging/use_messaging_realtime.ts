@@ -41,10 +41,14 @@ export function useMessagingRealtime<
 
     if (errorState.hasError) throw errorState.error;
 
+    const hasBackfillFinishedRef = useRef(false);
+
     const handleRealtimeMessage = useEvent(
         (realtimeMessage: MessagingRealtimeMessageFromServer<Message>) => {
             switch (realtimeMessage.type) {
                 case "BackfillMessagesResponse": {
+                    hasBackfillFinishedRef.current = true;
+
                     onUpdateMessages(messages => {
                         switch (realtimeMessage.messageChangesResult.type) {
                             case "Available": {
@@ -79,6 +83,9 @@ export function useMessagingRealtime<
                     break;
                 }
                 case "NewMessage": {
+                    // Ignore until the backfill has finished
+                    if (!hasBackfillFinishedRef.current) break;
+
                     onUpdateMessages(messages => {
                         messages = messages.addMessage(realtimeMessage.message);
 
@@ -94,12 +101,18 @@ export function useMessagingRealtime<
                     break;
                 }
                 case "ChangeMessage": {
+                    // Ignore until the backfill has finished
+                    if (!hasBackfillFinishedRef.current) break;
+
                     onUpdateMessages(messages =>
                         messages.changeLoadedMessage(realtimeMessage.change),
                     );
                     break;
                 }
                 case "UpdateOtherTypingState": {
+                    // Ignore until the backfill has finished
+                    if (!hasBackfillFinishedRef.current) break;
+
                     onUpdateMessages(messages =>
                         messages.updateTypingState(
                             realtimeMessage.connectionId,
