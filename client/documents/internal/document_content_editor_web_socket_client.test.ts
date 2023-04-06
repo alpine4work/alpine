@@ -47,7 +47,7 @@ test("can receive steps one at a time", () => {
         },
     ]);
 
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -65,7 +65,7 @@ test("can receive steps one at a time", () => {
         },
     ]);
 
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -83,7 +83,7 @@ test("can receive steps one at a time", () => {
         },
     ]);
 
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -101,7 +101,7 @@ test("can receive steps one at a time", () => {
         },
     ]);
 
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -144,7 +144,7 @@ test("can receive multiple steps at a time", () => {
         },
     ]);
 
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -173,7 +173,7 @@ test("can receive multiple steps at a time", () => {
         },
     ]);
 
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -191,7 +191,7 @@ test("can receive multiple steps at a time", () => {
         },
     ]);
 
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -213,7 +213,7 @@ test("can receive multiple steps at a time", () => {
         },
     ]);
 
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -253,8 +253,8 @@ test("can receive steps out of order", () => {
         },
     ]);
 
-    expect(state.editorState.getVersion()).toEqual(10);
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getVersion()).toEqual(10);
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -272,8 +272,8 @@ test("can receive steps out of order", () => {
         },
     ]);
 
-    expect(state.editorState.getVersion()).toEqual(10);
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getVersion()).toEqual(10);
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -291,8 +291,8 @@ test("can receive steps out of order", () => {
         },
     ]);
 
-    expect(state.editorState.getVersion()).toEqual(11);
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getVersion()).toEqual(11);
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -310,8 +310,8 @@ test("can receive steps out of order", () => {
         },
     ]);
 
-    expect(state.editorState.getVersion()).toEqual(13);
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getVersion()).toEqual(13);
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -329,8 +329,8 @@ test("can receive steps out of order", () => {
         },
     ]);
 
-    expect(state.editorState.getVersion()).toEqual(15);
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getVersion()).toEqual(15);
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -370,8 +370,8 @@ test("can receive steps multiple times", () => {
         },
     ]);
 
-    expect(state.editorState.getVersion()).toEqual(11);
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getVersion()).toEqual(11);
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -389,8 +389,8 @@ test("can receive steps multiple times", () => {
         },
     ]);
 
-    expect(state.editorState.getVersion()).toEqual(12);
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getVersion()).toEqual(12);
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -408,8 +408,8 @@ test("can receive steps multiple times", () => {
         },
     ]);
 
-    expect(state.editorState.getVersion()).toEqual(12);
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getVersion()).toEqual(12);
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -427,8 +427,8 @@ test("can receive steps multiple times", () => {
         },
     ]);
 
-    expect(state.editorState.getVersion()).toEqual(12);
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getVersion()).toEqual(12);
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -446,8 +446,8 @@ test("can receive steps multiple times", () => {
         },
     ]);
 
-    expect(state.editorState.getVersion()).toEqual(13);
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getVersion()).toEqual(13);
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -465,8 +465,8 @@ test("can receive steps multiple times", () => {
         },
     ]);
 
-    expect(state.editorState.getVersion()).toEqual(14);
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getVersion()).toEqual(14);
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -484,8 +484,8 @@ test("can receive steps multiple times", () => {
         },
     ]);
 
-    expect(state.editorState.getVersion()).toEqual(14);
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getVersion()).toEqual(14);
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -503,8 +503,8 @@ test("can receive steps multiple times", () => {
         },
     ]);
 
-    expect(state.editorState.getVersion()).toEqual(14);
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getVersion()).toEqual(14);
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -544,8 +544,8 @@ test("can receive large step backfill with duplicate steps at end of backfill", 
         },
     ]);
 
-    expect(state.editorState.getVersion()).toEqual(10);
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getVersion()).toEqual(10);
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -567,8 +567,8 @@ test("can receive large step backfill with duplicate steps at end of backfill", 
         },
     ]);
 
-    expect(state.editorState.getVersion()).toEqual(10);
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getVersion()).toEqual(10);
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -603,8 +603,8 @@ test("can receive large step backfill with duplicate steps at end of backfill", 
         },
     ]);
 
-    expect(state.editorState.getVersion()).toEqual(26);
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getVersion()).toEqual(26);
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -655,8 +655,8 @@ test("can receive large step backfill with duplicate steps at beginning of backf
         },
     ]);
 
-    expect(state.editorState.getVersion()).toEqual(10);
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getVersion()).toEqual(10);
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -691,8 +691,8 @@ test("can receive large step backfill with duplicate steps at beginning of backf
         },
     ]);
 
-    expect(state.editorState.getVersion()).toEqual(26);
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getVersion()).toEqual(26);
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -735,8 +735,8 @@ test("can receive large step backfill with duplicate steps in the middle of back
         },
     ]);
 
-    expect(state.editorState.getVersion()).toEqual(12);
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getVersion()).toEqual(12);
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -771,8 +771,8 @@ test("can receive large step backfill with duplicate steps in the middle of back
         },
     ]);
 
-    expect(state.editorState.getVersion()).toEqual(26);
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getVersion()).toEqual(26);
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -812,8 +812,8 @@ test("reproduce receive steps assertion failure", () => {
         },
     ]);
 
-    expect(state.editorState.getVersion()).toEqual(1);
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getVersion()).toEqual(1);
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -831,8 +831,8 @@ test("reproduce receive steps assertion failure", () => {
         },
     ]);
 
-    expect(state.editorState.getVersion()).toEqual(2);
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getVersion()).toEqual(2);
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -850,8 +850,8 @@ test("reproduce receive steps assertion failure", () => {
         },
     ]);
 
-    expect(state.editorState.getVersion()).toEqual(3);
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getVersion()).toEqual(3);
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),
@@ -880,8 +880,8 @@ test("reproduce receive steps assertion failure", () => {
         },
     ]);
 
-    expect(state.editorState.getVersion()).toEqual(13);
-    expect(state.editorState.getDoc().toJSON()).toEqual(
+    expect(state.editorState!.getVersion()).toEqual(13);
+    expect(state.editorState!.getDoc().toJSON()).toEqual(
         schema
             .node("doc", {}, [
                 schema.node("title", {}, []),

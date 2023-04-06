@@ -617,7 +617,7 @@ test("will respond optimistically to backfills with a comment thread even if it 
 
     expect(connection2.takeMessages()).toEqual([
         {
-            type: "BackfillResponse",
+            type: "BackfillCatchUpResponse",
             newVersion: 2,
             steps: [
                 {

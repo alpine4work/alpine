@@ -44,7 +44,8 @@ const emptyCollaborativeDocumentContentState = new Lazy(() =>
  * `initialDocument` prop. However when opening a peek on top of a document the
  * document is already loaded so shouldn't need to be loaded again. In this
  * case `initialDocument` will be null. In the edge case that the document
- * hasn't loaded at all yet then we return an empty, inert, editor state.
+ * hasn't loaded at all yet then when we connect to our WebSocket it will
+ * return the full document.
  */
 export function useDocumentContentEditorWebSocket(
     documentId: DocumentId,
@@ -86,63 +87,47 @@ export function useDocumentContentEditorWebSocket(
         // create a new client.
         if (routeContext?.client.documentId === documentId) return routeContext;
 
-        // In the edge case where a document is not provided but we can't reuse an
-        // existing WebSocket client then put our content editor in an inert state.
-        //
-        // We don't expect this case to ever be reachable but maybe in the following
-        // race condition:
-        //
-        // 1. User starts loading comment thread peek on top of document
-        // 2. User navigates away from document before peek finishes loading
-        // 3. Peek stays and finishes loading with no document, there is no WebSocket
-        //    to reuse in context. We have inert previews in the comment thread peek
-        //
-        // This seems acceptable. The race condition should be uncommon. Erring isn't
-        // correct because this case is possible. We could detect this case and load
-        // the entire document in a backfill response but that's some annoying code to
-        // write for an edge case like this.
-        if (!initialDocument) return null;
-
         return {
             connectCountRef: {current: 0},
             client: new DocumentContentEditorWebSocketClient(
                 () => contextRef.current,
+                documentId,
                 initialDocument,
             ),
         };
     };
 
-    const [state, setState] = useState(initializeState);
+    const [{connectCountRef, client}, setState] = useState(initializeState);
 
-    // If the document ID changes then we need to re-initialize state.
-    if (state && state.client.documentId !== documentId) setState(initializeState());
+    // Re-initialize state if the `DocumentId` changes.
+    if (client.documentId !== documentId) setState(initializeState);
 
     const [shouldConnect, setShouldConnect] = useState(true);
 
     useEffect(() => {
-        if (!state) return;
         if (!shouldConnect) return;
 
-        state.connectCountRef.current++;
+        connectCountRef.current++;
 
-        if (state.connectCountRef.current === 1) {
-            state.client.connect();
+        if (connectCountRef.current === 1) {
+            client.connect();
         }
 
         return () => {
-            state.connectCountRef.current--;
+            connectCountRef.current--;
 
-            if (state.connectCountRef.current === 0) {
-                state.client.disconnect();
+            // eslint-disable-next-line react-hooks/exhaustive-deps
+            if (connectCountRef.current === 0) {
+                client.disconnect();
             }
         };
-    }, [shouldConnect, state]);
+    }, [client, connectCountRef, shouldConnect]);
 
     const toggleShouldConnect = useCallback(() => {
         setShouldConnect(shouldConnect => !shouldConnect);
     }, []);
 
-    const clientState = useStore(state?.client.state ?? null);
+    const clientState = useStore(client.state ?? null);
 
     // TODO(calebmer): We probably want some retry mechanism for the user? But
     // until the user retries, we don't want an infinite loop where we keep trying
@@ -150,24 +135,17 @@ export function useDocumentContentEditorWebSocket(
     if (clientState?.errorState.hasError) throw clientState.errorState.error;
 
     return {
-        editorState: clientState?.editorState ?? emptyCollaborativeDocumentContentState.get(),
+        editorState: clientState.editorState ?? emptyCollaborativeDocumentContentState.get(),
         onChangeEditorState: useCallback(
-            editorState => {
-                state?.client.changeEditorState(editorState);
-            },
-            [state?.client],
+            editorState => client.changeEditorState(editorState),
+            [client],
         ),
-        otherPresenceStateByConnectionId:
-            clientState?.otherPresenceStateByConnectionId ?? ImmutableMap.empty(),
-        rememberedSteps: clientState?.rememberedSteps ?? emptyArray,
+        otherPresenceStateByConnectionId: clientState.otherPresenceStateByConnectionId,
+        rememberedSteps: clientState.rememberedSteps,
         toggleShouldConnect,
         sendCommentThreadMessage: useCallback(
-            async (commentThreadId, message) => {
-                // TODO(calebmer): Noop-ing in our edge case where `state` is null does not
-                // seem great...
-                await state?.client.sendCommentThreadMessage(commentThreadId, message);
-            },
-            [state?.client],
+            (commentThreadId, message) => client.sendCommentThreadMessage(commentThreadId, message),
+            [client],
         ),
     };
 }

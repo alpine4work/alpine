@@ -120,43 +120,6 @@ export class DocumentCollaborationConnection {
                 case "BackfillRequest": {
                     const version = this._contentManager.getCurrentVersion();
 
-                    if (message.version > version) {
-                        // Sometimes, if the version in our backfill request appears to be in the
-                        // future it's because the client loaded a version of the document from the
-                        // database that is ahead of the version of the document in the durable object.
-                        //
-                        // So load the document from our database and if its version is ahead of the
-                        // one in our durable object then we want to destroy the entire durable object.
-                        const documentPreview = await getDocumentPreview(
-                            context,
-                            this._contentManager.id,
-                        );
-                        if (!documentPreview) {
-                            this._sendFatalErrorMessageAndKillProcess(
-                                context,
-                                span,
-                                new NotFoundError(
-                                    "Document was deleted since durable object started",
-                                ),
-                            );
-                            return;
-                        }
-                        if (documentPreview.version > version) {
-                            this._sendFatalErrorMessageAndKillProcess(
-                                context,
-                                span,
-                                new InternalError(
-                                    "Document version in durable object is out of sync with actual document version",
-                                ),
-                            );
-                            return;
-                        }
-
-                        throw new FailedPreconditionError(
-                            "Tried to backfill a future document version",
-                        );
-                    }
-
                     let smallestPresenceStateVersion: number | null = null;
 
                     const presenceStates = Array.from(
@@ -178,57 +141,133 @@ export class DocumentCollaborationConnection {
                         }),
                     );
 
-                    const [{steps, stepsContentReferences}, rememberSteps] =
-                        await runAllPromiseThunks(
-                            async () => {
-                                const steps = await this._contentManager.stepCache.getSteps(
+                    if (message.version === null) {
+                        const content = this._contentManager.getCurrentContent();
+
+                        const [contentReferences, commentThreadById, rememberSteps] =
+                            await runAllPromises([
+                                getContentReferencesForNode(
                                     context,
-                                    message.version,
-                                    version,
-                                );
-
-                                const [stepsContentReferences, commentThreadById] =
-                                    await runAllPromises([
-                                        getContentReferencesForSteps(
-                                            context,
-                                            this._contentManager.spaceId,
-                                            steps.map(({step}) => step),
-                                        ),
-                                        this._contentManager.getCommentThreadByIdForSteps(
-                                            context,
-                                            steps.map(({step}) => step),
-                                        ),
-                                    ]);
-
-                                return {
-                                    steps,
-                                    stepsContentReferences: {
-                                        ...stepsContentReferences,
-                                        commentThreadById,
-                                    },
-                                };
-                            },
-                            async () =>
+                                    this._contentManager.spaceId,
+                                    content,
+                                ),
+                                this._contentManager.getCommentThreadByIdForNode(context, content),
                                 smallestPresenceStateVersion &&
-                                smallestPresenceStateVersion < message.version
-                                    ? await this._contentManager.stepCache.getSteps(
+                                smallestPresenceStateVersion < version
+                                    ? this._contentManager.stepCache.getSteps(
                                           context,
                                           smallestPresenceStateVersion,
-                                          message.version,
+                                          version,
                                       )
                                     : [],
-                        );
+                            ]);
 
-                    // Load steps from our store and send them to the client to catch
-                    // the client up...
-                    this._sendMessage(context, {
-                        type: "BackfillResponse",
-                        newVersion: version,
-                        steps,
-                        stepsContentReferences,
-                        presenceStates,
-                        rememberInvertedSteps: rememberSteps.map(({invertedStep}) => invertedStep),
-                    });
+                        this._sendMessage(context, {
+                            type: "BackfillResetResponse",
+                            version,
+                            content: {
+                                doc: content,
+                                references: {...contentReferences, commentThreadById},
+                            },
+                            presenceStates,
+                            rememberInvertedSteps: rememberSteps.map(
+                                ({invertedStep}) => invertedStep,
+                            ),
+                        });
+                    } else {
+                        const clientVersion = message.version;
+
+                        if (clientVersion > version) {
+                            // Sometimes, if the version in our backfill request appears to be in the
+                            // future it's because the client loaded a version of the document from the
+                            // database that is ahead of the version of the document in the durable object.
+                            //
+                            // So load the document from our database and if its version is ahead of the
+                            // one in our durable object then we want to destroy the entire durable object.
+                            const documentPreview = await getDocumentPreview(
+                                context,
+                                this._contentManager.id,
+                            );
+                            if (!documentPreview) {
+                                this._sendFatalErrorMessageAndKillProcess(
+                                    context,
+                                    span,
+                                    new NotFoundError(
+                                        "Document was deleted since durable object started",
+                                    ),
+                                );
+                                return;
+                            }
+                            if (documentPreview.version > version) {
+                                this._sendFatalErrorMessageAndKillProcess(
+                                    context,
+                                    span,
+                                    new InternalError(
+                                        "Document version in durable object is out of sync with actual document version",
+                                    ),
+                                );
+                                return;
+                            }
+
+                            throw new FailedPreconditionError(
+                                "Tried to backfill a future document version",
+                            );
+                        }
+
+                        const [{steps, stepsContentReferences}, rememberSteps] =
+                            await runAllPromiseThunks(
+                                async () => {
+                                    const steps = await this._contentManager.stepCache.getSteps(
+                                        context,
+                                        clientVersion,
+                                        version,
+                                    );
+
+                                    const [stepsContentReferences, commentThreadById] =
+                                        await runAllPromises([
+                                            getContentReferencesForSteps(
+                                                context,
+                                                this._contentManager.spaceId,
+                                                steps.map(({step}) => step),
+                                            ),
+                                            this._contentManager.getCommentThreadByIdForSteps(
+                                                context,
+                                                steps.map(({step}) => step),
+                                            ),
+                                        ]);
+
+                                    return {
+                                        steps,
+                                        stepsContentReferences: {
+                                            ...stepsContentReferences,
+                                            commentThreadById,
+                                        },
+                                    };
+                                },
+                                async () =>
+                                    smallestPresenceStateVersion &&
+                                    smallestPresenceStateVersion < clientVersion
+                                        ? await this._contentManager.stepCache.getSteps(
+                                              context,
+                                              smallestPresenceStateVersion,
+                                              clientVersion,
+                                          )
+                                        : [],
+                            );
+
+                        // Load steps from our store and send them to the client to catch
+                        // the client up...
+                        this._sendMessage(context, {
+                            type: "BackfillCatchUpResponse",
+                            newVersion: version,
+                            steps,
+                            stepsContentReferences,
+                            presenceStates,
+                            rememberInvertedSteps: rememberSteps.map(
+                                ({invertedStep}) => invertedStep,
+                            ),
+                        });
+                    }
                     return;
                 }
                 case "UpdateContent": {

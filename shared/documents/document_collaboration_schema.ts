@@ -13,6 +13,7 @@ import {
 import {
     DocumentCommentModel,
     DocumentContentReferencesSchema,
+    DocumentContentWithReferencesSchema,
 } from "~/shared/models/document_model";
 import {ProsemirrorSelectionSchema} from "~/shared/prosemirror/prosemirror_selection_schema";
 import {Schema, SchemaType} from "~/shared/schema/schema";
@@ -31,10 +32,19 @@ export type DocumentCollaborationMessageFromClient = SchemaType<
 >;
 
 export const DocumentCollaborationMessageFromClientSchema = Schema.union({
+    /**
+     * Request a `BackfillCatchUpResponse` or `BackfillResetResponse` message to
+     * catch us up from the version our client loaded from the server to the
+     * latest, live, document version.
+     *
+     * If version is `null` then we are asking the server to send us the
+     * full document since the client doesn't have it.
+     */
     BackfillRequest: Schema.object({
         type: Schema.value("BackfillRequest"),
-        version: Schema.integer,
+        version: Schema.integer.nullable(),
     }),
+
     UpdateContent: Schema.object({
         type: Schema.value("UpdateContent"),
         version: Schema.integer,
@@ -62,10 +72,12 @@ export const DocumentCollaborationMessageFromClientSchema = Schema.union({
             state: DocumentCollaborationPresenceStateSchema.nullable(),
         }),
     }),
+
     UpdateOurPresenceState: Schema.object({
         type: Schema.value("UpdateOurPresenceState"),
         state: DocumentCollaborationPresenceStateSchema.nullable(),
     }),
+
     /**
      * Some realtime message regarding the document's comments.
      */
@@ -81,8 +93,26 @@ export type DocumentCollaborationMessageFromServer = SchemaType<
 >;
 
 export const DocumentCollaborationMessageFromServerSchema = Schema.union({
-    BackfillResponse: Schema.object({
-        type: Schema.value("BackfillResponse"),
+    /**
+     * If the client sent a `BackfillRequest` message with its current document
+     * version number then we send this backfill response to catch-up the client
+     * to the latest document version future updates will be based on top of.
+     *
+     * Even if the client just loaded a document in the milliseconds between the
+     * server returning the document and the client connecting to the collaboration
+     * service there may have been an update.
+     *
+     * If the client sends a `null` version in their `BackfillRequest` message then
+     * they will get a `BackfillResetResponse` message. A reset response clears any
+     * pending changes in the client's document editor! Whereas a catch-up response
+     * can rebase the client's changes.
+     *
+     * We may in the future send a reset response if the client's version is too
+     * far from the current version (e.g. the client requests a backfill from
+     * version 0 when we are on version 1000).
+     */
+    BackfillCatchUpResponse: Schema.object({
+        type: Schema.value("BackfillCatchUpResponse"),
         newVersion: Schema.integer,
         steps: Schema.array(
             Schema.object({
@@ -99,6 +129,26 @@ export const DocumentCollaborationMessageFromServerSchema = Schema.union({
         ),
         rememberInvertedSteps: Schema.array(DocumentContentStepSchema),
     }),
+
+    /**
+     * Fully reset the client's state with the full document content. You get this
+     * message when you send `null` as the version in `BackfillRequest`. If a
+     * client receives this message it will throwaway any local changes. See the
+     * documentation on `BackfillCatchUpResponse` for more information.
+     */
+    BackfillResetResponse: Schema.object({
+        type: Schema.value("BackfillResetResponse"),
+        version: Schema.integer,
+        content: DocumentContentWithReferencesSchema,
+        presenceStates: Schema.array(
+            Schema.object({
+                connectionId: Schema.id<WebSocketConnectionId>(),
+                state: DocumentCollaborationPresenceStateSchema,
+            }),
+        ),
+        rememberInvertedSteps: Schema.array(DocumentContentStepSchema),
+    }),
+
     /**
      * Our document collaboration WebSocket immediately sends steps to connected
      * clients as it receives them. But persistence happens at a slower pace.
@@ -130,6 +180,7 @@ export const DocumentCollaborationMessageFromServerSchema = Schema.union({
             state: DocumentCollaborationPresenceStateSchema.nullable(),
         }),
     }),
+
     /**
      * Tells the client that we've successfully persisted all changes at this
      * version and if the client disconnects the changes will still be there.
@@ -138,15 +189,18 @@ export const DocumentCollaborationMessageFromServerSchema = Schema.union({
         type: Schema.value("PersistedContent"),
         newVersion: Schema.integer,
     }),
+
     UpdateOtherPresenceState: Schema.object({
         type: Schema.value("UpdateOtherPresenceState"),
         connectionId: Schema.id<WebSocketConnectionId>(),
         state: DocumentCollaborationPresenceStateSchema.nullable(),
     }),
+
     Error: Schema.object({
         type: Schema.value("Error"),
         error: ErrorSchema,
     }),
+
     /**
      * Some realtime message regarding this document's comments.
      */

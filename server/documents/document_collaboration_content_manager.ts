@@ -1,3 +1,4 @@
+import {Node} from "prosemirror-model";
 import {Step} from "prosemirror-transform";
 import {DocumentCollaborationStepCache} from "~/server/documents/document_collaboration_step_cache";
 import {getAccountOrThrow} from "~/server/dynamo/accounts_table";
@@ -37,7 +38,11 @@ import {
 } from "~/shared/id/types/id_types";
 import {DocumentCommentThreadModel} from "~/shared/models/document_model";
 import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema";
-import {visitProsemirrorStep} from "~/shared/prosemirror/prosemirror_visitor";
+import {
+    ProsemirrorVisitor,
+    visitProsemirrorNode,
+    visitProsemirrorStep,
+} from "~/shared/prosemirror/prosemirror_visitor";
 
 export const documentCollaborationContentManagerBeforePersistTestCheckpoint =
     new TestCheckpoint<DocumentId>();
@@ -153,6 +158,19 @@ export class DocumentCollaborationContentManager {
      */
     public getPersistedVersion() {
         return this._persistedVersion;
+    }
+
+    /**
+     * Get the current content.
+     *
+     * This is mutable and will change over time as users update the document
+     * content!
+     *
+     * If you want to update content you should use the version and content
+     * provided in the `update()` method.
+     */
+    public getCurrentContent() {
+        return this._state.get().content;
     }
 
     /**
@@ -471,6 +489,23 @@ export class DocumentCollaborationContentManager {
     }
 
     /**
+     * Get the comment thread models in the provided node for
+     * `DocumentContentReferences`.
+     *
+     * You shouldn't use `getDocumentCommentThreads()` directly for this purpose
+     * because our durable object may have acknowledged the creation of some
+     * comment threads but they haven't been persisted in the database yet.
+     */
+    public getCommentThreadByIdForNode(
+        context: RequestContext,
+        content: Node,
+    ): Promise<Map<DocumentCommentThreadId, DocumentCommentThreadModel>> {
+        return this._getCommentThreadById(context, visitor => {
+            visitProsemirrorNode(content, visitor);
+        });
+    }
+
+    /**
      * Get the comment thread models in the provided steps for
      * `DocumentContentReferences`.
      *
@@ -478,23 +513,32 @@ export class DocumentCollaborationContentManager {
      * because our durable object may have acknowledged the creation of some
      * comment threads but they haven't been persisted in the database yet.
      */
-    public async getCommentThreadByIdForSteps(
+    public getCommentThreadByIdForSteps(
         context: RequestContext,
         steps: ReadonlyArray<Step>,
     ): Promise<Map<DocumentCommentThreadId, DocumentCommentThreadModel>> {
+        return this._getCommentThreadById(context, visitor => {
+            for (const step of steps) {
+                visitProsemirrorStep(step, visitor);
+            }
+        });
+    }
+
+    private async _getCommentThreadById(
+        context: RequestContext,
+        visit: (visitor: ProsemirrorVisitor) => void,
+    ): Promise<Map<DocumentCommentThreadId, DocumentCommentThreadModel>> {
         const referencedCommentThreadIds = new Set<DocumentCommentThreadId>();
 
-        for (const step of steps) {
-            visitProsemirrorStep(step, {
-                visitMark: mark => {
-                    if (mark.type.name === "comment") {
-                        referencedCommentThreadIds.add(
-                            assertId<DocumentCommentThreadId>(mark.attrs.commentThreadId),
-                        );
-                    }
-                },
-            });
-        }
+        visit({
+            visitMark: mark => {
+                if (mark.type.name === "comment") {
+                    referencedCommentThreadIds.add(
+                        assertId<DocumentCommentThreadId>(mark.attrs.commentThreadId),
+                    );
+                }
+            },
+        });
 
         const commentThreadPromises: Array<Promise<DocumentCommentThreadModel>> = [];
 
