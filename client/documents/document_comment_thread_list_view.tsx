@@ -10,10 +10,10 @@ import {
 } from "react";
 import {useAppContext} from "~/client/context/app_context";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
+import {DocumentCommentInput} from "~/client/documents/internal/document_comment_input";
 import {useDocumentContentEditorWebSocket} from "~/client/documents/internal/use_document_content_editor_web_socket";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useMessageEditing} from "~/client/messaging/message_editing";
-import {MessageInput} from "~/client/messaging/message_input";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list";
 import {bufferedMessageViewHeight} from "~/client/messaging/message_view";
 import {renderMessageListItem} from "~/client/messaging/messaging_view";
@@ -182,11 +182,12 @@ function DocumentCommentThreadListView(
     },
     ref: Ref<DocumentCommentThreadListViewRef>,
 ) {
-    const {sendCommentThreadMessage} = useDocumentContentEditorWebSocket(
-        documentId,
-        // TODO(calebmer): Should load this when page is expanded
-        null,
-    );
+    const {isConnected, sendCommentThreadMessage, subscribeToCommentThreadMessages} =
+        useDocumentContentEditorWebSocket(
+            documentId,
+            // TODO(calebmer): Should load this when page is expanded
+            null,
+        );
 
     const isActuallyMobile = useIsMobile();
     const isMobile = isActuallyMobile || withMobileLayout;
@@ -574,9 +575,11 @@ function DocumentCommentThreadListView(
                                 : null;
 
                         return (
-                            <MessageInput
-                                messages={item.comments}
-                                onUpdateMessages={update =>
+                            <DocumentCommentInput
+                                viewRef={viewRef}
+                                commentThread={item.commentThread}
+                                comments={item.comments}
+                                onUpdateComments={update =>
                                     setTree(tree =>
                                         tree.updateNode(item.commentThread.id, node => ({
                                             ...node,
@@ -584,15 +587,9 @@ function DocumentCommentThreadListView(
                                         })),
                                     )
                                 }
-                                createMessage={async input => {
-                                    await sendCommentThreadMessage(item.commentThread.id, {
-                                        type: "CreateMessage",
-                                        ...input,
-                                    });
-                                }}
                                 messageEditing={messageEditing}
-                                replyingToMessage={replyingToComment}
-                                onClearReplyingToMessage={() => {
+                                replyingToComment={replyingToComment}
+                                onClearReplyingToComment={() => {
                                     setReplyingToCommentIndexByCommentThreadId(
                                         replyingToCommentIndexByCommentThreadId => {
                                             const newReplyingToCommentIndexByCommentThreadId =
@@ -604,39 +601,10 @@ function DocumentCommentThreadListView(
                                         },
                                     );
                                 }}
-                                onJumpToMessage={handleJumpToComment}
-                                onShowTypingIndicator={() => {
-                                    sendCommentThreadMessage(item.commentThread.id, {
-                                        type: "StartTyping",
-                                    })
-                                        // Don't show an error updating typing indicators to the user. We will see an
-                                        // error in our logs but the user won't see any weird behavior if the
-                                        // request fails.
-                                        .catch(error =>
-                                            context.tracer
-                                                .getRoot()
-                                                .logUncaughtException(
-                                                    "Couldn't update typing indicator",
-                                                    error,
-                                                ),
-                                        );
-                                }}
-                                onHideTypingIndicator={() => {
-                                    sendCommentThreadMessage(item.commentThread.id, {
-                                        type: "StopTyping",
-                                    })
-                                        // Don't show an error updating typing indicators to the user. We will see an
-                                        // error in our logs but the user won't see any weird behavior if the
-                                        // request fails.
-                                        .catch(error =>
-                                            context.tracer
-                                                .getRoot()
-                                                .logUncaughtException(
-                                                    "Couldn't update typing indicator",
-                                                    error,
-                                                ),
-                                        );
-                                }}
+                                onJumpToComment={handleJumpToComment}
+                                isConnected={isConnected}
+                                sendCommentThreadMessage={sendCommentThreadMessage}
+                                subscribeToCommentThreadMessages={subscribeToCommentThreadMessages}
                             />
                         );
                     })()}

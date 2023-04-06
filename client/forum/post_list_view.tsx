@@ -43,7 +43,6 @@ import {
 } from "~/client/messaging/messaging_typing_indicators";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages";
-import {MessagingRealtimeActions} from "~/client/messaging/use_messaging_realtime";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {
@@ -66,6 +65,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
 import {clamp} from "~/shared/helpers/number/clamp";
 import {PostId} from "~/shared/id/types/id_types";
+import {MessagingRealtimeMessageFromClient} from "~/shared/messaging/messaging_realtime_schema";
 import {PostCommentModel, PostModel} from "~/shared/models/post_model";
 import {getPostCommentsFromEnd, getPostCommentsFromStart} from "~/shared/rpc/forum_rpc_definitions";
 import {spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
@@ -516,12 +516,14 @@ function PostListView(
         },
     );
 
-    // Post realtime is managed by the `usePostRealtime()` hook in the
-    // `<PostCommentInput>` component since the `<PostCommentInput>` component is
-    // always mounted when the post's comments are open. Since we need realtime
-    // actions in every part of the post we have `usePostRealtime()` stash actions
-    // in this ref so they can be called elsewhere.
-    const actionsByPostIdRef = useRef(new Map<PostId, MessagingRealtimeActions>());
+    // Post realtime is managed by the `<PostCommentInput>` component since the
+    // `<PostCommentInput>` component is always mounted when the post's comments
+    // are open. Since we need realtime actions in every part of the post we have
+    // `<PostCommentInput>` stash the method to send them in this ref so they can
+    // be called elsewhere.
+    const sendRealtimeMessageByPostIdRef = useRef(
+        new Map<PostId, (message: MessagingRealtimeMessageFromClient) => Promise<void>>(),
+    );
 
     // Manages the editable message.
     //
@@ -533,10 +535,11 @@ function PostListView(
     // 2. We want only one message to be editable at a time.
     const messageEditing = useMessageEditing<PostId>({
         onUpdateMessageContent: async ({roomKey, messageIndex, content}) => {
-            const actions = actionsByPostIdRef.current.get(roomKey);
-            if (!actions) throw new InternalError("Post realtime hook isn't mounted");
+            const sendRealtimeMessage = sendRealtimeMessageByPostIdRef.current.get(roomKey);
+            if (!sendRealtimeMessage) throw new InternalError("Post comment input isn't mounted");
 
-            await actions.updateMessageContent({
+            await sendRealtimeMessage({
+                type: "UpdateMessageContent",
                 messageIndex,
                 content,
             });
@@ -823,15 +826,17 @@ function PostListView(
                                         );
                                     }}
                                     onDeleteMessage={async () => {
-                                        const actions = actionsByPostIdRef.current.get(
-                                            item.post.id,
-                                        );
-                                        if (!actions)
+                                        const sendRealtimeMessage =
+                                            sendRealtimeMessageByPostIdRef.current.get(
+                                                item.post.id,
+                                            );
+                                        if (!sendRealtimeMessage)
                                             throw new InternalError(
-                                                "Post realtime hook isn't mounted",
+                                                "Post comment input isn't mounted",
                                             );
 
-                                        await actions.deleteMessage({
+                                        await sendRealtimeMessage({
+                                            type: "DeleteMessage",
                                             messageIndex: item.postCommentIndex,
                                         });
                                     }}
@@ -1042,11 +1047,14 @@ function PostListView(
                         <PostCommentInput
                             post={item.post}
                             viewRef={viewRef}
-                            actionsRef={actions => {
-                                if (actions) {
-                                    actionsByPostIdRef.current.set(item.post.id, actions);
+                            sendRealtimeMessageRef={sendRealtimeMessage => {
+                                if (sendRealtimeMessage) {
+                                    sendRealtimeMessageByPostIdRef.current.set(
+                                        item.post.id,
+                                        sendRealtimeMessage,
+                                    );
                                 } else {
-                                    actionsByPostIdRef.current.delete(item.post.id);
+                                    sendRealtimeMessageByPostIdRef.current.delete(item.post.id);
                                 }
                             }}
                             postComments={item.postComments}
@@ -1651,14 +1659,14 @@ function PostListView(
                             <PostCommentInput
                                 post={lastPostContentItem.post}
                                 viewRef={viewRef}
-                                actionsRef={actions => {
-                                    if (actions) {
-                                        actionsByPostIdRef.current.set(
+                                sendRealtimeMessageRef={sendRealtimeMessage => {
+                                    if (sendRealtimeMessage) {
+                                        sendRealtimeMessageByPostIdRef.current.set(
                                             lastPostContentItem.post.id,
-                                            actions,
+                                            sendRealtimeMessage,
                                         );
                                     } else {
-                                        actionsByPostIdRef.current.delete(
+                                        sendRealtimeMessageByPostIdRef.current.delete(
                                             lastPostContentItem.post.id,
                                         );
                                     }

@@ -484,7 +484,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
 
     useImperativeHandle(ref, () => ({jumpToMessageIndex}), [jumpToMessageIndex]);
 
-    const {actions} = useMessagingRealtime({
+    useMessagingRealtime({
         messages: state.messages,
         onUpdateMessages: setMessages,
         isRealtimeConnected,
@@ -497,25 +497,18 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     // This is at the post list level because we want only one message to be
     // editable at a time.
     const messageEditing = useMessageEditing<RoomKey>({
-        onUpdateMessageContent: input => actions.updateMessageContent(input),
+        onUpdateMessageContent: async input => {
+            await sendRealtimeMessage({
+                type: "UpdateMessageContent",
+                ...input,
+            });
+        },
     });
 
     useScrollToNewMessages({
         viewRef,
         messages: state.messages,
-        getItemKey: useCallback((item: MessageListItem<Message>) => {
-            switch (item.type) {
-                case "Loaded":
-                case "Optimistic":
-                    return `Message:${item.messageIndex}`;
-                case "Unloaded":
-                    return `UnloadedMessage:${item.messageIndex}`;
-                case "TypingIndicators":
-                    return "TypingIndicators";
-                default:
-                    throw exhaustive(item);
-            }
-        }, []),
+        getItemKey: getMessageListItemKey,
     });
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
@@ -547,7 +540,8 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         onJumpToMessage: handleJumpToMessage,
                         onReplyToMessage: message => setReplyingToMessageIndex(message.index),
                         onDeleteMessage: async message => {
-                            await actions.deleteMessage({
+                            await sendRealtimeMessage({
+                                type: "DeleteMessage",
                                 messageIndex: message.index,
                             });
                         },
@@ -559,7 +553,6 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             }
         },
         [
-            actions,
             getMessageUrl,
             handleJumpToMessage,
             highlightMessage,
@@ -568,6 +561,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             messageStartOfSentenceNoun,
             randomSeedForShimmer,
             roomDisplayedCreatedTime,
+            sendRealtimeMessage,
             state,
         ],
     );
@@ -595,7 +589,12 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                 messages={state.messages}
                 isMessageCreationDisabled={isMessageCreationDisabled}
                 onUpdateMessages={update => setMessages(update)}
-                createMessage={input => actions.createMessage(input)}
+                createMessage={async input => {
+                    await sendRealtimeMessage({
+                        type: "CreateMessage",
+                        ...input,
+                    });
+                }}
                 messageEditing={messageEditing}
                 replyingToMessage={
                     replyingToMessageIndex !== null
@@ -605,8 +604,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                 onClearReplyingToMessage={() => setReplyingToMessageIndex(null)}
                 onJumpToMessage={handleJumpToMessage}
                 onShowTypingIndicator={() => {
-                    actions
-                        .startTyping()
+                    sendRealtimeMessage({type: "StartTyping"})
                         // Don't show an error updating typing indicators to the user. We will see an
                         // error in our logs but the user won't see any weird behavior if the
                         // request fails.
@@ -617,8 +615,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         );
                 }}
                 onHideTypingIndicator={() => {
-                    actions
-                        .stopTyping()
+                    sendRealtimeMessage({type: "StopTyping"})
                         // Don't show an error updating typing indicators to the user. We will see an
                         // error in our logs but the user won't see any weird behavior if the
                         // request fails.
@@ -795,3 +792,19 @@ export function renderMessageListItem<
             throw exhaustive(item);
     }
 }
+
+export const getMessageListItemKey = (<Message extends MessageModel>(
+    item: MessageListItem<Message>,
+) => {
+    switch (item.type) {
+        case "Loaded":
+        case "Optimistic":
+            return `Message:${item.messageIndex}`;
+        case "Unloaded":
+            return `UnloadedMessage:${item.messageIndex}`;
+        case "TypingIndicators":
+            return "TypingIndicators";
+        default:
+            throw exhaustive(item);
+    }
+}) as Memo<<Message extends MessageModel>(item: MessageListItem<Message>) => string>;

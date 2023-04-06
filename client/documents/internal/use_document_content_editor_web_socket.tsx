@@ -11,7 +11,6 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useStore} from "~/client/helpers/store/use_store";
 import {DocumentContent, emptyDocumentContent} from "~/shared/content/document_content_schema";
 import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_schema";
-import {emptyArray} from "~/shared/helpers/array/empty_array";
 import {assert} from "~/shared/helpers/control/assert";
 import {Lazy} from "~/shared/helpers/control/lazy";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
@@ -20,8 +19,12 @@ import {
     DocumentId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types";
-import {MessagingRealtimeMessageFromClient} from "~/shared/messaging/messaging_realtime_schema";
 import {
+    MessagingRealtimeMessageFromClient,
+    MessagingRealtimeMessageFromServer,
+} from "~/shared/messaging/messaging_realtime_schema";
+import {
+    DocumentCommentModel,
     DocumentContentWithReferences,
     DocumentModel,
     emptyDocumentContentReferences,
@@ -51,6 +54,7 @@ export function useDocumentContentEditorWebSocket(
     documentId: DocumentId,
     initialDocument: DocumentModel | null,
 ): {
+    isConnected: boolean;
     editorState: ContentEditorState<DocumentContentWithReferences>;
     onChangeEditorState: Memo<
         (editorState: ContentEditorState<DocumentContentWithReferences>) => void
@@ -70,6 +74,12 @@ export function useDocumentContentEditorWebSocket(
             commentThreadId: DocumentCommentThreadId,
             message: MessagingRealtimeMessageFromClient,
         ) => Promise<void>
+    >;
+    subscribeToCommentThreadMessages: Memo<
+        (
+            commentThreadId: DocumentCommentThreadId,
+            subscriber: (message: MessagingRealtimeMessageFromServer<DocumentCommentModel>) => void,
+        ) => () => void
     >;
 } {
     assert(!initialDocument || documentId === initialDocument.id);
@@ -127,24 +137,31 @@ export function useDocumentContentEditorWebSocket(
         setShouldConnect(shouldConnect => !shouldConnect);
     }, []);
 
-    const clientState = useStore(client.state ?? null);
+    const state = useStore(client.state);
+    const webSocketState = useStore(client.webSocketState);
 
     // TODO(calebmer): We probably want some retry mechanism for the user? But
     // until the user retries, we don't want an infinite loop where we keep trying
     // to update the document content.
-    if (clientState?.errorState.hasError) throw clientState.errorState.error;
+    if (state?.errorState.hasError) throw state.errorState.error;
 
     return {
-        editorState: clientState.editorState ?? emptyCollaborativeDocumentContentState.get(),
+        isConnected: webSocketState.isConnected,
+        editorState: state.editorState ?? emptyCollaborativeDocumentContentState.get(),
         onChangeEditorState: useCallback(
             editorState => client.changeEditorState(editorState),
             [client],
         ),
-        otherPresenceStateByConnectionId: clientState.otherPresenceStateByConnectionId,
-        rememberedSteps: clientState.rememberedSteps,
+        otherPresenceStateByConnectionId: state.otherPresenceStateByConnectionId,
+        rememberedSteps: state.rememberedSteps,
         toggleShouldConnect,
         sendCommentThreadMessage: useCallback(
             (commentThreadId, message) => client.sendCommentThreadMessage(commentThreadId, message),
+            [client],
+        ),
+        subscribeToCommentThreadMessages: useCallback(
+            (commentThreadId, subscriber) =>
+                client.subscribeToCommentThreadMessages(commentThreadId, subscriber),
             [client],
         ),
     };

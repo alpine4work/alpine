@@ -1,22 +1,32 @@
-import {Ref, RefObject, useCallback} from "react";
+import {Ref, RefObject, useCallback, useImperativeHandle} from "react";
+import {useWebSocket} from "~/client/cloudflare/use_web_socket";
 import {useAppContext} from "~/client/context/app_context";
-import {usePostRealtime} from "~/client/forum/use_post_realtime";
 import {MessageEditing} from "~/client/messaging/message_editing";
 import {MessageInput, messageInputMinHeight} from "~/client/messaging/message_input";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list";
-import {MessagingRealtimeActions} from "~/client/messaging/use_messaging_realtime";
+import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages";
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view";
+import {cast} from "~/shared/helpers/control/cast";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {PostId} from "~/shared/id/types/id_types";
+import {
+    MessagingRealtimeMessageFromClient,
+    MessagingRealtimeMessageFromServer,
+} from "~/shared/messaging/messaging_realtime_schema";
 import {PostCommentModel, PostModel} from "~/shared/models/post_model";
+import {
+    PostRealtimeMessageFromClientSchema,
+    PostRealtimeMessageFromServer,
+    PostRealtimeMessageFromServerSchema,
+} from "~/shared/posts/post_realtime_schema";
 
 export const postCommentInputMinHeight = messageInputMinHeight;
 
 export function PostCommentInput({
     post,
     viewRef,
-    actionsRef,
+    sendRealtimeMessageRef,
     postComments,
     onUpdatePostComments,
     postCommentEditing,
@@ -27,7 +37,7 @@ export function PostCommentInput({
 }: {
     post: PostModel;
     viewRef: RefObject<VirtualizedScrollViewRef>;
-    actionsRef: Ref<MessagingRealtimeActions>;
+    sendRealtimeMessageRef: Ref<(message: MessagingRealtimeMessageFromClient) => Promise<void>>;
     postComments: MessageList<PostCommentModel>;
     onUpdatePostComments: (
         update: (postComments: MessageList<PostCommentModel>) => MessageList<PostCommentModel>,
@@ -43,11 +53,44 @@ export function PostCommentInput({
     // We connect to realtime in our `<PostCommentInput>` component. When comments
     // are open this component is always rendered and we only want to connect to
     // realtime when comments are open so works out.
-    const {actions} = usePostRealtime({
-        postId: post.id,
-        actionsRef,
-        postComments,
-        onUpdatePostComments,
+    const {
+        isConnected: isRealtimeConnected,
+        sendMessage: _sendRealtimeMessage,
+        subscribeToMessages: subscribeToRealtimeMessages,
+    } = useWebSocket(
+        PostRealtimeMessageFromClientSchema,
+        PostRealtimeMessageFromServerSchema,
+        `/durable-objects/posts/${post.id}`,
+    );
+
+    const sendRealtimeMessage = useCallback(
+        (message: MessagingRealtimeMessageFromClient) =>
+            _sendRealtimeMessage({type: "PostComments", message}),
+        [_sendRealtimeMessage],
+    );
+
+    useImperativeHandle(sendRealtimeMessageRef, () => sendRealtimeMessage, [sendRealtimeMessage]);
+
+    useMessagingRealtime({
+        messages: postComments,
+        onUpdateMessages: onUpdatePostComments,
+        isRealtimeConnected,
+        sendRealtimeMessage,
+        subscribeToRealtimeMessages: useCallback(
+            (
+                subscriber: (message: MessagingRealtimeMessageFromServer<PostCommentModel>) => void,
+            ) => {
+                const actualSubscriber = (message: PostRealtimeMessageFromServer) => {
+                    // TypeScript will error if we ever add other message types here. At that point
+                    // this code should turn into a switch.
+                    cast<"PostComments">(message.type);
+                    subscriber(message.message);
+                };
+
+                return subscribeToRealtimeMessages(actualSubscriber);
+            },
+            [subscribeToRealtimeMessages],
+        ),
     });
 
     // We perform the scroll adjustment for new messages in the
@@ -81,7 +124,12 @@ export function PostCommentInput({
             messageNoun="comment"
             messages={postComments}
             onUpdateMessages={onUpdatePostComments}
-            createMessage={input => actions.createMessage(input)}
+            createMessage={async input => {
+                await sendRealtimeMessage({
+                    type: "CreateMessage",
+                    ...input,
+                });
+            }}
             messageEditing={postCommentEditing}
             replyingToMessage={replyingToPostComment}
             onClearReplyingToMessage={onClearReplyingToPostComment}
@@ -90,25 +138,21 @@ export function PostCommentInput({
                 // Don't show an error updating typing indicators to the user. We will see an
                 // error in our logs but the user won't see any weird behavior if the
                 // request fails.
-                actions
-                    .startTyping()
-                    .catch(error =>
-                        context.tracer
-                            .getRoot()
-                            .logUncaughtException("Couldn't update typing indicator", error),
-                    );
+                sendRealtimeMessage({type: "StartTyping"}).catch(error =>
+                    context.tracer
+                        .getRoot()
+                        .logUncaughtException("Couldn't update typing indicator", error),
+                );
             }}
             onHideTypingIndicator={() => {
                 // Don't show an error updating typing indicators to the user. We will see an
                 // error in our logs but the user won't see any weird behavior if the
                 // request fails.
-                actions
-                    .stopTyping()
-                    .catch(error =>
-                        context.tracer
-                            .getRoot()
-                            .logUncaughtException("Couldn't update typing indicator", error),
-                    );
+                sendRealtimeMessage({type: "StopTyping"}).catch(error =>
+                    context.tracer
+                        .getRoot()
+                        .logUncaughtException("Couldn't update typing indicator", error),
+                );
             }}
             withoutBorderTop={withoutBorderTop}
         />

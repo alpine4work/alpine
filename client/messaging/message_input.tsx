@@ -177,11 +177,6 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                     // message. We do this so that messages are delivered to the user in order
                     // instead of confirming a message and discovering some unloaded messages.
                 } catch (error) {
-                    // TODO(calebmer): In the context of a channel, if you scroll away from the post
-                    // which renders this input and `usePostRealtime()` unmounts this will error
-                    // even if the comment is successfully created in the background. Maybe we
-                    // should keep our WebSocket alive while there are unacknowledged messages for
-                    // some timeout?
                     showToast({
                         type: "Error",
                         title: `Couldn’t create ${messageNoun}`,

@@ -1,27 +1,15 @@
-import {Memo, useEffect, useMemo, useRef, useState} from "react";
+import {Memo, useEffect, useRef, useState} from "react";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {MessageList} from "~/client/messaging/message_list";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context";
-import {MessageContent} from "~/shared/content/message_content_schema";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {
     MessagingRealtimeMessageFromClient,
     MessagingRealtimeMessageFromServer,
 } from "~/shared/messaging/messaging_realtime_schema";
 import {MessageModel} from "~/shared/models/message_model";
-
-export type MessagingRealtimeActions = {
-    createMessage(input: {
-        parentMessageIndex: number | null;
-        content: MessageContent;
-    }): Promise<void>;
-    updateMessageContent(input: {messageIndex: number; content: MessageContent}): Promise<void>;
-    deleteMessage(input: {messageIndex: number}): Promise<void>;
-    startTyping(): Promise<void>;
-    stopTyping(): Promise<void>;
-};
 
 /**
  * Sets up a realtime connection for the provided post. Making sure comments
@@ -156,30 +144,4 @@ export function useMessagingRealtime<
             newMessageLimit: getInitialLoadMessageCount(getClientInfoWithoutListening()),
         }).catch(error => setErrorState({hasError: true, error}));
     }, [isRealtimeConnected, sendRealtimeMessage]);
-
-    const actions = useMemo((): MessagingRealtimeActions => {
-        return {
-            createMessage: input =>
-                sendRealtimeMessage({
-                    type: "CreateMessage",
-                    ...input,
-                }),
-            updateMessageContent: input =>
-                sendRealtimeMessage({
-                    type: "UpdateMessageContent",
-                    ...input,
-                }),
-            deleteMessage: input =>
-                sendRealtimeMessage({
-                    type: "DeleteMessage",
-                    ...input,
-                }),
-            startTyping: () => sendRealtimeMessage({type: "StartTyping"}),
-            stopTyping: () => sendRealtimeMessage({type: "StopTyping"}),
-        };
-    }, [sendRealtimeMessage]);
-
-    return {
-        actions,
-    };
 }

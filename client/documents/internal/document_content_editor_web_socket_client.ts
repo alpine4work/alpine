@@ -1,6 +1,6 @@
 import {Selection} from "prosemirror-state";
 import {Step, StepMap} from "prosemirror-transform";
-import {WebSocketClient} from "~/client/cloudflare/web_socket_client";
+import {WebSocketClient, WebSocketClientState} from "~/client/cloudflare/web_socket_client";
 import {
     ContentEditorReferencesAction,
     ContentEditorState,
@@ -31,8 +31,12 @@ import {
     DocumentId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types";
-import {MessagingRealtimeMessageFromClient} from "~/shared/messaging/messaging_realtime_schema";
 import {
+    MessagingRealtimeMessageFromClient,
+    MessagingRealtimeMessageFromServer,
+} from "~/shared/messaging/messaging_realtime_schema";
+import {
+    DocumentCommentModel,
     DocumentContentReferences,
     DocumentContentWithReferences,
     DocumentModel,
@@ -588,6 +592,10 @@ export class DocumentContentEditorWebSocketClient {
         return this._state;
     }
 
+    public get webSocketState(): Store<WebSocketClientState> {
+        return this._client.state;
+    }
+
     constructor(
         getContext: () => AppContext,
         documentId: DocumentId,
@@ -910,6 +918,17 @@ export class DocumentContentEditorWebSocketClient {
             type: "Comments",
             commentThreadId,
             message,
+        });
+    }
+
+    public subscribeToCommentThreadMessages(
+        commentThreadId: DocumentCommentThreadId,
+        subscriber: (message: MessagingRealtimeMessageFromServer<DocumentCommentModel>) => void,
+    ) {
+        return this._client.subscribeToMessages(message => {
+            if (message.type === "Comments" && message.commentThreadId === commentThreadId) {
+                subscriber(message.message);
+            }
         });
     }
 }
