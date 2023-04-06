@@ -36,6 +36,7 @@ import {
     DocumentCommentModel,
     DocumentCommentRoomKey,
     DocumentCommentThreadModel,
+    decodeDocumentCommentRoomKey,
 } from "~/shared/models/document_model";
 import {
     getDocumentCommentsFromEnd,
@@ -370,8 +371,13 @@ function DocumentCommentThreadListView(
     // 2. We want only one message to be editable at a time.
     const messageEditing = useMessageEditing<DocumentCommentRoomKey>({
         onUpdateMessageContent: async ({roomKey, messageIndex, content}) => {
-            // NOCOMMIT: Implement this!
-            throw new UnimplementedError("TODO");
+            const [, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+            await sendCommentThreadMessage(commentThreadId, {
+                type: "UpdateMessageContent",
+                messageIndex,
+                content,
+            });
         },
     });
 

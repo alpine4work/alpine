@@ -781,8 +781,9 @@ export class DocumentContentEditorWebSocketClient {
                     break;
                 }
                 case "Comments": {
-                    // NOCOMMIT
-                    throw new UnimplementedError("TODO");
+                    // Do nothing. Comment realtime events are handled by
+                    // `subscribeToCommentThreadMessages()`.
+                    break;
                 }
                 default:
                     throw exhaustive(message);
