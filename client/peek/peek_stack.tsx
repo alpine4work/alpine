@@ -1274,7 +1274,9 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
                                 size="xs"
                                 description="Close"
                                 tooltipPlacement="top"
-                                tooltipContentOverride="Double-click to close all"
+                                tooltipContentOverride={
+                                    state.stack.length > 1 ? "Double-click to close all" : undefined
+                                }
                                 onPress={handlePressClose}
                             >
                                 <X />
