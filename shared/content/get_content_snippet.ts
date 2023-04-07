@@ -30,8 +30,14 @@ export function getContentSnippet(resolvedPos: ResolvedPos, linesAroundCount: nu
 
     let from: number | null = null;
     let to: number | null = null;
-    let remainingLinesBeforeCount = linesAroundCount;
-    let remainingLinesAfterCount = linesAroundCount;
+    let remainingBefore: {readonly lineCount: number; readonly isAtLineBreak: boolean} = {
+        lineCount: linesAroundCount,
+        isAtLineBreak: false,
+    };
+    let remainingAfter: {readonly lineCount: number; readonly isAtLineBreak: boolean} = {
+        lineCount: linesAroundCount,
+        isAtLineBreak: false,
+    };
 
     for (let depth = resolvedPos.depth; depth >= 0; depth--) {
         const node = resolvedPos.node(depth);
@@ -43,23 +49,30 @@ export function getContentSnippet(resolvedPos: ResolvedPos, linesAroundCount: nu
                 {
                     const textBefore = textNode.text!.slice(0, resolvedPos.textOffset);
 
-                    remainingLinesBeforeCount = consumeLinesOfText(
-                        textBefore,
-                        remainingLinesBeforeCount,
-                    ).remainingLineCount;
+                    remainingBefore = {
+                        lineCount: consumeLinesOfText(textBefore, remainingBefore.lineCount)
+                            .remainingLineCount,
+                        isAtLineBreak: false,
+                    };
 
                     if (textNodeIndex === 0) {
                         // If the node is line breaking then round remaining lines down since no other
                         // text can go on the line.
                         const nodeType = node.type.name as ContentNodes;
-                        if (assertExists(isLineBreakingByNodeType[nodeType]))
-                            remainingLinesBeforeCount = Math.floor(remainingLinesBeforeCount);
+                        if (assertExists(isLineBreakingByNodeType[nodeType])) {
+                            remainingBefore = {
+                                lineCount: remainingBefore.isAtLineBreak
+                                    ? remainingBefore.lineCount - 1
+                                    : Math.floor(remainingBefore.lineCount),
+                                isAtLineBreak: true,
+                            };
+                        }
                     }
 
                     // We don't cut leading text both because `consumeLinesOfText()` counts
                     // forwards (so using `remainingLength` to slice could incorrectly split a
                     // grapheme) and because it would break the text's layout.
-                    if (remainingLinesBeforeCount <= 0) {
+                    if (remainingBefore.lineCount <= 0) {
                         from = resolvedPos.start(depth);
                     }
                 }
@@ -67,18 +80,27 @@ export function getContentSnippet(resolvedPos: ResolvedPos, linesAroundCount: nu
                 {
                     const textAfter = textNode.text!.slice(resolvedPos.textOffset);
 
-                    const result = consumeLinesOfText(textAfter, remainingLinesAfterCount);
-                    remainingLinesAfterCount = result.remainingLineCount;
+                    const result = consumeLinesOfText(textAfter, remainingAfter.lineCount);
+                    remainingAfter = {
+                        lineCount: result.remainingLineCount,
+                        isAtLineBreak: false,
+                    };
 
                     if (textNodeIndex === node.childCount - 1) {
                         // If the node is line breaking then round remaining lines down since no other
                         // text can go on the line.
                         const nodeType = node.type.name as ContentNodes;
-                        if (assertExists(isLineBreakingByNodeType[nodeType]))
-                            remainingLinesAfterCount = Math.floor(remainingLinesAfterCount);
+                        if (assertExists(isLineBreakingByNodeType[nodeType])) {
+                            remainingAfter = {
+                                lineCount: remainingAfter.isAtLineBreak
+                                    ? remainingAfter.lineCount - 1
+                                    : Math.floor(remainingAfter.lineCount),
+                                isAtLineBreak: true,
+                            };
+                        }
                     }
 
-                    if (remainingLinesAfterCount <= 0) {
+                    if (remainingAfter.lineCount <= 0) {
                         to = resolvedPos.end(depth) - 1 - result.remainingLength;
                     }
                 }
@@ -88,21 +110,22 @@ export function getContentSnippet(resolvedPos: ResolvedPos, linesAroundCount: nu
         const nodePos = resolvedPos.start(depth);
         const nodeOffset = resolvedPos.pos - nodePos;
 
-        if (remainingLinesBeforeCount > 0) {
+        if (remainingBefore.lineCount > 0) {
             for (const {node: childNode, offset: childOffset} of iterateChildNodesBefore(
                 node,
                 nodeOffset,
             )) {
                 if (childNode.isText) {
-                    remainingLinesBeforeCount = consumeLinesOfText(
-                        childNode.text!,
-                        remainingLinesBeforeCount,
-                    ).remainingLineCount;
+                    remainingBefore = {
+                        lineCount: consumeLinesOfText(childNode.text!, remainingBefore.lineCount)
+                            .remainingLineCount,
+                        isAtLineBreak: false,
+                    };
 
                     // We don't cut leading text both because `consumeLinesOfText()` counts
                     // forwards (so using `remainingLength` to slice could incorrectly split a
                     // grapheme) and because it would break the text's layout.
-                    if (remainingLinesBeforeCount <= 0) {
+                    if (remainingBefore.lineCount <= 0) {
                         from = nodePos + childOffset;
                         break;
                     }
@@ -110,10 +133,16 @@ export function getContentSnippet(resolvedPos: ResolvedPos, linesAroundCount: nu
                     // If the node is line breaking then round remaining lines down since no other
                     // text can go on the line.
                     const nodeType = childNode.type.name as ContentNodes;
-                    if (assertExists(isLineBreakingByNodeType[nodeType]))
-                        remainingLinesBeforeCount = Math.floor(remainingLinesBeforeCount);
+                    if (assertExists(isLineBreakingByNodeType[nodeType])) {
+                        remainingBefore = {
+                            lineCount: remainingBefore.isAtLineBreak
+                                ? remainingBefore.lineCount - 1
+                                : Math.floor(remainingBefore.lineCount),
+                            isAtLineBreak: true,
+                        };
+                    }
 
-                    if (remainingLinesBeforeCount <= 0) {
+                    if (remainingBefore.lineCount <= 0) {
                         from = nodePos + childOffset;
                         break;
                     }
@@ -121,17 +150,20 @@ export function getContentSnippet(resolvedPos: ResolvedPos, linesAroundCount: nu
             }
         }
 
-        if (remainingLinesAfterCount > 0) {
+        if (remainingAfter.lineCount > 0) {
             for (const {node: childNode, offset: childOffset} of iterateChildNodesAfter(
                 node,
                 nodeOffset,
             )) {
                 if (childNode.isText) {
-                    const result = consumeLinesOfText(childNode.text!, remainingLinesAfterCount);
+                    const result = consumeLinesOfText(childNode.text!, remainingAfter.lineCount);
 
-                    remainingLinesAfterCount = result.remainingLineCount;
+                    remainingAfter = {
+                        lineCount: result.remainingLineCount,
+                        isAtLineBreak: false,
+                    };
 
-                    if (remainingLinesAfterCount <= 0) {
+                    if (remainingAfter.lineCount <= 0) {
                         to =
                             nodePos + childOffset + childNode.nodeSize - 1 - result.remainingLength;
                         break;
@@ -141,10 +173,15 @@ export function getContentSnippet(resolvedPos: ResolvedPos, linesAroundCount: nu
                     // text can go on the line.
                     const nodeType = childNode.type.name as ContentNodes;
                     if (assertExists(isLineBreakingByNodeType[nodeType])) {
-                        remainingLinesAfterCount = Math.floor(remainingLinesAfterCount);
+                        remainingAfter = {
+                            lineCount: remainingAfter.isAtLineBreak
+                                ? remainingAfter.lineCount - 1
+                                : Math.floor(remainingAfter.lineCount),
+                            isAtLineBreak: true,
+                        };
                     }
 
-                    if (remainingLinesAfterCount <= 0) {
+                    if (remainingAfter.lineCount <= 0) {
                         to = nodePos + childOffset + childNode.nodeSize;
                         break;
                     }

@@ -4171,3 +4171,309 @@ test("snips multiple lines in the middle of multiple short paragraphs (with list
         ]),
     );
 });
+
+test("snips empty paragraphs as a full line", () => {
+    expectSnippet(
+        {pos: 0.5, lines: 1},
+        node("doc", {}, [
+            node("paragraph", {}, [
+                text("Lorem ipsum dolor sit amet, consectetur adipiscing elit"),
+            ]),
+            node("paragraph", {}, []),
+            node("paragraph", {}, [
+                text("Integer feugiat ex eget augue porta, in interdum nisi condimentum"),
+            ]),
+            node("paragraph", {}, []),
+            node("paragraph", {}, [
+                text("Vestibulum ante ipsum primis in faucibus orci luctus et ultrices"),
+            ]),
+            node("paragraph", {}, []),
+            node("paragraph", {}, [
+                text("Orci varius natoque penatibus et magnis dis parturient montes"),
+            ]),
+            node("paragraph", {}, []),
+            node("paragraph", {}, [text("Pellentesque ac orci augue. Morbi neque mauris")]),
+        ]),
+        node("doc", {}, [
+            node("paragraph", {}, []),
+            node("paragraph", {}, [
+                text("Vestibulum ante ipsum primis in faucibus orci luctus et ultrices"),
+            ]),
+            node("paragraph", {}, []),
+        ]),
+    );
+
+    expectSnippet(
+        {pos: 0.5, lines: 2},
+        node("doc", {}, [
+            node("paragraph", {}, [
+                text("Lorem ipsum dolor sit amet, consectetur adipiscing elit"),
+            ]),
+            node("paragraph", {}, []),
+            node("paragraph", {}, [
+                text("Integer feugiat ex eget augue porta, in interdum nisi condimentum"),
+            ]),
+            node("paragraph", {}, []),
+            node("paragraph", {}, [
+                text("Vestibulum ante ipsum primis in faucibus orci luctus et ultrices"),
+            ]),
+            node("paragraph", {}, []),
+            node("paragraph", {}, [
+                text("Orci varius natoque penatibus et magnis dis parturient montes"),
+            ]),
+            node("paragraph", {}, []),
+            node("paragraph", {}, [text("Pellentesque ac orci augue. Morbi neque mauris")]),
+        ]),
+        node("doc", {}, [
+            node("paragraph", {}, [
+                text("Integer feugiat ex eget augue porta, in interdum nisi condimentum"),
+            ]),
+            node("paragraph", {}, []),
+            node("paragraph", {}, [
+                text("Vestibulum ante ipsum primis in faucibus orci luctus et ultrices"),
+            ]),
+            node("paragraph", {}, []),
+            node("paragraph", {}, [
+                text("Orci varius natoque penatibus et magnis dis parturient montes"),
+            ]),
+        ]),
+    );
+
+    expectSnippet(
+        {pos: 0.5, lines: 3},
+        node("doc", {}, [
+            node("paragraph", {}, [
+                text("Lorem ipsum dolor sit amet, consectetur adipiscing elit"),
+            ]),
+            node("paragraph", {}, []),
+            node("paragraph", {}, [
+                text("Integer feugiat ex eget augue porta, in interdum nisi condimentum"),
+            ]),
+            node("paragraph", {}, []),
+            node("paragraph", {}, [
+                text("Vestibulum ante ipsum primis in faucibus orci luctus et ultrices"),
+            ]),
+            node("paragraph", {}, []),
+            node("paragraph", {}, [
+                text("Orci varius natoque penatibus et magnis dis parturient montes"),
+            ]),
+            node("paragraph", {}, []),
+            node("paragraph", {}, [text("Pellentesque ac orci augue. Morbi neque mauris")]),
+        ]),
+        node("doc", {}, [
+            node("paragraph", {}, []),
+            node("paragraph", {}, [
+                text("Integer feugiat ex eget augue porta, in interdum nisi condimentum"),
+            ]),
+            node("paragraph", {}, []),
+            node("paragraph", {}, [
+                text("Vestibulum ante ipsum primis in faucibus orci luctus et ultrices"),
+            ]),
+            node("paragraph", {}, []),
+            node("paragraph", {}, [
+                text("Orci varius natoque penatibus et magnis dis parturient montes"),
+            ]),
+            node("paragraph", {}, []),
+        ]),
+    );
+});
+
+test("snips break nodes as line breaks", () => {
+    expectSnippet(
+        {pos: 0.5, lines: 1},
+        node("doc", {}, [
+            node("paragraph", {}, [
+                text("Lorem ipsum dolor sit amet, consectetur adipiscing elit"),
+                node("break"),
+                text("Integer feugiat ex eget augue porta, in interdum nisi condimentum"),
+                node("break"),
+                text("Vestibulum ante ipsum primis in faucibus orci luctus et ultrices"),
+                node("break"),
+                text("Orci varius natoque penatibus et magnis dis parturient montes"),
+                node("break"),
+                text("Pellentesque ac orci augue. Morbi neque mauris"),
+            ]),
+        ]),
+        node("doc", {}, [
+            node("paragraph", {}, [
+                text("Lorem ipsum dolor sit amet, consectetur adipiscing elit"),
+                node("break"),
+                text("Integer feugiat ex eget augue porta, in interdum nisi condimentum"),
+                node("break"),
+                text("Vestibulum ante ipsum primis in faucibus orci luctus et ultrices"),
+                node("break"),
+                text("Orci varius natoque penatibus et magnis dis parturient montes"),
+                node("break"),
+            ]),
+        ]),
+    );
+
+    expectSnippet(
+        {pos: 0.5, lines: 2},
+        node("doc", {}, [
+            node("paragraph", {}, [
+                text("Lorem ipsum dolor sit amet, consectetur adipiscing elit"),
+                node("break"),
+                text("Integer feugiat ex eget augue porta, in interdum nisi condimentum"),
+                node("break"),
+                text("Vestibulum ante ipsum primis in faucibus orci luctus et ultrices"),
+                node("break"),
+                text("Orci varius natoque penatibus et magnis dis parturient montes"),
+                node("break"),
+                text("Pellentesque ac orci augue. Morbi neque mauris"),
+            ]),
+        ]),
+        node("doc", {}, [
+            node("paragraph", {}, [
+                text("Lorem ipsum dolor sit amet, consectetur adipiscing elit"),
+                node("break"),
+                text("Integer feugiat ex eget augue porta, in interdum nisi condimentum"),
+                node("break"),
+                text("Vestibulum ante ipsum primis in faucibus orci luctus et ultrices"),
+                node("break"),
+                text("Orci varius natoque penatibus et magnis dis parturient montes"),
+                node("break"),
+                text("Pellentesque ac orci augue. Morbi neque mauris"),
+            ]),
+        ]),
+    );
+
+    expectSnippet(
+        {pos: 0.5, lines: 3},
+        node("doc", {}, [
+            node("paragraph", {}, [
+                text("Lorem ipsum dolor sit amet, consectetur adipiscing elit"),
+                node("break"),
+                text("Integer feugiat ex eget augue porta, in interdum nisi condimentum"),
+                node("break"),
+                text("Vestibulum ante ipsum primis in faucibus orci luctus et ultrices"),
+                node("break"),
+                text("Orci varius natoque penatibus et magnis dis parturient montes"),
+                node("break"),
+                text("Pellentesque ac orci augue. Morbi neque mauris"),
+            ]),
+        ]),
+        node("doc", {}, [
+            node("paragraph", {}, [
+                text("Lorem ipsum dolor sit amet, consectetur adipiscing elit"),
+                node("break"),
+                text("Integer feugiat ex eget augue porta, in interdum nisi condimentum"),
+                node("break"),
+                text("Vestibulum ante ipsum primis in faucibus orci luctus et ultrices"),
+                node("break"),
+                text("Orci varius natoque penatibus et magnis dis parturient montes"),
+                node("break"),
+                text("Pellentesque ac orci augue. Morbi neque mauris"),
+            ]),
+        ]),
+    );
+});
+
+test("snips double break nodes as empty lines", () => {
+    expectSnippet(
+        {pos: 0.5, lines: 1},
+        node("doc", {}, [
+            node("paragraph", {}, [
+                text("Lorem ipsum dolor sit amet, consectetur adipiscing elit"),
+                node("break"),
+                node("break"),
+                text("Integer feugiat ex eget augue porta, in interdum nisi condimentum"),
+                node("break"),
+                node("break"),
+                text("Vestibulum ante ipsum primis in faucibus orci luctus et ultrices"),
+                node("break"),
+                node("break"),
+                text("Orci varius natoque penatibus et magnis dis parturient montes"),
+                node("break"),
+                node("break"),
+                text("Pellentesque ac orci augue. Morbi neque mauris"),
+            ]),
+        ]),
+        node("doc", {}, [
+            node("paragraph", {}, [
+                text("Lorem ipsum dolor sit amet, consectetur adipiscing elit"),
+                node("break"),
+                node("break"),
+                text("Integer feugiat ex eget augue porta, in interdum nisi condimentum"),
+                node("break"),
+                node("break"),
+                text("Vestibulum ante ipsum primis in faucibus orci luctus et ultrices"),
+                node("break"),
+                node("break"),
+            ]),
+        ]),
+    );
+
+    expectSnippet(
+        {pos: 0.5, lines: 2},
+        node("doc", {}, [
+            node("paragraph", {}, [
+                text("Lorem ipsum dolor sit amet, consectetur adipiscing elit"),
+                node("break"),
+                node("break"),
+                text("Integer feugiat ex eget augue porta, in interdum nisi condimentum"),
+                node("break"),
+                node("break"),
+                text("Vestibulum ante ipsum primis in faucibus orci luctus et ultrices"),
+                node("break"),
+                node("break"),
+                text("Orci varius natoque penatibus et magnis dis parturient montes"),
+                node("break"),
+                node("break"),
+                text("Pellentesque ac orci augue. Morbi neque mauris"),
+            ]),
+        ]),
+        node("doc", {}, [
+            node("paragraph", {}, [
+                text("Lorem ipsum dolor sit amet, consectetur adipiscing elit"),
+                node("break"),
+                node("break"),
+                text("Integer feugiat ex eget augue porta, in interdum nisi condimentum"),
+                node("break"),
+                node("break"),
+                text("Vestibulum ante ipsum primis in faucibus orci luctus et ultrices"),
+                node("break"),
+                node("break"),
+                text("Orci varius natoque penatibus et magnis dis parturient montes"),
+                node("break"),
+            ]),
+        ]),
+    );
+
+    expectSnippet(
+        {pos: 0.5, lines: 3},
+        node("doc", {}, [
+            node("paragraph", {}, [
+                text("Lorem ipsum dolor sit amet, consectetur adipiscing elit"),
+                node("break"),
+                node("break"),
+                text("Integer feugiat ex eget augue porta, in interdum nisi condimentum"),
+                node("break"),
+                node("break"),
+                text("Vestibulum ante ipsum primis in faucibus orci luctus et ultrices"),
+                node("break"),
+                node("break"),
+                text("Orci varius natoque penatibus et magnis dis parturient montes"),
+                node("break"),
+                node("break"),
+                text("Pellentesque ac orci augue. Morbi neque mauris"),
+            ]),
+        ]),
+        node("doc", {}, [
+            node("paragraph", {}, [
+                text("Lorem ipsum dolor sit amet, consectetur adipiscing elit"),
+                node("break"),
+                node("break"),
+                text("Integer feugiat ex eget augue porta, in interdum nisi condimentum"),
+                node("break"),
+                node("break"),
+                text("Vestibulum ante ipsum primis in faucibus orci luctus et ultrices"),
+                node("break"),
+                node("break"),
+                text("Orci varius natoque penatibus et magnis dis parturient montes"),
+                node("break"),
+                node("break"),
+            ]),
+        ]),
+    );
+});
