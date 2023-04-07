@@ -128,6 +128,18 @@ export class VirtualizedTree<NodeKey extends Key, Node, Item> {
     }
 
     /**
+     * Iterate through all the nodes in our tree.
+     */
+    public *iterateNodes(): IterableIterator<Node> {
+        const iterator = this._nodeByOrderKey.begin;
+
+        while (iterator.valid) {
+            yield iterator.value!;
+            iterator.next();
+        }
+    }
+
+    /**
      * Get the number of items in a node.
      */
     public getNodeItemCount(node: Node): number {

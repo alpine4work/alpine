@@ -35,6 +35,5 @@
     "[markdown]": {
         "editor.wordWrap": "wordWrapColumn",
         "editor.wordWrapColumn": 100
-    },
-    "cSpell.words": ["hexa", "liga", "Yasmin's"]
+    }
 }

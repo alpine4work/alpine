@@ -8,6 +8,7 @@ import {documentFallbackTitle} from "~/shared/content/document_fallback_title";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty";
 import {assert} from "~/shared/helpers/control/assert";
 import {omitObject} from "~/shared/helpers/object/omit_object";
+import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
 import {ContentWithReferences} from "~/shared/models/content_references";
 import {
@@ -62,11 +63,13 @@ export function renderContentFragmentToHtml(
         placeholder,
         isInert,
         decorations,
+        shouldHighlightComment,
     }: {
         currentAccount: AccountModel | null;
         placeholder?: string;
         isInert?: boolean;
         decorations?: ReadonlyArray<ProsemirrorHtmlSerializationDecoration>;
+        shouldHighlightComment?: (commentThreadId: DocumentCommentThreadId) => boolean;
     },
 ): string {
     assert(content.doc.type.schema.topNodeType === content.doc.type);
@@ -254,6 +257,22 @@ export function renderContentFragmentToHtml(
 
                 const actualMarkSpec: DOMOutputSpec = isInert
                     ? ["span", omitObject(markSpec[1], ["href", "target", "rel"]), 0]
+                    : markSpec;
+
+                const {html, contentHtml} = renderProsemirrorDomOutputSpec(actualMarkSpec);
+                assert(html instanceof ElementHtmlGenerator);
+                return {html, contentHtml};
+            },
+
+            // Only highlight comments in a read-only comment view if
+            // `shouldHighlightComment` returns true.
+            comment: (mark, inline) => {
+                const markSpec = mark.type.spec.toDOM!(mark, inline);
+
+                const actualMarkSpec: DOMOutputSpec = !shouldHighlightComment?.(
+                    mark.attrs.commentThreadId,
+                )
+                    ? ["span", {}, 0]
                     : markSpec;
 
                 const {html, contentHtml} = renderProsemirrorDomOutputSpec(actualMarkSpec);

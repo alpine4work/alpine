@@ -5,14 +5,21 @@ import {
     useCallback,
     useEffect,
     useImperativeHandle,
+    useMemo,
     useRef,
     useState,
 } from "react";
 import {useAppContext} from "~/client/context/app_context";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
+import {createDocumentCommentThreadSnippetCollector} from "~/client/documents/internal/create_document_comment_thread_snippet_collector";
 import {DocumentCommentInput} from "~/client/documents/internal/document_comment_input";
+import {
+    DocumentCommentThreadPreview,
+    documentCommentThreadPreviewMinHeight,
+} from "~/client/documents/internal/document_comment_thread_preview";
 import {useDocumentContentEditorWebSocket} from "~/client/documents/internal/use_document_content_editor_web_socket";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
+import {useStableJsonValue} from "~/client/helpers/use_stable_json_value";
 import {useMessageEditing} from "~/client/messaging/message_editing";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list";
 import {bufferedMessageViewHeight} from "~/client/messaging/message_view";
@@ -31,6 +38,7 @@ import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types";
 import {
     DocumentCommentModel,
@@ -183,7 +191,7 @@ function DocumentCommentThreadListView(
     },
     ref: Ref<DocumentCommentThreadListViewRef>,
 ) {
-    const {isConnected, sendCommentThreadMessage, subscribeToCommentThreadMessages} =
+    const {isConnected, editorState, sendCommentThreadMessage, subscribeToCommentThreadMessages} =
         useDocumentContentEditorWebSocket(
             documentId,
             // TODO(calebmer): Should load this when page is expanded
@@ -211,6 +219,29 @@ function DocumentCommentThreadListView(
                 }),
             },
         ]),
+    );
+
+    // Stable list of all the `DocumentCommentThreadId`s in this list. It's
+    // important that this is stable so we can use it as a dependency for a
+    // `useMemo()` on our snippet cache.
+    const commentThreadIds = useStableJsonValue(
+        useMemo(() => {
+            return Array.from(
+                new Set(mapIterable(tree.iterateNodes(), node => node.commentThread.id)),
+            ).sort();
+        }, [tree]),
+    );
+
+    const collectCommentThreadSnippets = useMemo(
+        () => createDocumentCommentThreadSnippetCollector(commentThreadIds),
+        [commentThreadIds],
+    );
+
+    const content = editorState.getContent();
+
+    const snippetByCommentThreadId = useMemo(
+        () => collectCommentThreadSnippets(content.doc),
+        [collectCommentThreadSnippets, content.doc],
     );
 
     // Always pin the comment input to the bottom of the list view on mobile
@@ -468,11 +499,18 @@ function DocumentCommentThreadListView(
                     // All comment threads should be in the same document.
                     assert(item.commentThread.documentId === documentId);
 
-                    // NOCOMMIT
                     return {
                         key: `DocumentCommentThreadPreview:${item.commentThread.id}`,
-                        minHeight: 50,
-                        node: null,
+                        minHeight: documentCommentThreadPreviewMinHeight,
+                        node: (
+                            <DocumentCommentThreadPreview
+                                commentThread={item.commentThread}
+                                snippet={
+                                    snippetByCommentThreadId.get(item.commentThread.id) ?? null
+                                }
+                                contentReferences={content.references}
+                            />
+                        ),
                     };
                 }
                 case "DocumentComment": {
@@ -532,6 +570,8 @@ function DocumentCommentThreadListView(
         [
             tree,
             documentId,
+            snippetByCommentThreadId,
+            content.references,
             messageEditing,
             highlightComment,
             handleJumpToComment,

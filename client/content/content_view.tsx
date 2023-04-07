@@ -1,5 +1,5 @@
 import classNames from "classnames";
-import {useEffect, useId, useMemo, useRef, useState} from "react";
+import {Memo, useEffect, useId, useMemo, useRef, useState} from "react";
 import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click";
 import {renderContentFragmentToHtml} from "~/client/content/render_content_to_html";
 import {FocusRing} from "~/client/design/focus_ring";
@@ -11,6 +11,7 @@ import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_conte
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis";
+import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
 import {ContentWithReferences} from "~/shared/models/content_references";
 import {
     ElementHtmlGenerator,
@@ -35,6 +36,7 @@ export function ContentView({
     "aria-labelledby": ariaLabelledBy,
     isInert,
     isTruncated,
+    shouldHighlightComment,
 }: {
     content: ContentWithReferences;
 
@@ -72,6 +74,12 @@ export function ContentView({
      * text overflows?
      */
     isTruncated?: boolean;
+
+    /**
+     * Should we highlight the provided comment thread? By default the content view
+     * renders no comment highlights.
+     */
+    shouldHighlightComment?: Memo<(commentThreadId: DocumentCommentThreadId) => boolean>;
 }) {
     // Don't get the current account when running in a unit test so we don't need
     // to render a space context when testing this component.
@@ -156,11 +164,20 @@ export function ContentView({
                 placeholder,
                 isInert,
                 decorations,
+                shouldHighlightComment,
             }),
             isTitleEmpty: isContentTitleEmpty(content.doc),
             isBodyEmpty: isContentBodyEmpty(content.doc),
         };
-    }, [content, contentUpdatedNoteId, contentUpdatedTime, currentAccount, isInert, placeholder]);
+    }, [
+        content,
+        contentUpdatedNoteId,
+        contentUpdatedTime,
+        currentAccount,
+        isInert,
+        placeholder,
+        shouldHighlightComment,
+    ]);
 
     const navigate = useNavigate();
 
