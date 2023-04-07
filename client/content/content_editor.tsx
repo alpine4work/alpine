@@ -44,7 +44,6 @@ import {isMac} from "~/client/helpers/browser/is_mac";
 import {isVirtualKeyboardEvent} from "~/client/helpers/events/is_virtual_keyboard_event";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
-import {usePeekStackContext} from "~/client/peek/peek_stack";
 import {useNavigate} from "~/client/remix/use_navigate";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts";
@@ -52,13 +51,12 @@ import {ContentProsemirrorSchema} from "~/shared/content/content_schema";
 import {documentFallbackTitle} from "~/shared/content/document_fallback_title";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty";
 import {ThemeColor} from "~/shared/design/theme_colors";
-import {InternalError, UnimplementedError} from "~/shared/error/error";
+import {UnimplementedError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol";
 import {generateId} from "~/shared/id/id";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
 import {ContentWithReferences} from "~/shared/models/content_references";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range";
@@ -231,13 +229,6 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
      * it acceptable in this advanced case.
      */
     addCommentCommand?: Command;
-
-    /**
-     * Get the URL which points to the provided comment thread. We need this URL
-     * for when a user clicks a comment to open the peek. If not provided and
-     * you're rendering comment marks we will throw an error.
-     */
-    getCommentThreadUrl?: (commentThreadId: DocumentCommentThreadId) => URL;
 } & (
     | {
           /**
@@ -383,13 +374,10 @@ function ContentEditor<Content extends ContentWithReferences>(
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const currentAccount = typeof jest === "undefined" ? useSpaceContext().currentAccount : null;
     const currentAccountRef = useRef(currentAccount);
-    const peekStackContext = usePeekStackContext();
-    const peekStackContextRef = useRef(peekStackContext);
     useLayoutEffect(() => {
         propsRef.current = props;
         navigateRef.current = navigate;
         currentAccountRef.current = currentAccount;
-        peekStackContextRef.current = peekStackContext;
     });
 
     const elementRef = useRef<HTMLDivElement>(null);
@@ -525,16 +513,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                 // We don't have a `<ContentView>` implementation of this yet. Unclear how we
                 // should support comments in `<ContentView>` at this moment.
-                comment: createContentEditorCommentMarkViewConstructor({
-                    getCommentThreadUrl: commentThreadId => {
-                        if (!propsRef.current.getCommentThreadUrl)
-                            throw new InternalError(
-                                "If you are rendering comment marks you need to provide the `getCommentThreadUrl` prop",
-                            );
-                        return propsRef.current.getCommentThreadUrl(commentThreadId);
-                    },
-                    pushPeek: (to, options) => peekStackContextRef.current.push(to, options),
-                }),
+                comment: createContentEditorCommentMarkViewConstructor({}),
             },
 
             handlePaste,

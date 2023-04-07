@@ -1,16 +1,9 @@
 import {ShouldReloadFunction, useSearchParams} from "@remix-run/react";
 import {useEffect} from "react";
-import {AppContext} from "~/client/context/app_context";
 import {DocumentContentEditor} from "~/client/documents/document_content_editor";
-// eslint-disable-next-line no-internal-imports
-import {DocumentContentEditorWebSocketClient} from "~/client/documents/internal/document_content_editor_web_socket_client";
-// eslint-disable-next-line no-internal-imports
-import {DocumentRouteContext} from "~/client/documents/internal/types/document_route_context";
 import {createMetaFunction} from "~/client/remix/create_meta_function";
-import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title";
-import {SpaceRouteScrollView} from "~/client/spaces/space_route_scroll_view";
 import {createDocument, getDocument} from "~/server/dynamo/documents_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
@@ -22,7 +15,7 @@ import {
     emptyDocumentContentReferences,
     getDocumentContentTitle,
 } from "~/shared/models/document_model";
-import {Schema, SchemaSerializedObjectValue} from "~/shared/schema/schema";
+import {Schema} from "~/shared/schema/schema";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 
 const LoaderSchema = Schema.object({
@@ -118,16 +111,3 @@ export default function DocumentRoute() {
         />
     );
 }
-
-// See `<DocumentRouteContextProvider>` for how this is used.
-DocumentRoute.createDocumentRouteContext = (
-    getContext: () => AppContext,
-    loaderData: SchemaSerializedObjectValue,
-): DocumentRouteContext => {
-    const {document} = getLoaderDataWithSchema(LoaderSchema, loaderData);
-
-    return {
-        connectCountRef: {current: 0},
-        client: new DocumentContentEditorWebSocketClient(getContext, document.id, document),
-    };
-};

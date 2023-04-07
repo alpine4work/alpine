@@ -315,12 +315,6 @@ function DocumentContentEditorStateful({
                         className={documentContentClassName}
                         phantomSelections={phantomSelections}
                         addCommentCommand={addCommentCommand}
-                        getCommentThreadUrl={commentThreadId =>
-                            new URL(
-                                `/s/${spaceId}/documents/${documentId}/comments/${commentThreadId}`,
-                                window.location.href,
-                            )
-                        }
                     />
                     <DocumentContentEditorSideDecorations
                         editorContainerRef={editorContainerRef}

@@ -2,7 +2,6 @@ import {StepMap} from "prosemirror-transform";
 import {Memo, useCallback, useEffect, useRef, useState} from "react";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {useAppContext} from "~/client/context/app_context";
-import {useDocumentRouteContext} from "~/client/documents/document_route_context_provider";
 import {
     DocumentContentEditorWebSocketClient,
     reduceDocumentContentReferences,
@@ -84,28 +83,20 @@ export function useDocumentContentEditorWebSocket(
 } {
     assert(!initialDocument || documentId === initialDocument.id);
 
-    const routeContext = useDocumentRouteContext();
-
     const context = useAppContext();
     const contextRef = useRef(context);
     useLayoutEffectWithoutServerSideWarning(() => {
         contextRef.current = context;
     });
 
-    const initializeState = () => {
-        // If we have a usable client in our route context then use that. Otherwise
-        // create a new client.
-        if (routeContext?.client.documentId === documentId) return routeContext;
-
-        return {
-            connectCountRef: {current: 0},
-            client: new DocumentContentEditorWebSocketClient(
-                () => contextRef.current,
-                documentId,
-                initialDocument,
-            ),
-        };
-    };
+    const initializeState = () => ({
+        connectCountRef: {current: 0},
+        client: new DocumentContentEditorWebSocketClient(
+            () => contextRef.current,
+            documentId,
+            initialDocument,
+        ),
+    });
 
     const [{connectCountRef, client}, setState] = useState(initializeState);
 

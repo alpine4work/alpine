@@ -1,18 +1,12 @@
-import {To} from "history";
 import {DOMSerializer} from "prosemirror-model";
 import {MarkViewConstructor} from "prosemirror-view";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event";
+import {UnimplementedError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
 import {contentSchemaStyles} from "~/shared/styles/styles";
 
-export function createContentEditorCommentMarkViewConstructor({
-    getCommentThreadUrl,
-    pushPeek,
-}: {
-    getCommentThreadUrl: (commentThreadId: DocumentCommentThreadId) => URL;
-    pushPeek: (to: To, options?: {focus?: boolean}) => Promise<void>;
-}): MarkViewConstructor {
+export function createContentEditorCommentMarkViewConstructor({}: {}): MarkViewConstructor {
     return (mark, view, inline) => {
         const commentThreadId: DocumentCommentThreadId = mark.attrs.commentThreadId;
 
@@ -79,13 +73,7 @@ export function createContentEditorCommentMarkViewConstructor({
 
             // If we are currently navigating, don't navigate again...
             if (!isNavigationPending) {
-                // TODO(calebmer): Global navigation spinner?
-                const navigationPromise = pushPeek(getCommentThreadUrl(commentThreadId));
-
-                isNavigationPending = true;
-                navigationPromise.finally(() => {
-                    isNavigationPending = false;
-                });
+                throw new UnimplementedError("TODO");
             }
         });
 
