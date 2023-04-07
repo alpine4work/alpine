@@ -1,20 +1,35 @@
 import {AnimationControls, spring, timeline} from "motion";
+import {CaretDown, CaretUp, SpinnerGap, X} from "phosphor-react";
 import {Command} from "prosemirror-state";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
-import {updateContentEditorReferences} from "~/client/content/content_editor_state";
+import {
+    ContentEditorState,
+    updateContentEditorReferences,
+} from "~/client/content/content_editor_state";
+import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
+import {IconButton} from "~/client/design/icon_button";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
+import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
+import {DocumentCommentThreadListView} from "~/client/documents/document_comment_thread_list_view";
 import {documentContentClassName, documentPaddingX} from "~/client/documents/document_content_view";
 import {DocumentContentEditorSideDecorations} from "~/client/documents/internal/document_content_editor_side_decorations";
 import {createDocumentCommentThreadMetaKey} from "~/client/documents/internal/document_content_editor_web_socket_client";
 import {useDocumentContentEditorPhantomSelections} from "~/client/documents/internal/use_document_content_editor_phantom_selections";
-import {useDocumentContentEditorWebSocket} from "~/client/documents/internal/use_document_content_editor_web_socket";
+import {
+    SendCommentThreadMessageFunction,
+    SubscribeToCommentThreadMessagesFunction,
+    useDocumentContentEditorWebSocket,
+} from "~/client/documents/internal/use_document_content_editor_web_socket";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
+import {usePromise} from "~/client/helpers/use_promise";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer";
+import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
+import {getClientInfoWithoutListening} from "~/client/remix/client_info_context";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {
     DocumentContent,
@@ -22,12 +37,21 @@ import {
 } from "~/shared/content/document_content_schema";
 import {createSimpleMessageContent} from "~/shared/content/message_content_schema";
 import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing";
+import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate";
+import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
+import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {generateId} from "~/shared/id/id";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
-import {DocumentModel} from "~/shared/models/document_model";
+import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types";
+import {
+    DocumentCommentModel,
+    DocumentCommentThreadModel,
+    DocumentContentWithReferences,
+    DocumentModel,
+} from "~/shared/models/document_model";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range";
-import {contentSchemaStyles} from "~/shared/styles/styles";
+import {getDocumentCommentThreadAndInitialComments} from "~/shared/rpc/documents_rpc_definitions";
+import {colorSchemeVars, contentSchemaStyles, spinAnimationClassName} from "~/shared/styles/styles";
 
 const documentContentEditorSidebarWidth = spacing["96"];
 
@@ -52,11 +76,30 @@ export function DocumentContentEditor({
 type DocumentContentEditorSidebarState =
     | {
           readonly isOpen: false;
+          readonly transition: DocumentContentEditorSidebarTransition | null;
       }
     | {
           readonly isOpen: true;
           readonly animationState: "Opening" | "Closing" | null;
+          readonly transition: DocumentContentEditorSidebarTransition | null;
+          readonly commentThreadId: DocumentCommentThreadId;
+          readonly dataPromise: PromiseImmediate<DocumentContentEditorSidebarTransitionData>;
       };
+
+type DocumentContentEditorSidebarTransition = {
+    readonly commentThreadId: DocumentCommentThreadId;
+    readonly dataPromise: PromiseImmediate<DocumentContentEditorSidebarTransitionData>;
+    // Promise that resolves when the transition finishes. This may happen before
+    // the data promise resolves! Or if another transition starts cancelling our
+    // previous transition.
+    readonly pendingPromiseResolver: PromiseResolver<void>;
+};
+
+type DocumentContentEditorSidebarTransitionData = {
+    readonly commentThread: DocumentCommentThreadModel;
+    readonly initialComments: ReadonlyArray<DocumentCommentModel>;
+    readonly initialOtherReferencedComments: ReadonlyArray<DocumentCommentModel>;
+};
 
 function DocumentContentEditorStateful({
     initialDocument,
@@ -65,8 +108,9 @@ function DocumentContentEditorStateful({
     initialDocument: DocumentModel;
     onDocumentContentChange?: (content: DocumentContent) => void;
 }) {
-    const {spaceId, id: documentId} = initialDocument;
+    const {id: documentId} = initialDocument;
 
+    const context = useAppContext();
     const {currentAccount} = useSpaceContext();
     const editorRef = useRef<ContentEditorRef>(null);
     const editorContainerRef = useRef<HTMLDivElement>(null);
@@ -74,11 +118,14 @@ function DocumentContentEditorStateful({
     const [contentResizeRef, editorContainerSize] = useResizeObserver();
 
     const {
+        isConnected,
         editorState,
         onChangeEditorState,
         otherPresenceStateByConnectionId,
         rememberedSteps,
         toggleShouldConnect,
+        sendCommentThreadMessage,
+        subscribeToCommentThreadMessages,
     } = useDocumentContentEditorWebSocket(initialDocument.id, initialDocument);
 
     const phantomSelections = useDocumentContentEditorPhantomSelections({
@@ -93,18 +140,6 @@ function DocumentContentEditorStateful({
             () => ({
                 prosemirrorSchema: DocumentContentProsemirrorSchema,
                 toggleShouldConnect,
-                toggleSidebar: () => {
-                    setSidebarState(sidebarState => {
-                        if (sidebarState.isOpen) {
-                            if (sidebarState.animationState === "Closing") {
-                                return {isOpen: true, animationState: "Opening"};
-                            }
-                            return {isOpen: true, animationState: "Closing"};
-                        } else {
-                            return {isOpen: true, animationState: "Opening"};
-                        }
-                    });
-                },
             }),
             [toggleShouldConnect],
         ),
@@ -172,6 +207,7 @@ function DocumentContentEditorStateful({
 
     const [sidebarState, setSidebarState] = useState<DocumentContentEditorSidebarState>({
         isOpen: false,
+        transition: null,
     });
 
     const sidebarAnimationInRef = useRef<AnimationControls | null>(null);
@@ -214,7 +250,7 @@ function DocumentContentEditorStateful({
                 defaultOptions: {
                     easing: spring({
                         stiffness: 300,
-                        damping: 28,
+                        damping: 31,
                     }),
                 },
             },
@@ -224,7 +260,8 @@ function DocumentContentEditorStateful({
             setSidebarState(sidebarState => {
                 if (!sidebarState.isOpen || sidebarState.animationState !== "Opening")
                     return sidebarState;
-                return {isOpen: true, animationState: null};
+
+                return {...sidebarState, animationState: null};
             });
         });
     }, [sidebarState]);
@@ -266,7 +303,7 @@ function DocumentContentEditorStateful({
                 defaultOptions: {
                     easing: spring({
                         stiffness: 300,
-                        damping: 28,
+                        damping: 31,
                     }),
                 },
             },
@@ -276,10 +313,90 @@ function DocumentContentEditorStateful({
             setSidebarState(sidebarState => {
                 if (!sidebarState.isOpen || sidebarState.animationState !== "Closing")
                     return sidebarState;
-                return {isOpen: false};
+
+                return {isOpen: false, transition: null};
             });
         });
     }, [sidebarState]);
+
+    const openCommentThread = (commentThreadId: DocumentCommentThreadId) => {
+        // If this comment thread is already open or in the process of opening then
+        // don't open it again.
+        if (
+            sidebarState.transition?.commentThreadId === commentThreadId ||
+            (sidebarState.isOpen &&
+                sidebarState.commentThreadId === commentThreadId &&
+                !sidebarState.transition)
+        ) {
+            return Promise.resolve();
+        }
+
+        const dataPromise = getDocumentCommentThreadAndInitialComments(context, {
+            documentId,
+            commentThreadId,
+            limit: getInitialLoadMessageCount(getClientInfoWithoutListening()),
+        });
+
+        const pendingPromiseResolver = createPromiseResolver();
+
+        setSidebarState(sidebarState => ({
+            ...sidebarState,
+            transition: {
+                commentThreadId,
+                dataPromise: PromiseImmediate.resolve(dataPromise),
+                pendingPromiseResolver,
+            },
+        }));
+
+        return pendingPromiseResolver.promise;
+    };
+
+    useEffect(() => {
+        const transition = sidebarState.transition;
+        if (!transition) return;
+
+        let isCancelled = false;
+
+        const acceptTransition = () => {
+            if (isCancelled) return;
+
+            timeout.clear();
+            transition.pendingPromiseResolver.resolve();
+
+            setSidebarState(sidebarState => {
+                if (!sidebarState.isOpen) {
+                    return {
+                        isOpen: true,
+                        animationState: "Opening",
+                        transition: null,
+                        commentThreadId: transition.commentThreadId,
+                        dataPromise: transition.dataPromise,
+                    };
+                } else {
+                    return {
+                        isOpen: true,
+                        animationState: sidebarState.animationState,
+                        transition: null,
+                        commentThreadId: transition.commentThreadId,
+                        dataPromise: transition.dataPromise,
+                    };
+                }
+            });
+        };
+
+        // Accept the transition with whatever comes first:
+        //
+        // - Our data promise resolves
+        // - Our loading indicator delay finishes
+        transition.dataPromise.then(acceptTransition, acceptTransition);
+        const timeout = createTimeout(acceptTransition, delayLoadingIndicatorLimitMs);
+
+        return () => {
+            isCancelled = true;
+            timeout.clear();
+            transition.pendingPromiseResolver.resolve();
+        };
+    }, [sidebarState.transition]);
 
     return (
         <Box
@@ -315,6 +432,7 @@ function DocumentContentEditorStateful({
                         className={documentContentClassName}
                         phantomSelections={phantomSelections}
                         addCommentCommand={addCommentCommand}
+                        openCommentThread={openCommentThread}
                     />
                     <DocumentContentEditorSideDecorations
                         editorContainerRef={editorContainerRef}
@@ -340,8 +458,107 @@ function DocumentContentEditorStateful({
                         width: addRemLengths(documentContentEditorSidebarWidth, spacing["4"]),
                     }}
                 >
-                    Sidebar
+                    <DocumentContentEditorSidebar
+                        key={sidebarState.commentThreadId}
+                        documentId={documentId}
+                        initialDataPromise={sidebarState.dataPromise}
+                        isConnected={isConnected}
+                        editorState={editorState}
+                        sendCommentThreadMessage={sendCommentThreadMessage}
+                        subscribeToCommentThreadMessages={subscribeToCommentThreadMessages}
+                        onClose={() => {
+                            setSidebarState(sidebarState => {
+                                if (!sidebarState.isOpen) return sidebarState;
+                                return {...sidebarState, animationState: "Closing"};
+                            });
+                        }}
+                    />
                 </Box>
+            )}
+        </Box>
+    );
+}
+
+function DocumentContentEditorSidebar({
+    documentId,
+    initialDataPromise,
+    editorState,
+    isConnected,
+    sendCommentThreadMessage,
+    subscribeToCommentThreadMessages,
+    onClose,
+}: {
+    documentId: DocumentId;
+    initialDataPromise: PromiseImmediate<DocumentContentEditorSidebarTransitionData>;
+    editorState: ContentEditorState<DocumentContentWithReferences>;
+    isConnected: boolean;
+    sendCommentThreadMessage: SendCommentThreadMessageFunction;
+    subscribeToCommentThreadMessages: SubscribeToCommentThreadMessagesFunction;
+    onClose: () => void;
+}) {
+    const initialDataResult = usePromise(initialDataPromise);
+
+    return (
+        <Box height="full" width="full" overflow="hidden" display="flex" flexDirection="column">
+            <Box
+                flexShrink="0"
+                height="8"
+                borderBottom="grey-10"
+                display="flex"
+                alignItems="center"
+            >
+                <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
+                    <IconButton
+                        size="xs"
+                        description="Previous thread"
+                        isDisabled={true}
+                        onPress={() => {
+                            // TODO(calebmer): Implement
+                        }}
+                    >
+                        <CaretUp />
+                    </IconButton>
+                    <IconButton
+                        size="xs"
+                        description="Next thread"
+                        isDisabled={true}
+                        onPress={() => {
+                            // TODO(calebmer): Implement
+                        }}
+                    >
+                        <CaretDown />
+                    </IconButton>
+                </Box>
+                <Box flexGrow="1" height="full" />
+                <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
+                    <IconButton size="xs" description="Close" onPress={onClose}>
+                        <X />
+                    </IconButton>
+                </Box>
+            </Box>
+            {initialDataResult.isPending ? (
+                <Box flexGrow="1" display="flex" justifyContent="center" alignItems="center">
+                    <SpinnerGap
+                        className={spinAnimationClassName}
+                        color={colorSchemeVars["grey-70"]}
+                        size={spacing["6"]}
+                    />
+                </Box>
+            ) : (
+                <DocumentCommentThreadListView
+                    documentId={documentId}
+                    initialCommentThreadsResult={{
+                        commentThread: initialDataResult.value.commentThread,
+                        comments: initialDataResult.value.initialComments,
+                        otherReferencedComments:
+                            initialDataResult.value.initialOtherReferencedComments,
+                    }}
+                    editorState={editorState}
+                    isConnected={isConnected}
+                    sendCommentThreadMessage={sendCommentThreadMessage}
+                    subscribeToCommentThreadMessages={subscribeToCommentThreadMessages}
+                    withMobileLayout={true}
+                />
             )}
         </Box>
     );

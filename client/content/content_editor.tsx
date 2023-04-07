@@ -57,6 +57,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol";
 import {generateId} from "~/shared/id/id";
+import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
 import {ContentWithReferences} from "~/shared/models/content_references";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range";
@@ -229,6 +230,13 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
      * it acceptable in this advanced case.
      */
     addCommentCommand?: Command;
+
+    /**
+     * Opens a comment thread when clicked. If your schema supports comment marks
+     * you must provide this function to open them. `<ContentEditor>` knows almost
+     * nothing about how comments are implemented, only how they are styled.
+     */
+    openCommentThread?: (commentThreadId: DocumentCommentThreadId) => Promise<void>;
 } & (
     | {
           /**
@@ -513,7 +521,11 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                 // We don't have a `<ContentView>` implementation of this yet. Unclear how we
                 // should support comments in `<ContentView>` at this moment.
-                comment: createContentEditorCommentMarkViewConstructor({}),
+                comment: createContentEditorCommentMarkViewConstructor({
+                    openCommentThread: async commentThreadId => {
+                        await propsRef.current.openCommentThread?.(commentThreadId);
+                    },
+                }),
             },
 
             handlePaste,

@@ -37,6 +37,20 @@ const emptyCollaborativeDocumentContentState = new Lazy(() =>
     }),
 );
 
+export type SendCommentThreadMessageFunction = Memo<
+    (
+        commentThreadId: DocumentCommentThreadId,
+        message: MessagingRealtimeMessageFromClient,
+    ) => Promise<void>
+>;
+
+export type SubscribeToCommentThreadMessagesFunction = Memo<
+    (
+        commentThreadId: DocumentCommentThreadId,
+        subscriber: (message: MessagingRealtimeMessageFromServer<DocumentCommentModel>) => void,
+    ) => () => void
+>;
+
 /**
  * Setup a WebSocket connection to the document collaboration service. If we
  * are in the document route then we'll have a shared WebSocket client in
@@ -68,18 +82,8 @@ export function useDocumentContentEditorWebSocket(
         readonly contentAfterStep: Lazy<DocumentContent>;
     }>;
     toggleShouldConnect: Memo<() => void>;
-    sendCommentThreadMessage: Memo<
-        (
-            commentThreadId: DocumentCommentThreadId,
-            message: MessagingRealtimeMessageFromClient,
-        ) => Promise<void>
-    >;
-    subscribeToCommentThreadMessages: Memo<
-        (
-            commentThreadId: DocumentCommentThreadId,
-            subscriber: (message: MessagingRealtimeMessageFromServer<DocumentCommentModel>) => void,
-        ) => () => void
-    >;
+    sendCommentThreadMessage: SendCommentThreadMessageFunction;
+    subscribeToCommentThreadMessages: SubscribeToCommentThreadMessagesFunction;
 } {
     assert(!initialDocument || documentId === initialDocument.id);
 
@@ -89,40 +93,35 @@ export function useDocumentContentEditorWebSocket(
         contextRef.current = context;
     });
 
-    const initializeState = () => ({
-        connectCountRef: {current: 0},
-        client: new DocumentContentEditorWebSocketClient(
+    const [client, setClient] = useState(() => {
+        return new DocumentContentEditorWebSocketClient(
             () => contextRef.current,
             documentId,
             initialDocument,
-        ),
+        );
     });
 
-    const [{connectCountRef, client}, setState] = useState(initializeState);
-
     // Re-initialize state if the `DocumentId` changes.
-    if (client.documentId !== documentId) setState(initializeState);
+    if (client.documentId !== documentId) {
+        setClient(() => {
+            return new DocumentContentEditorWebSocketClient(
+                () => contextRef.current,
+                documentId,
+                initialDocument,
+            );
+        });
+    }
 
     const [shouldConnect, setShouldConnect] = useState(true);
 
     useEffect(() => {
         if (!shouldConnect) return;
 
-        connectCountRef.current++;
-
-        if (connectCountRef.current === 1) {
-            client.connect();
-        }
-
+        client.connect();
         return () => {
-            connectCountRef.current--;
-
-            // eslint-disable-next-line react-hooks/exhaustive-deps
-            if (connectCountRef.current === 0) {
-                client.disconnect();
-            }
+            client.disconnect();
         };
-    }, [client, connectCountRef, shouldConnect]);
+    }, [client, shouldConnect]);
 
     const toggleShouldConnect = useCallback(() => {
         setShouldConnect(shouldConnect => !shouldConnect);

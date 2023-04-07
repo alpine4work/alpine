@@ -4,7 +4,7 @@ import {
     DocumentCommentThreadId,
     DocumentId,
 } from "~/shared/id/types/id_types";
-import {DocumentCommentModel} from "~/shared/models/document_model";
+import {DocumentCommentModel, DocumentCommentThreadModel} from "~/shared/models/document_model";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc";
 import {Schema} from "~/shared/schema/schema";
 
@@ -23,6 +23,20 @@ export const getDocumentContentSteps = defineRpc({
                 clientId: Schema.id<ContentEditorClientId>(),
             }),
         ),
+    },
+});
+
+export const getDocumentCommentThreadAndInitialComments = defineRpc({
+    name: "getDocumentCommentThreadAndInitialComments",
+    input: {
+        documentId: Schema.id<DocumentId>(),
+        commentThreadId: Schema.id<DocumentCommentThreadId>(),
+        limit: Schema.integer,
+    },
+    output: {
+        commentThread: DocumentCommentThreadModel.schema(),
+        initialComments: Schema.array(DocumentCommentModel.schema()),
+        initialOtherReferencedComments: Schema.array(DocumentCommentModel.schema()),
     },
 });
 

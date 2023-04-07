@@ -9,6 +9,7 @@ import {
     useRef,
     useState,
 } from "react";
+import {ContentEditorState} from "~/client/content/content_editor_state";
 import {useAppContext} from "~/client/context/app_context";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {createDocumentCommentThreadSnippetCollector} from "~/client/documents/internal/create_document_comment_thread_snippet_collector";
@@ -17,7 +18,10 @@ import {
     DocumentCommentThreadPreview,
     documentCommentThreadPreviewMinHeight,
 } from "~/client/documents/internal/document_comment_thread_preview";
-import {useDocumentContentEditorWebSocket} from "~/client/documents/internal/use_document_content_editor_web_socket";
+import {
+    SendCommentThreadMessageFunction,
+    SubscribeToCommentThreadMessagesFunction,
+} from "~/client/documents/internal/use_document_content_editor_web_socket";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useStableJsonValue} from "~/client/helpers/use_stable_json_value";
 import {useMessageEditing} from "~/client/messaging/message_editing";
@@ -44,6 +48,7 @@ import {
     DocumentCommentModel,
     DocumentCommentRoomKey,
     DocumentCommentThreadModel,
+    DocumentContentWithReferences,
     decodeDocumentCommentRoomKey,
 } from "~/shared/models/document_model";
 import {
@@ -166,6 +171,10 @@ function DocumentCommentThreadListView(
     {
         documentId,
         initialCommentThreadsResult,
+        editorState,
+        isConnected,
+        sendCommentThreadMessage,
+        subscribeToCommentThreadMessages,
         withMobileLayout = false,
     }: {
         documentId: DocumentId;
@@ -180,6 +189,12 @@ function DocumentCommentThreadListView(
             otherReferencedComments: ReadonlyArray<DocumentCommentModel>;
         };
 
+        // Realtime props that should come from `useDocumentContentEditorWebSocket()`.
+        editorState: ContentEditorState<DocumentContentWithReferences>;
+        isConnected: boolean;
+        sendCommentThreadMessage: SendCommentThreadMessageFunction;
+        subscribeToCommentThreadMessages: SubscribeToCommentThreadMessagesFunction;
+
         /**
          * Use the mobile layout for a document comment thread list view even
          * on desktop.
@@ -191,13 +206,6 @@ function DocumentCommentThreadListView(
     },
     ref: Ref<DocumentCommentThreadListViewRef>,
 ) {
-    const {isConnected, editorState, sendCommentThreadMessage, subscribeToCommentThreadMessages} =
-        useDocumentContentEditorWebSocket(
-            documentId,
-            // TODO(calebmer): Should load this when page is expanded
-            null,
-        );
-
     const isActuallyMobile = useIsMobile();
     const isMobile = isActuallyMobile || withMobileLayout;
 

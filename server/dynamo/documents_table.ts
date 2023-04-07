@@ -3184,7 +3184,7 @@ export async function getDocumentCommentThreadAndInitialComments(
     commentThread: DocumentCommentThreadModel;
     initialComments: Array<DocumentCommentModel>;
     initialOtherReferencedComments: Array<DocumentCommentModel>;
-} | null> {
+}> {
     const documentItemPromise = DocumentsTable.getItemOrThrow(context, {
         partitionType: "Document",
         sortRangeType: "Attributes",
@@ -3194,11 +3194,10 @@ export async function getDocumentCommentThreadAndInitialComments(
     const [, commentThread, {comments, otherReferencedComments}] = await runAllPromises([
         documentItemPromise,
         (async () => {
-            const commentThreadItem = await getDocumentCommentThreadItem(context, {
+            const commentThreadItem = await getDocumentCommentThreadItemOrThrow(context, {
                 documentId,
                 commentThreadId,
             });
-            if (!commentThreadItem) return null;
 
             const {spaceId} = await documentItemPromise;
             return createDocumentCommentThreadModelFromItem(context, spaceId, commentThreadItem);
@@ -3213,8 +3212,6 @@ export async function getDocumentCommentThreadAndInitialComments(
         }),
         documentItemPromise.then(({spaceId}) => authorizeSpaceAccess(context, spaceId)),
     ]);
-
-    if (!commentThread) return null;
 
     const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
 

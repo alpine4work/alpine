@@ -1,4 +1,5 @@
 import {
+    getDocumentCommentThreadAndInitialComments,
     getDocumentCommentsFromEnd,
     getDocumentCommentsFromStart,
     getDocumentContentSteps,
@@ -9,6 +10,10 @@ import * as definition from "~/shared/rpc/documents_rpc_definitions";
 implementRpc(definition.getDocumentContentSteps, async (context, input) => {
     const steps = await getDocumentContentSteps(await context.auth.authenticate(), input);
     return {steps};
+});
+
+implementRpc(definition.getDocumentCommentThreadAndInitialComments, async (context, input) => {
+    return getDocumentCommentThreadAndInitialComments(await context.auth.authenticate(), input);
 });
 
 implementRpc(definition.getDocumentCommentsFromStart, async (context, input) => {
