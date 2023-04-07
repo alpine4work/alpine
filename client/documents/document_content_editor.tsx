@@ -1,7 +1,7 @@
 import {AnimationControls, spring, timeline} from "motion";
 import {CaretDown, CaretUp, SpinnerGap, X} from "phosphor-react";
 import {Command} from "prosemirror-state";
-import {useCallback, useEffect, useRef, useState} from "react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
 import {
     ContentEditorState,
@@ -12,11 +12,13 @@ import {Box} from "~/client/design/box";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {IconButton} from "~/client/design/icon_button";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
 import {DocumentCommentThreadListView} from "~/client/documents/document_comment_thread_list_view";
 import {documentContentClassName, documentPaddingX} from "~/client/documents/document_content_view";
-import {DocumentContentEditorSideDecorations} from "~/client/documents/internal/document_content_editor_side_decorations";
+import {
+    DocumentContentEditorSideDecoration,
+    DocumentContentEditorSideDecorations,
+} from "~/client/documents/internal/document_content_editor_side_decorations";
 import {createDocumentCommentThreadMetaKey} from "~/client/documents/internal/document_content_editor_web_socket_client";
 import {useDocumentContentEditorPhantomSelections} from "~/client/documents/internal/use_document_content_editor_phantom_selections";
 import {
@@ -24,6 +26,7 @@ import {
     SubscribeToCommentThreadMessagesFunction,
     useDocumentContentEditorWebSocket,
 } from "~/client/documents/internal/use_document_content_editor_web_socket";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
 import {usePromise} from "~/client/helpers/use_promise";
@@ -39,9 +42,11 @@ import {createSimpleMessageContent} from "~/shared/content/message_content_schem
 import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
-import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {generateId} from "~/shared/id/id";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
+import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
+import {assertId, generateId} from "~/shared/id/id";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types";
 import {
     DocumentCommentModel,
@@ -49,6 +54,7 @@ import {
     DocumentContentWithReferences,
     DocumentModel,
 } from "~/shared/models/document_model";
+import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range";
 import {getDocumentCommentThreadAndInitialComments} from "~/shared/rpc/documents_rpc_definitions";
 import {colorSchemeVars, contentSchemaStyles, spinAnimationClassName} from "~/shared/styles/styles";
@@ -110,6 +116,7 @@ function DocumentContentEditorStateful({
 }) {
     const {id: documentId} = initialDocument;
 
+    const isInitialAppRender = useIsInitialAppRender();
     const context = useAppContext();
     const {currentAccount} = useSpaceContext();
     const editorRef = useRef<ContentEditorRef>(null);
@@ -204,6 +211,10 @@ function DocumentContentEditorStateful({
 
         return true;
     };
+
+    /* ========================================================================== *\
+     *                            Sidebar animations                              *
+    \* ========================================================================== */
 
     const [sidebarState, setSidebarState] = useState<DocumentContentEditorSidebarState>({
         isOpen: false,
@@ -319,6 +330,10 @@ function DocumentContentEditorStateful({
         });
     }, [sidebarState]);
 
+    /* ========================================================================== *\
+     *                     Comment thread sidebar navigation                      *
+    \* ========================================================================== */
+
     const openCommentThread = (commentThreadId: DocumentCommentThreadId) => {
         // If this comment thread is already open or in the process of opening then
         // don't open it again.
@@ -360,7 +375,6 @@ function DocumentContentEditorStateful({
         const acceptTransition = () => {
             if (isCancelled) return;
 
-            timeout.clear();
             transition.pendingPromiseResolver.resolve();
 
             setSidebarState(sidebarState => {
@@ -389,14 +403,65 @@ function DocumentContentEditorStateful({
         // - Our data promise resolves
         // - Our loading indicator delay finishes
         transition.dataPromise.then(acceptTransition, acceptTransition);
-        const timeout = createTimeout(acceptTransition, delayLoadingIndicatorLimitMs);
 
         return () => {
             isCancelled = true;
-            timeout.clear();
             transition.pendingPromiseResolver.resolve();
         };
     }, [sidebarState.transition]);
+
+    /* ========================================================================== *\
+     *                        Comment decoration collection                       *
+    \* ========================================================================== */
+
+    const [decorationByMarkTop, setDecorationByMarkTop] = useState<
+        ReadonlyMap<
+            number,
+            {
+                readonly markHeight: number;
+                readonly commentThreadIds: ReadonlySet<DocumentCommentThreadId>;
+            }
+        >
+    >(() => new Map());
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        // Our editor won't be able to determine positions of comment marks until after
+        // the initial render.
+        if (isInitialAppRender) return;
+
+        const editorContainerElement = assertExists(editorContainerRef.current);
+        const editor = assertExists(editorRef.current);
+
+        const {decorationByMarkTop} = collectDecorationByMarkTop(
+            {
+                editorContainerElement,
+                editorContainerRect: editorContainerElement.getBoundingClientRect(),
+                editor,
+                seenCommentThreadIds: new Set(),
+                decorationByMarkTop: new Map(),
+            },
+            content.doc,
+        );
+
+        setDecorationByMarkTop(previousDecorationByMarkTop => {
+            // Often the document will change but our decorations will not change. Do not
+            // re-render the component if our decorations did not change.
+            if (isDeepEqual(previousDecorationByMarkTop, decorationByMarkTop))
+                return previousDecorationByMarkTop;
+
+            return decorationByMarkTop;
+        });
+    }, [editorContainerRef, content.doc, editorRef, isInitialAppRender]);
+
+    const decorations = useMemo(
+        () =>
+            Array.from(decorationByMarkTop, ([markTop, decoration]) => ({
+                markTop,
+                markHeight: decoration.markHeight,
+                commentThreadIds: decoration.commentThreadIds,
+            })).sort((a, b) => a.markTop - b.markTop),
+        [decorationByMarkTop],
+    );
 
     return (
         <Box
@@ -435,10 +500,9 @@ function DocumentContentEditorStateful({
                         openCommentThread={openCommentThread}
                     />
                     <DocumentContentEditorSideDecorations
-                        editorContainerRef={editorContainerRef}
                         editorContainerSize={editorContainerSize}
-                        editorRef={editorRef}
                         content={content}
+                        decorations={decorations}
                     />
                 </OverlayScopeContextProvider>
             </Box>
@@ -461,17 +525,20 @@ function DocumentContentEditorStateful({
                     <DocumentContentEditorSidebar
                         key={sidebarState.commentThreadId}
                         documentId={documentId}
+                        commentThreadId={sidebarState.commentThreadId}
                         initialDataPromise={sidebarState.dataPromise}
                         isConnected={isConnected}
                         editorState={editorState}
                         sendCommentThreadMessage={sendCommentThreadMessage}
                         subscribeToCommentThreadMessages={subscribeToCommentThreadMessages}
+                        decorations={decorations}
                         onClose={() => {
                             setSidebarState(sidebarState => {
                                 if (!sidebarState.isOpen) return sidebarState;
                                 return {...sidebarState, animationState: "Closing"};
                             });
                         }}
+                        openCommentThread={openCommentThread}
                     />
                 </Box>
             )}
@@ -479,24 +546,86 @@ function DocumentContentEditorStateful({
     );
 }
 
+const collectDecorationByMarkTop = createProsemirrorIncrementalReducer<{
+    editorContainerElement: HTMLElement;
+    editorContainerRect: DOMRect;
+    editor: ContentEditorRef;
+    seenCommentThreadIds: Set<DocumentCommentThreadId>;
+    decorationByMarkTop: Map<
+        number,
+        {markHeight: number; commentThreadIds: Set<DocumentCommentThreadId>}
+    >;
+}>(node => {
+    const commentThreadIds = filterMapArray(node.marks, mark => {
+        if (mark.type.name !== "comment") return null;
+        return assertId<DocumentCommentThreadId>(mark.attrs.commentThreadId);
+    });
+
+    if (commentThreadIds.length === 0) return null;
+
+    return (state, doc, offset) => {
+        const coords = state.editor.coordsAtPos(offset);
+        const markTop =
+            coords.top - state.editorContainerRect.top + state.editorContainerElement.scrollTop;
+        const markHeight = coords.bottom - coords.top;
+
+        for (const commentThreadId of commentThreadIds) {
+            if (state.seenCommentThreadIds.has(commentThreadId)) continue;
+
+            const decoration = getOrSetDefaultMapValue(state.decorationByMarkTop, markTop, () => ({
+                markHeight,
+                commentThreadIds: new Set<DocumentCommentThreadId>(),
+            }));
+
+            state.seenCommentThreadIds.add(commentThreadId);
+            decoration.commentThreadIds.add(commentThreadId);
+        }
+
+        return state;
+    };
+});
+
 function DocumentContentEditorSidebar({
     documentId,
+    commentThreadId,
     initialDataPromise,
     editorState,
     isConnected,
     sendCommentThreadMessage,
     subscribeToCommentThreadMessages,
+    decorations,
     onClose,
+    openCommentThread,
 }: {
     documentId: DocumentId;
+    commentThreadId: DocumentCommentThreadId;
     initialDataPromise: PromiseImmediate<DocumentContentEditorSidebarTransitionData>;
     editorState: ContentEditorState<DocumentContentWithReferences>;
     isConnected: boolean;
     sendCommentThreadMessage: SendCommentThreadMessageFunction;
     subscribeToCommentThreadMessages: SubscribeToCommentThreadMessagesFunction;
+    decorations: ReadonlyArray<DocumentContentEditorSideDecoration>;
     onClose: () => void;
+    openCommentThread: (commentThreadId: DocumentCommentThreadId) => Promise<void>;
 }) {
     const initialDataResult = usePromise(initialDataPromise);
+
+    const {previousCommentThreadId, nextCommentThreadId} = useMemo(() => {
+        let previousCommentThreadId: DocumentCommentThreadId | null = null;
+        let hasFoundCommentThread = false;
+        for (const decoration of decorations) {
+            for (const otherCommentThreadId of decoration.commentThreadIds) {
+                if (hasFoundCommentThread) {
+                    return {previousCommentThreadId, nextCommentThreadId: otherCommentThreadId};
+                } else if (otherCommentThreadId === commentThreadId) {
+                    hasFoundCommentThread = true;
+                } else {
+                    previousCommentThreadId = otherCommentThreadId;
+                }
+            }
+        }
+        return {previousCommentThreadId, nextCommentThreadId: null};
+    }, [commentThreadId, decorations]);
 
     return (
         <Box height="full" width="full" overflow="hidden" display="flex" flexDirection="column">
@@ -510,20 +639,24 @@ function DocumentContentEditorSidebar({
                 <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
                     <IconButton
                         size="xs"
-                        description="Previous thread"
-                        isDisabled={true}
-                        onPress={() => {
-                            // TODO(calebmer): Implement
+                        description="Previous comment"
+                        isDisabled={!previousCommentThreadId}
+                        pressErrorTitle="Can’t go to previous comment"
+                        onPress={async () => {
+                            if (!previousCommentThreadId) return;
+                            await openCommentThread(previousCommentThreadId);
                         }}
                     >
                         <CaretUp />
                     </IconButton>
                     <IconButton
                         size="xs"
-                        description="Next thread"
-                        isDisabled={true}
-                        onPress={() => {
-                            // TODO(calebmer): Implement
+                        description="Next comment"
+                        isDisabled={!nextCommentThreadId}
+                        pressErrorTitle="Can’t go to next comment"
+                        onPress={async () => {
+                            if (!nextCommentThreadId) return;
+                            await openCommentThread(nextCommentThreadId);
                         }}
                     >
                         <CaretDown />

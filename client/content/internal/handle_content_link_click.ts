@@ -55,7 +55,7 @@ export function handleContentLinkClick(
                 return;
             }
 
-            // TODO(calebmer): Global loading indicator for navigation.
+            // TODO(calebmer): Some kind of loading indicator for navigation.
             const navigationPromise = onNavigate({
                 pathname: newUrl.pathname,
                 search: newUrl.search,
