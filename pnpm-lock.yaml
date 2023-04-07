@@ -188,6 +188,7 @@ specifiers:
   functional-red-black-tree: ^1.0.1
   fuse.js: ^6.6.2
   get-port: ^5.1.1
+  grapheme-splitter: ^1.0.4
   history: ^5.3.0
   html-entities: ^2.3.3
   html-minifier: ^4.0.0
@@ -344,6 +345,7 @@ dependencies:
   functional-red-black-tree: 1.0.1
   fuse.js: 6.6.2
   get-port: 5.1.1
+  grapheme-splitter: 1.0.4
   history: 5.3.0_3tktwzl76qc3alrennhuishjra
   html-entities: 2.3.3
   html-minifier: 4.0.0

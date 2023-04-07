@@ -23,6 +23,7 @@ import {MessageEditing} from "~/client/messaging/message_editing";
 import {MessageList} from "~/client/messaging/message_list";
 import {useIsPeekAnimatingOpen} from "~/client/peek/peek_stack";
 import {useClientInfo} from "~/client/remix/client_info_context";
+import {getContentSnippet} from "~/shared/content/get_content_snippet";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -907,16 +908,7 @@ export function getTruncatedMessageContentForReplyPreview({
         case "Content": {
             return {
                 doc: assertMessageContent(
-                    message.payload.content.doc.cut(
-                        0,
-                        Math.min(
-                            message.payload.content.doc.content.size,
-                            // Arbitrarily picked as close to the number of characters in a string of only
-                            // "x"s that wraps to two lines on my wide monitor. Rounded up to the nearest
-                            // 100 to count for structural nodes.
-                            600,
-                        ),
-                    ),
+                    getContentSnippet(message.payload.content.doc.resolve(0), 1),
                 ),
                 references: message.payload.content.references,
             };

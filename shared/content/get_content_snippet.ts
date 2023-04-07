@@ -1,0 +1,359 @@
+import GraphemeSplitter from "grapheme-splitter";
+import {Node, Schema as ProsemirrorSchema, ResolvedPos} from "prosemirror-model";
+import {DocumentContentProsemirrorSchema} from "~/shared/content/document_content_schema";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
+
+/**
+ * Get a snippet of content around the provided position. The snippet should
+ * have the same layout as the source content.
+ *
+ * We use a line count heuristic to figure out how much to cut. We hardcode the
+ * maximum number of characters we expect on a line and if we have enough
+ * characters to fill up our expected line count then we split there.
+ *
+ * While we split immediately when we hit our limit at the end of the snippet,
+ * we keep some leading content at the beginning of the snippet. Since that
+ * leading content might effect the layout of our snippet. For example, a
+ * paragraph. If we cut in the middle of a paragraph then the snippet content
+ * may be in a different position given the leading text wasn't there.
+ */
+export function getContentSnippet(resolvedPos: ResolvedPos, linesAroundCount: number): Node {
+    // So our target number of lines is `1 + linesAroundCount * 2`. We want the
+    // line containing `resolvedPos`, `linesAroundCount` lines above, and
+    // `linesAroundCount` lines below. However we don't know where proportionally
+    // `resolvedPos` falls on its line. If it falls about 25% through the line then
+    // we need `linesAroundCount + 0.25` lines of content before `resolvedPos` and
+    // we need `linesAroundCount + 0.75` lines of content after `resolvedPos`.
+    // Vice-versa if `resolvedPos` falls 75% through the line. So we get an extra
+    // line in both directions which gets us enough content.
+    linesAroundCount += 1;
+
+    let from: number | null = null;
+    let to: number | null = null;
+    let remainingLinesBeforeCount = linesAroundCount;
+    let remainingLinesAfterCount = linesAroundCount;
+
+    for (let depth = resolvedPos.depth; depth >= 0; depth--) {
+        const node = resolvedPos.node(depth);
+
+        if (depth === resolvedPos.depth && node.isTextblock) {
+            const textNodeIndex = resolvedPos.index();
+            const textNode = node.child(textNodeIndex);
+            if (textNode.isText) {
+                {
+                    const textBefore = textNode.text!.slice(0, resolvedPos.textOffset);
+
+                    remainingLinesBeforeCount = consumeLinesOfText(
+                        textBefore,
+                        remainingLinesBeforeCount,
+                    ).remainingLineCount;
+
+                    if (textNodeIndex === 0) {
+                        // If the node is line breaking then round remaining lines down since no other
+                        // text can go on the line.
+                        const nodeType = node.type.name as ContentNodes;
+                        if (assertExists(isLineBreakingByNodeType[nodeType]))
+                            remainingLinesBeforeCount = Math.floor(remainingLinesBeforeCount);
+                    }
+
+                    // We don't cut leading text both because `consumeLinesOfText()` counts
+                    // forwards (so using `remainingLength` to slice could incorrectly split a
+                    // grapheme) and because it would break the text's layout.
+                    if (remainingLinesBeforeCount <= 0) {
+                        from = resolvedPos.start(depth);
+                    }
+                }
+
+                {
+                    const textAfter = textNode.text!.slice(resolvedPos.textOffset);
+
+                    const result = consumeLinesOfText(textAfter, remainingLinesAfterCount);
+                    remainingLinesAfterCount = result.remainingLineCount;
+
+                    if (textNodeIndex === node.childCount - 1) {
+                        // If the node is line breaking then round remaining lines down since no other
+                        // text can go on the line.
+                        const nodeType = node.type.name as ContentNodes;
+                        if (assertExists(isLineBreakingByNodeType[nodeType]))
+                            remainingLinesAfterCount = Math.floor(remainingLinesAfterCount);
+                    }
+
+                    if (remainingLinesAfterCount <= 0) {
+                        to = resolvedPos.end(depth) - 1 - result.remainingLength;
+                    }
+                }
+            }
+        }
+
+        const nodePos = resolvedPos.start(depth);
+        const nodeOffset = resolvedPos.pos - nodePos;
+
+        if (remainingLinesBeforeCount > 0) {
+            for (const {node: childNode, offset: childOffset} of iterateChildNodesBefore(
+                node,
+                nodeOffset,
+            )) {
+                if (childNode.isText) {
+                    remainingLinesBeforeCount = consumeLinesOfText(
+                        childNode.text!,
+                        remainingLinesBeforeCount,
+                    ).remainingLineCount;
+
+                    // We don't cut leading text both because `consumeLinesOfText()` counts
+                    // forwards (so using `remainingLength` to slice could incorrectly split a
+                    // grapheme) and because it would break the text's layout.
+                    if (remainingLinesBeforeCount <= 0) {
+                        from = nodePos + childOffset;
+                        break;
+                    }
+                } else {
+                    // If the node is line breaking then round remaining lines down since no other
+                    // text can go on the line.
+                    const nodeType = childNode.type.name as ContentNodes;
+                    if (assertExists(isLineBreakingByNodeType[nodeType]))
+                        remainingLinesBeforeCount = Math.floor(remainingLinesBeforeCount);
+
+                    if (remainingLinesBeforeCount <= 0) {
+                        from = nodePos + childOffset;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (remainingLinesAfterCount > 0) {
+            for (const {node: childNode, offset: childOffset} of iterateChildNodesAfter(
+                node,
+                nodeOffset,
+            )) {
+                if (childNode.isText) {
+                    const result = consumeLinesOfText(childNode.text!, remainingLinesAfterCount);
+
+                    remainingLinesAfterCount = result.remainingLineCount;
+
+                    if (remainingLinesAfterCount <= 0) {
+                        to =
+                            nodePos + childOffset + childNode.nodeSize - 1 - result.remainingLength;
+                        break;
+                    }
+                } else {
+                    // If the node is line breaking then round remaining lines down since no other
+                    // text can go on the line.
+                    const nodeType = childNode.type.name as ContentNodes;
+                    if (assertExists(isLineBreakingByNodeType[nodeType])) {
+                        remainingLinesAfterCount = Math.floor(remainingLinesAfterCount);
+                    }
+
+                    if (remainingLinesAfterCount <= 0) {
+                        to = nodePos + childOffset + childNode.nodeSize;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    if (from === null) from = 0;
+    if (to === null) to = resolvedPos.doc.nodeSize - 2;
+
+    // Go through the parentage of `from` and if we hit a node where we shouldn't
+    // cut out leading children move the `from` position back.
+    const resolvedFrom = resolvedPos.doc.resolve(from);
+    for (let depth = resolvedFrom.depth; depth >= 0; depth--) {
+        const node = resolvedFrom.node(depth);
+        const nodeType = node.type.name as ContentNodes;
+        if (assertExists(dontCutLeadingChildrenByNodeType[nodeType])) {
+            from = resolvedFrom.start(depth);
+        }
+    }
+
+    return resolvedPos.doc.cut(from, to);
+}
+
+function* iterateChildNodesAfter(
+    node: Node,
+    afterOffset: number,
+): IterableIterator<{node: Node; offset: number}> {
+    const childResult = node.childAfter(afterOffset);
+    if (!childResult.node) return;
+
+    let offset = childResult.offset;
+
+    if (childResult.offset >= afterOffset) {
+        yield* iterateChildNodesAfterDescendants(childResult.node, offset);
+        yield {node: childResult.node, offset};
+    }
+
+    offset += childResult.node.nodeSize;
+
+    for (let i = childResult.index + 1; i < node.childCount; i++) {
+        const childNode = node.child(i);
+        yield* iterateChildNodesAfterDescendants(childNode, offset);
+        yield {node: childNode, offset};
+        offset += childNode.nodeSize;
+    }
+}
+
+function* iterateChildNodesAfterDescendants(
+    node: Node,
+    offset: number,
+): IterableIterator<{node: Node; offset: number}> {
+    offset += 1;
+
+    for (let i = 0; i < node.childCount; i++) {
+        const childNode = node.child(i);
+        yield* iterateChildNodesAfterDescendants(childNode, offset);
+        yield {node: childNode, offset};
+        offset += childNode.nodeSize;
+    }
+}
+
+function* iterateChildNodesBefore(
+    node: Node,
+    beforeOffset: number,
+): IterableIterator<{node: Node; offset: number}> {
+    const childResult = node.childBefore(beforeOffset);
+    if (!childResult.node) return;
+
+    let offset = childResult.offset;
+
+    if (childResult.offset + childResult.node.nodeSize <= beforeOffset) {
+        yield* iterateChildNodesBackwardsDescendants(childResult.node, offset);
+        yield {node: childResult.node, offset};
+    }
+
+    for (let i = childResult.index - 1; i >= 0; i--) {
+        const childNode = node.child(i);
+        offset -= childNode.nodeSize;
+        yield* iterateChildNodesBackwardsDescendants(childNode, offset);
+        yield {node: childNode, offset};
+    }
+}
+
+function* iterateChildNodesBackwardsDescendants(
+    node: Node,
+    offset: number,
+): IterableIterator<{node: Node; offset: number}> {
+    offset += node.nodeSize;
+
+    for (let i = node.childCount - 1; i >= 0; i--) {
+        const childNode = node.child(i);
+        offset -= childNode.nodeSize;
+        yield* iterateChildNodesBackwardsDescendants(childNode, offset);
+        yield {node: childNode, offset};
+    }
+}
+
+/**
+ * The number of [graphemes][1] (aka characters) for us to consider one line of
+ * text for the purpose of generating snippets. If text has more graphemes than
+ * this number it definitely will render to at least one line.
+ *
+ * Uses graphemes instead of string `length` to accurately handle Unicode
+ * characters made out of multiple JavaScript characters and to ignore
+ * zero-width characters.
+ *
+ * We get this number by typing "l", the narrowest character, in a document
+ * until text wraps. The number of "l"s in a line is the number we use here.
+ *
+ * [1]: https://www.npmjs.com/package/grapheme-splitter
+ */
+const maxLineGraphemeCount = 237;
+
+const graphemeSplitter = new GraphemeSplitter();
+
+/**
+ * Does the provided text have enough lines to fill the desired line count? If
+ * not we return how many lines we still need to meet our desired line count.
+ */
+function consumeLinesOfText(
+    text: string,
+    remainingLineCount: number,
+): {remainingLineCount: number; remainingLength: number} {
+    let length = 0;
+    let graphemeCount = 0;
+    const maxGraphemeCount = maxLineGraphemeCount * remainingLineCount;
+
+    for (const grapheme of graphemeSplitter.iterateGraphemes(text)) {
+        length += grapheme.length;
+        graphemeCount++;
+
+        if (graphemeCount >= maxGraphemeCount)
+            return {remainingLineCount: 0, remainingLength: text.length - length};
+    }
+
+    return {
+        remainingLineCount: (maxGraphemeCount - graphemeCount) / maxLineGraphemeCount,
+        remainingLength: 0,
+    };
+}
+
+// `DocumentContent` has a superset of all possible content nodes so we use
+// that to construct our `ContentNodes` type.
+type ContentNodes = typeof DocumentContentProsemirrorSchema extends ProsemirrorSchema<
+    infer Nodes,
+    any
+>
+    ? Exclude<Nodes, "text">
+    : never;
+
+/**
+ * Does the provided node cause a line break? If it does then we can consider
+ * that when computing how many lines remain around the text we're trying
+ * to snip.
+ *
+ * Basically boils down to true if the node is styled with `display: block` and
+ * false if the node is styled with `display: inline`.
+ */
+const isLineBreakingByNodeType: {
+    [Key in ContentNodes]: boolean;
+} = {
+    // `display: block`
+    doc: true,
+    title: true,
+    paragraph: true,
+    quoteBlock: true,
+    codeBlock: true,
+    unorderedListItem: true,
+    orderedListItem: true,
+    checkListItem: true,
+    break: true,
+    heading: true,
+    divider: true,
+    // `display: inline`
+    mention: false,
+};
+
+/**
+ * When cutting out a snippet we want the layout of the snippet to be
+ * equivalent to the layout of the original doc.
+ *
+ * Some nodes if we cut out content at the beginning of the node it will effect
+ * the layout of content later in the node. So set to true when you want to
+ * avoid cutting the leading content of a node.
+ */
+const dontCutLeadingChildrenByNodeType: {
+    [Key in ContentNodes]: boolean;
+} = {
+    doc: false,
+    title: true,
+    // Don't cut text nodes at the start of the paragraph because it will shift
+    // the layout of content later in the paragraph.
+    paragraph: true,
+    // Quote blocks can be cut wherever.
+    quoteBlock: false,
+    // TODO(calebmer): Reconsider when we actually implement code blocks. Should
+    // probably cut along newlines.
+    codeBlock: true,
+    // In multi-paragraph list items don't cut preceding paragraphs or else the
+    // bullet will move to an unexpected place.
+    unorderedListItem: true,
+    orderedListItem: true,
+    checkListItem: true,
+    // The answer for nodes without children doesn't really matter since we won't
+    // cut within them anyways.
+    break: true,
+    mention: true,
+    heading: true,
+    divider: true,
+};
