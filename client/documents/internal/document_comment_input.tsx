@@ -2,7 +2,7 @@ import {Memo, RefObject, useCallback} from "react";
 import {useAppContext} from "~/client/context/app_context";
 import {MessageEditing} from "~/client/messaging/message_editing";
 import {MessageInput} from "~/client/messaging/message_input";
-import {MessageList} from "~/client/messaging/message_list";
+import {MessageList, MessageListItem} from "~/client/messaging/message_list";
 import {getMessageListItemKey} from "~/client/messaging/messaging_view";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages";
@@ -80,7 +80,9 @@ export function DocumentCommentInput({
     useScrollToNewMessages({
         viewRef,
         messages: comments,
-        getItemKey: getMessageListItemKey,
+        getItemKey: useCallback((item: MessageListItem<DocumentCommentModel>) => {
+            return getMessageListItemKey(item);
+        }, []),
     });
 
     return (

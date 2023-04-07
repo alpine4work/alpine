@@ -30,7 +30,6 @@ import {ContentEditorClientId, DocumentCommentThreadId} from "~/shared/id/types/
 import {emptyContentReferences} from "~/shared/models/content_references";
 import {
     DocumentCommentModel,
-    DocumentCommentThreadModel,
     DocumentModel,
     emptyDocumentContentReferences,
 } from "~/shared/models/document_model";
@@ -462,14 +461,10 @@ test("will respond optimistically with a comment thread even if it has not been 
                 commentThreadById: new Map([
                     [
                         commentThreadId,
-                        new DocumentCommentThreadModel({
-                            id: commentThreadId,
-                            documentId: document.id,
-                            createdTime: expect.any(Date),
+                        {
                             commentCount: 1,
-                            lastCommentChangeTime: null,
                             commentAuthors: [session1.account],
-                        }),
+                        },
                     ],
                 ]),
             },
@@ -488,14 +483,10 @@ test("will respond optimistically with a comment thread even if it has not been 
                 commentThreadById: new Map([
                     [
                         commentThreadId,
-                        new DocumentCommentThreadModel({
-                            id: commentThreadId,
-                            documentId: document.id,
-                            createdTime: expect.any(Date),
+                        {
                             commentCount: 1,
-                            lastCommentChangeTime: null,
                             commentAuthors: [session1.account],
-                        }),
+                        },
                     ],
                 ]),
             },
@@ -593,14 +584,10 @@ test("will respond optimistically to backfills with a comment thread even if it 
                 commentThreadById: new Map([
                     [
                         commentThreadId,
-                        new DocumentCommentThreadModel({
-                            id: commentThreadId,
-                            documentId: document.id,
-                            createdTime: expect.any(Date),
+                        {
                             commentCount: 1,
-                            lastCommentChangeTime: null,
                             commentAuthors: [session1.account],
-                        }),
+                        },
                     ],
                 ]),
             },
@@ -635,14 +622,10 @@ test("will respond optimistically to backfills with a comment thread even if it 
                 commentThreadById: new Map([
                     [
                         commentThreadId,
-                        new DocumentCommentThreadModel({
-                            id: commentThreadId,
-                            documentId: document.id,
-                            createdTime: expect.any(Date),
+                        {
                             commentCount: 1,
-                            lastCommentChangeTime: null,
                             commentAuthors: [session1.account],
-                        }),
+                        },
                     ],
                 ]),
             },
@@ -774,14 +757,10 @@ test("when comment threads are added back to the document they will be loaded", 
                 commentThreadById: new Map([
                     [
                         commentThreadId,
-                        new DocumentCommentThreadModel({
-                            id: commentThreadId,
-                            documentId: document.id,
-                            createdTime: expect.any(Date),
+                        {
                             commentCount: 2,
-                            lastCommentChangeTime: null,
                             commentAuthors: [session1.account, session3.account],
-                        }),
+                        },
                     ],
                 ]),
             },
@@ -808,14 +787,10 @@ test("when comment threads are added back to the document they will be loaded", 
                 commentThreadById: new Map([
                     [
                         commentThreadId,
-                        new DocumentCommentThreadModel({
-                            id: commentThreadId,
-                            documentId: document.id,
-                            createdTime: expect.any(Date),
+                        {
                             commentCount: 2,
-                            lastCommentChangeTime: null,
                             commentAuthors: [session1.account, session3.account],
-                        }),
+                        },
                     ],
                 ]),
             },
@@ -929,14 +904,10 @@ test("comment thread can be optimistic at first and then loaded from the databas
                 commentThreadById: new Map([
                     [
                         commentThreadId,
-                        new DocumentCommentThreadModel({
-                            id: commentThreadId,
-                            documentId: document.id,
-                            createdTime: expect.any(Date),
+                        {
                             commentCount: 1,
-                            lastCommentChangeTime: null,
                             commentAuthors: [session1.account],
-                        }),
+                        },
                     ],
                 ]),
             },
@@ -952,14 +923,10 @@ test("comment thread can be optimistic at first and then loaded from the databas
                 commentThreadById: new Map([
                     [
                         commentThreadId,
-                        new DocumentCommentThreadModel({
-                            id: commentThreadId,
-                            documentId: document.id,
-                            createdTime: expect.any(Date),
+                        {
                             commentCount: 2,
-                            lastCommentChangeTime: null,
                             commentAuthors: [session1.account, session3.account],
-                        }),
+                        },
                     ],
                 ]),
             },
@@ -975,14 +942,10 @@ test("comment thread can be optimistic at first and then loaded from the databas
                 commentThreadById: new Map([
                     [
                         commentThreadId,
-                        new DocumentCommentThreadModel({
-                            id: commentThreadId,
-                            documentId: document.id,
-                            createdTime: expect.any(Date),
+                        {
                             commentCount: 2,
-                            lastCommentChangeTime: null,
                             commentAuthors: [session1.account, session3.account],
-                        }),
+                        },
                     ],
                 ]),
             },
@@ -1017,14 +980,10 @@ test("comment thread can be optimistic at first and then loaded from the databas
                 commentThreadById: new Map([
                     [
                         commentThreadId,
-                        new DocumentCommentThreadModel({
-                            id: commentThreadId,
-                            documentId: document.id,
-                            createdTime: expect.any(Date),
+                        {
                             commentCount: 1,
-                            lastCommentChangeTime: null,
                             commentAuthors: [session1.account],
-                        }),
+                        },
                     ],
                 ]),
             },
@@ -1040,14 +999,10 @@ test("comment thread can be optimistic at first and then loaded from the databas
                 commentThreadById: new Map([
                     [
                         commentThreadId,
-                        new DocumentCommentThreadModel({
-                            id: commentThreadId,
-                            documentId: document.id,
-                            createdTime: expect.any(Date),
+                        {
                             commentCount: 2,
-                            lastCommentChangeTime: null,
                             commentAuthors: [session1.account, session3.account],
-                        }),
+                        },
                     ],
                 ]),
             },
@@ -1063,14 +1018,10 @@ test("comment thread can be optimistic at first and then loaded from the databas
                 commentThreadById: new Map([
                     [
                         commentThreadId,
-                        new DocumentCommentThreadModel({
-                            id: commentThreadId,
-                            documentId: document.id,
-                            createdTime: expect.any(Date),
+                        {
                             commentCount: 2,
-                            lastCommentChangeTime: null,
                             commentAuthors: [session1.account, session3.account],
-                        }),
+                        },
                     ],
                 ]),
             },
@@ -1159,14 +1110,10 @@ test("can create comments in comment threads", async () => {
                 commentThreadById: new Map([
                     [
                         commentThreadId,
-                        new DocumentCommentThreadModel({
-                            id: commentThreadId,
-                            documentId: document.id,
-                            createdTime: expect.any(Date),
+                        {
                             commentCount: 1,
-                            lastCommentChangeTime: null,
                             commentAuthors: [session1.account],
-                        }),
+                        },
                     ],
                 ]),
             },
@@ -1193,14 +1140,10 @@ test("can create comments in comment threads", async () => {
                 commentThreadById: new Map([
                     [
                         commentThreadId,
-                        new DocumentCommentThreadModel({
-                            id: commentThreadId,
-                            documentId: document.id,
-                            createdTime: expect.any(Date),
+                        {
                             commentCount: 1,
-                            lastCommentChangeTime: null,
                             commentAuthors: [session1.account],
-                        }),
+                        },
                     ],
                 ]),
             },
@@ -1219,8 +1162,59 @@ test("can create comments in comment threads", async () => {
         },
     });
 
-    expect(connection1.takeMessages()).toEqual([]);
-    expect(connection2.takeMessages()).toEqual([]);
+    expect(connection1.takeMessages()).toEqual([
+        {
+            type: "Comments",
+            commentThreadId,
+            message: {
+                type: "NewMessage",
+                message: new DocumentCommentModel({
+                    documentId: document.id,
+                    commentThreadId,
+                    index: 1,
+                    author: session1.account,
+                    createdTime: expect.any(Date),
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("Test message content 2"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                    },
+                }),
+                updateOtherTypingState: null,
+            },
+        },
+    ]);
+
+    expect(connection2.takeMessages()).toEqual([
+        {
+            type: "Comments",
+            commentThreadId,
+            message: {
+                type: "NewMessage",
+                message: new DocumentCommentModel({
+                    documentId: document.id,
+                    commentThreadId,
+                    index: 1,
+                    author: session1.account,
+                    createdTime: expect.any(Date),
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex: null,
+                        content: {
+                            doc: createSimpleMessageContent("Test message content 2"),
+                            references: emptyContentReferences,
+                        },
+                        contentUpdatedTime: null,
+                    },
+                }),
+                updateOtherTypingState: null,
+            },
+        },
+    ]);
 
     await connection1.sendMessage({
         type: "Comments",
@@ -1465,14 +1459,10 @@ test("if comment thread is persisting we will wait to create messages but respon
                 commentThreadById: new Map([
                     [
                         commentThreadId,
-                        new DocumentCommentThreadModel({
-                            id: commentThreadId,
-                            documentId: document.id,
-                            createdTime: expect.any(Date),
+                        {
                             commentCount: 1,
-                            lastCommentChangeTime: null,
                             commentAuthors: [session1.account],
-                        }),
+                        },
                     ],
                 ]),
             },
@@ -1491,14 +1481,10 @@ test("if comment thread is persisting we will wait to create messages but respon
                 commentThreadById: new Map([
                     [
                         commentThreadId,
-                        new DocumentCommentThreadModel({
-                            id: commentThreadId,
-                            documentId: document.id,
-                            createdTime: expect.any(Date),
+                        {
                             commentCount: 1,
-                            lastCommentChangeTime: null,
                             commentAuthors: [session1.account],
-                        }),
+                        },
                     ],
                 ]),
             },

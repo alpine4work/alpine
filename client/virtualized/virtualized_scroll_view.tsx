@@ -78,9 +78,9 @@ export function getInitialVirtualizedScrollViewRenderedItemCount(
     clientInfo: ClientInfo,
     minItemHeight: number | RemLength,
 ) {
-    const maxRenderedHeight = getVirtualizationWindowHeight(clientInfo.windowHeight);
+    const maxRenderedHeight = getVirtualizationWindowHeight(clientInfo.screenHeight);
 
-    const remPx = getRemPxFromWindowWidth(clientInfo.windowWidth);
+    const remPx = getRemPxFromWindowWidth(clientInfo.screenWidth);
     const minItemHeightPx =
         typeof minItemHeight === "string"
             ? convertRemLengthToPx(minItemHeight, remPx)
@@ -401,7 +401,7 @@ function VirtualizedScrollView(
     },
     ref: Ref<VirtualizedScrollViewRef>,
 ) {
-    const {windowHeight} = useClientInfo();
+    const {screenHeight} = useClientInfo();
     const remPx = useRemPx();
 
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -449,7 +449,7 @@ function VirtualizedScrollView(
         if (initialScrollOffset === "top") {
             return {
                 state: VirtualizedScrollViewState.initializeFromTop({
-                    windowHeight,
+                    screenHeight,
                     bufferedItemHeight,
                     itemCount,
                     getItem: getItemWithoutRender,
@@ -461,7 +461,7 @@ function VirtualizedScrollView(
         } else {
             return {
                 state: VirtualizedScrollViewState.initializeFromBottom({
-                    windowHeight,
+                    screenHeight,
                     bufferedItemHeight,
                     itemCount,
                     getItem: getItemWithoutRender,

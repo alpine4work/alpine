@@ -9,8 +9,8 @@ import {Schema, SchemaDeserializationError, SchemaType} from "~/shared/schema/sc
 export type ClientInfo = SchemaType<typeof ClientInfoSchema>;
 
 export const ClientInfoSchema = Schema.object({
-    windowWidth: Schema.integer,
-    windowHeight: Schema.integer,
+    screenWidth: Schema.integer,
+    screenHeight: Schema.integer,
     timeZone: Schema.string.transform<TimeZone>({
         serialize: timeZone => timeZone,
         deserialize: timeZone => {

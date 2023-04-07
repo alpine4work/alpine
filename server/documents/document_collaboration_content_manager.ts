@@ -36,6 +36,7 @@ import {
     SpaceId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types";
+import {AccountModel} from "~/shared/models/account_model";
 import {DocumentCommentThreadModel} from "~/shared/models/document_model";
 import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema";
 import {
@@ -496,10 +497,7 @@ export class DocumentCollaborationContentManager {
      * because our durable object may have acknowledged the creation of some
      * comment threads but they haven't been persisted in the database yet.
      */
-    public getCommentThreadByIdForNode(
-        context: RequestContext,
-        content: Node,
-    ): Promise<Map<DocumentCommentThreadId, DocumentCommentThreadModel>> {
+    public getCommentThreadByIdForNode(context: RequestContext, content: Node) {
         return this._getCommentThreadById(context, visitor => {
             visitProsemirrorNode(content, visitor);
         });
@@ -513,10 +511,7 @@ export class DocumentCollaborationContentManager {
      * because our durable object may have acknowledged the creation of some
      * comment threads but they haven't been persisted in the database yet.
      */
-    public getCommentThreadByIdForSteps(
-        context: RequestContext,
-        steps: ReadonlyArray<Step>,
-    ): Promise<Map<DocumentCommentThreadId, DocumentCommentThreadModel>> {
+    public getCommentThreadByIdForSteps(context: RequestContext, steps: ReadonlyArray<Step>) {
         return this._getCommentThreadById(context, visitor => {
             for (const step of steps) {
                 visitProsemirrorStep(step, visitor);
@@ -527,7 +522,12 @@ export class DocumentCollaborationContentManager {
     private async _getCommentThreadById(
         context: RequestContext,
         visit: (visitor: ProsemirrorVisitor) => void,
-    ): Promise<Map<DocumentCommentThreadId, DocumentCommentThreadModel>> {
+    ): Promise<
+        Map<
+            DocumentCommentThreadId,
+            {readonly commentCount: number; readonly commentAuthors: ReadonlyArray<AccountModel>}
+        >
+    > {
         const referencedCommentThreadIds = new Set<DocumentCommentThreadId>();
 
         visit({
@@ -588,7 +588,13 @@ export class DocumentCollaborationContentManager {
         return new Map(
             mapIterable(
                 concatIterables(commentThreads1, filterIterable(commentThreads2, isNonNullable)),
-                commentThread => [commentThread.id, commentThread],
+                commentThread => [
+                    commentThread.id,
+                    {
+                        commentCount: commentThread.commentCount,
+                        commentAuthors: commentThread.commentAuthors,
+                    },
+                ],
             ),
         );
     }

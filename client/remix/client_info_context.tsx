@@ -1,5 +1,6 @@
 import Cookies from "js-cookie";
 import {ReactNode, createContext, useContext, useEffect, useState} from "react";
+import {mobileMaxScreenWidth} from "~/shared/design/spacing";
 import {InternalError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
@@ -20,7 +21,7 @@ export const defaultClientInfo: ClientInfo = {
      *
      * [1]: https://www.browserstack.com/guide/ideal-screen-sizes-for-responsive-design
      */
-    windowWidth: 1920,
+    screenWidth: 1920,
     /**
      * The default screen height we use when server-side rendering when we don't
      * know what the user's actual screen height is. 1080px is the height of the
@@ -29,7 +30,7 @@ export const defaultClientInfo: ClientInfo = {
      *
      * [1]: https://www.browserstack.com/guide/ideal-screen-sizes-for-responsive-design
      */
-    windowHeight: 1080,
+    screenHeight: 1080,
     /**
      * We use the New York time zone when we haven't gotten the client's actual
      * time zone since that's where our company is based.
@@ -37,9 +38,30 @@ export const defaultClientInfo: ClientInfo = {
     timeZone: defaultTimeZone,
 };
 
+/**
+ * Default client info for mobile browsers. On the server if there is no client
+ * info cookie but we sniff the user-agent and it looks like a mobile device
+ * then we will use this client info hoping it better matches the actual device.
+ */
+export const defaultMobileClientInfo: ClientInfo = {
+    ...defaultClientInfo,
+    /**
+     * Use the maximum screen width that triggers our mobile site instead of the
+     * desktop site.
+     */
+    screenWidth: mobileMaxScreenWidth,
+    /**
+     * The common responsive design height of a device with a width of
+     * `mobileMaxScreenWidth`. From [BrowserStack][1].
+     *
+     * [1]: https://www.browserstack.com/guide/ideal-screen-sizes-for-responsive-design
+     */
+    screenHeight: 1366,
+};
+
 const clientInfo = new Lazy(() => ({
-    windowWidth: window.innerWidth,
-    windowHeight: window.innerHeight,
+    screenWidth: window.screen.width,
+    screenHeight: window.screen.height,
     timeZone: getCurrentTimeZone(),
 }));
 

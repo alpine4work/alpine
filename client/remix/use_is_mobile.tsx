@@ -29,12 +29,12 @@ export function useIsMobile(): boolean {
 }
 
 export function IsMobileContextProvider({children}: {children?: ReactNode}) {
-    const {windowWidth} = useClientInfo();
+    const {screenWidth} = useClientInfo();
     const isInitialAppRender = useIsInitialAppRender();
 
     const [isMobile, setIsMobile] = useState(() => {
         if (isInitialAppRender) {
-            return windowWidth <= mobileMaxScreenWidth;
+            return screenWidth <= mobileMaxScreenWidth;
         } else {
             return window.matchMedia(mobilePlatformMediaQuery).matches;
         }

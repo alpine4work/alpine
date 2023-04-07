@@ -72,18 +72,18 @@ function DocumentContentEditorSideDecorationsInner({
         >
     >(() => new Map());
 
-    const {windowWidth} = useClientInfo();
+    const {screenWidth} = useClientInfo();
     const remPx = useRemPx();
     const commentCountMinMargin = convertRemLengthToPx("2.75rem", remPx);
     const commentAvatarsMinMargin = convertRemLengthToPx("6.75rem", remPx);
     const blockMaxWidth = convertRemLengthToPx(contentSchemaStyles.blockMaxWidth, remPx);
 
     const shouldRenderCommentCount =
-        Math.max(0, (containerSize?.width ?? windowWidth) - blockMaxWidth) / 2 >=
+        Math.max(0, (containerSize?.width ?? screenWidth) - blockMaxWidth) / 2 >=
         commentCountMinMargin;
 
     const shouldRenderCommentAvatars =
-        Math.max(0, (containerSize?.width ?? windowWidth) - blockMaxWidth) / 2 >=
+        Math.max(0, (containerSize?.width ?? screenWidth) - blockMaxWidth) / 2 >=
         commentAvatarsMinMargin;
 
     useLayoutEffect(() => {

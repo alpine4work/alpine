@@ -233,17 +233,17 @@ export class VirtualizedScrollViewState {
      * empty space in the view on initial render.
      */
     public static initializeFromTop({
-        windowHeight,
+        screenHeight,
         bufferedItemHeight,
         itemCount,
         getItem,
     }: {
-        windowHeight: number;
+        screenHeight: number;
         bufferedItemHeight: number;
         itemCount: number;
         getItem: (index: number) => {key: Key; minHeight: number};
     }): VirtualizedScrollViewState {
-        const maxRenderedHeight = getVirtualizationWindowHeight(windowHeight);
+        const maxRenderedHeight = getVirtualizationWindowHeight(screenHeight);
         let renderedHeight = 0;
         const renderedItems: Array<{key: Key; minHeight: number}> = [];
 
@@ -285,7 +285,7 @@ export class VirtualizedScrollViewState {
         }
 
         return new VirtualizedScrollViewState({
-            viewHeight: windowHeight,
+            viewHeight: screenHeight,
             bufferedItemHeight,
             entryByOrderKey,
             orderKeyByItemKey,
@@ -310,17 +310,17 @@ export class VirtualizedScrollViewState {
      * empty space in the view on initial render.
      */
     public static initializeFromBottom({
-        windowHeight,
+        screenHeight,
         bufferedItemHeight,
         itemCount,
         getItem,
     }: {
-        windowHeight: number;
+        screenHeight: number;
         bufferedItemHeight: number;
         itemCount: number;
         getItem: (index: number) => {key: Key; minHeight: number};
     }): VirtualizedScrollViewState {
-        const maxRenderedHeight = getVirtualizationWindowHeight(windowHeight);
+        const maxRenderedHeight = getVirtualizationWindowHeight(screenHeight);
         let renderedHeight = 0;
         const renderedItems: Array<{key: Key; minHeight: number}> = [];
 
@@ -366,7 +366,7 @@ export class VirtualizedScrollViewState {
         }
 
         return new VirtualizedScrollViewState({
-            viewHeight: windowHeight,
+            viewHeight: screenHeight,
             bufferedItemHeight,
             entryByOrderKey,
             orderKeyByItemKey,

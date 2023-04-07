@@ -2,7 +2,7 @@ import {AppLoadContext} from "@remix-run/cloudflare";
 import {createRequestHandler, handleAsset} from "@remix-run/cloudflare-workers";
 import * as build from "@remix-run/dev/server-build";
 import {parse as parseCookieHeader} from "cookie";
-import {defaultClientInfo} from "~/client/remix/client_info_context";
+import {defaultClientInfo, defaultMobileClientInfo} from "~/client/remix/client_info_context";
 import {createAwsContextModulesFromEnv} from "~/server/aws/create_aws_context_modules_from_env";
 import {fetchFromDurableObjectStub} from "~/server/cloudflare/fetch_from_durable_object_stub";
 import {Session} from "~/server/dynamo/accounts_table";
@@ -245,6 +245,21 @@ async function handleFetch(
                 } catch {
                     // Ignore any errors when parsing the client info cookie.
                     // TODO(calebmer): We should report it in an event though?
+                }
+            } else {
+                // Device detection with user-agent parsing is generally bad and should be
+                // avoided. However, in the case where we don't yet have a client info cookie
+                // we use the user agent as a hint to determine what our default when
+                // server-side rendering should be. We have logic on the client to heal the
+                // cookie if we guess wrong. The user will see a quick flash of content but
+                // that's all.
+                //
+                // [MDN recommends testing for the string "Mobi" to tell if we are on a
+                // mobile device][1].
+                //
+                // [1]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Browser_detection_using_the_user_agent#mobile_tablet_or_desktop
+                if (/Mobi/i.test(request.headers.get("user-agent") ?? "")) {
+                    clientInfo = defaultMobileClientInfo;
                 }
             }
 
