@@ -8,6 +8,7 @@ ts_project(
     ],
     deps = [
         "//:node_modules/@types/scheduler",
+        "//:node_modules/motion",
         "//:node_modules/murmurhash",
         "//:node_modules/prosemirror-model",
         "//:node_modules/prosemirror-state",

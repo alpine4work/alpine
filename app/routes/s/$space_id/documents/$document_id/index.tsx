@@ -108,16 +108,14 @@ export default function DocumentRoute() {
     }, [searchParams, setSearchParams]);
 
     return (
-        <SpaceRouteScrollView>
-            <DocumentContentEditor
-                // Re-render when the document changes
-                key={document.id}
-                document={document}
-                onDocumentContentChange={content =>
-                    updateMetaTitle(`${getDocumentContentTitle(content)}${metaTitlePostfix}`)
-                }
-            />
-        </SpaceRouteScrollView>
+        <DocumentContentEditor
+            // Re-render when the document changes
+            key={document.id}
+            document={document}
+            onDocumentContentChange={content =>
+                updateMetaTitle(`${getDocumentContentTitle(content)}${metaTitlePostfix}`)
+            }
+        />
     );
 }
 

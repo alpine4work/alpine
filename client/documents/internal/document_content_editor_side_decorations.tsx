@@ -25,13 +25,13 @@ import {colorSchemeVars, contentSchemaStyles} from "~/shared/styles/styles";
 // components instead of plain DOM elements and we get more control
 // over positioning.
 export function DocumentContentEditorSideDecorations({
-    containerRef,
-    containerSize,
+    editorContainerRef,
+    editorContainerSize,
     editorRef,
     content,
 }: {
-    containerRef: RefObject<HTMLDivElement>;
-    containerSize: {width: number; height: number} | null;
+    editorContainerRef: RefObject<HTMLDivElement>;
+    editorContainerSize: {width: number; height: number} | null;
     editorRef: RefObject<ContentEditorRef>;
     content: DocumentContentWithReferences;
 }) {
@@ -43,8 +43,8 @@ export function DocumentContentEditorSideDecorations({
 
     return (
         <DocumentContentEditorSideDecorationsInner
-            containerRef={containerRef}
-            containerSize={containerSize}
+            editorContainerRef={editorContainerRef}
+            editorContainerSize={editorContainerSize}
             editorRef={editorRef}
             content={content}
         />
@@ -52,13 +52,13 @@ export function DocumentContentEditorSideDecorations({
 }
 
 function DocumentContentEditorSideDecorationsInner({
-    containerRef,
-    containerSize,
+    editorContainerRef,
+    editorContainerSize,
     editorRef,
     content,
 }: {
-    containerRef: RefObject<HTMLDivElement>;
-    containerSize: {width: number; height: number} | null;
+    editorContainerRef: RefObject<HTMLDivElement>;
+    editorContainerSize: {width: number; height: number} | null;
     editorRef: RefObject<ContentEditorRef>;
     content: DocumentContentWithReferences;
 }) {
@@ -79,11 +79,11 @@ function DocumentContentEditorSideDecorationsInner({
     const blockMaxWidth = convertRemLengthToPx(contentSchemaStyles.blockMaxWidth, remPx);
 
     const shouldRenderCommentCount =
-        Math.max(0, (containerSize?.width ?? screenWidth) - blockMaxWidth) / 2 >=
+        Math.max(0, (editorContainerSize?.width ?? screenWidth) - blockMaxWidth) / 2 >=
         commentCountMinMargin;
 
     const shouldRenderCommentAvatars =
-        Math.max(0, (containerSize?.width ?? screenWidth) - blockMaxWidth) / 2 >=
+        Math.max(0, (editorContainerSize?.width ?? screenWidth) - blockMaxWidth) / 2 >=
         commentAvatarsMinMargin;
 
     useLayoutEffect(() => {
@@ -97,11 +97,12 @@ function DocumentContentEditorSideDecorationsInner({
         }
 
         const run = () => {
-            const containerElement = assertExists(containerRef.current);
+            const containerElement = assertExists(editorContainerRef.current);
             const editor = assertExists(editorRef.current);
 
             const {decorationByMarkTop} = collectDecorationByMarkTop(
                 {
+                    containerElement,
                     containerRect: containerElement.getBoundingClientRect(),
                     editor,
                     seenCommentThreadIds: new Set(),
@@ -129,7 +130,7 @@ function DocumentContentEditorSideDecorationsInner({
         return () => {
             isCancelled = true;
         };
-    }, [containerRef, content.doc, editorRef, shouldRenderCommentCount]);
+    }, [editorContainerRef, content.doc, editorRef, shouldRenderCommentCount]);
 
     const suffixByKey = new Map<string, {suffix: number}>();
 
@@ -159,6 +160,7 @@ function DocumentContentEditorSideDecorationsInner({
 }
 
 const collectDecorationByMarkTop = createProsemirrorIncrementalReducer<{
+    containerElement: HTMLElement;
     containerRect: DOMRect;
     editor: ContentEditorRef;
     seenCommentThreadIds: Set<DocumentCommentThreadId>;
@@ -176,7 +178,7 @@ const collectDecorationByMarkTop = createProsemirrorIncrementalReducer<{
 
     return (state, doc, offset) => {
         const coords = state.editor.coordsAtPos(offset);
-        const markTop = coords.top - state.containerRect.top;
+        const markTop = coords.top - state.containerRect.top + state.containerElement.scrollTop;
         const markHeight = coords.bottom - coords.top;
 
         for (const commentThreadId of commentThreadIds) {
