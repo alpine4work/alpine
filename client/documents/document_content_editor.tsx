@@ -327,8 +327,8 @@ function DocumentContentEditorStateful({
             {
                 defaultOptions: {
                     easing: spring({
-                        stiffness: 300,
-                        damping: 31,
+                        stiffness: 420,
+                        damping: 35,
                     }),
                 },
             },
