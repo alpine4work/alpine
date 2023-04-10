@@ -7,8 +7,6 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer";
 
-const documentCommentThreadSnippetLinesAroundCount = 3;
-
 /**
  * Creates a function that will incrementally collect snippets from a document
  * for the provided comment threads at the first position the comment thread
@@ -55,7 +53,7 @@ export function createDocumentCommentThreadSnippetCollector(
         return new Map(
             mapIterable(resolvedPosByCommentThreadId, ([commentThreadId, resolvedPos]) => [
                 commentThreadId,
-                getContentSnippet(resolvedPos, documentCommentThreadSnippetLinesAroundCount),
+                getContentSnippet(resolvedPos, {linesAbove: 2, linesBelow: 6}),
             ]),
         );
     };

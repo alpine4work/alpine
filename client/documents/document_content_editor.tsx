@@ -62,7 +62,7 @@ import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_f
 import {getDocumentCommentThreadAndInitialComments} from "~/shared/rpc/documents_rpc_definitions";
 import {colorSchemeVars, contentSchemaStyles, spinAnimationClassName} from "~/shared/styles/styles";
 
-const documentContentEditorSidebarWidth = spacing["96"];
+export const documentContentEditorSidebarWidth = spacing["96"];
 
 export function DocumentContentEditor({
     initialDocument,

@@ -5,15 +5,16 @@ import {Box} from "~/client/design/box";
 import {useRemPx} from "~/client/design/helpers/use_rem_px";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {convertRemLengthToPx, spacing} from "~/shared/design/spacing";
+import {convertRemLengthToPx, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
 import {
     DocumentCommentThreadModel,
     DocumentContentReferences,
 } from "~/shared/models/document_model";
+import {fontSizesByPlatform} from "~/shared/styles/styles";
 
-export const documentCommentThreadPreviewMinHeight = 50;
+export const documentCommentThreadPreviewHeight = spacing["32"];
 
 export function DocumentCommentThreadPreview({
     commentThread,
@@ -57,49 +58,53 @@ export function DocumentCommentThreadPreview({
         previewElement.scrollTop =
             commentRect.y -
             (previewRect.y - previewElement.scrollTop) -
-            convertRemLengthToPx(spacing["8"], remPx);
+            // NOTE(calebmer): This offset was picked to intentionally clip off some text
+            // from the top and bottom lines in a block of text to make it clear you're
+            // looking at a preview. We try to have enough text of the top line that you
+            // can read it but know its cut and enough text on the bottom line that you
+            // know its there but can't read it.
+            convertRemLengthToPx(
+                `${parseRemLengthNumber(spacing["6"]) + parseRemLengthNumber(spacing["0.5"])}rem`,
+                remPx,
+            );
     }, [commentThread.id, content, isInitialAppRender, remPx]);
 
-    // TODO(calebmer): Figure out a proper scale number. Right now we pick one that
-    // tries to get the same layout as our document. Is that the right choice?
-    // Maybe this should be dynamic. If we are scaling down our snippet needs
-    // more text.
-    const scale = 0.625;
+    // Scale the content snippet down to our smallest font size. Scaling it down so
+    // it has the same text layout as the main content editor leads to text so
+    // small that it's unreadable.
+    const scale =
+        fontSizesByPlatform["50"].desktop.fontSize / fontSizesByPlatform["100"].desktop.fontSize;
 
     return (
-        <Box padding="2">
+        <Box
+            ref={previewRef}
+            borderBottom="grey-10"
+            overflow="hidden"
+            style={{height: documentCommentThreadPreviewHeight}}
+        >
             <Box
-                ref={previewRef}
-                paddingX="0.5"
-                paddingY="1"
-                height="32"
-                border="grey-10"
-                borderRadius="base"
-                overflow="hidden"
+                ref={previewContentRef}
+                pointerEvents="none"
+                paddingX="1.5"
+                style={{
+                    width: `${(1 / scale) * 100}%`,
+                    transformOrigin: "0 0",
+                    transform: `scale(${scale})`,
+                }}
             >
-                <Box
-                    ref={previewContentRef}
-                    pointerEvents="none"
-                    style={{
-                        width: `${(1 / scale) * 100}%`,
-                        transformOrigin: "0 0",
-                        transform: `scale(${scale})`,
-                    }}
-                >
-                    {!isInitialAppRender && content && (
-                        // Don't render the snippet on initial app render because we need a layout
-                        // effect to correctly position the content. Flashing content from invisible
-                        // to visible is better than flashing content with the wrong scroll position
-                        // to the right scroll position.
-                        <ContentView
-                            content={content}
-                            // Don't allow interacting with the content at all. (Like clicking links.)
-                            // Clicking on the preview opens it in the document.
-                            isInert={true}
-                            shouldHighlightComment={shouldHighlightComment}
-                        />
-                    )}
-                </Box>
+                {!isInitialAppRender && content && (
+                    // Don't render the snippet on initial app render because we need a layout
+                    // effect to correctly position the content. Flashing content from invisible
+                    // to visible is better than flashing content with the wrong scroll position
+                    // to the right scroll position.
+                    <ContentView
+                        content={content}
+                        // Don't allow interacting with the content at all. (Like clicking links.)
+                        // Clicking on the preview opens it in the document.
+                        isInert={true}
+                        shouldHighlightComment={shouldHighlightComment}
+                    />
+                )}
             </Box>
         </Box>
     );

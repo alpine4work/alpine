@@ -15,7 +15,7 @@ import {createDocumentCommentThreadSnippetCollector} from "~/client/documents/in
 import {DocumentCommentInput} from "~/client/documents/internal/document_comment_input";
 import {
     DocumentCommentThreadPreview,
-    documentCommentThreadPreviewMinHeight,
+    documentCommentThreadPreviewHeight,
 } from "~/client/documents/internal/document_comment_thread_preview";
 import {
     SendCommentThreadMessageFunction,
@@ -519,7 +519,7 @@ function DocumentCommentThreadListView(
 
                     return {
                         key: `DocumentCommentThreadPreview:${item.commentThread.id}`,
-                        minHeight: documentCommentThreadPreviewMinHeight,
+                        minHeight: documentCommentThreadPreviewHeight,
                         node: (
                             <DocumentCommentThreadPreview
                                 commentThread={item.commentThread}

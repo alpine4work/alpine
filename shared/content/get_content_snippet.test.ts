@@ -1,7 +1,15 @@
 import {Node} from "prosemirror-model";
 import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/content/document_content_schema";
-import {getContentSnippet} from "~/shared/content/get_content_snippet";
+import {
+    getContentSnippet,
+    setMaxLineGraphemeCountForTest,
+} from "~/shared/content/get_content_snippet";
 import {generateId} from "~/shared/id/id";
+
+// NOTE(calebmer): These tests were written with the constant 237. Instead of
+// updating the tests to work with the new constant I'm hardcoding the old one
+// for now.
+setMaxLineGraphemeCountForTest(237);
 
 const node = schema.node.bind(schema);
 const mark = schema.mark.bind(schema);

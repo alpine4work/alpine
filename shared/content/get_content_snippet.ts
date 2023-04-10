@@ -1,6 +1,7 @@
 import GraphemeSplitter from "grapheme-splitter";
 import {Node, Schema as ProsemirrorSchema, ResolvedPos} from "prosemirror-model";
 import {DocumentContentProsemirrorSchema} from "~/shared/content/document_content_schema";
+import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 
 /**
@@ -17,7 +18,10 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
  * paragraph. If we cut in the middle of a paragraph then the snippet content
  * may be in a different position given the leading text wasn't there.
  */
-export function getContentSnippet(resolvedPos: ResolvedPos, linesAroundCount: number): Node {
+export function getContentSnippet(
+    resolvedPos: ResolvedPos,
+    lines: {linesAbove: number; linesBelow: number} | number,
+): Node {
     // So our target number of lines is `1 + linesAroundCount * 2`. We want the
     // line containing `resolvedPos`, `linesAroundCount` lines above, and
     // `linesAroundCount` lines below. However we don't know where proportionally
@@ -26,16 +30,17 @@ export function getContentSnippet(resolvedPos: ResolvedPos, linesAroundCount: nu
     // we need `linesAroundCount + 0.75` lines of content after `resolvedPos`.
     // Vice-versa if `resolvedPos` falls 75% through the line. So we get an extra
     // line in both directions which gets us enough content.
-    linesAroundCount += 1;
+    const linesAbove = (typeof lines === "number" ? lines : lines.linesAbove) + 1;
+    const linesBelow = (typeof lines === "number" ? lines : lines.linesBelow) + 1;
 
     let from: number | null = null;
     let to: number | null = null;
     let remainingBefore: {readonly lineCount: number; readonly isAtLineBreak: boolean} = {
-        lineCount: linesAroundCount,
+        lineCount: linesAbove,
         isAtLineBreak: false,
     };
     let remainingAfter: {readonly lineCount: number; readonly isAtLineBreak: boolean} = {
-        lineCount: linesAroundCount,
+        lineCount: linesBelow,
         isAtLineBreak: false,
     };
 
@@ -295,7 +300,15 @@ function* iterateChildNodesBackwardsDescendants(
  *
  * [1]: https://www.npmjs.com/package/grapheme-splitter
  */
-const maxLineGraphemeCount = 237;
+let maxLineGraphemeCount = 197;
+
+/**
+ * Allow Jest tests to modify the `maxLineGraphemeCount` constant.
+ */
+export function setMaxLineGraphemeCountForTest(newMaxLineGraphemeCount: number) {
+    assert(typeof jest !== "undefined");
+    maxLineGraphemeCount = newMaxLineGraphemeCount;
+}
 
 const graphemeSplitter = new GraphemeSplitter();
 
