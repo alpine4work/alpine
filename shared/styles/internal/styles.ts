@@ -18,6 +18,7 @@ export * as contentEditorStyles from "~/shared/styles/internal/content_editor.cs
 export * as contentSchemaStyles from "~/shared/styles/internal/content_schema.css";
 export * as contentViewStyles from "~/shared/styles/internal/content_view.css";
 export * as documentBlobsStyles from "~/shared/styles/internal/document_blobs.css";
+export * as documentCommentThreadPreviewStyles from "~/shared/styles/internal/document_comment_thread_preview.css";
 export * from "~/shared/styles/internal/fonts.css";
 export * from "~/shared/styles/internal/input_placeholder_color.css";
 export * as modalStyles from "~/shared/styles/internal/modal.css";

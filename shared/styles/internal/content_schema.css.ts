@@ -24,6 +24,11 @@ import {
     fontSizes,
     fontStyles,
 } from "~/shared/styles/internal/fonts.css";
+import {
+    extrapolateHighlightColor,
+    extrapolateHighlightRawColorWithoutBounds,
+} from "~/shared/styles/internal/helpers/extrapolate_highlight_color";
+import {RawColor, parseRawColor, printRawColor} from "~/shared/styles/internal/helpers/raw_color";
 import {inputPlaceholderColor} from "~/shared/styles/internal/input_placeholder_color.css";
 import {peekContainerClassName} from "~/shared/styles/internal/peek.css";
 
@@ -547,53 +552,6 @@ ${darkColorSchemeSelector} #$containerId .${commentClassName}[data-comment="$com
     )
     .join("\n")}
 `;
-
-type RawColor = {r: number; g: number; b: number; alpha: number};
-
-function parseRawColor(color: string): RawColor {
-    const rawColor = Color(color).object() as RawColor;
-    rawColor.alpha ??= 1;
-    return rawColor;
-}
-
-function printRawColor(color: RawColor): string {
-    return Color(color).hexa();
-}
-
-function extrapolateHighlightRawColorWithoutBounds(
-    backgroundColor: RawColor,
-    highlightColor: RawColor,
-    opacity: number,
-): RawColor {
-    const r = lerp(backgroundColor.r, highlightColor.r, 1 / opacity);
-    const g = lerp(backgroundColor.g, highlightColor.g, 1 / opacity);
-    const b = lerp(backgroundColor.b, highlightColor.b, 1 / opacity);
-    return {r, g, b, alpha: opacity};
-}
-
-function extrapolateHighlightColor(
-    backgroundColor: string,
-    highlightColor: string,
-    opacity: number,
-): string {
-    const color = extrapolateHighlightRawColorWithoutBounds(
-        parseRawColor(backgroundColor),
-        parseRawColor(highlightColor),
-        opacity,
-    );
-
-    assert(
-        0 <= color.r &&
-            color.r <= 255 &&
-            0 <= color.g &&
-            color.g <= 255 &&
-            0 <= color.b &&
-            color.b <= 255,
-        `Can not extrapolate outside RGB color space, got color: rgb(${color.r}, ${color.g}, ${color.b})`,
-    );
-
-    return printRawColor(color);
-}
 
 /**
  * The highlight mark renders on top of the comment mark in the DOM. This is

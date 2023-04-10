@@ -1,4 +1,4 @@
-import {createSpringAnimation} from "~/shared/styles/internal/spring_animation";
+import {createSpringAnimation} from "~/shared/styles/internal/helpers/spring_animation";
 
 // Have the offscreen Y position be a bit more than 100% because we want to
 // create the illusion of the toast being thrown from offscreen.

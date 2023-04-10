@@ -1,7 +1,9 @@
 import {Node} from "prosemirror-model";
 import {useCallback, useMemo, useRef} from "react";
+import {useButton} from "react-aria";
 import {ContentView} from "~/client/content/content_view";
 import {Box} from "~/client/design/box";
+import {FocusRing} from "~/client/design/focus_ring";
 import {useRemPx} from "~/client/design/helpers/use_rem_px";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
@@ -12,7 +14,7 @@ import {
     DocumentCommentThreadModel,
     DocumentContentReferences,
 } from "~/shared/models/document_model";
-import {fontSizesByPlatform} from "~/shared/styles/styles";
+import {documentCommentThreadPreviewStyles, fontSizesByPlatform} from "~/shared/styles/styles";
 
 export const documentCommentThreadPreviewHeight = spacing["32"];
 
@@ -20,10 +22,12 @@ export function DocumentCommentThreadPreview({
     commentThread,
     snippet,
     contentReferences,
+    onCommentThreadSnippetPress,
 }: {
     commentThread: DocumentCommentThreadModel;
     snippet: Node | null;
     contentReferences: DocumentContentReferences;
+    onCommentThreadSnippetPress: (commentThreadId: DocumentCommentThreadId) => void;
 }) {
     const remPx = useRemPx();
     const isInitialAppRender = useIsInitialAppRender();
@@ -75,37 +79,65 @@ export function DocumentCommentThreadPreview({
     const scale =
         fontSizesByPlatform["50"].desktop.fontSize / fontSizesByPlatform["100"].desktop.fontSize;
 
+    const buttonRef = useRef<HTMLDivElement>(null);
+    const {buttonProps, isPressed} = useButton(
+        {
+            elementType: "div",
+            onPress: () => onCommentThreadSnippetPress(commentThread.id),
+        },
+        buttonRef,
+    );
+
     return (
-        <Box
-            ref={previewRef}
-            borderBottom="grey-10"
-            overflow="hidden"
-            style={{height: documentCommentThreadPreviewHeight}}
-        >
+        <FocusRing offset="inset">
             <Box
-                ref={previewContentRef}
-                pointerEvents="none"
-                paddingX="1.5"
-                style={{
-                    width: `${(1 / scale) * 100}%`,
-                    transformOrigin: "0 0",
-                    transform: `scale(${scale})`,
-                }}
+                ref={buttonRef}
+                display="block"
+                position="relative"
+                zIndex="0"
+                // Use pointer cursor because otherwise the preview has a weak clickable
+                // affordance. It's not clear that the preview is clickable unlike a button.
+                cursor="pointer"
+                borderBottom="grey-10"
+                style={{height: documentCommentThreadPreviewHeight}}
+                {...(buttonProps as any)}
             >
-                {!isInitialAppRender && content && (
-                    // Don't render the snippet on initial app render because we need a layout
-                    // effect to correctly position the content. Flashing content from invisible
-                    // to visible is better than flashing content with the wrong scroll position
-                    // to the right scroll position.
-                    <ContentView
-                        content={content}
-                        // Don't allow interacting with the content at all. (Like clicking links.)
-                        // Clicking on the preview opens it in the document.
-                        isInert={true}
-                        shouldHighlightComment={shouldHighlightComment}
+                {isPressed && (
+                    <Box
+                        position="absolute"
+                        inset="0"
+                        zIndex="50"
+                        pointerEvents="none"
+                        className={documentCommentThreadPreviewStyles.pressOverlayClassName}
                     />
                 )}
+                <Box ref={previewRef} overflow="hidden" height="full">
+                    <Box
+                        ref={previewContentRef}
+                        pointerEvents="none"
+                        paddingX="1.5"
+                        style={{
+                            width: `${(1 / scale) * 100}%`,
+                            transformOrigin: "0 0",
+                            transform: `scale(${scale})`,
+                        }}
+                    >
+                        {!isInitialAppRender && content && (
+                            // Don't render the snippet on initial app render because we need a layout
+                            // effect to correctly position the content. Flashing content from invisible
+                            // to visible is better than flashing content with the wrong scroll position
+                            // to the right scroll position.
+                            <ContentView
+                                content={content}
+                                // Don't allow interacting with the content at all. (Like clicking links.)
+                                // Clicking on the preview opens it in the document.
+                                isInert={true}
+                                shouldHighlightComment={shouldHighlightComment}
+                            />
+                        )}
+                    </Box>
+                </Box>
             </Box>
-        </Box>
+        </FocusRing>
     );
 }

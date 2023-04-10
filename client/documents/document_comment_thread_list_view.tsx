@@ -1,4 +1,5 @@
 import {
+    Memo,
     MutableRefObject,
     Ref,
     forwardRef,
@@ -179,6 +180,7 @@ function DocumentCommentThreadListView(
     {
         documentId,
         content,
+        onCommentThreadSnippetPress,
         initialCommentThreadsResult,
         isConnected,
         sendCommentThreadMessage,
@@ -187,6 +189,7 @@ function DocumentCommentThreadListView(
     }: {
         documentId: DocumentId;
         content: DocumentContentWithReferences;
+        onCommentThreadSnippetPress: Memo<(commentThreadId: DocumentCommentThreadId) => void>;
 
         /**
          * The initial comment threads loaded to populate this view. We will use this
@@ -527,6 +530,7 @@ function DocumentCommentThreadListView(
                                     snippetByCommentThreadId.get(item.commentThread.id) ?? null
                                 }
                                 contentReferences={content.references}
+                                onCommentThreadSnippetPress={onCommentThreadSnippetPress}
                             />
                         ),
                     };
@@ -593,6 +597,7 @@ function DocumentCommentThreadListView(
             documentId,
             snippetByCommentThreadId,
             content.references,
+            onCommentThreadSnippetPress,
             messageEditing,
             highlightComment,
             handleJumpToComment,

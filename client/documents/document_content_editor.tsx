@@ -1,7 +1,7 @@
 import {AnimationControls, spring, timeline} from "motion";
 import {CaretDown, CaretUp, SpinnerGap, X} from "phosphor-react";
 import {Command} from "prosemirror-state";
-import {Ref, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
+import {Memo, Ref, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
 import {updateContentEditorReferences} from "~/client/content/content_editor_state";
 import {useAppContext} from "~/client/context/app_context";
@@ -579,6 +579,55 @@ function DocumentContentEditorStateful({
      *                       Scroll to comment in document                        *
     \* ========================================================================== */
 
+    const scrollToEditorRect = useEvent((rect: DOMRect) => {
+        const editorContainerElement = assertExists(editorContainerRef.current);
+        const editorContainerRect = editorContainerElement.getBoundingClientRect();
+
+        const commentMarkTop =
+            editorContainerElement.scrollTop + rect.top - editorContainerRect.top;
+        const commentMarkBottom =
+            editorContainerElement.scrollTop + rect.bottom - editorContainerRect.top;
+
+        // Try scrolling the element 20% from the top of the screen...
+        const candidateScrollTop1 = clamp(
+            0,
+            commentMarkTop - editorContainerRect.height / 5,
+            editorContainerElement.scrollHeight - editorContainerRect.height,
+        );
+
+        // Try scrolling the element 20% from the bottom of the screen...
+        const candidateScrollTop2 = clamp(
+            0,
+            commentMarkBottom + editorContainerRect.height / 5 - editorContainerRect.height,
+            editorContainerElement.scrollHeight - editorContainerRect.height,
+        );
+
+        const candidateScrollTop1Distance = Math.abs(
+            candidateScrollTop1 - editorContainerElement.scrollTop,
+        );
+        const candidateScrollTop2Distance = Math.abs(
+            candidateScrollTop2 - editorContainerElement.scrollTop,
+        );
+
+        // Pick the scroll offset that moves our window the least. That way there are
+        // no big disorienting jumps.
+        if (candidateScrollTop2Distance < candidateScrollTop1Distance) {
+            editorContainerElement.scrollTop = candidateScrollTop2;
+        } else {
+            editorContainerElement.scrollTop = candidateScrollTop1;
+        }
+    });
+
+    const handleCommentThreadSnippetPress = useEvent((commentThreadId: DocumentCommentThreadId) => {
+        const editorContainerElement = assertExists(editorContainerRef.current);
+        const firstCommentMarkElement = editorContainerElement.querySelector(
+            `[data-comment="${commentThreadId}"]`,
+        );
+        if (!firstCommentMarkElement) return;
+
+        scrollToEditorRect(firstCommentMarkElement.getBoundingClientRect());
+    });
+
     {
         const hasInitializedRef = useRef(false);
         const lastSidebarStateRef = useRef(sidebarState);
@@ -648,45 +697,8 @@ function DocumentContentEditorStateful({
             if (isSomeCommentMarkVisible) return;
 
             assert(firstCommentMarkRect);
-
-            const commentMarkTop =
-                editorContainerElement.scrollTop +
-                firstCommentMarkRect.top -
-                editorContainerRect.top;
-            const commentMarkBottom =
-                editorContainerElement.scrollTop +
-                firstCommentMarkRect.bottom -
-                editorContainerRect.top;
-
-            // Try scrolling the element 20% from the top of the screen...
-            const candidateScrollTop1 = clamp(
-                0,
-                commentMarkTop - editorContainerRect.height / 5,
-                editorContainerElement.scrollHeight - editorContainerRect.height,
-            );
-
-            // Try scrolling the element 20% from the bottom of the screen...
-            const candidateScrollTop2 = clamp(
-                0,
-                commentMarkBottom + editorContainerRect.height / 5 - editorContainerRect.height,
-                editorContainerElement.scrollHeight - editorContainerRect.height,
-            );
-
-            const candidateScrollTop1Distance = Math.abs(
-                candidateScrollTop1 - editorContainerElement.scrollTop,
-            );
-            const candidateScrollTop2Distance = Math.abs(
-                candidateScrollTop2 - editorContainerElement.scrollTop,
-            );
-
-            // Pick the scroll offset that moves our window the least. That way there are
-            // no big disorienting jumps.
-            if (candidateScrollTop2Distance < candidateScrollTop1Distance) {
-                editorContainerElement.scrollTop = candidateScrollTop2;
-            } else {
-                editorContainerElement.scrollTop = candidateScrollTop1;
-            }
-        }, [isInitialAppRender, sidebarState]);
+            scrollToEditorRect(firstCommentMarkRect);
+        }, [isInitialAppRender, scrollToEditorRect, sidebarState]);
     }
 
     /* ========================================================================== *\
@@ -784,6 +796,7 @@ function DocumentContentEditorStateful({
                     <DocumentContentEditorSidebar
                         documentId={documentId}
                         content={content}
+                        onCommentThreadSnippetPress={handleCommentThreadSnippetPress}
                         commentThreadId={sidebarState.commentThreadId}
                         initialDataPromise={sidebarState.dataPromise}
                         isConnected={isConnected}
@@ -874,6 +887,7 @@ function DocumentContentEditorSidebar({
     documentId,
     content,
     commentThreadId,
+    onCommentThreadSnippetPress,
     initialDataPromise,
     isConnected,
     sendCommentThreadMessage,
@@ -886,6 +900,7 @@ function DocumentContentEditorSidebar({
     documentId: DocumentId;
     content: DocumentContentWithReferences;
     commentThreadId: DocumentCommentThreadId;
+    onCommentThreadSnippetPress: Memo<(commentThreadId: DocumentCommentThreadId) => void>;
     initialDataPromise: PromiseImmediate<DocumentContentEditorSidebarTransitionData>;
     isConnected: boolean;
     sendCommentThreadMessage: SendCommentThreadMessageFunction;
@@ -1024,6 +1039,7 @@ function DocumentContentEditorSidebar({
                                 ref={commentThreadListViewRef}
                                 documentId={documentId}
                                 content={content}
+                                onCommentThreadSnippetPress={onCommentThreadSnippetPress}
                                 initialCommentThreadsResult={{
                                     commentThread: initialDataResult.value.commentThread,
                                     comments: initialDataResult.value.initialComments,
@@ -1043,6 +1059,7 @@ function DocumentContentEditorSidebar({
                         documentId,
                         initialDataResult,
                         isConnected,
+                        onCommentThreadSnippetPress,
                         sendCommentThreadMessage,
                         subscribeToCommentThreadMessages,
                     ],
