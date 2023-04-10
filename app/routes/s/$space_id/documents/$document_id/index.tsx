@@ -127,12 +127,16 @@ export default function DocumentRoute() {
         }
     }, [searchParams, setSearchParams]);
 
+    const commentIndexString = searchParams.get("comment");
+    const commentIndex = commentIndexString ? parseInt(commentIndexString, 10) : null;
+
     return (
         <DocumentContentEditor
             // Re-render when the document changes
             key={document.id}
             initialDocument={document}
             initialCommentThreadResult={commentThreadResult}
+            initialScrollToCommentIndex={commentIndex}
             onContentChange={content => {
                 updateMetaTitle(`${getDocumentContentTitle(content)}${metaTitlePostfix}`);
             }}
@@ -140,8 +144,10 @@ export default function DocumentRoute() {
                 const url = new URL(window.location.href);
                 if (commentThreadId) {
                     url.searchParams.set("comments", commentThreadId);
+                    url.searchParams.delete("comment");
                 } else {
                     url.searchParams.delete("comments");
+                    url.searchParams.delete("comment");
                 }
 
                 // Silently update the URL without telling Remix so our component doesn't

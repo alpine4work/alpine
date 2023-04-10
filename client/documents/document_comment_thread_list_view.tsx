@@ -30,6 +30,7 @@ import {bufferedMessageViewHeight} from "~/client/messaging/message_view";
 import {renderMessageListItem} from "~/client/messaging/messaging_view";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
+import {useSpaceContext} from "~/client/spaces/space_context";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
@@ -37,7 +38,7 @@ import {
 } from "~/client/virtualized/virtualized_scroll_view";
 import {VirtualizedTree} from "~/client/virtualized/virtualized_tree";
 import {UncheckedDocumentContentSchema} from "~/shared/content/document_content_schema";
-import {OutOfRangeError, UnimplementedError} from "~/shared/error/error";
+import {OutOfRangeError} from "~/shared/error/error";
 import {wait} from "~/shared/helpers/async/wait";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -217,6 +218,7 @@ function DocumentCommentThreadListView(
     const isMobile = isActuallyMobile || withMobileLayout;
 
     const context = useAppContext();
+    const {space} = useSpaceContext();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
     const [tree, setTree] = useState(() =>
@@ -566,13 +568,16 @@ function DocumentCommentThreadListView(
                             });
                         },
                         getMessageUrl: commentIndex => {
-                            // NOCOMMIT
-                            throw new UnimplementedError("TODO");
+                            return new URL(
+                                `/s/${space.id}/documents/${documentId}?comments=${item.commentThread.id}&comment=${commentIndex}`,
+                                window.location.href,
+                            );
                         },
                     });
                 }
                 case "DocumentCommentInput": {
-                    // NOCOMMIT
+                    // TODO(calebmer): Implement when we have a surface that renders multiple
+                    // comment threads.
                     return {
                         key: `DocumentCommentInput:${item.commentThread.id}`,
                         minHeight: 50,
@@ -592,6 +597,7 @@ function DocumentCommentThreadListView(
             highlightComment,
             handleJumpToComment,
             sendCommentThreadMessage,
+            space.id,
         ],
     );
 

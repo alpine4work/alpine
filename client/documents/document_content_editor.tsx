@@ -1,7 +1,7 @@
 import {AnimationControls, spring, timeline} from "motion";
 import {CaretDown, CaretUp, SpinnerGap, X} from "phosphor-react";
 import {Command} from "prosemirror-state";
-import {useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
+import {Ref, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
 import {updateContentEditorReferences} from "~/client/content/content_editor_state";
 import {useAppContext} from "~/client/context/app_context";
@@ -10,7 +10,10 @@ import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_re
 import {IconButton} from "~/client/design/icon_button";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
-import {DocumentCommentThreadListView} from "~/client/documents/document_comment_thread_list_view";
+import {
+    DocumentCommentThreadListView,
+    DocumentCommentThreadListViewRef,
+} from "~/client/documents/document_comment_thread_list_view";
 import {documentContentClassName, documentPaddingX} from "~/client/documents/document_content_view";
 import {
     DocumentContentEditorSideDecoration,
@@ -64,6 +67,7 @@ const documentContentEditorSidebarWidth = spacing["96"];
 export function DocumentContentEditor({
     initialDocument,
     initialCommentThreadResult,
+    initialScrollToCommentIndex,
     onContentChange,
     onCommentThreadChange,
 }: {
@@ -73,6 +77,7 @@ export function DocumentContentEditor({
         initialComments: ReadonlyArray<DocumentCommentModel>;
         initialOtherReferencedComments: ReadonlyArray<DocumentCommentModel>;
     } | null;
+    initialScrollToCommentIndex: number | null;
     onContentChange?: (content: DocumentContent) => void;
     onCommentThreadChange?: (commentThreadId: DocumentCommentThreadId | null) => void;
 }) {
@@ -83,6 +88,7 @@ export function DocumentContentEditor({
             key={`${initialDocument.id}-${initialDocument.version}`}
             initialDocument={initialDocument}
             initialCommentThreadResult={initialCommentThreadResult}
+            initialScrollToCommentIndex={initialScrollToCommentIndex}
             onContentChange={onContentChange}
             onCommentThreadChange={onCommentThreadChange}
         />
@@ -120,6 +126,7 @@ type DocumentContentEditorSidebarTransitionData = {
 function DocumentContentEditorStateful({
     initialDocument,
     initialCommentThreadResult,
+    initialScrollToCommentIndex,
     onContentChange,
     onCommentThreadChange,
 }: {
@@ -129,6 +136,7 @@ function DocumentContentEditorStateful({
         initialComments: ReadonlyArray<DocumentCommentModel>;
         initialOtherReferencedComments: ReadonlyArray<DocumentCommentModel>;
     } | null;
+    initialScrollToCommentIndex: number | null;
     onContentChange?: (content: DocumentContent) => void;
     onCommentThreadChange?: (commentThreadId: DocumentCommentThreadId | null) => void;
 }) {
@@ -140,6 +148,7 @@ function DocumentContentEditorStateful({
     const editorRef = useRef<ContentEditorRef>(null);
     const editorContainerRef = useRef<HTMLDivElement>(null);
     const sidebarRef = useRef<HTMLDivElement>(null);
+    const commentThreadListViewRef = useRef<DocumentCommentThreadListViewRef>(null);
     const containerId = useId();
     const [containerResizeRef, containerSize] = useResizeObserver();
 
@@ -539,6 +548,27 @@ function DocumentContentEditorStateful({
     );
 
     /* ========================================================================== *\
+     *                       Initial render comment scroll                        *
+    \* ========================================================================== */
+
+    const hasInitializedRef = useRef(false);
+
+    // TODO(calebmer): Support server-side rendering for immediately jumping to a
+    // comment in the middle of a post. This will make transitions seamless when
+    // you click on a link to a comment.
+    useEffect(() => {
+        if (hasInitializedRef.current) return;
+        hasInitializedRef.current = true;
+
+        if (initialCommentThreadResult && initialScrollToCommentIndex !== null) {
+            commentThreadListViewRef.current?.jumpToCommentIndex(
+                initialCommentThreadResult.commentThread.id,
+                initialScrollToCommentIndex,
+            );
+        }
+    }, [initialCommentThreadResult, initialScrollToCommentIndex]);
+
+    /* ========================================================================== *\
      *                                  Render                                    *
     \* ========================================================================== */
 
@@ -639,6 +669,7 @@ function DocumentContentEditorStateful({
                         sendCommentThreadMessage={sendCommentThreadMessage}
                         subscribeToCommentThreadMessages={subscribeToCommentThreadMessages}
                         decorations={decorations}
+                        commentThreadListViewRef={commentThreadListViewRef}
                         onClose={() => {
                             setSidebarState(sidebarState => {
                                 if (!sidebarState.isOpen) return sidebarState;
@@ -724,6 +755,7 @@ function DocumentContentEditorSidebar({
     sendCommentThreadMessage,
     subscribeToCommentThreadMessages,
     decorations,
+    commentThreadListViewRef,
     onClose,
     openCommentThread,
 }: {
@@ -735,6 +767,7 @@ function DocumentContentEditorSidebar({
     sendCommentThreadMessage: SendCommentThreadMessageFunction;
     subscribeToCommentThreadMessages: SubscribeToCommentThreadMessagesFunction;
     decorations: ReadonlyArray<DocumentContentEditorSideDecoration>;
+    commentThreadListViewRef: Ref<DocumentCommentThreadListViewRef>;
     onClose: () => void;
     openCommentThread: (commentThreadId: DocumentCommentThreadId) => Promise<void>;
 }) {
@@ -864,6 +897,7 @@ function DocumentContentEditorSidebar({
                         ) : (
                             <DocumentCommentThreadListView
                                 key={commentThreadId}
+                                ref={commentThreadListViewRef}
                                 documentId={documentId}
                                 content={content}
                                 initialCommentThreadsResult={{
@@ -880,6 +914,7 @@ function DocumentContentEditorSidebar({
                         ),
                     [
                         commentThreadId,
+                        commentThreadListViewRef,
                         content,
                         documentId,
                         initialDataResult,
