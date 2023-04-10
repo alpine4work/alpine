@@ -12,7 +12,6 @@ import {
 import {assert} from "~/shared/helpers/control/assert";
 import {lerp} from "~/shared/helpers/number/lerp";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
-import {omitObject} from "~/shared/helpers/object/omit_object";
 import {borderRadius} from "~/shared/styles/internal/border_radius.css";
 import {
     CssVarFunction,
@@ -420,67 +419,51 @@ export const strikeClassName = style({
     textDecorationThickness: 1,
 });
 
-const commentPassiveLightColor = Color(colors["yellow-50"]).fade(0.7).hexa();
-const commentPassiveDarkColor = Color(colors["yellow-60"]).fade(0.7).hexa();
-const commentHoverLightColor = Color(colors["yellow-50"]).fade(0.3).hexa();
-const commentHoverDarkColor = Color(colors["yellow-50"]).fade(0.4).hexa();
-
-export const hoveredCommentClassName = style({});
-
-const commentBackgroundColorBySelectorForLightColorScheme = {
-    "&": commentPassiveLightColor,
-    [`&${hoveredCommentClassName}`]: commentHoverLightColor,
+const commentBackgroundColors = {
+    light: {
+        default: Color(colors["yellow-50"]).fade(0.7).hexa(),
+        active: Color(colors["yellow-50"]).fade(0.2).hexa(),
+    },
+    dark: {
+        default: Color(colors["yellow-60"]).fade(0.7).hexa(),
+        active: Color(colors["yellow-50"]).fade(0.4).hexa(),
+    },
 };
 
-const commentBackgroundColorBySelectorForDarkColorScheme = {
-    "&": commentPassiveDarkColor,
-    [`&${hoveredCommentClassName}`]: commentHoverDarkColor,
+const nestedCommentBackgroundColors = {
+    light: mapObjectValues(commentBackgroundColors.light, backgroundColor => {
+        const color1 = blendColors(colors["grey-0"], commentBackgroundColors.light.default);
+        const color2 = blendColors(colors["grey-0"], backgroundColor);
+        return color1 !== color2
+            ? extrapolateHighlightColor(color1, color2, Color(backgroundColor).alpha())
+            : "transparent";
+    }),
+    dark: mapObjectValues(commentBackgroundColors.dark, backgroundColor => {
+        const color1 = blendColors(invertedColors["grey-0"], commentBackgroundColors.dark.default);
+        const color2 = blendColors(invertedColors["grey-0"], backgroundColor);
+        return color1 !== color2
+            ? extrapolateHighlightColor(color1, color2, Color(backgroundColor).alpha())
+            : "transparent";
+    }),
 };
-
-const commentBackgroundColorBySelector: {[key: string]: string} = Object.fromEntries([
-    ...Object.entries(commentBackgroundColorBySelectorForLightColorScheme),
-    ...Object.entries(commentBackgroundColorBySelectorForDarkColorScheme).map(
-        ([selector, backgroundColor]) => [
-            `${darkColorSchemeSelector} ${selector}`,
-            backgroundColor,
-        ],
-    ),
-    ...Object.entries(commentBackgroundColorBySelectorForLightColorScheme).map(
-        ([selector, backgroundColor]) => {
-            const color1 = blendColors(colors["grey-0"], commentPassiveLightColor);
-            const color2 = blendColors(colors["grey-0"], backgroundColor);
-            return [
-                `& ${selector}`,
-                color1 !== color2
-                    ? extrapolateHighlightColor(color1, color2, Color(backgroundColor).alpha())
-                    : "transparent",
-            ];
-        },
-    ),
-    ...Object.entries(commentBackgroundColorBySelectorForDarkColorScheme).map(
-        ([selector, backgroundColor]) => {
-            const color1 = blendColors(invertedColors["grey-0"], commentPassiveDarkColor);
-            const color2 = blendColors(invertedColors["grey-0"], backgroundColor);
-            return [
-                `${darkColorSchemeSelector} & ${selector}`,
-                color1 !== color2
-                    ? extrapolateHighlightColor(color1, color2, Color(backgroundColor).alpha())
-                    : "transparent",
-            ];
-        },
-    ),
-]);
 
 export const commentClassName = style({
     color: "inherit",
-    backgroundColor: commentBackgroundColorBySelector["&"],
+    backgroundColor: commentBackgroundColors.light.default,
     // Extend the comment background color to the line height.
     paddingTop: `${(backgroundFontSizePercentage - 1) / 2}em`,
     paddingBottom: `${(backgroundFontSizePercentage - 1) / 2}em`,
-    selectors: mapObjectValues(
-        omitObject(commentBackgroundColorBySelector, ["&"]),
-        backgroundColor => ({backgroundColor}),
-    ),
+    selectors: {
+        "& &": {
+            backgroundColor: nestedCommentBackgroundColors.light.default,
+        },
+        [`${darkColorSchemeSelector} &`]: {
+            backgroundColor: commentBackgroundColors.dark.default,
+        },
+        [`${darkColorSchemeSelector} & &`]: {
+            backgroundColor: nestedCommentBackgroundColors.dark.default,
+        },
+    },
 });
 
 const highlightOpacity = 2 / 3;
@@ -511,7 +494,7 @@ export const highlightClassNameByColor = mapObjectValues(colorByHighlightColor, 
                 backgroundColor:
                     extrapolateHighlightColorFlippingCommentHighlightColorStackingOrder(
                         colors["grey-0"],
-                        commentPassiveLightColor,
+                        commentBackgroundColors.light.default,
                         colors[color],
                         highlightOpacity,
                     ),
@@ -520,25 +503,7 @@ export const highlightClassNameByColor = mapObjectValues(colorByHighlightColor, 
                 backgroundColor:
                     extrapolateHighlightColorFlippingCommentHighlightColorStackingOrder(
                         invertedColors["grey-0"],
-                        commentPassiveDarkColor,
-                        invertedColors[color],
-                        highlightOpacity,
-                    ),
-            },
-            [`${commentClassName}${hoveredCommentClassName} &`]: {
-                backgroundColor:
-                    extrapolateHighlightColorFlippingCommentHighlightColorStackingOrder(
-                        colors["grey-0"],
-                        commentHoverLightColor,
-                        colors[color],
-                        highlightOpacity,
-                    ),
-            },
-            [`${darkColorSchemeSelector} ${commentClassName}${hoveredCommentClassName} &`]: {
-                backgroundColor:
-                    extrapolateHighlightColorFlippingCommentHighlightColorStackingOrder(
-                        invertedColors["grey-0"],
-                        commentHoverDarkColor,
+                        commentBackgroundColors.dark.default,
                         invertedColors[color],
                         highlightOpacity,
                     ),
@@ -546,6 +511,42 @@ export const highlightClassNameByColor = mapObjectValues(colorByHighlightColor, 
         },
     });
 });
+
+export const commentActiveDynamicCssTemplate = `\
+#$containerId .${commentClassName}[data-comment="$commentThreadId"] {background-color: ${
+    commentBackgroundColors.light.active
+}}
+#$containerId .${commentClassName} .${commentClassName}[data-comment="$commentThreadId"] {background-color: ${
+    nestedCommentBackgroundColors.light.active
+}}
+${darkColorSchemeSelector} #$containerId .${commentClassName}[data-comment="$commentThreadId"] {background-color: ${
+    commentBackgroundColors.dark.active
+}}
+${darkColorSchemeSelector} #$containerId .${commentClassName} .${commentClassName}[data-comment="$commentThreadId"] {background-color: ${
+    nestedCommentBackgroundColors.dark.active
+}}
+${(Object.keys(colorByHighlightColor) as Array<keyof typeof highlightClassNameByColor>)
+    .map(
+        highlightColor => `\
+#$containerId .${commentClassName}[data-comment="$commentThreadId"] .${
+            highlightClassNameByColor[highlightColor]
+        } {background-color: ${extrapolateHighlightColorFlippingCommentHighlightColorStackingOrder(
+            colors["grey-0"],
+            commentBackgroundColors.light.active,
+            colors[colorByHighlightColor[highlightColor]],
+            highlightOpacity,
+        )}}
+${darkColorSchemeSelector} #$containerId .${commentClassName}[data-comment="$commentThreadId"] .${
+            highlightClassNameByColor[highlightColor]
+        } {background-color: ${extrapolateHighlightColorFlippingCommentHighlightColorStackingOrder(
+            invertedColors["grey-0"],
+            commentBackgroundColors.dark.active,
+            invertedColors[colorByHighlightColor[highlightColor]],
+            highlightOpacity,
+        )}}`,
+    )
+    .join("\n")}
+`;
 
 type RawColor = {r: number; g: number; b: number; alpha: number};
 

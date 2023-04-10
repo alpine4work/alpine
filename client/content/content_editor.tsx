@@ -237,6 +237,18 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
      * nothing about how comments are implemented, only how they are styled.
      */
     openCommentThread?: (commentThreadId: DocumentCommentThreadId) => Promise<void>;
+
+    /**
+     * When a pointer presses down on a comment thread this function is called.
+     * `openCommentThread` is called when a press is considered a click. (So
+     * pointer up and the pointer hasn't moved off.) Our parent component is
+     * responsible for updating the styles of all marks for this comment thread
+     * using `commentActiveDynamicCssTemplate`.
+     */
+    onCommentThreadPressedChange?: (
+        commentThreadId: DocumentCommentThreadId,
+        isHovered: boolean,
+    ) => void;
 } & (
     | {
           /**
@@ -524,6 +536,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                 comment: createContentEditorCommentMarkViewConstructor({
                     openCommentThread: async commentThreadId => {
                         await propsRef.current.openCommentThread?.(commentThreadId);
+                    },
+                    onCommentThreadPressedChange: (commentThreadId, isHovered) => {
+                        propsRef.current.onCommentThreadPressedChange?.(commentThreadId, isHovered);
                     },
                 }),
             },

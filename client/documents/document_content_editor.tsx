@@ -1,7 +1,7 @@
 import {AnimationControls, spring, timeline} from "motion";
 import {CaretDown, CaretUp, SpinnerGap, X} from "phosphor-react";
 import {Command} from "prosemirror-state";
-import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
 import {updateContentEditorReferences} from "~/client/content/content_editor_state";
 import {useAppContext} from "~/client/context/app_context";
@@ -120,6 +120,7 @@ function DocumentContentEditorStateful({
     const editorRef = useRef<ContentEditorRef>(null);
     const editorContainerRef = useRef<HTMLDivElement>(null);
     const sidebarRef = useRef<HTMLDivElement>(null);
+    const containerId = useId();
     const [containerResizeRef, containerSize] = useResizeObserver();
 
     const {
@@ -500,6 +501,15 @@ function DocumentContentEditorStateful({
             ? containerSize.width - documentContentEditorSidebarWidthPx
             : containerSize?.width ?? null;
 
+    const [pressedCommentThreadId, setPressedCommentThreadId] =
+        useState<DocumentCommentThreadId | null>(null);
+
+    const activeCommentThreadId =
+        pressedCommentThreadId ??
+        (sidebarState.isOpen && sidebarState.animationState !== "Closing"
+            ? sidebarState.commentThreadId
+            : null);
+
     return (
         <Box
             ref={containerResizeRef}
@@ -513,6 +523,7 @@ function DocumentContentEditorStateful({
         >
             <Box
                 ref={editorContainerRef}
+                id={containerId}
                 flexGrow="1"
                 position="relative"
                 zIndex="0"
@@ -536,6 +547,14 @@ function DocumentContentEditorStateful({
                         phantomSelections={phantomSelections}
                         addCommentCommand={addCommentCommand}
                         openCommentThread={openCommentThread}
+                        onCommentThreadPressedChange={(commentThreadId, isHovered) => {
+                            setPressedCommentThreadId(pressedCommentThreadId => {
+                                if (isHovered) return commentThreadId;
+                                if (!isHovered && pressedCommentThreadId === commentThreadId)
+                                    return null;
+                                return pressedCommentThreadId;
+                            });
+                        }}
                     />
                     {useMemo(
                         // Memoize side decorations since it can be an expensive component
@@ -567,7 +586,6 @@ function DocumentContentEditorStateful({
                     }}
                 >
                     <DocumentContentEditorSidebar
-                        key={sidebarState.commentThreadId}
                         documentId={documentId}
                         content={content}
                         commentThreadId={sidebarState.commentThreadId}
@@ -579,12 +597,32 @@ function DocumentContentEditorStateful({
                         onClose={() => {
                             setSidebarState(sidebarState => {
                                 if (!sidebarState.isOpen) return sidebarState;
-                                return {...sidebarState, animationState: "Closing"};
+                                return {...sidebarState, animationState: "Closing" as const};
                             });
                         }}
                         openCommentThread={openCommentThread}
                     />
                 </Box>
+            )}
+            {useMemo(
+                // We style hovered and active comments with a `<style>` element containing
+                // CSS with a dynamic selector that changes when our state changes. We do this
+                // for two reasons:
+                //
+                // 1. All marks for a `DocumentCommentThreadId` should light up when we hover
+                //    even if they are different elements in the DOM
+                // 2. Changing DOM properties (e.g. `class`) of comment elements triggers
+                //    ProseMirror's mutation observer and since the observer doesn't know why
+                //    the change happened it destroys and recreates the mark elements
+                () =>
+                    activeCommentThreadId && (
+                        <style key={activeCommentThreadId}>
+                            {contentSchemaStyles.commentActiveDynamicCssTemplate
+                                .replaceAll("$containerId", containerId.replaceAll(":", "\\:"))
+                                .replaceAll("$commentThreadId", activeCommentThreadId)}
+                        </style>
+                    ),
+                [activeCommentThreadId, containerId],
             )}
         </Box>
     );
@@ -730,6 +768,7 @@ function DocumentContentEditorSidebar({
                         </Box>
                     ) : (
                         <DocumentCommentThreadListView
+                            key={commentThreadId}
                             documentId={documentId}
                             content={content}
                             initialCommentThreadsResult={{
@@ -745,6 +784,7 @@ function DocumentContentEditorSidebar({
                         />
                     ),
                 [
+                    commentThreadId,
                     content,
                     documentId,
                     initialDataResult,

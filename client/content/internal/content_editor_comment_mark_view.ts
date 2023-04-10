@@ -7,8 +7,13 @@ import {contentSchemaStyles} from "~/shared/styles/styles";
 
 export function createContentEditorCommentMarkViewConstructor({
     openCommentThread,
+    onCommentThreadPressedChange,
 }: {
     openCommentThread: (commentThreadId: DocumentCommentThreadId) => Promise<void>;
+    onCommentThreadPressedChange: (
+        commentThreadId: DocumentCommentThreadId,
+        isHovered: boolean,
+    ) => void;
 }): MarkViewConstructor {
     return (mark, view, inline) => {
         const commentThreadId: DocumentCommentThreadId = mark.attrs.commentThreadId;
@@ -39,6 +44,22 @@ export function createContentEditorCommentMarkViewConstructor({
 
         let isPointerDownAndOver = false;
         let isNavigationPending = false;
+        let isPressed = false;
+
+        const maybeUpdatePressed = () => {
+            const wasPressed = isPressed;
+            isPressed = isPointerDownAndOver || isNavigationPending;
+
+            // Our parent component is responsible for changing the styling on all comment
+            // marks with this `DocumentCommentThreadId`.
+            //
+            // We also have to be careful when mutating a mark's DOM element because
+            // ProseMirror will pick up the mutation and try to interpret it as a state
+            // change. For unknown changes it completely destroys and recreates the mark's
+            // DOM node. Because of this we can't maintain state in a mark view or the
+            // mark's DOM node.
+            if (wasPressed !== isPressed) onCommentThreadPressedChange(commentThreadId, isPressed);
+        };
 
         dom.addEventListener("pointerdown", event => {
             // If we have overlapping comment marks only one should activate.
@@ -50,6 +71,8 @@ export function createContentEditorCommentMarkViewConstructor({
             }
 
             isPointerDownAndOver = true;
+
+            maybeUpdatePressed();
         });
 
         dom.addEventListener("pointerup", event => {
@@ -57,12 +80,16 @@ export function createContentEditorCommentMarkViewConstructor({
             isPointerDownAndOver = false;
 
             // Only process pointer up events that started on our element.
-            if (!wasPointerDownAndOver) return;
+            if (!wasPointerDownAndOver) {
+                maybeUpdatePressed();
+                return;
+            }
 
             // Ignore non-left clicks (e.g. right clicks) and ignore clicks with a keyboard
             // modifier. Unless the click was meant to open the link in a separate tab. We
             // need to implement that manually here given the text is editable.
             if (event.button !== 0 || isModifiedPointerEvent(event)) {
+                maybeUpdatePressed();
                 return;
             }
 
@@ -71,6 +98,7 @@ export function createContentEditorCommentMarkViewConstructor({
                 !(event.target instanceof Node) ||
                 !isChildOfOurCommentMarkWithoutOverridingParentCommentMark(event.target)
             ) {
+                maybeUpdatePressed();
                 return;
             }
 
@@ -82,12 +110,17 @@ export function createContentEditorCommentMarkViewConstructor({
                 isNavigationPending = true;
                 navigationPromise.finally(() => {
                     isNavigationPending = false;
+                    maybeUpdatePressed();
                 });
             }
+
+            maybeUpdatePressed();
         });
 
         dom.addEventListener("pointerleave", () => {
             isPointerDownAndOver = false;
+
+            maybeUpdatePressed();
         });
 
         return {
