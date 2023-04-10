@@ -1,6 +1,7 @@
 import {DOMSerializer} from "prosemirror-model";
 import {MarkViewConstructor} from "prosemirror-view";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event";
+import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint";
 import {assert} from "~/shared/helpers/control/assert";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
 import {contentSchemaStyles} from "~/shared/styles/styles";
@@ -58,7 +59,17 @@ export function createContentEditorCommentMarkViewConstructor({
             // change. For unknown changes it completely destroys and recreates the mark's
             // DOM node. Because of this we can't maintain state in a mark view or the
             // mark's DOM node.
-            if (wasPressed !== isPressed) onCommentThreadPressedChange(commentThreadId, isPressed);
+            if (wasPressed !== isPressed) {
+                // Schedule calling our callback a browser paint after the event which changes
+                // our comment style. Otherwise I'm seeing a bug where clicking on a comment
+                // jumps your cursor to the beginning of the document. Unclear why precisely
+                // that happens. Maybe something to do with the new CSS?
+                const expectPressed = isPressed;
+                scheduleAfterNextBrowserPaint(() => {
+                    if (expectPressed !== isPressed) return;
+                    onCommentThreadPressedChange(commentThreadId, isPressed);
+                });
+            }
         };
 
         dom.addEventListener("pointerdown", event => {

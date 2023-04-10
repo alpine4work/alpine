@@ -62,19 +62,29 @@ import {colorSchemeVars, contentSchemaStyles, spinAnimationClassName} from "~/sh
 const documentContentEditorSidebarWidth = spacing["96"];
 
 export function DocumentContentEditor({
-    document,
-    onDocumentContentChange,
+    initialDocument,
+    initialCommentThreadResult,
+    onContentChange,
+    onCommentThreadChange,
 }: {
-    document: DocumentModel;
-    onDocumentContentChange?: (content: DocumentContent) => void;
+    initialDocument: DocumentModel;
+    initialCommentThreadResult: {
+        commentThread: DocumentCommentThreadModel;
+        initialComments: ReadonlyArray<DocumentCommentModel>;
+        initialOtherReferencedComments: ReadonlyArray<DocumentCommentModel>;
+    } | null;
+    onContentChange?: (content: DocumentContent) => void;
+    onCommentThreadChange?: (commentThreadId: DocumentCommentThreadId | null) => void;
 }) {
     return (
         <DocumentContentEditorStateful
             // If a document prop with a different id + version is passed in then remount
             // our stateful content editor component.
-            key={`${document.id}-${document.version}`}
-            initialDocument={document}
-            onDocumentContentChange={onDocumentContentChange}
+            key={`${initialDocument.id}-${initialDocument.version}`}
+            initialDocument={initialDocument}
+            initialCommentThreadResult={initialCommentThreadResult}
+            onContentChange={onContentChange}
+            onCommentThreadChange={onCommentThreadChange}
         />
     );
 }
@@ -109,10 +119,18 @@ type DocumentContentEditorSidebarTransitionData = {
 
 function DocumentContentEditorStateful({
     initialDocument,
-    onDocumentContentChange,
+    initialCommentThreadResult,
+    onContentChange,
+    onCommentThreadChange,
 }: {
     initialDocument: DocumentModel;
-    onDocumentContentChange?: (content: DocumentContent) => void;
+    initialCommentThreadResult: {
+        commentThread: DocumentCommentThreadModel;
+        initialComments: ReadonlyArray<DocumentCommentModel>;
+        initialOtherReferencedComments: ReadonlyArray<DocumentCommentModel>;
+    } | null;
+    onContentChange?: (content: DocumentContent) => void;
+    onCommentThreadChange?: (commentThreadId: DocumentCommentThreadId | null) => void;
 }) {
     const {id: documentId} = initialDocument;
 
@@ -157,10 +175,10 @@ function DocumentContentEditorStateful({
     const lastContentDocRef = useRef(content.doc);
     useEffect(() => {
         if (content.doc !== lastContentDocRef.current) {
-            onDocumentContentChange?.(content.doc);
+            onContentChange?.(content.doc);
             lastContentDocRef.current = content.doc;
         }
-    }, [content.doc, onDocumentContentChange]);
+    }, [content.doc, onContentChange]);
 
     // This command was adapted from `createToggleMarkCommand()`.
     const addCommentCommand: Command = (state, dispatch) => {
@@ -217,9 +235,21 @@ function DocumentContentEditorStateful({
      *                            Sidebar animations                              *
     \* ========================================================================== */
 
-    const [sidebarState, setSidebarState] = useState<DocumentContentEditorSidebarState>({
-        isOpen: false,
-        transition: null,
+    const [sidebarState, setSidebarState] = useState<DocumentContentEditorSidebarState>(() => {
+        if (!initialCommentThreadResult) {
+            return {
+                isOpen: false,
+                transition: null,
+            };
+        }
+
+        return {
+            isOpen: true,
+            animationState: null,
+            transition: null,
+            commentThreadId: initialCommentThreadResult.commentThread.id,
+            dataPromise: PromiseImmediate.resolve(initialCommentThreadResult),
+        };
     });
 
     const sidebarAnimationInRef = useRef<AnimationControls | null>(null);
@@ -356,6 +386,24 @@ function DocumentContentEditorStateful({
         sidebarAnimationOutRef.current = animation;
     }, [sidebarState]);
 
+    const [pressedCommentThreadId, setPressedCommentThreadId] =
+        useState<DocumentCommentThreadId | null>(null);
+
+    const sidebarCommentThreadId =
+        sidebarState.isOpen && sidebarState.animationState !== "Closing"
+            ? sidebarState.commentThreadId
+            : null;
+
+    const activeCommentThreadId = pressedCommentThreadId ?? sidebarCommentThreadId;
+
+    const lastSidebarCommentThreadIdRef = useRef(sidebarCommentThreadId);
+    useEffect(() => {
+        if (sidebarCommentThreadId !== lastSidebarCommentThreadIdRef.current) {
+            onCommentThreadChange?.(sidebarCommentThreadId);
+            lastSidebarCommentThreadIdRef.current = sidebarCommentThreadId;
+        }
+    }, [onCommentThreadChange, sidebarCommentThreadId]);
+
     /* ========================================================================== *\
      *                     Comment thread sidebar navigation                      *
     \* ========================================================================== */
@@ -490,6 +538,10 @@ function DocumentContentEditorStateful({
         [decorationByMarkTop],
     );
 
+    /* ========================================================================== *\
+     *                                  Render                                    *
+    \* ========================================================================== */
+
     const documentContentEditorSidebarWidthPx = convertRemLengthToPx(
         documentContentEditorSidebarWidth,
         useRemPx(),
@@ -502,15 +554,6 @@ function DocumentContentEditorStateful({
         containerSize && sidebarState.isOpen && sidebarState.animationState !== "Closing"
             ? containerSize.width - documentContentEditorSidebarWidthPx
             : containerSize?.width ?? null;
-
-    const [pressedCommentThreadId, setPressedCommentThreadId] =
-        useState<DocumentCommentThreadId | null>(null);
-
-    const activeCommentThreadId =
-        pressedCommentThreadId ??
-        (sidebarState.isOpen && sidebarState.animationState !== "Closing"
-            ? sidebarState.commentThreadId
-            : null);
 
     return (
         <Box
@@ -618,11 +661,14 @@ function DocumentContentEditorStateful({
                 //    the change happened it destroys and recreates the mark elements
                 () =>
                     activeCommentThreadId && (
-                        <style key={activeCommentThreadId}>
-                            {contentSchemaStyles.commentActiveDynamicCssTemplate
-                                .replaceAll("$containerId", containerId.replaceAll(":", "\\:"))
-                                .replaceAll("$commentThreadId", activeCommentThreadId)}
-                        </style>
+                        <style
+                            key={activeCommentThreadId}
+                            dangerouslySetInnerHTML={{
+                                __html: contentSchemaStyles.commentActiveDynamicCssTemplate
+                                    .replaceAll("$containerId", containerId.replaceAll(":", "\\:"))
+                                    .replaceAll("$commentThreadId", activeCommentThreadId),
+                            }}
+                        />
                     ),
                 [activeCommentThreadId, containerId],
             )}
