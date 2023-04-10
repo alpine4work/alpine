@@ -45,10 +45,13 @@ import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spac
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
 import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint";
+import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
+import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
 import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
+import {clamp} from "~/shared/helpers/number/clamp";
 import {assertId, generateId} from "~/shared/id/id";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types";
 import {
@@ -149,7 +152,7 @@ function DocumentContentEditorStateful({
     const editorContainerRef = useRef<HTMLDivElement>(null);
     const sidebarRef = useRef<HTMLDivElement>(null);
     const commentThreadListViewRef = useRef<DocumentCommentThreadListViewRef>(null);
-    const containerId = useId();
+    const editorContainerId = useId();
     const [containerResizeRef, containerSize] = useResizeObserver();
 
     const {
@@ -403,15 +406,17 @@ function DocumentContentEditorStateful({
             ? sidebarState.commentThreadId
             : null;
 
-    const activeCommentThreadId = pressedCommentThreadId ?? sidebarCommentThreadId;
+    {
+        const lastSidebarCommentThreadIdRef = useRef(sidebarCommentThreadId);
+        useEffect(() => {
+            if (sidebarCommentThreadId !== lastSidebarCommentThreadIdRef.current) {
+                onCommentThreadChange?.(sidebarCommentThreadId);
+                lastSidebarCommentThreadIdRef.current = sidebarCommentThreadId;
+            }
+        }, [onCommentThreadChange, sidebarCommentThreadId]);
+    }
 
-    const lastSidebarCommentThreadIdRef = useRef(sidebarCommentThreadId);
-    useEffect(() => {
-        if (sidebarCommentThreadId !== lastSidebarCommentThreadIdRef.current) {
-            onCommentThreadChange?.(sidebarCommentThreadId);
-            lastSidebarCommentThreadIdRef.current = sidebarCommentThreadId;
-        }
-    }, [onCommentThreadChange, sidebarCommentThreadId]);
+    const activeCommentThreadId = pressedCommentThreadId ?? sidebarCommentThreadId;
 
     /* ========================================================================== *\
      *                     Comment thread sidebar navigation                      *
@@ -551,22 +556,138 @@ function DocumentContentEditorStateful({
      *                       Initial render comment scroll                        *
     \* ========================================================================== */
 
-    const hasInitializedRef = useRef(false);
+    {
+        const hasInitializedRef = useRef(false);
 
-    // TODO(calebmer): Support server-side rendering for immediately jumping to a
-    // comment in the middle of a post. This will make transitions seamless when
-    // you click on a link to a comment.
-    useEffect(() => {
-        if (hasInitializedRef.current) return;
-        hasInitializedRef.current = true;
+        // TODO(calebmer): Support server-side rendering for immediately jumping to a
+        // comment in the middle of a post. This will make transitions seamless when
+        // you click on a link to a comment.
+        useEffect(() => {
+            if (hasInitializedRef.current) return;
+            hasInitializedRef.current = true;
 
-        if (initialCommentThreadResult && initialScrollToCommentIndex !== null) {
-            commentThreadListViewRef.current?.jumpToCommentIndex(
-                initialCommentThreadResult.commentThread.id,
-                initialScrollToCommentIndex,
+            if (initialCommentThreadResult && initialScrollToCommentIndex !== null) {
+                commentThreadListViewRef.current?.jumpToCommentIndex(
+                    initialCommentThreadResult.commentThread.id,
+                    initialScrollToCommentIndex,
+                );
+            }
+        }, [initialCommentThreadResult, initialScrollToCommentIndex]);
+    }
+
+    /* ========================================================================== *\
+     *                       Scroll to comment in document                        *
+    \* ========================================================================== */
+
+    {
+        const hasInitializedRef = useRef(false);
+        const lastSidebarStateRef = useRef(sidebarState);
+        useLayoutEffectWithoutServerSideWarning(() => {
+            // Ignore the initial app render since we won't have rendered comment marks...
+            if (isInitialAppRender) return;
+
+            const isInitialRender = !hasInitializedRef.current;
+            hasInitializedRef.current = true;
+
+            const lastSidebarState = lastSidebarStateRef.current;
+            lastSidebarStateRef.current = sidebarState;
+
+            const lastCommentThreadId =
+                lastSidebarState.isOpen && lastSidebarState.animationState !== "Closing"
+                    ? lastSidebarState.commentThreadId
+                    : null;
+
+            const commentThreadId =
+                sidebarState.isOpen && sidebarState.animationState !== "Closing"
+                    ? sidebarState.commentThreadId
+                    : null;
+
+            // When the sidebar comment thread changes, scroll to the comment in
+            // the document. Or when the component initially mounts.
+            if (
+                !commentThreadId ||
+                (!isInitialRender &&
+                    (lastCommentThreadId === commentThreadId || !lastSidebarState.isOpen))
+            ) {
+                return;
+            }
+
+            const editorContainerElement = assertExists(editorContainerRef.current);
+            const commentMarkElements = editorContainerElement.querySelectorAll(
+                `[data-comment="${commentThreadId}"]`,
             );
-        }
-    }, [initialCommentThreadResult, initialScrollToCommentIndex]);
+
+            const editorContainerRect = editorContainerElement.getBoundingClientRect();
+
+            // Comment thread doesn't exist in the document anymore
+            if (commentMarkElements.length === 0) return;
+
+            let firstCommentMarkRect: DOMRect | undefined;
+            let isSomeCommentMarkVisible = false;
+
+            for (const commentMarkElement of commentMarkElements) {
+                const commentMarkRect = commentMarkElement.getBoundingClientRect();
+                if (!firstCommentMarkRect) firstCommentMarkRect = commentMarkRect;
+
+                if (
+                    areRangesOverlapping(
+                        editorContainerRect.top,
+                        editorContainerRect.bottom,
+                        commentMarkRect.top,
+                        commentMarkRect.bottom,
+                    )
+                ) {
+                    isSomeCommentMarkVisible = true;
+                    break;
+                }
+            }
+
+            // If any of the comment's mark elements are visible we don't need to scroll to
+            // it! If the user wants to see exactly the part of the doc in the preview they
+            // can click on the preview.
+            if (isSomeCommentMarkVisible) return;
+
+            assert(firstCommentMarkRect);
+
+            const commentMarkTop =
+                editorContainerElement.scrollTop +
+                firstCommentMarkRect.top -
+                editorContainerRect.top;
+            const commentMarkBottom =
+                editorContainerElement.scrollTop +
+                firstCommentMarkRect.bottom -
+                editorContainerRect.top;
+
+            // Try scrolling the element 20% from the top of the screen...
+            const candidateScrollTop1 = clamp(
+                0,
+                commentMarkTop - editorContainerRect.height / 5,
+                editorContainerElement.scrollHeight - editorContainerRect.height,
+            );
+
+            // Try scrolling the element 20% from the bottom of the screen...
+            const candidateScrollTop2 = clamp(
+                0,
+                commentMarkBottom + editorContainerRect.height / 5 - editorContainerRect.height,
+                editorContainerElement.scrollHeight - editorContainerRect.height,
+            );
+
+            const candidateScrollTop1Distance = Math.abs(
+                candidateScrollTop1 - editorContainerElement.scrollTop,
+            );
+            const candidateScrollTop2Distance = Math.abs(
+                candidateScrollTop2 - editorContainerElement.scrollTop,
+            );
+
+            // Pick the scroll offset that moves our window the least. That way there are
+            // no big disorienting jumps.
+            if (candidateScrollTop2Distance < candidateScrollTop1Distance) {
+                editorContainerElement.scrollTop = candidateScrollTop2;
+            } else {
+                editorContainerElement.scrollTop = candidateScrollTop1;
+            }
+        }, [isInitialAppRender, sidebarState]);
+    }
 
     /* ========================================================================== *\
      *                                  Render                                    *
@@ -598,7 +719,7 @@ function DocumentContentEditorStateful({
         >
             <Box
                 ref={editorContainerRef}
-                id={containerId}
+                id={editorContainerId}
                 flexGrow="1"
                 position="relative"
                 zIndex="0"
@@ -696,12 +817,15 @@ function DocumentContentEditorStateful({
                             key={activeCommentThreadId}
                             dangerouslySetInnerHTML={{
                                 __html: contentSchemaStyles.commentActiveDynamicCssTemplate
-                                    .replaceAll("$containerId", containerId.replaceAll(":", "\\:"))
+                                    .replaceAll(
+                                        "$containerId",
+                                        editorContainerId.replaceAll(":", "\\:"),
+                                    )
                                     .replaceAll("$commentThreadId", activeCommentThreadId),
                             }}
                         />
                     ),
-                [activeCommentThreadId, containerId],
+                [activeCommentThreadId, editorContainerId],
             )}
         </Box>
     );
