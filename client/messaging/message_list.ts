@@ -624,13 +624,20 @@ export class MessageList<Message extends MessageModel> {
     private _setTypingStateByConnectionId(
         typingStateByConnectionId: Iterable<[WebSocketConnectionId, MessagingTypingState]>,
     ) {
+        const newTypingStateByConnectionId = ImmutableMap.from(typingStateByConnectionId);
+
+        // If there are no typing states before and after this update we don't need a
+        // new message list.
+        if (this._typingStateByConnectionId.size === 0 && newTypingStateByConnectionId.size === 0)
+            return this;
+
         return new MessageList({
             messageCountExcludingOptimisticMessages: this._messageCountExcludingOptimisticMessages,
             messages: this._messages,
             optimisticMessages: this._optimisticMessages,
             lastMessageChangeTime: this._lastMessageChangeTime,
             unloadedMessageChangeByIndex: this._unloadedMessageChangeByIndex,
-            typingStateByConnectionId: ImmutableMap.from(typingStateByConnectionId),
+            typingStateByConnectionId: newTypingStateByConnectionId,
         });
     }
 

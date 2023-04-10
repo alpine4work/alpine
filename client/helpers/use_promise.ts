@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import {useEffect, useMemo, useState} from "react";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate";
 import {PromiseState} from "~/shared/helpers/async/promise_state";
 
@@ -58,7 +58,12 @@ export function usePromise<Value>(
             ? promise.getStateWithoutListening()
             : {status: "pending"};
 
-    if (state.status === "rejected") throw state.reason;
+    // Memoize the result so we can use it in dependency arrays.
+    return useMemo(() => {
+        if (state.status === "rejected") throw state.reason;
 
-    return state.status === "pending" ? {isPending: true} : {isPending: false, value: state.value};
+        return state.status === "pending"
+            ? {isPending: true}
+            : {isPending: false, value: state.value};
+    }, [state.reason, state.status, state.value]);
 }

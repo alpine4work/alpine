@@ -3,6 +3,7 @@ import {
     ReactElement,
     ReactNode,
     Ref,
+    RefObject,
     createContext,
     forwardRef,
     useCallback,
@@ -170,7 +171,7 @@ export type OverlayProps = {
  */
 function Overlay(
     {
-        isVisible: actuallyIsVisible = false,
+        isVisible = false,
         placement,
         fallbackPlacements: _fallbackPlacements,
         overlay: actualOverlay,
@@ -192,9 +193,6 @@ function Overlay(
     const overlaySink = useContext(OverlaySinkContext) ?? overlaySinkContextForTest;
     assert(overlaySink, "Expected a parent `<OverlayScopeContextProvider>` component");
 
-    // Always hide overlays when we don't yet have the portal element. This means
-    // overlays can't be rendered on the server.
-    const isVisible = overlaySink.portalElement !== null && actuallyIsVisible;
     const fallbackPlacements = useStableJsonValue(_fallbackPlacements ?? null);
 
     const overlayRef = useRef<HTMLDivElement>(null);
@@ -398,19 +396,42 @@ function Overlay(
 
     return (
         <>
-            {overlaySink.portalElement !== null &&
-                isVisible &&
+            {isVisible && (
                 // This intentionally comes before `children` so that React executes
                 // `overlayRef` before `targetRef`.
-                createPortal(overlay, overlaySink.portalElement)}
+                <OverlayPortal portalRef={overlaySink.portalRef} overlay={overlay} />
+            )}
             {useElementWithRef(children, useLifecycleRef(targetLifecycleRef))}
         </>
     );
 }
 
+function OverlayPortal({
+    portalRef,
+    overlay,
+}: {
+    portalRef: RefObject<HTMLDivElement>;
+    overlay: ReactNode;
+}) {
+    const [portalElement, setPortalElement] = useState(portalRef.current);
+
+    // If this component is rendered at the same time as our
+    // `<OverlayScopeContextProvider>` then we will get `null` when reading
+    // `portalRef.current` in render. So re-render with the actual element. We
+    // will only re-render if the overlay is visible on initial mount.
+    //
+    // This may cause the overlay portal to flash in. Consider a layout
+    // effect here to prevent flashes.
+    useEffect(() => {
+        setPortalElement(portalRef.current);
+    }, [portalRef]);
+
+    return portalElement ? createPortal(overlay, portalElement) : null;
+}
+
 const OverlaySinkContext = createContext<{
-    rootPortalElement: HTMLDivElement | null;
-    portalElement: HTMLDivElement | null;
+    rootPortalRef: RefObject<HTMLDivElement>;
+    portalRef: RefObject<HTMLDivElement>;
 } | null>(null);
 
 /**
@@ -423,21 +444,15 @@ const OverlaySinkContext = createContext<{
 export function OverlayScopeContextProvider({children}: {children: ReactNode}) {
     const parentOverlaySink = useContext(OverlaySinkContext);
     const portalRef = useRef<HTMLDivElement>(null);
-    const [portalElement, setPortalElement] = useState<HTMLDivElement | null>(null);
-
-    useEffect(() => {
-        assert(portalRef.current);
-        setPortalElement(portalRef.current);
-    }, []);
 
     return (
         <OverlaySinkContext.Provider
             value={useMemo(
                 () => ({
-                    rootPortalElement: parentOverlaySink?.rootPortalElement ?? portalElement,
-                    portalElement,
+                    rootPortalRef: parentOverlaySink?.rootPortalRef ?? portalRef,
+                    portalRef,
                 }),
-                [parentOverlaySink?.rootPortalElement, portalElement],
+                [parentOverlaySink?.rootPortalRef],
             )}
         >
             {children}
@@ -479,9 +494,11 @@ const overlaySinkContextForTest =
 
               document.body.appendChild(portalElement);
 
+              const portalRef = {current: portalElement};
+
               return {
-                  rootPortalElement: portalElement,
-                  portalElement,
+                  rootPortalRef: portalRef,
+                  portalRef,
               };
           })()
         : null;
@@ -496,14 +513,35 @@ const overlaySinkContextForTest =
 export function useOverlayRootPortalElement() {
     const overlaySink = useContext(OverlaySinkContext) ?? overlaySinkContextForTest;
     assert(overlaySink, "Expected a parent `<OverlayScopeContextProvider>` component");
-    return overlaySink.rootPortalElement;
+
+    const [rootPortalElement, setRootPortalElement] = useState(overlaySink.rootPortalRef.current);
+
+    useEffect(() => {
+        setRootPortalElement(overlaySink.rootPortalRef.current);
+    }, [overlaySink.rootPortalRef]);
+
+    return rootPortalElement;
 }
 
 /**
- * Is our portal overlay element available yet in context for mounting elements?
+ * If you have an `<Overlay>` element with a ref on the `overlay` prop then you
+ * will not be able to access the ref until the overlay portal is ready. You
+ * may use this hook for detecting this edge case.
+ *
+ * If your overlay's initial render is the same as the nearest
+ * `<OverlayScopeContextProvider>`'s initial render and your overlay is
+ * initially visible then this will start as `true` then return `false`.
+ * Otherwise this always returns `false`.
  */
-export function useIsOverlayPortalElementReady() {
+export function useIsWaitingForOverlayPortalElement(isVisible: boolean): boolean {
     const overlaySink = useContext(OverlaySinkContext) ?? overlaySinkContextForTest;
     assert(overlaySink, "Expected a parent `<OverlayScopeContextProvider>` component");
-    return !!overlaySink.portalElement;
+
+    const [isWaiting, setIsWaiting] = useState(isVisible ? !overlaySink.portalRef.current : false);
+
+    useEffect(() => {
+        setIsWaiting(isVisible ? !overlaySink.portalRef.current : false);
+    }, [isVisible, overlaySink.portalRef]);
+
+    return isWaiting;
 }

@@ -8,7 +8,7 @@ import {convertRemLengthToPx} from "~/shared/design/spacing";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {AccountId, DocumentCommentThreadId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
-import {DocumentContentWithReferences} from "~/shared/models/document_model";
+import {DocumentContentReferences} from "~/shared/models/document_model";
 import {colorSchemeVars, contentSchemaStyles} from "~/shared/styles/styles";
 
 export type DocumentContentEditorSideDecoration = {
@@ -22,12 +22,12 @@ export type DocumentContentEditorSideDecoration = {
 // components instead of plain DOM elements and we get more control
 // over positioning.
 export function DocumentContentEditorSideDecorations({
-    editorContainerSize,
-    content,
+    editorContainerWidth,
+    contentReferences,
     decorations,
 }: {
-    editorContainerSize: {width: number; height: number} | null;
-    content: DocumentContentWithReferences;
+    editorContainerWidth: number | null;
+    contentReferences: DocumentContentReferences;
     decorations: ReadonlyArray<DocumentContentEditorSideDecoration>;
 }) {
     const {screenWidth} = useClientInfo();
@@ -37,11 +37,11 @@ export function DocumentContentEditorSideDecorations({
     const blockMaxWidth = convertRemLengthToPx(contentSchemaStyles.blockMaxWidth, remPx);
 
     const shouldRenderCommentCount =
-        Math.max(0, (editorContainerSize?.width ?? screenWidth) - blockMaxWidth) / 2 >=
+        Math.max(0, (editorContainerWidth ?? screenWidth) - blockMaxWidth) / 2 >=
         commentCountMinMargin;
 
     const shouldRenderCommentAvatars =
-        Math.max(0, (editorContainerSize?.width ?? screenWidth) - blockMaxWidth) / 2 >=
+        Math.max(0, (editorContainerWidth ?? screenWidth) - blockMaxWidth) / 2 >=
         commentAvatarsMinMargin;
 
     const suffixByKey = new Map<string, {suffix: number}>();
@@ -61,7 +61,7 @@ export function DocumentContentEditorSideDecorations({
                 return (
                     <DocumentContentEditorCommentThreadSideDecoration
                         key={`${key}-${keySuffix}`}
-                        content={content}
+                        contentReferences={contentReferences}
                         markTop={decoration.markTop}
                         markHeight={decoration.markHeight}
                         commentThreadIds={decoration.commentThreadIds}
@@ -74,13 +74,13 @@ export function DocumentContentEditorSideDecorations({
 }
 
 function DocumentContentEditorCommentThreadSideDecoration({
-    content,
+    contentReferences,
     markTop,
     markHeight,
     commentThreadIds,
     shouldRenderCommentAvatars,
 }: {
-    content: DocumentContentWithReferences;
+    contentReferences: DocumentContentReferences;
     markTop: number;
     markHeight: number;
     commentThreadIds: ReadonlySet<DocumentCommentThreadId>;
@@ -91,7 +91,7 @@ function DocumentContentEditorCommentThreadSideDecoration({
         const commentAuthorById = new Map<AccountId, AccountModel>();
 
         for (const commentThreadId of commentThreadIds) {
-            const commentThread = content.references.commentThreadById.get(commentThreadId);
+            const commentThread = contentReferences.commentThreadById.get(commentThreadId);
             if (!commentThread) continue;
 
             commentCount += commentThread.commentCount;
@@ -104,7 +104,7 @@ function DocumentContentEditorCommentThreadSideDecoration({
             commentCount,
             commentAuthors: Array.from(commentAuthorById.values()),
         };
-    }, [commentThreadIds, content.references.commentThreadById]);
+    }, [commentThreadIds, contentReferences.commentThreadById]);
 
     // Don't show decoration when there are no comments.
     if (commentCount === 0 || commentAuthors.length === 0) return null;

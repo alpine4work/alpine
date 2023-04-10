@@ -148,8 +148,13 @@ export function reduceDocumentContentReferences(
             const newCommentThreadById = new Map(references.commentThreadById);
             const {commentThreadId, commentCount, addCommentAuthor} = action;
 
-            if (commentThread) {
+            if (!commentThread) {
                 newCommentThreadById.set(commentThreadId, {
+                    commentCount,
+                    commentAuthors: addCommentAuthor ? [addCommentAuthor] : [],
+                });
+            } else {
+                const newCommentThread = {
                     commentCount: Math.max(commentThread.commentCount, commentCount),
                     commentAuthors:
                         addCommentAuthor &&
@@ -158,12 +163,17 @@ export function reduceDocumentContentReferences(
                         )
                             ? [...commentThread.commentAuthors, addCommentAuthor]
                             : commentThread.commentAuthors,
-                });
-            } else {
-                newCommentThreadById.set(commentThreadId, {
-                    commentCount,
-                    commentAuthors: addCommentAuthor ? [addCommentAuthor] : [],
-                });
+                };
+
+                // If the comment thread did not change, return the old references object.
+                if (
+                    newCommentThread.commentCount === commentThread.commentCount &&
+                    newCommentThread.commentAuthors.length === commentThread.commentAuthors.length
+                ) {
+                    return references;
+                }
+
+                newCommentThreadById.set(commentThreadId, newCommentThread);
             }
 
             return {

@@ -17,7 +17,7 @@ export function createContentEditorMentionNodeViewConstructor({
     return (node, view) => {
         const mention: ContentMention = node.attrs.mention;
         const isCurrentAccountMention = getCurrentAccount()?.id === mention.accountId;
-        const contentReferences = getContentEditorReferences(view.state);
+        const contentReferences = getContentEditorReferences(view.state).references;
 
         // We need a container element for highlight styles to be applied to. Our
         // mention element may have a background color when mentioning the

@@ -3,13 +3,10 @@ import {CaretDown, CaretUp, SpinnerGap, X} from "phosphor-react";
 import {Command} from "prosemirror-state";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
-import {
-    ContentEditorState,
-    updateContentEditorReferences,
-} from "~/client/content/content_editor_state";
+import {updateContentEditorReferences} from "~/client/content/content_editor_state";
 import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
+import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px";
 import {IconButton} from "~/client/design/icon_button";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
@@ -26,9 +23,9 @@ import {
     SubscribeToCommentThreadMessagesFunction,
     useDocumentContentEditorWebSocket,
 } from "~/client/documents/internal/use_document_content_editor_web_socket";
+import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
 import {usePromise} from "~/client/helpers/use_promise";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
@@ -42,6 +39,7 @@ import {createSimpleMessageContent} from "~/shared/content/message_content_schem
 import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
+import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
 import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array";
@@ -122,7 +120,7 @@ function DocumentContentEditorStateful({
     const editorRef = useRef<ContentEditorRef>(null);
     const editorContainerRef = useRef<HTMLDivElement>(null);
     const sidebarRef = useRef<HTMLDivElement>(null);
-    const [contentResizeRef, editorContainerSize] = useResizeObserver();
+    const [containerResizeRef, containerSize] = useResizeObserver();
 
     const {
         isConnected,
@@ -252,7 +250,7 @@ function DocumentContentEditorStateful({
             (editorContainerElement.clientWidth - paddingX - blockMaxWidth) / 2,
         );
 
-        sidebarAnimationInRef.current = timeline(
+        const animation = timeline(
             [
                 [sidebarElement, {x: [sidebarWidth + sidebarOffscreenBufferWidth, 0]}],
                 [editorContainerElement, {x: [oldContentOffset - newContentOffset, 0]}, {at: 0}],
@@ -264,10 +262,21 @@ function DocumentContentEditorStateful({
                         damping: 31,
                     }),
                 },
+                delay: 0.002,
             },
         );
 
-        sidebarAnimationInRef.current.finished.finally(() => {
+        // Wait for React to finish rendering before playing our animation. We need to
+        // start our animation in a layout effect to apply the initial transform in the
+        // right paint, but React may need to re-render again before releasing control
+        // to the browser. So wait for React to finish rendering before starting our
+        // animation.
+        animation.pause();
+        scheduleAfterNextBrowserPaint(() => {
+            animation.play();
+        });
+
+        animation.finished.finally(() => {
             setSidebarState(sidebarState => {
                 if (!sidebarState.isOpen || sidebarState.animationState !== "Opening")
                     return sidebarState;
@@ -275,6 +284,8 @@ function DocumentContentEditorStateful({
                 return {...sidebarState, animationState: null};
             });
         });
+
+        sidebarAnimationInRef.current = animation;
     }, [sidebarState]);
 
     useLayoutEffectWithoutServerSideWarning(() => {
@@ -305,7 +316,7 @@ function DocumentContentEditorStateful({
             (editorContainerElement.clientWidth - paddingX - blockMaxWidth) / 2,
         );
 
-        sidebarAnimationOutRef.current = timeline(
+        const animation = timeline(
             [
                 [sidebarElement, {x: [0, sidebarWidth + sidebarOffscreenBufferWidth]}],
                 [editorContainerElement, {x: [oldContentOffset - newContentOffset, 0]}, {at: 0}],
@@ -320,7 +331,17 @@ function DocumentContentEditorStateful({
             },
         );
 
-        sidebarAnimationOutRef.current.finished.finally(() => {
+        // Wait for React to finish rendering before playing our animation. We need to
+        // start our animation in a layout effect to apply the initial transform in the
+        // right paint, but React may need to re-render again before releasing control
+        // to the browser. So wait for React to finish rendering before starting our
+        // animation.
+        animation.pause();
+        scheduleAfterNextBrowserPaint(() => {
+            animation.play();
+        });
+
+        animation.finished.finally(() => {
             setSidebarState(sidebarState => {
                 if (!sidebarState.isOpen || sidebarState.animationState !== "Closing")
                     return sidebarState;
@@ -328,13 +349,16 @@ function DocumentContentEditorStateful({
                 return {isOpen: false, transition: null};
             });
         });
+
+        sidebarAnimationOutRef.current = animation;
     }, [sidebarState]);
 
     /* ========================================================================== *\
      *                     Comment thread sidebar navigation                      *
     \* ========================================================================== */
 
-    const openCommentThread = (commentThreadId: DocumentCommentThreadId) => {
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    const openCommentThread = useEvent((commentThreadId: DocumentCommentThreadId) => {
         // If this comment thread is already open or in the process of opening then
         // don't open it again.
         if (
@@ -364,7 +388,7 @@ function DocumentContentEditorStateful({
         }));
 
         return pendingPromiseResolver.promise;
-    };
+    });
 
     useEffect(() => {
         const transition = sidebarState.transition;
@@ -463,8 +487,22 @@ function DocumentContentEditorStateful({
         [decorationByMarkTop],
     );
 
+    const documentContentEditorSidebarWidthPx = convertRemLengthToPx(
+        documentContentEditorSidebarWidth,
+        useRemPx(),
+    );
+
+    // We compute the *editor* container size from the container size so that when
+    // the sidebar opens/closes we don't need to re-render side decorations when the
+    // resize observer changes.
+    const editorContainerWidth =
+        containerSize && sidebarState.isOpen && sidebarState.animationState !== "Closing"
+            ? containerSize.width - documentContentEditorSidebarWidthPx
+            : containerSize?.width ?? null;
+
     return (
         <Box
+            ref={containerResizeRef}
             flexGrow="1"
             position="relative"
             zIndex="0"
@@ -474,7 +512,7 @@ function DocumentContentEditorStateful({
             backgroundColor="grey-0"
         >
             <Box
-                ref={useMergedRefs<HTMLDivElement>(editorContainerRef, contentResizeRef)}
+                ref={editorContainerRef}
                 flexGrow="1"
                 position="relative"
                 zIndex="0"
@@ -499,15 +537,21 @@ function DocumentContentEditorStateful({
                         addCommentCommand={addCommentCommand}
                         openCommentThread={openCommentThread}
                     />
-                    <DocumentContentEditorSideDecorations
-                        editorContainerSize={editorContainerSize}
-                        content={content}
-                        decorations={decorations}
-                    />
+                    {useMemo(
+                        // Memoize side decorations since it can be an expensive component
+                        // to re-render. Especially during animations.
+                        () => (
+                            <DocumentContentEditorSideDecorations
+                                editorContainerWidth={editorContainerWidth}
+                                contentReferences={content.references}
+                                decorations={decorations}
+                            />
+                        ),
+                        [content.references, decorations, editorContainerWidth],
+                    )}
                 </OverlayScopeContextProvider>
             </Box>
             {sidebarState.isOpen && (
-                // TODO(calebmer): Mobile version of this...
                 <Box
                     ref={sidebarRef}
                     position="absolute"
@@ -525,10 +569,10 @@ function DocumentContentEditorStateful({
                     <DocumentContentEditorSidebar
                         key={sidebarState.commentThreadId}
                         documentId={documentId}
+                        content={content}
                         commentThreadId={sidebarState.commentThreadId}
                         initialDataPromise={sidebarState.dataPromise}
                         isConnected={isConnected}
-                        editorState={editorState}
                         sendCommentThreadMessage={sendCommentThreadMessage}
                         subscribeToCommentThreadMessages={subscribeToCommentThreadMessages}
                         decorations={decorations}
@@ -587,9 +631,9 @@ const collectDecorationByMarkTop = createProsemirrorIncrementalReducer<{
 
 function DocumentContentEditorSidebar({
     documentId,
+    content,
     commentThreadId,
     initialDataPromise,
-    editorState,
     isConnected,
     sendCommentThreadMessage,
     subscribeToCommentThreadMessages,
@@ -598,9 +642,9 @@ function DocumentContentEditorSidebar({
     openCommentThread,
 }: {
     documentId: DocumentId;
+    content: DocumentContentWithReferences;
     commentThreadId: DocumentCommentThreadId;
     initialDataPromise: PromiseImmediate<DocumentContentEditorSidebarTransitionData>;
-    editorState: ContentEditorState<DocumentContentWithReferences>;
     isConnected: boolean;
     sendCommentThreadMessage: SendCommentThreadMessageFunction;
     subscribeToCommentThreadMessages: SubscribeToCommentThreadMessagesFunction;
@@ -669,29 +713,45 @@ function DocumentContentEditorSidebar({
                     </IconButton>
                 </Box>
             </Box>
-            {initialDataResult.isPending ? (
-                <Box flexGrow="1" display="flex" justifyContent="center" alignItems="center">
-                    <SpinnerGap
-                        className={spinAnimationClassName}
-                        color={colorSchemeVars["grey-70"]}
-                        size={spacing["6"]}
-                    />
-                </Box>
-            ) : (
-                <DocumentCommentThreadListView
-                    documentId={documentId}
-                    initialCommentThreadsResult={{
-                        commentThread: initialDataResult.value.commentThread,
-                        comments: initialDataResult.value.initialComments,
-                        otherReferencedComments:
-                            initialDataResult.value.initialOtherReferencedComments,
-                    }}
-                    editorState={editorState}
-                    isConnected={isConnected}
-                    sendCommentThreadMessage={sendCommentThreadMessage}
-                    subscribeToCommentThreadMessages={subscribeToCommentThreadMessages}
-                    withMobileLayout={true}
-                />
+            {useMemo(
+                () =>
+                    initialDataResult.isPending ? (
+                        <Box
+                            flexGrow="1"
+                            display="flex"
+                            justifyContent="center"
+                            alignItems="center"
+                        >
+                            <SpinnerGap
+                                className={spinAnimationClassName}
+                                color={colorSchemeVars["grey-70"]}
+                                size={spacing["6"]}
+                            />
+                        </Box>
+                    ) : (
+                        <DocumentCommentThreadListView
+                            documentId={documentId}
+                            content={content}
+                            initialCommentThreadsResult={{
+                                commentThread: initialDataResult.value.commentThread,
+                                comments: initialDataResult.value.initialComments,
+                                otherReferencedComments:
+                                    initialDataResult.value.initialOtherReferencedComments,
+                            }}
+                            isConnected={isConnected}
+                            sendCommentThreadMessage={sendCommentThreadMessage}
+                            subscribeToCommentThreadMessages={subscribeToCommentThreadMessages}
+                            withMobileLayout={true}
+                        />
+                    ),
+                [
+                    content,
+                    documentId,
+                    initialDataResult,
+                    isConnected,
+                    sendCommentThreadMessage,
+                    subscribeToCommentThreadMessages,
+                ],
             )}
         </Box>
     );

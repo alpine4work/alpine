@@ -22,7 +22,11 @@ import {
 } from "~/client/design/helpers/get_next_focusable_element";
 import {setElementAttributesWithCleanup} from "~/client/design/helpers/set_element_attributes_with_cleanup";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_press";
-import {Overlay, OverlayPlacement, useIsOverlayPortalElementReady} from "~/client/design/overlay";
+import {
+    Overlay,
+    OverlayPlacement,
+    useIsWaitingForOverlayPortalElement,
+} from "~/client/design/overlay";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {useShowToast} from "~/client/design/toast";
 import {
@@ -226,7 +230,6 @@ export function MenuButton({
      */
     onStateChange?: (state: MenuButtonState) => void;
 }) {
-    const isOverlayPortalElementReady = useIsOverlayPortalElementReady();
     const menuButtonRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
 
@@ -254,6 +257,8 @@ export function MenuButton({
         };
     }, [state.isExpanded, state.isFadingOut]);
 
+    const isWaitingForOverlayPortalElement = useIsWaitingForOverlayPortalElement(state.isExpanded);
+
     const menuButtonLifecycleRef = useCallback(
         (menuButtonElement: HTMLButtonElement) => {
             // We require an HTML `<button>` element for accessibility. Another option
@@ -266,7 +271,7 @@ export function MenuButton({
 
             // If the overlay portal element is not ready then `menuRef` will not have
             // mounted yet.
-            assert(!state.isExpanded || !isOverlayPortalElementReady || menuRef.current);
+            assert(!state.isExpanded || isWaitingForOverlayPortalElement || menuRef.current);
             const menuElement = menuRef.current;
 
             // - With focus on the button:
@@ -378,7 +383,7 @@ export function MenuButton({
                 menuButtonElement.removeEventListener("keydown", handleKeyDown);
             };
         },
-        [isOverlayPortalElementReady, state.isExpanded],
+        [isWaitingForOverlayPortalElement, state.isExpanded],
     );
 
     // Close the menu if there’s a click somewhere else in the document outside

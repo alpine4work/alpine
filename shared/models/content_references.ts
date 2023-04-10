@@ -1,4 +1,5 @@
 import {Node} from "prosemirror-model";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables";
 import {AccountId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
@@ -36,6 +37,17 @@ export const emptyContentReferences: ContentReferences = {
 };
 
 /**
+ * Is the provided `ContentReferences` object empty?
+ */
+export function isEmptyContentReferences(references: ContentReferences): boolean {
+    // If you add more data to `ContentReferences` in the future, you'll
+    // need to come back and update this function.
+    assertEqualTypes<keyof ContentReferences, "accountById">();
+
+    return references.accountById.size === 0;
+}
+
+/**
  * Merge two `ContentReferences` into one. References in the second object will
  * override references in the first.
  */
@@ -43,6 +55,11 @@ export function mergeContentReferences(
     references1: ContentReferences,
     references2: ContentReferences,
 ): ContentReferences {
+    // Optimization: Don't create a new references object for every step we receive
+    // from the server with empty references.
+    if (isEmptyContentReferences(references1)) return references2;
+    if (isEmptyContentReferences(references2)) return references1;
+
     return {
         accountById: new Map(concatIterables(references1.accountById, references2.accountById)),
     };

@@ -9,7 +9,6 @@ import {
     useRef,
     useState,
 } from "react";
-import {ContentEditorState} from "~/client/content/content_editor_state";
 import {useAppContext} from "~/client/context/app_context";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {createDocumentCommentThreadSnippetCollector} from "~/client/documents/internal/create_document_comment_thread_snippet_collector";
@@ -24,6 +23,7 @@ import {
 } from "~/client/documents/internal/use_document_content_editor_web_socket";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useStableJsonValue} from "~/client/helpers/use_stable_json_value";
+import {useStableValue} from "~/client/helpers/use_stable_value";
 import {useMessageEditing} from "~/client/messaging/message_editing";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list";
 import {bufferedMessageViewHeight} from "~/client/messaging/message_view";
@@ -36,6 +36,7 @@ import {
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view";
 import {VirtualizedTree} from "~/client/virtualized/virtualized_tree";
+import {UncheckedDocumentContentSchema} from "~/shared/content/document_content_schema";
 import {OutOfRangeError, UnimplementedError} from "~/shared/error/error";
 import {wait} from "~/shared/helpers/async/wait";
 import {assert} from "~/shared/helpers/control/assert";
@@ -55,6 +56,7 @@ import {
     getDocumentCommentsFromEnd,
     getDocumentCommentsFromStart,
 } from "~/shared/rpc/documents_rpc_definitions";
+import {Schema} from "~/shared/schema/schema";
 import {sprinkles} from "~/shared/styles/styles";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
@@ -157,6 +159,11 @@ function createEmptyDocumentCommentThreadTree(): DocumentCommentThreadTree {
     });
 }
 
+const SnippetByCommentThreadIdSchema = Schema.map(
+    Schema.id<DocumentCommentThreadId>(),
+    UncheckedDocumentContentSchema,
+);
+
 /**
  * Renders a virtualized list of posts which can expand their comments inline.
  *
@@ -170,14 +177,15 @@ function createEmptyDocumentCommentThreadTree(): DocumentCommentThreadTree {
 function DocumentCommentThreadListView(
     {
         documentId,
+        content,
         initialCommentThreadsResult,
-        editorState,
         isConnected,
         sendCommentThreadMessage,
         subscribeToCommentThreadMessages,
         withMobileLayout = false,
     }: {
         documentId: DocumentId;
+        content: DocumentContentWithReferences;
 
         /**
          * The initial comment threads loaded to populate this view. We will use this
@@ -190,7 +198,6 @@ function DocumentCommentThreadListView(
         };
 
         // Realtime props that should come from `useDocumentContentEditorWebSocket()`.
-        editorState: ContentEditorState<DocumentContentWithReferences>;
         isConnected: boolean;
         sendCommentThreadMessage: SendCommentThreadMessageFunction;
         subscribeToCommentThreadMessages: SubscribeToCommentThreadMessagesFunction;
@@ -245,11 +252,12 @@ function DocumentCommentThreadListView(
         [commentThreadIds],
     );
 
-    const content = editorState.getContent();
-
-    const snippetByCommentThreadId = useMemo(
-        () => collectCommentThreadSnippets(content.doc),
-        [collectCommentThreadSnippets, content.doc],
+    const snippetByCommentThreadId = useStableValue(
+        SnippetByCommentThreadIdSchema,
+        useMemo(
+            () => collectCommentThreadSnippets(content.doc),
+            [collectCommentThreadSnippets, content.doc],
+        ),
     );
 
     // Always pin the comment input to the bottom of the list view on mobile
@@ -635,10 +643,11 @@ function DocumentCommentThreadListView(
                                 comments={item.comments}
                                 onUpdateComments={update =>
                                     setTree(tree =>
-                                        tree.updateNode(item.commentThread.id, node => ({
-                                            ...node,
-                                            comments: update(node.comments),
-                                        })),
+                                        tree.updateNode(item.commentThread.id, node => {
+                                            const newComments = update(node.comments);
+                                            if (newComments === node.comments) return node;
+                                            return {...node, comments: newComments};
+                                        }),
                                     )
                                 }
                                 messageEditing={messageEditing}

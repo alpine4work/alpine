@@ -21,7 +21,7 @@ import {
     Overlay,
     OverlayPlacement,
     OverlayRef,
-    useIsOverlayPortalElementReady,
+    useIsWaitingForOverlayPortalElement,
 } from "~/client/design/overlay";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
@@ -329,7 +329,6 @@ function Tooltip(
     );
 
     const isMounted = useIsMounted();
-    const isOverlayPortalElementReady = useIsOverlayPortalElementReady();
 
     const tooltipId = useId();
     const tooltipRef = useRef<HTMLDivElement>(null);
@@ -497,6 +496,8 @@ function Tooltip(
         onStateChange(state);
     }, [onStateChange, state]);
 
+    const isWaitingForOverlayPortalElement = useIsWaitingForOverlayPortalElement(isVisible);
+
     // Register event handlers on our target element that control our tooltip's
     // state.
     const targetLifecycleRef = useCallback(
@@ -508,7 +509,7 @@ function Tooltip(
 
             // If the overlay portal element is not ready then `tooltipRef` will not have
             // mounted yet.
-            assert(!isVisible || !isOverlayPortalElementReady || tooltipRef.current);
+            assert(!isVisible || isWaitingForOverlayPortalElement || tooltipRef.current);
             const tooltipElement = tooltipRef.current;
 
             function handleMouseEnter(event: MouseEvent) {
@@ -713,7 +714,7 @@ function Tooltip(
         // need to rerun whenever this ref changes.
         [
             isVisible,
-            isOverlayPortalElementReady,
+            isWaitingForOverlayPortalElement,
             tooltipSymbolAboutToFadeOutRef,
             getHasActiveTooltipSymbol,
             tooltipSymbol,

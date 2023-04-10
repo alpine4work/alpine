@@ -1,6 +1,7 @@
 import {DocumentContent, DocumentContentSchema} from "~/shared/content/document_content_schema";
 import {documentFallbackTitle} from "~/shared/content/document_fallback_title";
 import {assert} from "~/shared/helpers/control/assert";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables";
 import {isId} from "~/shared/id/id";
 import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types";
@@ -96,10 +97,23 @@ export const emptyDocumentContentReferences: DocumentContentReferences = {
     commentThreadById: new Map(),
 };
 
+export function isEmptyDocumentContentReferences(references: DocumentContentReferences): boolean {
+    // If you add more data to `DocumentContentReferences` in the future, you'll
+    // need to come back and update this function.
+    assertEqualTypes<keyof DocumentContentReferences, "accountById" | "commentThreadById">();
+
+    return references.accountById.size === 0 && references.commentThreadById.size === 0;
+}
+
 export function mergeDocumentContentReferences(
     references1: DocumentContentReferences,
     references2: DocumentContentReferences,
 ): DocumentContentReferences {
+    // Optimization: Don't create a new references object for every step we receive
+    // from the server with empty references.
+    if (isEmptyDocumentContentReferences(references1)) return references2;
+    if (isEmptyDocumentContentReferences(references2)) return references1;
+
     const commentThreadById = new Map<
         DocumentCommentThreadId,
         {

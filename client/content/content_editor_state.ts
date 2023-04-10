@@ -199,10 +199,7 @@ export class ContentEditorState<Content extends ContentWithReferences> {
      * the cursor position.
      */
     public getContent(): Content {
-        return {
-            doc: this._state.doc,
-            references: getContentEditorReferences(this._state),
-        } as Content;
+        return getContentEditorReferences(this._state) as Content;
     }
 
     public getDoc(): Content["doc"] {
@@ -588,9 +585,10 @@ export function setContentEditorFloaterState(
     return transaction.setMeta(contentEditorFloaterStatePluginKey, floaterState);
 }
 
-const contentEditorReferencesPluginKey = new PluginKey<ContentReferences>(
-    "contentEditorReferences",
-);
+const contentEditorReferencesPluginKey = new PluginKey<{
+    doc: Node;
+    references: ContentReferences;
+}>("contentEditorReferences");
 
 // We store content references in a plugin on our `ContentEditorState` so that
 // it is updated in lockstep with the underlying doc.
@@ -601,21 +599,37 @@ function contentEditorReferencesPlugin<References extends ContentReferences>(
         action: ContentEditorReferencesAction<References>,
     ) => References,
 ) {
-    return new Plugin<References>({
+    return new Plugin<{
+        doc: Node;
+        references: References;
+    }>({
         key: contentEditorReferencesPluginKey,
         state: {
-            init: () => initialReferences,
-            apply: (transaction, references, oldState, newState) => {
+            init: (config, state) => ({doc: state.doc, references: initialReferences}),
+            apply: (transaction, oldPluginState, oldState, newState) => {
                 const action: ContentEditorReferencesAction<References> | undefined =
                     transaction.getMeta(contentEditorReferencesPluginKey);
 
-                return action ? reduceReferences(references, action) : references;
+                const newReferences = action
+                    ? reduceReferences(oldPluginState.references, action)
+                    : oldPluginState.references;
+
+                if (newReferences === oldPluginState.references && !transaction.docChanged)
+                    return oldPluginState;
+
+                // We maintain a `ContentWithReferences` object in our plugin (instead of just
+                // `ContentReferences`) so that the we can have a memoized object reference
+                // that won't break any `useMemo()`s that listen to it on spurious changes.
+                return {
+                    doc: newState.doc,
+                    references: newReferences,
+                };
             },
         },
     });
 }
 
-export function getContentEditorReferences(state: EditorState): ContentReferences {
+export function getContentEditorReferences(state: EditorState): ContentWithReferences {
     return assertExists(contentEditorReferencesPluginKey.getState(state));
 }
 

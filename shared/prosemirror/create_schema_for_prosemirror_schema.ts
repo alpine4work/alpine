@@ -311,6 +311,10 @@ export function createSchemaForProsemirrorSchema(schema: ProsemirrorSchema) {
 
     const TopNodeType = assertExists(nodeSchemaByName.get(schema.topNodeType.name));
 
+    const UncheckedTopNodeType = assertExists(
+        uncheckedNodeSchemaByName.get(schema.topNodeType.name),
+    );
+
     /* ========================================================================== *\
      *                               Step schemas                                 *
     \* ========================================================================== */
@@ -532,6 +536,7 @@ export function createSchemaForProsemirrorSchema(schema: ProsemirrorSchema) {
 
     return {
         TopNodeType,
+        UncheckedTopNodeType,
         createStepSchema,
     };
 }

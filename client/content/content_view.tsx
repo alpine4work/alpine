@@ -91,8 +91,9 @@ export function ContentView({
     const [focusedLinkElement, setFocusedLinkElement] = useState<HTMLElement | null>(null);
 
     const contentUpdatedNoteId = useId();
-    const [contentUpdatedNoteElement, setContentUpdatedNoteElement] =
-        useState<HTMLElement | null>();
+    const [contentUpdatedNoteElement, setContentUpdatedNoteElement] = useState<HTMLElement | null>(
+        null,
+    );
 
     const {html, isTitleEmpty, isBodyEmpty} = useMemo(() => {
         const decorations: Array<ProsemirrorHtmlSerializationDecoration> = [];
@@ -236,10 +237,9 @@ export function ContentView({
     }, []);
 
     useEffect(() => {
-        // Run-run whenever this prop changes.
-        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-        contentUpdatedTime;
-        setContentUpdatedNoteElement(document.getElementById(contentUpdatedNoteId));
+        setContentUpdatedNoteElement(
+            contentUpdatedTime ? document.getElementById(contentUpdatedNoteId) : null,
+        );
     }, [contentUpdatedNoteId, contentUpdatedTime]);
 
     return (

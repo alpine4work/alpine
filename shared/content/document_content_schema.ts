@@ -318,6 +318,9 @@ const documentSchemas = createSchemaForProsemirrorSchema(DocumentContentProsemir
 export const DocumentContentSchema =
     documentSchemas.TopNodeType as Schema<any> as Schema<DocumentContent>;
 
+export const UncheckedDocumentContentSchema =
+    documentSchemas.UncheckedTopNodeType as Schema<any> as Schema<Node>;
+
 export const DocumentContentStepSchema = documentSchemas.createStepSchema();
 
 export const emptyDocumentContent = DocumentContentProsemirrorSchema.node("doc", {}, [
