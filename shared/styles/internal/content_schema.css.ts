@@ -75,7 +75,7 @@ export const docClassName = style({
     fontFeatureSettings: '"liga" 0',
 });
 
-const blockMaxWidthWithoutPadding = spacing["192"];
+const blockMaxWidthWithoutPadding = spacing["160"];
 const blockPaddingX = spacing["2"];
 
 export const blockMaxWidth = addRemLengths(
