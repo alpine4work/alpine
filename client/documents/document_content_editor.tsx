@@ -23,6 +23,8 @@ import {
     SubscribeToCommentThreadMessagesFunction,
     useDocumentContentEditorWebSocket,
 } from "~/client/documents/internal/use_document_content_editor_web_socket";
+import {isMac} from "~/client/helpers/browser/is_mac";
+import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
@@ -690,6 +692,9 @@ function DocumentContentEditorSidebar({
     onClose: () => void;
     openCommentThread: (commentThreadId: DocumentCommentThreadId) => Promise<void>;
 }) {
+    const previousCommentThreadButtonRef = useRef<HTMLButtonElement>(null);
+    const nextCommentThreadButtonRef = useRef<HTMLButtonElement>(null);
+
     const initialDataResult = usePromise(initialDataPromise);
 
     const {previousCommentThreadId, nextCommentThreadId} = useMemo(() => {
@@ -710,89 +715,134 @@ function DocumentContentEditorSidebar({
     }, [commentThreadId, decorations]);
 
     return (
-        <Box height="full" width="full" overflow="hidden" display="flex" flexDirection="column">
-            <Box
-                flexShrink="0"
-                height="8"
-                borderBottom="grey-10"
-                display="flex"
-                alignItems="center"
-            >
-                <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
-                    <IconButton
-                        size="xs"
-                        description="Previous comment"
-                        isDisabled={!previousCommentThreadId}
-                        pressErrorTitle="Can’t go to previous comment"
-                        onPress={async () => {
-                            if (!previousCommentThreadId) return;
-                            await openCommentThread(previousCommentThreadId);
-                        }}
-                    >
-                        <CaretUp />
-                    </IconButton>
-                    <IconButton
-                        size="xs"
-                        description="Next comment"
-                        isDisabled={!nextCommentThreadId}
-                        pressErrorTitle="Can’t go to next comment"
-                        onPress={async () => {
-                            if (!nextCommentThreadId) return;
-                            await openCommentThread(nextCommentThreadId);
-                        }}
-                    >
-                        <CaretDown />
-                    </IconButton>
-                </Box>
-                <Box flexGrow="1" height="full" />
-                <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
-                    <IconButton size="xs" description="Close" onPress={onClose}>
-                        <X />
-                    </IconButton>
-                </Box>
-            </Box>
-            {useMemo(
-                () =>
-                    initialDataResult.isPending ? (
-                        <Box
-                            flexGrow="1"
-                            display="flex"
-                            justifyContent="center"
-                            alignItems="center"
-                        >
-                            <SpinnerGap
-                                className={spinAnimationClassName}
-                                color={colorSchemeVars["grey-70"]}
-                                size={spacing["6"]}
-                            />
-                        </Box>
-                    ) : (
-                        <DocumentCommentThreadListView
-                            key={commentThreadId}
-                            documentId={documentId}
-                            content={content}
-                            initialCommentThreadsResult={{
-                                commentThread: initialDataResult.value.commentThread,
-                                comments: initialDataResult.value.initialComments,
-                                otherReferencedComments:
-                                    initialDataResult.value.initialOtherReferencedComments,
+        <GlobalKeyDownEvent
+            onGlobalKeyDown={event => {
+                if (event.key === "Escape") {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onClose();
+                }
+
+                if (
+                    event.key === "," &&
+                    event.shiftKey &&
+                    (isMac ? event.metaKey : event.ctrlKey)
+                ) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    // Programmatically click the button instead of calling `openCommentThread()`
+                    // directly to correctly handle loading and error states.
+                    assertExists(previousCommentThreadButtonRef.current).click();
+                }
+
+                if (
+                    event.key === "." &&
+                    event.shiftKey &&
+                    (isMac ? event.metaKey : event.ctrlKey)
+                ) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    // Programmatically click the button instead of calling `openCommentThread()`
+                    // directly to correctly handle loading and error states.
+                    assertExists(nextCommentThreadButtonRef.current).click();
+                }
+            }}
+        >
+            <Box height="full" width="full" overflow="hidden" display="flex" flexDirection="column">
+                <Box
+                    flexShrink="0"
+                    height="8"
+                    borderBottom="grey-10"
+                    display="flex"
+                    alignItems="center"
+                >
+                    <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
+                        <IconButton
+                            ref={previousCommentThreadButtonRef}
+                            size="xs"
+                            description="Previous comment"
+                            keyboardShortcutHint={isMac ? "⌘+Shift+," : "Ctrl+Shift+,"}
+                            isDisabled={!previousCommentThreadId}
+                            pressErrorTitle="Can’t go to previous comment"
+                            onPress={async () => {
+                                if (!previousCommentThreadId) return;
+                                await openCommentThread(previousCommentThreadId);
                             }}
-                            isConnected={isConnected}
-                            sendCommentThreadMessage={sendCommentThreadMessage}
-                            subscribeToCommentThreadMessages={subscribeToCommentThreadMessages}
-                            withMobileLayout={true}
-                        />
-                    ),
-                [
-                    commentThreadId,
-                    content,
-                    documentId,
-                    initialDataResult,
-                    isConnected,
-                    sendCommentThreadMessage,
-                    subscribeToCommentThreadMessages,
-                ],
-            )}
-        </Box>
+                        >
+                            <CaretUp />
+                        </IconButton>
+                        <IconButton
+                            ref={nextCommentThreadButtonRef}
+                            size="xs"
+                            description="Next comment"
+                            keyboardShortcutHint={isMac ? "⌘+Shift+." : "Ctrl+Shift+."}
+                            isDisabled={!nextCommentThreadId}
+                            pressErrorTitle="Can’t go to next comment"
+                            onPress={async () => {
+                                if (!nextCommentThreadId) return;
+                                await openCommentThread(nextCommentThreadId);
+                            }}
+                        >
+                            <CaretDown />
+                        </IconButton>
+                    </Box>
+                    <Box flexGrow="1" height="full" />
+                    <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
+                        <IconButton
+                            size="xs"
+                            description="Close"
+                            keyboardShortcutHint="esc"
+                            onPress={onClose}
+                        >
+                            <X />
+                        </IconButton>
+                    </Box>
+                </Box>
+                {useMemo(
+                    () =>
+                        initialDataResult.isPending ? (
+                            <Box
+                                flexGrow="1"
+                                display="flex"
+                                justifyContent="center"
+                                alignItems="center"
+                            >
+                                <SpinnerGap
+                                    className={spinAnimationClassName}
+                                    color={colorSchemeVars["grey-70"]}
+                                    size={spacing["6"]}
+                                />
+                            </Box>
+                        ) : (
+                            <DocumentCommentThreadListView
+                                key={commentThreadId}
+                                documentId={documentId}
+                                content={content}
+                                initialCommentThreadsResult={{
+                                    commentThread: initialDataResult.value.commentThread,
+                                    comments: initialDataResult.value.initialComments,
+                                    otherReferencedComments:
+                                        initialDataResult.value.initialOtherReferencedComments,
+                                }}
+                                isConnected={isConnected}
+                                sendCommentThreadMessage={sendCommentThreadMessage}
+                                subscribeToCommentThreadMessages={subscribeToCommentThreadMessages}
+                                withMobileLayout={true}
+                            />
+                        ),
+                    [
+                        commentThreadId,
+                        content,
+                        documentId,
+                        initialDataResult,
+                        isConnected,
+                        sendCommentThreadMessage,
+                        subscribeToCommentThreadMessages,
+                    ],
+                )}
+            </Box>
+        </GlobalKeyDownEvent>
     );
 }

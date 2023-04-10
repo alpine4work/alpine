@@ -37,6 +37,11 @@ import {getNextFocusableElement} from "~/client/design/helpers/get_next_focusabl
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {IconButton} from "~/client/design/icon_button";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
+import {
+    GlobalKeyDownEvent,
+    GlobalKeyDownManualContextProvider,
+    GlobalKeyDownManualContextProviderRef,
+} from "~/client/helpers/global_key_down_event";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {usePromise} from "~/client/helpers/use_promise";
@@ -237,6 +242,8 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
     const isMobile = useIsMobile();
 
     const stackRef = useRef<PeekStackRef>(null);
+    const peekStackGlobalKeyDownManualContextRef =
+        useRef<GlobalKeyDownManualContextProviderRef>(null);
     const [_state, dispatch] = useReducer(reducePeekStackState, initialPeekStackState);
 
     const state = isMobile ? initialPeekStackState : _state;
@@ -381,66 +388,78 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
 
     return (
         <PeekStackContext.Provider value={useMemo(() => ({push}), [push])}>
-            <NavigationEventContextProvider
-                onNavigate={useEvent((to, options) => {
-                    // Always perform full page navigations on mobile.
-                    if (isMobile) return {preventDefault: false};
+            <GlobalKeyDownEvent
+                onGlobalKeyDownBeforeChildren={event => {
+                    // Let the peek handle keyboard events before any children when the peek
+                    // is mounted.
+                    peekStackGlobalKeyDownManualContextRef.current?.dispatchEvent(event);
+                }}
+            >
+                <NavigationEventContextProvider
+                    onNavigate={useEvent((to, options) => {
+                        // Always perform full page navigations on mobile.
+                        if (isMobile) return {preventDefault: false};
 
-                    // Only intercept navigation events that want to push a new history entry. We
-                    // will instead push a peek.
-                    if (options?.replace) return {preventDefault: false};
+                        // Only intercept navigation events that want to push a new history entry. We
+                        // will instead push a peek.
+                        if (options?.replace) return {preventDefault: false};
 
-                    const path = typeof to === "string" ? parsePath(to) : to;
+                        const path = typeof to === "string" ? parsePath(to) : to;
 
-                    // Don't open a peek if it's the URL we're navigating to is the same as the
-                    // current URL.
-                    if (
-                        (path.pathname ?? "/") === location.pathname &&
-                        (path.search ?? "") === location.search
-                    ) {
-                        return {preventDefault: false};
-                    }
+                        // Don't open a peek if it's the URL we're navigating to is the same as the
+                        // current URL.
+                        if (
+                            (path.pathname ?? "/") === location.pathname &&
+                            (path.search ?? "") === location.search
+                        ) {
+                            return {preventDefault: false};
+                        }
 
-                    // Determine whether there is a peek route for the path we are navigating to.
-                    const peekPath = convertSpacePathToPeekPath(path);
-                    if (!peekPath) return {preventDefault: false};
-                    const routeMatches = matchClientRoutes(
-                        remixEntryContext.clientRoutes,
-                        peekPath.pathname,
-                    );
-                    if (!routeMatches) return {preventDefault: false};
+                        // Determine whether there is a peek route for the path we are navigating to.
+                        const peekPath = convertSpacePathToPeekPath(path);
+                        if (!peekPath) return {preventDefault: false};
+                        const routeMatches = matchClientRoutes(
+                            remixEntryContext.clientRoutes,
+                            peekPath.pathname,
+                        );
+                        if (!routeMatches) return {preventDefault: false};
 
-                    // If the top of the peek stack is the URL we're navigating to then do nothing.
-                    // Wiggle the stack as a response to the user's interaction.
-                    if (
-                        state.stack[0]?.history.location.pathname === peekPath.pathname &&
-                        state.stack[0].history.location.search === peekPath.search
-                    ) {
-                        stackRef.current?.wiggle();
+                        // If the top of the peek stack is the URL we're navigating to then do nothing.
+                        // Wiggle the stack as a response to the user's interaction.
+                        if (
+                            state.stack[0]?.history.location.pathname === peekPath.pathname &&
+                            state.stack[0].history.location.search === peekPath.search
+                        ) {
+                            stackRef.current?.wiggle();
+                            return {
+                                preventDefault: true,
+                                promise: Promise.resolve(),
+                            };
+                        }
+
+                        // If there is a peek route then open a peek instead of navigating to the URL!
+                        // The user can then expand the peek fullscreen if desired.
                         return {
                             preventDefault: true,
-                            promise: Promise.resolve(),
+                            promise: push(to),
                         };
-                    }
-
-                    // If there is a peek route then open a peek instead of navigating to the URL!
-                    // The user can then expand the peek fullscreen if desired.
-                    return {
-                        preventDefault: true,
-                        promise: push(to),
-                    };
-                })}
-            >
-                {children}
-            </NavigationEventContextProvider>
-            {(state.stack.length > 0 || state.unmountingStack.length > 0) && (
-                <PeekStack
-                    ref={stackRef}
-                    state={state}
-                    dispatch={dispatch}
-                    expandingIdRef={expandingIdRef}
-                />
-            )}
+                    })}
+                >
+                    {children}
+                </NavigationEventContextProvider>
+                {(state.stack.length > 0 || state.unmountingStack.length > 0) && (
+                    <GlobalKeyDownManualContextProvider
+                        ref={peekStackGlobalKeyDownManualContextRef}
+                    >
+                        <PeekStack
+                            ref={stackRef}
+                            state={state}
+                            dispatch={dispatch}
+                            expandingIdRef={expandingIdRef}
+                        />
+                    </GlobalKeyDownManualContextProvider>
+                )}
+            </GlobalKeyDownEvent>
         </PeekStackContext.Provider>
     );
 }
@@ -1177,133 +1196,147 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
     return (
         <PeekContext.Provider value={useMemo(() => ({id: entry.id}), [entry.id])}>
             <PeekIsAnimatingOpenContext.Provider value={isAnimatingOpen}>
-                <Box
-                    ref={contentRef}
-                    width="full"
-                    height="full"
-                    overflow="hidden"
-                    display="flex"
-                    flexDirection="column"
-                    position="relative"
-                    zIndex="0"
-                    onKeyDown={event => {
-                        if (event.key === "Escape" && !isDragging) {
+                <GlobalKeyDownEvent
+                    onGlobalKeyDown={event => {
+                        if (event.key === "Escape" && state.stack.length > 0) {
                             if (event.shiftKey) {
                                 event.preventDefault();
+                                event.stopPropagation();
                                 dispatch({type: "PopAll"});
-                                return;
+                            } else {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                dispatch({type: "Pop"});
                             }
-
-                            event.preventDefault();
-                            dispatch({type: "Pop"});
-                            return;
                         }
                     }}
                 >
                     <Box
-                        flexShrink="0"
-                        height="8"
-                        borderBottom="grey-10"
+                        ref={contentRef}
+                        width="full"
+                        height="full"
+                        overflow="hidden"
                         display="flex"
-                        alignItems="center"
+                        flexDirection="column"
+                        position="relative"
+                        zIndex="0"
+                        onKeyDown={event => {
+                            // If the user presses escape while dragging that will cancel `@dnd-kit/core`'s
+                            // dragging logic and shouldn't close the peek.
+                            if (event.key === "Escape" && isDragging) {
+                                event.stopPropagation();
+                            }
+                        }}
                     >
-                        <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
-                            <IconButton
-                                size="xs"
-                                description="Back"
-                                tooltipPlacement="top"
-                                isDisabled={!(historyPosition.index > 0)}
-                                onPress={() => entry.history.go(-1)}
-                            >
-                                <ArrowLeft />
-                            </IconButton>
-                            <IconButton
-                                size="xs"
-                                description="Forwards"
-                                tooltipPlacement="top"
-                                isDisabled={
-                                    !(historyPosition.index < historyPosition.entriesLength - 1)
-                                }
-                                onPress={() => entry.history.go(1)}
-                            >
-                                <ArrowRight />
-                            </IconButton>
-                        </Box>
                         <Box
-                            flexGrow="1"
-                            height="full"
-                            // As a convenience, allow dragging to start by clicking anywhere on the peek overlay header. This
-                            // is not accessible the only accessible way to drag is the drag handle.
-                            onPointerDown={draggableListeners?.onPointerDown as any}
-                        />
-                        <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
-                            <FocusRing>
-                                <button
-                                    className={sprinkles({
-                                        width: "4",
-                                        height: "4",
-                                        padding: "0.5",
-                                        borderRadius: "full",
-                                        cursor: "grab",
-                                        backgroundColor: isKeyboardDragging ? "grey-10" : undefined,
-                                    })}
-                                    {...draggableAttributes}
-                                    {...draggableListeners}
-                                >
-                                    <DotsSixVertical size={spacing["3"]} />
-                                </button>
-                            </FocusRing>
-                            <IconButton
-                                size="xs"
-                                description="Expand"
-                                tooltipPlacement="top"
-                                pressErrorTitle="Couldn’t expand"
-                                onPress={async event => {
-                                    expandingIdRef.current = entry.id;
-                                    try {
-                                        await onExpandPressRef.current?.(event);
-                                    } finally {
-                                        expandingIdRef.current = null;
-                                    }
-                                }}
-                            >
-                                <ArrowsOutSimple />
-                            </IconButton>
-                            <IconButton
-                                ref={closeButtonRef}
-                                size="xs"
-                                description="Close"
-                                tooltipPlacement="top"
-                                tooltipContentOverride={
-                                    state.stack.length > 1 ? "Double-click to close all" : undefined
-                                }
-                                onPress={handlePressClose}
-                            >
-                                <X />
-                            </IconButton>
-                        </Box>
-                    </Box>
-                    {!loaderDataRefResult.isPending ? (
-                        <PeekRemixEmbed
-                            loaderDataRef={loaderDataRefResult.value}
-                            history={entry.history}
-                            onExpandPressRef={onExpandPressRef}
-                        />
-                    ) : (
-                        <Box
-                            flexGrow="1"
+                            flexShrink="0"
+                            height="8"
+                            borderBottom="grey-10"
                             display="flex"
-                            justifyContent="center"
                             alignItems="center"
                         >
-                            <SpinnerGap
-                                className={spinAnimationClassName}
-                                color={colorSchemeVars["grey-70"]}
-                                size={spacing["6"]}
+                            <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
+                                <IconButton
+                                    size="xs"
+                                    description="Back"
+                                    tooltipPlacement="top"
+                                    isDisabled={!(historyPosition.index > 0)}
+                                    onPress={() => entry.history.go(-1)}
+                                >
+                                    <ArrowLeft />
+                                </IconButton>
+                                <IconButton
+                                    size="xs"
+                                    description="Forwards"
+                                    tooltipPlacement="top"
+                                    isDisabled={
+                                        !(historyPosition.index < historyPosition.entriesLength - 1)
+                                    }
+                                    onPress={() => entry.history.go(1)}
+                                >
+                                    <ArrowRight />
+                                </IconButton>
+                            </Box>
+                            <Box
+                                flexGrow="1"
+                                height="full"
+                                // As a convenience, allow dragging to start by clicking anywhere on the peek overlay header. This
+                                // is not accessible the only accessible way to drag is the drag handle.
+                                onPointerDown={draggableListeners?.onPointerDown as any}
                             />
+                            <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
+                                <FocusRing>
+                                    <button
+                                        className={sprinkles({
+                                            width: "4",
+                                            height: "4",
+                                            padding: "0.5",
+                                            borderRadius: "full",
+                                            cursor: "grab",
+                                            backgroundColor: isKeyboardDragging
+                                                ? "grey-10"
+                                                : undefined,
+                                        })}
+                                        {...draggableAttributes}
+                                        {...draggableListeners}
+                                    >
+                                        <DotsSixVertical size={spacing["3"]} />
+                                    </button>
+                                </FocusRing>
+                                <IconButton
+                                    size="xs"
+                                    description="Expand"
+                                    tooltipPlacement="top"
+                                    pressErrorTitle="Couldn’t expand"
+                                    onPress={async event => {
+                                        expandingIdRef.current = entry.id;
+                                        try {
+                                            await onExpandPressRef.current?.(event);
+                                        } finally {
+                                            expandingIdRef.current = null;
+                                        }
+                                    }}
+                                >
+                                    <ArrowsOutSimple />
+                                </IconButton>
+                                <IconButton
+                                    ref={closeButtonRef}
+                                    size="xs"
+                                    description="Close"
+                                    tooltipPlacement="top"
+                                    tooltipContentOverride={
+                                        state.stack.length > 1
+                                            ? "Double-click to close all"
+                                            : undefined
+                                    }
+                                    onPress={handlePressClose}
+                                >
+                                    <X />
+                                </IconButton>
+                            </Box>
                         </Box>
-                    )}
-                </Box>
+                        {!loaderDataRefResult.isPending ? (
+                            <PeekRemixEmbed
+                                loaderDataRef={loaderDataRefResult.value}
+                                history={entry.history}
+                                onExpandPressRef={onExpandPressRef}
+                            />
+                        ) : (
+                            <Box
+                                flexGrow="1"
+                                display="flex"
+                                justifyContent="center"
+                                alignItems="center"
+                            >
+                                <SpinnerGap
+                                    className={spinAnimationClassName}
+                                    color={colorSchemeVars["grey-70"]}
+                                    size={spacing["6"]}
+                                />
+                            </Box>
+                        )}
+                    </Box>
+                </GlobalKeyDownEvent>
             </PeekIsAnimatingOpenContext.Provider>
         </PeekContext.Provider>
     );

@@ -345,6 +345,7 @@ export function ChatAccountPicker({
                 case "Backspace":
                 case "Delete": {
                     event.preventDefault();
+                    event.stopPropagation();
                     deleteAccount();
                     if (index + 1 < selectedAccountRefs.length) {
                         selectedAccountRefs[index + 1]?.current?.focus();
@@ -357,6 +358,7 @@ export function ChatAccountPicker({
                 // account is focusable since you use arrow keys to navigate between accounts.
                 case "ArrowLeft": {
                     event.preventDefault();
+                    event.stopPropagation();
                     selectedAccountRefs[index - 1]?.current?.focus();
                     break;
                 }
@@ -364,6 +366,7 @@ export function ChatAccountPicker({
                 // account is focusable since you use arrow keys to navigate between accounts.
                 case "ArrowRight": {
                     event.preventDefault();
+                    event.stopPropagation();
                     if (index + 1 < selectedAccountRefs.length) {
                         selectedAccountRefs[index + 1]?.current?.focus();
                     } else {
@@ -377,6 +380,7 @@ export function ChatAccountPicker({
                     // to our search input.
                     if (/^[0-9a-zA-Z]$/.test(event.key)) {
                         event.preventDefault();
+                        event.stopPropagation();
                         deleteAccount();
                         setSearchQuery(({searchQuery}) => ({
                             searchQuery: searchQuery + event.key,

@@ -784,12 +784,12 @@ function ContentEditor<Content extends ContentWithReferences>(
             }
         };
 
-        document.addEventListener("keydown", handleKeyDownOrUp);
-        document.addEventListener("keyup", handleKeyDownOrUp);
+        document.addEventListener("keydown", handleKeyDownOrUp, true);
+        document.addEventListener("keyup", handleKeyDownOrUp, true);
 
         return () => {
-            document.removeEventListener("keydown", handleKeyDownOrUp);
-            document.removeEventListener("keyup", handleKeyDownOrUp);
+            document.removeEventListener("keydown", handleKeyDownOrUp, true);
+            document.removeEventListener("keyup", handleKeyDownOrUp, true);
         };
     }, []);
 

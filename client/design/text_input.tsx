@@ -174,6 +174,7 @@ function TextInput(
                             (isMac || !event.metaKey)
                         ) {
                             event.preventDefault();
+                            event.stopPropagation();
                             onEnter();
                             return;
                         }

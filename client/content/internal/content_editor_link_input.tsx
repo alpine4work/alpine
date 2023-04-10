@@ -87,6 +87,8 @@ export function ContentEditorLinkInput({
             position="relative"
             onKeyDown={event => {
                 if (event.key === "Escape") {
+                    event.preventDefault();
+                    event.stopPropagation();
                     onClose();
                 }
             }}
@@ -121,6 +123,7 @@ export function ContentEditorLinkInput({
                 onKeyDown={event => {
                     if (event.key === "Enter") {
                         event.preventDefault();
+                        event.stopPropagation();
                         save();
                     }
                 }}

@@ -130,6 +130,7 @@ export function PostEditorModal({
                     }}
                     onModEnter={event => {
                         event.preventDefault();
+                        event.stopPropagation();
 
                         runPromiseWithoutAwaiting(async () => {
                             try {

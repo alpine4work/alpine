@@ -23,6 +23,7 @@ import {
     InitializeColorSchemeScript,
     getColorSchemeWithoutListening,
 } from "~/client/helpers/color_scheme";
+import {GlobalKeyDownRootContextProvider} from "~/client/helpers/global_key_down_event";
 import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useStableValue} from "~/client/helpers/use_stable_value";
 import {ClientInfoContextProvider, defaultClientInfo} from "~/client/remix/client_info_context";
@@ -172,11 +173,15 @@ export default function Root({error}: {error?: unknown}) {
                         <AppInitialRenderContextProvider>
                             <IsMobileContextProvider>
                                 <WaitForNavigationContextProvider>
-                                    <OverlayScopeContextProvider>
-                                        <TooltipCoordinationContextProvider>
-                                            <ToastContextProvider>{children}</ToastContextProvider>
-                                        </TooltipCoordinationContextProvider>
-                                    </OverlayScopeContextProvider>
+                                    <GlobalKeyDownRootContextProvider>
+                                        <OverlayScopeContextProvider>
+                                            <TooltipCoordinationContextProvider>
+                                                <ToastContextProvider>
+                                                    {children}
+                                                </ToastContextProvider>
+                                            </TooltipCoordinationContextProvider>
+                                        </OverlayScopeContextProvider>
+                                    </GlobalKeyDownRootContextProvider>
                                 </WaitForNavigationContextProvider>
                             </IsMobileContextProvider>
                         </AppInitialRenderContextProvider>

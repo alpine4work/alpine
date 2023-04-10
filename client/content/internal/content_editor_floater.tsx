@@ -271,6 +271,8 @@ function ContentEditorKeyboardHighlightFloater({
                     onKeyDown={event => {
                         switch (event.key) {
                             case "Escape":
+                                event.preventDefault();
+                                event.stopPropagation();
                                 onClose();
                                 break;
                             // If our keyboard color selector has focus you can't escape. Must hit escape

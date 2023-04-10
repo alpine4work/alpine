@@ -176,6 +176,7 @@ export function ContentEditorMentionFloater({
             // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
             case "ArrowDown": {
                 event.preventDefault(); // Don't scroll or move cursor
+                event.stopPropagation();
                 if (searchedAccounts && searchedAccounts.length > 0) {
                     setSelectionState({
                         searchQuery,
@@ -195,6 +196,7 @@ export function ContentEditorMentionFloater({
             // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
             case "ArrowUp": {
                 event.preventDefault(); // Don't scroll or move cursor
+                event.stopPropagation();
                 if (searchedAccounts && searchedAccounts.length > 0) {
                     setSelectionState({
                         searchQuery,
@@ -214,6 +216,7 @@ export function ContentEditorMentionFloater({
             // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
             case "Home": {
                 event.preventDefault(); // Don't scroll
+                event.stopPropagation();
                 if (searchedAccounts && searchedAccounts.length > 0) {
                     setSelectionState({
                         searchQuery,
@@ -230,6 +233,7 @@ export function ContentEditorMentionFloater({
             // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
             case "End": {
                 event.preventDefault(); // Don't scroll
+                event.stopPropagation();
                 if (searchedAccounts && searchedAccounts.length > 0) {
                     setSelectionState({
                         searchQuery,
@@ -245,7 +249,8 @@ export function ContentEditorMentionFloater({
             //
             // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
             case "Escape": {
-                event.preventDefault(); // Close the mention floater, not
+                event.preventDefault();
+                event.stopPropagation();
                 onCloseWithAnimation();
                 break;
             }
@@ -257,6 +262,7 @@ export function ContentEditorMentionFloater({
             // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
             case "Enter": {
                 event.preventDefault();
+                event.stopPropagation();
                 if (
                     searchedAccounts &&
                     selectionState.index !== null &&

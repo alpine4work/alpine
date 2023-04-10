@@ -270,6 +270,7 @@ function ChannelEditDescriptionModal({
                                     }}
                                     onModEnter={event => {
                                         event.preventDefault();
+                                        event.stopPropagation();
                                         pressPrimaryButton();
                                     }}
                                     className={sprinkles({

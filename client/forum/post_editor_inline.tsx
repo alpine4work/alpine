@@ -144,6 +144,7 @@ export function PostEditorInline({
                         }}
                         onModEnter={event => {
                             event.preventDefault();
+                            event.stopPropagation();
 
                             runPromiseWithoutAwaiting(async () => {
                                 try {

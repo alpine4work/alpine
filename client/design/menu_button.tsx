@@ -287,20 +287,25 @@ export function MenuButton({
                 switch (event.key) {
                     case "ArrowDown": {
                         event.preventDefault(); // Don’t scroll
+                        event.stopPropagation();
                         setState({isExpanded: true, initiallyFocus: "FirstMenuItem"});
                         break;
                     }
                     case "ArrowUp": {
                         event.preventDefault(); // Don’t scroll
+                        event.stopPropagation();
                         setState({isExpanded: true, initiallyFocus: "LastMenuItem"});
                         break;
                     }
                     case "Enter": {
+                        event.preventDefault();
+                        event.stopPropagation();
                         setState({isExpanded: true, initiallyFocus: "FirstMenuItem"});
                         break;
                     }
                     case " ": {
                         event.preventDefault(); // Don’t scroll
+                        event.stopPropagation();
                         setState({isExpanded: true, initiallyFocus: "FirstMenuItem"});
                         break;
                     }
@@ -584,6 +589,7 @@ const Menu = forwardRef(function Menu(
                         // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
                         case "ArrowDown": {
                             event.preventDefault(); // Don’t scroll
+                            event.stopPropagation();
 
                             setInteractionModality("keyboard");
 
@@ -605,6 +611,7 @@ const Menu = forwardRef(function Menu(
                         // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
                         case "ArrowUp": {
                             event.preventDefault(); // Don’t scroll
+                            event.stopPropagation();
 
                             setInteractionModality("keyboard");
 
@@ -627,6 +634,7 @@ const Menu = forwardRef(function Menu(
                         // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
                         case "Home": {
                             event.preventDefault(); // Don't scroll
+                            event.stopPropagation();
                             menuItemRefs[0]!.current?.focus();
                             break;
                         }
@@ -637,6 +645,7 @@ const Menu = forwardRef(function Menu(
                         // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
                         case "End": {
                             event.preventDefault(); // Don't scroll
+                            event.stopPropagation();
                             menuItemRefs[menuItemRefs.length - 1]!.current?.focus();
                             break;
                         }
@@ -645,6 +654,8 @@ const Menu = forwardRef(function Menu(
                         //
                         // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
                         case "Escape": {
+                            event.preventDefault();
+                            event.stopPropagation();
                             onClose({returnFocusTo: "TriggerElement"});
                             break;
                         }
@@ -654,6 +665,7 @@ const Menu = forwardRef(function Menu(
                         // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
                         case "Tab": {
                             event.preventDefault();
+                            event.stopPropagation();
                             onClose({
                                 returnFocusTo: event.shiftKey ? "PreviousElement" : "NextElement",
                             });
@@ -665,6 +677,8 @@ const Menu = forwardRef(function Menu(
                             //
                             // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
                             if (/^[0-9a-zA-Z]$/.test(event.key)) {
+                                event.preventDefault();
+                                event.stopPropagation();
                                 const nextSearchText = searchText + event.key;
                                 const nextIndex = actions.findIndex(
                                     action =>

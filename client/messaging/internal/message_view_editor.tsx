@@ -149,10 +149,12 @@ function MessageContentEditor({
             className={sprinkles({minWidth: messageViewBubbleMinWidth})}
             onEscape={event => {
                 event.preventDefault();
+                event.stopPropagation();
                 onCancel();
             }}
             onEnterFromPhysicalKeyboard={event => {
                 event.preventDefault();
+                event.stopPropagation();
                 onSave();
             }}
         />

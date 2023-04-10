@@ -5,6 +5,7 @@ import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box";
 import {IconButton} from "~/client/design/icon_button";
 import {OverlayScopeContextProvider, useOverlayRootPortalElement} from "~/client/design/overlay";
+import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {RemLength, Spacing, isRemLength, spacing} from "~/shared/design/spacing";
 import {createTimeout} from "~/shared/helpers/async/timeout";
@@ -126,86 +127,97 @@ export function Modal({
                     onClick={onCloseWithAnimation}
                 />
                 <FocusScope restoreFocus contain>
-                    <section
-                        role="alertdialog"
-                        aria-modal="true"
-                        aria-labelledby={titleId}
-                        aria-describedby={ariaDescribedBy}
-                        onKeyDown={event => {
+                    <GlobalKeyDownEvent
+                        onGlobalKeyDown={event => {
                             if (event.key === "Escape") {
                                 event.stopPropagation();
                                 event.preventDefault();
                                 onCloseWithoutAnimation();
                             }
                         }}
-                        className={sprinkles({
-                            position: "relative",
-                            zIndex: "0",
-                            width: "full",
-                            maxHeight: "full",
-                            backgroundColor: {light: "grey-0", dark: "grey-90-elevated"},
-                            boxShadow: "elevation-40-with-dark-color-scheme-lighter-border",
-                            borderRadius: "md",
-                            display: "flex",
-                            overflow: "hidden",
-                        })}
-                        style={{
-                            maxWidth: isRemLength(maxWidth) ? maxWidth : spacing[maxWidth],
-                            animation: modalStyles.modalOverlayFadeInAnimation,
-                        }}
                     >
-                        <Box
-                            display="flex"
-                            flexDirection="column"
-                            width="full"
-                            maxHeight="full"
-                            overflow="hidden"
+                        <section
+                            role="alertdialog"
+                            aria-modal="true"
+                            aria-labelledby={titleId}
+                            aria-describedby={ariaDescribedBy}
+                            className={sprinkles({
+                                position: "relative",
+                                zIndex: "0",
+                                width: "full",
+                                maxHeight: "full",
+                                backgroundColor: {light: "grey-0", dark: "grey-90-elevated"},
+                                boxShadow: "elevation-40-with-dark-color-scheme-lighter-border",
+                                borderRadius: "md",
+                                display: "flex",
+                                overflow: "hidden",
+                            })}
                             style={{
-                                animation: isFadingOut
-                                    ? modalStyles.modalContentFadeOutAnimation
-                                    : modalStyles.modalContentFadeInAnimation,
+                                maxWidth: isRemLength(maxWidth) ? maxWidth : spacing[maxWidth],
+                                animation: modalStyles.modalOverlayFadeInAnimation,
                             }}
                         >
-                            <Box flexShrink="0" paddingX="5" paddingTop="5" borderBottom="grey-5">
-                                <h2
-                                    id={titleId}
-                                    className={sprinkles({
-                                        fontStyle: "semi-bold",
-                                        fontSize: "200",
-                                        paddingBottom: "2",
-                                        // Make sure our heading doesn't collide with the close button.
-                                        paddingRight: "6",
-                                    })}
+                            <Box
+                                display="flex"
+                                flexDirection="column"
+                                width="full"
+                                maxHeight="full"
+                                overflow="hidden"
+                                style={{
+                                    animation: isFadingOut
+                                        ? modalStyles.modalContentFadeOutAnimation
+                                        : modalStyles.modalContentFadeInAnimation,
+                                }}
+                            >
+                                <Box
+                                    flexShrink="0"
+                                    paddingX="5"
+                                    paddingTop="5"
+                                    borderBottom="grey-5"
                                 >
-                                    {title}
-                                </h2>
-                            </Box>
-                            <Box flexGrow="1" overflowY="scroll">
-                                <Box>
-                                    {typeof children === "function"
-                                        ? children({onCloseWithAnimation, onCloseWithoutAnimation})
-                                        : children}
+                                    <h2
+                                        id={titleId}
+                                        className={sprinkles({
+                                            fontStyle: "semi-bold",
+                                            fontSize: "200",
+                                            paddingBottom: "2",
+                                            // Make sure our heading doesn't collide with the close button.
+                                            paddingRight: "6",
+                                        })}
+                                    >
+                                        {title}
+                                    </h2>
+                                </Box>
+                                <Box flexGrow="1" overflowY="scroll">
+                                    <Box>
+                                        {typeof children === "function"
+                                            ? children({
+                                                  onCloseWithAnimation,
+                                                  onCloseWithoutAnimation,
+                                              })
+                                            : children}
+                                    </Box>
+                                </Box>
+                                {footer && (
+                                    <Box flexShrink="0" borderTop="grey-5">
+                                        {footer}
+                                    </Box>
+                                )}
+                                <Box position="absolute" top="2" right="2">
+                                    <IconButton
+                                        size="xs"
+                                        description="Close"
+                                        withoutTooltip={true}
+                                        // Our animation principle is to respond to user input immediately
+                                        // without animation.
+                                        onPress={onCloseWithoutAnimation}
+                                    >
+                                        <X />
+                                    </IconButton>
                                 </Box>
                             </Box>
-                            {footer && (
-                                <Box flexShrink="0" borderTop="grey-5">
-                                    {footer}
-                                </Box>
-                            )}
-                            <Box position="absolute" top="2" right="2">
-                                <IconButton
-                                    size="xs"
-                                    description="Close"
-                                    withoutTooltip={true}
-                                    // Our animation principle is to respond to user input immediately
-                                    // without animation.
-                                    onPress={onCloseWithoutAnimation}
-                                >
-                                    <X />
-                                </IconButton>
-                            </Box>
-                        </Box>
-                    </section>
+                        </section>
+                    </GlobalKeyDownEvent>
                 </FocusScope>
             </OverlayScopeContextProvider>
         </Box>,

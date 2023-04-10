@@ -550,6 +550,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                             onKeyDown={event => {
                                 if (event.key === "Enter" || event.key === " ") {
                                     event.preventDefault();
+                                    event.stopPropagation();
                                     onJumpToMessage(parentMessage);
                                     return;
                                 }

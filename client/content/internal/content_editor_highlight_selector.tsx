@@ -101,6 +101,7 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
                 switch (event.key) {
                     case "ArrowLeft": {
                         event.preventDefault();
+                        event.stopPropagation();
                         const buttonElement =
                             buttonRefs.current[
                                 lastFocusedIndex !== 0
@@ -112,6 +113,8 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
                         break;
                     }
                     case "ArrowRight": {
+                        event.preventDefault();
+                        event.stopPropagation();
                         const buttonElement =
                             buttonRefs.current[
                                 lastFocusedIndex !== buttonRefs.current.length - 1
@@ -123,12 +126,16 @@ export const ContentEditorHighlightSelector = forwardRef(function ContentEditorH
                         break;
                     }
                     case "Home": {
+                        event.preventDefault();
+                        event.stopPropagation();
                         const buttonElement = buttonRefs.current[0];
                         assert(buttonElement);
                         buttonElement.focus();
                         break;
                     }
                     case "End": {
+                        event.preventDefault();
+                        event.stopPropagation();
                         const buttonElement = buttonRefs.current[buttonRefs.current.length - 1];
                         assert(buttonElement);
                         buttonElement.focus();

@@ -350,6 +350,7 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                                         onKeyDown={event => {
                                             if (event.key === "Enter" || event.key === " ") {
                                                 event.preventDefault();
+                                                event.stopPropagation();
                                                 onJumpToMessage(replyingToMessage.message);
                                                 return;
                                             }
@@ -426,10 +427,14 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                                 })}
                                 onEnterFromPhysicalKeyboard={event => {
                                     event.preventDefault();
+                                    event.stopPropagation();
                                     submitMessage();
                                 }}
                                 onArrowUp={event => {
                                     if (isContentEmpty(state.getDoc())) {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+
                                         // Look at the last 10 messages. Start editing state for the last one our
                                         // account authored.
                                         for (const message of sliceIterable(
@@ -441,8 +446,6 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                                                 message.author.id === currentAccount.id &&
                                                 message.payload.type === "Content"
                                             ) {
-                                                event.preventDefault();
-
                                                 const previousInteractionModality =
                                                     interactionModality;
 
