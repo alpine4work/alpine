@@ -360,6 +360,19 @@ function DocumentContentEditorStateful({
 
     const activeCommentThreadId = pressedCommentThreadId ?? sidebarCommentThreadId;
 
+    const documentContentEditorSidebarWidthPx = convertRemLengthToPx(
+        documentContentEditorSidebarWidth,
+        useRemPx(),
+    );
+
+    // We compute the *editor* container size from the container size so that when
+    // the sidebar opens/closes we don't need to re-render side decorations when the
+    // resize observer changes.
+    const editorContainerWidth =
+        containerSize && sidebarState.isOpen && sidebarState.animationState !== "Closing"
+            ? containerSize.width - documentContentEditorSidebarWidthPx
+            : containerSize?.width ?? null;
+
     /* ========================================================================== *\
      *                     Comment thread sidebar navigation                      *
     \* ========================================================================== */
@@ -461,6 +474,10 @@ function DocumentContentEditorStateful({
         // `coordsAtPos()`.
         if (isInitialAppRender) return;
 
+        // Recompute our decorations whenever the editor width changes.
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        editorContainerWidth;
+
         const editorContainerElement = assertExists(editorContainerRef.current);
         const editor = assertExists(editorRef.current);
 
@@ -483,7 +500,7 @@ function DocumentContentEditorStateful({
 
             return decorationByMarkTop;
         });
-    }, [editorContainerRef, content.doc, editorRef, isInitialAppRender]);
+    }, [editorContainerRef, content.doc, editorRef, isInitialAppRender, editorContainerWidth]);
 
     const decorations = useMemo(
         () =>
@@ -643,23 +660,6 @@ function DocumentContentEditorStateful({
             scrollToEditorRect(firstCommentMarkRect);
         }, [isInitialAppRender, scrollToEditorRect, sidebarState]);
     }
-
-    /* ========================================================================== *\
-     *                                  Render                                    *
-    \* ========================================================================== */
-
-    const documentContentEditorSidebarWidthPx = convertRemLengthToPx(
-        documentContentEditorSidebarWidth,
-        useRemPx(),
-    );
-
-    // We compute the *editor* container size from the container size so that when
-    // the sidebar opens/closes we don't need to re-render side decorations when the
-    // resize observer changes.
-    const editorContainerWidth =
-        containerSize && sidebarState.isOpen && sidebarState.animationState !== "Closing"
-            ? containerSize.width - documentContentEditorSidebarWidthPx
-            : containerSize?.width ?? null;
 
     return (
         <Box
