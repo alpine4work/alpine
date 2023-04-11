@@ -12,11 +12,16 @@ import {SafeString, isSafeString} from "~/shared/helpers/string/safe_string";
  *
  * We recommend your script be a single line string to keep the SSR
  * output clean.
+ *
+ * We require you to use a `SafeString` to protect against XSS injection. A
+ * `SafeString` is guaranteed to only use constants from our code and never
+ * have user input.
  */
 export function ScriptBeforeAppInitialRender({script}: {script: SafeString}) {
     const isInitialAppRender = useIsInitialAppRender();
     if (!isInitialAppRender) return null;
 
+    // Double check to make sure an attacker didn't sneak in a JSON object.
     assert(isSafeString(script));
 
     return <script dangerouslySetInnerHTML={{__html: script.string}} />;

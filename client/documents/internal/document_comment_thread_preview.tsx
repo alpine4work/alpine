@@ -5,10 +5,11 @@ import {ContentView} from "~/client/content/content_view";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {useRemPx} from "~/client/design/helpers/use_rem_px";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
+import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {convertRemLengthToPx, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {safe, safeId, safeNumber} from "~/shared/helpers/string/safe_string";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
 import {
     DocumentCommentThreadModel,
@@ -30,7 +31,6 @@ export function DocumentCommentThreadPreview({
     onCommentThreadSnippetPress: (commentThreadId: DocumentCommentThreadId) => void;
 }) {
     const remPx = useRemPx();
-    const isInitialAppRender = useIsInitialAppRender();
     const previewRef = useRef<HTMLDivElement>(null);
     const previewContentRef = useRef<HTMLDivElement>(null);
 
@@ -44,9 +44,21 @@ export function DocumentCommentThreadPreview({
         [commentThread.id],
     );
 
+    // NOTE(calebmer): This offset was picked to intentionally clip off some text
+    // from the top and bottom lines in a block of text to make it clear you're
+    // looking at a preview. We try to have enough text of the top line that you
+    // can read it but know its cut and enough text on the bottom line that you
+    // know its there but can't read it.
+    const commentOffset = convertRemLengthToPx(
+        `${parseRemLengthNumber(spacing["6"]) + parseRemLengthNumber(spacing["0.5"])}rem`,
+        remPx,
+    );
+
+    // There is a `<ScriptBeforeAppInitialRender>` element below that copies this
+    // logic so we can correctly position the preview during server-side rendering.
     useLayoutEffectWithoutServerSideWarning(() => {
         // If the content isn't rendering we can't position it.
-        if (isInitialAppRender || !content) return;
+        if (!content) return;
 
         const previewElement = assertExists(previewRef.current);
         const previewContentElement = assertExists(previewContentRef.current);
@@ -60,18 +72,8 @@ export function DocumentCommentThreadPreview({
         const commentRect = commentElement.getBoundingClientRect();
 
         previewElement.scrollTop =
-            commentRect.y -
-            (previewRect.y - previewElement.scrollTop) -
-            // NOTE(calebmer): This offset was picked to intentionally clip off some text
-            // from the top and bottom lines in a block of text to make it clear you're
-            // looking at a preview. We try to have enough text of the top line that you
-            // can read it but know its cut and enough text on the bottom line that you
-            // know its there but can't read it.
-            convertRemLengthToPx(
-                `${parseRemLengthNumber(spacing["6"]) + parseRemLengthNumber(spacing["0.5"])}rem`,
-                remPx,
-            );
-    }, [commentThread.id, content, isInitialAppRender, remPx]);
+            commentRect.y - (previewRect.y - previewElement.scrollTop) - commentOffset;
+    }, [commentOffset, commentThread.id, content]);
 
     // Scale the content snippet down to our smallest font size. Scaling it down so
     // it has the same text layout as the main content editor leads to text so
@@ -122,7 +124,7 @@ export function DocumentCommentThreadPreview({
                             transform: `scale(${scale})`,
                         }}
                     >
-                        {!isInitialAppRender && content && (
+                        {content && (
                             // Don't render the snippet on initial app render because we need a layout
                             // effect to correctly position the content. Flashing content from invisible
                             // to visible is better than flashing content with the wrong scroll position
@@ -136,6 +138,13 @@ export function DocumentCommentThreadPreview({
                             />
                         )}
                     </Box>
+                    <ScriptBeforeAppInitialRender
+                        script={safe`var previewContentElement = document.currentScript.previousElementSibling; var previewElement = previewContentElement.parentElement; var commentElement = previewContentElement.querySelector('[data-comment="${safeId(
+                            commentThread.id,
+                        )}"]'); if (commentElement) { var previewRect = previewElement.getBoundingClientRect(); var commentRect = commentElement.getBoundingClientRect(); previewElement.scrollTop = commentRect.y - (previewRect.y - previewElement.scrollTop) - ${safeNumber(
+                            commentOffset,
+                        )}; }`}
+                    />
                 </Box>
             </Box>
         </FocusRing>
