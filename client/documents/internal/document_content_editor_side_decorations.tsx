@@ -1,10 +1,11 @@
 import {ChatCircleText} from "phosphor-react";
 import {useMemo} from "react";
+import {usePress} from "react-aria";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile";
 import {Box} from "~/client/design/box";
 import {useRemPx} from "~/client/design/helpers/use_rem_px";
 import {useClientInfo} from "~/client/remix/client_info_context";
-import {convertRemLengthToPx} from "~/shared/design/spacing";
+import {convertRemLengthToPx, spacing} from "~/shared/design/spacing";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {AccountId, DocumentCommentThreadId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
@@ -25,10 +26,12 @@ export function DocumentContentEditorSideDecorations({
     editorContainerWidth,
     contentReferences,
     decorations,
+    openCommentThread,
 }: {
     editorContainerWidth: number | null;
     contentReferences: DocumentContentReferences;
     decorations: ReadonlyArray<DocumentContentEditorSideDecoration>;
+    openCommentThread: (commentThreadId: DocumentCommentThreadId) => Promise<void>;
 }) {
     const {screenWidth} = useClientInfo();
     const remPx = useRemPx();
@@ -66,6 +69,7 @@ export function DocumentContentEditorSideDecorations({
                         markHeight={decoration.markHeight}
                         commentThreadIds={decoration.commentThreadIds}
                         shouldRenderCommentAvatars={shouldRenderCommentAvatars}
+                        openCommentThread={openCommentThread}
                     />
                 );
             })}
@@ -79,13 +83,17 @@ function DocumentContentEditorCommentThreadSideDecoration({
     markHeight,
     commentThreadIds,
     shouldRenderCommentAvatars,
+    openCommentThread,
 }: {
     contentReferences: DocumentContentReferences;
     markTop: number;
     markHeight: number;
     commentThreadIds: ReadonlySet<DocumentCommentThreadId>;
     shouldRenderCommentAvatars: boolean;
+    openCommentThread: (commentThreadId: DocumentCommentThreadId) => Promise<void>;
 }) {
+    const remPx = useRemPx();
+
     const {commentCount, commentAuthors} = useMemo(() => {
         let commentCount = 0;
         const commentAuthorById = new Map<AccountId, AccountModel>();
@@ -106,6 +114,14 @@ function DocumentContentEditorCommentThreadSideDecoration({
         };
     }, [commentThreadIds, contentReferences.commentThreadById]);
 
+    const {pressProps, isPressed} = usePress({
+        onPress: () => {
+            // TODO(calebmer): Global navigation loading indicator?
+            const commentThreadId = commentThreadIds.values().next().value;
+            if (commentThreadId) void openCommentThread(commentThreadId);
+        },
+    });
+
     // Don't show decoration when there are no comments.
     if (commentCount === 0 || commentAuthors.length === 0) return null;
 
@@ -115,12 +131,15 @@ function DocumentContentEditorCommentThreadSideDecoration({
             display="flex"
             alignItems="center"
             gap="2"
-            paddingRight="0.5"
+            padding="0.5"
+            borderRadius="md"
             style={{
                 top: markTop,
                 right: `calc(50% + ${contentSchemaStyles.blockMaxWidth} / 2)`,
-                height: markHeight,
+                height: markHeight + convertRemLengthToPx(spacing["0.5"], remPx) * 2,
+                opacity: isPressed ? 0.75 : undefined,
             }}
+            {...pressProps}
         >
             <Box display="flex" alignItems="center" gap="0.5" color="grey-40">
                 <ChatCircleText size="0.825rem" color={colorSchemeVars["grey-30"]} />

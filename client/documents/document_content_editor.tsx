@@ -772,9 +772,10 @@ function DocumentContentEditorStateful({
                                 editorContainerWidth={editorContainerWidth}
                                 contentReferences={content.references}
                                 decorations={decorations}
+                                openCommentThread={openCommentThread}
                             />
                         ),
-                        [content.references, decorations, editorContainerWidth],
+                        [content.references, decorations, editorContainerWidth, openCommentThread],
                     )}
                 </OverlayScopeContextProvider>
             </Box>
