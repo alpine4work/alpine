@@ -1,5 +1,4 @@
 import {ReactNode, createContext, useContext, useEffect, useState} from "react";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {mobileMaxScreenWidth, mobilePlatformMediaQuery} from "~/shared/design/spacing";
@@ -30,15 +29,7 @@ export function useIsMobile(): boolean {
 
 export function IsMobileContextProvider({children}: {children?: ReactNode}) {
     const {screenWidth} = useClientInfo();
-    const isInitialAppRender = useIsInitialAppRender();
-
-    const [isMobile, setIsMobile] = useState(() => {
-        if (isInitialAppRender) {
-            return screenWidth <= mobileMaxScreenWidth;
-        } else {
-            return window.matchMedia(mobilePlatformMediaQuery).matches;
-        }
-    });
+    const [isMobile, setIsMobile] = useState(screenWidth <= mobileMaxScreenWidth);
 
     useEffect(() => {
         const mediaQueryList = window.matchMedia(mobilePlatformMediaQuery);

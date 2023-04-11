@@ -809,14 +809,6 @@ const collectDecorationByMarkTop = createProsemirrorIncrementalReducer<{
         const markTop =
             coords.top - state.editorContainerRect.top + state.editorContainerElement.scrollTop;
 
-        console.log({
-            markTop,
-            coordsTop: coords.top,
-            coordsBottom: coords.bottom,
-            editorContainerTop: state.editorContainerRect.top,
-            scrollTop: state.editorContainerElement.scrollTop,
-        });
-
         const markHeight = coords.bottom - coords.top;
 
         for (const commentThreadId of commentThreadIds) {
