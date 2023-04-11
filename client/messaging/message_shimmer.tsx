@@ -2,13 +2,13 @@ import {useRef} from "react";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {MessageList} from "~/client/messaging/message_list";
 import {
-    messageBubbleMarginLeft,
+    defaultMessageViewMarginX,
+    getMessageBubbleMarginLeft,
     messageViewActionsWidth,
     messageViewBubbleBorderRadius,
     messageViewBubbleMergedBorderRadius,
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
-    messageViewMarginX,
     messageViewMarginY,
     messageViewMergedMarginY,
 } from "~/client/messaging/message_view";
@@ -88,12 +88,14 @@ export function MessageShimmer<Message extends MessageModel>({
     previousMessage,
     nextMessage,
     messages,
+    marginX = defaultMessageViewMarginX,
 }: {
     randomSeed: string;
     index: number;
     previousMessage: MessageModelBase | null;
     nextMessage: MessageModelBase | null;
     messages: MessageList<Message>;
+    marginX?: Spacing;
 }) {
     const shimmerRef = useRef<HTMLDivElement>(null);
     const stableRandom = new StableRandom(randomSeed);
@@ -128,7 +130,12 @@ export function MessageShimmer<Message extends MessageModel>({
             {!shouldMergeWithPreviousMessage && (
                 <div
                     className={sprinkles({paddingY: "0.5"})}
-                    style={{paddingLeft: addRemLengths(messageBubbleMarginLeft, spacing["1.5"])}}
+                    style={{
+                        paddingLeft: addRemLengths(
+                            getMessageBubbleMarginLeft(marginX),
+                            spacing["1.5"],
+                        ),
+                    }}
                 >
                     <div
                         style={{height: fontSizes["50"].lineHeight}}
@@ -148,7 +155,7 @@ export function MessageShimmer<Message extends MessageModel>({
             <div
                 className={sprinkles({
                     display: "flex",
-                    paddingX: messageViewMarginX,
+                    paddingX: marginX,
                     paddingBottom: !shouldMergeWithNextMessage
                         ? messageViewMarginY
                         : messageViewMergedMarginY,

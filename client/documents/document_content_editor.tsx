@@ -994,6 +994,9 @@ function DocumentContentEditorSidebar({
                                 sendCommentThreadMessage={sendCommentThreadMessage}
                                 subscribeToCommentThreadMessages={subscribeToCommentThreadMessages}
                                 withMobileLayout={true}
+                                // Slightly reduce the amount of margin on messages in a comment thread
+                                // because we have less space.
+                                messageViewMarginX="4"
                             />
                         ),
                     [

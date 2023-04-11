@@ -40,6 +40,7 @@ import {
     VirtualizedScrollViewRenderItem,
     getInitialVirtualizedScrollViewRenderedItemCount,
 } from "~/client/virtualized/virtualized_scroll_view";
+import {Spacing} from "~/shared/design/spacing";
 import {wait} from "~/shared/helpers/async/wait";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -657,6 +658,7 @@ export function renderMessageListItem<
     getMessageUrl,
     roomDisplayedCreatedTime,
     shouldAddMarginTop = index === 0,
+    marginX,
 }: {
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
@@ -672,6 +674,7 @@ export function renderMessageListItem<
     getMessageUrl: (messageIndex: number) => URL;
     roomDisplayedCreatedTime?: Date | undefined;
     shouldAddMarginTop?: boolean;
+    marginX?: Spacing;
 }): VirtualizedScrollViewItem {
     switch (item.type) {
         case "Loaded":
@@ -716,6 +719,7 @@ export function renderMessageListItem<
                         disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
                         getMessageUrl={getMessageUrl}
                         roomDisplayedCreatedTime={roomDisplayedCreatedTime}
+                        marginX={marginX}
                     />
                 ) : (
                     <MessageShimmer
@@ -724,6 +728,7 @@ export function renderMessageListItem<
                         previousMessage={previousMessage}
                         nextMessage={nextMessage}
                         messages={messages}
+                        marginX={marginX}
                     />
                 );
             };
@@ -784,6 +789,7 @@ export function renderMessageListItem<
                 node: (
                     <MessagingTypingIndicators
                         typingStateByConnectionId={item.typingStateByConnectionId}
+                        marginX={marginX}
                     />
                 ),
             };

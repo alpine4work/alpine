@@ -15,8 +15,9 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {MessageEditing} from "~/client/messaging/message_editing";
 import {MessageList} from "~/client/messaging/message_list";
 import {
+    defaultMessageViewMarginX,
+    getMessageBubbleMarginLeft,
     getTruncatedMessageContentForReplyPreview,
-    messageBubbleMarginLeft,
     messageViewActionsWidth,
     messageViewBubbleBorderRadius,
     messageViewBubblePaddingX,
@@ -28,7 +29,13 @@ import {
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
 import {MessageContent} from "~/shared/content/message_content_schema";
-import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
+import {
+    RemLength,
+    Spacing,
+    addRemLengths,
+    parseRemLengthNumber,
+    spacing,
+} from "~/shared/design/spacing";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -60,6 +67,7 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
     withoutBorderTop = false,
     "data-testid": dataTestId,
     restoreStateRef,
+    marginX = defaultMessageViewMarginX,
 }: {
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
@@ -82,6 +90,7 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
         state: ContentEditorState<MessageContentWithReferences>;
         isFocused: boolean;
     } | null>;
+    marginX?: Spacing;
 }) {
     const showToast = useShowToast();
     const {currentAccount} = useSpaceContext();
@@ -286,7 +295,10 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                             position="relative"
                             paddingBottom="3"
                             style={{
-                                paddingLeft: addRemLengths(messageBubbleMarginLeft, spacing["2"]),
+                                paddingLeft: addRemLengths(
+                                    getMessageBubbleMarginLeft(marginX),
+                                    spacing["2"],
+                                ),
                                 paddingRight: addRemLengths(
                                     spacing["2"],
                                     spacing["3"],
@@ -387,7 +399,7 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                         </Box>
                     );
                 })()}
-            <Box overflowX="hidden" display="flex" paddingX="5">
+            <Box overflowX="hidden" display="flex" paddingX={marginX}>
                 <Box display="flex" alignItems="flex-end">
                     <Box paddingY="0.5">
                         <AccountAvatar account={currentAccount} size="7" />

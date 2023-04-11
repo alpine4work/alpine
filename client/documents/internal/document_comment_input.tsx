@@ -7,6 +7,7 @@ import {getMessageListItemKey} from "~/client/messaging/messaging_view";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages";
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view";
+import {Spacing} from "~/shared/design/spacing";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
 import {
     MessagingRealtimeMessageFromClient,
@@ -30,6 +31,7 @@ export function DocumentCommentInput({
     isConnected,
     sendCommentThreadMessage,
     subscribeToCommentThreadMessages,
+    marginX,
 }: {
     viewRef: RefObject<VirtualizedScrollViewRef>;
     commentThread: DocumentCommentThreadModel;
@@ -54,6 +56,7 @@ export function DocumentCommentInput({
             subscriber: (message: MessagingRealtimeMessageFromServer<DocumentCommentModel>) => void,
         ) => () => void
     >;
+    marginX?: Spacing;
 }) {
     const context = useAppContext();
 
@@ -121,6 +124,7 @@ export function DocumentCommentInput({
                             .logUncaughtException("Couldn't update typing indicator", error),
                     );
             }}
+            marginX={marginX}
         />
     );
 }

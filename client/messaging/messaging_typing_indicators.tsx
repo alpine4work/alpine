@@ -5,13 +5,13 @@ import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
 import {Box} from "~/client/design/box";
 import {
-    messageBubbleMarginLeft,
+    defaultMessageViewMarginX,
+    getMessageBubbleMarginLeft,
     messageViewBubbleBorderRadius,
-    messageViewMarginX,
     messageViewMarginY,
 } from "~/client/messaging/message_view";
 import {easeInOutSin} from "~/shared/design/easing";
-import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
+import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
 import {AccountId, WebSocketConnectionId} from "~/shared/id/types/id_types";
@@ -22,8 +22,10 @@ export const messagingTypingIndicatorsMinHeight = "3.875rem";
 
 export function MessagingTypingIndicators({
     typingStateByConnectionId,
+    marginX = defaultMessageViewMarginX,
 }: {
     typingStateByConnectionId: ImmutableMap<WebSocketConnectionId, MessagingTypingState>;
+    marginX?: Spacing;
 }) {
     // Only select one typing state per account and sort typing states by their
     // start time so they appear in the order users started typing.
@@ -49,13 +51,14 @@ export function MessagingTypingIndicators({
                 <MessagingTypingIndicator
                     key={typingState.account.id}
                     account={typingState.account}
+                    marginX={marginX}
                 />
             ))}
         </Box>
     );
 }
 
-function MessagingTypingIndicator({account}: {account: AccountModel}) {
+function MessagingTypingIndicator({account, marginX}: {account: AccountModel; marginX: Spacing}) {
     const dot1Ref = useRef<HTMLDivElement>(null);
     const dot2Ref = useRef<HTMLDivElement>(null);
     const dot3Ref = useRef<HTMLDivElement>(null);
@@ -95,18 +98,18 @@ function MessagingTypingIndicator({account}: {account: AccountModel}) {
                 fontStyle="truncate"
                 paddingTop="0.5"
                 paddingBottom="0.5"
-                paddingRight={messageViewMarginX}
+                paddingRight={marginX}
                 color="grey-50"
                 display="flex"
                 alignItems="center"
                 gap="0.5"
                 style={{
-                    paddingLeft: addRemLengths(messageBubbleMarginLeft, spacing["0.5"]),
+                    paddingLeft: addRemLengths(getMessageBubbleMarginLeft(marginX), spacing["0.5"]),
                 }}
             >
                 <AccountShortName account={account} />
             </Box>
-            <Box display="flex" paddingX={messageViewMarginX} paddingBottom={messageViewMarginY}>
+            <Box display="flex" paddingX={marginX} paddingBottom={messageViewMarginY}>
                 <Box flexShrink="0" paddingRight="2">
                     <Box width="7" height="full" display="flex" alignItems="flex-end">
                         <Box paddingY="0.5">

@@ -86,15 +86,12 @@ export const messageViewPreviewScale =
     fontSizesByPlatform["50"].desktop.fontSize / fontSizesByPlatform["100"].desktop.fontSize;
 export const messageViewReplyPreviewOpacity = 0.6;
 export const messageViewReplyPreviewBubbleOpacity = 0.7;
-export const messageViewMarginX: Spacing = "5";
+export const defaultMessageViewMarginX: Spacing = "5";
 export const messageViewMarginY: Spacing = "3";
 export const messageViewMergedMarginY: Spacing = "0.5";
 
-export const messageBubbleMarginLeft = addRemLengths(
-    spacing[messageViewMarginX],
-    spacing["7"],
-    spacing["2"],
-);
+export const getMessageBubbleMarginLeft = (marginX: Spacing) =>
+    addRemLengths(spacing[marginX], spacing["7"], spacing["2"]);
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
@@ -141,6 +138,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     onDeleteMessage,
     getMessageUrl,
     roomDisplayedCreatedTime,
+    marginX = defaultMessageViewMarginX,
 }: {
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
@@ -157,6 +155,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     onDeleteMessage: () => Promise<void>;
     getMessageUrl: (messageIndex: number) => URL;
     roomDisplayedCreatedTime?: Date;
+    marginX?: Spacing;
 }) {
     const {timeZone} = useClientInfo();
 
@@ -498,11 +497,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 })}
                 style={{
                     height: scaledHeight,
-                    paddingLeft: messageBubbleMarginLeft,
+                    paddingLeft: getMessageBubbleMarginLeft(marginX),
                     paddingRight: addRemLengths(
                         spacing["3"],
                         spacing[messageViewActionsWidth],
-                        spacing[messageViewMarginX],
+                        spacing[marginX],
                     ),
                 }}
             >
@@ -582,7 +581,13 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 </OverlayScopeContextProvider>
             </div>
         );
-    }, [messageStartOfSentenceNoun, messageTextForBigEmojiMessage, onJumpToMessage, parentMessage]);
+    }, [
+        marginX,
+        messageStartOfSentenceNoun,
+        messageTextForBigEmojiMessage,
+        onJumpToMessage,
+        parentMessage,
+    ]);
 
     const timestampDividerNode = useMemo(() => {
         // If an hour passed without a message, insert a divider between messages. We
@@ -641,16 +646,26 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         className={sprinkles({
                             position: "absolute",
                             zIndex: "10",
-                            left: "12",
-                            right: "12",
                             backgroundColor: "grey-5",
                         })}
-                        style={{height: 1, top: "50%"}}
+                        style={{
+                            height: 1,
+                            top: "50%",
+                            left: addRemLengths(spacing[marginX], spacing["5"]),
+                            right: addRemLengths(spacing[marginX], spacing["5"]),
+                        }}
                     />
                 </div>
             </div>
         );
-    }, [isFirstMessage, message.createdTime, previousMessage, roomDisplayedCreatedTime, timeZone]);
+    }, [
+        isFirstMessage,
+        marginX,
+        message.createdTime,
+        previousMessage,
+        roomDisplayedCreatedTime,
+        timeZone,
+    ]);
 
     // IMPORTANT(calebmer): Be careful about what you put in this component!
     // `<MessageView>` needs to render fast for us to get good FPS when scrolling
@@ -682,7 +697,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                     fontStyle: "truncate",
                                     paddingTop: "0.5",
                                     paddingBottom: parentMessage === null ? "0.5" : "1",
-                                    paddingRight: messageViewMarginX,
+                                    paddingRight: marginX,
                                     color: "grey-50",
                                     display: "flex",
                                     alignItems: "center",
@@ -690,7 +705,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                 })}
                                 style={{
                                     paddingLeft: addRemLengths(
-                                        messageBubbleMarginLeft,
+                                        getMessageBubbleMarginLeft(marginX),
                                         spacing["0.5"],
                                     ),
                                 }}
@@ -712,14 +727,14 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                 </span>
                             </div>
                         ),
-                    [message.author, parentMessage, shouldMergeWithPreviousMessage],
+                    [marginX, message.author, parentMessage, shouldMergeWithPreviousMessage],
                 )}
                 {parentMessageNode}
                 <div
                     ref={hoverRef}
                     className={sprinkles({
                         display: "flex",
-                        paddingX: messageViewMarginX,
+                        paddingX: marginX,
                         paddingBottom: !shouldMergeWithNextMessage
                             ? messageViewMarginY
                             : messageViewMergedMarginY,

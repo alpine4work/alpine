@@ -39,6 +39,7 @@ import {
 } from "~/client/virtualized/virtualized_scroll_view";
 import {VirtualizedTree} from "~/client/virtualized/virtualized_tree";
 import {UncheckedDocumentContentSchema} from "~/shared/content/document_content_schema";
+import {Spacing} from "~/shared/design/spacing";
 import {OutOfRangeError} from "~/shared/error/error";
 import {wait} from "~/shared/helpers/async/wait";
 import {assert} from "~/shared/helpers/control/assert";
@@ -186,6 +187,7 @@ function DocumentCommentThreadListView(
         sendCommentThreadMessage,
         subscribeToCommentThreadMessages,
         withMobileLayout = false,
+        messageViewMarginX,
     }: {
         documentId: DocumentId;
         content: DocumentContentWithReferences;
@@ -214,6 +216,11 @@ function DocumentCommentThreadListView(
          * single comment threads to the bottom of the screen.
          */
         withMobileLayout?: boolean;
+
+        /**
+         * Customize the amount of margin on messages.
+         */
+        messageViewMarginX?: Spacing;
     },
     ref: Ref<DocumentCommentThreadListViewRef>,
 ) {
@@ -577,6 +584,7 @@ function DocumentCommentThreadListView(
                                 window.location.href,
                             );
                         },
+                        marginX: messageViewMarginX,
                     });
                 }
                 case "DocumentCommentInput": {
@@ -601,6 +609,7 @@ function DocumentCommentThreadListView(
             messageEditing,
             highlightComment,
             handleJumpToComment,
+            messageViewMarginX,
             sendCommentThreadMessage,
             space.id,
         ],
@@ -679,6 +688,7 @@ function DocumentCommentThreadListView(
                                 isConnected={isConnected}
                                 sendCommentThreadMessage={sendCommentThreadMessage}
                                 subscribeToCommentThreadMessages={subscribeToCommentThreadMessages}
+                                marginX={messageViewMarginX}
                             />
                         );
                     })()}
