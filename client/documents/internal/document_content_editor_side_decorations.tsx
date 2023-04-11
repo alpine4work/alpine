@@ -5,7 +5,7 @@ import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile";
 import {Box} from "~/client/design/box";
 import {useRemPx} from "~/client/design/helpers/use_rem_px";
 import {useClientInfo} from "~/client/remix/client_info_context";
-import {convertRemLengthToPx, spacing} from "~/shared/design/spacing";
+import {convertRemLengthToPx} from "~/shared/design/spacing";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {AccountId, DocumentCommentThreadId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
@@ -92,8 +92,6 @@ function DocumentContentEditorCommentThreadSideDecoration({
     shouldRenderCommentAvatars: boolean;
     openCommentThread: (commentThreadId: DocumentCommentThreadId) => Promise<void>;
 }) {
-    const remPx = useRemPx();
-
     const {commentCount, commentAuthors} = useMemo(() => {
         let commentCount = 0;
         const commentAuthorById = new Map<AccountId, AccountModel>();
@@ -131,12 +129,12 @@ function DocumentContentEditorCommentThreadSideDecoration({
             display="flex"
             alignItems="center"
             gap="2"
-            padding="0.5"
+            paddingRight="0.5"
             borderRadius="md"
             style={{
                 top: markTop,
                 right: `calc(50% + ${contentSchemaStyles.blockMaxWidth} / 2)`,
-                height: markHeight + convertRemLengthToPx(spacing["0.5"], remPx) * 2,
+                height: markHeight,
                 opacity: isPressed ? 0.75 : undefined,
             }}
             {...pressProps}

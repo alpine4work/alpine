@@ -9,6 +9,7 @@ import {
     Ref,
     RefAttributes,
     forwardRef,
+    useCallback,
     useEffect,
     useImperativeHandle,
     useLayoutEffect,
@@ -317,6 +318,9 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
                 className={className}
                 aria-label={ariaLabel}
                 aria-labelledby={ariaLabelledBy}
+                // Highlight all comments on initial render of `<ContentEditor>` since we'll
+                // highlight them all when we re-render.
+                shouldHighlightComment={useCallback(() => true, [])}
             />
         </div>
     );

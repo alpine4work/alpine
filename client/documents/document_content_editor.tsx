@@ -1,9 +1,7 @@
 import {AnimationControls, spring, timeline} from "motion";
 import {CaretDown, CaretUp, SpinnerGap, X} from "phosphor-react";
-import {Command} from "prosemirror-state";
 import {Memo, Ref, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
-import {updateContentEditorReferences} from "~/client/content/content_editor_state";
 import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px";
@@ -19,7 +17,6 @@ import {
     DocumentContentEditorSideDecoration,
     DocumentContentEditorSideDecorations,
 } from "~/client/documents/internal/document_content_editor_side_decorations";
-import {createDocumentCommentThreadMetaKey} from "~/client/documents/internal/document_content_editor_web_socket_client";
 import {useDocumentContentEditorPhantomSelections} from "~/client/documents/internal/use_document_content_editor_phantom_selections";
 import {
     SendCommentThreadMessageFunction,
@@ -35,12 +32,10 @@ import {usePromise} from "~/client/helpers/use_promise";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context";
-import {useSpaceContext} from "~/client/spaces/space_context";
 import {
     DocumentContent,
     DocumentContentProsemirrorSchema,
 } from "~/shared/content/document_content_schema";
-import {createSimpleMessageContent} from "~/shared/content/message_content_schema";
 import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
@@ -52,7 +47,7 @@ import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlap
 import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {clamp} from "~/shared/helpers/number/clamp";
-import {assertId, generateId} from "~/shared/id/id";
+import {assertId} from "~/shared/id/id";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types";
 import {
     DocumentCommentModel,
@@ -61,7 +56,6 @@ import {
     DocumentModel,
 } from "~/shared/models/document_model";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer";
-import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range";
 import {getDocumentCommentThreadAndInitialComments} from "~/shared/rpc/documents_rpc_definitions";
 import {colorSchemeVars, contentSchemaStyles, spinAnimationClassName} from "~/shared/styles/styles";
 
@@ -147,7 +141,6 @@ function DocumentContentEditorStateful({
 
     const isInitialAppRender = useIsInitialAppRender();
     const context = useAppContext();
-    const {currentAccount} = useSpaceContext();
     const editorRef = useRef<ContentEditorRef>(null);
     const editorContainerRef = useRef<HTMLDivElement>(null);
     const sidebarRef = useRef<HTMLDivElement>(null);
@@ -464,7 +457,8 @@ function DocumentContentEditorStateful({
 
     useLayoutEffectWithoutServerSideWarning(() => {
         // Our editor won't be able to determine positions of comment marks until after
-        // the initial render.
+        // the initial render because it uses `<ContentView>` which doesn't support
+        // `coordsAtPos()`.
         if (isInitialAppRender) return;
 
         const editorContainerElement = assertExists(editorContainerRef.current);
@@ -814,6 +808,15 @@ const collectDecorationByMarkTop = createProsemirrorIncrementalReducer<{
         const coords = state.editor.coordsAtPos(offset);
         const markTop =
             coords.top - state.editorContainerRect.top + state.editorContainerElement.scrollTop;
+
+        console.log({
+            markTop,
+            coordsTop: coords.top,
+            coordsBottom: coords.bottom,
+            editorContainerTop: state.editorContainerRect.top,
+            scrollTop: state.editorContainerElement.scrollTop,
+        });
+
         const markHeight = coords.bottom - coords.top;
 
         for (const commentThreadId of commentThreadIds) {
