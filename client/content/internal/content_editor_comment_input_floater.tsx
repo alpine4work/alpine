@@ -4,7 +4,11 @@ import {EditorView} from "prosemirror-view";
 import {RefObject, useCallback, useEffect, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
-import {ContentEditorState} from "~/client/content/content_editor_state";
+import {
+    ContentEditorState,
+    createCommentThreadMetaKey,
+    updateContentEditorReferences,
+} from "~/client/content/content_editor_state";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
@@ -19,8 +23,9 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
 import {spacing} from "~/shared/design/spacing";
-import {UnimplementedError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {generateId} from "~/shared/id/id";
+import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
 import {
     messageInputMinHeight,
     messageViewBubbleBorderRadius,
@@ -28,6 +33,7 @@ import {
     messageViewBubblePaddingY,
 } from "~/shared/messaging/messaging_shared_styles";
 import {emptyMessageContentWithReferences} from "~/shared/models/message_model";
+import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range";
 import {
     greyElevatedClassName,
     overlayFadeOutAnimationDurationMs,
@@ -96,6 +102,9 @@ export function ContentEditorCommentInputFloater({
                     paddingBottom="1"
                 >
                     <ContentEditorCommentInput
+                        state={state}
+                        viewRef={viewRef}
+                        range={range}
                         onCloseWithoutAnimation={onCloseWithoutAnimation}
                         onCloseWithAnimation={onCloseWithAnimation}
                     />
@@ -113,20 +122,26 @@ export function ContentEditorCommentInputFloater({
 }
 
 function ContentEditorCommentInput({
+    state: documentState,
+    viewRef: documentViewRef,
+    range: documentRange,
     onCloseWithoutAnimation,
     onCloseWithAnimation,
 }: {
+    state: EditorState;
+    viewRef: RefObject<EditorView | null>;
+    range: {from: number; to: number};
     onCloseWithoutAnimation: () => void;
     onCloseWithAnimation: () => void;
 }) {
     const {currentAccount} = useSpaceContext();
 
-    const [state, setState] = useState(() =>
+    const [commentState, setCommentState] = useState(() =>
         ContentEditorState.create(emptyMessageContentWithReferences),
     );
     const [shouldShowConfirmCloseDialog, setShouldShowConfirmCloseDialog] = useState(false);
 
-    const isSendButtonDisabled = isContentEmpty(state.getDoc());
+    const isSendButtonDisabled = isContentEmpty(commentState.getDoc());
 
     const editorRef = useRef<ContentEditorRef>(null);
     const shouldFocusNextRenderRef = useRef(true);
@@ -141,6 +156,40 @@ function ContentEditorCommentInput({
         const editor = assertExists(editorRef.current);
         editor.focus();
     }, [shouldShowConfirmCloseDialog]);
+
+    const sendComment = () => {
+        const content = commentState.getContent();
+        if (isContentEmpty(content.doc)) return;
+
+        const commentThreadId = generateId<DocumentCommentThreadId>();
+        const trimmedDocumentRange = trimSpacesFromProsemirrorRange(
+            documentState.doc,
+            documentRange,
+        );
+        assertExists(documentViewRef.current).dispatch(
+            updateContentEditorReferences(
+                documentState.tr
+                    .addMark(
+                        trimmedDocumentRange.from,
+                        trimmedDocumentRange.to,
+                        documentState.schema.mark("comment", {commentThreadId}),
+                    )
+                    .setMeta(createCommentThreadMetaKey, {
+                        commentThreadId,
+                        initialCommentContent: content.doc,
+                    })
+                    .scrollIntoView(),
+                {
+                    type: "UpdateDocumentCommentThread",
+                    commentThreadId,
+                    commentCount: 1,
+                    addCommentAuthor: currentAccount,
+                },
+            ),
+        );
+
+        onCloseWithoutAnimation();
+    };
 
     return (
         <>
@@ -176,7 +225,7 @@ function ContentEditorCommentInput({
 
                     // If the user didn't type a comment then close without asking
                     // for confirmation.
-                    if (isContentEmpty(state.getDoc())) {
+                    if (isContentEmpty(commentState.getDoc())) {
                         onCloseWithAnimation();
                         return;
                     }
@@ -192,7 +241,7 @@ function ContentEditorCommentInput({
 
                     // If the user didn't type a comment then close without asking
                     // for confirmation.
-                    if (isContentEmpty(state.getDoc())) {
+                    if (isContentEmpty(commentState.getDoc())) {
                         onCloseWithAnimation();
                         return;
                     }
@@ -219,8 +268,8 @@ function ContentEditorCommentInput({
                         <Box maxHeight="64" overflowX="hidden" overflowY="scroll">
                             <ContentEditor
                                 ref={editorRef}
-                                state={state}
-                                onChange={setState}
+                                state={commentState}
+                                onChange={setCommentState}
                                 aria-label="New comment"
                                 placeholder="Write a comment"
                                 className={sprinkles({
@@ -230,8 +279,7 @@ function ContentEditorCommentInput({
                                 onEnterFromPhysicalKeyboard={event => {
                                     event.preventDefault();
                                     event.stopPropagation();
-                                    // NOCOMMIT
-                                    throw new UnimplementedError("TODO");
+                                    sendComment();
                                 }}
                             />
                         </Box>
@@ -243,10 +291,7 @@ function ContentEditorCommentInput({
                             variant="accent"
                             description="Send comment"
                             isDisabled={isSendButtonDisabled}
-                            onPress={() => {
-                                // NOCOMMIT
-                                throw new UnimplementedError("TODO");
-                            }}
+                            onPress={sendComment}
                         >
                             <ArrowRight
                                 size={spacing["4"]}
@@ -267,10 +312,7 @@ function ContentEditorCommentInput({
                         setShouldShowConfirmCloseDialog(false);
                     }}
                     primaryButtonLabel="Save"
-                    onPrimaryButtonPress={() => {
-                        // NOCOMMIT
-                        throw new UnimplementedError("TODO");
-                    }}
+                    onPrimaryButtonPress={sendComment}
                     cancelButtonLabel="Discard comment"
                     onCancelButtonPress={onCloseWithoutAnimation}
                 />

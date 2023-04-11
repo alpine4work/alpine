@@ -32,6 +32,8 @@ import {
 } from "~/shared/models/content_references";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range";
 
+export const createCommentThreadMetaKey = "createCommentThread";
+
 function buildPlugins<Content extends ContentWithReferences>({
     schema,
     references,
