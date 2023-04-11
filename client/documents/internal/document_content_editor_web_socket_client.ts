@@ -1,15 +1,16 @@
-import {Selection} from "prosemirror-state";
+import {Command, Selection} from "prosemirror-state";
 import {Step, StepMap} from "prosemirror-transform";
 import {WebSocketClient, WebSocketClientState} from "~/client/cloudflare/web_socket_client";
 import {
     ContentEditorReferencesAction,
     ContentEditorState,
+    updateContentEditorReferences,
 } from "~/client/content/content_editor_state";
 import {AppContext} from "~/client/context/app_context";
 import {Store} from "~/client/helpers/store/store";
 import {ValueStore} from "~/client/helpers/store/value_store";
 import {DocumentContent, isDocumentContent} from "~/shared/content/document_content_schema";
-import {MessageContent} from "~/shared/content/message_content_schema";
+import {MessageContent, createSimpleMessageContent} from "~/shared/content/message_content_schema";
 import {
     DocumentCollaborationMessageFromClient,
     DocumentCollaborationMessageFromClientSchema,
@@ -24,6 +25,7 @@ import {Lazy} from "~/shared/helpers/control/lazy";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
+import {generateId} from "~/shared/id/id";
 import {
     ContentEditorClientId,
     DocumentCommentThreadId,
@@ -43,6 +45,7 @@ import {
     mergeDocumentContentReferences,
 } from "~/shared/models/document_model";
 import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema";
+import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range";
 
 export const createDocumentCommentThreadMetaKey = "createCommentThread";
 
@@ -187,6 +190,7 @@ export function reduceDocumentContentReferences(
 }
 
 export function getInitialDocumentContentEditorState(
+    currentAccount: AccountModel,
     initialDocument: DocumentModel | null,
 ): DocumentContentEditorState {
     const editorState = initialDocument
@@ -194,6 +198,7 @@ export function getInitialDocumentContentEditorState(
               version: initialDocument.version,
               content: initialDocument.content,
               reduceReferences: reduceDocumentContentReferences,
+              addCommentCommand: createAddCommentCommand(currentAccount),
           })
         : null;
 
@@ -661,6 +666,7 @@ export class DocumentContentEditorWebSocketClient {
 
     constructor(
         getContext: () => AppContext,
+        currentAccount: AccountModel,
         documentId: DocumentId,
         initialDocument: DocumentModel | null,
     ) {
@@ -671,7 +677,9 @@ export class DocumentContentEditorWebSocketClient {
             DocumentCollaborationMessageFromServerSchema,
             `/durable-objects/documents/${documentId}`,
         );
-        this._state = new ValueStore(getInitialDocumentContentEditorState(initialDocument));
+        this._state = new ValueStore(
+            getInitialDocumentContentEditorState(currentAccount, initialDocument),
+        );
     }
 
     private _dispatchBatch(actions: ReadonlyArray<DocumentContentEditorAction>) {
@@ -1020,4 +1028,64 @@ export class DocumentContentEditorWebSocketClient {
             }
         });
     }
+}
+
+/**
+ * Command for adding a comment to a document. This command was adapted from
+ * `createToggleMarkCommand()`.
+ */
+function createAddCommentCommand(currentAccount: AccountModel): Command {
+    return (state, dispatch) => {
+        let doesAnyNodeAllowMarkType = false;
+
+        state.doc.nodesBetween(state.selection.from, state.selection.to, (node, pos) => {
+            // If we have found at least one node that can become our mark type we don't
+            // need to keep iterating.
+            if (doesAnyNodeAllowMarkType) return false;
+
+            // Ignore nodes that aren't inline.
+            if (!node.isInline) return;
+
+            // Ignore nodes that don't support our mark type.
+            const $pos = state.doc.resolve(pos);
+            if (
+                !state.schema.marks.comment ||
+                !$pos.parent.type.allowsMarkType(state.schema.marks.comment)
+            ) {
+                return;
+            }
+
+            doesAnyNodeAllowMarkType = true;
+        });
+
+        if (!doesAnyNodeAllowMarkType) return false;
+
+        if (dispatch) {
+            const commentThreadId = generateId<DocumentCommentThreadId>();
+            const range = trimSpacesFromProsemirrorRange(state.doc, state.selection);
+            dispatch(
+                updateContentEditorReferences(
+                    state.tr
+                        .addMark(
+                            range.from,
+                            range.to,
+                            state.schema.mark("comment", {commentThreadId}),
+                        )
+                        .setMeta(createDocumentCommentThreadMetaKey, {
+                            commentThreadId,
+                            initialCommentContent: createSimpleMessageContent("test"),
+                        })
+                        .scrollIntoView(),
+                    {
+                        type: "UpdateDocumentCommentThread",
+                        commentThreadId,
+                        commentCount: 1,
+                        addCommentAuthor: currentAccount,
+                    },
+                ),
+            );
+        }
+
+        return true;
+    };
 }

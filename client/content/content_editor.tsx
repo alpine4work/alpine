@@ -1,13 +1,6 @@
 import classNames from "classnames";
 import {Node, Slice} from "prosemirror-model";
-import {
-    AllSelection,
-    Command,
-    EditorState,
-    Selection,
-    TextSelection,
-    Transaction,
-} from "prosemirror-state";
+import {AllSelection, EditorState, Selection, TextSelection, Transaction} from "prosemirror-state";
 import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
 import {
     FocusEvent,
@@ -221,17 +214,6 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
     phantomSelections?: ReadonlyArray<ContentEditorPhantomSelection>;
 
     /**
-     * Command for adding a comment to some range of text. If your schema supports
-     * comment marks, you must provide this command to add them. `<ContentEditor>`
-     * knows almost nothing about how comments are implemented, only how they
-     * are styled.
-     *
-     * This does leak `EditorState` which normally we try to avoid but we find
-     * it acceptable in this advanced case.
-     */
-    addCommentCommand?: Command;
-
-    /**
      * Opens a comment thread when clicked. If your schema supports comment marks
      * you must provide this function to open them. `<ContentEditor>` knows almost
      * nothing about how comments are implemented, only how they are styled.
@@ -363,7 +345,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         onFocus,
         onBlur,
         phantomSelections,
-        addCommentCommand,
     } = props;
 
     // Preload space accounts so when the user tries to mention one they
@@ -1095,7 +1076,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                 }}
                 isFocused={isFocused}
                 lastSelectionChangeTransactionTime={lastSelectionChangeTransactionTime}
-                addCommentCommand={addCommentCommand ?? null}
             />
             {selectedNodeElement && (
                 // TODO(calebmer): If you type "foo" in the title, then "bar" in the body, then

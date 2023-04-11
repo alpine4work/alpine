@@ -192,57 +192,6 @@ function DocumentContentEditorStateful({
         }
     }, [content.doc, onContentChange]);
 
-    // This command was adapted from `createToggleMarkCommand()`.
-    const addCommentCommand: Command = (state, dispatch) => {
-        let doesAnyNodeAllowMarkType = false;
-
-        state.doc.nodesBetween(state.selection.from, state.selection.to, (node, pos) => {
-            // If we have found at least one node that can become our mark type we don't
-            // need to keep iterating.
-            if (doesAnyNodeAllowMarkType) return false;
-
-            // Ignore nodes that aren't inline.
-            if (!node.isInline) return;
-
-            // Ignore nodes that don't support our mark type.
-            const $pos = state.doc.resolve(pos);
-            if (!$pos.parent.type.allowsMarkType(DocumentContentProsemirrorSchema.marks.comment))
-                return;
-
-            doesAnyNodeAllowMarkType = true;
-        });
-
-        if (!doesAnyNodeAllowMarkType) return false;
-
-        if (dispatch) {
-            const commentThreadId = generateId<DocumentCommentThreadId>();
-            const range = trimSpacesFromProsemirrorRange(state.doc, state.selection);
-            dispatch(
-                updateContentEditorReferences(
-                    state.tr
-                        .addMark(
-                            range.from,
-                            range.to,
-                            state.schema.mark("comment", {commentThreadId}),
-                        )
-                        .setMeta(createDocumentCommentThreadMetaKey, {
-                            commentThreadId,
-                            initialCommentContent: createSimpleMessageContent("test"),
-                        })
-                        .scrollIntoView(),
-                    {
-                        type: "UpdateDocumentCommentThread",
-                        commentThreadId,
-                        commentCount: 1,
-                        addCommentAuthor: currentAccount,
-                    },
-                ),
-            );
-        }
-
-        return true;
-    };
-
     /* ========================================================================== *\
      *                            Sidebar animations                              *
     \* ========================================================================== */
@@ -753,7 +702,6 @@ function DocumentContentEditorStateful({
                         placeholder="Share your ideas…"
                         className={documentContentClassName}
                         phantomSelections={phantomSelections}
-                        addCommentCommand={addCommentCommand}
                         openCommentThread={openCommentThread}
                         onCommentThreadPressedChange={(commentThreadId, isHovered) => {
                             setPressedCommentThreadId(pressedCommentThreadId => {

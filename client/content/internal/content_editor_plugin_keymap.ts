@@ -31,7 +31,10 @@ type Command = (
 export const openKeyboardHighlightFloaterMetaKey = "openKeyboardHighlightFloater";
 export const openKeyboardLinkFloaterMetaKey = "openKeyboardLinkFloater";
 
-export function buildKeymapPlugin(schema: ContentProsemirrorSchema) {
+export function buildKeymapPlugin(
+    schema: ContentProsemirrorSchema,
+    addCommentCommand: Command | null,
+) {
     const keys = new Map<string, Command>();
 
     // History
@@ -423,7 +426,7 @@ export function buildKeymapPlugin(schema: ContentProsemirrorSchema) {
         // Then you press delete:
         //
         // ```
-        // - foo|bar
+        // foo|bar
         // ```
         (state, dispatch) => {
             const {$from, $to} = state.selection;
@@ -770,6 +773,11 @@ export function buildKeymapPlugin(schema: ContentProsemirrorSchema) {
         dispatch?.(state.tr.setMeta(openKeyboardLinkFloaterMetaKey, true));
         return true;
     });
+
+    // Comments
+    if (schema.marks.comment && addCommentCommand) {
+        keys.set("Mod-shift-c", addCommentCommand);
+    }
 
     // Based on the [ProseMirror base MacOS keybinding][1] map and the [MacOS
     // keyboard shortcut][2] documentation.

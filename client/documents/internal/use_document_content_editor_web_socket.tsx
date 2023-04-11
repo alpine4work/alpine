@@ -8,6 +8,7 @@ import {
 } from "~/client/documents/internal/document_content_editor_web_socket_client";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useStore} from "~/client/helpers/store/use_store";
+import {useSpaceContext} from "~/client/spaces/space_context";
 import {DocumentContent, emptyDocumentContent} from "~/shared/content/document_content_schema";
 import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_schema";
 import {assert} from "~/shared/helpers/control/assert";
@@ -88,6 +89,7 @@ export function useDocumentContentEditorWebSocket(
     assert(!initialDocument || documentId === initialDocument.id);
 
     const context = useAppContext();
+    const {currentAccount} = useSpaceContext();
     const contextRef = useRef(context);
     useLayoutEffectWithoutServerSideWarning(() => {
         contextRef.current = context;
@@ -96,6 +98,7 @@ export function useDocumentContentEditorWebSocket(
     const [client, setClient] = useState(() => {
         return new DocumentContentEditorWebSocketClient(
             () => contextRef.current,
+            currentAccount,
             documentId,
             initialDocument,
         );
@@ -106,6 +109,7 @@ export function useDocumentContentEditorWebSocket(
         setClient(() => {
             return new DocumentContentEditorWebSocketClient(
                 () => contextRef.current,
+                currentAccount,
                 documentId,
                 initialDocument,
             );

@@ -19,6 +19,7 @@ import {Command, EditorState, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {Memo, ReactNode, RefObject, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {mergeProps, useButton} from "react-aria";
+import {getContentEditorAddCommentCommand} from "~/client/content/content_editor_state";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker";
 import {ContentEditorHighlightSelector} from "~/client/content/internal/content_editor_highlight_selector";
 import {ContentEditorLinkInput} from "~/client/content/internal/content_editor_link_input";
@@ -58,13 +59,11 @@ export function ContentEditorPointerToolbar({
     viewRef,
     isFocused,
     lastSelectionChangeTransactionTime,
-    addCommentCommand,
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView | null>;
     isFocused: boolean;
     lastSelectionChangeTransactionTime: number | null;
-    addCommentCommand: Command | null;
 }) {
     const interactionModality = useInteractionModality();
 
@@ -305,7 +304,6 @@ export function ContentEditorPointerToolbar({
                     prevState.isShowing ? {...prevState, extraOverlay: null} : prevState,
                 )
             }
-            addCommentCommand={addCommentCommand}
         />
     );
 }
@@ -321,7 +319,6 @@ function ContentEditorPointerToolbarOverlay({
     isHighlightSelectorOpen,
     onHighlightSelectorOpen,
     onHighlightSelectorClose,
-    addCommentCommand,
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView | null>;
@@ -333,7 +330,6 @@ function ContentEditorPointerToolbarOverlay({
     isHighlightSelectorOpen: boolean;
     onHighlightSelectorOpen: () => void;
     onHighlightSelectorClose: () => void;
-    addCommentCommand: Command | null;
 }) {
     const overlayRef = useRef<OverlayRef>(null);
     const tooltipRefs = useRef<Set<TooltipRef>>(new Set());
@@ -386,7 +382,6 @@ function ContentEditorPointerToolbarOverlay({
                             isHighlightSelectorOpen={isHighlightSelectorOpen}
                             onHighlightSelectorOpen={onHighlightSelectorOpen}
                             onHighlightSelectorClose={onHighlightSelectorClose}
-                            addCommentCommand={addCommentCommand}
                         />
                     </Box>
                 </div>
@@ -421,7 +416,6 @@ function ContentEditorPointerToolbarButtons({
     isHighlightSelectorOpen,
     onHighlightSelectorOpen,
     onHighlightSelectorClose,
-    addCommentCommand,
 }: {
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView | null>;
@@ -433,7 +427,6 @@ function ContentEditorPointerToolbarButtons({
     isHighlightSelectorOpen: boolean;
     onHighlightSelectorOpen: () => void;
     onHighlightSelectorClose: () => void;
-    addCommentCommand: Command | null;
 }) {
     const shouldDisableTooltips = isLinkInputOpen || isHighlightSelectorOpen;
 
@@ -488,6 +481,7 @@ function ContentEditorPointerToolbarButtons({
 
     // Document comments are not ready for production yet.
     const areCommentsEnabled = process.env.NODE_ENV !== "production";
+    const addCommentCommand = getContentEditorAddCommentCommand(state);
 
     return (
         <>
