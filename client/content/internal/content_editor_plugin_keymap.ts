@@ -30,11 +30,9 @@ type Command = (
 
 export const openKeyboardHighlightFloaterMetaKey = "openKeyboardHighlightFloater";
 export const openKeyboardLinkFloaterMetaKey = "openKeyboardLinkFloater";
+export const openCommentInputFloaterMetaKey = "openCommentInputFloater";
 
-export function buildKeymapPlugin(
-    schema: ContentProsemirrorSchema,
-    addCommentCommand: Command | null,
-) {
+export function buildKeymapPlugin(schema: ContentProsemirrorSchema) {
     const keys = new Map<string, Command>();
 
     // History
@@ -775,8 +773,25 @@ export function buildKeymapPlugin(
     });
 
     // Comments
-    if (schema.marks.comment && addCommentCommand) {
-        keys.set("Mod-shift-c", addCommentCommand);
+    if (schema.marks.comment) {
+        keys.set("Mod-shift-c", (state, dispatch) => {
+            // Only open comment input if we're selecting some text.
+            if (state.selection.from === state.selection.to) {
+                return false;
+            }
+
+            let isCommentSupported = false;
+            state.doc.nodesBetween(state.selection.from, state.selection.to, node => {
+                if (!node.inlineContent) return;
+                isCommentSupported ||=
+                    !!schema.marks.comment && node.type.allowsMarkType(schema.marks.comment);
+            });
+
+            if (!isCommentSupported) return false;
+
+            dispatch?.(state.tr.setMeta(openCommentInputFloaterMetaKey, true));
+            return true;
+        });
     }
 
     // Based on the [ProseMirror base MacOS keybinding][1] map and the [MacOS

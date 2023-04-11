@@ -481,15 +481,20 @@ function ContentEditor<Content extends ContentWithReferences>(
             markViews: {
                 link: createContentEditorLinkMarkViewConstructor({
                     onPointerEnterAfterDelay: ({mark, range}) => {
-                        view.dispatch(
-                            setContentEditorFloaterState(view.state.tr, {
-                                type: "PointerLink",
-                                key: generateId(),
-                                mark,
-                                range,
-                                hasPointerLeftMark: false,
-                            }),
-                        );
+                        const floaterState = getContentEditorFloaterState(view.state);
+                        // Don't open pointer link preview if the current floater is a comment
+                        // input floater.
+                        if (floaterState.type !== "CommentInput") {
+                            view.dispatch(
+                                setContentEditorFloaterState(view.state.tr, {
+                                    type: "PointerLink",
+                                    key: generateId(),
+                                    mark,
+                                    range,
+                                    hasPointerLeftMark: false,
+                                }),
+                            );
+                        }
                     },
                     onPointerEnter: mark => {
                         const floaterState = getContentEditorFloaterState(view.state);

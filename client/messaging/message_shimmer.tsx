@@ -5,16 +5,18 @@ import {
     defaultMessageViewMarginX,
     getMessageBubbleMarginLeft,
     messageViewActionsWidth,
-    messageViewBubbleBorderRadius,
     messageViewBubbleMergedBorderRadius,
-    messageViewBubblePaddingX,
-    messageViewBubblePaddingY,
     messageViewMarginY,
     messageViewMergedMarginY,
 } from "~/client/messaging/message_view";
 import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {StableRandom} from "~/shared/helpers/number/stable_random";
+import {
+    messageViewBubbleBorderRadius,
+    messageViewBubblePaddingX,
+    messageViewBubblePaddingY,
+} from "~/shared/messaging/messaging_shared_styles";
 import {MessageModel, MessageModelBase} from "~/shared/models/message_model";
 import {
     contentSchemaStyles,

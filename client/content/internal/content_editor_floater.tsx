@@ -4,6 +4,7 @@ import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {RefObject, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {FocusScope} from "react-aria";
+import {ContentEditorCommentInputFloater} from "~/client/content/internal/content_editor_comment_input_floater";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker";
 import {
     ContentEditorHighlightSelector,
@@ -86,12 +87,21 @@ export type ContentEditorMentionFloaterState = {
     readonly isClosing: boolean;
 };
 
+export type ContentEditorCommentInputFloaterState = {
+    readonly type: "CommentInput";
+    readonly range: {
+        readonly from: number;
+        readonly to: number;
+    };
+};
+
 export type ContentEditorFloaterState =
     | ContentEditorPointerToolbarFloaterState
     | ContentEditorKeyboardHighlightFloaterState
     | ContentEditorKeyboardLinkFloaterState
     | ContentEditorPointerLinkFloaterState
-    | ContentEditorMentionFloaterState;
+    | ContentEditorMentionFloaterState
+    | ContentEditorCommentInputFloaterState;
 
 // We always revert back to the pointer toolbar floater since it controls when
 // it is visible and when it is not visible. (Much of the time it's not.)
@@ -171,6 +181,16 @@ export function ContentEditorFloater({
                         setFloaterState(initialContentEditorFloaterState)
                     }
                     onCloseWithAnimation={() => setFloaterState({...floaterState, isClosing: true})}
+                />
+            );
+        }
+        case "CommentInput": {
+            return (
+                <ContentEditorCommentInputFloater
+                    state={state}
+                    viewRef={viewRef}
+                    range={floaterState.range}
+                    onClose={() => setFloaterState(initialContentEditorFloaterState)}
                 />
             );
         }

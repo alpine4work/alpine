@@ -37,6 +37,7 @@ ts_project(
         "//shared/design",
         "//shared/helpers",
         "//shared/id",
+        "//shared/messaging",
         "//shared/prosemirror",
         "//shared/styles",
     ],

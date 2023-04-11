@@ -90,6 +90,7 @@ export function DocumentCommentInput({
 
     return (
         <MessageInput
+            messageNoun="comment"
             messages={comments}
             onUpdateMessages={onUpdateComments}
             createMessage={async input => {

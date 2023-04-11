@@ -11,7 +11,6 @@ import {ModalDialog} from "~/client/design/modal_dialog";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date";
 import {Tooltip} from "~/client/design/tooltip";
-import {isElementOwnedBy} from "~/client/helpers/is_element_owned_by";
 import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/message_delete_confirmation_dialog";
 import {MessageViewActions} from "~/client/messaging/internal/message_view_actions";
 import {
@@ -39,6 +38,11 @@ import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis";
+import {
+    messageViewBubbleBorderRadius,
+    messageViewBubblePaddingX,
+    messageViewBubblePaddingY,
+} from "~/shared/messaging/messaging_shared_styles";
 import {emptyContentReferences} from "~/shared/models/content_references";
 import {
     MessageContentWithReferences,
@@ -77,10 +81,7 @@ export const messageViewBubbleMinWidth: Spacing = "6";
 
 const mergeMessageMinuteLimit = 5;
 
-export const messageViewBubbleBorderRadius = "xl" as const;
 export const messageViewBubbleMergedBorderRadius = "base" as const;
-export const messageViewBubblePaddingX: Spacing = "0.5";
-export const messageViewBubblePaddingY: Spacing = "1.5";
 export const messageViewActionsWidth: Spacing = "10";
 export const messageViewPreviewScale =
     fontSizesByPlatform["50"].desktop.fontSize / fontSizesByPlatform["100"].desktop.fontSize;
@@ -768,100 +769,88 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         [message.author, shouldMergeWithNextMessage],
                     )}
                     {message.payload.type === "Content" ? (
-                        <div
-                            className={sprinkles({
-                                flexGrow: "1",
-                                overflow: "hidden",
-                                display: "flex",
-                                position: "relative",
-                                zIndex: "10",
-                                // No pointer events so if we are a small message rendering on top of a large
-                                // parent message then the part of the parent message that underlaps our
-                                // message bubble is clickable.
-                                pointerEvents: "none",
-                            })}
-                            onBlur={event => {
-                                // Ignore blur events where focus is moving within the element.
-                                //
-                                // We need to use element ownership instead of `document.body.contains()` to
-                                // handle modals.
-                                if (
-                                    !event.relatedTarget ||
-                                    !isElementOwnedBy(event.currentTarget, event.relatedTarget)
-                                ) {
-                                    messageEditingForThisMessage?.dispatch({
-                                        type: "MaybeCancelEditing",
-                                    });
-                                }
-                            }}
-                        >
-                            {!messageEditingForThisMessage ? (
-                                contentPayloadNode
-                            ) : (
-                                <MessageViewEditor
-                                    ref={messageEditorRef}
-                                    messageNoun={messageNoun}
-                                    messageStartOfSentenceNoun={messageStartOfSentenceNoun}
-                                    shouldMergeWithPreviousMessage={shouldMergeWithPreviousMessage}
-                                    shouldMergeWithNextMessage={shouldMergeWithNextMessage}
-                                    messageEditing={messageEditing}
-                                />
-                            )}
+                        !messageEditingForThisMessage ? (
                             <div
                                 className={sprinkles({
-                                    alignSelf: "center",
-                                    paddingLeft: "3",
-                                    pointerEvents: "auto",
+                                    flexGrow: "1",
+                                    overflow: "hidden",
+                                    display: "flex",
+                                    position: "relative",
+                                    zIndex: "10",
+                                    // No pointer events so if we are a small message rendering on top of a large
+                                    // parent message then the part of the parent message that underlaps our
+                                    // message bubble is clickable.
+                                    pointerEvents: "none",
                                 })}
                             >
+                                {contentPayloadNode}
                                 <div
                                     className={sprinkles({
-                                        width: messageViewActionsWidth,
-                                        position: "relative",
-                                        zIndex: "20",
+                                        alignSelf: "center",
+                                        paddingLeft: "3",
+                                        pointerEvents: "auto",
                                     })}
                                 >
-                                    {message.isOptimistic &&
-                                    message.optimisticRequestErrorState.hasError ? (
-                                        <div>
-                                            <IconButton
-                                                // NOTE(calebmer): I think we can use "click" in copy here since the
-                                                // description is part of a tooltip which is fundamentally a mouse/pointer
-                                                // thing. On mobile we need to pop open a modal or alert or something.
-                                                description={`Couldn’t create ${messageNoun}. Click to try again`}
-                                                size="sm"
-                                                onPress={message.optimisticRequestErrorState.retry}
-                                            >
-                                                <ErrorIcon />
-                                            </IconButton>
-                                        </div>
-                                    ) : shouldShowOptimisticLoadingIndicator ? (
-                                        <div>
-                                            <SpinnerGap
-                                                className={spinAnimationClassName}
-                                                size={spacing["4"]}
-                                            />
-                                        </div>
-                                    ) : (
-                                        !message.isOptimistic &&
-                                        !disableExpensiveFeaturesDuringScroll &&
-                                        !shouldHighlight && (
-                                            <MessageViewActions
-                                                messageNoun={messageNoun}
-                                                message={message}
-                                                messagePayload={message.payload}
-                                                messageEditing={messageEditing}
-                                                isHovered={isHovered}
-                                                onReplyToMessage={onReplyToMessage}
-                                                onDeleteMessage={onDeleteMessage}
-                                                isEditing={!!messageEditingForThisMessage}
-                                                getMessageUrl={getMessageUrl}
-                                            />
-                                        )
-                                    )}
+                                    <div
+                                        className={sprinkles({
+                                            width: messageViewActionsWidth,
+                                            position: "relative",
+                                            zIndex: "20",
+                                        })}
+                                    >
+                                        {message.isOptimistic &&
+                                        message.optimisticRequestErrorState.hasError ? (
+                                            <div>
+                                                <IconButton
+                                                    // NOTE(calebmer): I think we can use "click" in copy here since the
+                                                    // description is part of a tooltip which is fundamentally a mouse/pointer
+                                                    // thing. On mobile we need to pop open a modal or alert or something.
+                                                    description={`Couldn’t create ${messageNoun}. Click to try again`}
+                                                    size="sm"
+                                                    onPress={
+                                                        message.optimisticRequestErrorState.retry
+                                                    }
+                                                >
+                                                    <ErrorIcon />
+                                                </IconButton>
+                                            </div>
+                                        ) : shouldShowOptimisticLoadingIndicator ? (
+                                            <div>
+                                                <SpinnerGap
+                                                    className={spinAnimationClassName}
+                                                    size={spacing["4"]}
+                                                />
+                                            </div>
+                                        ) : (
+                                            !message.isOptimistic &&
+                                            !disableExpensiveFeaturesDuringScroll &&
+                                            !shouldHighlight && (
+                                                <MessageViewActions
+                                                    messageNoun={messageNoun}
+                                                    message={message}
+                                                    messagePayload={message.payload}
+                                                    messageEditing={messageEditing}
+                                                    isHovered={isHovered}
+                                                    onReplyToMessage={onReplyToMessage}
+                                                    onDeleteMessage={onDeleteMessage}
+                                                    isEditing={!!messageEditingForThisMessage}
+                                                    getMessageUrl={getMessageUrl}
+                                                />
+                                            )
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        ) : (
+                            <MessageViewEditor
+                                ref={messageEditorRef}
+                                messageNoun={messageNoun}
+                                messageStartOfSentenceNoun={messageStartOfSentenceNoun}
+                                shouldMergeWithPreviousMessage={shouldMergeWithPreviousMessage}
+                                shouldMergeWithNextMessage={shouldMergeWithNextMessage}
+                                messageEditing={messageEditing}
+                            />
+                        )
                     ) : (
                         deletedPayloadNode
                     )}

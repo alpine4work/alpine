@@ -19,9 +19,6 @@ import {
     getMessageBubbleMarginLeft,
     getTruncatedMessageContentForReplyPreview,
     messageViewActionsWidth,
-    messageViewBubbleBorderRadius,
-    messageViewBubblePaddingX,
-    messageViewBubblePaddingY,
     messageViewPreviewScale,
     messageViewReplyPreviewBubbleOpacity,
     messageViewReplyPreviewOpacity,
@@ -29,18 +26,18 @@ import {
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
 import {MessageContent} from "~/shared/content/message_content_schema";
-import {
-    RemLength,
-    Spacing,
-    addRemLengths,
-    parseRemLengthNumber,
-    spacing,
-} from "~/shared/design/spacing";
+import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable";
 import {generateId} from "~/shared/id/id";
+import {
+    messageInputMinHeight,
+    messageViewBubbleBorderRadius,
+    messageViewBubblePaddingX,
+    messageViewBubblePaddingY,
+} from "~/shared/messaging/messaging_shared_styles";
 import {
     MessageContentWithReferences,
     MessageModel,
@@ -48,8 +45,6 @@ import {
     emptyMessageContentWithReferences,
 } from "~/shared/models/message_model";
 import {contentViewStyles, sprinkles} from "~/shared/styles/styles";
-
-export const messageInputMinHeight: RemLength = "3.5rem";
 
 export function MessageInput<RoomKey extends string, Message extends MessageModel<RoomKey>>({
     messageNoun = "message",

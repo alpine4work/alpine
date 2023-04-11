@@ -19,10 +19,10 @@ import {Command, EditorState, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {Memo, ReactNode, RefObject, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {mergeProps, useButton} from "react-aria";
-import {getContentEditorAddCommentCommand} from "~/client/content/content_editor_state";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker";
 import {ContentEditorHighlightSelector} from "~/client/content/internal/content_editor_highlight_selector";
 import {ContentEditorLinkInput} from "~/client/content/internal/content_editor_link_input";
+import {openCommentInputFloaterMetaKey} from "~/client/content/internal/content_editor_plugin_keymap";
 import {
     areAllNodesBlockType,
     areAllNodesListItemType,
@@ -481,7 +481,6 @@ function ContentEditorPointerToolbarButtons({
 
     // Document comments are not ready for production yet.
     const areCommentsEnabled = process.env.NODE_ENV !== "production";
-    const addCommentCommand = getContentEditorAddCommentCommand(state);
 
     return (
         <>
@@ -642,7 +641,7 @@ function ContentEditorPointerToolbarButtons({
                     </ContentEditorPointerToolbarButton>
                 </>
             )}
-            {areCommentsEnabled && state.schema.marks.comment && addCommentCommand && (
+            {areCommentsEnabled && state.schema.marks.comment && (
                 <ContentEditorPointerToolbarButton
                     dividerLeft
                     description="Comment"
@@ -651,7 +650,20 @@ function ContentEditorPointerToolbarButtons({
                     isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
                     sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                     isActive={false}
-                    command={addCommentCommand}
+                    command={(state, dispatch) => {
+                        let isCommentSupported = false;
+                        state.doc.nodesBetween(state.selection.from, state.selection.to, node => {
+                            if (!node.inlineContent) return;
+                            isCommentSupported ||=
+                                !!state.schema.marks.comment &&
+                                node.type.allowsMarkType(state.schema.marks.comment);
+                        });
+
+                        if (!isCommentSupported) return false;
+
+                        dispatch?.(state.tr.setMeta(openCommentInputFloaterMetaKey, true));
+                        return true;
+                    }}
                 >
                     <ChatCircleText />
                 </ContentEditorPointerToolbarButton>
@@ -863,7 +875,7 @@ function ContentEditorPointerToolbarLinkButton({
                     viewRef={viewRef}
                     sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
                     command={() => {
-                        // If the user clicks on this button to close the highlight color overlay then
+                        // If the user clicks on this button to close the link input overlay then
                         // this `command` will run after the `useOutsidePress()` above which closes the
                         // overlay. We want the overlay to stay closed so we need to coordinate with
                         // a ref.

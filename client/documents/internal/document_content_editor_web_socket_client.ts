@@ -198,7 +198,6 @@ export function getInitialDocumentContentEditorState(
               version: initialDocument.version,
               content: initialDocument.content,
               reduceReferences: reduceDocumentContentReferences,
-              addCommentCommand: createAddCommentCommand(currentAccount),
           })
         : null;
 

@@ -2,7 +2,7 @@ import {Ref, RefObject, useCallback, useImperativeHandle} from "react";
 import {useWebSocket} from "~/client/cloudflare/use_web_socket";
 import {useAppContext} from "~/client/context/app_context";
 import {MessageEditing} from "~/client/messaging/message_editing";
-import {MessageInput, messageInputMinHeight} from "~/client/messaging/message_input";
+import {MessageInput} from "~/client/messaging/message_input";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages";
@@ -14,6 +14,7 @@ import {
     MessagingRealtimeMessageFromClient,
     MessagingRealtimeMessageFromServer,
 } from "~/shared/messaging/messaging_realtime_schema";
+import {messageInputMinHeight} from "~/shared/messaging/messaging_shared_styles";
 import {PostCommentModel, PostModel} from "~/shared/models/post_model";
 import {
     PostRealtimeMessageFromClientSchema,

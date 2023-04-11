@@ -1,0 +1,280 @@
+import {ArrowRight} from "phosphor-react";
+import {EditorState} from "prosemirror-state";
+import {EditorView} from "prosemirror-view";
+import {RefObject, useCallback, useEffect, useRef, useState} from "react";
+import {AccountAvatar} from "~/client/accounts/account_avatar";
+import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
+import {ContentEditorState} from "~/client/content/content_editor_state";
+import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker";
+import {Box} from "~/client/design/box";
+import {FocusRing} from "~/client/design/focus_ring";
+import {useOutsidePress} from "~/client/design/helpers/use_outside_press";
+import {IconButton} from "~/client/design/icon_button";
+import {ModalDialog} from "~/client/design/modal_dialog";
+import {OverlayRef} from "~/client/design/overlay";
+import {OverlayAnimated} from "~/client/design/overlay_animated";
+import {isElementOwnedBy} from "~/client/helpers/is_element_owned_by";
+import {useEvent} from "~/client/helpers/lifecycle/use_event";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
+import {useSpaceContext} from "~/client/spaces/space_context";
+import {isContentEmpty} from "~/shared/content/is_content_empty";
+import {spacing} from "~/shared/design/spacing";
+import {UnimplementedError} from "~/shared/error/error";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {
+    messageInputMinHeight,
+    messageViewBubbleBorderRadius,
+    messageViewBubblePaddingX,
+    messageViewBubblePaddingY,
+} from "~/shared/messaging/messaging_shared_styles";
+import {emptyMessageContentWithReferences} from "~/shared/models/message_model";
+import {
+    greyElevatedClassName,
+    overlayFadeOutAnimationDurationMs,
+    sprinkles,
+} from "~/shared/styles/styles";
+
+export function ContentEditorCommentInputFloater({
+    state,
+    viewRef,
+    range,
+    onClose: _onCloseWithoutAnimation,
+}: {
+    state: EditorState;
+    viewRef: RefObject<EditorView | null>;
+    range: {from: number; to: number};
+    onClose: () => void;
+}) {
+    const overlayRef = useRef<OverlayRef>(null);
+
+    const [isClosing, setIsClosing] = useState(false);
+
+    const onCloseWithAnimation = useCallback(() => {
+        setIsClosing(true);
+    }, []);
+
+    const onCloseWithoutAnimation = useEvent(() => {
+        // Return focus to the editor.
+        viewRef.current?.focus();
+
+        _onCloseWithoutAnimation();
+    });
+
+    useEffect(() => {
+        if (isClosing) {
+            const timeoutId = setTimeout(() => {
+                onCloseWithoutAnimation();
+            }, overlayFadeOutAnimationDurationMs);
+            return () => {
+                clearTimeout(timeoutId);
+            };
+        }
+    }, [isClosing, onCloseWithoutAnimation]);
+
+    return (
+        <OverlayAnimated
+            ref={overlayRef}
+            // We don't animate in because the overlay appears in direct response to a user
+            // input (keyboard shortcut). But we do animate out because closing is less
+            // intentional.
+            //
+            // Also it looks a little better to not animate when replacing a possibly
+            // existing toolbar.
+            isVisible={!isClosing}
+            disableAnimation={!isClosing}
+            placement="bottom-start"
+            offset="3"
+            offsetAlong="-24"
+            // No fallback placements! The comment input always stays at the end of the
+            // text its commenting on.
+            fallbackPlacements={[]}
+            overlay={
+                <Box
+                    // Add a bit of bottom padding so that if we are extending the screen width
+                    // down we have a bit of margin between the bottom of our comment input and the
+                    // bottom of the screen.
+                    paddingBottom="1"
+                >
+                    <ContentEditorCommentInput
+                        onCloseWithoutAnimation={onCloseWithoutAnimation}
+                        onCloseWithAnimation={onCloseWithAnimation}
+                    />
+                </Box>
+            }
+        >
+            <ContentEditorCursorTracker
+                state={state}
+                viewRef={viewRef}
+                pos={range.to}
+                onUpdatePosition={() => overlayRef.current?.forceUpdateOverlayPosition()}
+            />
+        </OverlayAnimated>
+    );
+}
+
+function ContentEditorCommentInput({
+    onCloseWithoutAnimation,
+    onCloseWithAnimation,
+}: {
+    onCloseWithoutAnimation: () => void;
+    onCloseWithAnimation: () => void;
+}) {
+    const {currentAccount} = useSpaceContext();
+
+    const [state, setState] = useState(() =>
+        ContentEditorState.create(emptyMessageContentWithReferences),
+    );
+    const [shouldShowConfirmCloseDialog, setShouldShowConfirmCloseDialog] = useState(false);
+
+    const isSendButtonDisabled = isContentEmpty(state.getDoc());
+
+    const editorRef = useRef<ContentEditorRef>(null);
+    const shouldFocusNextRenderRef = useRef(true);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        // If the close confirmation dialog is open, we can't focus our editor.
+        if (shouldShowConfirmCloseDialog) return;
+
+        if (!shouldFocusNextRenderRef.current) return;
+        shouldFocusNextRenderRef.current = false;
+
+        const editor = assertExists(editorRef.current);
+        editor.focus();
+    }, [shouldShowConfirmCloseDialog]);
+
+    return (
+        <>
+            <Box
+                width="96"
+                style={{minHeight: messageInputMinHeight}}
+                padding="3"
+                display="flex"
+                overflowX="hidden"
+                color="grey-text"
+                backgroundColor="grey-0"
+                borderRadius="xl"
+                boxShadow="elevation-20"
+                className={greyElevatedClassName}
+                onKeyDown={event => {
+                    if (event.key === "Escape") {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onCloseWithoutAnimation();
+                    }
+                }}
+                onBlur={event => {
+                    // Ignore blur events where focus is moving within the element.
+                    //
+                    // We need to use element ownership instead of `document.body.contains()` to
+                    // handle modals.
+                    if (
+                        event.relatedTarget &&
+                        isElementOwnedBy(event.currentTarget, event.relatedTarget)
+                    ) {
+                        return;
+                    }
+
+                    // If the user didn't type a comment then close without asking
+                    // for confirmation.
+                    if (isContentEmpty(state.getDoc())) {
+                        onCloseWithAnimation();
+                        return;
+                    }
+
+                    setShouldShowConfirmCloseDialog(true);
+                }}
+                // Sometimes clicks outside an element do not move focus. So in addition to
+                // `onBlur`, look for any clicks and show a confirmation dialog before closing
+                // our input.
+                ref={useOutsidePress(event => {
+                    // The user may click within the close confirmation dialog.
+                    if (shouldShowConfirmCloseDialog) return;
+
+                    // If the user didn't type a comment then close without asking
+                    // for confirmation.
+                    if (isContentEmpty(state.getDoc())) {
+                        onCloseWithAnimation();
+                        return;
+                    }
+
+                    // Cancel the outside press and ask the user to confirm first.
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setShouldShowConfirmCloseDialog(true);
+                })}
+            >
+                <Box display="flex" alignItems="flex-end">
+                    <Box paddingY="0.5">
+                        <AccountAvatar account={currentAccount} size="7" />
+                    </Box>
+                </Box>
+                <FocusRing isVisibleWhenFocusWithin={true}>
+                    <Box
+                        flexGrow="1"
+                        overflowX="hidden"
+                        marginX="2"
+                        backgroundColor="grey-5"
+                        borderRadius={messageViewBubbleBorderRadius}
+                    >
+                        <Box maxHeight="64" overflowX="hidden" overflowY="scroll">
+                            <ContentEditor
+                                ref={editorRef}
+                                state={state}
+                                onChange={setState}
+                                aria-label="New comment"
+                                placeholder="Write a comment"
+                                className={sprinkles({
+                                    paddingX: messageViewBubblePaddingX,
+                                    paddingY: messageViewBubblePaddingY,
+                                })}
+                                onEnterFromPhysicalKeyboard={event => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    // NOCOMMIT
+                                    throw new UnimplementedError("TODO");
+                                }}
+                            />
+                        </Box>
+                    </Box>
+                </FocusRing>
+                <Box display="flex" alignItems="flex-end">
+                    <Box paddingY="0.5">
+                        <IconButton
+                            variant="accent"
+                            description="Send comment"
+                            isDisabled={isSendButtonDisabled}
+                            onPress={() => {
+                                // NOCOMMIT
+                                throw new UnimplementedError("TODO");
+                            }}
+                        >
+                            <ArrowRight
+                                size={spacing["4"]}
+                                weight={!isSendButtonDisabled ? "bold" : undefined}
+                            />
+                        </IconButton>
+                    </Box>
+                </Box>
+            </Box>
+            {shouldShowConfirmCloseDialog && (
+                <ModalDialog
+                    title="Save comment"
+                    description="Would you like to save your comment?"
+                    onClose={() => {
+                        // Return focus to the editor if the dialog is closed. This acts as a "cancel"
+                        // and lets the user continue writing.
+                        shouldFocusNextRenderRef.current = true;
+                        setShouldShowConfirmCloseDialog(false);
+                    }}
+                    primaryButtonLabel="Save"
+                    onPrimaryButtonPress={() => {
+                        // NOCOMMIT
+                        throw new UnimplementedError("TODO");
+                    }}
+                    cancelButtonLabel="Discard comment"
+                    onCancelButtonPress={onCloseWithoutAnimation}
+                />
+            )}
+        </>
+    );
+}

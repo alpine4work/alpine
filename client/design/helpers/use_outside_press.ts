@@ -1,4 +1,5 @@
 import {RefCallback, useCallback, useEffect, useRef} from "react";
+import {isElementOwnedBy} from "~/client/helpers/is_element_owned_by";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 
 /**
@@ -19,18 +20,18 @@ export function useOutsidePress(onOutsidePress: (event: Event) => void): RefCall
             // hasn't mounted.
             if (!ref.current) return;
 
-            if (event.target instanceof Node && !ref.current.contains(event.target)) {
+            if (event.target instanceof Element && !isElementOwnedBy(ref.current, event.target)) {
                 onOutsidePressRef.current(event);
             }
         };
 
         // Use capture events so that our outside press handler runs before everyone
         // else. If it's being used to close an overlay then that will happen first.
-        document.addEventListener("pointerup", listener, true);
-        document.addEventListener("touchend", listener, true);
+        document.addEventListener("pointerdown", listener, true);
+        document.addEventListener("touchstart", listener, true);
         return () => {
-            document.removeEventListener("pointerup", listener, true);
-            document.removeEventListener("touchend", listener, true);
+            document.removeEventListener("pointerdown", listener, true);
+            document.removeEventListener("touchstart", listener, true);
         };
     }, []);
 

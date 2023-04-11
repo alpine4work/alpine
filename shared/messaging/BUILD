@@ -5,6 +5,7 @@ ts_project(
     visibility = ["//visibility:public"],
     deps = [
         "//shared/content",
+        "//shared/design",
         "//shared/error",
         "//shared/id",
         "//shared/models",
