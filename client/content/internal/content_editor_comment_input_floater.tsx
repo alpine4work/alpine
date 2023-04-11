@@ -176,7 +176,7 @@ function ContentEditorCommentInput({
                     )
                     .setMeta(createCommentThreadMetaKey, {
                         commentThreadId,
-                        initialCommentContent: content.doc,
+                        initialCommentContent: content,
                     })
                     .scrollIntoView(),
                 {

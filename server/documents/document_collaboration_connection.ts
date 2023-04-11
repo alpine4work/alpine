@@ -13,6 +13,7 @@ import {
     getContentReferencesForNode,
     getContentReferencesForSteps,
 } from "~/server/dynamo/helpers/get_content_references";
+import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint";
 import {MessagingRealtimeConnection} from "~/server/messaging/messaging_realtime_connection";
 import {
     DocumentCollaborationMessageFromClient,
@@ -26,7 +27,11 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {DefaultMap} from "~/shared/helpers/map/default_map";
-import {DocumentCommentThreadId, WebSocketConnectionId} from "~/shared/id/types/id_types";
+import {
+    DocumentCommentThreadId,
+    DocumentId,
+    WebSocketConnectionId,
+} from "~/shared/id/types/id_types";
 import {
     DocumentCommentModel,
     DocumentCommentRoomKey,
@@ -34,6 +39,9 @@ import {
     encodeDocumentCommentRoomKey,
 } from "~/shared/models/document_model";
 import {TracerSpan} from "~/shared/tracer/tracer_span";
+
+export const documentCollaborationConnectionBeforeBackfillMessagesTestCheckpoint =
+    new TestCheckpoint<{documentId: DocumentId; commentThreadId: DocumentCommentThreadId}>();
 
 export class DocumentCollaborationConnection {
     public readonly connectionId: WebSocketConnectionId;
@@ -101,6 +109,16 @@ export class DocumentCollaborationConnection {
         // Handle comment messages without blocking other document content
         // related messages.
         if (message.type === "Comments") {
+            // Wait for any pending messages related to document comments before handling
+            // comment messages. This way if we are processing an `UpdateContent` that
+            // creates the comment thread we are trying to access we will wait until it
+            // is ready.
+            //
+            // However, we do not want to block other document content messages with our
+            // comments processing! Which is why we don't put the `handleMessage()` call in
+            // the body of our `run()` function.
+            await this._state.run(async () => {});
+
             const commentThreadConnection = this._commentThreadConnectionById.getOrSetDefault(
                 message.commentThreadId,
             );

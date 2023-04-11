@@ -45,6 +45,9 @@ import {
     visitProsemirrorStep,
 } from "~/shared/prosemirror/prosemirror_visitor";
 
+export const documentCollaborationContentManagerBeforeUpdateTestCheckpoint =
+    new TestCheckpoint<DocumentId>();
+
 export const documentCollaborationContentManagerBeforePersistTestCheckpoint =
     new TestCheckpoint<DocumentId>();
 
@@ -232,6 +235,10 @@ export class DocumentCollaborationContentManager {
     }> {
         const {oldVersion, steps, presenceState} = await this._state.run(
             async (state, setState) => {
+                await documentCollaborationContentManagerBeforeUpdateTestCheckpoint.waitForTest(
+                    this.id,
+                );
+
                 if (
                     update.updateOurPresenceState.state &&
                     update.updateOurPresenceState.state.version !== update.version

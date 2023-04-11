@@ -43,6 +43,7 @@ import {
     DocumentModel,
     mergeDocumentContentReferences,
 } from "~/shared/models/document_model";
+import {MessageContentWithReferences} from "~/shared/models/message_model";
 import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema";
 
 export type DocumentContentEditorState = {
@@ -296,10 +297,19 @@ export function reduceDocumentContentEditorState(
             // new comment thread objects.
             const createCommentThreads = Array.from(
                 new Set(
-                    filterMapIterable(
-                        sendableSteps.origins,
-                        transaction => transaction.getMeta(createCommentThreadMetaKey) ?? null,
-                    ),
+                    filterMapIterable(sendableSteps.origins, transaction => {
+                        const createCommentThread: {
+                            commentThreadId: DocumentCommentThreadId;
+                            initialCommentContent: MessageContentWithReferences;
+                        } | null = transaction.getMeta(createCommentThreadMetaKey) ?? null;
+
+                        if (!createCommentThread) return null;
+
+                        return {
+                            commentThreadId: createCommentThread.commentThreadId,
+                            initialCommentContent: createCommentThread.initialCommentContent.doc,
+                        };
+                    }),
                 ),
             );
 

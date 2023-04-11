@@ -55,6 +55,7 @@ import {
     DocumentContentWithReferences,
     decodeDocumentCommentRoomKey,
 } from "~/shared/models/document_model";
+import {OptimisticMessageModel} from "~/shared/models/message_model";
 import {
     getDocumentCommentsFromEnd,
     getDocumentCommentsFromStart,
@@ -201,6 +202,7 @@ function DocumentCommentThreadListView(
             commentThread: DocumentCommentThreadModel;
             comments: ReadonlyArray<DocumentCommentModel>;
             otherReferencedComments: ReadonlyArray<DocumentCommentModel>;
+            optimisticComments: ReadonlyArray<OptimisticMessageModel>;
         };
 
         // Realtime props that should come from `useDocumentContentEditorWebSocket()`.
@@ -231,22 +233,29 @@ function DocumentCommentThreadListView(
     const {space} = useSpaceContext();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
-    const [tree, setTree] = useState(() =>
-        createEmptyDocumentCommentThreadTree().insertNodesAtEnd([
+    const [tree, setTree] = useState(() => {
+        let comments = MessageList.new<DocumentCommentModel>({
+            messageCount: initialCommentThreadsResult.commentThread.commentCount,
+            lastMessageChangeTime: initialCommentThreadsResult.commentThread.lastCommentChangeTime,
+        }).loadMessages({
+            messageCount: initialCommentThreadsResult.commentThread.commentCount,
+            messages: initialCommentThreadsResult.comments,
+            otherReferencedMessages: initialCommentThreadsResult.otherReferencedComments,
+        });
+
+        if (initialCommentThreadsResult.optimisticComments.length > 0) {
+            for (const optimisticComment of initialCommentThreadsResult.optimisticComments) {
+                comments = comments.addOptimisticMessage(optimisticComment);
+            }
+        }
+
+        return createEmptyDocumentCommentThreadTree().insertNodesAtEnd([
             {
                 commentThread: initialCommentThreadsResult.commentThread,
-                comments: MessageList.new<DocumentCommentModel>({
-                    messageCount: initialCommentThreadsResult.commentThread.commentCount,
-                    lastMessageChangeTime:
-                        initialCommentThreadsResult.commentThread.lastCommentChangeTime,
-                }).loadMessages({
-                    messageCount: initialCommentThreadsResult.commentThread.commentCount,
-                    messages: initialCommentThreadsResult.comments,
-                    otherReferencedMessages: initialCommentThreadsResult.otherReferencedComments,
-                }),
+                comments,
             },
-        ]),
-    );
+        ]);
+    });
 
     // Stable list of all the `DocumentCommentThreadId`s in this list. It's
     // important that this is stable so we can use it as a dependency for a
