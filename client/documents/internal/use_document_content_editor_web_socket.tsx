@@ -2,14 +2,10 @@ import {StepMap} from "prosemirror-transform";
 import {Memo, useCallback, useEffect, useRef, useState} from "react";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {useAppContext} from "~/client/context/app_context";
-import {
-    DocumentContentEditorWebSocketClient,
-    reduceDocumentContentReferences,
-} from "~/client/documents/internal/document_content_editor_web_socket_client";
+import {DocumentContentEditorWebSocketClient} from "~/client/documents/internal/document_content_editor_web_socket_client";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useStore} from "~/client/helpers/store/use_store";
-import {useSpaceContext} from "~/client/spaces/space_context";
-import {DocumentContent, emptyDocumentContent} from "~/shared/content/document_content_schema";
+import {DocumentContent} from "~/shared/content/document_content_schema";
 import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_schema";
 import {assert} from "~/shared/helpers/control/assert";
 import {Lazy} from "~/shared/helpers/control/lazy";
@@ -27,16 +23,7 @@ import {
     DocumentCommentModel,
     DocumentContentWithReferences,
     DocumentModel,
-    emptyDocumentContentReferences,
 } from "~/shared/models/document_model";
-
-const emptyCollaborativeDocumentContentState = new Lazy(() =>
-    ContentEditorState.createCollaborative<DocumentContentWithReferences>({
-        version: 0,
-        content: {doc: emptyDocumentContent, references: emptyDocumentContentReferences},
-        reduceReferences: reduceDocumentContentReferences,
-    }),
-);
 
 export type SendCommentThreadMessageFunction = Memo<
     (
@@ -66,7 +53,7 @@ export type SubscribeToCommentThreadMessagesFunction = Memo<
  */
 export function useDocumentContentEditorWebSocket(
     documentId: DocumentId,
-    initialDocument: DocumentModel | null,
+    initialDocument: DocumentModel,
 ): {
     isConnected: boolean;
     editorState: ContentEditorState<DocumentContentWithReferences>;
@@ -89,19 +76,13 @@ export function useDocumentContentEditorWebSocket(
     assert(!initialDocument || documentId === initialDocument.id);
 
     const context = useAppContext();
-    const {currentAccount} = useSpaceContext();
     const contextRef = useRef(context);
     useLayoutEffectWithoutServerSideWarning(() => {
         contextRef.current = context;
     });
 
     const [client, setClient] = useState(() => {
-        return new DocumentContentEditorWebSocketClient(
-            () => contextRef.current,
-            currentAccount,
-            documentId,
-            initialDocument,
-        );
+        return new DocumentContentEditorWebSocketClient(() => contextRef.current, initialDocument);
     });
 
     // Re-initialize state if the `DocumentId` changes.
@@ -109,8 +90,6 @@ export function useDocumentContentEditorWebSocket(
         setClient(() => {
             return new DocumentContentEditorWebSocketClient(
                 () => contextRef.current,
-                currentAccount,
-                documentId,
                 initialDocument,
             );
         });
@@ -141,7 +120,7 @@ export function useDocumentContentEditorWebSocket(
 
     return {
         isConnected: webSocketState.isConnected,
-        editorState: state.editorState ?? emptyCollaborativeDocumentContentState.get(),
+        editorState: state.editorState,
         onChangeEditorState: useCallback(
             editorState => client.changeEditorState(editorState),
             [client],

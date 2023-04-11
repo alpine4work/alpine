@@ -49,7 +49,7 @@ import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_sele
 export type DocumentContentEditorState = {
     /**
      * We may get `ReceiveSteps` actions out of order (e.g. the server sends an
-     * `UpdateContent` message before a `BackfillCatchUpResponse` message). If we
+     * `UpdateContent` message before a `BackfillResponse` message). If we
      * see an action for a future version we put it in this array and re-apply the
      * action when older steps are applied.
      */
@@ -57,11 +57,8 @@ export type DocumentContentEditorState = {
 
     /**
      * The current state of the editor.
-     *
-     * Will be null while the WebSocket is initializing and we know the
-     * `DocumentId` but not the contents of the document.
      */
-    readonly editorState: ContentEditorState<DocumentContentWithReferences> | null;
+    readonly editorState: ContentEditorState<DocumentContentWithReferences>;
 
     /**
      * Remember some number of steps in our state to map phantom selections from
@@ -69,8 +66,6 @@ export type DocumentContentEditorState = {
      *
      * The version of the document in the first remembered step's
      * `contentBeforeStep` is `editorState.getVersion() - rememberedSteps.length`.
-     * Remembered steps are relative to `editorState` so if `editorState` is null
-     * this is empty.
      */
     readonly rememberedSteps: ReadonlyArray<{
         readonly stepMap: StepMap;
@@ -187,16 +182,13 @@ export function reduceDocumentContentReferences(
 }
 
 export function getInitialDocumentContentEditorState(
-    currentAccount: AccountModel,
-    initialDocument: DocumentModel | null,
+    initialDocument: DocumentModel,
 ): DocumentContentEditorState {
-    const editorState = initialDocument
-        ? ContentEditorState.createCollaborative<DocumentContentWithReferences>({
-              version: initialDocument.version,
-              content: initialDocument.content,
-              reduceReferences: reduceDocumentContentReferences,
-          })
-        : null;
+    const editorState = ContentEditorState.createCollaborative<DocumentContentWithReferences>({
+        version: initialDocument.version,
+        content: initialDocument.content,
+        reduceReferences: reduceDocumentContentReferences,
+    });
 
     return {
         pendingActions: [],
@@ -212,7 +204,6 @@ export function getInitialDocumentContentEditorState(
 export type DocumentContentEditorAction =
     | DocumentContentEditorEditAction
     | DocumentContentEditorReceiveStepsAction
-    | DocumentContentEditorResetEditorAction
     | DocumentContentEditorAugmentRememberedStepsAction
     | DocumentContentEditorSetAllOtherPresenceStatesAction
     | DocumentContentEditorUpdateOtherPresenceStateAction
@@ -229,12 +220,6 @@ type DocumentContentEditorReceiveStepsAction = {
     readonly newVersion: number;
     readonly steps: ReadonlyArray<{readonly step: Step; readonly clientId: ContentEditorClientId}>;
     readonly stepsContentReferences: DocumentContentReferences;
-};
-
-type DocumentContentEditorResetEditorAction = {
-    readonly type: "ResetEditor";
-    readonly version: number;
-    readonly content: DocumentContentWithReferences;
 };
 
 type DocumentContentEditorAugmentRememberedStepsAction = {
@@ -277,12 +262,12 @@ export function reduceDocumentContentEditorState(
     const oldRememberedSteps = state.rememberedSteps;
     const oldOtherPresenceStateByConnectionId = state.otherPresenceStateByConnectionId;
 
-    const oldVersion = state.editorState?.getVersion();
+    const oldVersion = state.editorState.getVersion();
     state = actions.reduce(
         (state, action) => actuallyReduceDocumentContentEditorState(state, action),
         state,
     );
-    const newVersion = state.editorState?.getVersion();
+    const newVersion = state.editorState.getVersion();
 
     // If we are not currently sending steps to the server but we have some
     // sendable steps, then populate the `pendingSendableSteps` action.
@@ -290,7 +275,7 @@ export function reduceDocumentContentEditorState(
     // Most often this runs after an `Edit` action as we're typing. But may also
     // happen after a `ReceiveSteps` action where we've acknowledged our last
     // pending sendable steps.
-    if (state.editorState && !state.pendingSendableSteps) {
+    if (!state.pendingSendableSteps) {
         const sendableSteps = state.editorState.sendableSteps();
         if (sendableSteps) {
             // We can have multiple steps from the same origin transaction. So uniquify our
@@ -337,9 +322,8 @@ export function reduceDocumentContentEditorState(
     // discard any `rememberedSteps` we don't need anymore for rebasing
     // presence state selections.
     if (
-        state.editorState &&
-        (state.rememberedSteps !== oldRememberedSteps ||
-            state.otherPresenceStateByConnectionId !== oldOtherPresenceStateByConnectionId)
+        state.rememberedSteps !== oldRememberedSteps ||
+        state.otherPresenceStateByConnectionId !== oldOtherPresenceStateByConnectionId
     ) {
         let discardRememberedStepsBeforeVersion = state.editorState.getVersion();
 
@@ -381,11 +365,6 @@ function actuallyReduceDocumentContentEditorState(
 ): DocumentContentEditorState {
     switch (action.type) {
         case "Edit": {
-            // If there is no editor state then we are currently loading the document so
-            // ignore all edits. We consider the editor inert during this time. Typing
-            // does nothing.
-            if (!oldState.editorState) return oldState;
-
             // If an edit was made on top of a version of `editorState` that's different
             // from what's in state that means we may have some data loss!
             //
@@ -417,18 +396,6 @@ function actuallyReduceDocumentContentEditorState(
             };
         }
         case "ReceiveSteps": {
-            // If we don't have an editor state we are loading the document from the
-            // server. If our document is taking a bit to load (maybe we need to load a lot
-            // of content references?) then we may get a `ReceiveSteps` message before we
-            // have the document to apply the steps to. So save the `ReceiveSteps` message
-            // to try again later.
-            if (!oldState.editorState) {
-                return {
-                    ...oldState,
-                    pendingActions: [...oldState.pendingActions, action],
-                };
-            }
-
             const oldVersion = oldState.editorState.getVersion();
             if (action.newVersion <= oldVersion) return oldState;
 
@@ -461,8 +428,7 @@ function actuallyReduceDocumentContentEditorState(
             // We discard steps when we don't need them to rebase presence states.
             let rememberedSteps;
             {
-                const oldEditorState = oldState.editorState;
-                let content = new Lazy(() => oldEditorState.getDocWithoutSendableSteps());
+                let content = new Lazy(() => oldState.editorState.getDocWithoutSendableSteps());
 
                 const newRememberedSteps = steps.map(({step}) => {
                     const previousContent = content;
@@ -494,42 +460,6 @@ function actuallyReduceDocumentContentEditorState(
                     action.newVersion >= oldState.pendingSendableSteps.version
                         ? null
                         : oldState.pendingSendableSteps,
-            };
-        }
-        case "ResetEditor": {
-            const editorState =
-                ContentEditorState.createCollaborative<DocumentContentWithReferences>({
-                    version: action.version,
-                    content: action.content,
-                    reduceReferences: reduceDocumentContentReferences,
-                });
-
-            // NOTE(calebmer): We don't spread `...oldState` here so that when new state is
-            // added it forces us to consider whether it should be reset or not.
-            return {
-                // Keep pending actions since we may have received updates while waiting on
-                // our backfill.
-                pendingActions: oldState.pendingActions,
-                // Reset `editorState` and `rememberedSteps`. `rememberedSteps` is relative to
-                // `editorState` so when `editorState` changes we can't appropriately interpret
-                // `rememberedSteps` any longer.
-                editorState,
-                rememberedSteps: [],
-                // Allow sending new changes from our new editor state which so far has no
-                // pending changes. If there is an in-flight pending changes it will still be
-                // in-flight, we will still get the update message, but we don't need to wait
-                // for that acknowledgement anymore to send steps from our new editor state.
-                //
-                // We also would never be able to clear this since we are changing the
-                // `ContentEditorClientId` in this reset.
-                pendingSendableSteps: null,
-                // Reset presence state since that's tied to editor state.
-                ourPresenceState: null,
-                // Keep the presence states of other users since that will be the same
-                // regardless of our editor state.
-                otherPresenceStateByConnectionId: oldState.otherPresenceStateByConnectionId,
-                // Keep error state. We're resetting the editor, not errors.
-                errorState: oldState.errorState,
             };
         }
         // If we are missing some remembered steps for fast-forwarding presence states
@@ -603,9 +533,6 @@ function actuallyReduceDocumentContentEditorState(
             };
         }
         case "UpdateCommentThread": {
-            // If there is no old state, the editor should be inert.
-            if (!oldState.editorState) return oldState;
-
             return {
                 ...oldState,
                 editorState: oldState.editorState.updateReferences({
@@ -668,22 +595,15 @@ export class DocumentContentEditorWebSocketClient {
         return this._client.state;
     }
 
-    constructor(
-        getContext: () => AppContext,
-        currentAccount: AccountModel,
-        documentId: DocumentId,
-        initialDocument: DocumentModel | null,
-    ) {
-        this.documentId = documentId;
+    constructor(getContext: () => AppContext, initialDocument: DocumentModel) {
+        this.documentId = initialDocument.id;
         this._client = new WebSocketClient(
             getContext,
             DocumentCollaborationMessageFromClientSchema,
             DocumentCollaborationMessageFromServerSchema,
-            `/durable-objects/documents/${documentId}`,
+            `/durable-objects/documents/${initialDocument.id}`,
         );
-        this._state = new ValueStore(
-            getInitialDocumentContentEditorState(currentAccount, initialDocument),
-        );
+        this._state = new ValueStore(getInitialDocumentContentEditorState(initialDocument));
     }
 
     private _dispatchBatch(actions: ReadonlyArray<DocumentContentEditorAction>) {
@@ -717,7 +637,7 @@ export class DocumentContentEditorWebSocketClient {
                     this._client
                         .sendMessage({
                             type: "BackfillRequest",
-                            version: this._state.getSnapshot().editorState?.getVersion() ?? null,
+                            version: this._state.getSnapshot().editorState.getVersion(),
                         })
                         .catch(error => this._dispatch({type: "Error", error}));
 
@@ -728,7 +648,7 @@ export class DocumentContentEditorWebSocketClient {
 
         const unsubscribeFromClientMessages = this._client.subscribeToMessages(message => {
             switch (message.type) {
-                case "BackfillCatchUpResponse": {
+                case "BackfillResponse": {
                     // One dispatch call just to make sure React applies these actions atomically
                     // and doesn't do any scheduling weirdness.
                     this._dispatchBatch([
@@ -764,51 +684,6 @@ export class DocumentContentEditorWebSocketClient {
                     ]);
                     break;
                 }
-                // For the edge case where an `initialDocument` is not provided. Then we need
-                // to load it during backfill.
-                //
-                // We expect this case to be very rare. For instance in the following race
-                // condition:
-                //
-                // 1. User starts loading comment thread peek on top of document (so its
-                //    `loader` is instructed to not load the document)
-                // 2. User navigates away from document before peek finishes loading
-                // 3. Peek stays and finishes loading with no document. If it were still on top
-                //    of the document route, there would be a shared WebSocket to reuse in
-                //    context. Since there is not and the peek creates its own WebSocket client
-                //    then we need to load the document from the server
-                case "BackfillResetResponse": {
-                    // One dispatch call just to make sure React applies these actions atomically
-                    // and doesn't do any scheduling weirdness.
-                    this._dispatchBatch([
-                        {
-                            type: "SetAllOtherPresenceStates",
-                            stateByConnectionId: ImmutableMap.from(
-                                mapIterable(message.presenceStates, presenceState => [
-                                    presenceState.connectionId,
-                                    presenceState.state,
-                                ]),
-                            ),
-                        },
-                        {
-                            type: "ResetEditor",
-                            version: message.version,
-                            content: message.content,
-                        },
-
-                        // Unconditionally run this action even if we have no new remembered steps
-                        // because it will throw if the editor version in state is not
-                        // `expectedVersion`. This is a nice way to double check that our previous
-                        // action actually caught us up.
-                        {
-                            type: "AugmentRememberedSteps",
-                            expectedVersion: message.version,
-                            startVersion: message.version - message.rememberInvertedSteps.length,
-                            invertedSteps: message.rememberInvertedSteps,
-                        },
-                    ]);
-                    break;
-                }
                 case "UpdateContentWithoutPersistence": {
                     const actions: Array<DocumentContentEditorAction> = [];
 
@@ -828,7 +703,7 @@ export class DocumentContentEditorWebSocketClient {
                     // If we don't have an editor state then our document is loading so there should
                     // be no updates from this client and we should always update the presence
                     // state.
-                    if (message.clientId !== this._state.getSnapshot().editorState?.getClientId()) {
+                    if (message.clientId !== this._state.getSnapshot().editorState.getClientId()) {
                         actions.push({
                             type: "UpdateOtherPresenceState",
                             connectionId: message.updateOtherPresenceState.connectionId,

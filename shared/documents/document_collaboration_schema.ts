@@ -13,7 +13,6 @@ import {
 import {
     DocumentCommentModel,
     DocumentContentReferencesSchema,
-    DocumentContentWithReferencesSchema,
 } from "~/shared/models/document_model";
 import {ProsemirrorSelectionSchema} from "~/shared/prosemirror/prosemirror_selection_schema";
 import {Schema, SchemaType} from "~/shared/schema/schema";
@@ -33,7 +32,7 @@ export type DocumentCollaborationMessageFromClient = SchemaType<
 
 export const DocumentCollaborationMessageFromClientSchema = Schema.union({
     /**
-     * Request a `BackfillCatchUpResponse` or `BackfillResetResponse` message to
+     * Request a `BackfillResponse` or `BackfillResetResponse` message to
      * catch us up from the version our client loaded from the server to the
      * latest, live, document version.
      *
@@ -42,7 +41,7 @@ export const DocumentCollaborationMessageFromClientSchema = Schema.union({
      */
     BackfillRequest: Schema.object({
         type: Schema.value("BackfillRequest"),
-        version: Schema.integer.nullable(),
+        version: Schema.integer,
     }),
 
     UpdateContent: Schema.object({
@@ -101,18 +100,9 @@ export const DocumentCollaborationMessageFromServerSchema = Schema.union({
      * Even if the client just loaded a document in the milliseconds between the
      * server returning the document and the client connecting to the collaboration
      * service there may have been an update.
-     *
-     * If the client sends a `null` version in their `BackfillRequest` message then
-     * they will get a `BackfillResetResponse` message. A reset response clears any
-     * pending changes in the client's document editor! Whereas a catch-up response
-     * can rebase the client's changes.
-     *
-     * We may in the future send a reset response if the client's version is too
-     * far from the current version (e.g. the client requests a backfill from
-     * version 0 when we are on version 1000).
      */
-    BackfillCatchUpResponse: Schema.object({
-        type: Schema.value("BackfillCatchUpResponse"),
+    BackfillResponse: Schema.object({
+        type: Schema.value("BackfillResponse"),
         newVersion: Schema.integer,
         steps: Schema.array(
             Schema.object({
@@ -121,25 +111,6 @@ export const DocumentCollaborationMessageFromServerSchema = Schema.union({
             }),
         ),
         stepsContentReferences: DocumentContentReferencesSchema,
-        presenceStates: Schema.array(
-            Schema.object({
-                connectionId: Schema.id<WebSocketConnectionId>(),
-                state: DocumentCollaborationPresenceStateSchema,
-            }),
-        ),
-        rememberInvertedSteps: Schema.array(DocumentContentStepSchema),
-    }),
-
-    /**
-     * Fully reset the client's state with the full document content. You get this
-     * message when you send `null` as the version in `BackfillRequest`. If a
-     * client receives this message it will throwaway any local changes. See the
-     * documentation on `BackfillCatchUpResponse` for more information.
-     */
-    BackfillResetResponse: Schema.object({
-        type: Schema.value("BackfillResetResponse"),
-        version: Schema.integer,
-        content: DocumentContentWithReferencesSchema,
         presenceStates: Schema.array(
             Schema.object({
                 connectionId: Schema.id<WebSocketConnectionId>(),
