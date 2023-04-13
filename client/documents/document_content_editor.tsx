@@ -3,11 +3,11 @@ import {CaretDown, CaretUp, SpinnerGap, X} from "phosphor-react";
 import {Memo, Ref, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
 import {createCommentThreadMetaKey} from "~/client/content/content_editor_state";
-import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px";
 import {IconButton} from "~/client/design/icon_button";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
+import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
 import {
     DocumentCommentThreadListView,
@@ -34,7 +34,6 @@ import {usePromise} from "~/client/helpers/use_promise";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context";
-import {useSpaceContext} from "~/client/spaces/space_context";
 import {
     DocumentContent,
     DocumentContentProsemirrorSchema,
@@ -43,6 +42,7 @@ import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spac
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
 import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint";
+import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
@@ -50,7 +50,7 @@ import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlap
 import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {clamp} from "~/shared/helpers/number/clamp";
-import {assertId, generateId} from "~/shared/id/id";
+import {assertId} from "~/shared/id/id";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types";
 import {
     DocumentCommentModel,
@@ -60,7 +60,6 @@ import {
 } from "~/shared/models/document_model";
 import {MessageContentWithReferences, OptimisticMessageModel} from "~/shared/models/message_model";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer";
-import {getDocumentCommentThreadAndInitialComments} from "~/shared/rpc/documents_rpc_definitions";
 import {colorSchemeVars, contentSchemaStyles, spinAnimationClassName} from "~/shared/styles/styles";
 
 export const documentContentEditorSidebarWidth = spacing["96"];
@@ -145,8 +144,6 @@ function DocumentContentEditorStateful({
     const {id: documentId} = initialDocument;
 
     const isInitialAppRender = useIsInitialAppRender();
-    const context = useAppContext();
-    const {currentAccount} = useSpaceContext();
     const editorRef = useRef<ContentEditorRef>(null);
     const editorContainerRef = useRef<HTMLDivElement>(null);
     const sidebarRef = useRef<HTMLDivElement>(null);
@@ -401,16 +398,17 @@ function DocumentContentEditorStateful({
             return Promise.resolve();
         }
 
-        const dataPromise = getDocumentCommentThreadAndInitialComments(context, {
-            documentId,
-            commentThreadId,
-            limit: getInitialLoadMessageCount(getClientInfoWithoutListening()),
-        }).then(
-            (data): DocumentContentEditorSidebarData => ({
-                ...data,
-                initialOptimisticComments: [],
-            }),
-        );
+        const dataPromise = procedures
+            .getCommentThreadAndInitialComments({
+                commentThreadId,
+                limit: getInitialLoadMessageCount(getClientInfoWithoutListening()),
+            })
+            .then(
+                (data): DocumentContentEditorSidebarData => ({
+                    ...data,
+                    initialOptimisticComments: [],
+                }),
+            );
 
         const pendingPromiseResolver = createPromiseResolver();
 
@@ -431,9 +429,13 @@ function DocumentContentEditorStateful({
         if (!transition) return;
 
         let isCancelled = false;
+        let isAccepted = false;
 
         const acceptTransition = () => {
             if (isCancelled) return;
+
+            if (isAccepted) return;
+            isAccepted = true;
 
             transition.pendingPromiseResolver.resolve();
 
@@ -463,9 +465,11 @@ function DocumentContentEditorStateful({
         // - Our data promise resolves
         // - Our loading indicator delay finishes
         transition.dataPromise.then(acceptTransition, acceptTransition);
+        const timeout = createTimeout(acceptTransition, delayLoadingIndicatorLimitMs);
 
         return () => {
             isCancelled = true;
+            timeout.clear();
             transition.pendingPromiseResolver.resolve();
         };
     }, [sidebarState.transition]);
@@ -710,66 +714,22 @@ function DocumentContentEditorStateful({
                         onChange={(state, transaction) => {
                             onChangeEditorState(state);
 
-                            // NOCOMMIT: This is not the ideal way to handle this I think
                             const createCommentThread: {
                                 commentThreadId: DocumentCommentThreadId;
                                 initialCommentContent: MessageContentWithReferences;
+                                openCommentThreadPromiseRef: {current: Promise<void> | null};
                             } | null = transaction.getMeta(createCommentThreadMetaKey) ?? null;
-                            if (createCommentThread) {
-                                setSidebarState(
-                                    (sidebarState): DocumentContentEditorSidebarState => {
-                                        if (
-                                            !sidebarState.isOpen ||
-                                            sidebarState.animationState !== null
-                                        ) {
-                                            return sidebarState;
-                                        }
-
-                                        const createdTime = new Date();
-
-                                        const data: DocumentContentEditorSidebarData = {
-                                            commentThread: new DocumentCommentThreadModel({
-                                                id: createCommentThread.commentThreadId,
-                                                documentId,
-                                                createdTime,
-                                                lastCommentChangeTime: null,
-                                                // We use an optimistic comment as the initial comment. On the server there is
-                                                // no comment count or comment authors yet.
-                                                commentCount: 0,
-                                                commentAuthors: [],
-                                            }),
-                                            initialComments: [],
-                                            initialOtherReferencedComments: [],
-                                            initialOptimisticComments: [
-                                                {
-                                                    isOptimistic: true,
-                                                    optimisticId: generateId(),
-                                                    // TODO(calebmer): Proper error state.
-                                                    optimisticRequestErrorState: {
-                                                        hasError: false,
-                                                    },
-                                                    author: currentAccount,
-                                                    createdTime,
-                                                    payload: {
-                                                        type: "Content",
-                                                        parentMessageIndex: null,
-                                                        content:
-                                                            createCommentThread.initialCommentContent,
-                                                        contentUpdatedTime: null,
-                                                    },
-                                                },
-                                            ],
-                                        };
-
-                                        return {
-                                            isOpen: true,
-                                            animationState: null,
-                                            transition: null,
-                                            commentThreadId: createCommentThread.commentThreadId,
-                                            dataPromise: PromiseImmediate.resolve(data),
-                                        };
-                                    },
-                                );
+                            if (
+                                createCommentThread &&
+                                sidebarState.isOpen &&
+                                sidebarState.animationState === null
+                            ) {
+                                // `<ContentEditorCommentInput>` will wait on this promise before closing after
+                                // creating a comment thread when it exists. If the sidebar is not already open
+                                // then we rely on our document's global loading indicator to tell us when
+                                // comments have successfully saved.
+                                createCommentThread.openCommentThreadPromiseRef.current =
+                                    openCommentThread(createCommentThread.commentThreadId);
                             }
                         }}
                         aria-label="Document"

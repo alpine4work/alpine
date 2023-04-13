@@ -558,6 +558,9 @@ export type DocumentContentEditorWebSocketClientProcedures = Pick<
     | "deleteComment"
     | "startTypingInCommentInput"
     | "stopTypingInCommentInput"
+    | "getCommentThreadAndInitialComments"
+    | "getCommentsFromStart"
+    | "getCommentsFromEnd"
 >;
 
 /**
@@ -624,6 +627,9 @@ export class DocumentContentEditorWebSocketClient {
             "deleteComment",
             "startTypingInCommentInput",
             "stopTypingInCommentInput",
+            "getCommentThreadAndInitialComments",
+            "getCommentsFromStart",
+            "getCommentsFromEnd",
         ]);
     }
 

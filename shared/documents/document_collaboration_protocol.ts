@@ -17,6 +17,7 @@ import {
 } from "~/shared/messaging/messaging_realtime_protocol";
 import {
     DocumentCommentModel,
+    DocumentCommentThreadModel,
     DocumentContentReferencesSchema,
 } from "~/shared/models/document_model";
 import {ProsemirrorSelectionSchema} from "~/shared/prosemirror/prosemirror_selection_schema";
@@ -177,6 +178,69 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
                 commentThreadId: Schema.id<DocumentCommentThreadId>(),
             },
             output: {},
+        },
+
+        /**
+         * Get a comment thread and its associated initial comments.
+         *
+         * This is a part of our collaboration WebSocket protocol because we may have
+         * an optimistic comment thread created in the durable object that hasn't been
+         * persisted yet.
+         */
+        getCommentThreadAndInitialComments: {
+            input: {
+                commentThreadId: Schema.id<DocumentCommentThreadId>(),
+                limit: Schema.integer,
+            },
+            output: {
+                commentThread: DocumentCommentThreadModel.schema(),
+                initialComments: Schema.array(DocumentCommentModel.schema()),
+                initialOtherReferencedComments: Schema.array(DocumentCommentModel.schema()),
+            },
+        },
+
+        /**
+         * Get some comments in a comment thread.
+         *
+         * This is a part of our collaboration WebSocket protocol because we may have
+         * an optimistic comment thread created in the durable object that hasn't been
+         * persisted yet.
+         */
+        getCommentsFromStart: {
+            input: {
+                commentThreadId: Schema.id<DocumentCommentThreadId>(),
+                limit: Schema.integer,
+                afterCommentIndex: Schema.integer.nullable(),
+                beforeCommentIndex: Schema.integer.nullable(),
+            },
+            output: {
+                commentCount: Schema.integer,
+                comments: Schema.array(DocumentCommentModel.schema()),
+                otherReferencedComments: Schema.array(DocumentCommentModel.schema()),
+                lastCommentChangeTime: Schema.date.nullable(),
+            },
+        },
+
+        /**
+         * Get some comments in a comment thread.
+         *
+         * This is a part of our collaboration WebSocket protocol because we may have
+         * an optimistic comment thread created in the durable object that hasn't been
+         * persisted yet.
+         */
+        getCommentsFromEnd: {
+            input: {
+                commentThreadId: Schema.id<DocumentCommentThreadId>(),
+                limit: Schema.integer,
+                afterCommentIndex: Schema.integer.nullable(),
+                beforeCommentIndex: Schema.integer.nullable(),
+            },
+            output: {
+                commentCount: Schema.integer,
+                comments: Schema.array(DocumentCommentModel.schema()),
+                otherReferencedComments: Schema.array(DocumentCommentModel.schema()),
+                lastCommentChangeTime: Schema.date.nullable(),
+            },
         },
     },
     events: {

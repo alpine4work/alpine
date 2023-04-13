@@ -3316,6 +3316,13 @@ async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
     comments: Array<DocumentCommentModel>;
     otherReferencedComments: Array<DocumentCommentModel>;
 }> {
+    if (limit === 0) {
+        return {
+            comments: [],
+            otherReferencedComments: [],
+        };
+    }
+
     const commentIndexes = new Set<number>();
     const parentCommentIndexes = new Set<number>();
 
@@ -3474,6 +3481,13 @@ async function getDocumentCommentsFromEndAssumingAuthorizedCommentThread(
     comments: Array<DocumentCommentModel>;
     otherReferencedComments: Array<DocumentCommentModel>;
 }> {
+    if (limit === 0) {
+        return {
+            comments: [],
+            otherReferencedComments: [],
+        };
+    }
+
     const commentIndexes = new Set<number>();
     const parentCommentIndexes = new Set<number>();
 

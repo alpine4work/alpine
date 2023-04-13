@@ -51,6 +51,15 @@ export const documentCollaborationContentManagerBeforeUpdateTestCheckpoint =
 export const documentCollaborationContentManagerBeforePersistTestCheckpoint =
     new TestCheckpoint<DocumentId>();
 
+export type DocumentCollaborationContentManagerOptimisticCommentThread = {
+    readonly persistedPromise: Promise<void>;
+    readonly createdTime: Date;
+    readonly initialComment: {
+        readonly authorId: AccountId;
+        readonly content: MessageContent;
+    };
+};
+
 /**
  * Class for managing writing to collaborative content in a concurrency
  * safe way.
@@ -608,14 +617,9 @@ export class DocumentCollaborationContentManager {
      * for it to be persisted in the database then we will return the information
      * we optimistically know about this thread and a promise for when it resolves.
      */
-    public getOptimisticCommentThread(commentThreadId: DocumentCommentThreadId): {
-        persistedPromise: Promise<void>;
-        createdTime: Date;
-        initialComment: {
-            readonly authorId: AccountId;
-            readonly content: MessageContent;
-        };
-    } | null {
+    public getOptimisticCommentThread(
+        commentThreadId: DocumentCommentThreadId,
+    ): DocumentCollaborationContentManagerOptimisticCommentThread | null {
         const optimisticCommentThread = this._optimisticCommentThreadById.get(commentThreadId);
 
         if (

@@ -10,7 +10,6 @@ import {
     useRef,
     useState,
 } from "react";
-import {useAppContext} from "~/client/context/app_context";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {createDocumentCommentThreadSnippetCollector} from "~/client/documents/internal/create_document_comment_thread_snippet_collector";
 import {DocumentCommentInput} from "~/client/documents/internal/document_comment_input";
@@ -55,10 +54,6 @@ import {
     decodeDocumentCommentRoomKey,
 } from "~/shared/models/document_model";
 import {OptimisticMessageModel} from "~/shared/models/message_model";
-import {
-    getDocumentCommentsFromEnd,
-    getDocumentCommentsFromStart,
-} from "~/shared/rpc/documents_rpc_definitions";
 import {Schema} from "~/shared/schema/schema";
 import {sprinkles} from "~/shared/styles/styles";
 
@@ -228,7 +223,6 @@ function DocumentCommentThreadListView(
     const isActuallyMobile = useIsMobile();
     const isMobile = isActuallyMobile || withMobileLayout;
 
-    const context = useAppContext();
     const {space} = useSpaceContext();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
@@ -365,8 +359,7 @@ function DocumentCommentThreadListView(
                         },
                         loadFromStart: async ({afterMessageIndex, beforeMessageIndex, limit}) => {
                             const {commentCount, comments, otherReferencedComments} =
-                                await getDocumentCommentsFromStart(context, {
-                                    documentId: node.commentThread.documentId,
+                                await procedures.getCommentsFromStart({
                                     commentThreadId: node.commentThread.id,
                                     afterCommentIndex: afterMessageIndex,
                                     beforeCommentIndex: beforeMessageIndex,
@@ -380,8 +373,7 @@ function DocumentCommentThreadListView(
                         },
                         loadFromEnd: async ({afterMessageIndex, beforeMessageIndex, limit}) => {
                             const {commentCount, comments, otherReferencedComments} =
-                                await getDocumentCommentsFromEnd(context, {
-                                    documentId: node.commentThread.documentId,
+                                await procedures.getCommentsFromStart({
                                     commentThreadId: node.commentThread.id,
                                     afterCommentIndex: afterMessageIndex,
                                     beforeCommentIndex: beforeMessageIndex,

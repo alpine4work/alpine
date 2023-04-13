@@ -136,6 +136,7 @@ function ContentEditorCommentInput({
 }) {
     const {currentAccount} = useSpaceContext();
 
+    const sendButtonRef = useRef<HTMLButtonElement>(null);
     const [commentState, setCommentState] = useState(() =>
         ContentEditorState.create(emptyMessageContentWithReferences),
     );
@@ -157,7 +158,7 @@ function ContentEditorCommentInput({
         editor.focus();
     }, [shouldShowConfirmCloseDialog]);
 
-    const sendComment = () => {
+    const sendComment = async () => {
         const content = commentState.getContent();
         if (isContentEmpty(content.doc)) return;
 
@@ -166,6 +167,8 @@ function ContentEditorCommentInput({
             documentState.doc,
             documentRange,
         );
+        const openCommentThreadPromiseRef: {current: Promise<void> | null} = {current: null};
+
         assertExists(documentViewRef.current).dispatch(
             updateContentEditorReferences(
                 documentState.tr
@@ -177,6 +180,7 @@ function ContentEditorCommentInput({
                     .setMeta(createCommentThreadMetaKey, {
                         commentThreadId,
                         initialCommentContent: content,
+                        openCommentThreadPromiseRef,
                     })
                     .scrollIntoView(),
                 {
@@ -187,6 +191,10 @@ function ContentEditorCommentInput({
                 },
             ),
         );
+
+        // `<DocumentContentEditor>` may open the comment thread after we create it.
+        // Don't close our floater until this has happened.
+        await openCommentThreadPromiseRef.current;
 
         onCloseWithoutAnimation();
     };
@@ -279,7 +287,10 @@ function ContentEditorCommentInput({
                                 onEnterFromPhysicalKeyboard={event => {
                                     event.preventDefault();
                                     event.stopPropagation();
-                                    sendComment();
+
+                                    // Click the send button instead of directly calling `sendComment()` for
+                                    // correct loading and error states.
+                                    assertExists(sendButtonRef.current).click();
                                 }}
                             />
                         </Box>
@@ -288,9 +299,11 @@ function ContentEditorCommentInput({
                 <Box display="flex" alignItems="flex-end">
                     <Box paddingY="0.5">
                         <IconButton
+                            ref={sendButtonRef}
                             variant="accent"
-                            description="Send comment"
+                            description="Save comment"
                             isDisabled={isSendButtonDisabled}
+                            pressErrorTitle="Can’t save comment"
                             onPress={sendComment}
                         >
                             <ArrowRight
@@ -312,6 +325,7 @@ function ContentEditorCommentInput({
                         setShouldShowConfirmCloseDialog(false);
                     }}
                     primaryButtonLabel="Save"
+                    primaryButtonPressErrorTitle="Can’t save comment"
                     onPrimaryButtonPress={sendComment}
                     cancelButtonLabel="Discard comment"
                     onCancelButtonPress={onCloseWithoutAnimation}

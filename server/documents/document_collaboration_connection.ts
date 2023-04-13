@@ -1,11 +1,18 @@
 import {WebSocketConnectionProcedures} from "~/server/cloudflare/web_socket_server";
-import {DocumentCollaborationContentManager} from "~/server/documents/document_collaboration_content_manager";
+import {
+    DocumentCollaborationContentManager,
+    DocumentCollaborationContentManagerOptimisticCommentThread,
+} from "~/server/documents/document_collaboration_content_manager";
 import {getAccountOrThrow} from "~/server/dynamo/accounts_table";
 import {ProcessContext} from "~/server/dynamo/context/process_context";
+import {RequestContext} from "~/server/dynamo/context/request_context";
 import {
     backfillDocumentComments,
     createDocumentComment,
     deleteDocumentComment,
+    getDocumentCommentThreadAndInitialComments,
+    getDocumentCommentsFromEnd,
+    getDocumentCommentsFromStart,
     getDocumentPreview,
     updateDocumentCommentContent,
 } from "~/server/dynamo/documents_table";
@@ -34,6 +41,7 @@ import {
 import {
     DocumentCommentModel,
     DocumentCommentRoomKey,
+    DocumentCommentThreadModel,
     decodeDocumentCommentRoomKey,
     encodeDocumentCommentRoomKey,
 } from "~/shared/models/document_model";
@@ -352,6 +360,130 @@ export class DocumentCollaborationConnection {
             const connection = await this._getCommentThreadConnection(input.commentThreadId);
             return connection.stopTypingInMessageInput(context, input);
         },
+
+        getCommentThreadAndInitialComments: async (context, input) => {
+            // Wait for any pending messages related to document comments before handling
+            // comment messages. This way if we are processing an `UpdateContent` that
+            // creates the comment thread we are trying to access we will wait until it
+            // is ready.
+            //
+            // However, we do not want to block other document content messages with our
+            // comments processing! Which is why we don't put the `handleMessage()` call in
+            // the body of our `run()` function.
+            await this._state.run(async () => {});
+
+            const optimisticCommentThread = this._contentManager.getOptimisticCommentThread(
+                input.commentThreadId,
+            );
+
+            if (!optimisticCommentThread) {
+                return getDocumentCommentThreadAndInitialComments(context, {
+                    documentId: this._contentManager.id,
+                    ...input,
+                });
+            }
+
+            const comment = await this._getOptimisticCommentThreadComment(
+                context,
+                input.commentThreadId,
+                optimisticCommentThread,
+            );
+
+            return {
+                commentThread: new DocumentCommentThreadModel({
+                    id: input.commentThreadId,
+                    documentId: this._contentManager.id,
+                    createdTime: optimisticCommentThread.createdTime,
+                    commentCount: 1,
+                    lastCommentChangeTime: null,
+                    commentAuthors: [comment.author],
+                }),
+                initialComments: input.limit > 0 ? [comment] : [],
+                initialOtherReferencedComments: [],
+            };
+        },
+
+        getCommentsFromStart: async (context, input) => {
+            // Wait for any pending messages related to document comments before handling
+            // comment messages. This way if we are processing an `UpdateContent` that
+            // creates the comment thread we are trying to access we will wait until it
+            // is ready.
+            //
+            // However, we do not want to block other document content messages with our
+            // comments processing! Which is why we don't put the `handleMessage()` call in
+            // the body of our `run()` function.
+            await this._state.run(async () => {});
+
+            const optimisticCommentThread = this._contentManager.getOptimisticCommentThread(
+                input.commentThreadId,
+            );
+
+            if (!optimisticCommentThread) {
+                return getDocumentCommentsFromStart(context, {
+                    documentId: this._contentManager.id,
+                    ...input,
+                });
+            }
+
+            return {
+                commentCount: 1,
+                comments:
+                    input.limit > 0 &&
+                    (input.afterCommentIndex === null || input.afterCommentIndex < 0) &&
+                    (input.beforeCommentIndex === null || input.beforeCommentIndex > 0)
+                        ? [
+                              await this._getOptimisticCommentThreadComment(
+                                  context,
+                                  input.commentThreadId,
+                                  optimisticCommentThread,
+                              ),
+                          ]
+                        : [],
+                otherReferencedComments: [],
+                lastCommentChangeTime: null,
+            };
+        },
+
+        getCommentsFromEnd: async (context, input) => {
+            // Wait for any pending messages related to document comments before handling
+            // comment messages. This way if we are processing an `UpdateContent` that
+            // creates the comment thread we are trying to access we will wait until it
+            // is ready.
+            //
+            // However, we do not want to block other document content messages with our
+            // comments processing! Which is why we don't put the `handleMessage()` call in
+            // the body of our `run()` function.
+            await this._state.run(async () => {});
+
+            const optimisticCommentThread = this._contentManager.getOptimisticCommentThread(
+                input.commentThreadId,
+            );
+
+            if (!optimisticCommentThread) {
+                return getDocumentCommentsFromEnd(context, {
+                    documentId: this._contentManager.id,
+                    ...input,
+                });
+            }
+
+            return {
+                commentCount: 1,
+                comments:
+                    input.limit > 0 &&
+                    (input.afterCommentIndex === null || input.afterCommentIndex < 0) &&
+                    (input.beforeCommentIndex === null || input.beforeCommentIndex > 0)
+                        ? [
+                              await this._getOptimisticCommentThreadComment(
+                                  context,
+                                  input.commentThreadId,
+                                  optimisticCommentThread,
+                              ),
+                          ]
+                        : [],
+                otherReferencedComments: [],
+                lastCommentChangeTime: null,
+            };
+        },
     };
 
     public handleClose(context: ProcessContext) {
@@ -530,42 +662,17 @@ export class DocumentCollaborationConnection {
                     return context.tracer.withSpan(
                         "Comment thread hasn't persisted so returning optimistic backfill",
                         async context => {
-                            const [author, contentReferences] = await runAllPromises([
-                                getAccountOrThrow(
-                                    context,
-                                    this._contentManager.spaceId,
-                                    optimisticCommentThread.initialComment.authorId,
-                                ),
-                                getContentReferencesForNode(
-                                    context,
-                                    this._contentManager.spaceId,
-                                    optimisticCommentThread.initialComment.content,
-                                ),
-                            ]);
-
                             return {
                                 messageCount: 1,
                                 lastMessageChangeTime: null,
                                 newMessages:
                                     clientCommentCount < 1 && newCommentLimit > 0
                                         ? [
-                                              new DocumentCommentModel({
-                                                  documentId: this._contentManager.id,
+                                              await this._getOptimisticCommentThreadComment(
+                                                  context,
                                                   commentThreadId,
-                                                  index: 0,
-                                                  author,
-                                                  createdTime: optimisticCommentThread.createdTime,
-                                                  payload: {
-                                                      type: "Content",
-                                                      parentMessageIndex: null,
-                                                      content: {
-                                                          doc: optimisticCommentThread
-                                                              .initialComment.content,
-                                                          references: contentReferences,
-                                                      },
-                                                      contentUpdatedTime: null,
-                                                  },
-                                              }),
+                                                  optimisticCommentThread,
+                                              ),
                                           ]
                                         : [],
                                 newOtherReferencedMessages: [],
@@ -599,4 +706,40 @@ export class DocumentCollaborationConnection {
             },
         });
     });
+
+    private async _getOptimisticCommentThreadComment(
+        context: RequestContext,
+        commentThreadId: DocumentCommentThreadId,
+        optimisticCommentThread: DocumentCollaborationContentManagerOptimisticCommentThread,
+    ) {
+        const [author, contentReferences] = await runAllPromises([
+            getAccountOrThrow(
+                context,
+                this._contentManager.spaceId,
+                optimisticCommentThread.initialComment.authorId,
+            ),
+            getContentReferencesForNode(
+                context,
+                this._contentManager.spaceId,
+                optimisticCommentThread.initialComment.content,
+            ),
+        ]);
+
+        return new DocumentCommentModel({
+            documentId: this._contentManager.id,
+            commentThreadId,
+            index: 0,
+            author,
+            createdTime: optimisticCommentThread.createdTime,
+            payload: {
+                type: "Content",
+                parentMessageIndex: null,
+                content: {
+                    doc: optimisticCommentThread.initialComment.content,
+                    references: contentReferences,
+                },
+                contentUpdatedTime: null,
+            },
+        });
+    }
 }

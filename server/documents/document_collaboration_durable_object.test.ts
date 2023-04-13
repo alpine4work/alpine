@@ -31,6 +31,7 @@ import {ContentEditorClientId, DocumentCommentThreadId} from "~/shared/id/types/
 import {emptyContentReferences} from "~/shared/models/content_references";
 import {
     DocumentCommentModel,
+    DocumentCommentThreadModel,
     DocumentModel,
     emptyDocumentContentReferences,
 } from "~/shared/models/document_model";
@@ -685,10 +686,6 @@ test("when comment threads are added back to the document they will be loaded", 
         version: 0,
     });
 
-    // Ignore backfill response message.
-    connection1.takeEvents();
-    connection2.takeEvents();
-
     await connection1.procedures.updateContent({
         version: 3,
         steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
@@ -786,10 +783,6 @@ test("comment thread can be optimistic at first and then loaded from the databas
     await connection2.procedures.backfill({
         version: 0,
     });
-
-    // Ignore backfill response message.
-    connection1.takeEvents();
-    connection2.takeEvents();
 
     await connection1.procedures.updateContent({
         version: 1,
@@ -1330,10 +1323,6 @@ test("if comment thread is persisting we will wait to create messages but respon
         version: 0,
     });
 
-    // Ignore backfill response message.
-    connection1.takeEvents();
-    connection2.takeEvents();
-
     await expect(
         connection1.procedures.createComment({
             commentThreadId,
@@ -1775,4 +1764,813 @@ test("if comment thread update message hasn't been processed we will wait to res
             },
         },
     ]);
+});
+
+test("while comment thread is persisting we will respond to comment load requests", async () => {
+    const document = await createDocument(context.request(session1), {
+        spaceId: space.id,
+        content: emptyDocumentContent,
+    });
+
+    await updateDocumentContent(context.request(session1), {
+        id: document.id,
+        version: 0,
+        steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+        clientId: generateId(),
+    });
+
+    const commentThreadId = generateId<DocumentCommentThreadId>();
+
+    const client1Id = generateId<ContentEditorClientId>();
+    const connection1 = await connectForTest(context.request(session1), document.id);
+    const connection2 = await connectForTest(context.request(session2), document.id);
+
+    await connection1.procedures.backfill({
+        version: 0,
+    });
+
+    await connection2.procedures.backfill({
+        version: 0,
+    });
+
+    await expect(
+        connection1.procedures.createComment({
+            commentThreadId,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("Test message content 2"),
+        }),
+    ).rejects.toThrow(NotFoundError);
+
+    const pausePromise =
+        documentCollaborationContentManagerBeforePersistTestCheckpoint.pauseForTest(document.id);
+
+    await connection1.procedures.updateContent({
+        version: 1,
+        steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+        clientId: client1Id,
+        createCommentThreads: [
+            {
+                commentThreadId,
+                initialCommentContent: createSimpleMessageContent("Test message content 1"),
+            },
+        ],
+        updateOurPresenceState: {state: null},
+    });
+
+    const {unpause} = await pausePromise;
+
+    expect(connection1.takeEvents()).toEqual([
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 2,
+            steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            stepsContentReferences: {
+                ...emptyDocumentContentReferences,
+                commentThreadById: new Map([
+                    [
+                        commentThreadId,
+                        {
+                            commentCount: 1,
+                            commentAuthors: [session1.account],
+                        },
+                    ],
+                ]),
+            },
+            clientId: client1Id,
+            updateOtherPresenceState: {connectionId: connection1.id, state: null},
+        },
+    ]);
+
+    expect(connection2.takeEvents()).toEqual([
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 2,
+            steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            stepsContentReferences: {
+                ...emptyDocumentContentReferences,
+                commentThreadById: new Map([
+                    [
+                        commentThreadId,
+                        {
+                            commentCount: 1,
+                            commentAuthors: [session1.account],
+                        },
+                    ],
+                ]),
+            },
+            clientId: client1Id,
+            updateOtherPresenceState: {connectionId: connection1.id, state: null},
+        },
+    ]);
+
+    const {
+        commentThread: {createdTime},
+    } = await connection1.procedures.getCommentThreadAndInitialComments({
+        commentThreadId,
+        limit: 100,
+    });
+
+    expect(
+        await connection1.procedures.getCommentThreadAndInitialComments({
+            commentThreadId,
+            limit: 100,
+        }),
+    ).toEqual({
+        commentThread: new DocumentCommentThreadModel({
+            id: commentThreadId,
+            documentId: document.id,
+            createdTime,
+            commentCount: 1,
+            lastCommentChangeTime: null,
+            commentAuthors: [session1.account],
+        }),
+        initialComments: [
+            new DocumentCommentModel({
+                documentId: document.id,
+                commentThreadId,
+                index: 0,
+                author: session1.account,
+                createdTime,
+                payload: {
+                    type: "Content",
+                    parentMessageIndex: null,
+                    content: {
+                        doc: createSimpleMessageContent("Test message content 1"),
+                        references: emptyContentReferences,
+                    },
+                    contentUpdatedTime: null,
+                },
+            }),
+        ],
+        initialOtherReferencedComments: [],
+    });
+
+    expect(
+        await connection2.procedures.getCommentThreadAndInitialComments({
+            commentThreadId,
+            limit: 100,
+        }),
+    ).toEqual({
+        commentThread: new DocumentCommentThreadModel({
+            id: commentThreadId,
+            documentId: document.id,
+            createdTime,
+            commentCount: 1,
+            lastCommentChangeTime: null,
+            commentAuthors: [session1.account],
+        }),
+        initialComments: [
+            new DocumentCommentModel({
+                documentId: document.id,
+                commentThreadId,
+                index: 0,
+                author: session1.account,
+                createdTime,
+                payload: {
+                    type: "Content",
+                    parentMessageIndex: null,
+                    content: {
+                        doc: createSimpleMessageContent("Test message content 1"),
+                        references: emptyContentReferences,
+                    },
+                    contentUpdatedTime: null,
+                },
+            }),
+        ],
+        initialOtherReferencedComments: [],
+    });
+
+    expect(
+        await connection1.procedures.getCommentThreadAndInitialComments({
+            commentThreadId,
+            limit: 0,
+        }),
+    ).toEqual({
+        commentThread: new DocumentCommentThreadModel({
+            id: commentThreadId,
+            documentId: document.id,
+            createdTime,
+            commentCount: 1,
+            lastCommentChangeTime: null,
+            commentAuthors: [session1.account],
+        }),
+        initialComments: [],
+        initialOtherReferencedComments: [],
+    });
+
+    expect(
+        await connection2.procedures.getCommentThreadAndInitialComments({
+            commentThreadId,
+            limit: 0,
+        }),
+    ).toEqual({
+        commentThread: new DocumentCommentThreadModel({
+            id: commentThreadId,
+            documentId: document.id,
+            createdTime,
+            commentCount: 1,
+            lastCommentChangeTime: null,
+            commentAuthors: [session1.account],
+        }),
+        initialComments: [],
+        initialOtherReferencedComments: [],
+    });
+
+    expect(
+        await connection1.procedures.getCommentsFromStart({
+            commentThreadId,
+            limit: 100,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        comments: [
+            new DocumentCommentModel({
+                documentId: document.id,
+                commentThreadId,
+                index: 0,
+                author: session1.account,
+                createdTime,
+                payload: {
+                    type: "Content",
+                    parentMessageIndex: null,
+                    content: {
+                        doc: createSimpleMessageContent("Test message content 1"),
+                        references: emptyContentReferences,
+                    },
+                    contentUpdatedTime: null,
+                },
+            }),
+        ],
+        otherReferencedComments: [],
+        lastCommentChangeTime: null,
+    });
+
+    expect(
+        await connection2.procedures.getCommentsFromStart({
+            commentThreadId,
+            limit: 100,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        comments: [
+            new DocumentCommentModel({
+                documentId: document.id,
+                commentThreadId,
+                index: 0,
+                author: session1.account,
+                createdTime,
+                payload: {
+                    type: "Content",
+                    parentMessageIndex: null,
+                    content: {
+                        doc: createSimpleMessageContent("Test message content 1"),
+                        references: emptyContentReferences,
+                    },
+                    contentUpdatedTime: null,
+                },
+            }),
+        ],
+        otherReferencedComments: [],
+        lastCommentChangeTime: null,
+    });
+
+    expect(
+        await connection1.procedures.getCommentsFromStart({
+            commentThreadId,
+            limit: 100,
+            afterCommentIndex: 0,
+            beforeCommentIndex: null,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        comments: [],
+        otherReferencedComments: [],
+        lastCommentChangeTime: null,
+    });
+
+    expect(
+        await connection2.procedures.getCommentsFromStart({
+            commentThreadId,
+            limit: 100,
+            afterCommentIndex: 0,
+            beforeCommentIndex: null,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        comments: [],
+        otherReferencedComments: [],
+        lastCommentChangeTime: null,
+    });
+
+    expect(
+        await connection1.procedures.getCommentsFromStart({
+            commentThreadId,
+            limit: 0,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        comments: [],
+        otherReferencedComments: [],
+        lastCommentChangeTime: null,
+    });
+
+    expect(
+        await connection2.procedures.getCommentsFromStart({
+            commentThreadId,
+            limit: 0,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        comments: [],
+        otherReferencedComments: [],
+        lastCommentChangeTime: null,
+    });
+
+    expect(
+        await connection1.procedures.getCommentsFromEnd({
+            commentThreadId,
+            limit: 100,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        comments: [
+            new DocumentCommentModel({
+                documentId: document.id,
+                commentThreadId,
+                index: 0,
+                author: session1.account,
+                createdTime,
+                payload: {
+                    type: "Content",
+                    parentMessageIndex: null,
+                    content: {
+                        doc: createSimpleMessageContent("Test message content 1"),
+                        references: emptyContentReferences,
+                    },
+                    contentUpdatedTime: null,
+                },
+            }),
+        ],
+        otherReferencedComments: [],
+        lastCommentChangeTime: null,
+    });
+
+    expect(
+        await connection2.procedures.getCommentsFromEnd({
+            commentThreadId,
+            limit: 100,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        comments: [
+            new DocumentCommentModel({
+                documentId: document.id,
+                commentThreadId,
+                index: 0,
+                author: session1.account,
+                createdTime,
+                payload: {
+                    type: "Content",
+                    parentMessageIndex: null,
+                    content: {
+                        doc: createSimpleMessageContent("Test message content 1"),
+                        references: emptyContentReferences,
+                    },
+                    contentUpdatedTime: null,
+                },
+            }),
+        ],
+        otherReferencedComments: [],
+        lastCommentChangeTime: null,
+    });
+
+    expect(
+        await connection1.procedures.getCommentsFromEnd({
+            commentThreadId,
+            limit: 100,
+            afterCommentIndex: null,
+            beforeCommentIndex: 0,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        comments: [],
+        otherReferencedComments: [],
+        lastCommentChangeTime: null,
+    });
+
+    expect(
+        await connection2.procedures.getCommentsFromEnd({
+            commentThreadId,
+            limit: 100,
+            afterCommentIndex: null,
+            beforeCommentIndex: 0,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        comments: [],
+        otherReferencedComments: [],
+        lastCommentChangeTime: null,
+    });
+
+    expect(
+        await connection1.procedures.getCommentsFromEnd({
+            commentThreadId,
+            limit: 0,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        comments: [],
+        otherReferencedComments: [],
+        lastCommentChangeTime: null,
+    });
+
+    expect(
+        await connection2.procedures.getCommentsFromEnd({
+            commentThreadId,
+            limit: 0,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        comments: [],
+        otherReferencedComments: [],
+        lastCommentChangeTime: null,
+    });
+
+    expect(connection1.takeEvents()).toEqual([]);
+    expect(connection2.takeEvents()).toEqual([]);
+
+    unpause();
+    await waitForPersistance(connection1, 2);
+
+    expect(connection1.takeEvents()).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 2,
+        },
+    ]);
+
+    expect(connection2.takeEvents()).toEqual([
+        {
+            type: "PersistedContent",
+            newVersion: 2,
+        },
+    ]);
+
+    expect(
+        await connection1.procedures.getCommentThreadAndInitialComments({
+            commentThreadId,
+            limit: 100,
+        }),
+    ).toEqual({
+        commentThread: new DocumentCommentThreadModel({
+            id: commentThreadId,
+            documentId: document.id,
+            createdTime,
+            commentCount: 1,
+            lastCommentChangeTime: null,
+            commentAuthors: [session1.account],
+        }),
+        initialComments: [
+            new DocumentCommentModel({
+                documentId: document.id,
+                commentThreadId,
+                index: 0,
+                author: session1.account,
+                createdTime,
+                payload: {
+                    type: "Content",
+                    parentMessageIndex: null,
+                    content: {
+                        doc: createSimpleMessageContent("Test message content 1"),
+                        references: emptyContentReferences,
+                    },
+                    contentUpdatedTime: null,
+                },
+            }),
+        ],
+        initialOtherReferencedComments: [],
+    });
+
+    expect(
+        await connection2.procedures.getCommentThreadAndInitialComments({
+            commentThreadId,
+            limit: 100,
+        }),
+    ).toEqual({
+        commentThread: new DocumentCommentThreadModel({
+            id: commentThreadId,
+            documentId: document.id,
+            createdTime,
+            commentCount: 1,
+            lastCommentChangeTime: null,
+            commentAuthors: [session1.account],
+        }),
+        initialComments: [
+            new DocumentCommentModel({
+                documentId: document.id,
+                commentThreadId,
+                index: 0,
+                author: session1.account,
+                createdTime,
+                payload: {
+                    type: "Content",
+                    parentMessageIndex: null,
+                    content: {
+                        doc: createSimpleMessageContent("Test message content 1"),
+                        references: emptyContentReferences,
+                    },
+                    contentUpdatedTime: null,
+                },
+            }),
+        ],
+        initialOtherReferencedComments: [],
+    });
+
+    expect(
+        await connection1.procedures.getCommentThreadAndInitialComments({
+            commentThreadId,
+            limit: 0,
+        }),
+    ).toEqual({
+        commentThread: new DocumentCommentThreadModel({
+            id: commentThreadId,
+            documentId: document.id,
+            createdTime,
+            commentCount: 1,
+            lastCommentChangeTime: null,
+            commentAuthors: [session1.account],
+        }),
+        initialComments: [],
+        initialOtherReferencedComments: [],
+    });
+
+    expect(
+        await connection2.procedures.getCommentThreadAndInitialComments({
+            commentThreadId,
+            limit: 0,
+        }),
+    ).toEqual({
+        commentThread: new DocumentCommentThreadModel({
+            id: commentThreadId,
+            documentId: document.id,
+            createdTime,
+            commentCount: 1,
+            lastCommentChangeTime: null,
+            commentAuthors: [session1.account],
+        }),
+        initialComments: [],
+        initialOtherReferencedComments: [],
+    });
+
+    expect(
+        await connection1.procedures.getCommentsFromStart({
+            commentThreadId,
+            limit: 100,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        comments: [
+            new DocumentCommentModel({
+                documentId: document.id,
+                commentThreadId,
+                index: 0,
+                author: session1.account,
+                createdTime,
+                payload: {
+                    type: "Content",
+                    parentMessageIndex: null,
+                    content: {
+                        doc: createSimpleMessageContent("Test message content 1"),
+                        references: emptyContentReferences,
+                    },
+                    contentUpdatedTime: null,
+                },
+            }),
+        ],
+        otherReferencedComments: [],
+        lastCommentChangeTime: null,
+    });
+
+    expect(
+        await connection2.procedures.getCommentsFromStart({
+            commentThreadId,
+            limit: 100,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        comments: [
+            new DocumentCommentModel({
+                documentId: document.id,
+                commentThreadId,
+                index: 0,
+                author: session1.account,
+                createdTime,
+                payload: {
+                    type: "Content",
+                    parentMessageIndex: null,
+                    content: {
+                        doc: createSimpleMessageContent("Test message content 1"),
+                        references: emptyContentReferences,
+                    },
+                    contentUpdatedTime: null,
+                },
+            }),
+        ],
+        otherReferencedComments: [],
+        lastCommentChangeTime: null,
+    });
+
+    expect(
+        await connection1.procedures.getCommentsFromStart({
+            commentThreadId,
+            limit: 100,
+            afterCommentIndex: 0,
+            beforeCommentIndex: null,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        comments: [],
+        otherReferencedComments: [],
+        lastCommentChangeTime: null,
+    });
+
+    expect(
+        await connection2.procedures.getCommentsFromStart({
+            commentThreadId,
+            limit: 100,
+            afterCommentIndex: 0,
+            beforeCommentIndex: null,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        comments: [],
+        otherReferencedComments: [],
+        lastCommentChangeTime: null,
+    });
+
+    expect(
+        await connection1.procedures.getCommentsFromStart({
+            commentThreadId,
+            limit: 0,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        comments: [],
+        otherReferencedComments: [],
+        lastCommentChangeTime: null,
+    });
+
+    expect(
+        await connection2.procedures.getCommentsFromStart({
+            commentThreadId,
+            limit: 0,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        comments: [],
+        otherReferencedComments: [],
+        lastCommentChangeTime: null,
+    });
+
+    expect(
+        await connection1.procedures.getCommentsFromEnd({
+            commentThreadId,
+            limit: 100,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        comments: [
+            new DocumentCommentModel({
+                documentId: document.id,
+                commentThreadId,
+                index: 0,
+                author: session1.account,
+                createdTime,
+                payload: {
+                    type: "Content",
+                    parentMessageIndex: null,
+                    content: {
+                        doc: createSimpleMessageContent("Test message content 1"),
+                        references: emptyContentReferences,
+                    },
+                    contentUpdatedTime: null,
+                },
+            }),
+        ],
+        otherReferencedComments: [],
+        lastCommentChangeTime: null,
+    });
+
+    expect(
+        await connection2.procedures.getCommentsFromEnd({
+            commentThreadId,
+            limit: 100,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        comments: [
+            new DocumentCommentModel({
+                documentId: document.id,
+                commentThreadId,
+                index: 0,
+                author: session1.account,
+                createdTime,
+                payload: {
+                    type: "Content",
+                    parentMessageIndex: null,
+                    content: {
+                        doc: createSimpleMessageContent("Test message content 1"),
+                        references: emptyContentReferences,
+                    },
+                    contentUpdatedTime: null,
+                },
+            }),
+        ],
+        otherReferencedComments: [],
+        lastCommentChangeTime: null,
+    });
+
+    expect(
+        await connection1.procedures.getCommentsFromEnd({
+            commentThreadId,
+            limit: 100,
+            afterCommentIndex: null,
+            beforeCommentIndex: 0,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        comments: [],
+        otherReferencedComments: [],
+        lastCommentChangeTime: null,
+    });
+
+    expect(
+        await connection2.procedures.getCommentsFromEnd({
+            commentThreadId,
+            limit: 100,
+            afterCommentIndex: null,
+            beforeCommentIndex: 0,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        comments: [],
+        otherReferencedComments: [],
+        lastCommentChangeTime: null,
+    });
+
+    expect(
+        await connection1.procedures.getCommentsFromEnd({
+            commentThreadId,
+            limit: 0,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        comments: [],
+        otherReferencedComments: [],
+        lastCommentChangeTime: null,
+    });
+
+    expect(
+        await connection2.procedures.getCommentsFromEnd({
+            commentThreadId,
+            limit: 0,
+            afterCommentIndex: null,
+            beforeCommentIndex: null,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        comments: [],
+        otherReferencedComments: [],
+        lastCommentChangeTime: null,
+    });
 });
