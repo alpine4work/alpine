@@ -69,6 +69,19 @@ export function useContentEditorDebugTools(viewRef: RefObject<EditorView>) {
             return {
                 view,
                 simulateTyping,
+
+                // Playwright tests use this method to select text. Removing it will break
+                // those tests.
+                setTextSelection: (from: number, to?: number) => {
+                    view.dispatch(
+                        view.state.tr.setSelection(
+                            new TextSelection(
+                                view.state.doc.resolve(from),
+                                typeof to === "number" ? view.state.doc.resolve(to) : undefined,
+                            ),
+                        ),
+                    );
+                },
             };
         }, [viewRef]),
     );

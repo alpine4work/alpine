@@ -695,6 +695,7 @@ function DocumentContentEditorStateful({
             <Box
                 ref={editorContainerRef}
                 id={editorContainerId}
+                data-testid="DocumentContentEditorMain"
                 flexGrow="1"
                 position="relative"
                 zIndex="0"
@@ -722,7 +723,7 @@ function DocumentContentEditorStateful({
                             if (
                                 createCommentThread &&
                                 sidebarState.isOpen &&
-                                sidebarState.animationState === null
+                                sidebarState.animationState !== "Closing"
                             ) {
                                 // `<ContentEditorCommentInput>` will wait on this promise before closing after
                                 // creating a comment thread when it exists. If the sidebar is not already open

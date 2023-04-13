@@ -12,6 +12,8 @@ ts_playwright_tests(
         # Peeks only work on desktop.
         "chat/chat_peek.spec.ts": ["webkit_mobile"],
         "documents/document_peek.spec.ts": ["webkit_mobile"],
+        # We have not mobile optimized document comments yet.
+        "documents/document_comments.spec.ts": ["webkit_mobile"],
     },
     deps = [
         "//:node_modules/@types/node",

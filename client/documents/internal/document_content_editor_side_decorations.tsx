@@ -125,6 +125,9 @@ function DocumentContentEditorCommentThreadSideDecoration({
 
     return (
         <Box
+            data-testid={`DocumentContentEditorCommentThreadSideDecoration:${Array.from(
+                commentThreadIds,
+            ).join(",")}`}
             position="absolute"
             display="flex"
             alignItems="center"
