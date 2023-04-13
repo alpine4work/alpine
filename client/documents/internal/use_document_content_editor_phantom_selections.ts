@@ -6,7 +6,7 @@ import {ContentEditorPhantomSelection} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {DocumentContent} from "~/shared/content/document_content_schema";
 import {defaultThemeColor, themeColors} from "~/shared/design/theme_colors";
-import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_schema";
+import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_protocol";
 import {Lazy} from "~/shared/helpers/control/lazy";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
 import {WebSocketConnectionId} from "~/shared/id/types/id_types";

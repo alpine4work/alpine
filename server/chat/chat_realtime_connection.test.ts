@@ -5,24 +5,21 @@ import {
     sendChatMessage,
     updateChatMessageContent,
 } from "~/server/dynamo/chat_table";
-import {RequestContext} from "~/server/dynamo/context/request_context";
-import {testMessagingRealtimeImplementation} from "~/server/dynamo/test_helpers/jest/test_messaging_realtime_implementation";
+import {
+    TestMessagingRealtimeConnectionProcedures,
+    testMessagingRealtimeImplementation,
+} from "~/server/dynamo/test_helpers/jest/test_messaging_realtime_implementation";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
-import {cast} from "~/shared/helpers/control/cast";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {generateId} from "~/shared/id/id";
 import {ChatId} from "~/shared/id/types/id_types";
-import {MessagingRealtimeMessageFromClient} from "~/shared/messaging/messaging_realtime_schema";
 import {ChatMessageModel} from "~/shared/models/chat_model";
 
 const context = createTestContext();
 
 type TestChatRealtimeConnection = {
     readonly actualConnection: ChatRealtimeConnection;
-    handleMessage(
-        context: RequestContext,
-        message: MessagingRealtimeMessageFromClient,
-    ): Promise<void>;
+    readonly procedures: TestMessagingRealtimeConnectionProcedures<ChatMessageModel>;
 };
 
 testMessagingRealtimeImplementation<ChatId, TestChatRealtimeConnection>(context, {
@@ -42,30 +39,23 @@ testMessagingRealtimeImplementation<ChatId, TestChatRealtimeConnection>(context,
     createRealtimeConnection({
         spaceId,
         roomKey: chatId,
-        sendMessage,
-        sendMessageToOthers,
+        sendEvent,
+        sendEventToOthers,
         iterateOtherConnections,
     }) {
         const connection = new ChatRealtimeConnection({
             connectionId: generateId(),
             spaceId,
             chatId,
-            sendMessage: (context, message) => {
-                cast<"ChatMessages">(message.type);
-                return sendMessage(context, message.message);
-            },
-            sendMessageToOthers: (context, message) => {
-                cast<"ChatMessages">(message.type);
-                return sendMessageToOthers(context, message.message);
-            },
+            sendEvent,
+            sendEventToOthers,
             iterateOtherConnections: () =>
                 mapIterable(iterateOtherConnections(), connection => connection.actualConnection),
         });
 
         return {
             actualConnection: connection,
-            handleMessage: (context, message) =>
-                connection.handleMessage(context, {type: "ChatMessages", message}),
+            procedures: connection.procedures,
         };
     },
     createMessageModel({roomKey: chatId, index, createdTime, author, payload}) {

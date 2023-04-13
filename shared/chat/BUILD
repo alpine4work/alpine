@@ -4,6 +4,7 @@ ts_project(
     name = "chat",
     visibility = ["//visibility:public"],
     deps = [
+        "//shared/cloudflare",
         "//shared/content",
         "//shared/error",
         "//shared/id",

@@ -22,10 +22,7 @@ import {
     DocumentContentProsemirrorSchema as schema,
 } from "~/shared/content/document_content_schema";
 import {createSimpleMessageContent} from "~/shared/content/message_content_schema";
-import {
-    DocumentCollaborationMessageFromClient,
-    DocumentCollaborationMessageFromServer,
-} from "~/shared/documents/document_collaboration_schema";
+import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol";
 import {NotFoundError} from "~/shared/error/error";
 import {wait} from "~/shared/helpers/async/wait";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
@@ -60,8 +57,7 @@ function textSlice(text: string) {
 
 function waitForPersistance(
     connection: WebSocketServerTestConnection<
-        DocumentCollaborationMessageFromClient,
-        DocumentCollaborationMessageFromServer,
+        typeof DocumentCollaborationProtocol,
         DocumentCollaborationConnection
     >,
     version: number,
@@ -72,13 +68,13 @@ function waitForPersistance(
             return;
         }
 
-        const unsubscribe = connection.subscribeToMessages(message => {
-            if (message.type === "PersistedContent" && message.newVersion >= version) {
+        const unsubscribe = connection.subscribeToEvents(event => {
+            if (event.type === "PersistedContent" && event.newVersion >= version) {
                 unsubscribe();
                 resolve();
-            } else if (message.type === "Error") {
+            } else if (event.type === "Error") {
                 unsubscribe();
-                reject(message.error);
+                reject(event.error);
             }
         });
     });
@@ -93,8 +89,7 @@ test("can update document content", async () => {
     const client1Id = generateId<ContentEditorClientId>();
     const connection1 = await connectForTest(context.request(session1), document.id);
 
-    await connection1.sendMessage({
-        type: "BackfillRequest",
+    await connection1.procedures.backfill({
         version: 0,
     });
 
@@ -105,8 +100,7 @@ test("can update document content", async () => {
             .toJSON(),
     });
 
-    await connection1.sendMessage({
-        type: "UpdateContent",
+    await connection1.procedures.updateContent({
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
         clientId: client1Id,
@@ -126,8 +120,7 @@ test("can update document content", async () => {
             .toJSON(),
     });
 
-    await connection1.sendMessage({
-        type: "UpdateContent",
+    await connection1.procedures.updateContent({
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
         clientId: client1Id,
@@ -147,8 +140,7 @@ test("can update document content", async () => {
             .toJSON(),
     });
 
-    await connection1.sendMessage({
-        type: "UpdateContent",
+    await connection1.procedures.updateContent({
         version: 2,
         steps: [new ReplaceStep(5, 5, textSlice("c"))],
         clientId: client1Id,
@@ -179,24 +171,18 @@ test("will optimistically update the document and then persist later", async () 
     const connection1 = await connectForTest(context.request(session1), document.id);
     const connection2 = await connectForTest(context.request(session2), document.id);
 
-    await connection1.sendMessage({
-        type: "BackfillRequest",
+    await connection1.procedures.backfill({
         version: 0,
     });
 
-    await connection2.sendMessage({
-        type: "BackfillRequest",
+    await connection2.procedures.backfill({
         version: 0,
     });
-
-    // Ignore backfill response message.
-    connection2.takeMessages();
 
     const pausePromise =
         documentCollaborationContentManagerBeforePersistTestCheckpoint.pauseForTest(document.id);
 
-    await connection1.sendMessage({
-        type: "UpdateContent",
+    await connection1.procedures.updateContent({
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
         clientId: client1Id,
@@ -204,8 +190,7 @@ test("will optimistically update the document and then persist later", async () 
         updateOurPresenceState: {state: null},
     });
 
-    await connection1.sendMessage({
-        type: "UpdateContent",
+    await connection1.procedures.updateContent({
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
         clientId: client1Id,
@@ -213,8 +198,7 @@ test("will optimistically update the document and then persist later", async () 
         updateOurPresenceState: {state: null},
     });
 
-    await connection1.sendMessage({
-        type: "UpdateContent",
+    await connection1.procedures.updateContent({
         version: 2,
         steps: [new ReplaceStep(5, 5, textSlice("c"))],
         clientId: client1Id,
@@ -224,7 +208,7 @@ test("will optimistically update the document and then persist later", async () 
 
     const {unpause} = await pausePromise;
 
-    expect(connection2.takeMessages()).toEqual([
+    expect(connection2.takeEvents()).toEqual([
         {
             type: "UpdateContentWithoutPersistence",
             newVersion: 1,
@@ -271,7 +255,7 @@ test("will optimistically update the document and then persist later", async () 
             .toJSON(),
     });
 
-    expect(connection2.takeMessages()).toEqual([
+    expect(connection2.takeEvents()).toEqual([
         {
             type: "PersistedContent",
             newVersion: 1,
@@ -295,24 +279,18 @@ test("will not batch updates from different accounts when persisting", async () 
     const connection2 = await connectForTest(context.request(session2), document.id);
     const connection3 = await connectForTest(context.request(session2), document.id);
 
-    await connection1.sendMessage({
-        type: "BackfillRequest",
+    await connection1.procedures.backfill({
         version: 0,
     });
 
-    await connection2.sendMessage({
-        type: "BackfillRequest",
+    await connection2.procedures.backfill({
         version: 0,
     });
-
-    // Ignore backfill response message.
-    connection2.takeMessages();
 
     const pausePromise =
         documentCollaborationContentManagerBeforePersistTestCheckpoint.pauseForTest(document.id);
 
-    await connection1.sendMessage({
-        type: "UpdateContent",
+    await connection1.procedures.updateContent({
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
         clientId: client1Id,
@@ -320,8 +298,7 @@ test("will not batch updates from different accounts when persisting", async () 
         updateOurPresenceState: {state: null},
     });
 
-    await connection1.sendMessage({
-        type: "UpdateContent",
+    await connection1.procedures.updateContent({
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
         clientId: client1Id,
@@ -329,8 +306,7 @@ test("will not batch updates from different accounts when persisting", async () 
         updateOurPresenceState: {state: null},
     });
 
-    await connection3.sendMessage({
-        type: "UpdateContent",
+    await connection3.procedures.updateContent({
         version: 2,
         steps: [new ReplaceStep(5, 5, textSlice("c"))],
         clientId: client3Id,
@@ -340,7 +316,7 @@ test("will not batch updates from different accounts when persisting", async () 
 
     const {unpause} = await pausePromise;
 
-    expect(connection2.takeMessages()).toEqual([
+    expect(connection2.takeEvents()).toEqual([
         {
             type: "UpdateContentWithoutPersistence",
             newVersion: 1,
@@ -387,7 +363,7 @@ test("will not batch updates from different accounts when persisting", async () 
             .toJSON(),
     });
 
-    expect(connection2.takeMessages()).toEqual([
+    expect(connection2.takeEvents()).toEqual([
         {
             type: "PersistedContent",
             newVersion: 1,
@@ -422,25 +398,18 @@ test("will respond optimistically with a comment thread even if it has not been 
     const connection1 = await connectForTest(context.request(session1), document.id);
     const connection2 = await connectForTest(context.request(session2), document.id);
 
-    await connection1.sendMessage({
-        type: "BackfillRequest",
+    await connection1.procedures.backfill({
         version: 0,
     });
 
-    await connection2.sendMessage({
-        type: "BackfillRequest",
+    await connection2.procedures.backfill({
         version: 0,
     });
-
-    // Ignore backfill response message.
-    connection1.takeMessages();
-    connection2.takeMessages();
 
     const pausePromise =
         documentCollaborationContentManagerBeforePersistTestCheckpoint.pauseForTest(document.id);
 
-    await connection1.sendMessage({
-        type: "UpdateContent",
+    await connection1.procedures.updateContent({
         version: 1,
         steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
         clientId: client1Id,
@@ -455,7 +424,7 @@ test("will respond optimistically with a comment thread even if it has not been 
 
     const {unpause} = await pausePromise;
 
-    expect(connection1.takeMessages()).toEqual([
+    expect(connection1.takeEvents()).toEqual([
         {
             type: "UpdateContentWithoutPersistence",
             newVersion: 2,
@@ -477,7 +446,7 @@ test("will respond optimistically with a comment thread even if it has not been 
         },
     ]);
 
-    expect(connection2.takeMessages()).toEqual([
+    expect(connection2.takeEvents()).toEqual([
         {
             type: "UpdateContentWithoutPersistence",
             newVersion: 2,
@@ -518,14 +487,14 @@ test("will respond optimistically with a comment thread even if it has not been 
         }),
     ).not.toBeNull();
 
-    expect(connection1.takeMessages()).toEqual([
+    expect(connection1.takeEvents()).toEqual([
         {
             type: "PersistedContent",
             newVersion: 2,
         },
     ]);
 
-    expect(connection2.takeMessages()).toEqual([
+    expect(connection2.takeEvents()).toEqual([
         {
             type: "PersistedContent",
             newVersion: 2,
@@ -551,19 +520,14 @@ test("will respond optimistically to backfills with a comment thread even if it 
     const client1Id = generateId<ContentEditorClientId>();
     const connection1 = await connectForTest(context.request(session1), document.id);
 
-    await connection1.sendMessage({
-        type: "BackfillRequest",
+    await connection1.procedures.backfill({
         version: 0,
     });
-
-    // Ignore backfill response message.
-    connection1.takeMessages();
 
     const pausePromise =
         documentCollaborationContentManagerBeforePersistTestCheckpoint.pauseForTest(document.id);
 
-    await connection1.sendMessage({
-        type: "UpdateContent",
+    await connection1.procedures.updateContent({
         version: 1,
         steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
         clientId: client1Id,
@@ -578,7 +542,7 @@ test("will respond optimistically to backfills with a comment thread even if it 
 
     const {unpause} = await pausePromise;
 
-    expect(connection1.takeMessages()).toEqual([
+    expect(connection1.takeEvents()).toEqual([
         {
             type: "UpdateContentWithoutPersistence",
             newVersion: 2,
@@ -601,42 +565,37 @@ test("will respond optimistically to backfills with a comment thread even if it 
     ]);
 
     const connection2 = await connectForTest(context.request(session2), document.id);
-    await connection2.sendMessage({
-        type: "BackfillRequest",
-        version: 1,
+
+    expect(
+        await connection2.procedures.backfill({
+            version: 1,
+        }),
+    ).toEqual({
+        newVersion: 2,
+        steps: [
+            {
+                clientId: client1Id,
+                step: new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId})),
+                invertedStep: new RemoveMarkStep(10, 15, schema.mark("comment", {commentThreadId})),
+            },
+        ],
+        stepsContentReferences: {
+            ...emptyDocumentContentReferences,
+            commentThreadById: new Map([
+                [
+                    commentThreadId,
+                    {
+                        commentCount: 1,
+                        commentAuthors: [session1.account],
+                    },
+                ],
+            ]),
+        },
+        presenceStates: [],
+        rememberInvertedSteps: [],
     });
 
-    expect(connection2.takeMessages()).toEqual([
-        {
-            type: "BackfillResponse",
-            newVersion: 2,
-            steps: [
-                {
-                    clientId: client1Id,
-                    step: new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId})),
-                    invertedStep: new RemoveMarkStep(
-                        10,
-                        15,
-                        schema.mark("comment", {commentThreadId}),
-                    ),
-                },
-            ],
-            stepsContentReferences: {
-                ...emptyDocumentContentReferences,
-                commentThreadById: new Map([
-                    [
-                        commentThreadId,
-                        {
-                            commentCount: 1,
-                            commentAuthors: [session1.account],
-                        },
-                    ],
-                ]),
-            },
-            presenceStates: [],
-            rememberInvertedSteps: [],
-        },
-    ]);
+    expect(connection2.takeEvents()).toEqual([]);
 
     expect(
         await getDocumentComment(context.request(session1), {
@@ -657,14 +616,14 @@ test("will respond optimistically to backfills with a comment thread even if it 
         }),
     ).not.toBeNull();
 
-    expect(connection1.takeMessages()).toEqual([
+    expect(connection1.takeEvents()).toEqual([
         {
             type: "PersistedContent",
             newVersion: 2,
         },
     ]);
 
-    expect(connection2.takeMessages()).toEqual([
+    expect(connection2.takeEvents()).toEqual([
         {
             type: "PersistedContent",
             newVersion: 2,
@@ -718,22 +677,19 @@ test("when comment threads are added back to the document they will be loaded", 
     const connection1 = await connectForTest(context.request(session1), document.id);
     const connection2 = await connectForTest(context.request(session2), document.id);
 
-    await connection1.sendMessage({
-        type: "BackfillRequest",
+    await connection1.procedures.backfill({
         version: 0,
     });
 
-    await connection2.sendMessage({
-        type: "BackfillRequest",
+    await connection2.procedures.backfill({
         version: 0,
     });
 
     // Ignore backfill response message.
-    connection1.takeMessages();
-    connection2.takeMessages();
+    connection1.takeEvents();
+    connection2.takeEvents();
 
-    await connection1.sendMessage({
-        type: "UpdateContent",
+    await connection1.procedures.updateContent({
         version: 3,
         steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
         clientId: client1Id,
@@ -746,7 +702,7 @@ test("when comment threads are added back to the document they will be loaded", 
     expect(
         // Message order is not deterministic. We do not delay persistence on loading
         // data necessary from the database.
-        connection1.takeMessages().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+        connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
             type: "PersistedContent",
@@ -776,7 +732,7 @@ test("when comment threads are added back to the document they will be loaded", 
     expect(
         // Message order is not deterministic. We do not delay persistence on loading
         // data necessary from the database.
-        connection2.takeMessages().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+        connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
             type: "PersistedContent",
@@ -823,22 +779,19 @@ test("comment thread can be optimistic at first and then loaded from the databas
     const connection1 = await connectForTest(context.request(session1), document.id);
     const connection2 = await connectForTest(context.request(session2), document.id);
 
-    await connection1.sendMessage({
-        type: "BackfillRequest",
+    await connection1.procedures.backfill({
         version: 0,
     });
 
-    await connection2.sendMessage({
-        type: "BackfillRequest",
+    await connection2.procedures.backfill({
         version: 0,
     });
 
     // Ignore backfill response message.
-    connection1.takeMessages();
-    connection2.takeMessages();
+    connection1.takeEvents();
+    connection2.takeEvents();
 
-    await connection1.sendMessage({
-        type: "UpdateContent",
+    await connection1.procedures.updateContent({
         version: 1,
         steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
         clientId: client1Id,
@@ -860,8 +813,7 @@ test("comment thread can be optimistic at first and then loaded from the databas
         content: createSimpleMessageContent("Test message content 2"),
     });
 
-    await connection1.sendMessage({
-        type: "UpdateContent",
+    await connection1.procedures.updateContent({
         version: 2,
         steps: [new RemoveMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
         clientId: client1Id,
@@ -871,8 +823,7 @@ test("comment thread can be optimistic at first and then loaded from the databas
 
     await waitForPersistance(connection1, 3);
 
-    await connection1.sendMessage({
-        type: "UpdateContent",
+    await connection1.procedures.updateContent({
         version: 3,
         steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
         clientId: client1Id,
@@ -885,7 +836,7 @@ test("comment thread can be optimistic at first and then loaded from the databas
     expect(
         // Message order is not deterministic. We do not delay persistence on loading
         // data necessary from the database.
-        connection1.takeMessages().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+        connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
             type: "PersistedContent",
@@ -961,7 +912,7 @@ test("comment thread can be optimistic at first and then loaded from the databas
     expect(
         // Message order is not deterministic. We do not delay persistence on loading
         // data necessary from the database.
-        connection2.takeMessages().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+        connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
             type: "PersistedContent",
@@ -1054,34 +1005,23 @@ test("can create comments in comment threads", async () => {
     const connection1 = await connectForTest(context.request(session1), document.id);
     const connection2 = await connectForTest(context.request(session2), document.id);
 
-    await connection1.sendMessage({
-        type: "BackfillRequest",
+    await connection1.procedures.backfill({
         version: 0,
     });
 
-    await connection2.sendMessage({
-        type: "BackfillRequest",
+    await connection2.procedures.backfill({
         version: 0,
     });
-
-    // Ignore backfill response message.
-    connection1.takeMessages();
-    connection2.takeMessages();
 
     await expect(
-        connection1.sendMessage({
-            type: "Comments",
+        connection1.procedures.createComment({
             commentThreadId,
-            message: {
-                type: "CreateMessage",
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("Test message content 2"),
-            },
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("Test message content 2"),
         }),
     ).rejects.toThrow(NotFoundError);
 
-    await connection1.sendMessage({
-        type: "UpdateContent",
+    await connection1.procedures.updateContent({
         version: 1,
         steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
         clientId: client1Id,
@@ -1099,7 +1039,7 @@ test("can create comments in comment threads", async () => {
     expect(
         // Message order is not deterministic. We do not delay persistence on loading
         // data necessary from the database.
-        connection1.takeMessages().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+        connection1.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
             type: "PersistedContent",
@@ -1129,7 +1069,7 @@ test("can create comments in comment threads", async () => {
     expect(
         // Message order is not deterministic. We do not delay persistence on loading
         // data necessary from the database.
-        connection2.takeMessages().sort((a, b) => defaultCompareStrings(a.type, b.type)),
+        connection2.takeEvents().sort((a, b) => defaultCompareStrings(a.type, b.type)),
     ).toEqual([
         {
             type: "PersistedContent",
@@ -1156,21 +1096,17 @@ test("can create comments in comment threads", async () => {
         },
     ]);
 
-    await connection1.sendMessage({
-        type: "Comments",
+    await connection1.procedures.createComment({
         commentThreadId,
-        message: {
-            type: "CreateMessage",
-            parentMessageIndex: null,
-            content: createSimpleMessageContent("Test message content 2"),
-        },
+        parentCommentIndex: null,
+        content: createSimpleMessageContent("Test message content 2"),
     });
 
-    expect(connection1.takeMessages()).toEqual([
+    expect(connection1.takeEvents()).toEqual([
         {
             type: "Comments",
             commentThreadId,
-            message: {
+            event: {
                 type: "NewMessage",
                 message: new DocumentCommentModel({
                     documentId: document.id,
@@ -1193,11 +1129,11 @@ test("can create comments in comment threads", async () => {
         },
     ]);
 
-    expect(connection2.takeMessages()).toEqual([
+    expect(connection2.takeEvents()).toEqual([
         {
             type: "Comments",
             commentThreadId,
-            message: {
+            event: {
                 type: "NewMessage",
                 message: new DocumentCommentModel({
                     documentId: document.id,
@@ -1220,125 +1156,103 @@ test("can create comments in comment threads", async () => {
         },
     ]);
 
-    await connection1.sendMessage({
-        type: "Comments",
-        commentThreadId,
-        message: {
-            type: "BackfillMessagesRequest",
-            clientMessageCount: 1,
-            clientLastMessageChangeTime: null,
-            newMessageLimit: 100,
-        },
+    expect(
+        await connection1.procedures.backfillComments({
+            commentThreadId,
+            clientCommentCount: 1,
+            clientLastCommentChangeTime: null,
+            newCommentLimit: 100,
+        }),
+    ).toEqual({
+        commentCount: 2,
+        lastCommentChangeTime: null,
+        newComments: [
+            new DocumentCommentModel({
+                documentId: document.id,
+                commentThreadId,
+                index: 1,
+                author: session1.account,
+                createdTime: expect.any(Date),
+                payload: {
+                    type: "Content",
+                    parentMessageIndex: null,
+                    content: {
+                        doc: createSimpleMessageContent("Test message content 2"),
+                        references: emptyContentReferences,
+                    },
+                    contentUpdatedTime: null,
+                },
+            }),
+        ],
+        newOtherReferencedComments: [],
+        commentChangesResult: {type: "Available", changes: []},
+        typingStateByConnectionId: new Map(),
     });
 
-    await connection2.sendMessage({
-        type: "Comments",
-        commentThreadId,
-        message: {
-            type: "BackfillMessagesRequest",
-            clientMessageCount: 0,
-            clientLastMessageChangeTime: null,
-            newMessageLimit: 100,
-        },
+    expect(
+        await connection2.procedures.backfillComments({
+            commentThreadId,
+            clientCommentCount: 0,
+            clientLastCommentChangeTime: null,
+            newCommentLimit: 100,
+        }),
+    ).toEqual({
+        commentCount: 2,
+        lastCommentChangeTime: null,
+        newComments: [
+            new DocumentCommentModel({
+                documentId: document.id,
+                commentThreadId,
+                index: 0,
+                author: session1.account,
+                createdTime: expect.any(Date),
+                payload: {
+                    type: "Content",
+                    parentMessageIndex: null,
+                    content: {
+                        doc: createSimpleMessageContent("Test message content 1"),
+                        references: emptyContentReferences,
+                    },
+                    contentUpdatedTime: null,
+                },
+            }),
+            new DocumentCommentModel({
+                documentId: document.id,
+                commentThreadId,
+                index: 1,
+                author: session1.account,
+                createdTime: expect.any(Date),
+                payload: {
+                    type: "Content",
+                    parentMessageIndex: null,
+                    content: {
+                        doc: createSimpleMessageContent("Test message content 2"),
+                        references: emptyContentReferences,
+                    },
+                    contentUpdatedTime: null,
+                },
+            }),
+        ],
+        newOtherReferencedComments: [],
+        commentChangesResult: {type: "Available", changes: []},
+        typingStateByConnectionId: new Map(),
     });
 
-    expect(connection1.takeMessages()).toEqual([
+    expect(connection1.takeEvents()).toEqual([]);
+
+    expect(connection2.takeEvents()).toEqual([]);
+
+    await connection1.procedures.createComment({
+        commentThreadId,
+        parentCommentIndex: null,
+        content: createSimpleMessageContent("Test message content 3"),
+    });
+
+    expect(connection1.takeEvents()).toEqual([
         {
             type: "Comments",
             commentThreadId,
-            message: {
-                type: "BackfillMessagesResponse",
-                messageCount: 2,
-                lastMessageChangeTime: null,
-                newMessages: [
-                    new DocumentCommentModel({
-                        documentId: document.id,
-                        commentThreadId,
-                        index: 1,
-                        author: session1.account,
-                        createdTime: expect.any(Date),
-                        payload: {
-                            type: "Content",
-                            parentMessageIndex: null,
-                            content: {
-                                doc: createSimpleMessageContent("Test message content 2"),
-                                references: emptyContentReferences,
-                            },
-                            contentUpdatedTime: null,
-                        },
-                    }),
-                ],
-                newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
-                typingStateByConnectionId: new Map(),
-            },
-        },
-    ]);
-
-    expect(connection2.takeMessages()).toEqual([
-        {
-            type: "Comments",
-            commentThreadId,
-            message: {
-                type: "BackfillMessagesResponse",
-                messageCount: 2,
-                lastMessageChangeTime: null,
-                newMessages: [
-                    new DocumentCommentModel({
-                        documentId: document.id,
-                        commentThreadId,
-                        index: 0,
-                        author: session1.account,
-                        createdTime: expect.any(Date),
-                        payload: {
-                            type: "Content",
-                            parentMessageIndex: null,
-                            content: {
-                                doc: createSimpleMessageContent("Test message content 1"),
-                                references: emptyContentReferences,
-                            },
-                            contentUpdatedTime: null,
-                        },
-                    }),
-                    new DocumentCommentModel({
-                        documentId: document.id,
-                        commentThreadId,
-                        index: 1,
-                        author: session1.account,
-                        createdTime: expect.any(Date),
-                        payload: {
-                            type: "Content",
-                            parentMessageIndex: null,
-                            content: {
-                                doc: createSimpleMessageContent("Test message content 2"),
-                                references: emptyContentReferences,
-                            },
-                            contentUpdatedTime: null,
-                        },
-                    }),
-                ],
-                newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
-                typingStateByConnectionId: new Map(),
-            },
-        },
-    ]);
-
-    await connection1.sendMessage({
-        type: "Comments",
-        commentThreadId,
-        message: {
-            type: "CreateMessage",
-            parentMessageIndex: null,
-            content: createSimpleMessageContent("Test message content 3"),
-        },
-    });
-
-    expect(connection1.takeMessages()).toEqual([
-        {
-            type: "Comments",
-            commentThreadId,
-            message: {
+            event: {
                 type: "NewMessage",
                 message: new DocumentCommentModel({
                     documentId: document.id,
@@ -1361,11 +1275,11 @@ test("can create comments in comment threads", async () => {
         },
     ]);
 
-    expect(connection2.takeMessages()).toEqual([
+    expect(connection2.takeEvents()).toEqual([
         {
             type: "Comments",
             commentThreadId,
-            message: {
+            event: {
                 type: "NewMessage",
                 message: new DocumentCommentModel({
                     documentId: document.id,
@@ -1408,37 +1322,30 @@ test("if comment thread is persisting we will wait to create messages but respon
     const connection1 = await connectForTest(context.request(session1), document.id);
     const connection2 = await connectForTest(context.request(session2), document.id);
 
-    await connection1.sendMessage({
-        type: "BackfillRequest",
+    await connection1.procedures.backfill({
         version: 0,
     });
 
-    await connection2.sendMessage({
-        type: "BackfillRequest",
+    await connection2.procedures.backfill({
         version: 0,
     });
 
     // Ignore backfill response message.
-    connection1.takeMessages();
-    connection2.takeMessages();
+    connection1.takeEvents();
+    connection2.takeEvents();
 
     await expect(
-        connection1.sendMessage({
-            type: "Comments",
+        connection1.procedures.createComment({
             commentThreadId,
-            message: {
-                type: "CreateMessage",
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("Test message content 2"),
-            },
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("Test message content 2"),
         }),
     ).rejects.toThrow(NotFoundError);
 
     const pausePromise =
         documentCollaborationContentManagerBeforePersistTestCheckpoint.pauseForTest(document.id);
 
-    await connection1.sendMessage({
-        type: "UpdateContent",
+    await connection1.procedures.updateContent({
         version: 1,
         steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
         clientId: client1Id,
@@ -1453,7 +1360,7 @@ test("if comment thread is persisting we will wait to create messages but respon
 
     const {unpause} = await pausePromise;
 
-    expect(connection1.takeMessages()).toEqual([
+    expect(connection1.takeEvents()).toEqual([
         {
             type: "UpdateContentWithoutPersistence",
             newVersion: 2,
@@ -1475,7 +1382,7 @@ test("if comment thread is persisting we will wait to create messages but respon
         },
     ]);
 
-    expect(connection2.takeMessages()).toEqual([
+    expect(connection2.takeEvents()).toEqual([
         {
             type: "UpdateContentWithoutPersistence",
             newVersion: 2,
@@ -1497,94 +1404,71 @@ test("if comment thread is persisting we will wait to create messages but respon
         },
     ]);
 
-    const createMessagePromise = connection2.sendMessage({
-        type: "Comments",
+    const createMessagePromise = connection2.procedures.createComment({
         commentThreadId,
-        message: {
-            type: "CreateMessage",
-            parentMessageIndex: null,
-            content: createSimpleMessageContent("Test message content 2"),
-        },
+        parentCommentIndex: null,
+        content: createSimpleMessageContent("Test message content 2"),
     });
 
-    expect(connection1.takeMessages()).toEqual([]);
-    expect(connection2.takeMessages()).toEqual([]);
+    expect(connection1.takeEvents()).toEqual([]);
+    expect(connection2.takeEvents()).toEqual([]);
 
-    await connection1.sendMessage({
-        type: "Comments",
-        commentThreadId,
-        message: {
-            type: "BackfillMessagesRequest",
-            clientMessageCount: 1,
-            clientLastMessageChangeTime: null,
-            newMessageLimit: 100,
-        },
-    });
-
-    await connection2.sendMessage({
-        type: "Comments",
-        commentThreadId,
-        message: {
-            type: "BackfillMessagesRequest",
-            clientMessageCount: 0,
-            clientLastMessageChangeTime: null,
-            newMessageLimit: 100,
-        },
-    });
-
-    expect(connection1.takeMessages()).toEqual([
-        {
-            type: "Comments",
+    expect(
+        await connection1.procedures.backfillComments({
             commentThreadId,
-            message: {
-                type: "BackfillMessagesResponse",
-                messageCount: 1,
-                lastMessageChangeTime: null,
-                newMessages: [],
-                newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
-                typingStateByConnectionId: new Map(),
-            },
-        },
-    ]);
+            clientCommentCount: 1,
+            clientLastCommentChangeTime: null,
+            newCommentLimit: 100,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        lastCommentChangeTime: null,
+        newComments: [],
+        newOtherReferencedComments: [],
+        commentChangesResult: {type: "Available", changes: []},
+        typingStateByConnectionId: new Map(),
+    });
 
-    expect(connection2.takeMessages()).toEqual([
-        {
-            type: "Comments",
+    expect(
+        await connection2.procedures.backfillComments({
             commentThreadId,
-            message: {
-                type: "BackfillMessagesResponse",
-                messageCount: 1,
-                lastMessageChangeTime: null,
-                newMessages: [
-                    new DocumentCommentModel({
-                        documentId: document.id,
-                        commentThreadId,
-                        index: 0,
-                        author: session1.account,
-                        createdTime: expect.any(Date),
-                        payload: {
-                            type: "Content",
-                            parentMessageIndex: null,
-                            content: {
-                                doc: createSimpleMessageContent("Test message content 1"),
-                                references: emptyContentReferences,
-                            },
-                            contentUpdatedTime: null,
-                        },
-                    }),
-                ],
-                newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
-                typingStateByConnectionId: new Map(),
-            },
-        },
-    ]);
+            clientCommentCount: 0,
+            clientLastCommentChangeTime: null,
+            newCommentLimit: 100,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        lastCommentChangeTime: null,
+        newComments: [
+            new DocumentCommentModel({
+                documentId: document.id,
+                commentThreadId,
+                index: 0,
+                author: session1.account,
+                createdTime: expect.any(Date),
+                payload: {
+                    type: "Content",
+                    parentMessageIndex: null,
+                    content: {
+                        doc: createSimpleMessageContent("Test message content 1"),
+                        references: emptyContentReferences,
+                    },
+                    contentUpdatedTime: null,
+                },
+            }),
+        ],
+        newOtherReferencedComments: [],
+        commentChangesResult: {type: "Available", changes: []},
+        typingStateByConnectionId: new Map(),
+    });
+
+    expect(connection1.takeEvents()).toEqual([]);
+    expect(connection2.takeEvents()).toEqual([]);
 
     unpause();
     await createMessagePromise;
 
-    expect(connection1.takeMessages()).toEqual([
+    expect(connection1.takeEvents()).toEqual([
         {
             type: "PersistedContent",
             newVersion: 2,
@@ -1592,7 +1476,7 @@ test("if comment thread is persisting we will wait to create messages but respon
         {
             type: "Comments",
             commentThreadId,
-            message: {
+            event: {
                 type: "NewMessage",
                 message: new DocumentCommentModel({
                     documentId: document.id,
@@ -1615,7 +1499,7 @@ test("if comment thread is persisting we will wait to create messages but respon
         },
     ]);
 
-    expect(connection2.takeMessages()).toEqual([
+    expect(connection2.takeEvents()).toEqual([
         {
             type: "PersistedContent",
             newVersion: 2,
@@ -1623,7 +1507,7 @@ test("if comment thread is persisting we will wait to create messages but respon
         {
             type: "Comments",
             commentThreadId,
-            message: {
+            event: {
                 type: "NewMessage",
                 message: new DocumentCommentModel({
                     documentId: document.id,
@@ -1666,29 +1550,19 @@ test("if comment thread update message hasn't been processed we will wait to res
     const connection1 = await connectForTest(context.request(session1), document.id);
     const connection2 = await connectForTest(context.request(session2), document.id);
 
-    await connection1.sendMessage({
-        type: "BackfillRequest",
+    await connection1.procedures.backfill({
         version: 0,
     });
 
-    await connection2.sendMessage({
-        type: "BackfillRequest",
+    await connection2.procedures.backfill({
         version: 0,
     });
-
-    // Ignore backfill response message.
-    connection1.takeMessages();
-    connection2.takeMessages();
 
     await expect(
-        connection1.sendMessage({
-            type: "Comments",
+        connection1.procedures.createComment({
             commentThreadId,
-            message: {
-                type: "CreateMessage",
-                parentMessageIndex: null,
-                content: createSimpleMessageContent("Test message content 2"),
-            },
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("Test message content 2"),
         }),
     ).rejects.toThrow(NotFoundError);
 
@@ -1697,8 +1571,7 @@ test("if comment thread update message hasn't been processed we will wait to res
     const pausePromise2 =
         documentCollaborationContentManagerBeforePersistTestCheckpoint.pauseForTest(document.id);
 
-    const updateMessagePromise = connection1.sendMessage({
-        type: "UpdateContent",
+    const updateMessagePromise = connection1.procedures.updateContent({
         version: 1,
         steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
         clientId: client1Id,
@@ -1713,18 +1586,14 @@ test("if comment thread update message hasn't been processed we will wait to res
 
     const {unpause: unpause1} = await pausePromise1;
 
-    expect(connection1.takeMessages()).toEqual([]);
-    expect(connection2.takeMessages()).toEqual([]);
+    expect(connection1.takeEvents()).toEqual([]);
+    expect(connection2.takeEvents()).toEqual([]);
 
-    const backfillMessagePromise = connection1.sendMessage({
-        type: "Comments",
+    const backfillMessagePromise = connection1.procedures.backfillComments({
         commentThreadId,
-        message: {
-            type: "BackfillMessagesRequest",
-            clientMessageCount: 1,
-            clientLastMessageChangeTime: null,
-            newMessageLimit: 100,
-        },
+        clientCommentCount: 1,
+        clientLastCommentChangeTime: null,
+        newCommentLimit: 100,
     });
 
     // NOTE(calebmer): This is a little janky but what we want to test is that
@@ -1736,131 +1605,116 @@ test("if comment thread update message hasn't been processed we will wait to res
     // that we got no new messages.
     await wait(1000);
 
-    expect(connection1.takeMessages()).toEqual([]);
-    expect(connection2.takeMessages()).toEqual([]);
+    expect(connection1.takeEvents()).toEqual([]);
+    expect(connection2.takeEvents()).toEqual([]);
 
     unpause1();
     await updateMessagePromise;
-    await backfillMessagePromise;
+
+    expect(connection1.takeEvents()).toEqual([
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 2,
+            steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            stepsContentReferences: {
+                ...emptyDocumentContentReferences,
+                commentThreadById: new Map([
+                    [
+                        commentThreadId,
+                        {
+                            commentCount: 1,
+                            commentAuthors: [session1.account],
+                        },
+                    ],
+                ]),
+            },
+            clientId: client1Id,
+            updateOtherPresenceState: {connectionId: connection1.id, state: null},
+        },
+    ]);
+
+    expect(connection2.takeEvents()).toEqual([
+        {
+            type: "UpdateContentWithoutPersistence",
+            newVersion: 2,
+            steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            stepsContentReferences: {
+                ...emptyDocumentContentReferences,
+                commentThreadById: new Map([
+                    [
+                        commentThreadId,
+                        {
+                            commentCount: 1,
+                            commentAuthors: [session1.account],
+                        },
+                    ],
+                ]),
+            },
+            clientId: client1Id,
+            updateOtherPresenceState: {connectionId: connection1.id, state: null},
+        },
+    ]);
+
+    expect(await backfillMessagePromise).toEqual({
+        commentCount: 1,
+        lastCommentChangeTime: null,
+        newComments: [],
+        newOtherReferencedComments: [],
+        commentChangesResult: {type: "Available", changes: []},
+        typingStateByConnectionId: new Map(),
+    });
+
     const {unpause: unpause2} = await pausePromise2;
 
-    expect(connection1.takeMessages()).toEqual([
-        {
-            type: "UpdateContentWithoutPersistence",
-            newVersion: 2,
-            steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
-            stepsContentReferences: {
-                ...emptyDocumentContentReferences,
-                commentThreadById: new Map([
-                    [
-                        commentThreadId,
-                        {
-                            commentCount: 1,
-                            commentAuthors: [session1.account],
-                        },
-                    ],
-                ]),
-            },
-            clientId: client1Id,
-            updateOtherPresenceState: {connectionId: connection1.id, state: null},
-        },
-        {
-            type: "Comments",
+    expect(connection1.takeEvents()).toEqual([]);
+    expect(connection2.takeEvents()).toEqual([]);
+
+    expect(
+        await connection2.procedures.backfillComments({
             commentThreadId,
-            message: {
-                type: "BackfillMessagesResponse",
-                messageCount: 1,
-                lastMessageChangeTime: null,
-                newMessages: [],
-                newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
-                typingStateByConnectionId: new Map(),
-            },
-        },
-    ]);
-
-    expect(connection2.takeMessages()).toEqual([
-        {
-            type: "UpdateContentWithoutPersistence",
-            newVersion: 2,
-            steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
-            stepsContentReferences: {
-                ...emptyDocumentContentReferences,
-                commentThreadById: new Map([
-                    [
-                        commentThreadId,
-                        {
-                            commentCount: 1,
-                            commentAuthors: [session1.account],
-                        },
-                    ],
-                ]),
-            },
-            clientId: client1Id,
-            updateOtherPresenceState: {connectionId: connection1.id, state: null},
-        },
-    ]);
-
-    await connection2.sendMessage({
-        type: "Comments",
-        commentThreadId,
-        message: {
-            type: "BackfillMessagesRequest",
-            clientMessageCount: 0,
-            clientLastMessageChangeTime: null,
-            newMessageLimit: 100,
-        },
+            clientCommentCount: 0,
+            clientLastCommentChangeTime: null,
+            newCommentLimit: 100,
+        }),
+    ).toEqual({
+        commentCount: 1,
+        lastCommentChangeTime: null,
+        newComments: [
+            new DocumentCommentModel({
+                documentId: document.id,
+                commentThreadId,
+                index: 0,
+                author: session1.account,
+                createdTime: expect.any(Date),
+                payload: {
+                    type: "Content",
+                    parentMessageIndex: null,
+                    content: {
+                        doc: createSimpleMessageContent("Test message content 1"),
+                        references: emptyContentReferences,
+                    },
+                    contentUpdatedTime: null,
+                },
+            }),
+        ],
+        newOtherReferencedComments: [],
+        commentChangesResult: {type: "Available", changes: []},
+        typingStateByConnectionId: new Map(),
     });
 
-    const createMessagePromise = connection2.sendMessage({
-        type: "Comments",
+    const createMessagePromise = connection2.procedures.createComment({
         commentThreadId,
-        message: {
-            type: "CreateMessage",
-            parentMessageIndex: null,
-            content: createSimpleMessageContent("Test message content 2"),
-        },
+        parentCommentIndex: null,
+        content: createSimpleMessageContent("Test message content 2"),
     });
 
-    expect(connection1.takeMessages()).toEqual([]);
-
-    expect(connection2.takeMessages()).toEqual([
-        {
-            type: "Comments",
-            commentThreadId,
-            message: {
-                type: "BackfillMessagesResponse",
-                messageCount: 1,
-                lastMessageChangeTime: null,
-                newMessages: [
-                    new DocumentCommentModel({
-                        documentId: document.id,
-                        commentThreadId,
-                        index: 0,
-                        author: session1.account,
-                        createdTime: expect.any(Date),
-                        payload: {
-                            type: "Content",
-                            parentMessageIndex: null,
-                            content: {
-                                doc: createSimpleMessageContent("Test message content 1"),
-                                references: emptyContentReferences,
-                            },
-                            contentUpdatedTime: null,
-                        },
-                    }),
-                ],
-                newOtherReferencedMessages: [],
-                messageChangesResult: {type: "Available", changes: []},
-                typingStateByConnectionId: new Map(),
-            },
-        },
-    ]);
+    expect(connection1.takeEvents()).toEqual([]);
+    expect(connection2.takeEvents()).toEqual([]);
 
     unpause2();
     await createMessagePromise;
 
-    expect(connection1.takeMessages()).toEqual([
+    expect(connection1.takeEvents()).toEqual([
         {
             type: "PersistedContent",
             newVersion: 2,
@@ -1868,7 +1722,7 @@ test("if comment thread update message hasn't been processed we will wait to res
         {
             type: "Comments",
             commentThreadId,
-            message: {
+            event: {
                 type: "NewMessage",
                 message: new DocumentCommentModel({
                     documentId: document.id,
@@ -1891,7 +1745,7 @@ test("if comment thread update message hasn't been processed we will wait to res
         },
     ]);
 
-    expect(connection2.takeMessages()).toEqual([
+    expect(connection2.takeEvents()).toEqual([
         {
             type: "PersistedContent",
             newVersion: 2,
@@ -1899,7 +1753,7 @@ test("if comment thread update message hasn't been processed we will wait to res
         {
             type: "Comments",
             commentThreadId,
-            message: {
+            event: {
                 type: "NewMessage",
                 message: new DocumentCommentModel({
                     documentId: document.id,

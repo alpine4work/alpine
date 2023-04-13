@@ -13,6 +13,7 @@ import {
 } from "~/server/dynamo/context/request_context";
 import {createServerTracer} from "~/server/tracer/server_tracer";
 import {traceFetchResponse} from "~/server/tracer/trace_fetch_response";
+import {WebSocketProtocolBase} from "~/shared/cloudflare/web_socket_protocol";
 import {CacheContextModule} from "~/shared/context/cache_context_module";
 import {Context} from "~/shared/context/context";
 import {ProcessContextModule} from "~/shared/context/process_context_module";
@@ -58,11 +59,7 @@ export function createDurableObject<
         fetch(context: RequestContext, request: Request): MaybePromise<Response>;
         connectForTest?(
             context: RequestContext,
-        ): WebSocketServerTestConnection<
-            {type: string},
-            {type: string},
-            WebSocketServerConnectionBase<{type: string}>
-        >;
+        ): WebSocketServerTestConnection<WebSocketProtocolBase, WebSocketServerConnectionBase<any>>;
     },
 >({
     serviceName,

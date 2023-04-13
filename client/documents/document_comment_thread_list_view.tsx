@@ -18,11 +18,10 @@ import {
     DocumentCommentThreadPreview,
     documentCommentThreadPreviewHeight,
 } from "~/client/documents/internal/document_comment_thread_preview";
-import {
-    SendCommentThreadMessageFunction,
-    SubscribeToCommentThreadMessagesFunction,
-} from "~/client/documents/internal/use_document_content_editor_web_socket";
+import {DocumentContentEditorWebSocketClientProcedures} from "~/client/documents/internal/document_content_editor_web_socket_client";
+import {SubscribeToCommentThreadEventsFunction} from "~/client/documents/internal/use_document_content_editor_web_socket";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
+import {MemoObject} from "~/client/helpers/types/memo_object";
 import {useStableJsonValue} from "~/client/helpers/use_stable_json_value";
 import {useStableValue} from "~/client/helpers/use_stable_value";
 import {useMessageEditing} from "~/client/messaging/message_editing";
@@ -185,8 +184,8 @@ function DocumentCommentThreadListView(
         onCommentThreadSnippetPress,
         initialCommentThreadsResult,
         isConnected,
-        sendCommentThreadMessage,
-        subscribeToCommentThreadMessages,
+        procedures,
+        subscribeToCommentThreadEvents,
         withMobileLayout = false,
         messageViewMarginX,
     }: {
@@ -207,8 +206,8 @@ function DocumentCommentThreadListView(
 
         // Realtime props that should come from `useDocumentContentEditorWebSocket()`.
         isConnected: boolean;
-        sendCommentThreadMessage: SendCommentThreadMessageFunction;
-        subscribeToCommentThreadMessages: SubscribeToCommentThreadMessagesFunction;
+        procedures: MemoObject<DocumentContentEditorWebSocketClientProcedures>;
+        subscribeToCommentThreadEvents: SubscribeToCommentThreadEventsFunction;
 
         /**
          * Use the mobile layout for a document comment thread list view even
@@ -438,12 +437,12 @@ function DocumentCommentThreadListView(
     //
     // 2. We want only one message to be editable at a time.
     const messageEditing = useMessageEditing<DocumentCommentRoomKey>({
-        onUpdateMessageContent: async ({roomKey, messageIndex, content}) => {
+        onUpdateMessageContent: async ({roomKey, messageIndex: commentIndex, content}) => {
             const [, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
-            await sendCommentThreadMessage(commentThreadId, {
-                type: "UpdateMessageContent",
-                messageIndex,
+            await procedures.updateCommentContent({
+                commentThreadId,
+                commentIndex,
                 content,
             });
         },
@@ -582,9 +581,9 @@ function DocumentCommentThreadListView(
                             );
                         },
                         onDeleteMessage: async message => {
-                            await sendCommentThreadMessage(item.commentThread.id, {
-                                type: "DeleteMessage",
-                                messageIndex: message.index,
+                            await procedures.deleteComment({
+                                commentThreadId: item.commentThread.id,
+                                commentIndex: message.index,
                             });
                         },
                         getMessageUrl: commentIndex => {
@@ -619,7 +618,7 @@ function DocumentCommentThreadListView(
             highlightComment,
             handleJumpToComment,
             messageViewMarginX,
-            sendCommentThreadMessage,
+            procedures,
             space.id,
         ],
     );
@@ -695,8 +694,8 @@ function DocumentCommentThreadListView(
                                 }}
                                 onJumpToComment={handleJumpToComment}
                                 isConnected={isConnected}
-                                sendCommentThreadMessage={sendCommentThreadMessage}
-                                subscribeToCommentThreadMessages={subscribeToCommentThreadMessages}
+                                procedures={procedures}
+                                subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
                                 marginX={messageViewMarginX}
                             />
                         );

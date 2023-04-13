@@ -14,9 +14,9 @@ import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint";
 import {DocumentContent, isDocumentContent} from "~/shared/content/document_content_schema";
 import {MessageContent} from "~/shared/content/message_content_schema";
 import {
-    DocumentCollaborationMessageFromServer,
+    DocumentCollaborationEvent,
     DocumentCollaborationPresenceState,
-} from "~/shared/documents/document_collaboration_schema";
+} from "~/shared/documents/document_collaboration_protocol";
 import {FailedPreconditionError, InternalError, InvalidArgumentError} from "~/shared/error/error";
 import {isSystemError} from "~/shared/error/is_system_error_code";
 import {AsyncMutex} from "~/shared/helpers/async/async_mutex";
@@ -59,9 +59,9 @@ export class DocumentCollaborationContentManager {
     public readonly spaceId: SpaceId;
     public readonly id: DocumentId;
     public readonly stepCache: DocumentCollaborationStepCache;
-    private readonly _sendMessageToAll: (
+    private readonly _sendEventToAll: (
         context: ProcessContext,
-        message: DocumentCollaborationMessageFromServer,
+        event: DocumentCollaborationEvent,
     ) => void;
     private readonly _killProcess: (context: ProcessContext) => void;
 
@@ -116,17 +116,14 @@ export class DocumentCollaborationContentManager {
         id,
         initialVersion,
         initialContent,
-        sendMessageToAll,
+        sendEventToAll,
         killProcess,
     }: {
         spaceId: SpaceId;
         id: DocumentId;
         initialVersion: number;
         initialContent: DocumentContent;
-        sendMessageToAll: (
-            context: ProcessContext,
-            message: DocumentCollaborationMessageFromServer,
-        ) => void;
+        sendEventToAll: (context: ProcessContext, event: DocumentCollaborationEvent) => void;
         killProcess: (context: ProcessContext) => void;
     }) {
         this.spaceId = spaceId;
@@ -137,7 +134,7 @@ export class DocumentCollaborationContentManager {
         });
         this._persistedVersion = initialVersion;
         this.stepCache = new DocumentCollaborationStepCache(id, initialVersion);
-        this._sendMessageToAll = sendMessageToAll;
+        this._sendEventToAll = sendEventToAll;
         this._killProcess = killProcess;
     }
 
@@ -420,7 +417,7 @@ export class DocumentCollaborationContentManager {
                                             optimisticCommentThread.persistedPromiseResolver.resolve();
                                         }
 
-                                        this._sendMessageToAll(context, {
+                                        this._sendEventToAll(context, {
                                             type: "PersistedContent",
                                             newVersion: oldVersion + nextSteps.length,
                                         });
@@ -446,7 +443,7 @@ export class DocumentCollaborationContentManager {
                                             );
                                         }
 
-                                        this._sendMessageToAll(context, {
+                                        this._sendEventToAll(context, {
                                             type: "Error",
                                             error,
                                         });
@@ -481,7 +478,7 @@ export class DocumentCollaborationContentManager {
         // However, this means you don't get ordering guarantees around
         // `UpdateContentWithoutPersistence`! You may receive these events in any order
         // because the timing of loading content references will vary.
-        this._sendMessageToAll(context, {
+        this._sendEventToAll(context, {
             type: "UpdateContentWithoutPersistence",
             newVersion: oldVersion + steps.length,
             steps,

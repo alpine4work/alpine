@@ -181,7 +181,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
     },
     webSocket: {
         connectionId: Schema.id(),
-        messageType: IdentifierStringSchema,
+        messageType: Schema.string,
     },
 };
 

@@ -18,10 +18,10 @@ import {
     DocumentContentEditorSideDecoration,
     DocumentContentEditorSideDecorations,
 } from "~/client/documents/internal/document_content_editor_side_decorations";
+import {DocumentContentEditorWebSocketClientProcedures} from "~/client/documents/internal/document_content_editor_web_socket_client";
 import {useDocumentContentEditorPhantomSelections} from "~/client/documents/internal/use_document_content_editor_phantom_selections";
 import {
-    SendCommentThreadMessageFunction,
-    SubscribeToCommentThreadMessagesFunction,
+    SubscribeToCommentThreadEventsFunction,
     useDocumentContentEditorWebSocket,
 } from "~/client/documents/internal/use_document_content_editor_web_socket";
 import {isMac} from "~/client/helpers/browser/is_mac";
@@ -29,6 +29,7 @@ import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
+import {MemoObject} from "~/client/helpers/types/memo_object";
 import {usePromise} from "~/client/helpers/use_promise";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
@@ -160,8 +161,8 @@ function DocumentContentEditorStateful({
         otherPresenceStateByConnectionId,
         rememberedSteps,
         toggleShouldConnect,
-        sendCommentThreadMessage,
-        subscribeToCommentThreadMessages,
+        procedures,
+        subscribeToCommentThreadEvents,
     } = useDocumentContentEditorWebSocket(initialDocument.id, initialDocument);
 
     const phantomSelections = useDocumentContentEditorPhantomSelections({
@@ -822,8 +823,8 @@ function DocumentContentEditorStateful({
                         commentThreadId={sidebarState.commentThreadId}
                         initialDataPromise={sidebarState.dataPromise}
                         isConnected={isConnected}
-                        sendCommentThreadMessage={sendCommentThreadMessage}
-                        subscribeToCommentThreadMessages={subscribeToCommentThreadMessages}
+                        procedures={procedures}
+                        subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
                         decorations={decorations}
                         commentThreadListViewRef={commentThreadListViewRef}
                         onClose={() => {
@@ -913,8 +914,8 @@ function DocumentContentEditorSidebar({
     onCommentThreadSnippetPress,
     initialDataPromise,
     isConnected,
-    sendCommentThreadMessage,
-    subscribeToCommentThreadMessages,
+    procedures,
+    subscribeToCommentThreadEvents,
     decorations,
     commentThreadListViewRef,
     onClose,
@@ -926,8 +927,8 @@ function DocumentContentEditorSidebar({
     onCommentThreadSnippetPress: Memo<(commentThreadId: DocumentCommentThreadId) => void>;
     initialDataPromise: PromiseImmediate<DocumentContentEditorSidebarData>;
     isConnected: boolean;
-    sendCommentThreadMessage: SendCommentThreadMessageFunction;
-    subscribeToCommentThreadMessages: SubscribeToCommentThreadMessagesFunction;
+    procedures: MemoObject<DocumentContentEditorWebSocketClientProcedures>;
+    subscribeToCommentThreadEvents: SubscribeToCommentThreadEventsFunction;
     decorations: ReadonlyArray<DocumentContentEditorSideDecoration>;
     commentThreadListViewRef: Ref<DocumentCommentThreadListViewRef>;
     onClose: () => void;
@@ -1072,8 +1073,8 @@ function DocumentContentEditorSidebar({
                                         initialDataResult.value.initialOptimisticComments,
                                 }}
                                 isConnected={isConnected}
-                                sendCommentThreadMessage={sendCommentThreadMessage}
-                                subscribeToCommentThreadMessages={subscribeToCommentThreadMessages}
+                                procedures={procedures}
+                                subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
                                 withMobileLayout={true}
                                 // Slightly reduce the amount of margin on messages in a comment thread
                                 // because we have less space.
@@ -1088,8 +1089,8 @@ function DocumentContentEditorSidebar({
                         initialDataResult,
                         isConnected,
                         onCommentThreadSnippetPress,
-                        sendCommentThreadMessage,
-                        subscribeToCommentThreadMessages,
+                        procedures,
+                        subscribeToCommentThreadEvents,
                     ],
                 )}
             </Box>

@@ -14,7 +14,7 @@ import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/de
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
 import {AccountId, WebSocketConnectionId} from "~/shared/id/types/id_types";
-import {MessagingTypingState} from "~/shared/messaging/messaging_realtime_schema";
+import {MessagingTypingState} from "~/shared/messaging/messaging_realtime_protocol";
 import {messageViewBubbleBorderRadius} from "~/shared/messaging/messaging_shared_styles";
 import {AccountModel} from "~/shared/models/account_model";
 

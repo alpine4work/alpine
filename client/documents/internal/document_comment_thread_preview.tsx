@@ -9,7 +9,7 @@ import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_be
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {convertRemLengthToPx, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {safe, safeId, safeNumber} from "~/shared/helpers/string/safe_string";
+import {safe, safeAlphanumericString, safeNumber} from "~/shared/helpers/string/safe_string";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
 import {
     DocumentCommentThreadModel,
@@ -139,7 +139,7 @@ export function DocumentCommentThreadPreview({
                         )}
                     </Box>
                     <ScriptBeforeAppInitialRender
-                        script={safe`var previewContentElement = document.currentScript.previousElementSibling; var previewElement = previewContentElement.parentElement; var commentElement = previewContentElement.querySelector('[data-comment="${safeId(
+                        script={safe`var previewContentElement = document.currentScript.previousElementSibling; var previewElement = previewContentElement.parentElement; var commentElement = previewContentElement.querySelector('[data-comment="${safeAlphanumericString(
                             commentThread.id,
                         )}"]'); if (commentElement) { var previewRect = previewElement.getBoundingClientRect(); var commentRect = commentElement.getBoundingClientRect(); previewElement.scrollTop = commentRect.y - (previewRect.y - previewElement.scrollTop) - ${safeNumber(
                             commentOffset,

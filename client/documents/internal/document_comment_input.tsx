@@ -1,5 +1,8 @@
-import {Memo, RefObject, useCallback} from "react";
+import {RefObject, useCallback} from "react";
 import {useAppContext} from "~/client/context/app_context";
+import {DocumentContentEditorWebSocketClientProcedures} from "~/client/documents/internal/document_content_editor_web_socket_client";
+import {SubscribeToCommentThreadEventsFunction} from "~/client/documents/internal/use_document_content_editor_web_socket";
+import {MemoObject} from "~/client/helpers/types/memo_object";
 import {MessageEditing} from "~/client/messaging/message_editing";
 import {MessageInput} from "~/client/messaging/message_input";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list";
@@ -8,11 +11,7 @@ import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages";
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view";
 import {Spacing} from "~/shared/design/spacing";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
-import {
-    MessagingRealtimeMessageFromClient,
-    MessagingRealtimeMessageFromServer,
-} from "~/shared/messaging/messaging_realtime_schema";
+import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol";
 import {
     DocumentCommentModel,
     DocumentCommentRoomKey,
@@ -29,8 +28,8 @@ export function DocumentCommentInput({
     onClearReplyingToComment,
     onJumpToComment,
     isConnected,
-    sendCommentThreadMessage,
-    subscribeToCommentThreadMessages,
+    procedures,
+    subscribeToCommentThreadEvents,
     marginX,
 }: {
     viewRef: RefObject<VirtualizedScrollViewRef>;
@@ -44,18 +43,8 @@ export function DocumentCommentInput({
     onClearReplyingToComment: () => void;
     onJumpToComment: (comment: DocumentCommentModel) => void;
     isConnected: boolean;
-    sendCommentThreadMessage: Memo<
-        (
-            commentThreadId: DocumentCommentThreadId,
-            message: MessagingRealtimeMessageFromClient,
-        ) => Promise<void>
-    >;
-    subscribeToCommentThreadMessages: Memo<
-        (
-            commentThreadId: DocumentCommentThreadId,
-            subscriber: (message: MessagingRealtimeMessageFromServer<DocumentCommentModel>) => void,
-        ) => () => void
-    >;
+    procedures: MemoObject<DocumentContentEditorWebSocketClientProcedures>;
+    subscribeToCommentThreadEvents: SubscribeToCommentThreadEventsFunction;
     marginX?: Spacing;
 }) {
     const context = useAppContext();
@@ -65,18 +54,41 @@ export function DocumentCommentInput({
     useMessagingRealtime({
         messages: comments,
         onUpdateMessages: onUpdateComments,
-        isRealtimeConnected: isConnected,
-        sendRealtimeMessage: useCallback(
-            message => sendCommentThreadMessage(commentThread.id, message),
-            [commentThread.id, sendCommentThreadMessage],
+        isConnected,
+        backfillMessages: useCallback(
+            async ({
+                clientMessageCount: clientCommentCount,
+                clientLastMessageChangeTime: clientLastCommentChangeTime,
+                newMessageLimit: newCommentLimit,
+            }) => {
+                const {
+                    commentCount,
+                    lastCommentChangeTime,
+                    newComments,
+                    newOtherReferencedComments,
+                    commentChangesResult,
+                    typingStateByConnectionId,
+                } = await procedures.backfillComments({
+                    commentThreadId: commentThread.id,
+                    clientCommentCount,
+                    clientLastCommentChangeTime,
+                    newCommentLimit,
+                });
+                return {
+                    messageCount: commentCount,
+                    lastMessageChangeTime: lastCommentChangeTime,
+                    newMessages: newComments,
+                    newOtherReferencedMessages: newOtherReferencedComments,
+                    messageChangesResult: commentChangesResult,
+                    typingStateByConnectionId,
+                };
+            },
+            [commentThread.id, procedures],
         ),
-        subscribeToRealtimeMessages: useCallback(
-            (
-                subscriber: (
-                    message: MessagingRealtimeMessageFromServer<DocumentCommentModel>,
-                ) => void,
-            ) => subscribeToCommentThreadMessages(commentThread.id, subscriber),
-            [commentThread.id, subscribeToCommentThreadMessages],
+        subscribeToEvents: useCallback(
+            (subscriber: (message: MessagingRealtimeEvent<DocumentCommentModel>) => void) =>
+                subscribeToCommentThreadEvents(commentThread.id, subscriber),
+            [commentThread.id, subscribeToCommentThreadEvents],
         ),
     });
 
@@ -94,9 +106,10 @@ export function DocumentCommentInput({
             messages={comments}
             onUpdateMessages={onUpdateComments}
             createMessage={async input => {
-                await sendCommentThreadMessage(commentThread.id, {
-                    type: "CreateMessage",
-                    ...input,
+                await procedures.createComment({
+                    commentThreadId: commentThread.id,
+                    parentCommentIndex: input.parentMessageIndex,
+                    content: input.content,
                 });
             }}
             messageEditing={messageEditing}
@@ -104,7 +117,8 @@ export function DocumentCommentInput({
             onClearReplyingToMessage={onClearReplyingToComment}
             onJumpToMessage={onJumpToComment}
             onShowTypingIndicator={() => {
-                sendCommentThreadMessage(commentThread.id, {type: "StartTyping"})
+                procedures
+                    .startTypingInCommentInput({commentThreadId: commentThread.id})
                     // Don't show an error updating typing indicators to the user. We will see an
                     // error in our logs but the user won't see any weird behavior if the
                     // request fails.
@@ -115,7 +129,8 @@ export function DocumentCommentInput({
                     );
             }}
             onHideTypingIndicator={() => {
-                sendCommentThreadMessage(commentThread.id, {type: "StopTyping"})
+                procedures
+                    .stopTypingInCommentInput({commentThreadId: commentThread.id})
                     // Don't show an error updating typing indicators to the user. We will see an
                     // error in our logs but the user won't see any weird behavior if the
                     // request fails.

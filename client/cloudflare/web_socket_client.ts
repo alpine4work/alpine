@@ -1,12 +1,17 @@
 import {WebSocketClientConnection} from "~/client/cloudflare/web_socket_client_connection";
 import {AppContext} from "~/client/context/app_context";
 import {ValueStore} from "~/client/helpers/store/value_store";
+import {
+    WebSocketProtocolBase,
+    WebSocketProtocolEventType,
+    WebSocketProtocolProceduresType,
+} from "~/shared/cloudflare/web_socket_protocol";
 import {InternalError} from "~/shared/error/error";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {UnionSchema} from "~/shared/schema/schema";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
 
 const reconnectTimeoutBaseMs = 1200;
 const maxReconnectTimeoutMs = 2500;
@@ -14,53 +19,55 @@ const reconnectAttemptsBeforeError = 20;
 
 type WebSocketClientDisconnectTransition = "Disconnected" | "DocumentNotVisible";
 
-type WebSocketClientInternalState<
-    MessageFromClient extends {type: string},
-    MessageFromServer extends {type: string},
-> =
+type WebSocketClientInternalState<Protocol extends WebSocketProtocolBase> =
     | {
           readonly type: "Connecting";
-          readonly pendingMessages: Array<{
-              readonly message: MessageFromClient;
-              readonly promiseResolver: PromiseResolver<void>;
+          readonly pendingProcedures: Array<{
+              readonly name: string;
+              readonly input: unknown;
+              readonly outputPromiseResolver: PromiseResolver<unknown>;
           }>;
           readonly disconnect: (transition: WebSocketClientDisconnectTransition) => void;
       }
     | {
           readonly type: "Connected";
-          readonly connection: WebSocketClientConnection<MessageFromClient, MessageFromServer>;
+          readonly connection: WebSocketClientConnection<Protocol>;
           readonly disconnect: (transition: WebSocketClientDisconnectTransition) => void;
       }
     | {
           readonly type: "WaitingToReconnect";
-          readonly pendingMessages: Array<{
-              readonly message: MessageFromClient;
-              readonly promiseResolver: PromiseResolver<void>;
+          readonly pendingProcedures: Array<{
+              readonly name: string;
+              readonly input: unknown;
+              readonly outputPromiseResolver: PromiseResolver<unknown>;
           }>;
           readonly disconnect: (transition: WebSocketClientDisconnectTransition) => void;
       }
     | {
           readonly type: "Error";
           readonly error: unknown;
-          readonly pendingMessages: Array<{
-              readonly message: MessageFromClient;
-              readonly promiseResolver: PromiseResolver<void>;
+          readonly pendingProcedures: Array<{
+              readonly name: string;
+              readonly input: unknown;
+              readonly outputPromiseResolver: PromiseResolver<unknown>;
           }>;
           readonly disconnect: (transition: WebSocketClientDisconnectTransition) => void;
       }
     | {
           readonly type: "DocumentNotVisible";
-          readonly pendingMessages: Array<{
-              readonly message: MessageFromClient;
-              readonly promiseResolver: PromiseResolver<void>;
+          readonly pendingProcedures: Array<{
+              readonly name: string;
+              readonly input: unknown;
+              readonly outputPromiseResolver: PromiseResolver<unknown>;
           }>;
           readonly disconnect: (transition: WebSocketClientDisconnectTransition) => void;
       }
     | {
           readonly type: "Disconnected";
-          readonly pendingMessages: Array<{
-              readonly message: MessageFromClient;
-              readonly promiseResolver: PromiseResolver<void>;
+          readonly pendingProcedures: Array<{
+              readonly name: string;
+              readonly input: unknown;
+              readonly outputPromiseResolver: PromiseResolver<unknown>;
           }>;
       };
 
@@ -91,6 +98,14 @@ export type WebSocketClientState =
           readonly error: unknown;
       };
 
+export type WebSocketClientProcedures<
+    Procedures extends {[name: string]: {input: {}; output: {}}},
+> = {
+    readonly [Name in keyof Procedures & string]: (
+        input: Procedures[Name]["input"],
+    ) => Promise<Procedures[Name]["output"]>;
+};
+
 /**
  * A helper for communicating over WebSockets. See `WebSocketServer` for the
  * server side of this helper.
@@ -110,34 +125,30 @@ export type WebSocketClientState =
  * Manages underlying `WebSocketClientConnection` classes. This class may have
  * many underlying connections over the course of its life.
  */
-export class WebSocketClient<
-    MessageFromClient extends {type: string},
-    MessageFromServer extends {type: string},
-> {
+export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
     private readonly _getContext: () => AppContext;
-    private readonly _messageFromClientSchema: UnionSchema<MessageFromClient>;
-    private readonly _messageFromServerSchema: UnionSchema<MessageFromServer>;
+    private readonly _protocol: Protocol;
     private readonly _url: string;
 
-    private readonly _state = new ValueStore<
-        WebSocketClientInternalState<MessageFromClient, MessageFromServer>
-    >({
+    private readonly _state = new ValueStore<WebSocketClientInternalState<Protocol>>({
         type: "Disconnected",
-        pendingMessages: [],
+        pendingProcedures: [],
     });
 
-    constructor(
-        getContext: () => AppContext,
-        // NOTE(calebmer): Force schemas to be union schemas so the protocol can evolve
-        // in the future.
-        messageFromClientSchema: UnionSchema<MessageFromClient>,
-        messageFromServerSchema: UnionSchema<MessageFromServer>,
-        url: string,
-    ) {
+    public readonly procedures: WebSocketClientProcedures<
+        WebSocketProtocolProceduresType<Protocol>
+    >;
+
+    constructor(getContext: () => AppContext, protocol: Protocol, url: string) {
         this._getContext = getContext;
-        this._messageFromClientSchema = messageFromClientSchema;
-        this._messageFromServerSchema = messageFromServerSchema;
+        this._protocol = protocol;
         this._url = url;
+
+        this.procedures = mapObjectValues(
+            this._protocol.procedureSchemas,
+            (procedureSchema, procedureName) => (input: any) =>
+                this._executeProcedure(procedureName, input),
+        ) as any;
     }
 
     /**
@@ -205,15 +216,14 @@ export class WebSocketClient<
     public connect(): void {
         const previousState = this._state.getSnapshot();
         assert(previousState.type === "Disconnected", "WebSocket is already connected");
-        let pendingMessages = previousState.pendingMessages;
+        let pendingProcedures = previousState.pendingProcedures;
 
         let reconnectAttempts = 0;
 
         const connect = () => {
             const connection = new WebSocketClientConnection(
                 this._getContext,
-                this._messageFromClientSchema,
-                this._messageFromServerSchema,
+                this._protocol,
                 this._url,
             );
 
@@ -227,7 +237,7 @@ export class WebSocketClient<
 
             this._state.set({
                 type: "Connecting",
-                pendingMessages,
+                pendingProcedures,
                 disconnect,
             });
 
@@ -244,12 +254,12 @@ export class WebSocketClient<
                     });
 
                     // Send any pending messages that were queued when we didn't have a connection.
-                    const newPendingMessages = pendingMessages;
-                    pendingMessages = [];
-                    for (const {message, promiseResolver} of newPendingMessages) {
+                    const newPendingProcedures = pendingProcedures;
+                    pendingProcedures = [];
+                    for (const {name, input, outputPromiseResolver} of newPendingProcedures) {
                         connection
-                            .sendMessage(message)
-                            .then(promiseResolver.resolve, promiseResolver.reject);
+                            .executeProcedure(name, input as any)
+                            .then(outputPromiseResolver.resolve, outputPromiseResolver.reject);
                     }
                 },
                 error => {
@@ -284,7 +294,7 @@ export class WebSocketClient<
                 this._state.set({
                     type: "Error",
                     error,
-                    pendingMessages,
+                    pendingProcedures,
                     disconnect: actuallyDisconnect,
                 });
                 return;
@@ -299,7 +309,7 @@ export class WebSocketClient<
 
             this._state.set({
                 type: "WaitingToReconnect",
-                pendingMessages,
+                pendingProcedures,
                 disconnect: transition => {
                     timeout.clear();
                     actuallyDisconnect(transition);
@@ -336,14 +346,14 @@ export class WebSocketClient<
 
                     this._state.set({
                         type: "Disconnected",
-                        pendingMessages,
+                        pendingProcedures,
                     });
                     break;
                 }
                 case "DocumentNotVisible": {
                     this._state.set({
                         type: "DocumentNotVisible",
-                        pendingMessages,
+                        pendingProcedures,
                         disconnect: actuallyDisconnect,
                     });
                     break;
@@ -358,7 +368,7 @@ export class WebSocketClient<
         } else {
             this._state.set({
                 type: "DocumentNotVisible",
-                pendingMessages,
+                pendingProcedures,
                 disconnect: actuallyDisconnect,
             });
         }
@@ -383,25 +393,30 @@ export class WebSocketClient<
     }
 
     /**
-     * Send a message to the WebSocket.
+     * Execute a procedure through the socket.
      *
      * If the WebSocket is not connected then we will queue the message to send
      * when it eventually connects.
      */
-    public sendMessage(message: MessageFromClient): Promise<void> {
+    private _executeProcedure<
+        Name extends keyof WebSocketProtocolProceduresType<Protocol> & string,
+    >(
+        name: Name,
+        input: WebSocketProtocolProceduresType<Protocol>[Name]["input"],
+    ): Promise<WebSocketProtocolProceduresType<Protocol>[Name]["output"]> {
         const state = this._state.getSnapshot();
 
         switch (state.type) {
             case "Connected":
-                return state.connection.sendMessage(message);
+                return state.connection.executeProcedure(name, input);
             case "Connecting":
             case "WaitingToReconnect":
             case "Error":
             case "DocumentNotVisible":
             case "Disconnected": {
-                const promiseResolver = createPromiseResolver();
-                state.pendingMessages.push({message, promiseResolver});
-                return promiseResolver.promise;
+                const outputPromiseResolver = createPromiseResolver<unknown>();
+                state.pendingProcedures.push({name, input, outputPromiseResolver});
+                return outputPromiseResolver.promise as any;
             }
             default:
                 throw exhaustive(state);
@@ -409,20 +424,22 @@ export class WebSocketClient<
     }
 
     /**
-     * Subscribe to messages from our WebSocket.
+     * Subscribe to events from our WebSocket.
      */
-    public subscribeToMessages(listener: (message: MessageFromServer) => void): () => void {
-        let unsubscribeFromMessages: (() => void) | null = null;
+    public subscribeToEvents(
+        listener: (message: WebSocketProtocolEventType<Protocol>) => void,
+    ): () => void {
+        let unsubscribeFromEvents: (() => void) | null = null;
 
         const stateListener = () => {
-            unsubscribeFromMessages?.();
-            unsubscribeFromMessages = null;
+            unsubscribeFromEvents?.();
+            unsubscribeFromEvents = null;
 
             const state = this._state.getSnapshot();
 
             switch (state.type) {
                 case "Connected":
-                    unsubscribeFromMessages = state.connection.subscribeToMessages(listener);
+                    unsubscribeFromEvents = state.connection.subscribeToEvents(listener);
                     break;
                 case "Connecting":
                 case "WaitingToReconnect":
@@ -441,7 +458,7 @@ export class WebSocketClient<
 
         return () => {
             unsubscribeFromState();
-            unsubscribeFromMessages?.();
+            unsubscribeFromEvents?.();
         };
     }
 }

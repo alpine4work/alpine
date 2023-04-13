@@ -47,9 +47,14 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit";
 import {
-    MessagingRealtimeMessageFromClient,
-    MessagingRealtimeMessageFromServer,
-} from "~/shared/messaging/messaging_realtime_schema";
+    BackfillMessagesProcedure,
+    CreateMessageProcedure,
+    DeleteMessageProcedure,
+    MessagingRealtimeEvent,
+    StartTypingInMessageInputProcedure,
+    StopTypingInMessageInputProcedure,
+    UpdateMessageContentProcedure,
+} from "~/shared/messaging/messaging_realtime_protocol";
 import {MessageContentWithReferences, MessageModel} from "~/shared/models/message_model";
 import {ClientInfo} from "~/shared/remix/client_info";
 import {sprinkles} from "~/shared/styles/styles";
@@ -191,9 +196,14 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         isMessageCreationDisabled,
         getMessagesFromStart,
         getMessagesFromEnd,
-        isRealtimeConnected,
-        sendRealtimeMessage,
-        subscribeToRealtimeMessages,
+        backfillMessages,
+        createMessage,
+        updateMessageContent,
+        deleteMessage,
+        startTypingInMessageInput,
+        stopTypingInMessageInput,
+        isConnected,
+        subscribeToEvents,
         getMessageUrl,
         inputRestoreStateRef,
         roomDisplayedCreatedTime,
@@ -283,25 +293,46 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         }>;
 
         /**
+         * Backfill messages and updates we may be missing when connecting to realtime.
+         */
+        backfillMessages: Memo<BackfillMessagesProcedure<Message>>;
+
+        /**
+         * Create a new message in this room.
+         */
+        createMessage: Memo<CreateMessageProcedure>;
+
+        /**
+         * Update the contents of a message.
+         */
+        updateMessageContent: Memo<UpdateMessageContentProcedure>;
+
+        /**
+         * Delete a message.
+         */
+        deleteMessage: Memo<DeleteMessageProcedure>;
+
+        /**
+         * Show a typing indicator to other connected clients for this user.
+         */
+        startTypingInMessageInput: Memo<StartTypingInMessageInputProcedure>;
+
+        /**
+         * Stop showing a typing indicator to other connected clients for this user.
+         */
+        stopTypingInMessageInput: Memo<StopTypingInMessageInputProcedure>;
+
+        /**
          * Do we have a realtime connection to a service implementing our realtime
          * messaging protocol?
          */
-        isRealtimeConnected: boolean;
+        isConnected: boolean;
 
         /**
-         * Send a realtime message to a service implementing our realtime messaging
-         * protocol.
+         * Subscribe to any realtime chat events.
          */
-        sendRealtimeMessage: Memo<(message: MessagingRealtimeMessageFromClient) => Promise<void>>;
-
-        /**
-         * Subscribe to realtime messages from a service implementing our realtime
-         * messaging protocol.
-         */
-        subscribeToRealtimeMessages: Memo<
-            (
-                subscriber: (message: MessagingRealtimeMessageFromServer<Message>) => void,
-            ) => () => void
+        subscribeToEvents: Memo<
+            (subscriber: (event: MessagingRealtimeEvent<Message>) => void) => () => void
         >;
 
         /**
@@ -488,9 +519,9 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     useMessagingRealtime({
         messages: state.messages,
         onUpdateMessages: setMessages,
-        isRealtimeConnected,
-        sendRealtimeMessage,
-        subscribeToRealtimeMessages,
+        isConnected,
+        backfillMessages,
+        subscribeToEvents,
     });
 
     // Manages the editable message.
@@ -499,10 +530,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     // editable at a time.
     const messageEditing = useMessageEditing<RoomKey>({
         onUpdateMessageContent: async input => {
-            await sendRealtimeMessage({
-                type: "UpdateMessageContent",
-                ...input,
-            });
+            await updateMessageContent(input);
         },
     });
 
@@ -541,8 +569,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         onJumpToMessage: handleJumpToMessage,
                         onReplyToMessage: message => setReplyingToMessageIndex(message.index),
                         onDeleteMessage: async message => {
-                            await sendRealtimeMessage({
-                                type: "DeleteMessage",
+                            await deleteMessage({
                                 messageIndex: message.index,
                             });
                         },
@@ -554,6 +581,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             }
         },
         [
+            deleteMessage,
             getMessageUrl,
             handleJumpToMessage,
             highlightMessage,
@@ -562,7 +590,6 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             messageStartOfSentenceNoun,
             randomSeedForShimmer,
             roomDisplayedCreatedTime,
-            sendRealtimeMessage,
             state,
         ],
     );
@@ -591,10 +618,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                 isMessageCreationDisabled={isMessageCreationDisabled}
                 onUpdateMessages={update => setMessages(update)}
                 createMessage={async input => {
-                    await sendRealtimeMessage({
-                        type: "CreateMessage",
-                        ...input,
-                    });
+                    await createMessage(input);
                 }}
                 messageEditing={messageEditing}
                 replyingToMessage={
@@ -605,7 +629,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                 onClearReplyingToMessage={() => setReplyingToMessageIndex(null)}
                 onJumpToMessage={handleJumpToMessage}
                 onShowTypingIndicator={() => {
-                    sendRealtimeMessage({type: "StartTyping"})
+                    startTypingInMessageInput({})
                         // Don't show an error updating typing indicators to the user. We will see an
                         // error in our logs but the user won't see any weird behavior if the
                         // request fails.
@@ -616,7 +640,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         );
                 }}
                 onHideTypingIndicator={() => {
-                    sendRealtimeMessage({type: "StopTyping"})
+                    stopTypingInMessageInput({})
                         // Don't show an error updating typing indicators to the user. We will see an
                         // error in our logs but the user won't see any weird behavior if the
                         // request fails.

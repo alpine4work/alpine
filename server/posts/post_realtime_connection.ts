@@ -1,5 +1,5 @@
+import {WebSocketConnectionProcedures} from "~/server/cloudflare/web_socket_server";
 import {ProcessContext} from "~/server/dynamo/context/process_context";
-import {RequestContext} from "~/server/dynamo/context/request_context";
 import {
     backfillPostComments,
     createPostComment,
@@ -14,14 +14,10 @@ import {
     UpdateMessageContentFunction,
 } from "~/server/messaging/messaging_implementation";
 import {MessagingRealtimeConnection} from "~/server/messaging/messaging_realtime_connection";
-import {cast} from "~/shared/helpers/control/cast";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {PostId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types";
 import {PostCommentModel} from "~/shared/models/post_model";
-import {
-    PostRealtimeMessageFromClient,
-    PostRealtimeMessageFromServer,
-} from "~/shared/posts/post_realtime_schema";
+import {PostRealtimeEvent, PostRealtimeProtocol} from "~/shared/posts/post_realtime_protocol";
 
 export class PostRealtimeConnection {
     private readonly _connection: MessagingRealtimeConnection<PostId, PostCommentModel>;
@@ -30,18 +26,15 @@ export class PostRealtimeConnection {
         connectionId,
         spaceId,
         postId,
-        sendMessage,
-        sendMessageToOthers,
+        sendEvent,
+        sendEventToOthers,
         iterateOtherConnections,
     }: {
         connectionId: WebSocketConnectionId;
         spaceId: SpaceId;
         postId: PostId;
-        sendMessage: (context: ProcessContext, message: PostRealtimeMessageFromServer) => void;
-        sendMessageToOthers: (
-            context: ProcessContext,
-            message: PostRealtimeMessageFromServer,
-        ) => void;
+        sendEvent: (context: ProcessContext, event: PostRealtimeEvent) => void;
+        sendEventToOthers: (context: ProcessContext, event: PostRealtimeEvent) => void;
         iterateOtherConnections: () => Iterable<PostRealtimeConnection>;
     }) {
         this._connection = new MessagingRealtimeConnection({
@@ -49,10 +42,9 @@ export class PostRealtimeConnection {
             spaceId,
             roomKey: postId,
 
-            sendMessage: (context, message) =>
-                sendMessage(context, {type: "PostComments", message}),
-            sendMessageToOthers: (context, message) =>
-                sendMessageToOthers(context, {type: "PostComments", message}),
+            sendEvent: (context, event) => sendEvent(context, {type: "Comments", event}),
+            sendEventToOthers: (context, event) =>
+                sendEventToOthers(context, {type: "Comments", event}),
             iterateOtherConnections: () =>
                 mapIterable(iterateOtherConnections(), connection => connection._connection),
 
@@ -64,16 +56,52 @@ export class PostRealtimeConnection {
         });
     }
 
-    public async handleMessage(
-        context: RequestContext,
-        message: PostRealtimeMessageFromClient,
-    ): Promise<void> {
-        // TypeScript will error if we ever add other message types here. At that point
-        // this code should turn into a switch.
-        cast<"PostComments">(message.type);
+    public readonly procedures: WebSocketConnectionProcedures<typeof PostRealtimeProtocol> = {
+        backfillComments: async (
+            context,
+            {
+                clientCommentCount: clientMessageCount,
+                clientLastCommentChangeTime: clientLastMessageChangeTime,
+                newCommentLimit: newMessageLimit,
+            },
+        ) => {
+            const {
+                messageCount: commentCount,
+                lastMessageChangeTime: lastCommentChangeTime,
+                newMessages: newComments,
+                newOtherReferencedMessages: newOtherReferencedComments,
+                messageChangesResult: commentChangesResult,
+                typingStateByConnectionId,
+            } = await this._connection.backfillMessages(context, {
+                clientMessageCount,
+                clientLastMessageChangeTime,
+                newMessageLimit,
+            });
 
-        return this._connection.handleMessage(context, message.message);
-    }
+            return {
+                commentCount,
+                lastCommentChangeTime,
+                newComments,
+                newOtherReferencedComments,
+                commentChangesResult,
+                typingStateByConnectionId,
+            };
+        },
+
+        createComment: (context, {parentCommentIndex: parentMessageIndex, content}) =>
+            this._connection.createMessage(context, {parentMessageIndex, content}),
+
+        updateCommentContent: (context, {commentIndex: messageIndex, content}) =>
+            this._connection.updateMessageContent(context, {messageIndex, content}),
+
+        deleteComment: (context, {commentIndex: messageIndex}) =>
+            this._connection.deleteMessage(context, {messageIndex}),
+
+        startTypingInCommentInput: (context, input) =>
+            this._connection.startTypingInMessageInput(context, input),
+        stopTypingInCommentInput: (context, input) =>
+            this._connection.stopTypingInMessageInput(context, input),
+    };
 
     public async handleClose(context: ProcessContext) {
         return this._connection.handleClose(context);

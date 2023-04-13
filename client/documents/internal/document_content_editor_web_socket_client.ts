@@ -1,6 +1,10 @@
 import {Selection} from "prosemirror-state";
 import {Step, StepMap} from "prosemirror-transform";
-import {WebSocketClient, WebSocketClientState} from "~/client/cloudflare/web_socket_client";
+import {
+    WebSocketClient,
+    WebSocketClientProcedures,
+    WebSocketClientState,
+} from "~/client/cloudflare/web_socket_client";
 import {
     ContentEditorReferencesAction,
     ContentEditorState,
@@ -9,15 +13,13 @@ import {
 import {AppContext} from "~/client/context/app_context";
 import {Store} from "~/client/helpers/store/store";
 import {ValueStore} from "~/client/helpers/store/value_store";
+import {WebSocketProtocolProceduresType} from "~/shared/cloudflare/web_socket_protocol";
 import {DocumentContent, isDocumentContent} from "~/shared/content/document_content_schema";
 import {MessageContent} from "~/shared/content/message_content_schema";
 import {
-    DocumentCollaborationMessageFromClient,
-    DocumentCollaborationMessageFromClientSchema,
-    DocumentCollaborationMessageFromServer,
-    DocumentCollaborationMessageFromServerSchema,
     DocumentCollaborationPresenceState,
-} from "~/shared/documents/document_collaboration_schema";
+    DocumentCollaborationProtocol,
+} from "~/shared/documents/document_collaboration_protocol";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
@@ -25,16 +27,14 @@ import {Lazy} from "~/shared/helpers/control/lazy";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
+import {pickObject} from "~/shared/helpers/object/pick_object";
 import {
     ContentEditorClientId,
     DocumentCommentThreadId,
     DocumentId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types";
-import {
-    MessagingRealtimeMessageFromClient,
-    MessagingRealtimeMessageFromServer,
-} from "~/shared/messaging/messaging_realtime_schema";
+import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol";
 import {AccountModel} from "~/shared/models/account_model";
 import {
     DocumentCommentModel,
@@ -49,7 +49,7 @@ import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_sele
 export type DocumentContentEditorState = {
     /**
      * We may get `ReceiveSteps` actions out of order (e.g. the server sends an
-     * `UpdateContent` message before a `BackfillResponse` message). If we
+     * `UpdateContent` message before a backfill response). If we
      * see an action for a future version we put it in this array and re-apply the
      * action when older steps are applied.
      */
@@ -548,6 +548,18 @@ function actuallyReduceDocumentContentEditorState(
     }
 }
 
+export type DocumentContentEditorWebSocketClientProcedures = Pick<
+    WebSocketClientProcedures<
+        WebSocketProtocolProceduresType<typeof DocumentCollaborationProtocol>
+    >,
+    | "backfillComments"
+    | "createComment"
+    | "updateCommentContent"
+    | "deleteComment"
+    | "startTypingInCommentInput"
+    | "stopTypingInCommentInput"
+>;
+
 /**
  * Object representing our connection to the document collaboration service for
  * our `<DocumentContentEditor>` component. When connected we will backfill the
@@ -580,12 +592,13 @@ function actuallyReduceDocumentContentEditorState(
  */
 export class DocumentContentEditorWebSocketClient {
     public readonly documentId: DocumentId;
-    private readonly _client: WebSocketClient<
-        DocumentCollaborationMessageFromClient,
-        DocumentCollaborationMessageFromServer
-    >;
+    private readonly _client: WebSocketClient<typeof DocumentCollaborationProtocol>;
     private readonly _state: ValueStore<DocumentContentEditorState>;
     private _disconnect: (() => void) | null = null;
+
+    // We provide access to procedures regarding document comments. Procedures that
+    // update document content can only be called internally within this class.
+    public readonly procedures: DocumentContentEditorWebSocketClientProcedures;
 
     public get state(): Store<DocumentContentEditorState> {
         return this._state;
@@ -599,11 +612,19 @@ export class DocumentContentEditorWebSocketClient {
         this.documentId = initialDocument.id;
         this._client = new WebSocketClient(
             getContext,
-            DocumentCollaborationMessageFromClientSchema,
-            DocumentCollaborationMessageFromServerSchema,
+            DocumentCollaborationProtocol,
             `/durable-objects/documents/${initialDocument.id}`,
         );
         this._state = new ValueStore(getInitialDocumentContentEditorState(initialDocument));
+
+        this.procedures = pickObject(this._client.procedures, [
+            "backfillComments",
+            "createComment",
+            "updateCommentContent",
+            "deleteComment",
+            "startTypingInCommentInput",
+            "stopTypingInCommentInput",
+        ]);
     }
 
     private _dispatchBatch(actions: ReadonlyArray<DocumentContentEditorAction>) {
@@ -634,67 +655,69 @@ export class DocumentContentEditorWebSocketClient {
                 // Whenever we successfully connect to the WebSocket, send a backfill request
                 // so we can get any steps we missed while disconnected from the WebSocket.
                 if (isConnected) {
-                    this._client
-                        .sendMessage({
-                            type: "BackfillRequest",
+                    this._client.procedures
+                        .backfill({
                             version: this._state.getSnapshot().editorState.getVersion(),
                         })
-                        .catch(error => this._dispatch({type: "Error", error}));
+                        .then(
+                            output => {
+                                if (!isConnected) return;
+
+                                // One dispatch call just to make sure React applies these actions atomically
+                                // and doesn't do any scheduling weirdness.
+                                this._dispatchBatch([
+                                    {
+                                        type: "SetAllOtherPresenceStates",
+                                        stateByConnectionId: ImmutableMap.from(
+                                            mapIterable(output.presenceStates, presenceState => [
+                                                presenceState.connectionId,
+                                                presenceState.state,
+                                            ]),
+                                        ),
+                                    },
+                                    {
+                                        type: "ReceiveSteps",
+                                        newVersion: output.newVersion,
+                                        steps: output.steps,
+                                        stepsContentReferences: output.stepsContentReferences,
+                                    },
+
+                                    // Unconditionally run this action even if we have no new remembered steps
+                                    // because it will throw if the editor version in state is not
+                                    // `expectedVersion`. This is a nice way to double check that our previous
+                                    // action actually caught us up.
+                                    {
+                                        type: "AugmentRememberedSteps",
+                                        expectedVersion: output.newVersion,
+                                        startVersion:
+                                            output.newVersion -
+                                            output.steps.length -
+                                            output.rememberInvertedSteps.length,
+                                        invertedSteps: output.rememberInvertedSteps,
+                                    },
+                                ]);
+                            },
+                            error => this._dispatch({type: "Error", error}),
+                        );
 
                     maybeSendUpdatesToServer();
                 }
             }
         });
 
-        const unsubscribeFromClientMessages = this._client.subscribeToMessages(message => {
-            switch (message.type) {
-                case "BackfillResponse": {
-                    // One dispatch call just to make sure React applies these actions atomically
-                    // and doesn't do any scheduling weirdness.
-                    this._dispatchBatch([
-                        {
-                            type: "SetAllOtherPresenceStates",
-                            stateByConnectionId: ImmutableMap.from(
-                                mapIterable(message.presenceStates, presenceState => [
-                                    presenceState.connectionId,
-                                    presenceState.state,
-                                ]),
-                            ),
-                        },
-                        {
-                            type: "ReceiveSteps",
-                            newVersion: message.newVersion,
-                            steps: message.steps,
-                            stepsContentReferences: message.stepsContentReferences,
-                        },
-
-                        // Unconditionally run this action even if we have no new remembered steps
-                        // because it will throw if the editor version in state is not
-                        // `expectedVersion`. This is a nice way to double check that our previous
-                        // action actually caught us up.
-                        {
-                            type: "AugmentRememberedSteps",
-                            expectedVersion: message.newVersion,
-                            startVersion:
-                                message.newVersion -
-                                message.steps.length -
-                                message.rememberInvertedSteps.length,
-                            invertedSteps: message.rememberInvertedSteps,
-                        },
-                    ]);
-                    break;
-                }
+        const unsubscribeFromClientMessages = this._client.subscribeToEvents(event => {
+            switch (event.type) {
                 case "UpdateContentWithoutPersistence": {
                     const actions: Array<DocumentContentEditorAction> = [];
 
                     actions.push({
                         type: "ReceiveSteps",
-                        newVersion: message.newVersion,
-                        steps: message.steps.map(step => ({
+                        newVersion: event.newVersion,
+                        steps: event.steps.map(step => ({
                             step,
-                            clientId: message.clientId,
+                            clientId: event.clientId,
                         })),
-                        stepsContentReferences: message.stepsContentReferences,
+                        stepsContentReferences: event.stepsContentReferences,
                     });
 
                     // If this was an acknowledgement message from our own client, don't add the
@@ -703,11 +726,11 @@ export class DocumentContentEditorWebSocketClient {
                     // If we don't have an editor state then our document is loading so there should
                     // be no updates from this client and we should always update the presence
                     // state.
-                    if (message.clientId !== this._state.getSnapshot().editorState.getClientId()) {
+                    if (event.clientId !== this._state.getSnapshot().editorState.getClientId()) {
                         actions.push({
                             type: "UpdateOtherPresenceState",
-                            connectionId: message.updateOtherPresenceState.connectionId,
-                            state: message.updateOtherPresenceState.state,
+                            connectionId: event.updateOtherPresenceState.connectionId,
+                            state: event.updateOtherPresenceState.state,
                         });
                     }
 
@@ -721,13 +744,13 @@ export class DocumentContentEditorWebSocketClient {
                 case "UpdateOtherPresenceState": {
                     this._dispatch({
                         type: "UpdateOtherPresenceState",
-                        connectionId: message.connectionId,
-                        state: message.state,
+                        connectionId: event.connectionId,
+                        state: event.state,
                     });
                     break;
                 }
                 case "Error": {
-                    this._dispatch({type: "Error", error: message.error});
+                    this._dispatch({type: "Error", error: event.error});
                     break;
                 }
                 case "Comments": {
@@ -739,29 +762,22 @@ export class DocumentContentEditorWebSocketClient {
                     // handful of rare correctness bugs. For instance, we don't backfill comment
                     // counts! So if you miss a new comment while the page is loading you may see an
                     // old comment count. However, the UI will eventually converge to the correct
-                    // comment count on the next realtime message or if the user opens the comment
-                    // thread. However the UI may not converge on the right set of comment authors
-                    // since the full author list is not included in realtime events unlike the full
-                    // comment count. We consider this acceptable.
-                    if (message.message.type === "NewMessage") {
+                    // comment count on the next realtime message. However the UI may not converge
+                    // on the right set of comment authors since the full author list is not
+                    // included in realtime events unlike the full comment count. We consider
+                    // this acceptable.
+                    if (event.event.type === "NewMessage") {
                         this._dispatch({
                             type: "UpdateCommentThread",
-                            commentThreadId: message.commentThreadId,
-                            commentCount: message.message.message.index + 1,
-                            addCommentAuthor: message.message.message.author,
-                        });
-                    } else if (message.message.type === "BackfillMessagesResponse") {
-                        this._dispatch({
-                            type: "UpdateCommentThread",
-                            commentThreadId: message.commentThreadId,
-                            commentCount: message.message.messageCount,
-                            addCommentAuthor: null,
+                            commentThreadId: event.commentThreadId,
+                            commentCount: event.event.message.index + 1,
+                            addCommentAuthor: event.event.message.author,
                         });
                     }
                     break;
                 }
                 default:
-                    throw exhaustive(message);
+                    throw exhaustive(event);
             }
         });
 
@@ -797,9 +813,8 @@ export class DocumentContentEditorWebSocketClient {
                 cursorDisappearTimeout?.clear();
                 cursorDisappearTimeout = null;
 
-                this._client
-                    .sendMessage({
-                        type: "UpdateContent",
+                this._client.procedures
+                    .updateContent({
                         version: state.pendingSendableSteps.version,
                         steps: state.pendingSendableSteps.steps,
                         clientId: state.pendingSendableSteps.clientId,
@@ -832,9 +847,8 @@ export class DocumentContentEditorWebSocketClient {
                 cursorDisappearTimeout?.clear();
                 cursorDisappearTimeout = null;
 
-                this._client
-                    .sendMessage({
-                        type: "UpdateOurPresenceState",
+                this._client.procedures
+                    .updateOurPresenceState({
                         state: state.ourPresenceState
                             ? {
                                   version: state.ourPresenceState.version,
@@ -861,11 +875,8 @@ export class DocumentContentEditorWebSocketClient {
                             : 15 * 60 * 1000;
 
                     cursorDisappearTimeout = createTimeout(() => {
-                        this._client
-                            .sendMessage({
-                                type: "UpdateOurPresenceState",
-                                state: null,
-                            })
+                        this._client.procedures
+                            .updateOurPresenceState({state: null})
                             .catch(error => this._dispatch({type: "Error", error}));
                     }, cursorDisappearTimeoutMs);
                 }
@@ -886,24 +897,13 @@ export class DocumentContentEditorWebSocketClient {
         this._disconnect = null;
     }
 
-    public async sendCommentThreadMessage(
+    public subscribeToCommentThreadEvents(
         commentThreadId: DocumentCommentThreadId,
-        message: MessagingRealtimeMessageFromClient,
+        subscriber: (message: MessagingRealtimeEvent<DocumentCommentModel>) => void,
     ) {
-        await this._client.sendMessage({
-            type: "Comments",
-            commentThreadId,
-            message,
-        });
-    }
-
-    public subscribeToCommentThreadMessages(
-        commentThreadId: DocumentCommentThreadId,
-        subscriber: (message: MessagingRealtimeMessageFromServer<DocumentCommentModel>) => void,
-    ) {
-        return this._client.subscribeToMessages(message => {
-            if (message.type === "Comments" && message.commentThreadId === commentThreadId) {
-                subscriber(message.message);
+        return this._client.subscribeToEvents(event => {
+            if (event.type === "Comments" && event.commentThreadId === commentThreadId) {
+                subscriber(event.event);
             }
         });
     }

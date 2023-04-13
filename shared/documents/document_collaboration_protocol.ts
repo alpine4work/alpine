@@ -1,0 +1,249 @@
+import {
+    WebSocketProtocolEventType,
+    defineWebSocketProtocol,
+} from "~/shared/cloudflare/web_socket_protocol";
+import {DocumentContentStepSchema} from "~/shared/content/document_content_schema";
+import {MessageContentSchema} from "~/shared/content/message_content_schema";
+import {ErrorSchema} from "~/shared/error/error_schema";
+import {
+    ContentEditorClientId,
+    DocumentCommentThreadId,
+    WebSocketConnectionId,
+} from "~/shared/id/types/id_types";
+import {MessageChangeSchema} from "~/shared/messaging/message_change_schema";
+import {
+    MessagingTypingStateSchema,
+    createMessagingRealtimeEventSchemas,
+} from "~/shared/messaging/messaging_realtime_protocol";
+import {
+    DocumentCommentModel,
+    DocumentContentReferencesSchema,
+} from "~/shared/models/document_model";
+import {ProsemirrorSelectionSchema} from "~/shared/prosemirror/prosemirror_selection_schema";
+import {Schema, SchemaType} from "~/shared/schema/schema";
+
+export type DocumentCollaborationPresenceState = SchemaType<
+    typeof DocumentCollaborationPresenceStateSchema
+>;
+
+const DocumentCollaborationPresenceStateSchema = Schema.object({
+    version: Schema.integer,
+    selection: ProsemirrorSelectionSchema,
+});
+
+export type DocumentCollaborationEvent = WebSocketProtocolEventType<
+    typeof DocumentCollaborationProtocol
+>;
+
+export const DocumentCollaborationProtocol = defineWebSocketProtocol({
+    procedures: {
+        /**
+         * Request a backfill to catch us up from the version our client loaded from
+         * the server to the latest, live, document version.
+         *
+         * Even if the client just loaded a document in the milliseconds between the
+         * server returning the document and the client connecting to the collaboration
+         * service there may have been an update.
+         */
+        backfill: {
+            input: {
+                version: Schema.integer,
+            },
+            output: {
+                newVersion: Schema.integer,
+                steps: Schema.array(
+                    Schema.object({
+                        step: DocumentContentStepSchema,
+                        clientId: Schema.id<ContentEditorClientId>(),
+                    }),
+                ),
+                stepsContentReferences: DocumentContentReferencesSchema,
+                presenceStates: Schema.array(
+                    Schema.object({
+                        connectionId: Schema.id<WebSocketConnectionId>(),
+                        state: DocumentCollaborationPresenceStateSchema,
+                    }),
+                ),
+                rememberInvertedSteps: Schema.array(DocumentContentStepSchema),
+            },
+        },
+
+        updateContent: {
+            input: {
+                version: Schema.integer,
+                steps: Schema.array(DocumentContentStepSchema),
+                clientId: Schema.id<ContentEditorClientId>(),
+                createCommentThreads: Schema.array(
+                    Schema.object({
+                        commentThreadId: Schema.id<DocumentCommentThreadId>(),
+                        initialCommentContent: MessageContentSchema,
+                    }),
+                ),
+                /**
+                 * Atomically update our presence state in the same action as we update
+                 * our content.
+                 *
+                 * The state must have a `version` that matches the `version` in this update.
+                 * However, an important detail is that the state is for the document at
+                 * `version` plus the `steps` in this update! The selection, for instance, is
+                 * for the document after steps are applied.
+                 *
+                 * The presence state in `UpdateOurPresenceState` is for exactly the referenced
+                 * document version.
+                 */
+                updateOurPresenceState: Schema.object({
+                    state: DocumentCollaborationPresenceStateSchema.nullable(),
+                }),
+            },
+            output: {},
+        },
+
+        updateOurPresenceState: {
+            input: {
+                state: DocumentCollaborationPresenceStateSchema.nullable(),
+            },
+            output: {},
+        },
+
+        /** See `backfillMessages` in `messaging_realtime_protocol.ts`. */
+        backfillComments: {
+            input: {
+                commentThreadId: Schema.id<DocumentCommentThreadId>(),
+                clientCommentCount: Schema.integer,
+                clientLastCommentChangeTime: Schema.date.nullable(),
+                newCommentLimit: Schema.integer,
+            },
+            output: {
+                commentCount: Schema.integer,
+                lastCommentChangeTime: Schema.date.nullable(),
+                newComments: Schema.array(DocumentCommentModel.schema()),
+                newOtherReferencedComments: Schema.array(DocumentCommentModel.schema()),
+                commentChangesResult: Schema.union({
+                    Available: Schema.object({
+                        type: Schema.value("Available"),
+                        changes: Schema.array(MessageChangeSchema),
+                    }),
+                    Unavailable: Schema.object({
+                        type: Schema.value("Unavailable"),
+                    }),
+                }),
+                typingStateByConnectionId: Schema.map(
+                    Schema.id<WebSocketConnectionId>(),
+                    MessagingTypingStateSchema,
+                ),
+            },
+        },
+
+        /** See `createMessage` in `messaging_realtime_protocol.ts`. */
+        createComment: {
+            input: {
+                commentThreadId: Schema.id<DocumentCommentThreadId>(),
+                parentCommentIndex: Schema.integer.nullable(),
+                content: MessageContentSchema,
+            },
+            output: {},
+        },
+
+        /** See `updateMessageContent` in `messaging_realtime_protocol.ts`. */
+        updateCommentContent: {
+            input: {
+                commentThreadId: Schema.id<DocumentCommentThreadId>(),
+                commentIndex: Schema.integer,
+                content: MessageContentSchema,
+            },
+            output: {},
+        },
+
+        /** See `deleteMessage` in `messaging_realtime_protocol.ts`. */
+        deleteComment: {
+            input: {
+                commentThreadId: Schema.id<DocumentCommentThreadId>(),
+                commentIndex: Schema.integer,
+            },
+            output: {},
+        },
+
+        /** See `startTypingInCommentInput` in `messaging_realtime_protocol.ts`. */
+        startTypingInCommentInput: {
+            input: {
+                commentThreadId: Schema.id<DocumentCommentThreadId>(),
+            },
+            output: {},
+        },
+
+        /** See `stopTypingInCommentInput` in `messaging_realtime_protocol.ts`. */
+        stopTypingInCommentInput: {
+            input: {
+                commentThreadId: Schema.id<DocumentCommentThreadId>(),
+            },
+            output: {},
+        },
+    },
+    events: {
+        /**
+         * Our document collaboration WebSocket immediately sends steps to connected
+         * clients as it receives them. But persistence happens at a slower pace.
+         *
+         * Don't tell the user that their changes have saved until you see a
+         * `PersistedContent` message.
+         *
+         * You have no ordering guarantees around this message! Usually you will get
+         * these messages in ascending version order and usually this message will
+         * occur before the `PersistedContent` message for the same version. However,
+         * usually is the operative word! We can not send this message until we load
+         * `ContentReferences` and loading `ContentReferences` does not block other
+         * updates. So client implementations need to handle receiving this message
+         * out-of-order. A recommend implementation is if you get a future message, put
+         * it in a queue until you get earlier messages needed to process it.
+         */
+        UpdateContentWithoutPersistence: Schema.object({
+            type: Schema.value("UpdateContentWithoutPersistence"),
+            newVersion: Schema.integer,
+            steps: Schema.array(DocumentContentStepSchema),
+            stepsContentReferences: DocumentContentReferencesSchema,
+            clientId: Schema.id<ContentEditorClientId>(),
+            /**
+             * Atomically update this other presence state in the same action as we update
+             * content.
+             */
+            updateOtherPresenceState: Schema.object({
+                connectionId: Schema.id<WebSocketConnectionId>(),
+                state: DocumentCollaborationPresenceStateSchema.nullable(),
+            }),
+        }),
+
+        /**
+         * Tells the client that we've successfully persisted all changes at this
+         * version and if the client disconnects the changes will still be there.
+         */
+        PersistedContent: Schema.object({
+            type: Schema.value("PersistedContent"),
+            newVersion: Schema.integer,
+        }),
+
+        UpdateOtherPresenceState: Schema.object({
+            type: Schema.value("UpdateOtherPresenceState"),
+            connectionId: Schema.id<WebSocketConnectionId>(),
+            state: DocumentCollaborationPresenceStateSchema.nullable(),
+        }),
+
+        Error: Schema.object({
+            type: Schema.value("Error"),
+            error: ErrorSchema,
+        }),
+
+        // NOTE(calebmer): Code-style note. We want top-level procedure/event names to
+        // use the correct nomenclature for posts. We call "messages" "comments" in a
+        // post context. We are ok nesting an event with "message" nomenclature in an
+        // event with the name `Comments` but we can't nest procedures hence why we
+        // need to write them out from scratch.
+        //
+        // Was it correct to "comment" as the name in code for post comments? Probably
+        // not. All the boilerplate is pretty unnecessary.
+        Comments: Schema.object({
+            type: Schema.value("Comments"),
+            commentThreadId: Schema.id<DocumentCommentThreadId>(),
+            event: Schema.union(createMessagingRealtimeEventSchemas(DocumentCommentModel.schema())),
+        }),
+    },
+});

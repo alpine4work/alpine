@@ -1,12 +1,21 @@
 import {Memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
-import {WebSocketClient} from "~/client/cloudflare/web_socket_client";
+import {WebSocketClient, WebSocketClientProcedures} from "~/client/cloudflare/web_socket_client";
 import {useAppContext} from "~/client/context/app_context";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useStore} from "~/client/helpers/store/use_store";
+import {
+    WebSocketProtocolBase,
+    WebSocketProtocolEventType,
+    WebSocketProtocolProceduresType,
+} from "~/shared/cloudflare/web_socket_protocol";
 import {InternalError} from "~/shared/error/error";
 import {noop} from "~/shared/helpers/control/noop";
-import {UnionSchema} from "~/shared/schema/schema";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
+
+type MemoObject<Value> = Memo<{
+    [Key in keyof Value]: Memo<Value[Key]>;
+}>;
 
 /**
  * React hook for connecting to a WebSocket using our `WebSocketClient`
@@ -24,18 +33,16 @@ import {UnionSchema} from "~/shared/schema/schema";
  *   automatically adding the domain name if you use an absolute path like
  *   `/hello/world`.
  */
-export function useWebSocket<
-    MessageFromClient extends {type: string},
-    MessageFromServer extends {type: string},
->(
-    messageFromClientSchema: UnionSchema<MessageFromClient>,
-    messageFromServerSchema: UnionSchema<MessageFromServer>,
+export function useWebSocket<Protocol extends WebSocketProtocolBase>(
+    protocol: Protocol,
     url: string | null,
-    handleMessage?: (message: MessageFromServer) => void,
+    handleEvent?: (message: WebSocketProtocolEventType<Protocol>) => void,
 ): {
     isConnected: boolean;
-    sendMessage: Memo<(message: MessageFromClient) => Promise<void>>;
-    subscribeToMessages: Memo<(subscriber: (message: MessageFromServer) => void) => () => void>;
+    procedures: MemoObject<WebSocketClientProcedures<WebSocketProtocolProceduresType<Protocol>>>;
+    subscribeToEvents: Memo<
+        (subscriber: (message: WebSocketProtocolEventType<Protocol>) => void) => () => void
+    >;
     toggleShouldConnect: () => void;
 } {
     const context = useAppContext();
@@ -46,14 +53,8 @@ export function useWebSocket<
 
     const client = useMemo(() => {
         if (!url) return null;
-
-        return new WebSocketClient(
-            () => contextRef.current,
-            messageFromClientSchema,
-            messageFromServerSchema,
-            url,
-        );
-    }, [messageFromClientSchema, messageFromServerSchema, url]);
+        return new WebSocketClient(() => contextRef.current, protocol, url);
+    }, [protocol, url]);
 
     const clientState = useStore(client?.state ?? null);
 
@@ -75,26 +76,23 @@ export function useWebSocket<
     }, []);
 
     // Subscribe to any messages coming from our client.
-    const actuallyHandleMessage = useEvent(handleMessage);
+    const actuallyHandleEvent = useEvent(handleEvent);
     useEffect(() => {
-        return client?.subscribeToMessages(actuallyHandleMessage);
-    }, [actuallyHandleMessage, client]);
+        return client?.subscribeToEvents(actuallyHandleEvent);
+    }, [actuallyHandleEvent, client]);
 
     return {
         isConnected: clientState?.isConnected ?? false,
-        sendMessage: useCallback(
-            message => {
-                if (!client) {
-                    throw new InternalError(
-                        "Can't send message when passing null as the URL to `useWebSocket()`",
-                    );
-                }
-                return client.sendMessage(message);
-            },
-            [client],
-        ),
-        subscribeToMessages: useCallback(
-            subscriber => client?.subscribeToMessages(subscriber) ?? noop,
+        procedures: useMemo(() => {
+            if (client) return client.procedures;
+            return mapObjectValues(protocol.procedureSchemas, () => () => {
+                throw new InternalError(
+                    "Can't execute procedures when passing null as the URL to `useWebSocket()`",
+                );
+            }) as any;
+        }, [client, protocol.procedureSchemas]),
+        subscribeToEvents: useCallback(
+            subscriber => client?.subscribeToEvents(subscriber) ?? noop,
             [client],
         ),
         toggleShouldConnect,

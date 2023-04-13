@@ -18,7 +18,11 @@ import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {Spacer} from "~/client/design/spacer";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {ChannelViewHeader, channelViewHeaderMinHeight} from "~/client/forum/channel_view_header";
-import {PostCommentInput, postCommentInputMinHeight} from "~/client/forum/post_comment_input";
+import {
+    PostCommentInput,
+    PostRealtimeProcedures,
+    postCommentInputMinHeight,
+} from "~/client/forum/post_comment_input";
 import {PostContentView, postContentViewMinHeight} from "~/client/forum/post_content_view";
 import {PostEditorModal} from "~/client/forum/post_editor_modal";
 import {
@@ -65,7 +69,6 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
 import {clamp} from "~/shared/helpers/number/clamp";
 import {PostId} from "~/shared/id/types/id_types";
-import {MessagingRealtimeMessageFromClient} from "~/shared/messaging/messaging_realtime_schema";
 import {PostCommentModel, PostModel} from "~/shared/models/post_model";
 import {getPostCommentsFromEnd, getPostCommentsFromStart} from "~/shared/rpc/forum_rpc_definitions";
 import {spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
@@ -521,9 +524,7 @@ function PostListView(
     // are open. Since we need realtime actions in every part of the post we have
     // `<PostCommentInput>` stash the method to send them in this ref so they can
     // be called elsewhere.
-    const sendRealtimeMessageByPostIdRef = useRef(
-        new Map<PostId, (message: MessagingRealtimeMessageFromClient) => Promise<void>>(),
-    );
+    const proceduresByPostIdRef = useRef(new Map<PostId, PostRealtimeProcedures>());
 
     // Manages the editable message.
     //
@@ -535,12 +536,11 @@ function PostListView(
     // 2. We want only one message to be editable at a time.
     const messageEditing = useMessageEditing<PostId>({
         onUpdateMessageContent: async ({roomKey, messageIndex, content}) => {
-            const sendRealtimeMessage = sendRealtimeMessageByPostIdRef.current.get(roomKey);
-            if (!sendRealtimeMessage) throw new InternalError("Post comment input isn't mounted");
+            const procedures = proceduresByPostIdRef.current.get(roomKey);
+            if (!procedures) throw new InternalError("Post comment input isn't mounted");
 
-            await sendRealtimeMessage({
-                type: "UpdateMessageContent",
-                messageIndex,
+            await procedures.updateCommentContent({
+                commentIndex: messageIndex,
                 content,
             });
         },
@@ -826,18 +826,16 @@ function PostListView(
                                         );
                                     }}
                                     onDeleteMessage={async () => {
-                                        const sendRealtimeMessage =
-                                            sendRealtimeMessageByPostIdRef.current.get(
-                                                item.post.id,
-                                            );
-                                        if (!sendRealtimeMessage)
+                                        const procedures = proceduresByPostIdRef.current.get(
+                                            item.post.id,
+                                        );
+                                        if (!procedures)
                                             throw new InternalError(
                                                 "Post comment input isn't mounted",
                                             );
 
-                                        await sendRealtimeMessage({
-                                            type: "DeleteMessage",
-                                            messageIndex: item.postCommentIndex,
+                                        await procedures.deleteComment({
+                                            commentIndex: item.postCommentIndex,
                                         });
                                     }}
                                     disableExpensiveFeaturesDuringScroll={
@@ -1047,14 +1045,11 @@ function PostListView(
                         <PostCommentInput
                             post={item.post}
                             viewRef={viewRef}
-                            sendRealtimeMessageRef={sendRealtimeMessage => {
-                                if (sendRealtimeMessage) {
-                                    sendRealtimeMessageByPostIdRef.current.set(
-                                        item.post.id,
-                                        sendRealtimeMessage,
-                                    );
+                            proceduresRef={procedures => {
+                                if (procedures) {
+                                    proceduresByPostIdRef.current.set(item.post.id, procedures);
                                 } else {
-                                    sendRealtimeMessageByPostIdRef.current.delete(item.post.id);
+                                    proceduresByPostIdRef.current.delete(item.post.id);
                                 }
                             }}
                             postComments={item.postComments}
@@ -1659,14 +1654,14 @@ function PostListView(
                             <PostCommentInput
                                 post={lastPostContentItem.post}
                                 viewRef={viewRef}
-                                sendRealtimeMessageRef={sendRealtimeMessage => {
-                                    if (sendRealtimeMessage) {
-                                        sendRealtimeMessageByPostIdRef.current.set(
+                                proceduresRef={procedures => {
+                                    if (procedures) {
+                                        proceduresByPostIdRef.current.set(
                                             lastPostContentItem.post.id,
-                                            sendRealtimeMessage,
+                                            procedures,
                                         );
                                     } else {
-                                        sendRealtimeMessageByPostIdRef.current.delete(
+                                        proceduresByPostIdRef.current.delete(
                                             lastPostContentItem.post.id,
                                         );
                                     }

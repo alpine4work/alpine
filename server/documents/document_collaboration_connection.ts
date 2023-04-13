@@ -1,7 +1,7 @@
+import {WebSocketConnectionProcedures} from "~/server/cloudflare/web_socket_server";
 import {DocumentCollaborationContentManager} from "~/server/documents/document_collaboration_content_manager";
 import {getAccountOrThrow} from "~/server/dynamo/accounts_table";
 import {ProcessContext} from "~/server/dynamo/context/process_context";
-import {RequestContext} from "~/server/dynamo/context/request_context";
 import {
     backfillDocumentComments,
     createDocumentComment,
@@ -16,14 +16,13 @@ import {
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint";
 import {MessagingRealtimeConnection} from "~/server/messaging/messaging_realtime_connection";
 import {
-    DocumentCollaborationMessageFromClient,
-    DocumentCollaborationMessageFromServer,
+    DocumentCollaborationEvent,
     DocumentCollaborationPresenceState,
-} from "~/shared/documents/document_collaboration_schema";
+    DocumentCollaborationProtocol,
+} from "~/shared/documents/document_collaboration_protocol";
 import {FailedPreconditionError, InternalError, NotFoundError} from "~/shared/error/error";
 import {AsyncMutex} from "~/shared/helpers/async/async_mutex";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {DefaultMap} from "~/shared/helpers/map/default_map";
@@ -47,13 +46,13 @@ export class DocumentCollaborationConnection {
     public readonly connectionId: WebSocketConnectionId;
 
     private readonly _contentManager: DocumentCollaborationContentManager;
-    private readonly _sendMessage: (
+    private readonly _sendEvent: (
         context: ProcessContext,
-        message: DocumentCollaborationMessageFromServer,
+        message: DocumentCollaborationEvent,
     ) => void;
-    private readonly _sendMessageToOthers: (
+    private readonly _sendEventToOthers: (
         context: ProcessContext,
-        message: DocumentCollaborationMessageFromServer,
+        message: DocumentCollaborationEvent,
     ) => void;
     private readonly _iterateOtherConnections: () => Iterable<DocumentCollaborationConnection>;
     private readonly _killProcess: (context: ProcessContext) => void;
@@ -67,28 +66,22 @@ export class DocumentCollaborationConnection {
     constructor({
         connectionId,
         contentManager,
-        sendMessage,
-        sendMessageToOthers,
+        sendEvent,
+        sendEventToOthers,
         iterateOtherConnections,
         killProcess,
     }: {
         connectionId: WebSocketConnectionId;
         contentManager: DocumentCollaborationContentManager;
-        sendMessage: (
-            context: ProcessContext,
-            message: DocumentCollaborationMessageFromServer,
-        ) => void;
-        sendMessageToOthers: (
-            context: ProcessContext,
-            message: DocumentCollaborationMessageFromServer,
-        ) => void;
+        sendEvent: (context: ProcessContext, message: DocumentCollaborationEvent) => void;
+        sendEventToOthers: (context: ProcessContext, message: DocumentCollaborationEvent) => void;
         iterateOtherConnections: () => Iterable<DocumentCollaborationConnection>;
         killProcess: (context: ProcessContext) => void;
     }) {
         this.connectionId = connectionId;
         this._contentManager = contentManager;
-        this._sendMessage = sendMessage;
-        this._sendMessageToOthers = sendMessageToOthers;
+        this._sendEvent = sendEvent;
+        this._sendEventToOthers = sendEventToOthers;
         this._iterateOtherConnections = iterateOtherConnections;
         this._killProcess = killProcess;
     }
@@ -101,216 +94,265 @@ export class DocumentCollaborationConnection {
         return this._state.get().presenceState;
     }
 
-    public async handleMessage(
-        context: RequestContext,
-        message: DocumentCollaborationMessageFromClient,
-        span: TracerSpan,
-    ) {
-        // Handle comment messages without blocking other document content
-        // related messages.
-        if (message.type === "Comments") {
-            // Wait for any pending messages related to document comments before handling
-            // comment messages. This way if we are processing an `UpdateContent` that
-            // creates the comment thread we are trying to access we will wait until it
-            // is ready.
+    public readonly procedures: WebSocketConnectionProcedures<
+        typeof DocumentCollaborationProtocol
+    > = {
+        backfill: (context, input, span) =>
+            // Handle procedures for this connection in sequence as a defense against
+            // race conditions.
             //
-            // However, we do not want to block other document content messages with our
-            // comments processing! Which is why we don't put the `handleMessage()` call in
-            // the body of our `run()` function.
-            await this._state.run(async () => {});
+            // Example race condition: Two `updateOurPresenceState` in fast succession. The
+            // second finishes before the first because of some async race condition. A
+            // `updateContent` then a `updateOurPresenceState` is perhaps a better example.
+            //
+            // The client mostly sends messages in sequence anyway.
+            this._state.run(async () => {
+                const version = this._contentManager.getCurrentVersion();
 
-            const commentThreadConnection = this._commentThreadConnectionById.getOrSetDefault(
-                message.commentThreadId,
-            );
-            return commentThreadConnection.handleMessage(context, message.message);
-        }
+                let smallestPresenceStateVersion: number | null = null;
 
-        // Handle all messages for this connection in sequence as a defense against
-        // race conditions.
-        //
-        // Example race condition: Two `UpdateOurPresenceState` in fast succession. The
-        // second finishes before the first because of some async race condition. A
-        // `UpdateContent` then a `UpdateOurPresenceState` is perhaps a better example.
-        //
-        // The client mostly sends messages in sequence anyway.
-        await this._state.run(async (state, setState) => {
-            switch (message.type) {
-                case "BackfillRequest": {
-                    const version = this._contentManager.getCurrentVersion();
+                const presenceStates = Array.from(
+                    filterMapIterable(this._iterateOtherConnections(), connection => {
+                        const state = connection.getPresenceState();
+                        if (!state) return null;
 
-                    let smallestPresenceStateVersion: number | null = null;
-
-                    const presenceStates = Array.from(
-                        filterMapIterable(this._iterateOtherConnections(), connection => {
-                            const state = connection.getPresenceState();
-                            if (!state) return null;
-
-                            // Record the smallest presence state version. We will also send steps to the
-                            // client from this version to the client's version so the client can map
-                            // selections.
-                            if (
-                                smallestPresenceStateVersion === null ||
-                                state.version < smallestPresenceStateVersion
-                            ) {
-                                smallestPresenceStateVersion = state.version;
-                            }
-
-                            return {connectionId: connection.connectionId, state};
-                        }),
-                    );
-
-                    const clientVersion = message.version;
-
-                    if (clientVersion > version) {
-                        // Sometimes, if the version in our backfill request appears to be in the
-                        // future it's because the client loaded a version of the document from the
-                        // database that is ahead of the version of the document in the durable object.
-                        //
-                        // So load the document from our database and if its version is ahead of the
-                        // one in our durable object then we want to destroy the entire durable object.
-                        const documentPreview = await getDocumentPreview(
-                            context,
-                            this._contentManager.id,
-                        );
-                        if (!documentPreview) {
-                            this._sendFatalErrorMessageAndKillProcess(
-                                context,
-                                span,
-                                new NotFoundError(
-                                    "Document was deleted since durable object started",
-                                ),
-                            );
-                            return;
-                        }
-                        if (documentPreview.version > version) {
-                            this._sendFatalErrorMessageAndKillProcess(
-                                context,
-                                span,
-                                new InternalError(
-                                    "Document version in durable object is out of sync with actual document version",
-                                ),
-                            );
-                            return;
+                        // Record the smallest presence state version. We will also send steps to the
+                        // client from this version to the client's version so the client can map
+                        // selections.
+                        if (
+                            smallestPresenceStateVersion === null ||
+                            state.version < smallestPresenceStateVersion
+                        ) {
+                            smallestPresenceStateVersion = state.version;
                         }
 
-                        throw new FailedPreconditionError(
-                            "Tried to backfill a future document version",
-                        );
-                    }
+                        return {connectionId: connection.connectionId, state};
+                    }),
+                );
 
-                    const [{steps, stepsContentReferences}, rememberSteps] =
-                        await runAllPromiseThunks(
-                            async () => {
-                                const steps = await this._contentManager.stepCache.getSteps(
-                                    context,
-                                    clientVersion,
-                                    version,
-                                );
+                const clientVersion = input.version;
 
-                                const [stepsContentReferences, commentThreadById] =
-                                    await runAllPromises([
-                                        getContentReferencesForSteps(
-                                            context,
-                                            this._contentManager.spaceId,
-                                            steps.map(({step}) => step),
-                                        ),
-                                        this._contentManager.getCommentThreadByIdForSteps(
-                                            context,
-                                            steps.map(({step}) => step),
-                                        ),
-                                    ]);
-
-                                return {
-                                    steps,
-                                    stepsContentReferences: {
-                                        ...stepsContentReferences,
-                                        commentThreadById,
-                                    },
-                                };
-                            },
-                            async () =>
-                                smallestPresenceStateVersion &&
-                                smallestPresenceStateVersion < clientVersion
-                                    ? await this._contentManager.stepCache.getSteps(
-                                          context,
-                                          smallestPresenceStateVersion,
-                                          clientVersion,
-                                      )
-                                    : [],
-                        );
-
-                    // Load steps from our store and send them to the client to catch
-                    // the client up...
-                    this._sendMessage(context, {
-                        type: "BackfillResponse",
-                        newVersion: version,
-                        steps,
-                        stepsContentReferences,
-                        presenceStates,
-                        rememberInvertedSteps: rememberSteps.map(({invertedStep}) => invertedStep),
-                    });
-                    return;
-                }
-                case "UpdateContent": {
-                    const {presenceState, hasSentPresenceState} = await this._contentManager.update(
+                if (clientVersion > version) {
+                    // Sometimes, if the version in our backfill request appears to be in the
+                    // future it's because the client loaded a version of the document from the
+                    // database that is ahead of the version of the document in the durable object.
+                    //
+                    // So load the document from our database and if its version is ahead of the
+                    // one in our durable object then we want to destroy the entire durable object.
+                    const documentPreview = await getDocumentPreview(
                         context,
-                        this.connectionId,
-                        message,
+                        this._contentManager.id,
                     );
-
-                    if (!hasSentPresenceState) {
-                        this._sendMessageToOthers(context, {
-                            type: "UpdateOtherPresenceState",
-                            connectionId: this.connectionId,
-                            state: presenceState,
-                        });
-                    }
-
-                    setState({...state, presenceState});
-                    return;
-                }
-                case "UpdateOurPresenceState": {
-                    // Make sure the new presence state is valid before we broadcast it to our
-                    // other clients.
-                    let presenceState: DocumentCollaborationPresenceState | null;
-                    if (!message.state) {
-                        presenceState = null;
-                    } else {
-                        const isVersionValid =
-                            message.state.version >= 0 &&
-                            message.state.version <= this._contentManager.getCurrentVersion();
-
-                        if (!isVersionValid)
-                            throw new FailedPreconditionError(
-                                "Presence state version is outside the document's version range",
-                            );
-
-                        const oldContent = await this._contentManager.getContentAtVersion(
-                            context,
-                            message.state.version,
+                    if (!documentPreview) {
+                        const error = new NotFoundError(
+                            "Document was deleted since durable object started",
                         );
 
-                        // Call this function to deserialize the selection! If deserialization fails an
-                        // error will be thrown.
-                        message.state.selection.getAndMaybeDeserialize(oldContent);
+                        this._sendFatalErrorMessageAndKillProcess(context, span, error);
 
-                        presenceState = message.state;
+                        throw error;
+                    }
+                    if (documentPreview.version > version) {
+                        const error = new InternalError(
+                            "Document version in durable object is out of sync with actual document version",
+                        );
+
+                        this._sendFatalErrorMessageAndKillProcess(context, span, error);
+                        throw error;
                     }
 
-                    this._sendMessageToOthers(context, {
+                    throw new FailedPreconditionError(
+                        "Tried to backfill a future document version",
+                    );
+                }
+
+                const [{steps, stepsContentReferences}, rememberSteps] = await runAllPromiseThunks(
+                    async () => {
+                        const steps = await this._contentManager.stepCache.getSteps(
+                            context,
+                            clientVersion,
+                            version,
+                        );
+
+                        const [stepsContentReferences, commentThreadById] = await runAllPromises([
+                            getContentReferencesForSteps(
+                                context,
+                                this._contentManager.spaceId,
+                                steps.map(({step}) => step),
+                            ),
+                            this._contentManager.getCommentThreadByIdForSteps(
+                                context,
+                                steps.map(({step}) => step),
+                            ),
+                        ]);
+
+                        return {
+                            steps,
+                            stepsContentReferences: {
+                                ...stepsContentReferences,
+                                commentThreadById,
+                            },
+                        };
+                    },
+                    async () =>
+                        smallestPresenceStateVersion && smallestPresenceStateVersion < clientVersion
+                            ? await this._contentManager.stepCache.getSteps(
+                                  context,
+                                  smallestPresenceStateVersion,
+                                  clientVersion,
+                              )
+                            : [],
+                );
+
+                return {
+                    newVersion: version,
+                    steps,
+                    stepsContentReferences,
+                    presenceStates,
+                    rememberInvertedSteps: rememberSteps.map(({invertedStep}) => invertedStep),
+                };
+            }),
+
+        updateContent: (context, input) =>
+            // Handle procedures for this connection in sequence as a defense against
+            // race conditions.
+            //
+            // Example race condition: Two `updateOurPresenceState` in fast succession. The
+            // second finishes before the first because of some async race condition. A
+            // `updateContent` then a `updateOurPresenceState` is perhaps a better example.
+            //
+            // The client mostly sends messages in sequence anyway.
+            this._state.run(async (state, setState) => {
+                const {presenceState, hasSentPresenceState} = await this._contentManager.update(
+                    context,
+                    this.connectionId,
+                    input,
+                );
+
+                if (!hasSentPresenceState) {
+                    this._sendEventToOthers(context, {
                         type: "UpdateOtherPresenceState",
                         connectionId: this.connectionId,
                         state: presenceState,
                     });
-
-                    setState({...state, presenceState});
-                    return;
                 }
-                default:
-                    throw exhaustive(message);
-            }
-        });
-    }
+
+                setState({...state, presenceState});
+                return {};
+            }),
+
+        updateOurPresenceState: (context, input) =>
+            // Handle procedures for this connection in sequence as a defense against
+            // race conditions.
+            //
+            // Example race condition: Two `updateOurPresenceState` in fast succession. The
+            // second finishes before the first because of some async race condition. A
+            // `updateContent` then a `updateOurPresenceState` is perhaps a better example.
+            //
+            // The client mostly sends messages in sequence anyway.
+            this._state.run(async (state, setState) => {
+                // Make sure the new presence state is valid before we broadcast it to our
+                // other clients.
+                let presenceState: DocumentCollaborationPresenceState | null;
+                if (!input.state) {
+                    presenceState = null;
+                } else {
+                    const isVersionValid =
+                        input.state.version >= 0 &&
+                        input.state.version <= this._contentManager.getCurrentVersion();
+
+                    if (!isVersionValid)
+                        throw new FailedPreconditionError(
+                            "Presence state version is outside the document's version range",
+                        );
+
+                    const oldContent = await this._contentManager.getContentAtVersion(
+                        context,
+                        input.state.version,
+                    );
+
+                    // Call this function to deserialize the selection! If deserialization fails an
+                    // error will be thrown.
+                    input.state.selection.getAndMaybeDeserialize(oldContent);
+
+                    presenceState = input.state;
+                }
+
+                this._sendEventToOthers(context, {
+                    type: "UpdateOtherPresenceState",
+                    connectionId: this.connectionId,
+                    state: presenceState,
+                });
+
+                setState({...state, presenceState});
+                return {};
+            }),
+
+        backfillComments: async (
+            context,
+            {
+                commentThreadId,
+                clientCommentCount: clientMessageCount,
+                clientLastCommentChangeTime: clientLastMessageChangeTime,
+                newCommentLimit: newMessageLimit,
+            },
+        ) => {
+            const connection = await this._getCommentThreadConnection(commentThreadId);
+
+            const {
+                messageCount: commentCount,
+                lastMessageChangeTime: lastCommentChangeTime,
+                newMessages: newComments,
+                newOtherReferencedMessages: newOtherReferencedComments,
+                messageChangesResult: commentChangesResult,
+                typingStateByConnectionId,
+            } = await connection.backfillMessages(context, {
+                clientMessageCount,
+                clientLastMessageChangeTime,
+                newMessageLimit,
+            });
+
+            return {
+                commentCount,
+                lastCommentChangeTime,
+                newComments,
+                newOtherReferencedComments,
+                commentChangesResult,
+                typingStateByConnectionId,
+            };
+        },
+
+        createComment: async (
+            context,
+            {commentThreadId, parentCommentIndex: parentMessageIndex, content},
+        ) => {
+            const connection = await this._getCommentThreadConnection(commentThreadId);
+            return connection.createMessage(context, {parentMessageIndex, content});
+        },
+
+        updateCommentContent: async (
+            context,
+            {commentThreadId, commentIndex: messageIndex, content},
+        ) => {
+            const connection = await this._getCommentThreadConnection(commentThreadId);
+            return connection.updateMessageContent(context, {messageIndex, content});
+        },
+
+        deleteComment: async (context, {commentThreadId, commentIndex: messageIndex}) => {
+            const connection = await this._getCommentThreadConnection(commentThreadId);
+            return connection.deleteMessage(context, {messageIndex});
+        },
+
+        startTypingInCommentInput: async (context, input) => {
+            const connection = await this._getCommentThreadConnection(input.commentThreadId);
+            return connection.startTypingInMessageInput(context, input);
+        },
+
+        stopTypingInCommentInput: async (context, input) => {
+            const connection = await this._getCommentThreadConnection(input.commentThreadId);
+            return connection.stopTypingInMessageInput(context, input);
+        },
+    };
 
     public handleClose(context: ProcessContext) {
         context.process.waitUntil(
@@ -321,7 +363,7 @@ export class DocumentCollaborationConnection {
                 // When the connection closes, clear the presence state in our other
                 // connections.
                 if (state.presenceState !== null) {
-                    this._sendMessageToOthers(context, {
+                    this._sendEventToOthers(context, {
                         type: "UpdateOtherPresenceState",
                         connectionId: this.connectionId,
                         state: null,
@@ -346,15 +388,29 @@ export class DocumentCollaborationConnection {
     ) {
         span.addException(error);
 
-        this._sendMessage(context, {
+        this._sendEvent(context, {
             type: "Error",
             error,
         });
-        this._sendMessageToOthers(context, {
+        this._sendEventToOthers(context, {
             type: "Error",
             error,
         });
         this._killProcess(context);
+    }
+
+    private async _getCommentThreadConnection(commentThreadId: DocumentCommentThreadId) {
+        // Wait for any pending messages related to document comments before handling
+        // comment messages. This way if we are processing an `UpdateContent` that
+        // creates the comment thread we are trying to access we will wait until it
+        // is ready.
+        //
+        // However, we do not want to block other document content messages with our
+        // comments processing! Which is why we don't put the `handleMessage()` call in
+        // the body of our `run()` function.
+        await this._state.run(async () => {});
+
+        return this._commentThreadConnectionById.getOrSetDefault(commentThreadId);
     }
 
     private readonly _commentThreadConnectionById: DefaultMap<
@@ -365,10 +421,10 @@ export class DocumentCollaborationConnection {
             connectionId: this.connectionId,
             spaceId: this._contentManager.spaceId,
             roomKey: encodeDocumentCommentRoomKey(this._contentManager.id, commentThreadId),
-            sendMessage: (context, message) =>
-                this._sendMessage(context, {type: "Comments", commentThreadId, message}),
-            sendMessageToOthers: (context, message) =>
-                this._sendMessageToOthers(context, {type: "Comments", commentThreadId, message}),
+            sendEvent: (context, event) =>
+                this._sendEvent(context, {type: "Comments", commentThreadId, event}),
+            sendEventToOthers: (context, event) =>
+                this._sendEventToOthers(context, {type: "Comments", commentThreadId, event}),
             iterateOtherConnections: () =>
                 mapIterable(this._iterateOtherConnections(), connection =>
                     connection._commentThreadConnectionById.getOrSetDefault(commentThreadId),

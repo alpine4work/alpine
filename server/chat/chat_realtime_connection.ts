@@ -1,3 +1,4 @@
+import {WebSocketConnectionProcedures} from "~/server/cloudflare/web_socket_server";
 import {
     backfillChatMessages,
     deleteChatMessage,
@@ -5,7 +6,6 @@ import {
     updateChatMessageContent,
 } from "~/server/dynamo/chat_table";
 import {ProcessContext} from "~/server/dynamo/context/process_context";
-import {RequestContext} from "~/server/dynamo/context/request_context";
 import {
     BackfillMessagesFunction,
     CreateMessageFunction,
@@ -14,11 +14,7 @@ import {
     UpdateMessageContentFunction,
 } from "~/server/messaging/messaging_implementation";
 import {MessagingRealtimeConnection} from "~/server/messaging/messaging_realtime_connection";
-import {
-    ChatRealtimeMessageFromClient,
-    ChatRealtimeMessageFromServer,
-} from "~/shared/chat/chat_realtime_schema";
-import {cast} from "~/shared/helpers/control/cast";
+import {ChatRealtimeEvent, ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {ChatId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types";
 import {ChatMessageModel} from "~/shared/models/chat_model";
@@ -30,18 +26,15 @@ export class ChatRealtimeConnection {
         connectionId,
         spaceId,
         chatId,
-        sendMessage,
-        sendMessageToOthers,
+        sendEvent,
+        sendEventToOthers,
         iterateOtherConnections,
     }: {
         connectionId: WebSocketConnectionId;
         spaceId: SpaceId;
         chatId: ChatId;
-        sendMessage: (context: ProcessContext, message: ChatRealtimeMessageFromServer) => void;
-        sendMessageToOthers: (
-            context: ProcessContext,
-            message: ChatRealtimeMessageFromServer,
-        ) => void;
+        sendEvent: (context: ProcessContext, event: ChatRealtimeEvent) => void;
+        sendEventToOthers: (context: ProcessContext, event: ChatRealtimeEvent) => void;
         iterateOtherConnections: () => Iterable<ChatRealtimeConnection>;
     }) {
         this._connection = new MessagingRealtimeConnection({
@@ -49,10 +42,8 @@ export class ChatRealtimeConnection {
             spaceId,
             roomKey: chatId,
 
-            sendMessage: (context, message) =>
-                sendMessage(context, {type: "ChatMessages", message}),
-            sendMessageToOthers: (context, message) =>
-                sendMessageToOthers(context, {type: "ChatMessages", message}),
+            sendEvent,
+            sendEventToOthers,
             iterateOtherConnections: () =>
                 mapIterable(iterateOtherConnections(), connection => connection._connection),
 
@@ -64,16 +55,17 @@ export class ChatRealtimeConnection {
         });
     }
 
-    public async handleMessage(
-        context: RequestContext,
-        message: ChatRealtimeMessageFromClient,
-    ): Promise<void> {
-        // TypeScript will error if we ever add other message types here. At that point
-        // this code should turn into a switch.
-        cast<"ChatMessages">(message.type);
-
-        return this._connection.handleMessage(context, message.message);
-    }
+    public readonly procedures: WebSocketConnectionProcedures<typeof ChatRealtimeProtocol> = {
+        backfillMessages: (context, input) => this._connection.backfillMessages(context, input),
+        createMessage: (context, input) => this._connection.createMessage(context, input),
+        updateMessageContent: (context, input) =>
+            this._connection.updateMessageContent(context, input),
+        deleteMessage: (context, input) => this._connection.deleteMessage(context, input),
+        startTypingInMessageInput: (context, input) =>
+            this._connection.startTypingInMessageInput(context, input),
+        stopTypingInMessageInput: (context, input) =>
+            this._connection.stopTypingInMessageInput(context, input),
+    };
 
     public async handleClose(context: ProcessContext) {
         return this._connection.handleClose(context);

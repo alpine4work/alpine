@@ -9,17 +9,11 @@ import {messageViewMarginY} from "~/client/messaging/message_view";
 import {MessagingView, MessagingViewRef} from "~/client/messaging/messaging_view";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view";
-import {
-    ChatRealtimeMessageFromClientSchema,
-    ChatRealtimeMessageFromServer,
-    ChatRealtimeMessageFromServerSchema,
-} from "~/shared/chat/chat_realtime_schema";
+import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol";
 import {spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {cast} from "~/shared/helpers/control/cast";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit";
-import {MessagingRealtimeMessageFromServer} from "~/shared/messaging/messaging_realtime_schema";
 import {ChatMessageModel, ChatModel} from "~/shared/models/chat_model";
 import {getChatMessagesFromEnd, getChatMessagesFromStart} from "~/shared/rpc/chat_rpc_definitions";
 import {sprinkles} from "~/shared/styles/styles";
@@ -139,14 +133,9 @@ function ChatMessagingView({
     const context = useAppContext();
     const messagingRef = useRef<MessagingViewRef>(null);
 
-    const {
-        isConnected: isRealtimeConnected,
-        sendMessage: sendRealtimeMessage,
-        subscribeToMessages: subscribeToRealtimeMessages,
-    } = useWebSocket(
-        ChatRealtimeMessageFromClientSchema,
-        ChatRealtimeMessageFromServerSchema,
-        chat ? `/durable-objects/chat/${chat.id}` : null,
+    const {isConnected, procedures, subscribeToEvents} = useWebSocket(
+        ChatRealtimeProtocol,
+        `/durable-objects/chat/${chat.id}`,
     );
 
     const hasInitializedRef = useRef(false);
@@ -184,28 +173,14 @@ function ChatMessagingView({
                 input => getChatMessagesFromEnd(context, {...input, chatId: chat.id}),
                 [chat.id, context],
             )}
-            isRealtimeConnected={isRealtimeConnected}
-            sendRealtimeMessage={useCallback(
-                message => sendRealtimeMessage({type: "ChatMessages", message}),
-                [sendRealtimeMessage],
-            )}
-            subscribeToRealtimeMessages={useCallback(
-                (
-                    subscriber: (
-                        message: MessagingRealtimeMessageFromServer<ChatMessageModel>,
-                    ) => void,
-                ) => {
-                    const actualSubscriber = (message: ChatRealtimeMessageFromServer) => {
-                        // TypeScript will error if we ever add other message types here. At that point
-                        // this code should turn into a switch.
-                        cast<"ChatMessages">(message.type);
-                        subscriber(message.message);
-                    };
-
-                    return subscribeToRealtimeMessages(actualSubscriber);
-                },
-                [subscribeToRealtimeMessages],
-            )}
+            backfillMessages={procedures.backfillMessages}
+            createMessage={procedures.createMessage}
+            updateMessageContent={procedures.updateMessageContent}
+            deleteMessage={procedures.deleteMessage}
+            startTypingInMessageInput={procedures.startTypingInMessageInput}
+            stopTypingInMessageInput={procedures.stopTypingInMessageInput}
+            isConnected={isConnected}
+            subscribeToEvents={subscribeToEvents}
             getMessageUrl={useCallback(
                 messageIndex =>
                     new URL(

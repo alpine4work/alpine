@@ -5,12 +5,7 @@ import {RequestContext} from "~/server/dynamo/context/request_context";
 import {authorizePostAccess} from "~/server/dynamo/forum_table";
 import {PostRealtimeConnection} from "~/server/posts/post_realtime_connection";
 import {PostId, SpaceId} from "~/shared/id/types/id_types";
-import {
-    PostRealtimeMessageFromClient,
-    PostRealtimeMessageFromClientSchema,
-    PostRealtimeMessageFromServer,
-    PostRealtimeMessageFromServerSchema,
-} from "~/shared/posts/post_realtime_schema";
+import {PostRealtimeProtocol} from "~/shared/posts/post_realtime_protocol";
 import {Schema} from "~/shared/schema/schema";
 
 class PostRealtimeDurableObject {
@@ -21,8 +16,7 @@ class PostRealtimeDurableObject {
     private readonly _postId: PostId;
 
     private readonly _webSocketServer: WebSocketServer<
-        PostRealtimeMessageFromClient,
-        PostRealtimeMessageFromServer,
+        typeof PostRealtimeProtocol,
         PostRealtimeConnection
     >;
 
@@ -63,15 +57,14 @@ class PostRealtimeDurableObject {
 
         this._webSocketServer = new WebSocketServer(
             this._context,
-            PostRealtimeMessageFromClientSchema,
-            PostRealtimeMessageFromServerSchema,
-            ({connectionId, sendMessage, sendMessageToOthers, iterateOtherConnections}) =>
+            PostRealtimeProtocol,
+            ({connectionId, sendEvent, sendEventToOthers, iterateOtherConnections}) =>
                 new PostRealtimeConnection({
                     connectionId,
                     spaceId,
                     postId,
-                    sendMessage,
-                    sendMessageToOthers,
+                    sendEvent,
+                    sendEventToOthers,
                     iterateOtherConnections,
                 }),
         );

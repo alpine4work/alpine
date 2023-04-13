@@ -1,6 +1,12 @@
+import {
+    WebSocketProtocolBase,
+    WebSocketProtocolEventType,
+    WebSocketProtocolProceduresType,
+} from "~/shared/cloudflare/web_socket_protocol";
 import {ErrorSchema} from "~/shared/error/error_schema";
-import {TraceId, TraceSpanId, WebSocketMessageId} from "~/shared/id/types/id_types";
-import {Schema, UnionSchema} from "~/shared/schema/schema";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
+import {TraceId, TraceSpanId, WebSocketProcedureRequestId} from "~/shared/id/types/id_types";
+import {Schema} from "~/shared/schema/schema";
 import {TracerEventFlatData} from "~/shared/tracer/helpers/build_tracer_event_flat_data";
 import {TracerSpanPropagationContext} from "~/shared/tracer/tracer_span";
 
@@ -9,11 +15,11 @@ import {TracerSpanPropagationContext} from "~/shared/tracer/tracer_span";
  * the specific WebSocket protocol must be a union type so new messages can be
  * added in the future.
  */
-export type WebSocketMessageFromClient<Message extends {type: string}> =
+export type WebSocketMessageFromClient<Protocol extends WebSocketProtocolBase> =
     | {
-          readonly type: "Message";
-          readonly messageId: WebSocketMessageId;
-          readonly message: Message;
+          readonly type: "ProcedureRequest";
+          readonly requestId: WebSocketProcedureRequestId;
+          readonly input: WebSocketProcedureRequestInput<WebSocketProtocolProceduresType<Protocol>>;
           readonly tracerContext: TracerSpanPropagationContext;
       }
     | {
@@ -21,9 +27,14 @@ export type WebSocketMessageFromClient<Message extends {type: string}> =
           readonly tracerContext: TracerSpanPropagationContext;
       }
     | {
-          readonly type: "SoftCloseWhileWaitingForMessageAcknowledgments";
+          readonly type: "SoftCloseWhileWaitingForProcedureResponses";
           readonly tracerContext: TracerSpanPropagationContext;
       };
+
+type WebSocketProcedureRequestInput<Procedures extends {[name: string]: {input: {}; output: {}}}> =
+    {
+        [Name in keyof Procedures & string]: {readonly type: Name} & Procedures[Name]["input"];
+    }[keyof Procedures & string];
 
 const TracerPropagationContextSchema = Schema.object({
     traceId: Schema.id<TraceId>(),
@@ -31,22 +42,28 @@ const TracerPropagationContextSchema = Schema.object({
     data: Schema.unknown as Schema<any> as Schema<TracerEventFlatData>,
 });
 
-export function createWebSocketMessageFromClientSchema<Message extends {type: string}>(
-    messageFromClientSchema: UnionSchema<Message>,
-): Schema<WebSocketMessageFromClient<Message>> {
+export function createWebSocketMessageFromClientSchema<Protocol extends WebSocketProtocolBase>(
+    protocol: Protocol,
+): Schema<WebSocketMessageFromClient<Protocol>> {
     return Schema.union({
-        Message: Schema.object({
-            type: Schema.value("Message"),
-            messageId: Schema.id<WebSocketMessageId>(),
-            message: messageFromClientSchema as Schema<any>,
+        ProcedureRequest: Schema.object({
+            type: Schema.value("ProcedureRequest"),
+            requestId: Schema.id<WebSocketProcedureRequestId>(),
+            input: Schema.union(
+                mapObjectValues(protocol.procedureSchemas, (procedureSchema, procedureName) =>
+                    Schema.object({
+                        type: Schema.value(procedureName),
+                    }).merge(procedureSchema.inputSchema),
+                ),
+            ) as Schema<any>,
             tracerContext: TracerPropagationContextSchema,
         }),
         Ping: Schema.object({
             type: Schema.value("Ping"),
             tracerContext: TracerPropagationContextSchema,
         }),
-        SoftCloseWhileWaitingForMessageAcknowledgments: Schema.object({
-            type: Schema.value("SoftCloseWhileWaitingForMessageAcknowledgments"),
+        SoftCloseWhileWaitingForProcedureResponses: Schema.object({
+            type: Schema.value("SoftCloseWhileWaitingForProcedureResponses"),
             tracerContext: TracerPropagationContextSchema,
         }),
     });
@@ -57,35 +74,67 @@ export function createWebSocketMessageFromClientSchema<Message extends {type: st
  * the specific WebSocket protocol must be a union type so new messages can be
  * added in the future.
  */
-export type WebSocketMessageFromServer<Message extends {type: string}> =
+export type WebSocketMessageFromServer<Protocol extends WebSocketProtocolBase> =
     | {
-          readonly type: "Message";
-          readonly message: Message;
+          readonly type: "ProcedureResponse";
+          readonly requestId: WebSocketProcedureRequestId;
+          readonly result:
+              | {
+                    readonly ok: true;
+                    readonly output: WebSocketProcedureResponseOutput<
+                        WebSocketProtocolProceduresType<Protocol>
+                    >;
+                }
+              | {
+                    readonly ok: false;
+                    readonly outputType: string;
+                    readonly error: unknown;
+                };
       }
     | {
-          readonly type: "AcknowledgeMessage";
-          readonly messageId: WebSocketMessageId;
-          readonly result: {readonly ok: true} | {readonly ok: false; readonly error: unknown};
+          readonly type: "Event";
+          readonly event: WebSocketProtocolEventType<Protocol>;
       }
     | {
           readonly type: "Pong";
       };
 
-export function createWebSocketMessageFromServerSchema<Message extends {type: string}>(
-    messageFromClientSchema: UnionSchema<Message>,
-): Schema<WebSocketMessageFromServer<Message>> {
+type WebSocketProcedureResponseOutput<
+    Procedures extends {[name: string]: {input: {}; output: {}}},
+> = {
+    [Name in keyof Procedures & string]: {readonly type: Name} & Procedures[Name]["output"];
+}[keyof Procedures & string];
+
+export function createWebSocketMessageFromServerSchema<Protocol extends WebSocketProtocolBase>(
+    protocol: Protocol,
+): Schema<WebSocketMessageFromServer<Protocol>> {
     return Schema.union({
-        Message: Schema.object({
-            type: Schema.value("Message"),
-            message: messageFromClientSchema as Schema<any>,
-        }),
-        AcknowledgeMessage: Schema.object({
-            type: Schema.value("AcknowledgeMessage"),
-            messageId: Schema.id<WebSocketMessageId>(),
+        ProcedureResponse: Schema.object({
+            type: Schema.value("ProcedureResponse"),
+            requestId: Schema.id<WebSocketProcedureRequestId>(),
             result: Schema.result(
-                Schema.object({ok: Schema.value(true)}),
-                Schema.object({ok: Schema.value(false), error: ErrorSchema}),
+                Schema.object({
+                    ok: Schema.value(true),
+                    output: Schema.union(
+                        mapObjectValues(
+                            protocol.procedureSchemas,
+                            (procedureSchema, procedureName) =>
+                                Schema.object({
+                                    type: Schema.value(procedureName),
+                                }).merge(procedureSchema.outputSchema),
+                        ),
+                    ) as Schema<any>,
+                }),
+                Schema.object({
+                    ok: Schema.value(false),
+                    outputType: Schema.string,
+                    error: ErrorSchema,
+                }),
             ),
+        }),
+        Event: Schema.object({
+            type: Schema.value("Event"),
+            event: protocol.eventSchema as Schema<any>,
         }),
         Pong: Schema.object({
             type: Schema.value("Pong"),

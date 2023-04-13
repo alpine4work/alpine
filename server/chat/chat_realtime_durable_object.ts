@@ -4,12 +4,7 @@ import {WebSocketServer} from "~/server/cloudflare/web_socket_server";
 import {authorizeChatAccess} from "~/server/dynamo/chat_table";
 import {ProcessContext} from "~/server/dynamo/context/process_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
-import {
-    ChatRealtimeMessageFromClient,
-    ChatRealtimeMessageFromClientSchema,
-    ChatRealtimeMessageFromServer,
-    ChatRealtimeMessageFromServerSchema,
-} from "~/shared/chat/chat_realtime_schema";
+import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol";
 import {ChatId, SpaceId} from "~/shared/id/types/id_types";
 import {Schema} from "~/shared/schema/schema";
 
@@ -21,8 +16,7 @@ class ChatRealtimeDurableObject {
     private readonly _chatId: ChatId;
 
     private readonly _webSocketServer: WebSocketServer<
-        ChatRealtimeMessageFromClient,
-        ChatRealtimeMessageFromServer,
+        typeof ChatRealtimeProtocol,
         ChatRealtimeConnection
     >;
 
@@ -63,15 +57,14 @@ class ChatRealtimeDurableObject {
 
         this._webSocketServer = new WebSocketServer(
             this._context,
-            ChatRealtimeMessageFromClientSchema,
-            ChatRealtimeMessageFromServerSchema,
-            ({connectionId, sendMessage, sendMessageToOthers, iterateOtherConnections}) =>
+            ChatRealtimeProtocol,
+            ({connectionId, sendEvent, sendEventToOthers, iterateOtherConnections}) =>
                 new ChatRealtimeConnection({
                     connectionId,
                     spaceId,
                     chatId,
-                    sendMessage,
-                    sendMessageToOthers,
+                    sendEvent,
+                    sendEventToOthers,
                     iterateOtherConnections,
                 }),
         );

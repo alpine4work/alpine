@@ -1,6 +1,5 @@
 import {assert} from "~/shared/helpers/control/assert";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object";
-import {Id, isId} from "~/shared/id/id";
 
 const safeStringTag = Symbol("safe");
 
@@ -66,17 +65,16 @@ export function safeNumber(number: number): SafeString {
 }
 
 /**
- * Safely embeds an `Id` in a `SafeString`.
+ * Safely embed an alphanumeric string (only ascii letters and numbers) in
+ * a `SafeString`.
  *
  * Be careful how you use this utility as you're potentially allowing user
- * input in a `SafeString`! Make sure you use this somewhere that supports a
- * string in an `Id` format.
+ * input in a `SafeString`! Make sure you use this somewhere that supports an
+ * alphanumeric string and the string can't do anything bad.
  */
-export function safeId(id: Id): SafeString {
-    // Be certain that the input string is actually an `Id`.
-    assert(isId(id));
-
-    return {_tag: safeStringTag, string: id};
+export function safeAlphanumericString(string: string): SafeString {
+    assert(/^[a-z0-9]+$/.test(string));
+    return {_tag: safeStringTag, string};
 }
 
 /**

@@ -7,27 +7,27 @@ import {MessageList, MessageListItem} from "~/client/messaging/message_list";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages";
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view";
+import {MessageContent} from "~/shared/content/message_content_schema";
 import {cast} from "~/shared/helpers/control/cast";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {pickObject} from "~/shared/helpers/object/pick_object";
 import {PostId} from "~/shared/id/types/id_types";
-import {
-    MessagingRealtimeMessageFromClient,
-    MessagingRealtimeMessageFromServer,
-} from "~/shared/messaging/messaging_realtime_schema";
+import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol";
 import {messageInputMinHeight} from "~/shared/messaging/messaging_shared_styles";
 import {PostCommentModel, PostModel} from "~/shared/models/post_model";
-import {
-    PostRealtimeMessageFromClientSchema,
-    PostRealtimeMessageFromServer,
-    PostRealtimeMessageFromServerSchema,
-} from "~/shared/posts/post_realtime_schema";
+import {PostRealtimeEvent, PostRealtimeProtocol} from "~/shared/posts/post_realtime_protocol";
 
 export const postCommentInputMinHeight = messageInputMinHeight;
+
+export type PostRealtimeProcedures = {
+    updateCommentContent: (input: {commentIndex: number; content: MessageContent}) => Promise<{}>;
+    deleteComment: (input: {commentIndex: number}) => Promise<{}>;
+};
 
 export function PostCommentInput({
     post,
     viewRef,
-    sendRealtimeMessageRef,
+    proceduresRef,
     postComments,
     onUpdatePostComments,
     postCommentEditing,
@@ -38,7 +38,7 @@ export function PostCommentInput({
 }: {
     post: PostModel;
     viewRef: RefObject<VirtualizedScrollViewRef>;
-    sendRealtimeMessageRef: Ref<(message: MessagingRealtimeMessageFromClient) => Promise<void>>;
+    proceduresRef: Ref<PostRealtimeProcedures>;
     postComments: MessageList<PostCommentModel>;
     onUpdatePostComments: (
         update: (postComments: MessageList<PostCommentModel>) => MessageList<PostCommentModel>,
@@ -54,43 +54,63 @@ export function PostCommentInput({
     // We connect to realtime in our `<PostCommentInput>` component. When comments
     // are open this component is always rendered and we only want to connect to
     // realtime when comments are open so works out.
-    const {
-        isConnected: isRealtimeConnected,
-        sendMessage: _sendRealtimeMessage,
-        subscribeToMessages: subscribeToRealtimeMessages,
-    } = useWebSocket(
-        PostRealtimeMessageFromClientSchema,
-        PostRealtimeMessageFromServerSchema,
+    const {isConnected, procedures, subscribeToEvents} = useWebSocket(
+        PostRealtimeProtocol,
         `/durable-objects/posts/${post.id}`,
     );
 
-    const sendRealtimeMessage = useCallback(
-        (message: MessagingRealtimeMessageFromClient) =>
-            _sendRealtimeMessage({type: "PostComments", message}),
-        [_sendRealtimeMessage],
+    useImperativeHandle(
+        proceduresRef,
+        () => pickObject(procedures, ["updateCommentContent", "deleteComment"]),
+        [procedures],
     );
-
-    useImperativeHandle(sendRealtimeMessageRef, () => sendRealtimeMessage, [sendRealtimeMessage]);
 
     useMessagingRealtime({
         messages: postComments,
         onUpdateMessages: onUpdatePostComments,
-        isRealtimeConnected,
-        sendRealtimeMessage,
-        subscribeToRealtimeMessages: useCallback(
-            (
-                subscriber: (message: MessagingRealtimeMessageFromServer<PostCommentModel>) => void,
-            ) => {
-                const actualSubscriber = (message: PostRealtimeMessageFromServer) => {
+        isConnected,
+        backfillMessages: useCallback(
+            async ({
+                clientMessageCount: clientCommentCount,
+                clientLastMessageChangeTime: clientLastCommentChangeTime,
+                newMessageLimit: newCommentLimit,
+            }) => {
+                const {
+                    commentCount: messageCount,
+                    lastCommentChangeTime: lastMessageChangeTime,
+                    newComments: newMessages,
+                    newOtherReferencedComments: newOtherReferencedMessages,
+                    commentChangesResult: messageChangesResult,
+                    typingStateByConnectionId,
+                } = await procedures.backfillComments({
+                    clientCommentCount,
+                    clientLastCommentChangeTime,
+                    newCommentLimit,
+                });
+
+                return {
+                    messageCount,
+                    lastMessageChangeTime,
+                    newMessages,
+                    newOtherReferencedMessages,
+                    messageChangesResult,
+                    typingStateByConnectionId,
+                };
+            },
+            [procedures],
+        ),
+        subscribeToEvents: useCallback(
+            (subscriber: (message: MessagingRealtimeEvent<PostCommentModel>) => void) => {
+                const actualSubscriber = (event: PostRealtimeEvent) => {
                     // TypeScript will error if we ever add other message types here. At that point
                     // this code should turn into a switch.
-                    cast<"PostComments">(message.type);
-                    subscriber(message.message);
+                    cast<"Comments">(event.type);
+                    subscriber(event.event);
                 };
 
-                return subscribeToRealtimeMessages(actualSubscriber);
+                return subscribeToEvents(actualSubscriber);
             },
-            [subscribeToRealtimeMessages],
+            [subscribeToEvents],
         ),
     });
 
@@ -126,9 +146,9 @@ export function PostCommentInput({
             messages={postComments}
             onUpdateMessages={onUpdatePostComments}
             createMessage={async input => {
-                await sendRealtimeMessage({
-                    type: "CreateMessage",
-                    ...input,
+                await procedures.createComment({
+                    parentCommentIndex: input.parentMessageIndex,
+                    content: input.content,
                 });
             }}
             messageEditing={postCommentEditing}
@@ -139,21 +159,25 @@ export function PostCommentInput({
                 // Don't show an error updating typing indicators to the user. We will see an
                 // error in our logs but the user won't see any weird behavior if the
                 // request fails.
-                sendRealtimeMessage({type: "StartTyping"}).catch(error =>
-                    context.tracer
-                        .getRoot()
-                        .logUncaughtException("Couldn't update typing indicator", error),
-                );
+                procedures
+                    .startTypingInCommentInput({})
+                    .catch(error =>
+                        context.tracer
+                            .getRoot()
+                            .logUncaughtException("Couldn't update typing indicator", error),
+                    );
             }}
             onHideTypingIndicator={() => {
                 // Don't show an error updating typing indicators to the user. We will see an
                 // error in our logs but the user won't see any weird behavior if the
                 // request fails.
-                sendRealtimeMessage({type: "StopTyping"}).catch(error =>
-                    context.tracer
-                        .getRoot()
-                        .logUncaughtException("Couldn't update typing indicator", error),
-                );
+                procedures
+                    .stopTypingInCommentInput({})
+                    .catch(error =>
+                        context.tracer
+                            .getRoot()
+                            .logUncaughtException("Couldn't update typing indicator", error),
+                    );
             }}
             withoutBorderTop={withoutBorderTop}
         />

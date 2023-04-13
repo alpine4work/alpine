@@ -6,14 +6,8 @@ import {useWebSocket} from "~/client/cloudflare/use_web_socket";
 import {useAppContext} from "~/client/context/app_context";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {MessagingView} from "~/client/messaging/messaging_view";
-import {
-    ChatRealtimeMessageFromClientSchema,
-    ChatRealtimeMessageFromServer,
-    ChatRealtimeMessageFromServerSchema,
-} from "~/shared/chat/chat_realtime_schema";
+import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol";
 import {InternalError} from "~/shared/error/error";
-import {cast} from "~/shared/helpers/control/cast";
-import {MessagingRealtimeMessageFromServer} from "~/shared/messaging/messaging_realtime_schema";
 import {ChatMessageModel, ChatModel} from "~/shared/models/chat_model";
 import {getChatMessagesFromEnd, getChatMessagesFromStart} from "~/shared/rpc/chat_rpc_definitions";
 
@@ -28,13 +22,8 @@ export function NewChatMessagingView({
 }) {
     const context = useAppContext();
 
-    const {
-        isConnected: isRealtimeConnected,
-        sendMessage: sendRealtimeMessage,
-        subscribeToMessages: subscribeToRealtimeMessages,
-    } = useWebSocket(
-        ChatRealtimeMessageFromClientSchema,
-        ChatRealtimeMessageFromServerSchema,
+    const {isConnected, procedures, subscribeToEvents} = useWebSocket(
+        ChatRealtimeProtocol,
         selectedChat ? `/durable-objects/chat/${selectedChat.chat.id}` : null,
     );
 
@@ -77,35 +66,14 @@ export function NewChatMessagingView({
                 }
                 return getChatMessagesFromEnd(context, {...input, chatId: selectedChat.chat.id});
             })}
-            isRealtimeConnected={isRealtimeConnected}
-            sendRealtimeMessage={useCallback(
-                async message => {
-                    if (!selectedChat) {
-                        throw new InternalError(
-                            "Can not send realtime message when we don't know the chat",
-                        );
-                    }
-                    return sendRealtimeMessage({type: "ChatMessages", message});
-                },
-                [selectedChat, sendRealtimeMessage],
-            )}
-            subscribeToRealtimeMessages={useCallback(
-                (
-                    subscriber: (
-                        message: MessagingRealtimeMessageFromServer<ChatMessageModel>,
-                    ) => void,
-                ) => {
-                    const actualSubscriber = (message: ChatRealtimeMessageFromServer) => {
-                        // TypeScript will error if we ever add other message types here. At that point
-                        // this code should turn into a switch.
-                        cast<"ChatMessages">(message.type);
-                        subscriber(message.message);
-                    };
-
-                    return subscribeToRealtimeMessages(actualSubscriber);
-                },
-                [subscribeToRealtimeMessages],
-            )}
+            backfillMessages={procedures.backfillMessages}
+            createMessage={procedures.createMessage}
+            updateMessageContent={procedures.updateMessageContent}
+            deleteMessage={procedures.deleteMessage}
+            startTypingInMessageInput={procedures.startTypingInMessageInput}
+            stopTypingInMessageInput={procedures.stopTypingInMessageInput}
+            isConnected={isConnected}
+            subscribeToEvents={subscribeToEvents}
             getMessageUrl={useCallback(
                 messageIndex => {
                     // This should never throw through (mostly) coincidence. The only messages you

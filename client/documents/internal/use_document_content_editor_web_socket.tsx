@@ -2,11 +2,15 @@ import {StepMap} from "prosemirror-transform";
 import {Memo, useCallback, useEffect, useRef, useState} from "react";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {useAppContext} from "~/client/context/app_context";
-import {DocumentContentEditorWebSocketClient} from "~/client/documents/internal/document_content_editor_web_socket_client";
+import {
+    DocumentContentEditorWebSocketClient,
+    DocumentContentEditorWebSocketClientProcedures,
+} from "~/client/documents/internal/document_content_editor_web_socket_client";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useStore} from "~/client/helpers/store/use_store";
+import {MemoObject} from "~/client/helpers/types/memo_object";
 import {DocumentContent} from "~/shared/content/document_content_schema";
-import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_schema";
+import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_protocol";
 import {assert} from "~/shared/helpers/control/assert";
 import {Lazy} from "~/shared/helpers/control/lazy";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
@@ -15,27 +19,17 @@ import {
     DocumentId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types";
-import {
-    MessagingRealtimeMessageFromClient,
-    MessagingRealtimeMessageFromServer,
-} from "~/shared/messaging/messaging_realtime_schema";
+import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol";
 import {
     DocumentCommentModel,
     DocumentContentWithReferences,
     DocumentModel,
 } from "~/shared/models/document_model";
 
-export type SendCommentThreadMessageFunction = Memo<
+export type SubscribeToCommentThreadEventsFunction = Memo<
     (
         commentThreadId: DocumentCommentThreadId,
-        message: MessagingRealtimeMessageFromClient,
-    ) => Promise<void>
->;
-
-export type SubscribeToCommentThreadMessagesFunction = Memo<
-    (
-        commentThreadId: DocumentCommentThreadId,
-        subscriber: (message: MessagingRealtimeMessageFromServer<DocumentCommentModel>) => void,
+        subscriber: (event: MessagingRealtimeEvent<DocumentCommentModel>) => void,
     ) => () => void
 >;
 
@@ -70,8 +64,8 @@ export function useDocumentContentEditorWebSocket(
         readonly contentAfterStep: Lazy<DocumentContent>;
     }>;
     toggleShouldConnect: Memo<() => void>;
-    sendCommentThreadMessage: SendCommentThreadMessageFunction;
-    subscribeToCommentThreadMessages: SubscribeToCommentThreadMessagesFunction;
+    procedures: MemoObject<DocumentContentEditorWebSocketClientProcedures>;
+    subscribeToCommentThreadEvents: SubscribeToCommentThreadEventsFunction;
 } {
     assert(!initialDocument || documentId === initialDocument.id);
 
@@ -128,13 +122,10 @@ export function useDocumentContentEditorWebSocket(
         otherPresenceStateByConnectionId: state.otherPresenceStateByConnectionId,
         rememberedSteps: state.rememberedSteps,
         toggleShouldConnect,
-        sendCommentThreadMessage: useCallback(
-            (commentThreadId, message) => client.sendCommentThreadMessage(commentThreadId, message),
-            [client],
-        ),
-        subscribeToCommentThreadMessages: useCallback(
+        procedures: client.procedures as MemoObject<DocumentContentEditorWebSocketClientProcedures>,
+        subscribeToCommentThreadEvents: useCallback(
             (commentThreadId, subscriber) =>
-                client.subscribeToCommentThreadMessages(commentThreadId, subscriber),
+                client.subscribeToCommentThreadEvents(commentThreadId, subscriber),
             [client],
         ),
     };

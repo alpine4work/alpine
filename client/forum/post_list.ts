@@ -10,7 +10,7 @@ import {
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
 import {PostId, WebSocketConnectionId} from "~/shared/id/types/id_types";
-import {MessagingTypingState} from "~/shared/messaging/messaging_realtime_schema";
+import {MessagingTypingState} from "~/shared/messaging/messaging_realtime_protocol";
 import {ChannelModel} from "~/shared/models/channel_model";
 import {OptimisticMessageModel} from "~/shared/models/message_model";
 import {PostCommentModel, PostModel} from "~/shared/models/post_model";

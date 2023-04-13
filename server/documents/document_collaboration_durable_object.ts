@@ -6,12 +6,7 @@ import {ProcessContext} from "~/server/dynamo/context/process_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
 import {getDocument} from "~/server/dynamo/documents_table";
 import {DocumentContent} from "~/shared/content/document_content_schema";
-import {
-    DocumentCollaborationMessageFromClient,
-    DocumentCollaborationMessageFromClientSchema,
-    DocumentCollaborationMessageFromServer,
-    DocumentCollaborationMessageFromServerSchema,
-} from "~/shared/documents/document_collaboration_schema";
+import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol";
 import {NotFoundError} from "~/shared/error/error";
 import {DocumentId, SpaceId} from "~/shared/id/types/id_types";
 import {Schema} from "~/shared/schema/schema";
@@ -26,8 +21,7 @@ class DocumentCollaborationDurableObject {
     private readonly _destroyCallback: () => void;
 
     private readonly _webSocketServer: WebSocketServer<
-        DocumentCollaborationMessageFromClient,
-        DocumentCollaborationMessageFromServer,
+        typeof DocumentCollaborationProtocol,
         DocumentCollaborationConnection
     >;
 
@@ -83,22 +77,21 @@ class DocumentCollaborationDurableObject {
             id,
             initialVersion,
             initialContent,
-            sendMessageToAll: (context, message) =>
-                this._webSocketServer.sendMessageToAll(context, message),
+            sendEventToAll: (context, event) =>
+                this._webSocketServer.sendEventToAll(context, event),
             killProcess: context => this._destroy(context),
         });
         this._destroyCallback = destroy;
 
         this._webSocketServer = new WebSocketServer(
             this._context,
-            DocumentCollaborationMessageFromClientSchema,
-            DocumentCollaborationMessageFromServerSchema,
-            ({connectionId, sendMessage, sendMessageToOthers, iterateOtherConnections}) =>
+            DocumentCollaborationProtocol,
+            ({connectionId, sendEvent, sendEventToOthers, iterateOtherConnections}) =>
                 new DocumentCollaborationConnection({
                     connectionId,
                     contentManager: this._contentManager,
-                    sendMessage,
-                    sendMessageToOthers,
+                    sendEvent,
+                    sendEventToOthers,
                     iterateOtherConnections,
                     killProcess: context => this._destroy(context),
                 }),

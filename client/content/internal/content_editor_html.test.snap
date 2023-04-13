@@ -1929,7 +1929,7 @@ exports[`highlight 1`] = `
   >
     Hello 
     <mark
-      class="content_schema__1ndd5c6p"
+      class="content_schema__1ndd5c6o"
       data-highlight-color="green"
     >
       world
@@ -2004,7 +2004,7 @@ exports[`link (XSS vulnerability) 1`] = `
   >
     Hello 
     <a
-      class="content_schema__1ndd5c6s"
+      class="content_schema__1ndd5c6r"
       href="about:blank#blocked"
       rel="noopener noreferrer"
       target="_blank"
@@ -2031,7 +2031,7 @@ exports[`link 1`] = `
   >
     Hello 
     <a
-      class="content_schema__1ndd5c6s"
+      class="content_schema__1ndd5c6r"
       href="https://example.com/"
       rel="noopener noreferrer"
       target="_blank"

@@ -5,6 +5,11 @@ import {RequestContext} from "~/server/dynamo/context/request_context";
 import {validateTracerEventFlatDataForPropagation} from "~/server/tracer/validate_tracer_event_flat_data";
 import {webSocketExpirationTimeoutMs} from "~/shared/cloudflare/web_socket_expiration_timeout_ms";
 import {
+    WebSocketProtocolBase,
+    WebSocketProtocolEventType,
+    WebSocketProtocolProceduresType,
+} from "~/shared/cloudflare/web_socket_protocol";
+import {
     WebSocketMessageFromClient,
     WebSocketMessageFromServer,
     createWebSocketMessageFromClientSchema,
@@ -19,17 +24,33 @@ import {assert} from "~/shared/helpers/control/assert";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
 import {generateId} from "~/shared/id/id";
 import {AccountId, SessionId, WebSocketConnectionId} from "~/shared/id/types/id_types";
-import {Schema, UnionSchema} from "~/shared/schema/schema";
+import {Schema} from "~/shared/schema/schema";
 import {TracerSpan} from "~/shared/tracer/tracer_span";
 
-export interface WebSocketServerConnectionBase<MessageFromClient extends {type: string}> {
-    handleMessage(
-        context: RequestContext,
-        message: MessageFromClient,
-        span: TracerSpan,
-    ): Promise<void>;
+export type WebSocketConnectionProcedures<Protocol extends WebSocketProtocolBase> =
+    _WebSocketConnectionProcedures<WebSocketProtocolProceduresType<Protocol>>;
+
+type _WebSocketConnectionProcedures<Procedures extends {[name: string]: {input: {}; output: {}}}> =
+    {
+        [Name in keyof Procedures]: (
+            context: RequestContext,
+            input: Procedures[Name]["input"],
+            span: TracerSpan,
+        ) => Promise<Procedures[Name]["output"]>;
+    };
+
+declare const anySecret: unique symbol;
+
+export interface WebSocketServerConnectionBase<Protocol extends WebSocketProtocolBase> {
+    // If `Protocol` matches `anySecret` then we consider it to be the `any` type.
+    // If `Protocol` is `any` then make the full `procedures` object `any` to
+    // simplify some compatibility checks.
+    readonly procedures: [Protocol] extends [typeof anySecret]
+        ? any
+        : WebSocketConnectionProcedures<Protocol>;
     handleClose?(context: ProcessContext): void;
 }
 
@@ -38,23 +59,20 @@ export interface WebSocketServerConnectionBase<MessageFromClient extends {type: 
  * `WebSocketClient` for the client side of this class.
  */
 export class WebSocketServer<
-    MessageFromClient extends {type: string},
-    MessageFromServer extends {type: string},
-    Connection extends WebSocketServerConnectionBase<MessageFromClient>,
+    Protocol extends WebSocketProtocolBase,
+    Connection extends WebSocketServerConnectionBase<Protocol>,
 > {
     private readonly _processContext: ProcessContext;
-    // NOTE(calebmer): Force schemas to be union schemas so the protocol can evolve
-    // in the future.
-    private readonly _messageFromClientSchema: Schema<
-        WebSocketMessageFromClient<MessageFromClient>
-    >;
-    private readonly _messageFromServerSchema: Schema<
-        WebSocketMessageFromServer<MessageFromServer>
-    >;
+    private readonly _protocol: Protocol;
+    private readonly _messageFromClientSchema: Schema<WebSocketMessageFromClient<Protocol>>;
+    private readonly _messageFromServerSchema: Schema<WebSocketMessageFromServer<Protocol>>;
     private readonly _createConnection: (connection: {
         connectionId: WebSocketConnectionId;
-        sendMessage: (context: ProcessContext, message: MessageFromServer) => void;
-        sendMessageToOthers: (context: ProcessContext, message: MessageFromServer) => void;
+        sendEvent: (context: ProcessContext, message: WebSocketProtocolEventType<Protocol>) => void;
+        sendEventToOthers: (
+            context: ProcessContext,
+            message: WebSocketProtocolEventType<Protocol>,
+        ) => void;
         iterateOtherConnections: () => Iterable<Connection>;
     }) => Connection;
 
@@ -66,20 +84,24 @@ export class WebSocketServer<
 
     constructor(
         processContext: ProcessContext,
-        messageFromClientSchema: UnionSchema<MessageFromClient>,
-        messageFromServerSchema: UnionSchema<MessageFromServer>,
+        protocol: Protocol,
         createConnection: (connection: {
             connectionId: WebSocketConnectionId;
-            sendMessage: (context: ProcessContext, message: MessageFromServer) => void;
-            sendMessageToOthers: (context: ProcessContext, message: MessageFromServer) => void;
+            sendEvent: (
+                context: ProcessContext,
+                message: WebSocketProtocolEventType<Protocol>,
+            ) => void;
+            sendEventToOthers: (
+                context: ProcessContext,
+                message: WebSocketProtocolEventType<Protocol>,
+            ) => void;
             iterateOtherConnections: () => Iterable<Connection>;
         }) => Connection,
     ) {
         this._processContext = processContext;
-        this._messageFromClientSchema =
-            createWebSocketMessageFromClientSchema(messageFromClientSchema);
-        this._messageFromServerSchema =
-            createWebSocketMessageFromServerSchema(messageFromServerSchema);
+        this._protocol = protocol;
+        this._messageFromClientSchema = createWebSocketMessageFromClientSchema(protocol);
+        this._messageFromServerSchema = createWebSocketMessageFromServerSchema(protocol);
         this._createConnection = createConnection;
     }
 
@@ -141,15 +163,21 @@ export class WebSocketServer<
 
         const response = new Response(null, {status: 101, webSocket: clientSocket});
 
-        const sendMessage = (context: ProcessContext, message: MessageFromServer) => {
+        const sendEvent = (
+            context: ProcessContext,
+            event: WebSocketProtocolEventType<Protocol>,
+        ) => {
             connection.sendMessage(context, {
-                type: "Message",
-                message,
+                type: "Event",
+                event,
             });
         };
 
-        const sendMessageToOthers = (context: ProcessContext, message: MessageFromServer) => {
-            this.sendMessageToOthers(context, connection.id, message);
+        const sendEventToOthers = (
+            context: ProcessContext,
+            event: WebSocketProtocolEventType<Protocol>,
+        ) => {
+            this._sendEventToOthers(context, connection.id, event);
         };
 
         const iterateOtherConnections = (): Iterable<Connection> => {
@@ -168,8 +196,8 @@ export class WebSocketServer<
 
         const actualConnection = this._createConnection({
             connectionId,
-            sendMessage,
-            sendMessageToOthers,
+            sendEvent,
+            sendEventToOthers,
             iterateOtherConnections,
         });
 
@@ -249,21 +277,18 @@ export class WebSocketServer<
     /**
      * Send a message to all connected clients.
      */
-    public sendMessageToAll(context: ProcessContext, message: MessageFromServer) {
+    public sendEventToAll(context: ProcessContext, event: WebSocketProtocolEventType<Protocol>) {
         const {span, finishSpan} = context.tracer.startSpan(
             "Sending all WebSocket connections a message",
         );
-        span.addData({
-            webSocket: {
-                messageType: message.type,
-            },
-        });
+        const messageType = `Event:${event.type}`;
+        span.addData({webSocket: {messageType}});
         context = context.clone({tracer: new TracerContextModule(span)});
 
         try {
             const serializedMessage = this._messageFromServerSchema.serialize({
-                type: "Message",
-                message,
+                type: "Event",
+                event,
             });
             const serializedMessageString = JSON.stringify(serializedMessage);
 
@@ -273,7 +298,7 @@ export class WebSocketServer<
 
                 connection.dangerouslySendRawMessageEvenWhenSoftClosed(
                     context,
-                    message.type,
+                    messageType,
                     serializedMessageString,
                 );
             }
@@ -289,25 +314,22 @@ export class WebSocketServer<
     /**
      * Send a message to connected clients besides the provided connection ID.
      */
-    private sendMessageToOthers(
+    private _sendEventToOthers(
         context: ProcessContext,
         ourConnectionId: WebSocketConnectionId,
-        message: MessageFromServer,
+        event: WebSocketProtocolEventType<Protocol>,
     ) {
         const {span, finishSpan} = context.tracer.startSpan(
             "Sending all other WebSocket connections a message",
         );
-        span.addData({
-            webSocket: {
-                messageType: message.type,
-            },
-        });
+        const messageType = `Event:${event.type}`;
+        span.addData({webSocket: {messageType}});
         context = context.clone({tracer: new TracerContextModule(span)});
 
         try {
             const serializedMessage = this._messageFromServerSchema.serialize({
-                type: "Message",
-                message,
+                type: "Event",
+                event,
             });
             const serializedMessageString = JSON.stringify(serializedMessage);
 
@@ -319,7 +341,7 @@ export class WebSocketServer<
 
                 connection.dangerouslySendRawMessageEvenWhenSoftClosed(
                     context,
-                    message.type,
+                    messageType,
                     serializedMessageString,
                 );
             }
@@ -373,15 +395,21 @@ export class WebSocketServer<
      */
     public connectForTest(
         connectRequestContext: RequestContext,
-    ): WebSocketServerTestConnection<MessageFromClient, MessageFromServer, Connection> {
+    ): WebSocketServerTestConnection<Protocol, Connection> {
         assert(typeof jest !== "undefined");
 
-        const sendMessage = (context: ProcessContext, message: MessageFromServer) => {
-            connection.sendMessage(message);
+        const sendEvent = (
+            context: ProcessContext,
+            event: WebSocketProtocolEventType<Protocol>,
+        ) => {
+            connection._sendEvent(event);
         };
 
-        const sendMessageToOthers = (context: ProcessContext, message: MessageFromServer) => {
-            this.sendMessageToOthers(context, connection.id, message);
+        const sendEventToOthers = (
+            context: ProcessContext,
+            event: WebSocketProtocolEventType<Protocol>,
+        ) => {
+            this._sendEventToOthers(context, connection.id, event);
         };
 
         const iterateOtherConnections = (): Iterable<Connection> => {
@@ -400,8 +428,8 @@ export class WebSocketServer<
 
         const actualConnection = this._createConnection({
             connectionId,
-            sendMessage,
-            sendMessageToOthers,
+            sendEvent,
+            sendEventToOthers,
             iterateOtherConnections,
         });
 
@@ -432,9 +460,13 @@ export class WebSocketServer<
         return {
             id: connection.id,
             connection: connection.connection,
-            sendMessage: message => connection.handleMessage(message),
-            takeMessages: () => connection.takeMessages(),
-            subscribeToMessages: listener => connection.subscribeToMessages(listener),
+            procedures: mapObjectValues(
+                this._protocol.procedureSchemas,
+                (procedureSchema, procedureName) => (input: any) =>
+                    connection.executeProcedure(procedureName, input),
+            ) as any,
+            takeEvents: () => connection.takeEvents(),
+            subscribeToEvents: listener => connection.subscribeToEvents(listener),
             close: () => connection.close(),
         };
     }
@@ -496,20 +528,15 @@ interface WebSocketServerConnectionWrapperBase<Connection> {
 }
 
 class WebSocketServerConnectionWrapper<
-    MessageFromClient extends {type: string},
-    MessageFromServer extends {type: string},
-    Connection extends WebSocketServerConnectionBase<MessageFromClient>,
+    Protocol extends WebSocketProtocolBase,
+    Connection extends WebSocketServerConnectionBase<Protocol>,
 > implements WebSocketServerConnectionWrapperBase<Connection>
 {
     public readonly id: WebSocketConnectionId;
     private readonly _processContext: ProcessContext;
     private readonly _socket: WebSocket;
-    private readonly _messageFromClientSchema: Schema<
-        WebSocketMessageFromClient<MessageFromClient>
-    >;
-    private readonly _messageFromServerSchema: Schema<
-        WebSocketMessageFromServer<MessageFromServer>
-    >;
+    private readonly _messageFromClientSchema: Schema<WebSocketMessageFromClient<Protocol>>;
+    private readonly _messageFromServerSchema: Schema<WebSocketMessageFromServer<Protocol>>;
     public readonly connection: Connection;
     private readonly _sessionId: SessionId;
     private readonly _sessionAccountId: AccountId;
@@ -542,8 +569,8 @@ class WebSocketServerConnectionWrapper<
         id: WebSocketConnectionId;
         processContext: ProcessContext;
         socket: WebSocket;
-        messageFromClientSchema: Schema<WebSocketMessageFromClient<MessageFromClient>>;
-        messageFromServerSchema: Schema<WebSocketMessageFromServer<MessageFromServer>>;
+        messageFromClientSchema: Schema<WebSocketMessageFromClient<Protocol>>;
+        messageFromServerSchema: Schema<WebSocketMessageFromServer<Protocol>>;
         connection: Connection;
         sessionId: SessionId;
         sessionAccountId: AccountId;
@@ -561,7 +588,7 @@ class WebSocketServerConnectionWrapper<
             this._processContext.process.waitUntil(async () => {
                 this._lastMessageTimeMs = Date.now();
 
-                let message: WebSocketMessageFromClient<MessageFromClient>;
+                let message: WebSocketMessageFromClient<Protocol>;
                 try {
                     const serializedMessage = JSON.parse(event.data);
                     message = this._messageFromClientSchema.deserialize(serializedMessage);
@@ -603,22 +630,22 @@ class WebSocketServerConnectionWrapper<
                                 webSocket: {
                                     connectionId: this.id,
                                     messageType:
-                                        message.type === "Message"
-                                            ? message.message.type
+                                        message.type === "ProcedureRequest"
+                                            ? `ProcedureRequest:${message.input.type}`
                                             : message.type,
                                 },
                             });
 
-                            // If the client soft closed our connection we won't accept new messages. We
+                            // If the client soft closed our connection we won't accept new procedures. We
                             // still process ping/pong messages since that tells us the connection is
                             // still alive.
                             //
                             // It is important that this comes before any `await`s like our
                             // `await Session.get()` below so we don't have any race conditions between the
-                            // `SoftCloseWhileWaitingForMessageAcknowledgments` message and other messages.
-                            if (this._isSoftClosed && message.type === "Message")
+                            // `SoftCloseWhileWaitingForProcedureResponses` message and other messages.
+                            if (this._isSoftClosed && message.type === "ProcedureRequest")
                                 throw new FailedPreconditionError(
-                                    "WebSocket connection can not process new messages when soft closed",
+                                    "WebSocket connection can not process new procedures when soft closed",
                                 );
 
                             // TODO(calebmer): Can we at least give this some kind of TTL in-memory cache??
@@ -639,40 +666,50 @@ class WebSocketServerConnectionWrapper<
                                     this.sendMessage(context, {type: "Pong"});
                                     break;
                                 }
-                                case "Message": {
-                                    try {
-                                        const actualMessage = message.message;
+                                case "ProcedureRequest": {
+                                    const {
+                                        input: {type, ...input},
+                                    } = message;
 
-                                        await context.with(
+                                    try {
+                                        const output = await context.with(
                                             {
                                                 cache: new CacheContextModule(),
                                                 auth: new AuthenticatedAuthContextModule(session),
                                             },
-                                            async (context: RequestContext) => {
-                                                await this.connection.handleMessage(
+                                            (context: RequestContext) => {
+                                                return this.connection.procedures[type](
                                                     context,
-                                                    actualMessage,
+                                                    input,
                                                     span,
                                                 );
                                             },
                                         );
+
                                         this.sendMessage(context, {
-                                            type: "AcknowledgeMessage",
-                                            messageId: message.messageId,
-                                            result: {ok: true},
+                                            type: "ProcedureResponse",
+                                            requestId: message.requestId,
+                                            result: {
+                                                ok: true,
+                                                output: {type, ...output},
+                                            },
                                         });
                                     } catch (error) {
                                         span.addException(error);
 
                                         this.sendMessage(context, {
-                                            type: "AcknowledgeMessage",
-                                            messageId: message.messageId,
-                                            result: {ok: false, error},
+                                            type: "ProcedureResponse",
+                                            requestId: message.requestId,
+                                            result: {
+                                                ok: false,
+                                                outputType: type,
+                                                error,
+                                            },
                                         });
                                     }
                                     break;
                                 }
-                                case "SoftCloseWhileWaitingForMessageAcknowledgments": {
+                                case "SoftCloseWhileWaitingForProcedureResponses": {
                                     if (this._isSoftClosed)
                                         throw new FailedPreconditionError(
                                             "WebSocket connection is already soft closed",
@@ -723,23 +760,26 @@ class WebSocketServerConnectionWrapper<
      * Send a message over our WebSocket connection. Throws an error if the
      * connection is closed!
      */
-    public sendMessage(
-        context: ProcessContext,
-        message: WebSocketMessageFromServer<MessageFromServer>,
-    ) {
-        // Do not send messages to a soft closed WebSocket. A soft closed WebSocket is
+    public sendMessage(context: ProcessContext, message: WebSocketMessageFromServer<Protocol>) {
+        // Do not send events to a soft closed WebSocket. A soft closed WebSocket is
         // in the process of cleaning up and only expects acknowledgements for
-        // previously sent messages and pong messages.
+        // previously sent procedures and pong messages.
         //
-        // Once the client receives all of its message acknowledgements then it closes
+        // Once the client receives all of its procedure responses then it closes
         // for real.
-        if (this._isSoftClosed && message.type === "Message") return;
+        if (this._isSoftClosed && message.type === "Event") return;
 
         const serializedMessage = this._messageFromServerSchema.serialize(message);
 
         this.dangerouslySendRawMessageEvenWhenSoftClosed(
             context,
-            message.type === "Message" ? message.message.type : message.type,
+            message.type === "ProcedureResponse"
+                ? `ProcedureResponse:${
+                      message.result.ok ? message.result.output.type : message.result.outputType
+                  }`
+                : message.type === "Event"
+                ? `Event:${message.event.type}`
+                : message.type,
             JSON.stringify(serializedMessage),
         );
     }
@@ -801,40 +841,51 @@ class WebSocketServerConnectionWrapper<
     }
 }
 
+export type WebSocketServerTestConnectionProcedures<
+    Procedures extends {[name: string]: {input: {}; output: {}}},
+> = {
+    readonly [Name in keyof Procedures & string]: (
+        input: Procedures[Name]["input"],
+    ) => Promise<Procedures[Name]["output"]>;
+};
+
 /**
  * A connection object to be used for testing our WebSocket server.
  */
 export interface WebSocketServerTestConnection<
-    MessageFromClient extends {type: string},
-    MessageFromServer extends {type: string},
-    Connection extends WebSocketServerConnectionBase<MessageFromClient>,
+    Protocol extends WebSocketProtocolBase,
+    Connection extends WebSocketServerConnectionBase<Protocol>,
 > {
     readonly id: WebSocketConnectionId;
     readonly connection: Connection;
 
     /**
-     * Send a message to the WebSocket connection as a client.
+     * Execute a procedure against the WebSocket connection.
      */
-    sendMessage(message: MessageFromClient): Promise<void>;
+    readonly procedures: WebSocketServerTestConnectionProcedures<
+        WebSocketProtocolProceduresType<Protocol>
+    >;
 
     /**
-     * Get all messages sent by the WebSocket server to the client since the last
-     * `takeMessages()` call. Calling this function will clear the array so if
+     * Get all events sent by the WebSocket server to the client since the last
+     * `takeEvents()` call. Calling this function will clear the array so if
      * you call it immediately it will be empty.
      *
-     * If you have a subscriber with `subscribeToMessages()` then messages observed
-     * by that function will still show up in `takeMessages()`.
+     * If you have a subscriber with `subscribeToEvents()` then messages observed
+     * by that function will still show up in `takeEvents()`.
      *
-     * This function allows you to pull new messages, `subscribeToMessages()` lets
+     * This function allows you to pull new messages, `subscribeToEvents()` lets
      * the server push new messages to you.
      */
-    takeMessages(): Array<MessageFromServer>;
+    takeEvents(): Array<WebSocketProtocolEventType<Protocol>>;
 
     /**
-     * Subscribe to messages from the server as they are published. Returns a
+     * Subscribe to events from the server as they are published. Returns a
      * function that lets you unsubscribe.
      */
-    subscribeToMessages(listener: (message: MessageFromServer) => void): () => void;
+    subscribeToEvents(
+        listener: (message: WebSocketProtocolEventType<Protocol>) => void,
+    ): () => void;
 
     /**
      * Close the connection. Does nothing if the connection is already closed.
@@ -843,26 +894,21 @@ export interface WebSocketServerTestConnection<
 }
 
 class WebSocketServerTestConnectionWrapper<
-    MessageFromClient extends {type: string},
-    MessageFromServer extends {type: string},
-    Connection extends WebSocketServerConnectionBase<MessageFromClient>,
+    Protocol extends WebSocketProtocolBase,
+    Connection extends WebSocketServerConnectionBase<Protocol>,
 > implements WebSocketServerConnectionWrapperBase<Connection>
 {
     public readonly id: WebSocketConnectionId;
     public readonly connection: Connection;
     private readonly _processContext: ProcessContext;
-    private readonly _messageFromClientSchema: Schema<
-        WebSocketMessageFromClient<MessageFromClient>
-    >;
-    private readonly _messageFromServerSchema: Schema<
-        WebSocketMessageFromServer<MessageFromServer>
-    >;
+    private readonly _messageFromClientSchema: Schema<WebSocketMessageFromClient<Protocol>>;
+    private readonly _messageFromServerSchema: Schema<WebSocketMessageFromServer<Protocol>>;
     private readonly _sessionId: SessionId;
     private readonly _sessionAccountId: AccountId;
     private _isClosed = false;
     private readonly _closeEvent = new EventEmitter();
-    private _messages: Array<MessageFromServer> = [];
-    private readonly _messageEvent = new EventEmitter<MessageFromServer>();
+    private _bufferedEvents: Array<WebSocketProtocolEventType<Protocol>> = [];
+    private readonly _events = new EventEmitter<WebSocketProtocolEventType<Protocol>>();
 
     constructor({
         id,
@@ -875,8 +921,8 @@ class WebSocketServerTestConnectionWrapper<
     }: {
         id: WebSocketConnectionId;
         processContext: ProcessContext;
-        messageFromClientSchema: Schema<WebSocketMessageFromClient<MessageFromClient>>;
-        messageFromServerSchema: Schema<WebSocketMessageFromServer<MessageFromServer>>;
+        messageFromClientSchema: Schema<WebSocketMessageFromClient<Protocol>>;
+        messageFromServerSchema: Schema<WebSocketMessageFromServer<Protocol>>;
         connection: Connection;
         sessionId: SessionId;
         sessionAccountId: AccountId;
@@ -893,8 +939,13 @@ class WebSocketServerTestConnectionWrapper<
         this._sessionAccountId = sessionAccountId;
     }
 
-    public async handleMessage(message: MessageFromClient): Promise<void> {
-        await this._processContext.tracer.withSpan(
+    public async executeProcedure<
+        Name extends keyof WebSocketProtocolProceduresType<Protocol> & string,
+    >(
+        name: Name,
+        input: WebSocketProtocolProceduresType<Protocol>[Name]["input"],
+    ): Promise<WebSocketProtocolProceduresType<Protocol>[Name]["output"]> {
+        const output = await this._processContext.tracer.withSpan(
             "Received test WebSocket message",
             async (context, span) => {
                 // TODO(calebmer): Can we at least give this some kind of TTL in-memory cache??
@@ -902,29 +953,31 @@ class WebSocketServerTestConnectionWrapper<
                 if (!session)
                     throw new NotFoundError("Session was revoked after the connection began");
 
-                await context.with(
+                return context.with(
                     {
                         cache: new CacheContextModule(),
                         auth: new AuthenticatedAuthContextModule(session),
                     },
-                    async (context: RequestContext) => {
+                    (context: RequestContext) => {
                         // Thrown errors should be handled by the test. We do not send acknowledgement
                         // messages in test connections.
-                        await this.connection.handleMessage(context, message, span);
+                        return this.connection.procedures[name](context, input, span);
                     },
                 );
             },
         );
+
+        return output as any;
     }
 
-    public takeMessages(): Array<MessageFromServer> {
-        const messages = this._messages;
-        this._messages = [];
+    public takeEvents(): Array<WebSocketProtocolEventType<Protocol>> {
+        const messages = this._bufferedEvents;
+        this._bufferedEvents = [];
         return messages;
     }
 
-    public subscribeToMessages(listener: (message: MessageFromServer) => void) {
-        return this._messageEvent.subscribe(listener);
+    public subscribeToEvents(listener: (event: WebSocketProtocolEventType<Protocol>) => void) {
+        return this._events.subscribe(listener);
     }
 
     public isClosed() {
@@ -945,9 +998,11 @@ class WebSocketServerTestConnectionWrapper<
         return this.isClosed();
     }
 
-    public sendMessage(message: MessageFromServer) {
-        this._messages.push(message);
-        this._messageEvent.emit(message);
+    // Public so it can be called from `connectForTest()` but should not be called
+    // outside of this file.
+    public _sendEvent(message: WebSocketProtocolEventType<Protocol>) {
+        this._bufferedEvents.push(message);
+        this._events.emit(message);
     }
 
     public dangerouslySendRawMessageEvenWhenSoftClosed(
@@ -956,7 +1011,7 @@ class WebSocketServerTestConnectionWrapper<
         rawMessage: string,
     ) {
         const message = this._messageFromServerSchema.deserialize(JSON.parse(rawMessage));
-        if (message.type === "Message") this.sendMessage(message.message);
+        if (message.type === "Event") this._sendEvent(message.event);
     }
 
     public maybeExpire() {

@@ -1,6 +1,11 @@
 import {AppContext} from "~/client/context/app_context";
 import {webSocketExpirationTimeoutMs} from "~/shared/cloudflare/web_socket_expiration_timeout_ms";
 import {
+    WebSocketProtocolBase,
+    WebSocketProtocolEventType,
+    WebSocketProtocolProceduresType,
+} from "~/shared/cloudflare/web_socket_protocol";
+import {
     WebSocketMessageFromClient,
     WebSocketMessageFromServer,
     createWebSocketMessageFromClientSchema,
@@ -17,8 +22,8 @@ import {EventEmitter} from "~/shared/helpers/control/event_emitter";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {quote} from "~/shared/helpers/string/quote";
 import {generateId} from "~/shared/id/id";
-import {WebSocketMessageId} from "~/shared/id/types/id_types";
-import {Schema, SchemaDeserializationError, UnionSchema} from "~/shared/schema/schema";
+import {WebSocketProcedureRequestId} from "~/shared/id/types/id_types";
+import {Schema, SchemaDeserializationError} from "~/shared/schema/schema";
 
 type WebsocketClientConnectionState =
     | {
@@ -29,7 +34,7 @@ type WebsocketClientConnectionState =
           readonly type: "Open";
       }
     | {
-          readonly type: "SoftClosedWhileWaitingForMessageAcknowledgments";
+          readonly type: "SoftClosedWhileWaitingForProcedureResponses";
       }
     | {
           readonly type: "Closed";
@@ -71,41 +76,25 @@ function resolveWebSocketUrl(url: string) {
  * reconnect after a network interruption and closing the connection when the
  * browser tab is hidden.
  */
-export class WebSocketClientConnection<
-    MessageFromClient extends {type: string},
-    MessageFromServer extends {type: string},
-> {
+export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
     private readonly _getContext: () => AppContext;
-    private readonly _messageFromClientSchema: Schema<
-        WebSocketMessageFromClient<MessageFromClient>
-    >;
-    private readonly _messageFromServerSchema: Schema<
-        WebSocketMessageFromServer<MessageFromServer>
-    >;
-    private readonly _messageEvent = new EventEmitter<MessageFromServer>();
+    private readonly _messageFromClientSchema: Schema<WebSocketMessageFromClient<Protocol>>;
+    private readonly _messageFromServerSchema: Schema<WebSocketMessageFromServer<Protocol>>;
+    private readonly _events = new EventEmitter<WebSocketProtocolEventType<Protocol>>();
     private readonly _openPromiseResolver = createPromiseResolver();
     private readonly _closePromiseResolver = createPromiseResolver();
     private readonly _socket: WebSocket;
     private _state: WebsocketClientConnectionState;
     private _lastMessageReceived = Date.now();
-    private readonly _acknowledgementPromiseResolverByMessageId = new Map<
-        WebSocketMessageId,
-        PromiseResolver<void>
+    private readonly _procedureResponsePromiseResolverByRequestId = new Map<
+        WebSocketProcedureRequestId,
+        PromiseResolver<{}>
     >();
 
-    constructor(
-        getContext: () => AppContext,
-        // NOTE(calebmer): Force schemas to be union schemas so the protocol can evolve
-        // in the future.
-        messageFromClientSchema: UnionSchema<MessageFromClient>,
-        messageFromServerSchema: UnionSchema<MessageFromServer>,
-        url: string,
-    ) {
+    constructor(getContext: () => AppContext, protocol: Protocol, url: string) {
         this._getContext = getContext;
-        this._messageFromClientSchema =
-            createWebSocketMessageFromClientSchema(messageFromClientSchema);
-        this._messageFromServerSchema =
-            createWebSocketMessageFromServerSchema(messageFromServerSchema);
+        this._messageFromClientSchema = createWebSocketMessageFromClientSchema(protocol);
+        this._messageFromServerSchema = createWebSocketMessageFromServerSchema(protocol);
 
         this._state = {type: "Connecting", pendingSerializedMessages: []};
 
@@ -183,14 +172,14 @@ export class WebSocketClientConnection<
             // When the WebSocket closes, reject all messages that haven't been
             // acknowledged since we will not be receiving an acknowledgement for them. We
             // do not resubmit messages when reopening the WebSocket.
-            for (const promiseResolver of this._acknowledgementPromiseResolverByMessageId.values()) {
+            for (const promiseResolver of this._procedureResponsePromiseResolverByRequestId.values()) {
                 promiseResolver.reject(
-                    new UnavailableError("WebSocket closed before acknowledging message", {
+                    new UnavailableError("WebSocket closed before procedure response", {
                         displayMessage: errorDisplayMessage`Your connection to our servers was ended unexpectedly. Please try again.`,
                     }),
                 );
             }
-            this._acknowledgementPromiseResolverByMessageId.clear();
+            this._procedureResponsePromiseResolverByRequestId.clear();
 
             // From reading the spec, it looks like the `error` event is only fired before
             // a `close` event. But the `close` event has more interesting information
@@ -227,7 +216,7 @@ export class WebSocketClientConnection<
         this._socket.addEventListener("message", event => {
             this._lastMessageReceived = Date.now();
 
-            let message: WebSocketMessageFromServer<MessageFromServer>;
+            let message: WebSocketMessageFromServer<Protocol>;
             try {
                 const serializedMessage = JSON.parse(event.data);
                 message = this._messageFromServerSchema.deserialize(serializedMessage);
@@ -241,23 +230,15 @@ export class WebSocketClientConnection<
             }
 
             switch (message.type) {
-                case "Message": {
-                    // If we get a message in our `OpenWaitingForMessageAcknowledgmentsBeforeClose`
-                    // state, don't emit it.
-                    if (this._state.type === "Open") {
-                        this._messageEvent.emit(message.message);
-                    }
-                    break;
-                }
-                case "AcknowledgeMessage": {
-                    const promiseResolver = this._acknowledgementPromiseResolverByMessageId.get(
-                        message.messageId,
+                case "ProcedureResponse": {
+                    const promiseResolver = this._procedureResponsePromiseResolverByRequestId.get(
+                        message.requestId,
                     );
                     if (promiseResolver) {
-                        this._acknowledgementPromiseResolverByMessageId.delete(message.messageId);
+                        this._procedureResponsePromiseResolverByRequestId.delete(message.requestId);
 
                         if (message.result.ok) {
-                            promiseResolver.resolve();
+                            promiseResolver.resolve(message.result.output);
                         } else {
                             promiseResolver.reject(message.result.error);
                         }
@@ -266,11 +247,19 @@ export class WebSocketClientConnection<
                     // Once all our pending messages have been acknowledged, actually close
                     // the client.
                     if (
-                        this._state.type === "SoftClosedWhileWaitingForMessageAcknowledgments" &&
-                        this._acknowledgementPromiseResolverByMessageId.size === 0
+                        this._state.type === "SoftClosedWhileWaitingForProcedureResponses" &&
+                        this._procedureResponsePromiseResolverByRequestId.size === 0
                     ) {
                         this._state = {type: "Closed"};
                         this._socket.close();
+                    }
+                    break;
+                }
+                case "Event": {
+                    // If we get an event in our `SoftClosedWhileWaitingForProcedureResponses`
+                    // state, don't emit it.
+                    if (this._state.type === "Open") {
+                        this._events.emit(message.event);
                     }
                     break;
                 }
@@ -289,28 +278,31 @@ export class WebSocketClientConnection<
     }
 
     /**
-     * Send a message through the socket.
+     * Execute a procedure through the socket.
      *
      * If the socket is not currently connected then we queue messages to send once
      * the socket connects.
      */
-    public sendMessage(message: MessageFromClient): Promise<void> {
+    public executeProcedure<Name extends keyof WebSocketProtocolProceduresType<Protocol> & string>(
+        name: Name,
+        input: WebSocketProtocolProceduresType<Protocol>[Name]["input"],
+    ): Promise<WebSocketProtocolProceduresType<Protocol>[Name]["output"]> {
         return this._getContext().tracer.withSpan(
             sendWebSocketMessageSpanName,
             async (context, span) => {
                 assert(
                     this._state.type === "Connecting" || this._state.type === "Open",
-                    "Can not send message to a closed WebSocket",
+                    "Can not execute a procedure on a closed WebSocket",
                 );
 
-                const messageId = generateId<WebSocketMessageId>();
+                const requestId = generateId<WebSocketProcedureRequestId>();
 
-                span.addData({webSocket: {messageType: message.type}});
+                span.addData({webSocket: {messageType: `ProcedureRequest:${name}`}});
 
                 const serializedMessage = this._messageFromClientSchema.serialize({
-                    type: "Message",
-                    messageId,
-                    message,
+                    type: "ProcedureRequest",
+                    requestId,
+                    input: {type: name, ...input},
                     tracerContext: span.getPropagationContext(),
                 });
 
@@ -329,29 +321,39 @@ export class WebSocketClientConnection<
                         throw exhaustive(this._state);
                 }
 
-                const promiseResolver = createPromiseResolver();
-                this._acknowledgementPromiseResolverByMessageId.set(messageId, promiseResolver);
-                return promiseResolver.promise;
+                const promiseResolver = createPromiseResolver<{}>();
+                this._procedureResponsePromiseResolverByRequestId.set(requestId, promiseResolver);
+                const output = await promiseResolver.promise;
+
+                assert(
+                    "type" in output && output.type === name,
+                    "Expected procedure output type to be the same as our input type",
+                );
+
+                return output;
             },
         );
     }
 
     /**
-     * Listen to messages received from the socket.
+     * Listen to events received from the socket.
      *
      * Will only fire when the socket is connected.
      */
-    public subscribeToMessages(handler: (message: MessageFromServer) => void): () => void {
-        return this._messageEvent.subscribe(handler);
+    public subscribeToEvents(
+        handler: (event: WebSocketProtocolEventType<Protocol>) => void,
+    ): () => void {
+        return this._events.subscribe(handler);
     }
 
     /**
-     * Close the WebSocket. You will immediately no longer be able to send
-     * it messages.
+     * Close the WebSocket. You will immediately no longer be able to execute
+     * procedures.
      *
-     * If we have some previously sent messages we are waiting on acknowledgments
-     * for then the underlying WebSocket won't actually close until we get those
-     * acknowledgements. No new messages will be sent in the meantime.
+     * If we have some previously executed procedures we are waiting on
+     * acknowledgments for then the underlying WebSocket won't actually close until
+     * we get those acknowledgements. No new procedures will be executed in
+     * the meantime.
      *
      * Returns a promise that resolves when the WebSocket actually closes.
      */
@@ -361,21 +363,21 @@ export class WebSocketClientConnection<
             "WebSocket is already closed",
         );
 
-        if (this._acknowledgementPromiseResolverByMessageId.size === 0) {
+        if (this._procedureResponsePromiseResolverByRequestId.size === 0) {
             this._state = {type: "Closed"};
             this._socket.close();
             return;
         }
 
-        this._state = {type: "SoftClosedWhileWaitingForMessageAcknowledgments"};
+        this._state = {type: "SoftClosedWhileWaitingForProcedureResponses"};
 
         await this._getContext().tracer.withSpan(sendWebSocketMessageSpanName, (context, span) => {
             span.addData({
-                webSocket: {messageType: "SoftCloseWhileWaitingForMessageAcknowledgments"},
+                webSocket: {messageType: "SoftCloseWhileWaitingForProcedureResponses"},
             });
 
             const serializedMessage = this._messageFromClientSchema.serialize({
-                type: "SoftCloseWhileWaitingForMessageAcknowledgments",
+                type: "SoftCloseWhileWaitingForProcedureResponses",
                 tracerContext: span.getPropagationContext(),
             });
             this._socket.send(JSON.stringify(serializedMessage));
@@ -385,9 +387,9 @@ export class WebSocketClientConnection<
     }
 
     /**
-     * Wait for the WebSocket to close. If the WebSocket closes cleanly after the
-     * developer calls `close()` then this will resolve. If the WebSocket closes
-     * unexpectedly then this will reject.
+     * Wait for the WebSocket to close. May not immediately resolve when `close()`
+     * is called. We wait for procedure responses before fully closing our
+     * WebSocket connection.
      */
     public waitForClose() {
         return this._closePromiseResolver.promise;

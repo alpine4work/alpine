@@ -9,18 +9,17 @@ import {
     DeleteMessageFunction,
     UpdateMessageContentFunction,
 } from "~/server/messaging/messaging_implementation";
+import {MessageContent} from "~/shared/content/message_content_schema";
 import {AsyncMutex} from "~/shared/helpers/async/async_mutex";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {SessionId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema";
 import {
-    MessagingRealtimeMessageFromClient,
-    MessagingRealtimeMessageFromServer,
+    MessagingRealtimeEvent,
     MessagingTypingState,
-} from "~/shared/messaging/messaging_realtime_schema";
+} from "~/shared/messaging/messaging_realtime_protocol";
 import {MessageModel} from "~/shared/models/message_model";
 
 export const messagingRealtimeBackfillMessagesBeforeFlushTestCheckpoint =
@@ -36,13 +35,13 @@ export class MessagingRealtimeConnection<
     private readonly _connectionId: WebSocketConnectionId;
     private readonly _spaceId: SpaceId;
     private readonly _roomKey: RoomKey;
-    private readonly _sendRealtimeMessage: (
+    private readonly _sendEvent: (
         context: ProcessContext,
-        message: MessagingRealtimeMessageFromServer<Message>,
+        event: MessagingRealtimeEvent<Message>,
     ) => void;
-    private readonly _sendRealtimeMessageToOthers: (
+    private readonly _sendEventToOthers: (
         context: ProcessContext,
-        message: MessagingRealtimeMessageFromServer<Message>,
+        event: MessagingRealtimeEvent<Message>,
     ) => void;
     private readonly _iterateOtherConnections: () => Iterable<
         MessagingRealtimeConnection<RoomKey, Message>
@@ -90,8 +89,8 @@ export class MessagingRealtimeConnection<
         connectionId,
         spaceId,
         roomKey,
-        sendMessage,
-        sendMessageToOthers,
+        sendEvent,
+        sendEventToOthers,
         iterateOtherConnections,
         createMessageModel,
         createMessage,
@@ -102,13 +101,10 @@ export class MessagingRealtimeConnection<
         connectionId: WebSocketConnectionId;
         spaceId: SpaceId;
         roomKey: RoomKey;
-        sendMessage: (
+        sendEvent: (context: ProcessContext, event: MessagingRealtimeEvent<Message>) => void;
+        sendEventToOthers: (
             context: ProcessContext,
-            message: MessagingRealtimeMessageFromServer<Message>,
-        ) => void;
-        sendMessageToOthers: (
-            context: ProcessContext,
-            message: MessagingRealtimeMessageFromServer<Message>,
+            event: MessagingRealtimeEvent<Message>,
         ) => void;
         iterateOtherConnections: () => Iterable<MessagingRealtimeConnection<RoomKey, Message>>;
         createMessageModel: CreateMessageModelFunction<RoomKey, Message>;
@@ -120,8 +116,8 @@ export class MessagingRealtimeConnection<
         this._connectionId = connectionId;
         this._spaceId = spaceId;
         this._roomKey = roomKey;
-        this._sendRealtimeMessage = sendMessage;
-        this._sendRealtimeMessageToOthers = sendMessageToOthers;
+        this._sendEvent = sendEvent;
+        this._sendEventToOthers = sendEventToOthers;
         this._iterateOtherConnections = iterateOtherConnections;
         this._createMessageModel = createMessageModel;
         this._createMessage = createMessage;
@@ -158,7 +154,7 @@ export class MessagingRealtimeConnection<
                     fromConnection._connectionId !== toConnection._connectionId &&
                     fromConnection._typingState.get() !== null
                 ) {
-                    toConnection._sendRealtimeMessage(context, {
+                    toConnection._sendEvent(context, {
                         type: "UpdateOtherTypingState",
                         connectionId: fromConnection._connectionId,
                         typingState: null,
@@ -170,7 +166,7 @@ export class MessagingRealtimeConnection<
             return;
         }
 
-        toConnection._sendRealtimeMessage(context, {
+        toConnection._sendEvent(context, {
             type: "NewMessage",
             message,
             updateOtherTypingState:
@@ -206,7 +202,7 @@ export class MessagingRealtimeConnection<
 
                 // This is the next message for our client! Send it.
                 if (message.index === this._nextMessageIndexToSend) {
-                    this._sendRealtimeMessage(context, {
+                    this._sendEvent(context, {
                         type: "NewMessage",
                         message,
                         updateOtherTypingState: null,
@@ -238,7 +234,7 @@ export class MessagingRealtimeConnection<
             return;
         }
 
-        this._sendRealtimeMessage(context, {
+        this._sendEvent(context, {
             type: "ChangeMessage",
             change: messageChange,
         });
@@ -246,209 +242,231 @@ export class MessagingRealtimeConnection<
 
     private readonly _backfillMutex = new AsyncMutex(undefined);
 
-    public async handleMessage(
+    public backfillMessages(
         context: RequestContext,
-        realtimeMessage: MessagingRealtimeMessageFromClient,
-    ): Promise<void> {
-        switch (realtimeMessage.type) {
-            case "BackfillMessagesRequest": {
-                // Execute our backfills sequentially so that our internal state is left in a
-                // good state.
-                await this._backfillMutex.run(async () => {
-                    this._isBackfilling = true;
-                    this._nextMessageIndexToSend = null;
-                    this._queuedNewMessages = [];
-                    this._queuedMessageChanges = [];
+        {
+            clientMessageCount,
+            clientLastMessageChangeTime,
+            newMessageLimit,
+        }: {
+            clientMessageCount: number;
+            clientLastMessageChangeTime: Date | null;
+            newMessageLimit: number;
+        },
+    ): Promise<{
+        messageCount: number;
+        lastMessageChangeTime: Date | null;
+        newMessages: ReadonlyArray<Message>;
+        newOtherReferencedMessages: ReadonlyArray<Message>;
+        messageChangesResult:
+            | {
+                  readonly type: "Available";
+                  readonly changes: ReadonlyArray<MessageChange>;
+              }
+            | {
+                  readonly type: "Unavailable";
+              };
+        typingStateByConnectionId: ReadonlyMap<WebSocketConnectionId, MessagingTypingState>;
+    }> {
+        // Execute our backfills sequentially so that our internal state is left in a
+        // good state.
+        return this._backfillMutex.run(async () => {
+            this._isBackfilling = true;
+            this._nextMessageIndexToSend = null;
+            this._queuedNewMessages = [];
+            this._queuedMessageChanges = [];
 
-                    const {
-                        messageCount,
-                        lastMessageChangeTime,
-                        newMessages,
-                        newOtherReferencedMessages,
-                        messageChangesResult,
-                    } = await this._backfillMessages(
-                        // Use a strong read consistency here so our durable object doesn't miss a
-                        // message and stall (the connection queues new messages but never flushes
-                        // because we missed an earlier message).
-                        context.dynamo.setDefaultReadConsistency("Strong"),
-                        {
-                            roomKey: this._roomKey,
-                            clientMessageCount: realtimeMessage.clientMessageCount,
-                            clientLastMessageChangeTime:
-                                realtimeMessage.clientLastMessageChangeTime,
-                            newMessageLimit: realtimeMessage.newMessageLimit,
-                        },
-                    );
+            const {
+                messageCount,
+                lastMessageChangeTime,
+                newMessages,
+                newOtherReferencedMessages,
+                messageChangesResult,
+            } = await this._backfillMessages(
+                // Use a strong read consistency here so our durable object doesn't miss a
+                // message and stall (the connection queues new messages but never flushes
+                // because we missed an earlier message).
+                context.dynamo.setDefaultReadConsistency("Strong"),
+                {
+                    roomKey: this._roomKey,
+                    clientMessageCount,
+                    clientLastMessageChangeTime,
+                    newMessageLimit,
+                },
+            );
 
-                    await messagingRealtimeBackfillMessagesBeforeFlushTestCheckpoint.waitForTest(
-                        context.auth.getSessionId(),
-                    );
+            await messagingRealtimeBackfillMessagesBeforeFlushTestCheckpoint.waitForTest(
+                context.auth.getSessionId(),
+            );
 
-                    this._sendRealtimeMessage(context, {
-                        type: "BackfillMessagesResponse",
-                        messageCount,
-                        lastMessageChangeTime,
-                        newMessages,
-                        newOtherReferencedMessages,
-                        messageChangesResult,
-                        // NOTE(calebmer): In the following case:
-                        //
-                        // 1. Backfill starts for connection B
-                        // 2. Connection A updates their typing state
-                        // 3. Backfill response for connection B is created with connection A's
-                        //    typing state
-                        //
-                        // We shouldn't have race conditions if connection A updates their typing state
-                        // a second time after 3 because the rest of this code is synchronous. So we
-                        // will send the backfill response and then later send connection A's typing
-                        // state update. If you add asynchronous execution between the point where we
-                        // send the backfill response and construct the typing state backfill, you may
-                        // have added a race condition bug.
-                        typingStateByConnectionId: new Map(
-                            filterMapIterable(this._iterateOtherConnections(), connection => {
-                                const typingState = connection._typingState.get();
-                                if (typingState === null) return null;
-                                return [connection._connectionId, typingState];
-                            }),
-                        ),
+            this._isBackfilling = false;
+
+            this._nextMessageIndexToSend = messageCount;
+            this._flushQueuedMessages(context);
+
+            // Send only the queued changes that occur after our backfill.
+            for (const messageChange of this._queuedMessageChanges) {
+                if (
+                    !lastMessageChangeTime ||
+                    getMessageChangeTime(messageChange) > lastMessageChangeTime
+                ) {
+                    this._sendEvent(context, {
+                        type: "ChangeMessage",
+                        change: messageChange,
                     });
-
-                    this._isBackfilling = false;
-
-                    this._nextMessageIndexToSend = messageCount;
-                    this._flushQueuedMessages(context);
-
-                    // Send only the queued changes that occur after our backfill.
-                    for (const messageChange of this._queuedMessageChanges) {
-                        if (
-                            !lastMessageChangeTime ||
-                            getMessageChangeTime(messageChange) > lastMessageChangeTime
-                        ) {
-                            this._sendRealtimeMessage(context, {
-                                type: "ChangeMessage",
-                                change: messageChange,
-                            });
-                        }
-                    }
-                    this._queuedMessageChanges = [];
-                });
-                break;
+                }
             }
-            case "CreateMessage": {
-                const [{index, createdTime}, author, contentReferences] = await runAllPromises([
-                    this._createMessage(context, {
-                        ...realtimeMessage,
-                        roomKey: this._roomKey,
+            this._queuedMessageChanges = [];
+
+            return {
+                messageCount,
+                lastMessageChangeTime,
+                newMessages,
+                newOtherReferencedMessages,
+                messageChangesResult,
+                // NOTE(calebmer): In the following case:
+                //
+                // 1. Backfill starts for connection B
+                // 2. Connection A updates their typing state
+                // 3. Backfill response for connection B is created with connection A's
+                //    typing state
+                //
+                // We shouldn't have race conditions if connection A updates their typing state
+                // a second time after 3 because the rest of the code to send our call result
+                // is synchronous. So we will send the backfill response and then later send
+                // connection A's typing state update. If you add asynchronous execution
+                // between the point where we send the backfill response and construct the
+                // typing state backfill, you may have added a race condition bug.
+                typingStateByConnectionId: new Map(
+                    filterMapIterable(this._iterateOtherConnections(), connection => {
+                        const typingState = connection._typingState.get();
+                        if (typingState === null) return null;
+                        return [connection._connectionId, typingState];
                     }),
-                    context.auth.getAccount(),
-                    getContentReferencesForNode(context, this._spaceId, realtimeMessage.content),
-                ]);
+                ),
+            };
+        });
+    }
 
-                await messagingRealtimeCreateMessageBeforeSendTestCheckpoint.waitForTest(
-                    context.auth.getSessionId(),
-                );
+    public async createMessage(
+        context: RequestContext,
+        {parentMessageIndex, content}: {parentMessageIndex: number | null; content: MessageContent},
+    ): Promise<{}> {
+        const [{index, createdTime}, author, contentReferences] = await runAllPromises([
+            this._createMessage(context, {
+                roomKey: this._roomKey,
+                parentMessageIndex,
+                content,
+            }),
+            context.auth.getAccount(),
+            getContentReferencesForNode(context, this._spaceId, content),
+        ]);
 
-                await this._typingState.run(async (typingState, setTypingState) => {
-                    // We clear the connection's typing state after they send a message.
-                    setTypingState(null);
+        await messagingRealtimeCreateMessageBeforeSendTestCheckpoint.waitForTest(
+            context.auth.getSessionId(),
+        );
 
-                    const newMessage = this._createMessageModel({
-                        roomKey: this._roomKey,
-                        index,
-                        createdTime,
-                        author,
-                        payload: {
-                            type: "Content",
-                            parentMessageIndex: realtimeMessage.parentMessageIndex,
-                            content: {
-                                doc: realtimeMessage.content,
-                                references: contentReferences,
-                            },
-                            contentUpdatedTime: null,
-                        },
-                    });
+        await this._typingState.run(async (typingState, setTypingState) => {
+            // We clear the connection's typing state after they send a message.
+            setTypingState(null);
 
-                    MessagingRealtimeConnection._sendNewMessageAndClearTypingState(
-                        context,
-                        this,
-                        this,
-                        newMessage,
-                    );
-
-                    for (const connection of this._iterateOtherConnections()) {
-                        MessagingRealtimeConnection._sendNewMessageAndClearTypingState(
-                            context,
-                            this,
-                            connection,
-                            newMessage,
-                        );
-                    }
-                });
-                break;
-            }
-            case "UpdateMessageContent": {
-                const [{contentUpdatedTime}, contentReferences] = await runAllPromises([
-                    this._updateMessageContent(context, {
-                        ...realtimeMessage,
-                        roomKey: this._roomKey,
-                    }),
-                    getContentReferencesForNode(context, this._spaceId, realtimeMessage.content),
-                ]);
-
-                const messageChange: MessageChange = {
-                    type: "UpdateContent",
-                    index: realtimeMessage.messageIndex,
+            const newMessage = this._createMessageModel({
+                roomKey: this._roomKey,
+                index,
+                createdTime,
+                author,
+                payload: {
+                    type: "Content",
+                    parentMessageIndex,
                     content: {
-                        doc: realtimeMessage.content,
+                        doc: content,
                         references: contentReferences,
                     },
-                    contentUpdatedTime,
-                };
+                    contentUpdatedTime: null,
+                },
+            });
 
-                this._sendMessageChange(context, messageChange);
+            MessagingRealtimeConnection._sendNewMessageAndClearTypingState(
+                context,
+                this,
+                this,
+                newMessage,
+            );
 
-                for (const connection of this._iterateOtherConnections())
-                    connection._sendMessageChange(context, messageChange);
-
-                break;
+            for (const connection of this._iterateOtherConnections()) {
+                MessagingRealtimeConnection._sendNewMessageAndClearTypingState(
+                    context,
+                    this,
+                    connection,
+                    newMessage,
+                );
             }
-            case "DeleteMessage": {
-                const {deletedTime} = await this._deleteMessage(context, {
-                    ...realtimeMessage,
-                    roomKey: this._roomKey,
-                });
+        });
 
-                const messageChange: MessageChange = {
-                    type: "Delete",
-                    index: realtimeMessage.messageIndex,
-                    deletedTime,
-                };
-
-                this._sendMessageChange(context, messageChange);
-
-                for (const connection of this._iterateOtherConnections())
-                    connection._sendMessageChange(context, messageChange);
-
-                break;
-            }
-            case "StartTyping": {
-                await this._startTyping(context);
-                break;
-            }
-            case "StopTyping": {
-                await this._stopTyping(context);
-                break;
-            }
-            default:
-                throw exhaustive(realtimeMessage);
-        }
+        return {};
     }
 
-    public handleClose(context: ProcessContext) {
-        context.process.waitUntil(this._stopTyping(context));
+    public async updateMessageContent(
+        context: RequestContext,
+        {
+            messageIndex,
+            content,
+        }: {
+            messageIndex: number;
+            content: MessageContent;
+        },
+    ): Promise<{}> {
+        const [{contentUpdatedTime}, contentReferences] = await runAllPromises([
+            this._updateMessageContent(context, {
+                roomKey: this._roomKey,
+                messageIndex,
+                content,
+            }),
+            getContentReferencesForNode(context, this._spaceId, content),
+        ]);
+
+        const messageChange: MessageChange = {
+            type: "UpdateContent",
+            index: messageIndex,
+            content: {
+                doc: content,
+                references: contentReferences,
+            },
+            contentUpdatedTime,
+        };
+
+        this._sendMessageChange(context, messageChange);
+
+        for (const connection of this._iterateOtherConnections())
+            connection._sendMessageChange(context, messageChange);
+
+        return {};
     }
 
-    private async _startTyping(context: RequestContext) {
+    public async deleteMessage(
+        context: RequestContext,
+        {messageIndex}: {messageIndex: number},
+    ): Promise<{}> {
+        const {deletedTime} = await this._deleteMessage(context, {
+            roomKey: this._roomKey,
+            messageIndex,
+        });
+
+        const messageChange: MessageChange = {
+            type: "Delete",
+            index: messageIndex,
+            deletedTime,
+        };
+
+        this._sendMessageChange(context, messageChange);
+
+        for (const connection of this._iterateOtherConnections())
+            connection._sendMessageChange(context, messageChange);
+
+        return {};
+    }
+
+    public async startTypingInMessageInput(context: RequestContext, input: {}): Promise<{}> {
         await this._typingState.run(async (oldTypingState, setTypingState) => {
             if (oldTypingState !== null) return;
 
@@ -460,28 +478,38 @@ export class MessagingRealtimeConnection<
 
             setTypingState(typingState);
 
-            this._sendRealtimeMessageToOthers(context, {
+            this._sendEventToOthers(context, {
                 type: "UpdateOtherTypingState",
                 connectionId: this._connectionId,
                 typingState,
             });
         });
+
+        return {};
     }
 
     // The stop typing function needs to be called outside of a `RequestContext`
     // when the connection is closing. This means it may not have authorization
     // information.
-    private async _stopTyping(context: ProcessContext) {
+    public async stopTypingInMessageInput(context: ProcessContext, input: {}): Promise<{}> {
         await this._typingState.run(async (oldTypingState, setTypingState) => {
             if (oldTypingState === null) return;
 
             setTypingState(null);
 
-            this._sendRealtimeMessageToOthers(context, {
+            this._sendEventToOthers(context, {
                 type: "UpdateOtherTypingState",
                 connectionId: this._connectionId,
                 typingState: null,
             });
+        });
+
+        return {};
+    }
+
+    public handleClose(context: ProcessContext) {
+        context.process.waitUntil(async () => {
+            await this.stopTypingInMessageInput(context, {});
         });
     }
 }
