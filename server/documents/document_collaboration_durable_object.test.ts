@@ -43,8 +43,7 @@ const session1 = createTestSession(context, space);
 const session2 = createTestSession(context, space);
 const session3 = createTestSession(context, space);
 
-function massageDocument(document: DocumentModel | null) {
-    if (!document) return null;
+function massageDocument(document: DocumentModel) {
     return {
         version: document.version,
         content: document.content.doc.toJSON(),
@@ -469,13 +468,13 @@ test("will respond optimistically with a comment thread even if it has not been 
         },
     ]);
 
-    expect(
-        await getDocumentComment(context.request(session1), {
+    await expect(() =>
+        getDocumentComment(context.request(session1), {
             documentId: document.id,
             commentThreadId,
             commentIndex: 0,
         }),
-    ).toBeNull();
+    ).rejects.toThrow(NotFoundError);
 
     unpause();
     await waitForPersistance(connection1, 2);
@@ -598,13 +597,13 @@ test("will respond optimistically to backfills with a comment thread even if it 
 
     expect(connection2.takeEvents()).toEqual([]);
 
-    expect(
-        await getDocumentComment(context.request(session1), {
+    await expect(() =>
+        getDocumentComment(context.request(session1), {
             documentId: document.id,
             commentThreadId,
             commentIndex: 0,
         }),
-    ).toBeNull();
+    ).rejects.toThrow(NotFoundError);
 
     unpause();
     await waitForPersistance(connection1, 2);

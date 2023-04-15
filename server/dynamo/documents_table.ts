@@ -1,7 +1,7 @@
 import {differenceInMinutes} from "date-fns";
 import {Node} from "prosemirror-model";
 import {Mapping, Step} from "prosemirror-transform";
-import {getAccountOrThrow} from "~/server/dynamo/accounts_table";
+import {getAccount} from "~/server/dynamo/accounts_table";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
@@ -528,11 +528,11 @@ export async function createDocument(
  *
  * Cheaper than `getDocument()` since we don't return the full content.
  */
-export async function getDocumentPreview(
+export async function getDocumentPreviewIfExists(
     context: RequestContext,
     id: DocumentId,
 ): Promise<DocumentPreviewModel | null> {
-    const attributes = await DocumentsTable.getItem(context, {
+    const attributes = await DocumentsTable.getItemIfExists(context, {
         partitionType: "Document",
         documentId: id,
         sortRangeType: "Attributes",
@@ -561,7 +561,7 @@ type InternalDocument = {
 
 export const getInternalDocumentTestCounter = new TestCounter();
 
-async function getInternalDocument(
+async function getInternalDocumentIfExists(
     context: RequestContext,
     id: DocumentId,
 ): Promise<InternalDocument | null> {
@@ -672,10 +672,7 @@ async function getInternalDocument(
 /**
  * Get the full document with the provided id.
  */
-export async function getDocument(
-    context: RequestContext,
-    id: DocumentId,
-): Promise<DocumentModel | null> {
+export async function getDocument(context: RequestContext, id: DocumentId): Promise<DocumentModel> {
     getInternalDocumentTestCounter.incrementForTest(id);
 
     let _attributes: DocumentAttributesItem | null = null;
@@ -725,7 +722,7 @@ export async function getDocument(
                 staleReferencedCommentThreadById.size === 0,
             "Document with no attributes should not have snapshot",
         );
-        return null;
+        throw new NotFoundError("Document not found");
     }
     const attributes = _attributes;
 
@@ -798,7 +795,7 @@ export async function getDocument(
                         // update process hasn't moved it from the archive range back into the
                         // referenced range. Try reading it from the archive range. Eventually the
                         // comment thread should be in our referenced range.
-                        (await getDocumentCommentThreadItem(context, {
+                        (await getDocumentCommentThreadItemIfExists(context, {
                             documentId: id,
                             commentThreadId,
                             // Try reading from the archive range first because we already queried the
@@ -858,7 +855,7 @@ async function createDocumentCommentThreadModelFromItem(
 ) {
     const commentAuthors = await runAllPromises(
         mapIterable(item.commentsSummary.commentCountByAuthorId.keys(), accountId =>
-            getAccountOrThrow(context, spaceId, accountId),
+            getAccount(context, spaceId, accountId),
         ),
     );
 
@@ -882,7 +879,7 @@ async function createDocumentCommentThreadModelFromItem(
  * This is not the most efficient of functions. We need to load each comment
  * thread separately. Use it sparingly.
  */
-export async function getDocumentCommentThreads(
+export async function batchGetDocumentCommentThreadsIfExists(
     context: RequestContext,
     {
         documentId,
@@ -892,7 +889,7 @@ export async function getDocumentCommentThreads(
         commentThreadIds: Iterable<DocumentCommentThreadId>;
     },
 ): Promise<Array<DocumentCommentThreadModel | null>> {
-    const documentItemPromise = DocumentsTable.getItemOrThrow(context, {
+    const documentItemPromise = DocumentsTable.getItem(context, {
         partitionType: "Document",
         documentId,
         sortRangeType: "Attributes",
@@ -905,7 +902,7 @@ export async function getDocumentCommentThreads(
         })(),
         runAllPromises(
             mapIterable(commentThreadIds, async commentThreadId => {
-                const commentThreadItem = await getDocumentCommentThreadItem(context, {
+                const commentThreadItem = await getDocumentCommentThreadItemIfExists(context, {
                     documentId,
                     commentThreadId,
                 });
@@ -995,7 +992,7 @@ export class DocumentContentCacheForUpdate {
         const nullableEntry = await this._entries.getOrSetEntry(id, async () => {
             wasEntryCached = false;
 
-            const internalDocument = await getInternalDocument(context, id);
+            const internalDocument = await getInternalDocumentIfExists(context, id);
             if (!internalDocument) return null;
 
             return {
@@ -1030,7 +1027,7 @@ export class DocumentContentCacheForUpdate {
         // this process wouldn't know. If another process wrote to the database we
         // can't use our cached entry so should update our cache appropriately.
         if (wasEntryCached) {
-            let _attributes = await DocumentsTable.getItem(context, {
+            let _attributes = await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 documentId: id,
                 sortRangeType: "Attributes",
@@ -1047,7 +1044,7 @@ export class DocumentContentCacheForUpdate {
                 // DynamoDB eventual consistency and we can't yet read the latest write. So try
                 // to load the document one more time but with strong consistency instead.
                 if (context.dynamo.defaultReadConsistency === "Eventual") {
-                    _attributes = await DocumentsTable.getItem(
+                    _attributes = await DocumentsTable.getItemIfExists(
                         context,
                         {
                             partitionType: "Document",
@@ -2050,7 +2047,7 @@ async function updateDocumentSnapshotAfterUpdatingContent(
     await context.tracer.withSpan("Update document snapshot", async (context, span) => {
         span.addPropagatedData({context: {documentId: id}});
 
-        const snapshot = await DocumentsTable.getPartialItem(
+        const snapshot = await DocumentsTable.getPartialItemIfExists(
             context,
             {
                 partitionType: "Document",
@@ -2192,7 +2189,7 @@ async function updateDocumentSnapshotAfterUpdatingContent(
                                 // retrying because the update lock version was changed.
                                 const referencedCommentThreadItem = isInitialExecution
                                     ? expectedReferencedCommentThreadItem
-                                    : await DocumentsTable.getItem(
+                                    : await DocumentsTable.getItemIfExists(
                                           context,
                                           expectedReferencedCommentThreadItem,
                                       );
@@ -2233,15 +2230,13 @@ async function updateDocumentSnapshotAfterUpdatingContent(
                             }
 
                             await context.dynamo.retryTransaction(async context => {
-                                const archivedCommentThreadItem = await DocumentsTable.getItem(
-                                    context,
-                                    {
+                                const archivedCommentThreadItem =
+                                    await DocumentsTable.getItemIfExists(context, {
                                         partitionType: "Document",
                                         sortRangeType: "ArchivedCommentThread",
                                         documentId: id,
                                         commentThreadId: actualReferencedCommentThreadId,
-                                    },
-                                );
+                                    });
 
                                 // If there is no referenced or archived comment thread item then the comment
                                 // thread may have never existed. Or a concurrent writer moved it.
@@ -2276,7 +2271,7 @@ export async function updateDocumentSnapshotForTest(
 ): Promise<void> {
     assert(typeof jest !== "undefined");
 
-    const document = await getInternalDocument(context, documentId);
+    const document = await getInternalDocumentIfExists(context, documentId);
     if (!document) throw new NotFoundError("Document not found");
 
     await updateDocumentSnapshotAfterUpdatingContent(context, {
@@ -2307,7 +2302,7 @@ export async function getDocumentContentSteps(
         endVersion: number;
     },
 ) {
-    const document = await DocumentsTable.getPartialItem(
+    const document = await DocumentsTable.getPartialItemIfExists(
         context,
         {partitionType: "Document", documentId: id, sortRangeType: "Attributes"},
         {attributes: ["spaceId", "version"]},
@@ -2732,7 +2727,7 @@ export const getDocumentCommentThreadItemAfterFirstGetItemTestCheckpoint =
  *
  * This function should not be exported! It does not implement authorization.
  */
-async function getDocumentCommentThreadItem(
+async function getDocumentCommentThreadItemIfExists(
     context: RequestContext,
     {
         documentId,
@@ -2750,7 +2745,7 @@ async function getDocumentCommentThreadItem(
     },
 ): Promise<DocumentReferencedCommentThreadItem | DocumentArchivedCommentThreadItem | null> {
     {
-        const commentThreadItem = await DocumentsTable.getItem(context, {
+        const commentThreadItem = await DocumentsTable.getItemIfExists(context, {
             partitionType: "Document",
             sortRangeType: !shouldTryArchiveFirst
                 ? "ReferencedCommentThread"
@@ -2764,7 +2759,7 @@ async function getDocumentCommentThreadItem(
     await getDocumentCommentThreadItemAfterFirstGetItemTestCheckpoint.waitForTest(documentId);
 
     {
-        const commentThreadItem = await DocumentsTable.getItem(context, {
+        const commentThreadItem = await DocumentsTable.getItemIfExists(context, {
             partitionType: "Document",
             sortRangeType: !shouldTryArchiveFirst
                 ? "ArchivedCommentThread"
@@ -2801,7 +2796,7 @@ async function getDocumentCommentThreadItem(
     }
 }
 
-async function getDocumentCommentThreadItemOrThrow(
+async function getDocumentCommentThreadItem(
     context: RequestContext,
     {
         documentId,
@@ -2811,7 +2806,7 @@ async function getDocumentCommentThreadItemOrThrow(
         commentThreadId: DocumentCommentThreadId;
     },
 ) {
-    const item = await getDocumentCommentThreadItem(context, {documentId, commentThreadId});
+    const item = await getDocumentCommentThreadItemIfExists(context, {documentId, commentThreadId});
     if (!item) throw new NotFoundError("Could not find document comment thread");
     return item;
 }
@@ -2838,17 +2833,17 @@ export async function createDocumentComment(
 }> {
     return context.dynamo.retryTransaction(async context => {
         const [documentItem, commentThreadItem, parentCommentItem] = await runAllPromises([
-            DocumentsTable.getItemOrThrow(context, {
+            DocumentsTable.getItem(context, {
                 partitionType: "Document",
                 sortRangeType: "Attributes",
                 documentId,
             }),
-            getDocumentCommentThreadItemOrThrow(context, {
+            getDocumentCommentThreadItem(context, {
                 documentId,
                 commentThreadId,
             }),
             typeof parentCommentIndex === "number"
-                ? DocumentsTable.getItemOrThrow(context, {
+                ? DocumentsTable.getItem(context, {
                       partitionType: "DocumentCommentThread",
                       sortRangeType: "Comments",
                       documentId,
@@ -2918,8 +2913,8 @@ export async function getDocumentComment(
         commentThreadId: DocumentCommentThreadId;
         commentIndex: number;
     },
-): Promise<DocumentCommentModel | null> {
-    const [documentItem, commentThreadItem, commentItem] = await runAllPromises([
+): Promise<DocumentCommentModel> {
+    const [documentItem, , commentItem] = await runAllPromises([
         DocumentsTable.getItem(context, {
             partitionType: "Document",
             sortRangeType: "Attributes",
@@ -2938,12 +2933,8 @@ export async function getDocumentComment(
         }),
     ]);
 
-    if (!documentItem) return null;
-    if (!commentThreadItem) return null;
-
     await authorizeSpaceAccess(context, documentItem.spaceId);
 
-    if (!commentItem) return null;
     return createDocumentCommentModelFromItem(context, documentItem.spaceId, commentItem);
 }
 
@@ -2953,7 +2944,7 @@ async function createDocumentCommentModelFromItem(
     item: DocumentCommentItem,
 ): Promise<DocumentCommentModel> {
     const [author, payload] = await runAllPromises([
-        getAccountOrThrow(context, spaceId, item.authorId),
+        getAccount(context, spaceId, item.authorId),
         createMessagePayloadModel(context, spaceId, item.payload),
     ]);
 
@@ -2988,16 +2979,16 @@ export function updateDocumentCommentContent(
 }> {
     return context.dynamo.retryTransaction(async context => {
         const [documentItem, commentThreadItem, commentItem] = await runAllPromises([
-            DocumentsTable.getItemOrThrow(context, {
+            DocumentsTable.getItem(context, {
                 partitionType: "Document",
                 sortRangeType: "Attributes",
                 documentId,
             }),
-            getDocumentCommentThreadItemOrThrow(context, {
+            getDocumentCommentThreadItem(context, {
                 documentId,
                 commentThreadId,
             }),
-            DocumentsTable.getItemOrThrow(context, {
+            DocumentsTable.getItem(context, {
                 partitionType: "DocumentCommentThread",
                 sortRangeType: "Comments",
                 documentId,
@@ -3089,16 +3080,16 @@ export function deleteDocumentComment(
 ): Promise<{deletedTime: Date}> {
     return context.dynamo.retryTransaction(async context => {
         const [documentItem, commentThreadItem, commentItem] = await runAllPromises([
-            DocumentsTable.getItemOrThrow(context, {
+            DocumentsTable.getItem(context, {
                 partitionType: "Document",
                 sortRangeType: "Attributes",
                 documentId,
             }),
-            getDocumentCommentThreadItemOrThrow(context, {
+            getDocumentCommentThreadItem(context, {
                 documentId,
                 commentThreadId,
             }),
-            DocumentsTable.getItemOrThrow(context, {
+            DocumentsTable.getItem(context, {
                 partitionType: "DocumentCommentThread",
                 sortRangeType: "Comments",
                 documentId,
@@ -3185,7 +3176,7 @@ export async function getDocumentCommentThreadAndInitialComments(
     initialComments: Array<DocumentCommentModel>;
     initialOtherReferencedComments: Array<DocumentCommentModel>;
 }> {
-    const documentItemPromise = DocumentsTable.getItemOrThrow(context, {
+    const documentItemPromise = DocumentsTable.getItem(context, {
         partitionType: "Document",
         sortRangeType: "Attributes",
         documentId,
@@ -3194,7 +3185,7 @@ export async function getDocumentCommentThreadAndInitialComments(
     const [, commentThread, {comments, otherReferencedComments}] = await runAllPromises([
         documentItemPromise,
         (async () => {
-            const commentThreadItem = await getDocumentCommentThreadItemOrThrow(context, {
+            const commentThreadItem = await getDocumentCommentThreadItem(context, {
                 documentId,
                 commentThreadId,
             });
@@ -3253,7 +3244,7 @@ export async function getDocumentCommentsFromStart(
     otherReferencedComments: Array<DocumentCommentModel>;
     lastCommentChangeTime: Date | null;
 }> {
-    const documentItemPromise = DocumentsTable.getItemOrThrow(context, {
+    const documentItemPromise = DocumentsTable.getItem(context, {
         partitionType: "Document",
         sortRangeType: "Attributes",
         documentId,
@@ -3261,7 +3252,7 @@ export async function getDocumentCommentsFromStart(
 
     const [, commentThreadItem, {comments, otherReferencedComments}] = await runAllPromises([
         documentItemPromise,
-        getDocumentCommentThreadItemOrThrow(context, {
+        getDocumentCommentThreadItem(context, {
             documentId,
             commentThreadId,
         }),
@@ -3371,7 +3362,7 @@ async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
                 if (commentIndexes.has(parentCommentIndex)) return null;
 
                 return (async () => {
-                    const commentItem = await DocumentsTable.getItem(context, {
+                    const commentItem = await DocumentsTable.getItemIfExists(context, {
                         partitionType: "DocumentCommentThread",
                         sortRangeType: "Comments",
                         documentId,
@@ -3418,7 +3409,7 @@ export async function getDocumentCommentsFromEnd(
     otherReferencedComments: Array<DocumentCommentModel>;
     lastCommentChangeTime: Date | null;
 }> {
-    const documentItemPromise = DocumentsTable.getItemOrThrow(context, {
+    const documentItemPromise = DocumentsTable.getItem(context, {
         partitionType: "Document",
         sortRangeType: "Attributes",
         documentId,
@@ -3426,7 +3417,7 @@ export async function getDocumentCommentsFromEnd(
 
     const [, commentThreadItem, {comments, otherReferencedComments}] = await runAllPromises([
         documentItemPromise,
-        getDocumentCommentThreadItemOrThrow(context, {
+        getDocumentCommentThreadItem(context, {
             documentId,
             commentThreadId,
         }),
@@ -3542,7 +3533,7 @@ async function getDocumentCommentsFromEndAssumingAuthorizedCommentThread(
                 if (commentIndexes.has(parentCommentIndex)) return null;
 
                 return (async () => {
-                    const commentItem = await DocumentsTable.getItem(context, {
+                    const commentItem = await DocumentsTable.getItemIfExists(context, {
                         partitionType: "DocumentCommentThread",
                         sortRangeType: "Comments",
                         documentId,
@@ -3617,13 +3608,13 @@ export async function backfillDocumentComments(
     newOtherReferencedComments: Array<DocumentCommentModel>;
     commentChangesResult: DocumentCommentChangesResult;
 }> {
-    const documentItemPromise = DocumentsTable.getItemOrThrow(context, {
+    const documentItemPromise = DocumentsTable.getItem(context, {
         partitionType: "Document",
         sortRangeType: "Attributes",
         documentId,
     });
 
-    const commentThreadItemPromise = getDocumentCommentThreadItemOrThrow(context, {
+    const commentThreadItemPromise = getDocumentCommentThreadItem(context, {
         documentId,
         commentThreadId,
     });

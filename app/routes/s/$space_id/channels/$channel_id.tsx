@@ -7,7 +7,6 @@ import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtual
 import {getChannel} from "~/server/dynamo/forum_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
-import {NotFoundError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {ChannelId} from "~/shared/id/types/id_types";
 import {ChannelModel} from "~/shared/models/channel_model";
@@ -38,8 +37,6 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
             ),
         }),
     ]);
-
-    if (!channel) throw new NotFoundError("Channel not found");
 
     const propagateEventData: TracerEventData = {
         context: {channelId},

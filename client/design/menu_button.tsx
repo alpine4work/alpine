@@ -17,8 +17,8 @@ import {mergeProps, useHover, usePress} from "react-aria";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {
-    getNextFocusableElement,
-    getPreviousFocusableElement,
+    getNextFocusableElementIfExists,
+    getPreviousFocusableElementIfExists,
 } from "~/client/design/helpers/get_next_focusable_element";
 import {setElementAttributesWithCleanup} from "~/client/design/helpers/set_element_attributes_with_cleanup";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_press";
@@ -443,11 +443,11 @@ export function MenuButton({
                                 break;
                             }
                             case "NextElement": {
-                                getNextFocusableElement(menuButtonElement)?.focus();
+                                getNextFocusableElementIfExists(menuButtonElement)?.focus();
                                 break;
                             }
                             case "PreviousElement": {
-                                getPreviousFocusableElement(menuButtonElement)?.focus();
+                                getPreviousFocusableElementIfExists(menuButtonElement)?.focus();
                                 break;
                             }
                             case undefined: {
@@ -536,7 +536,7 @@ const Menu = forwardRef(function Menu(
         };
     }, [searchText]);
 
-    function getFocusedActionIndex() {
+    function getFocusedActionIndexIfExists() {
         if (!document.activeElement) return null;
         const index = menuItemRefs.findIndex(
             menuItemRef => menuItemRef.current === document.activeElement,
@@ -547,7 +547,7 @@ const Menu = forwardRef(function Menu(
     function setAriaActiveDescendant(event: React.FocusEvent<HTMLDivElement>) {
         const menuElement = event.currentTarget;
 
-        const activeIndex = getFocusedActionIndex();
+        const activeIndex = getFocusedActionIndexIfExists();
         const activeMenuItemId =
             activeIndex !== null
                 ? menuItemRefs[activeIndex]!.current?.getAttribute("id") ?? null
@@ -593,7 +593,7 @@ const Menu = forwardRef(function Menu(
 
                             setInteractionModality("keyboard");
 
-                            const currentIndex = getFocusedActionIndex();
+                            const currentIndex = getFocusedActionIndexIfExists();
                             if (currentIndex === null) {
                                 menuItemRefs[0]!.current?.focus();
                                 break;
@@ -615,7 +615,7 @@ const Menu = forwardRef(function Menu(
 
                             setInteractionModality("keyboard");
 
-                            const currentIndex = getFocusedActionIndex();
+                            const currentIndex = getFocusedActionIndexIfExists();
                             if (currentIndex === null) {
                                 menuItemRefs[menuItemRefs.length - 1]!.current?.focus();
                                 break;

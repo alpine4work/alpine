@@ -39,7 +39,6 @@ class DocumentCollaborationDurableObject {
         const documentId = Schema.id<DocumentId>().deserialize(idName);
 
         const document = await getDocument(initializeRequestContext, documentId);
-        if (!document) throw new NotFoundError("Document not found");
 
         return new DocumentCollaborationDurableObject({
             context: processContext,

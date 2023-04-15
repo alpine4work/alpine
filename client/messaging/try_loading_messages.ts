@@ -62,7 +62,7 @@ export function tryLoadingMessages<Message extends MessageModel>({
     const startMessage = messages.getItem(range.startIndex);
     const endMessage = messages.getItem(range.endIndex);
 
-    const firstLoadedMessage = messages.getFirstLoadedMessageAfter(range.startIndex - 1);
+    const firstLoadedMessage = messages.getFirstLoadedMessageAfterIfExists(range.startIndex - 1);
     const hasLoadedMessage = firstLoadedMessage && firstLoadedMessage.index <= range.endIndex;
 
     // Everything rendered is loaded. Yay! Proceed if we need to load some data.
@@ -94,10 +94,10 @@ export function tryLoadingMessages<Message extends MessageModel>({
 
     if (endMessage.type === "Unloaded" && hasLoadedMessage) {
         const afterMessageIndex =
-            messages.getLastLoadedMessageBefore(range.endIndex)?.index ?? null;
+            messages.getLastLoadedMessageBeforeIfExists(range.endIndex)?.index ?? null;
 
         const beforeMessageIndex =
-            messages.getFirstLoadedMessageAfter(range.endIndex)?.index ?? null;
+            messages.getFirstLoadedMessageAfterIfExists(range.endIndex)?.index ?? null;
 
         // Always start at the last loaded message in our range. If there is none then
         // maybe optimistic messages are involved?
@@ -116,10 +116,10 @@ export function tryLoadingMessages<Message extends MessageModel>({
 
     if (startMessage.type === "Unloaded" && hasLoadedMessage) {
         const afterMessageIndex =
-            messages.getLastLoadedMessageBefore(range.startIndex)?.index ?? null;
+            messages.getLastLoadedMessageBeforeIfExists(range.startIndex)?.index ?? null;
 
         const beforeMessageIndex =
-            messages.getFirstLoadedMessageAfter(range.startIndex)?.index ?? null;
+            messages.getFirstLoadedMessageAfterIfExists(range.startIndex)?.index ?? null;
 
         // Always start at the first loaded message in our range. If there is none then
         // maybe optimistic messages are involved?
@@ -143,8 +143,10 @@ export function tryLoadingMessages<Message extends MessageModel>({
     assert(!hasLoadedMessage);
     assert(startMessage.type === "Unloaded" && endMessage.type === "Unloaded");
 
-    const messageBeforeUnloadedSegment = messages.getLastLoadedMessageBefore(range.startIndex);
-    const messageAfterUnloadedSegment = messages.getFirstLoadedMessageAfter(range.endIndex);
+    const messageBeforeUnloadedSegment = messages.getLastLoadedMessageBeforeIfExists(
+        range.startIndex,
+    );
+    const messageAfterUnloadedSegment = messages.getFirstLoadedMessageAfterIfExists(range.endIndex);
 
     let afterMessageIndex = Math.floor(
         range.startIndex + (range.endIndex - range.startIndex) / 2 - jumpLimit / 2,

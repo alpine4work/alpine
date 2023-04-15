@@ -3,7 +3,7 @@ import {
     attemptOneTimePasswordSignIn,
     captureOneTimePasswordSignInEmailsForTest,
     generateOneTimePassword,
-    getAccount,
+    getAccountIfExists,
     getAccountsTableForTest,
     regenerateOneTimePasswordSignIn,
 } from "~/server/dynamo/accounts_table";
@@ -65,7 +65,7 @@ async function getAccountEmailAddressItemForExpect(account: {
     id: AccountId;
     emailAddress: EmailAddress;
 }) {
-    const accountEmailAddressItem = await AccountsTable.getItem(context, {
+    const accountEmailAddressItem = await AccountsTable.getItemIfExists(context, {
         partitionType: "AccountEmailAddress",
         sortRangeType: "Attributes",
         emailAddress: account.emailAddress,
@@ -86,7 +86,7 @@ async function getAccountEmailAddressItemUpdateLockVersionForExpect(account: {
     id: AccountId;
     emailAddress: EmailAddress;
 }) {
-    const accountEmailAddressItem = await AccountsTable.getItem(context, {
+    const accountEmailAddressItem = await AccountsTable.getItemIfExists(context, {
         partitionType: "AccountEmailAddress",
         sortRangeType: "Attributes",
         emailAddress: account.emailAddress,
@@ -895,69 +895,96 @@ test("generates one time passwords that are six characters long", () => {
 
 test("can get accounts in the same space as us", async () => {
     expect(
-        (await getAccount(context.request(space1Session1), space1.id, space1Session1.accountId))
-            ?.name,
+        (
+            await getAccountIfExists(
+                context.request(space1Session1),
+                space1.id,
+                space1Session1.accountId,
+            )
+        )?.name,
     ).toEqual(space1Session1.account.name);
 
     expect(
-        (await getAccount(context.request(space1Session1), space1.id, space1Session2.accountId))
-            ?.name,
+        (
+            await getAccountIfExists(
+                context.request(space1Session1),
+                space1.id,
+                space1Session2.accountId,
+            )
+        )?.name,
     ).toEqual(space1Session2.account.name);
 
     expect(
-        (await getAccount(context.request(space1Session1), space1.id, space1Session3.accountId))
-            ?.name,
+        (
+            await getAccountIfExists(
+                context.request(space1Session1),
+                space1.id,
+                space1Session3.accountId,
+            )
+        )?.name,
     ).toEqual(space1Session3.account.name);
 });
 
 test("can not get accounts that don't exist", async () => {
-    expect(await getAccount(context.request(space1Session1), space1.id, generateId())).toEqual(
-        null,
-    );
+    expect(
+        await getAccountIfExists(context.request(space1Session1), space1.id, generateId()),
+    ).toEqual(null);
 });
 
 test("can not get accounts in a different space than us", async () => {
     expect(
-        await getAccount(context.request(space1Session1), space1.id, space2Session1.accountId),
+        await getAccountIfExists(
+            context.request(space1Session1),
+            space1.id,
+            space2Session1.accountId,
+        ),
     ).toEqual(null);
 
     expect(
-        await getAccount(context.request(space1Session1), space1.id, space2Session2.accountId),
+        await getAccountIfExists(
+            context.request(space1Session1),
+            space1.id,
+            space2Session2.accountId,
+        ),
     ).toEqual(null);
 
     expect(
-        await getAccount(context.request(space1Session1), space1.id, space2Session3.accountId),
+        await getAccountIfExists(
+            context.request(space1Session1),
+            space1.id,
+            space2Session3.accountId,
+        ),
     ).toEqual(null);
 });
 
 test("can not get accounts through a space we don't have access to", async () => {
     await expect(() =>
-        getAccount(context.request(space1Session1), space2.id, generateId()),
+        getAccountIfExists(context.request(space1Session1), space2.id, generateId()),
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(() =>
-        getAccount(context.request(space1Session1), space2.id, space2Session1.accountId),
+        getAccountIfExists(context.request(space1Session1), space2.id, space2Session1.accountId),
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(() =>
-        getAccount(context.request(space1Session1), space2.id, space2Session2.accountId),
+        getAccountIfExists(context.request(space1Session1), space2.id, space2Session2.accountId),
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(() =>
-        getAccount(context.request(space1Session1), space2.id, space2Session3.accountId),
+        getAccountIfExists(context.request(space1Session1), space2.id, space2Session3.accountId),
     ).rejects.toThrow(PermissionDeniedError);
 });
 
 test("can not get accounts through a space we don't have access to even if we have access to the accounts through a different space", async () => {
     await expect(() =>
-        getAccount(context.request(space1Session1), space2.id, space1Session1.accountId),
+        getAccountIfExists(context.request(space1Session1), space2.id, space1Session1.accountId),
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(() =>
-        getAccount(context.request(space1Session1), space2.id, space1Session2.accountId),
+        getAccountIfExists(context.request(space1Session1), space2.id, space1Session2.accountId),
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(() =>
-        getAccount(context.request(space1Session1), space2.id, space1Session3.accountId),
+        getAccountIfExists(context.request(space1Session1), space2.id, space1Session3.accountId),
     ).rejects.toThrow(PermissionDeniedError);
 });

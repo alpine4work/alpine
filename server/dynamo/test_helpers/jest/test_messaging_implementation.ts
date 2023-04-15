@@ -94,7 +94,7 @@ export type TestMessagingImplementation<RoomKey extends string> = {
     /**
      * Gets an existing room.
      */
-    getRoom: (context: RequestContext, key: RoomKey) => Promise<RoomInterface<RoomKey> | null>;
+    getRoom: (context: RequestContext, key: RoomKey) => Promise<RoomInterface<RoomKey>>;
 
     /**
      * Get the key for a room that doesn't exist.
@@ -550,9 +550,9 @@ export function testMessagingImplementation<RoomKey extends string>(
                 content: content1,
             });
 
-            expect(
-                await getMessage(context.request(session1), {roomKey: room.key, messageIndex: 42}),
-            ).toEqual(null);
+            await expect(() =>
+                getMessage(context.request(session1), {roomKey: room.key, messageIndex: 42}),
+            ).rejects.toThrow(NotFoundError);
         });
 
         test("can not get a message in a different space", async () => {

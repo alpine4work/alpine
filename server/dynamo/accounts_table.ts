@@ -451,7 +451,7 @@ export function attemptOneTimePasswordSignIn(
     sessionAccountId: AccountId;
 }> {
     return context.dynamo.retryTransaction(async context => {
-        const accountEmailAddressItem = await AccountsTable.getItem(context, {
+        const accountEmailAddressItem = await AccountsTable.getItemIfExists(context, {
             partitionType: "AccountEmailAddress",
             sortRangeType: "Attributes",
             emailAddress,
@@ -620,7 +620,7 @@ export class Session {
         this._preloadedAccount = preloadedAccount;
     }
 
-    public static async get(
+    public static async getIfExists(
         context: DynamoContext,
         sessionId: SessionId,
         // Optional: As an optimization you may include the account the session is for
@@ -629,13 +629,13 @@ export class Session {
         sessionAccountId: AccountId | null,
     ): Promise<Session | null> {
         const [sessionItem, accountItem] = await runAllPromises([
-            AccountsTable.getItem(context, {
+            AccountsTable.getItemIfExists(context, {
                 partitionType: "Session",
                 sortRangeType: "Attributes",
                 sessionId,
             }),
             sessionAccountId
-                ? AccountsTable.getItem(context, {
+                ? AccountsTable.getItemIfExists(context, {
                       partitionType: "Account",
                       sortRangeType: "Attributes",
                       accountId: sessionAccountId,
@@ -674,7 +674,7 @@ export class Session {
         if (this._accountPromise === null) {
             this._accountPromise = (async () => {
                 const accountItem = assertExists(
-                    await AccountsTable.getItem(context, {
+                    await AccountsTable.getItemIfExists(context, {
                         partitionType: "Account",
                         sortRangeType: "Attributes",
                         accountId: this.accountId,
@@ -722,7 +722,7 @@ const AccountContextCache = new ContextCache<`${SpaceId}:${AccountId}`, AccountM
  * If the account does not exist, we return null. If the account does exist but
  * is not a member of the provided space then we also return null.
  */
-export function getAccount(
+export function getAccountIfExists(
     context: RequestContext,
     spaceId: SpaceId,
     accountId: AccountId,
@@ -737,7 +737,7 @@ export function getAccount(
 
         const [account, isMemberOfSpace] = await runAllPromiseThunks(
             async () => {
-                const accountItem = await AccountsTable.getItem(context, {
+                const accountItem = await AccountsTable.getItemIfExists(context, {
                     partitionType: "Account",
                     sortRangeType: "Attributes",
                     accountId,
@@ -760,12 +760,12 @@ export function getAccount(
 /**
  * Throw an error if the account can not be found.
  */
-export async function getAccountOrThrow(
+export async function getAccount(
     context: RequestContext,
     spaceId: SpaceId,
     accountId: AccountId,
 ): Promise<AccountModel> {
-    const account = await getAccount(context, spaceId, accountId);
+    const account = await getAccountIfExists(context, spaceId, accountId);
     if (!account) throw new NotFoundError("Can not find account in space");
     return account;
 }

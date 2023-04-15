@@ -154,7 +154,7 @@ export function createDurableObject<
                                 const {sessionId, sessionAccountId} =
                                     await this._verifyAuthenticationToken(authenticationToken);
 
-                                const session = await Session.get(
+                                const session = await Session.getIfExists(
                                     context,
                                     sessionId,
                                     sessionAccountId ?? null,

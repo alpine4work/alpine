@@ -1,6 +1,6 @@
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
 import {LoaderArgs} from "~/server/remix/loader_context";
-import {getRpcImplementation} from "~/server/rpc/get_rpc_implementation";
+import {getRpcImplementationIfExists} from "~/server/rpc/get_rpc_implementation";
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error";
 import {isSystemError} from "~/shared/error/is_system_error_code";
 import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises";
@@ -39,7 +39,7 @@ export async function action({request, context, span, params}: LoaderArgs) {
                 if (params.rpc_name !== call.name)
                     throw new InvalidArgumentError("Expected name in input to match name in URL");
 
-                const rpcImplementation = getRpcImplementation(call.name);
+                const rpcImplementation = getRpcImplementationIfExists(call.name);
 
                 if (!rpcImplementation)
                     throw new NotFoundError("Could not find an implementation for RPC");

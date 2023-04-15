@@ -1,5 +1,5 @@
 import {UnauthenticatedRequestContextModules} from "~/server/dynamo/context/request_context";
-import {getRpcImplementation} from "~/server/rpc/get_rpc_implementation";
+import {getRpcImplementationIfExists} from "~/server/rpc/get_rpc_implementation";
 import {InternalError} from "~/shared/error/error";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition";
@@ -20,7 +20,7 @@ export class LocalRpcContextModule extends RpcContextModuleBase<UnauthenticatedR
         definition: RpcDefinition<Input, Output>,
         input: Input,
     ): Promise<Output> {
-        const implementation = getRpcImplementation(definition.name);
+        const implementation = getRpcImplementationIfExists(definition.name);
 
         if (!implementation)
             throw new InternalError("Could not find an implementation for defined RPC");

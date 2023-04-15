@@ -76,8 +76,8 @@ export class DynamoClient {
     /**
      * Get a single item from DynamoDB. Corresponds to the [`GetItem`][1] command.
      *
-     * For `getItem()` calls made in a short window of time, we will batch them
-     * together into a [`BatchGetItem`][2] command.
+     * For `getItemIfExists()` calls made in a short window of time, we will batch
+     * them together into a [`BatchGetItem`][2] command.
      *
      * If a `projectionExpression` is provided then we will not batch and send a
      * plain `GetItem` command at this time.
@@ -85,7 +85,7 @@ export class DynamoClient {
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
      */
-    public async getItem(
+    public async getItemIfExists(
         tracer: TracerBase,
         {
             tableName,

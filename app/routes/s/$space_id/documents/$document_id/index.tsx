@@ -13,7 +13,7 @@ import {
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
 import {emptyDocumentContent} from "~/shared/content/document_content_schema";
-import {FailedPreconditionError, NotFoundError} from "~/shared/error/error";
+import {FailedPreconditionError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types";
 import {
@@ -75,9 +75,7 @@ export async function loader({params, context, request}: LoaderArgs) {
                 }
             }
 
-            const document = await getDocument(await context.auth.authenticate(), documentId);
-            if (!document) throw new NotFoundError("Document not found");
-            return document;
+            return getDocument(await context.auth.authenticate(), documentId);
         })(),
         commentThreadId
             ? getDocumentCommentThreadAndInitialComments(await context.auth.authenticate(), {

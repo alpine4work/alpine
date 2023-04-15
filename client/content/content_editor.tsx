@@ -471,7 +471,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 orderedListItem: createContentEditorOrderedListItemNodeView,
                 checkListItem: createContentEditorCheckListItemNodeView,
                 mention: createContentEditorMentionNodeViewConstructor({
-                    getCurrentAccount: () => currentAccountRef.current,
+                    getCurrentAccountIfExists: () => currentAccountRef.current,
                 }),
             },
 

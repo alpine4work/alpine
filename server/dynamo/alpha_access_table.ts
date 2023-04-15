@@ -159,7 +159,7 @@ export async function requestAlphaAccess(
     } catch (error) {
         if (!isDynamoConditionCheckError(error)) throw error;
 
-        const existingRequest = await AlphaAccessTable.getItem(context, {
+        const existingRequest = await AlphaAccessTable.getItemIfExists(context, {
             partitionType: "AlphaAccessRequests",
             sortRangeType: "Request",
             emailAddress,
@@ -264,7 +264,7 @@ export async function approveAlphaAccessRequest(
     if (!defaultSpaceId)
         throw new InternalError('Expected alpha configuration to include "defaultSpaceId"');
 
-    const requestItem = await AlphaAccessTable.getItem(context, {
+    const requestItem = await AlphaAccessTable.getItemIfExists(context, {
         partitionType: "AlphaAccessRequests",
         sortRangeType: "Request",
         emailAddress,
@@ -313,7 +313,7 @@ export async function approveAlphaAccessRequest(
 export async function denyAlphaAccessRequest(context: RequestContext, emailAddress: EmailAddress) {
     await authorizeInternalAccess(context);
 
-    const requestItem = await AlphaAccessTable.getItem(context, {
+    const requestItem = await AlphaAccessTable.getItemIfExists(context, {
         partitionType: "AlphaAccessRequests",
         sortRangeType: "Request",
         emailAddress,
@@ -354,7 +354,7 @@ export async function* getAllApprovedAlphaAccessRequestEmailAddresses(
 }
 
 export async function getAlphaConfiguration(context: DynamoContext): Promise<AlphaConfiguration> {
-    const configuration = await AlphaAccessTable.getItem(context, {
+    const configuration = await AlphaAccessTable.getItemIfExists(context, {
         partitionType: "AlphaConfiguration",
         sortRangeType: "Configuration",
     });

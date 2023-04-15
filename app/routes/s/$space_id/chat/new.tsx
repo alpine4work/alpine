@@ -10,7 +10,7 @@ import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_wit
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
-import {getAccountOrThrow} from "~/server/dynamo/accounts_table";
+import {getAccount} from "~/server/dynamo/accounts_table";
 import {selectChatForAccounts} from "~/server/dynamo/chat_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
@@ -51,7 +51,7 @@ export async function loader({request, context: _context, params}: LoaderArgs) {
 
     const [selectedAccounts, selectedChatResult] = await runAllPromises([
         runAllPromises(
-            selectedAccountIds.map(accountId => getAccountOrThrow(context, spaceId, accountId)),
+            selectedAccountIds.map(accountId => getAccount(context, spaceId, accountId)),
         ),
         // It's important that we check `selectedAccounts` is empty before removing the
         // current account ID. In case the user selects their own account.

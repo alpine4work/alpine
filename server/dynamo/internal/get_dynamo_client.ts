@@ -13,7 +13,7 @@ export function getDynamoClient(context: DynamoContext): DynamoClient {
 /**
  * Get the DynamoDB `retryTransaction()` function from context.
  */
-export function getDynamoRetryTransaction(context: DynamoContext): (() => never) | null {
+export function getDynamoRetryTransactionIfExists(context: DynamoContext): (() => never) | null {
     // @ts-expect-error: The `retryTransaction` property is not private to our
     // `internal` folder.
     return context.dynamo._retryTransaction;

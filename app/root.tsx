@@ -21,7 +21,7 @@ import {ToastContextProvider} from "~/client/design/toast";
 import {TooltipCoordinationContextProvider} from "~/client/design/tooltip";
 import {
     InitializeColorSchemeScript,
-    getColorSchemeWithoutListening,
+    getColorSchemeWithoutListeningIfBrowser,
 } from "~/client/helpers/color_scheme";
 import {GlobalKeyDownRootContextProvider} from "~/client/helpers/global_key_down_event";
 import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render";
@@ -192,7 +192,7 @@ export default function Root({error}: {error?: unknown}) {
     );
 
     return (
-        <html lang="en" data-color-scheme={getColorSchemeWithoutListening()}>
+        <html lang="en" data-color-scheme={getColorSchemeWithoutListeningIfBrowser()}>
             <head>
                 <meta charSet="utf-8" />
                 <meta

@@ -9,7 +9,6 @@ import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
 import {getPostAndInitialComments} from "~/server/dynamo/forum_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
-import {NotFoundError} from "~/shared/error/error";
 import {PostId} from "~/shared/id/types/id_types";
 import {PostCommentModel, PostModel} from "~/shared/models/post_model";
 import {Schema} from "~/shared/schema/schema";
@@ -26,13 +25,13 @@ export async function loader({params, context}: LoaderArgs) {
 
     const commentLimit = getInitialLoadMessageCount(context.loader.clientInfo);
 
-    const postResult = await getPostAndInitialComments(await context.auth.authenticate(), {
-        postId,
-        commentLimit,
-    });
-    if (!postResult) throw new NotFoundError("Post not found");
-
-    const {post, initialComments, initialOtherReferencedComments} = postResult;
+    const {post, initialComments, initialOtherReferencedComments} = await getPostAndInitialComments(
+        await context.auth.authenticate(),
+        {
+            postId,
+            commentLimit,
+        },
+    );
 
     const propagateEventData: TracerEventData = {
         context: {

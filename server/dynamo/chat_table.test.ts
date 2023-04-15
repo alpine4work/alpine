@@ -3538,7 +3538,6 @@ testMessagingImplementation<ChatId>(context, {
     },
     async getRoom(context, chatId) {
         const post = await getChat(context, chatId);
-        if (!post) return null;
 
         return {
             key: post.id,

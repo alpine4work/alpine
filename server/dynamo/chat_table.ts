@@ -1,5 +1,5 @@
 import murmurhash from "murmurhash";
-import {getAccountOrThrow} from "~/server/dynamo/accounts_table";
+import {getAccount} from "~/server/dynamo/accounts_table";
 import {RequestContext} from "~/server/dynamo/context/request_context";
 import {getContentReferencesForNode} from "~/server/dynamo/helpers/get_content_references";
 import {createMessagePayloadModel} from "~/server/dynamo/helpers/messaging/create_message_payload_model";
@@ -238,9 +238,7 @@ export async function createChatForTest(
 
     // Make sure all accounts are members of the space the chat is being
     // created in.
-    await runAllPromises(
-        accountIds.map(accountId => getAccountOrThrow(context, spaceId, accountId)),
-    );
+    await runAllPromises(accountIds.map(accountId => getAccount(context, spaceId, accountId)));
 
     // NOTE(calebmer): Our tests override `Date.now()` to mock a fake time. So use
     // this slightly awkward form to let tests mock different times for chat
@@ -461,7 +459,6 @@ export function selectChatForAccounts(
                         if (sharedChat.accountCount <= otherAccountIds.length + 1) return null;
 
                         const chat = await getChat(context, sharedChat.id);
-                        if (!chat) return null;
 
                         // Only suggest chats with some messages.
                         if (chat.messageCount === 0) return null;
@@ -633,7 +630,7 @@ function actuallyGetOrCreateChatForAccounts(
                 // provided space.
                 runAllPromises(
                     Array.from(otherAccountIds, accountId =>
-                        getAccountOrThrow(context, spaceId, accountId),
+                        getAccount(context, spaceId, accountId),
                     ),
                 ),
             ]);
@@ -698,7 +695,7 @@ export function sendChatMessage(
     return context.dynamo.retryTransaction(async context => {
         const [chatItem] = await runAllPromiseThunks(
             async () => {
-                const chatItem = await ChatTable.getItem(context, {
+                const chatItem = await ChatTable.getItemIfExists(context, {
                     partitionType: "Chat",
                     sortRangeType: "Attributes",
                     chatId,
@@ -710,7 +707,7 @@ export function sendChatMessage(
             async () => {
                 if (typeof parentMessageIndex !== "number") return;
 
-                const parentMessageItem = await ChatTable.getPartialItem(
+                const parentMessageItem = await ChatTable.getPartialItemIfExists(
                     context,
                     {
                         partitionType: "Chat",
@@ -774,7 +771,7 @@ export async function authorizeChatAccess(
 ): Promise<{spaceId: SpaceId}> {
     const [chatItem, chatAccountItem] = await runAllPromises([
         (async () => {
-            const chatItem = await ChatTable.getItem(context, {
+            const chatItem = await ChatTable.getItemIfExists(context, {
                 partitionType: "Chat",
                 sortRangeType: "Attributes",
                 chatId,
@@ -784,7 +781,7 @@ export async function authorizeChatAccess(
             await authorizeSpaceAccess(context, chatItem.spaceId);
             return chatItem;
         })(),
-        ChatTable.getItem(context, {
+        ChatTable.getItemIfExists(context, {
             partitionType: "Chat",
             sortRangeType: "Account",
             chatId,
@@ -803,7 +800,7 @@ async function authorizeChatAccessWithItem(
 ) {
     const [, chatAccountItem] = await runAllPromises([
         authorizeSpaceAccess(context, chatItem.spaceId),
-        ChatTable.getItem(context, {
+        ChatTable.getItemIfExists(context, {
             partitionType: "Chat",
             sortRangeType: "Account",
             chatId: chatItem.chatId,
@@ -948,7 +945,7 @@ export function getSharedChatsForTest(
 /**
  * Get the provided chat by ID. Returning null if the chat does not exist.
  */
-export async function getChat(context: RequestContext, chatId: ChatId): Promise<ChatModel | null> {
+export async function getChat(context: RequestContext, chatId: ChatId): Promise<ChatModel> {
     let chatItem: ChatAttributesItem | undefined;
     const accountPromises: Array<Promise<AccountModel>> = [];
 
@@ -980,7 +977,7 @@ export async function getChat(context: RequestContext, chatId: ChatId): Promise<
                         "Expected chat account item to have same space ID as chat item",
                     );
 
-                accountPromises.push(getAccountOrThrow(context, chatItem.spaceId, item.accountId));
+                accountPromises.push(getAccount(context, chatItem.spaceId, item.accountId));
                 break;
             }
             default:
@@ -988,7 +985,7 @@ export async function getChat(context: RequestContext, chatId: ChatId): Promise<
         }
     }
 
-    if (!chatItem) return null;
+    if (!chatItem) throw new NotFoundError("Chat not found");
 
     const [accounts] = await runAllPromises([
         runAllPromises(accountPromises),
@@ -1018,7 +1015,7 @@ export async function getChat(context: RequestContext, chatId: ChatId): Promise<
 export async function getChatMessage(
     context: RequestContext,
     {chatId, messageIndex}: {chatId: ChatId; messageIndex: number},
-): Promise<ChatMessageModel | null> {
+): Promise<ChatMessageModel> {
     const [{spaceId}, item] = await runAllPromises([
         authorizeChatAccess(context, chatId),
         ChatTable.getItem(context, {
@@ -1029,7 +1026,6 @@ export async function getChatMessage(
         }),
     ]);
 
-    if (!item) return null;
     return createChatMessageModelFromItem(context, spaceId, item);
 }
 
@@ -1039,7 +1035,7 @@ async function createChatMessageModelFromItem(
     item: ChatMessageItem,
 ): Promise<ChatMessageModel> {
     const [author, payload] = await runAllPromises([
-        getAccountOrThrow(context, spaceId, item.authorId),
+        getAccount(context, spaceId, item.authorId),
         createMessagePayloadModel(context, spaceId, item.payload),
     ]);
 
@@ -1071,12 +1067,12 @@ export function updateChatMessageContent(
 }> {
     return context.dynamo.retryTransaction(async context => {
         const [chatItem, chatMessageItem] = await runAllPromises([
-            ChatTable.getItem(context, {
+            ChatTable.getItemIfExists(context, {
                 partitionType: "Chat",
                 sortRangeType: "Attributes",
                 chatId,
             }),
-            ChatTable.getItem(context, {
+            ChatTable.getItemIfExists(context, {
                 partitionType: "Chat",
                 sortRangeType: "Messages",
                 chatId,
@@ -1157,12 +1153,12 @@ export function deleteChatMessage(
 ): Promise<{deletedTime: Date}> {
     return context.dynamo.retryTransaction(async context => {
         const [chatItem, chatMessageItem] = await runAllPromises([
-            ChatTable.getItem(context, {
+            ChatTable.getItemIfExists(context, {
                 partitionType: "Chat",
                 sortRangeType: "Attributes",
                 chatId,
             }),
-            ChatTable.getItem(context, {
+            ChatTable.getItemIfExists(context, {
                 partitionType: "Chat",
                 sortRangeType: "Messages",
                 chatId,
@@ -1238,10 +1234,7 @@ export async function getChatAndInitialMessages(
     initialMessages: ReadonlyArray<ChatMessageModel>;
     initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
 }> {
-    const chatPromise = getChat(context, chatId).then(chat => {
-        if (!chat) throw new NotFoundError("Chat not found");
-        return chat;
-    });
+    const chatPromise = getChat(context, chatId);
 
     const [chat, {messages, otherReferencedMessages}] = await runAllPromises([
         chatPromise,
@@ -1293,7 +1286,7 @@ export async function getChatMessagesFromStart(
     lastMessageChangeTime: Date | null;
 }> {
     const chatItemPromise = (async () => {
-        const chatItem = await ChatTable.getItem(context, {
+        const chatItem = await ChatTable.getItemIfExists(context, {
             partitionType: "Chat",
             sortRangeType: "Attributes",
             chatId,
@@ -1395,7 +1388,7 @@ async function getChatMessagesFromStartAssumingAuthorizedChat(
                 if (messageIndexes.has(parentMessageIndex)) return null;
 
                 return (async () => {
-                    const messageItem = await ChatTable.getItem(context, {
+                    const messageItem = await ChatTable.getItemIfExists(context, {
                         partitionType: "Chat",
                         sortRangeType: "Messages",
                         chatId,
@@ -1440,7 +1433,7 @@ export async function getChatMessagesFromEnd(
     lastMessageChangeTime: Date | null;
 }> {
     const chatItemPromise = (async () => {
-        const chatItem = await ChatTable.getItem(context, {
+        const chatItem = await ChatTable.getItemIfExists(context, {
             partitionType: "Chat",
             sortRangeType: "Attributes",
             chatId,
@@ -1548,7 +1541,7 @@ async function getChatMessagesFromEndAssumingAuthorizedChat(
                 if (messageIndexes.has(parentMessageIndex)) return null;
 
                 return (async () => {
-                    const messageItem = await ChatTable.getItem(context, {
+                    const messageItem = await ChatTable.getItemIfExists(context, {
                         partitionType: "Chat",
                         sortRangeType: "Messages",
                         chatId,
@@ -1621,7 +1614,7 @@ export async function backfillChatMessages(
     messageChangesResult: ChatMessageChangesResult;
 }> {
     const chatItemPromise = (async () => {
-        const chatItem = await ChatTable.getItem(context, {
+        const chatItem = await ChatTable.getItemIfExists(context, {
             partitionType: "Chat",
             sortRangeType: "Attributes",
             chatId,

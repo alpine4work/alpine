@@ -10,13 +10,13 @@ const {mentionClassName, currentAccountMentionClassName, mentionAtClassName, men
     contentSchemaStyles;
 
 export function createContentEditorMentionNodeViewConstructor({
-    getCurrentAccount,
+    getCurrentAccountIfExists,
 }: {
-    getCurrentAccount: () => AccountModel | null;
+    getCurrentAccountIfExists: () => AccountModel | null;
 }): NodeViewConstructor {
     return (node, view) => {
         const mention: ContentMention = node.attrs.mention;
-        const isCurrentAccountMention = getCurrentAccount()?.id === mention.accountId;
+        const isCurrentAccountMention = getCurrentAccountIfExists()?.id === mention.accountId;
         const contentReferences = getContentEditorReferences(view.state).references;
 
         // We need a container element for highlight styles to be applied to. Our

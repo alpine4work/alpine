@@ -249,7 +249,7 @@ export class MessageList<Message extends MessageModel> {
      * will get `null` since there are no loaded messages after an optimistic
      * message.
      */
-    public getFirstLoadedMessageAfter(index: number): Message | null {
+    public getFirstLoadedMessageAfterIfExists(index: number): Message | null {
         const iterator = this._messages.gt(index);
         if (!iterator.value) return null;
         assert(iterator.value.index !== index);
@@ -270,7 +270,7 @@ export class MessageList<Message extends MessageModel> {
      *
      * Excludes optimistic messages.
      */
-    public getLastLoadedMessageBefore(index: number): Message | null {
+    public getLastLoadedMessageBeforeIfExists(index: number): Message | null {
         const iterator = this._messages.lt(index);
         if (!iterator.value) return null;
         assert(iterator.value.index !== index);

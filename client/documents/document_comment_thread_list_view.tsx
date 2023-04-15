@@ -318,7 +318,7 @@ function DocumentCommentThreadListView(
 
                 let nextIndex = renderedRange.startIndex;
                 while (nextIndex <= renderedRange.endIndex) {
-                    const nodeResult = tree.getNodeByItemIndex(nextIndex);
+                    const nodeResult = tree.getNodeByItemIndexIfExists(nextIndex);
                     if (!nodeResult) break;
                     const {node, startItemIndex} = nodeResult;
                     const endItemIndex = startItemIndex + tree.getNodeItemCount(node);
@@ -467,7 +467,7 @@ function DocumentCommentThreadListView(
 
             const view = assertExists(viewRef.current);
 
-            const nodeResult = tree.getNodeByKey(commentThreadId);
+            const nodeResult = tree.getNodeByKeyIfExists(commentThreadId);
             if (!nodeResult) return;
             const {node, startItemIndex} = nodeResult;
 
@@ -521,7 +521,7 @@ function DocumentCommentThreadListView(
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
-            const item = assertExists(tree.getItem(index));
+            const item = tree.getItem(index);
             switch (item.type) {
                 case "DocumentCommentThreadPreview": {
                     // All comment threads should be in the same document.
@@ -646,7 +646,7 @@ function DocumentCommentThreadListView(
                 {isSingleMobileCommentThreadWithPinnedCommentInput &&
                     (() => {
                         const item = tree.getItem(tree.getItemCount() - 1);
-                        assert(item?.type === "DocumentCommentInput");
+                        assert(item.type === "DocumentCommentInput");
 
                         const replyingToCommentIndex =
                             replyingToCommentIndexByCommentThreadId.get(item.commentThread.id) ??

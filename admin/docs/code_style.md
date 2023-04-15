@@ -3,6 +3,101 @@
 This document describes common conventions used throughout the codebase. It is recommended that you
 follow any conventions here for consistency.
 
+## General
+
+These conventions influence most code we write. They apply across languages and describe how to
+think about code. Recommendations in other sections cover more specific situations.
+
+### Prefer long, descriptive names
+
+When naming a variable, type, function, class, or any other declaration prefer longer descriptive
+names to shorter names with accompanying documentation.
+
+Include context in the name for how it's supposed to be used when appropriate. For example: "A for
+B" (e.g. `fooForBar`) tells you that A should only be used in context B. "C with D" (e.g.
+`fooWithBar`) tells you that C includes some extra information D that doesn't usually come with C.
+"internal E" (e.g. `internalFoo`) tells you that a name is an implementation detail of E and should
+be used to implement E.
+
+Avoid acronyms unless they are common outside of our codebase (e.g. HTML). Acronyms are confusing
+and intimidating for folks without context on what the acronym stands for. Generally avoid acronyms
+in written communication as well.
+
+**Why?** Variable names are visible not just at the point where you declare the variable but also
+everywhere you use the variable. Meaning you put in a variable name can not be missed by future
+developers using that variable.
+
+### Use a direct coding style
+
+Functions should read naturally on a line-by-line basis. They shouldn’t be cluttered with
+theoretical error cases and null checks.
+
+Use assertions and the type system to make impossible cases actually impossible. By default,
+functions should not return null when nothing is found they should throw.
+
+An example, instead of this:
+
+```ts
+function getFullName(accountId) {
+    const account = getAccount(accountId);
+    if (!account) {
+        return "Unknown";
+    }
+
+    if (account.lastName !== null) {
+        // `firstName` should never be null but just in case...
+        if (account.firstName === null) {
+            return `Unknown ${account.lastName}`;
+        }
+        return `${account.firstName} ${account.lastName}`;
+    }
+
+    return account.firstName;
+}
+```
+
+Write this:
+
+```ts
+function getFullName(accountId) {
+    const account = getAccount(accountId);
+
+    if (account.lastName !== null) {
+        assert(account.firstName !== null);
+        return `${account.firstName} ${account.lastName}`;
+    }
+
+    return account.firstName;
+}
+```
+
+Here `getAccount()` throws an error instead of returning null when the account doesn’t exist. Since
+we also expect `firstName` to be set when `lastName` is set we write an assertion instead of an
+edge-case we don’t ever expect to hit.
+
+This does **NOT** mean there should be no error handling. Rather we should have really good error
+handling at the system level. `try`/`catch` are great language constructs for moving error handling
+out of a local function and into a shared location.
+
+This does **NOT** mean you should never expect errors. There will always be errors when dealing with
+external resources. Use retries to fix transient errors. You must still build resilient systems that
+expect uncertain network conditions and freak accidents.
+
+This does **NOT** mean we are ok with users seeing errors. We should pursue a glitch-less experience
+for end users. Only use this style when actually dealing with impossible states. Or unlikely states
+where the error is able to communicate to the user what happened. (Like throwing a `NotFoundError`
+resulting in a 404.) An assertion error presented to the user is not an acceptable user experience.
+
+**Why?** This style of code is easier to read and reduces the complexity of your code. If you have a
+bunch of ill-thought out edge cases in your function have you tested every one? Is there an
+automated test to make sure it works? It’s better to keep the program in known good states and
+panic/crash when we find ourselves not in a good state then to put the user in a program in an
+untested state.
+
+(There is actually a “direct style” in programming which was named to contrast with
+“[continuation-passing style](https://en.wikipedia.org/wiki/Continuation-passing_style)”. Our usage
+of the phrase “direct style” is loosely related.)
+
 ## Naming
 
 ### File names should be snake case
@@ -33,25 +128,6 @@ we have tooling (like the TypeScript language server) which can auto-import base
 name. If you have multiple variables with the same name it becomes harder to correctly auto-import
 based on variable name alone.
 
-### Prefer long, descriptive names
-
-When naming a variable, type, function, class, or any other declaration prefer longer descriptive
-names to shorter names with accompanying documentation.
-
-Include context in the name for how it's supposed to be used when appropriate. For example: "A for
-B" (e.g. `fooForBar`) tells you that A should only be used in context B. "C with D" (e.g.
-`fooWithBar`) tells you that C includes some extra information D that doesn't usually come with C.
-"internal E" (e.g. `internalFoo`) tells you that a name is an implementation detail of E and should
-be used to implement E.
-
-Avoid acronyms unless they are common outside of our codebase (e.g. HTML). Acronyms are confusing
-and intimidating for folks without context on what the acronym stands for. Generally avoid acronyms
-in written communication as well.
-
-**Why?** Variable names are visible not just at the point where you declare the variable but also
-everywhere you use the variable. Meaning you put in a variable name can not be missed by future
-developers using that variable.
-
 ### Exported names should be globally unique
 
 When you export a name from a TypeScript module, the name should be globally unique.
@@ -68,6 +144,49 @@ recommended files to import from.
 We recommend most of your module scoped names to be globally unique. This keeps things stylistically
 consistent (since exported module scoped names need to be unique) and means less work for you if you
 want to export a previously private name.
+
+### Prefer direct function names for the common case
+
+The short/direct function names should be reserved for the function you expect to be called the
+most. Not the function with the simplest implementation.
+
+The most common example of this is null returning functions. Do not write this:
+
+```ts
+// Returns null if the account does not exist
+function getAccount(accountId: AccountId): AccountModel | null {
+    /* ... */
+}
+
+// Throws an error if the account does not exist
+function getAccountOrThrow(accountId: AccountId): AccountModel {
+    const account = getAccount(accountId);
+    if (!account) throw new NotFoundError("Account not found");
+    return account;
+}
+```
+
+Instead write this:
+
+```ts
+// Returns null if the account does not exist
+function getAccountIfExists(accountId: AccountId): AccountModel | null {
+    /* ... */
+}
+
+// Throws an error if the account does not exist
+function getAccount(accountId: AccountId): AccountModel {
+    const account = getAccountIfExists(accountId);
+    if (!account) throw new NotFoundError("Account not found");
+    return account;
+}
+```
+
+Because of our [direct programming style](#use-a-direct-coding-style), callers will be using the
+version which does not return null more often. So that should get the more direct name despite
+composing the lower-level function which returns null.
+
+Adding `IfExists` is our convention for null returning functions.
 
 ### Recommended type naming convention
 

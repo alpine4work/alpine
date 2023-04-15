@@ -4,7 +4,7 @@ import createTree, {
     Node as TreeNode,
 } from "functional-red-black-tree";
 import {Key} from "react";
-import {InternalError} from "~/shared/error/error";
+import {InternalError, OutOfRangeError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order_key";
 
@@ -153,7 +153,7 @@ export class VirtualizedTree<NodeKey extends Key, Node, Item> {
      * Returns the index the node's items start at. The index the node's items end
      * at is `startItemIndex + getNodeItemCount(node)`.
      */
-    public getNodeByKey(nodeKey: NodeKey): {
+    public getNodeByKeyIfExists(nodeKey: NodeKey): {
         node: Node;
         startItemIndex: number;
     } | null {
@@ -176,7 +176,7 @@ export class VirtualizedTree<NodeKey extends Key, Node, Item> {
      * Returns the index the node's items start at. The index the node's items end
      * at is `startItemIndex + getNodeItemCount(node)`.
      */
-    public getNodeByItemIndex(itemIndex: number): {
+    public getNodeByItemIndexIfExists(itemIndex: number): {
         node: Node;
         startItemIndex: number;
     } | null {
@@ -281,11 +281,11 @@ export class VirtualizedTree<NodeKey extends Key, Node, Item> {
     }
 
     /**
-     * Get the item at the provided index. Returns null if the index is out of bounds.
+     * Get the item at the provided index. Throws if the index is out of bounds.
      */
-    public getItem(itemIndex: number): Item | null {
-        const nodeResult = this.getNodeByItemIndex(itemIndex);
-        if (!nodeResult) return null;
+    public getItem(itemIndex: number): Item {
+        const nodeResult = this.getNodeByItemIndexIfExists(itemIndex);
+        if (!nodeResult) throw new OutOfRangeError("Index is out of bounds");
         const {node, startItemIndex} = nodeResult;
         return this._getNodeItem(node, itemIndex - startItemIndex, startItemIndex);
     }

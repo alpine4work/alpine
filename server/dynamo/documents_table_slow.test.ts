@@ -79,7 +79,7 @@ test(
             if (i % 10 === 0) {
                 snapshotVersions.add(
                     (
-                        await getDocumentsTableForTest().getPartialItem(
+                        await getDocumentsTableForTest().getPartialItemIfExists(
                             context,
                             {
                                 partitionType: "Document",
@@ -94,8 +94,8 @@ test(
                 );
 
                 const document = await getDocument(context.request(session), documentId);
-                expect(document?.version).toEqual(i);
-                expect(document?.content.doc.toJSON()).toEqual(
+                expect(document.version).toEqual(i);
+                expect(document.content.doc.toJSON()).toEqual(
                     schema
                         .node("doc", {}, [
                             schema.node("title", {}, []),
@@ -211,7 +211,7 @@ test(
 
             snapshotVersions.add(
                 (
-                    await getDocumentsTableForTest().getPartialItem(
+                    await getDocumentsTableForTest().getPartialItemIfExists(
                         context,
                         {
                             partitionType: "Document",
@@ -226,8 +226,8 @@ test(
             );
 
             const document = await getDocument(context.request(session), documentId);
-            expect(document?.version).toEqual(i + 5);
-            expect(document?.content.doc.toJSON()).toEqual(
+            expect(document.version).toEqual(i + 5);
+            expect(document.content.doc.toJSON()).toEqual(
                 schema
                     .node("doc", {}, [
                         schema.node("title", {}, []),
@@ -296,8 +296,8 @@ test(
             // Read the document before the request is unpaused so old steps have not been
             // deleted yet.
             const document = await getDocument(context.request(session), documentId);
-            expect(document?.version).toEqual(i + 5);
-            expect(document?.content.doc.toJSON()).toEqual(
+            expect(document.version).toEqual(i + 5);
+            expect(document.content.doc.toJSON()).toEqual(
                 schema
                     .node("doc", {}, [
                         schema.node("title", {}, []),
@@ -388,8 +388,8 @@ test(
             // Read the document before the request is unpaused so old steps have not been
             // deleted yet.
             const document = await getDocument(context.request(session), documentId);
-            expect(document?.version).toEqual(i + 5);
-            expect(document?.content.doc.toJSON()).toEqual(
+            expect(document.version).toEqual(i + 5);
+            expect(document.content.doc.toJSON()).toEqual(
                 schema
                     .node("doc", {}, [
                         schema.node("title", {}, []),

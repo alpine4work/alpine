@@ -49,13 +49,13 @@ export function useEvent<Args extends Array<unknown>>(
     });
 
     {
-        const dispatcher = getCurrentReactDispatcher();
+        const dispatcher = getCurrentReactDispatcherIfExists();
         assert(dispatcher !== null);
         reactDispatchersSeenDuringRender.add(dispatcher);
     }
 
     return useCallback((...args: Args) => {
-        if (reactDispatchersSeenDuringRender.has(getCurrentReactDispatcher()))
+        if (reactDispatchersSeenDuringRender.has(getCurrentReactDispatcherIfExists()))
             throw new InternalError("Can not call event callback during React render");
 
         return handlerRef.current?.(...args);
@@ -66,7 +66,7 @@ export function useEvent<Args extends Array<unknown>>(
  * While rendering, React sets a shared `ReactCurrentDispatcher` internal to this
  * property. We inspect this property to tell if React is rendering or not.
  */
-function getCurrentReactDispatcher() {
+function getCurrentReactDispatcherIfExists() {
     return (React as any).__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED.ReactCurrentDispatcher
         .current;
 }

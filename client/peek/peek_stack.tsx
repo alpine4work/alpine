@@ -33,7 +33,7 @@ import {createPortal} from "react-dom";
 import {useLocation, useNavigationType} from "react-router";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
-import {getNextFocusableElement} from "~/client/design/helpers/get_next_focusable_element";
+import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {IconButton} from "~/client/design/icon_button";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
@@ -1095,7 +1095,7 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
             focus: () => {
                 const contentElement = assertExists(contentRef.current);
                 const closeButtonElement = assertExists(closeButtonRef.current);
-                const focusElement = getNextFocusableElement(closeButtonElement, {
+                const focusElement = getNextFocusableElementIfExists(closeButtonElement, {
                     withinElement: contentElement,
                 });
                 focusElement?.focus({preventScroll: true});

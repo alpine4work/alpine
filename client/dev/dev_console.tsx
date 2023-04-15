@@ -1,7 +1,7 @@
 import {useCallback, useEffect, useState} from "react";
 import {
     ColorScheme,
-    getColorSchemeWithoutListening,
+    getColorSchemeWithoutListeningIfBrowser,
     setColorScheme,
     toggleColorScheme,
 } from "~/client/helpers/color_scheme";
@@ -22,7 +22,7 @@ defineSchemaProperty<ColorScheme>(
     devConsole,
     "colorScheme",
     Schema.enum(["light", "dark"]),
-    () => assertExists(getColorSchemeWithoutListening()),
+    () => assertExists(getColorSchemeWithoutListeningIfBrowser()),
     setColorScheme,
 );
 

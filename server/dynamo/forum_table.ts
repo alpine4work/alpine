@@ -1,4 +1,4 @@
-import {getAccountOrThrow} from "~/server/dynamo/accounts_table";
+import {getAccount} from "~/server/dynamo/accounts_table";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
@@ -267,16 +267,12 @@ export async function createChannel(
  * doesn't exist and throws an error if the channel exists but you don't have
  * access to the channel.
  */
-export async function getChannel(
-    context: RequestContext,
-    id: ChannelId,
-): Promise<ChannelModel | null> {
+export async function getChannel(context: RequestContext, id: ChannelId): Promise<ChannelModel> {
     const channelItem = await ForumTable.getItem(context, {
         partitionType: "Channel",
         sortRangeType: "Attributes",
         channelId: id,
     });
-    if (!channelItem) return null;
 
     await authorizeSpaceAccess(context, channelItem.spaceId);
 
@@ -304,7 +300,7 @@ export async function getChannel(
 export async function getChannelPreview(
     context: RequestContext,
     id: ChannelId,
-): Promise<ChannelPreviewModel | null> {
+): Promise<ChannelPreviewModel> {
     const channelItem = await ForumTable.getPartialItem(
         context,
         {
@@ -316,7 +312,6 @@ export async function getChannelPreview(
             attributes: ["spaceId", "createdTime", "name"],
         },
     );
-    if (!channelItem) return null;
 
     await authorizeSpaceAccess(context, channelItem.spaceId);
 
@@ -336,9 +331,7 @@ export async function authorizeChannelAccess(
     context: RequestContext,
     id: ChannelId,
 ): Promise<ChannelPreviewModel> {
-    const channel = await getChannelPreview(context, id);
-    if (!channel) throw new NotFoundError("Channel not found");
-    return channel;
+    return getChannelPreview(context, id);
 }
 
 /**
@@ -449,7 +442,7 @@ export async function getChannelPosts(
             async (item, index) => {
                 if (index >= limit) return null;
 
-                const postItem = await ForumTable.getItem(context, {
+                const postItem = await ForumTable.getItemIfExists(context, {
                     partitionType: "Post",
                     sortRangeType: "Attributes",
                     postId: item.postId,
@@ -484,7 +477,6 @@ export async function createPost(
     createdTime: Date;
 }> {
     const channel = await getChannel(context, channelId);
-    if (!channel) throw new NotFoundError("Channel does not exist");
 
     const postItem: PostAttributesItem = {
         partitionType: "Post",
@@ -518,13 +510,12 @@ export async function createPost(
 /**
  * Gets the post with the provided ID.
  */
-export async function getPost(context: RequestContext, id: PostId): Promise<PostModel | null> {
+export async function getPost(context: RequestContext, id: PostId): Promise<PostModel> {
     const postItem = await ForumTable.getItem(context, {
         partitionType: "Post",
         sortRangeType: "Attributes",
         postId: id,
     });
-    if (!postItem) return null;
 
     return createPostModelFromItem(
         context,
@@ -540,7 +531,7 @@ async function createPostModelFromItem(
 ): Promise<PostModel> {
     const [channel, author, previewCommentAuthors, contentReferences] = await runAllPromises([
         channelPromise,
-        getAccountOrThrow(context, item.spaceId, item.authorId),
+        getAccount(context, item.spaceId, item.authorId),
         runAllPromises(
             Array.from(
                 sliceIterable(
@@ -548,7 +539,7 @@ async function createPostModelFromItem(
                     0,
                     maxPostPreviewCommentAuthorCount,
                 ),
-                accountId => getAccountOrThrow(context, item.spaceId, accountId),
+                accountId => getAccount(context, item.spaceId, accountId),
             ),
         ),
         getContentReferencesForNode(context, item.spaceId, item.content),
@@ -626,7 +617,7 @@ export async function getPostCommentAuthors(
     context: RequestContext,
     {postId, limit}: {postId: PostId; limit: number},
 ): Promise<Array<AccountModel>> {
-    const postItem = await ForumTable.getPartialItem(
+    const postItem = await ForumTable.getPartialItemIfExists(
         context,
         {
             partitionType: "Post",
@@ -644,7 +635,7 @@ export async function getPostCommentAuthors(
     return runAllPromises(
         Array.from(
             sliceIterable(postItem.commentsSummary.commentCountByAuthorId.keys(), 0, limit),
-            accountId => getAccountOrThrow(context, postItem.spaceId, accountId),
+            accountId => getAccount(context, postItem.spaceId, accountId),
         ),
     );
 }
@@ -658,7 +649,7 @@ export async function authorizePostAccess(
     context: RequestContext,
     id: PostId,
 ): Promise<{spaceId: SpaceId}> {
-    const postItem = await ForumTable.getPartialItem(
+    const postItem = await ForumTable.getPartialItemIfExists(
         context,
         {
             partitionType: "Post",
@@ -697,7 +688,7 @@ export async function createPostComment(
     return context.dynamo.retryTransaction(async context => {
         const [postItem] = await runAllPromiseThunks(
             async () => {
-                const postItem = await ForumTable.getPartialItem(
+                const postItem = await ForumTable.getPartialItemIfExists(
                     context,
                     {
                         partitionType: "Post",
@@ -721,7 +712,7 @@ export async function createPostComment(
             async () => {
                 if (typeof parentCommentIndex !== "number") return;
 
-                const parentCommentItem = await ForumTable.getPartialItem(
+                const parentCommentItem = await ForumTable.getPartialItemIfExists(
                     context,
                     {
                         partitionType: "Post",
@@ -784,7 +775,7 @@ export async function createPostComment(
 export async function getPostComment(
     context: RequestContext,
     {postId, commentIndex}: {postId: PostId; commentIndex: number},
-): Promise<PostCommentModel | null> {
+): Promise<PostCommentModel> {
     const [{spaceId}, item] = await runAllPromises([
         authorizePostAccess(context, postId),
         ForumTable.getItem(context, {
@@ -795,7 +786,6 @@ export async function getPostComment(
         }),
     ]);
 
-    if (!item) return null;
     return createPostCommentModelFromItem(context, spaceId, item);
 }
 
@@ -805,7 +795,7 @@ async function createPostCommentModelFromItem(
     item: PostCommentItem,
 ): Promise<PostCommentModel> {
     const [author, payload] = await runAllPromises([
-        getAccountOrThrow(context, spaceId, item.authorId),
+        getAccount(context, spaceId, item.authorId),
         createMessagePayloadModel(context, spaceId, item.payload),
     ]);
 
@@ -837,7 +827,7 @@ export function updatePostCommentContent(
 }> {
     return context.dynamo.retryTransaction(async context => {
         const [postItem, commentItem] = await runAllPromises([
-            ForumTable.getPartialItem(
+            ForumTable.getPartialItemIfExists(
                 context,
                 {
                     partitionType: "Post",
@@ -853,7 +843,7 @@ export function updatePostCommentContent(
                     ],
                 },
             ),
-            ForumTable.getItem(context, {
+            ForumTable.getItemIfExists(context, {
                 partitionType: "Post",
                 sortRangeType: "Comments",
                 postId,
@@ -934,12 +924,12 @@ export function deletePostComment(
 ): Promise<{deletedTime: Date}> {
     return context.dynamo.retryTransaction(async context => {
         const [postItem, commentItem] = await runAllPromises([
-            ForumTable.getItem(context, {
+            ForumTable.getItemIfExists(context, {
                 partitionType: "Post",
                 sortRangeType: "Attributes",
                 postId,
             }),
-            ForumTable.getItem(context, {
+            ForumTable.getItemIfExists(context, {
                 partitionType: "Post",
                 sortRangeType: "Comments",
                 postId,
@@ -1021,7 +1011,7 @@ export async function getPostAndInitialComments(
     post: PostModel;
     initialComments: Array<PostCommentModel>;
     initialOtherReferencedComments: Array<PostCommentModel>;
-} | null> {
+}> {
     // Start querying before authorization so our query runs in parallel
     // with authorization.
     const queryIterable = ForumTable.query(context, {
@@ -1084,7 +1074,8 @@ export async function getPostAndInitialComments(
         }
     }
 
-    if (!state) return null;
+    if (!state) throw new NotFoundError("Post not found");
+
     const {spaceId} = state;
 
     const [post, comments, otherReferencedComments] = await runAllPromises([
@@ -1095,7 +1086,7 @@ export async function getPostAndInitialComments(
                 if (commentIndexes.has(parentCommentIndex)) return null;
 
                 return (async () => {
-                    const commentItem = await ForumTable.getItem(context, {
+                    const commentItem = await ForumTable.getItemIfExists(context, {
                         partitionType: "Post",
                         sortRangeType: "Comments",
                         postId,
@@ -1146,7 +1137,7 @@ export async function getPostCommentsFromStart(
     lastCommentChangeTime: Date | null;
 }> {
     const postItemPromise = (async () => {
-        const postItem = await ForumTable.getPartialItem(
+        const postItem = await ForumTable.getPartialItemIfExists(
             context,
             {
                 partitionType: "Post",
@@ -1258,7 +1249,7 @@ async function getPostCommentsFromStartAssumingAuthorizedPost(
                 if (commentIndexes.has(parentCommentIndex)) return null;
 
                 return (async () => {
-                    const commentItem = await ForumTable.getItem(context, {
+                    const commentItem = await ForumTable.getItemIfExists(context, {
                         partitionType: "Post",
                         sortRangeType: "Comments",
                         postId,
@@ -1303,7 +1294,7 @@ export async function getPostCommentsFromEnd(
     lastCommentChangeTime: Date | null;
 }> {
     const postItemPromise = (async () => {
-        const postItem = await ForumTable.getPartialItem(
+        const postItem = await ForumTable.getPartialItemIfExists(
             context,
             {
                 partitionType: "Post",
@@ -1421,7 +1412,7 @@ async function getPostCommentsFromEndAssumingAuthorizedPost(
                 if (commentIndexes.has(parentCommentIndex)) return null;
 
                 return (async () => {
-                    const commentItem = await ForumTable.getItem(context, {
+                    const commentItem = await ForumTable.getItemIfExists(context, {
                         partitionType: "Post",
                         sortRangeType: "Comments",
                         postId,
@@ -1494,7 +1485,7 @@ export async function backfillPostComments(
     commentChangesResult: PostCommentChangesResult;
 }> {
     const postItemPromise = (async () => {
-        const postItem = await ForumTable.getPartialItem(
+        const postItem = await ForumTable.getPartialItemIfExists(
             context,
             {
                 partitionType: "Post",

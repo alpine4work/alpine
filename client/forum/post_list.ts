@@ -195,7 +195,7 @@ export class PostList {
          */
         getPostCommentIndex: (postCommentIndex: number) => number;
     } {
-        const nodeResult = this._posts.getNodeByKey(postId);
+        const nodeResult = this._posts.getNodeByKeyIfExists(postId);
         if (!nodeResult) throw new InternalError("Post not found");
         const {node, startItemIndex} = nodeResult;
 
@@ -230,8 +230,10 @@ export class PostList {
      * of. Will return null if the index is out of bounds. Every index in this
      * list is associated to a post.
      */
-    public getPostContentItem(index: number): PostListPostContentItem | null {
-        const nodeResult = this._posts.getNodeByItemIndex(index - (this._channelHeader ? 1 : 0));
+    public getPostContentItemIfExists(index: number): PostListPostContentItem | null {
+        const nodeResult = this._posts.getNodeByItemIndexIfExists(
+            index - (this._channelHeader ? 1 : 0),
+        );
         if (!nodeResult) return null;
         const {node, startItemIndex} = nodeResult;
 
@@ -254,17 +256,17 @@ export class PostList {
      * Get the last post content item in the list. Null if there are no posts in
      * the list.
      */
-    public getLastPostContentItem(): PostListPostContentItem | null {
+    public getLastPostContentItemIfExists(): PostListPostContentItem | null {
         const index = this.getItemCount() - 1 - (this._hasMorePosts ? 1 : 0);
         if (index < 0) return null;
-        return this.getPostContentItem(index);
+        return this.getPostContentItemIfExists(index);
     }
 
     /**
-     * Get the item at the provided index. Returns null if the index is out
+     * Get the item at the provided index. Throws if the index is out
      * of bounds.
      */
-    public getItem(index: number): PostListItem | null {
+    public getItem(index: number): PostListItem {
         if (this._channelHeader && index === 0) {
             return {
                 type: "ChannelHeader",

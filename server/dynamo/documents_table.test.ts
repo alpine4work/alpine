@@ -9,6 +9,7 @@ import {
 import {
     DocumentContentCacheForUpdate,
     backfillDocumentComments,
+    batchGetDocumentCommentThreadsIfExists,
     createDocument,
     createDocumentComment,
     deleteDocumentComment,
@@ -16,11 +17,10 @@ import {
     getDocument,
     getDocumentComment,
     getDocumentCommentThreadItemAfterFirstGetItemTestCheckpoint,
-    getDocumentCommentThreads,
     getDocumentCommentsFromEnd,
     getDocumentCommentsFromStart,
     getDocumentContentSteps,
-    getDocumentPreview,
+    getDocumentPreviewIfExists,
     getDocumentsTableForTest,
     getInternalDocumentTestCounter,
     updateDocumentCommentContent,
@@ -78,8 +78,7 @@ function textSlice(text: string) {
 /**
  * Convert document into a form we can do a deep equality test on.
  */
-function massageDocument(document: DocumentModel | null) {
-    if (!document) return null;
+function massageDocument(document: DocumentModel) {
     return {
         version: document.version,
         content: document.content.doc.toJSON(),
@@ -201,7 +200,7 @@ test("can read a created document", async () => {
         version: 0,
         content: content.toJSON(),
     });
-    expect(await getDocumentPreview(context.request(session), documentId)).toEqual({
+    expect(await getDocumentPreviewIfExists(context.request(session), documentId)).toEqual({
         id: documentId,
         spaceId: space.id,
         createdTime: expect.any(Date),
@@ -1274,8 +1273,8 @@ test("updates made in parallel will only read the document once", async () => {
 
     {
         const document = await getDocument(context.request(session), documentId);
-        expect(document?.version).toEqual(6);
-        expect(document?.content.doc.child(1).textContent.split("").sort().join("")).toEqual(
+        expect(document.version).toEqual(6);
+        expect(document.content.doc.child(1).textContent.split("").sort().join("")).toEqual(
             "abcdef",
         );
     }
@@ -1720,7 +1719,7 @@ test("updates the document title whenever it changes", async () => {
             .node("doc", {}, [schema.node("title", {}, []), schema.node("paragraph", {}, [])])
             .toJSON(),
     });
-    expect(await getDocumentPreview(context.request(session), documentId)).toEqual({
+    expect(await getDocumentPreviewIfExists(context.request(session), documentId)).toEqual({
         id: documentId,
         spaceId: space.id,
         createdTime: expect.any(Date),
@@ -1744,7 +1743,7 @@ test("updates the document title whenever it changes", async () => {
             ])
             .toJSON(),
     });
-    expect(await getDocumentPreview(context.request(session), documentId)).toEqual({
+    expect(await getDocumentPreviewIfExists(context.request(session), documentId)).toEqual({
         id: documentId,
         spaceId: space.id,
         createdTime: expect.any(Date),
@@ -1768,7 +1767,7 @@ test("updates the document title whenever it changes", async () => {
             ])
             .toJSON(),
     });
-    expect(await getDocumentPreview(context.request(session), documentId)).toEqual({
+    expect(await getDocumentPreviewIfExists(context.request(session), documentId)).toEqual({
         id: documentId,
         spaceId: space.id,
         createdTime: expect.any(Date),
@@ -1792,7 +1791,7 @@ test("updates the document title whenever it changes", async () => {
             ])
             .toJSON(),
     });
-    expect(await getDocumentPreview(context.request(session), documentId)).toEqual({
+    expect(await getDocumentPreviewIfExists(context.request(session), documentId)).toEqual({
         id: documentId,
         spaceId: space.id,
         createdTime: expect.any(Date),
@@ -1816,7 +1815,7 @@ test("updates the document title whenever it changes", async () => {
             ])
             .toJSON(),
     });
-    expect(await getDocumentPreview(context.request(session), documentId)).toEqual({
+    expect(await getDocumentPreviewIfExists(context.request(session), documentId)).toEqual({
         id: documentId,
         spaceId: space.id,
         createdTime: expect.any(Date),
@@ -1840,7 +1839,7 @@ test("updates the document title whenever it changes", async () => {
             ])
             .toJSON(),
     });
-    expect(await getDocumentPreview(context.request(session), documentId)).toEqual({
+    expect(await getDocumentPreviewIfExists(context.request(session), documentId)).toEqual({
         id: documentId,
         spaceId: space.id,
         createdTime: expect.any(Date),
@@ -1876,7 +1875,7 @@ test("updates the document title whenever it changes", async () => {
             ])
             .toJSON(),
     });
-    expect(await getDocumentPreview(context.request(session), documentId)).toEqual({
+    expect(await getDocumentPreviewIfExists(context.request(session), documentId)).toEqual({
         id: documentId,
         spaceId: space.id,
         createdTime: expect.any(Date),
@@ -1900,7 +1899,7 @@ test("updates the document title whenever it changes", async () => {
             ])
             .toJSON(),
     });
-    expect(await getDocumentPreview(context.request(session), documentId)).toEqual({
+    expect(await getDocumentPreviewIfExists(context.request(session), documentId)).toEqual({
         id: documentId,
         spaceId: space.id,
         createdTime: expect.any(Date),
@@ -2385,7 +2384,7 @@ test("can not read a created document in a different space", async () => {
     await expect(getDocument(context.request(session), documentId)).rejects.toThrow(
         PermissionDeniedError,
     );
-    await expect(getDocumentPreview(context.request(session), documentId)).rejects.toThrow(
+    await expect(getDocumentPreviewIfExists(context.request(session), documentId)).rejects.toThrow(
         PermissionDeniedError,
     );
 });
@@ -2793,16 +2792,16 @@ describe("Comments", () => {
 
         const commentThreadId = generateId<DocumentCommentThreadId>();
 
-        expect(
-            await getDocumentComment(context.request(session), {
+        await expect(() =>
+            getDocumentComment(context.request(session), {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 0,
             }),
-        ).toBeNull();
+        ).rejects.toThrow(NotFoundError);
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -2811,7 +2810,7 @@ describe("Comments", () => {
         ).toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -2865,7 +2864,7 @@ describe("Comments", () => {
         ).not.toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -2874,7 +2873,7 @@ describe("Comments", () => {
         ).not.toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -2900,16 +2899,16 @@ describe("Comments", () => {
 
         const commentThreadId = generateId<DocumentCommentThreadId>();
 
-        expect(
-            await getDocumentComment(context.request(session), {
+        await expect(() =>
+            getDocumentComment(context.request(session), {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 0,
             }),
-        ).toBeNull();
+        ).rejects.toThrow(NotFoundError);
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -2918,7 +2917,7 @@ describe("Comments", () => {
         ).toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -3000,16 +2999,16 @@ describe("Comments", () => {
 
         const commentThreadId = generateId<DocumentCommentThreadId>();
 
-        expect(
-            await getDocumentComment(context.request(session), {
+        await expect(() =>
+            getDocumentComment(context.request(session), {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 0,
             }),
-        ).toBeNull();
+        ).rejects.toThrow(NotFoundError);
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -3018,7 +3017,7 @@ describe("Comments", () => {
         ).toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -3061,16 +3060,16 @@ describe("Comments", () => {
                 .toJSON(),
         });
 
-        expect(
-            await getDocumentComment(context.request(session), {
+        await expect(() =>
+            getDocumentComment(context.request(session), {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 0,
             }),
-        ).toBeNull();
+        ).rejects.toThrow(NotFoundError);
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -3079,7 +3078,7 @@ describe("Comments", () => {
         ).toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -3105,16 +3104,16 @@ describe("Comments", () => {
 
         const commentThreadId = generateId<DocumentCommentThreadId>();
 
-        expect(
-            await getDocumentComment(context.request(session), {
+        await expect(() =>
+            getDocumentComment(context.request(session), {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 0,
             }),
-        ).toBeNull();
+        ).rejects.toThrow(NotFoundError);
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -3123,7 +3122,7 @@ describe("Comments", () => {
         ).toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -3162,16 +3161,16 @@ describe("Comments", () => {
                 .toJSON(),
         });
 
-        expect(
-            await getDocumentComment(context.request(session), {
+        await expect(() =>
+            getDocumentComment(context.request(session), {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 0,
             }),
-        ).toBeNull();
+        ).rejects.toThrow(NotFoundError);
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -3180,7 +3179,7 @@ describe("Comments", () => {
         ).toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -3206,16 +3205,16 @@ describe("Comments", () => {
 
         const commentThreadId = generateId<DocumentCommentThreadId>();
 
-        expect(
-            await getDocumentComment(context.request(session), {
+        await expect(() =>
+            getDocumentComment(context.request(session), {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 0,
             }),
-        ).toBeNull();
+        ).rejects.toThrow(NotFoundError);
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -3224,7 +3223,7 @@ describe("Comments", () => {
         ).toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -3245,7 +3244,7 @@ describe("Comments", () => {
         expect(
             (
                 await getDocument(context.request(session), document.id)
-            )?.content.references.commentThreadById.has(commentThreadId),
+            ).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(false);
 
         await updateDocumentContent(context.request(session), {
@@ -3278,7 +3277,7 @@ describe("Comments", () => {
         expect(
             (
                 await getDocument(context.request(session), document.id)
-            )?.content.references.commentThreadById.has(commentThreadId),
+            ).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(true);
 
         expect(
@@ -3290,7 +3289,7 @@ describe("Comments", () => {
         ).not.toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -3299,7 +3298,7 @@ describe("Comments", () => {
         ).not.toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -3327,7 +3326,7 @@ describe("Comments", () => {
         expect(
             (
                 await getDocument(context.request(session), document.id)
-            )?.content.references.commentThreadById.has(commentThreadId),
+            ).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(false);
 
         expect(
@@ -3339,7 +3338,7 @@ describe("Comments", () => {
         ).not.toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -3348,7 +3347,7 @@ describe("Comments", () => {
         ).not.toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -3371,7 +3370,7 @@ describe("Comments", () => {
         expect(
             (
                 await getDocument(context.request(session), document.id)
-            )?.content.references.commentThreadById.has(commentThreadId),
+            ).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(false);
 
         expect(
@@ -3383,7 +3382,7 @@ describe("Comments", () => {
         ).not.toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -3392,7 +3391,7 @@ describe("Comments", () => {
         ).toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -3418,16 +3417,16 @@ describe("Comments", () => {
 
         const commentThreadId = generateId<DocumentCommentThreadId>();
 
-        expect(
-            await getDocumentComment(context.request(session), {
+        await expect(() =>
+            getDocumentComment(context.request(session), {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 0,
             }),
-        ).toBeNull();
+        ).rejects.toThrow(NotFoundError);
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -3436,7 +3435,7 @@ describe("Comments", () => {
         ).toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -3457,7 +3456,7 @@ describe("Comments", () => {
         expect(
             (
                 await getDocument(context.request(session), document.id)
-            )?.content.references.commentThreadById.has(commentThreadId),
+            ).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(false);
 
         await updateDocumentContent(context.request(session), {
@@ -3490,7 +3489,7 @@ describe("Comments", () => {
         expect(
             (
                 await getDocument(context.request(session), document.id)
-            )?.content.references.commentThreadById.has(commentThreadId),
+            ).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(true);
 
         expect(
@@ -3502,7 +3501,7 @@ describe("Comments", () => {
         ).not.toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -3511,7 +3510,7 @@ describe("Comments", () => {
         ).not.toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -3539,7 +3538,7 @@ describe("Comments", () => {
         expect(
             (
                 await getDocument(context.request(session), document.id)
-            )?.content.references.commentThreadById.has(commentThreadId),
+            ).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(false);
 
         expect(
@@ -3551,7 +3550,7 @@ describe("Comments", () => {
         ).not.toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -3560,7 +3559,7 @@ describe("Comments", () => {
         ).not.toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -3583,7 +3582,7 @@ describe("Comments", () => {
         expect(
             (
                 await getDocument(context.request(session), document.id)
-            )?.content.references.commentThreadById.has(commentThreadId),
+            ).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(false);
 
         expect(
@@ -3595,7 +3594,7 @@ describe("Comments", () => {
         ).not.toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -3604,7 +3603,7 @@ describe("Comments", () => {
         ).toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -3644,7 +3643,7 @@ describe("Comments", () => {
         expect(
             (
                 await getDocument(context.request(session), document.id)
-            )?.content.references.commentThreadById.has(commentThreadId),
+            ).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(false);
 
         expect(
@@ -3656,7 +3655,7 @@ describe("Comments", () => {
         ).not.toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -3665,7 +3664,7 @@ describe("Comments", () => {
         ).toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -3691,16 +3690,16 @@ describe("Comments", () => {
 
         const commentThreadId = generateId<DocumentCommentThreadId>();
 
-        expect(
-            await getDocumentComment(context.request(session), {
+        await expect(() =>
+            getDocumentComment(context.request(session), {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 0,
             }),
-        ).toBeNull();
+        ).rejects.toThrow(NotFoundError);
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -3709,7 +3708,7 @@ describe("Comments", () => {
         ).toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -3730,7 +3729,7 @@ describe("Comments", () => {
         expect(
             (
                 await getDocument(context.request(session), document.id)
-            )?.content.references.commentThreadById.has(commentThreadId),
+            ).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(false);
 
         await updateDocumentContent(context.request(session), {
@@ -3763,7 +3762,7 @@ describe("Comments", () => {
         expect(
             (
                 await getDocument(context.request(session), document.id)
-            )?.content.references.commentThreadById.has(commentThreadId),
+            ).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(true);
 
         expect(
@@ -3775,7 +3774,7 @@ describe("Comments", () => {
         ).not.toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -3784,7 +3783,7 @@ describe("Comments", () => {
         ).not.toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -3812,7 +3811,7 @@ describe("Comments", () => {
         expect(
             (
                 await getDocument(context.request(session), document.id)
-            )?.content.references.commentThreadById.has(commentThreadId),
+            ).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(false);
 
         expect(
@@ -3824,7 +3823,7 @@ describe("Comments", () => {
         ).not.toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -3833,7 +3832,7 @@ describe("Comments", () => {
         ).not.toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -3856,7 +3855,7 @@ describe("Comments", () => {
         expect(
             (
                 await getDocument(context.request(session), document.id)
-            )?.content.references.commentThreadById.has(commentThreadId),
+            ).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(false);
 
         expect(
@@ -3868,7 +3867,7 @@ describe("Comments", () => {
         ).not.toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -3877,7 +3876,7 @@ describe("Comments", () => {
         ).toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -3909,7 +3908,7 @@ describe("Comments", () => {
         expect(
             (
                 await getDocument(context.request(session), document.id)
-            )?.content.references.commentThreadById.has(commentThreadId),
+            ).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(true);
 
         expect(
@@ -3921,7 +3920,7 @@ describe("Comments", () => {
         ).not.toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -3930,7 +3929,7 @@ describe("Comments", () => {
         ).toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -3957,7 +3956,7 @@ describe("Comments", () => {
         expect(
             (
                 await getDocument(context.request(session), document.id)
-            )?.content.references.commentThreadById.has(commentThreadId),
+            ).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(true);
 
         expect(
@@ -3969,7 +3968,7 @@ describe("Comments", () => {
         ).not.toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -3978,7 +3977,7 @@ describe("Comments", () => {
         ).not.toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -4083,7 +4082,7 @@ describe("Comments", () => {
         ).not.toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -4092,7 +4091,7 @@ describe("Comments", () => {
         ).toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -4109,7 +4108,7 @@ describe("Comments", () => {
         ).not.toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -4118,7 +4117,7 @@ describe("Comments", () => {
         ).not.toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -4137,7 +4136,7 @@ describe("Comments", () => {
         ).not.toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -4146,7 +4145,7 @@ describe("Comments", () => {
         ).toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -4163,7 +4162,7 @@ describe("Comments", () => {
         ).not.toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -4172,7 +4171,7 @@ describe("Comments", () => {
         ).not.toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -4219,7 +4218,7 @@ describe("Comments", () => {
         });
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -4239,7 +4238,7 @@ describe("Comments", () => {
         });
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -4258,7 +4257,7 @@ describe("Comments", () => {
         const {unpause} = await pausePromise;
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -4278,7 +4277,7 @@ describe("Comments", () => {
         });
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -4294,7 +4293,7 @@ describe("Comments", () => {
         });
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -4315,7 +4314,7 @@ describe("Comments", () => {
         });
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -4328,7 +4327,7 @@ describe("Comments", () => {
         await updateSnapshotPromise;
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -4337,7 +4336,7 @@ describe("Comments", () => {
         ).toEqual(null);
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -4405,7 +4404,7 @@ describe("Comments", () => {
         });
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -4414,7 +4413,7 @@ describe("Comments", () => {
         ).toEqual(null);
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -4444,7 +4443,7 @@ describe("Comments", () => {
         const {unpause} = await pausePromise;
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -4453,7 +4452,7 @@ describe("Comments", () => {
         ).toEqual(null);
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -4480,7 +4479,7 @@ describe("Comments", () => {
         });
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -4489,7 +4488,7 @@ describe("Comments", () => {
         ).toEqual(null);
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -4514,7 +4513,7 @@ describe("Comments", () => {
         await updateSnapshotPromise;
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -4535,7 +4534,7 @@ describe("Comments", () => {
         });
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -4591,7 +4590,7 @@ describe("Comments", () => {
         });
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -4600,7 +4599,7 @@ describe("Comments", () => {
         ).toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -4620,7 +4619,7 @@ describe("Comments", () => {
         const {unpause} = await pausePromise;
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -4629,7 +4628,7 @@ describe("Comments", () => {
         ).toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -4640,7 +4639,7 @@ describe("Comments", () => {
         await updateDocumentSnapshotForTest(context.request(session), document.id);
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ReferencedCommentThread",
                 documentId: document.id,
@@ -4649,7 +4648,7 @@ describe("Comments", () => {
         ).not.toBeNull();
 
         expect(
-            await DocumentsTable.getItem(context, {
+            await DocumentsTable.getItemIfExists(context, {
                 partitionType: "Document",
                 sortRangeType: "ArchivedCommentThread",
                 documentId: document.id,
@@ -4732,39 +4731,51 @@ describe("Comments", () => {
         });
 
         {
-            const commentThreads = await getDocumentCommentThreads(context.request(session), {
-                documentId: document.id,
-                commentThreadIds: [],
-            });
+            const commentThreads = await batchGetDocumentCommentThreadsIfExists(
+                context.request(session),
+                {
+                    documentId: document.id,
+                    commentThreadIds: [],
+                },
+            );
 
             expect(commentThreads.length).toEqual(0);
         }
 
         {
-            const commentThreads = await getDocumentCommentThreads(context.request(session), {
-                documentId: document.id,
-                commentThreadIds: [commentThreadId1],
-            });
+            const commentThreads = await batchGetDocumentCommentThreadsIfExists(
+                context.request(session),
+                {
+                    documentId: document.id,
+                    commentThreadIds: [commentThreadId1],
+                },
+            );
 
             expect(commentThreads.length).toEqual(1);
             expect(commentThreads[0]).not.toBeNull();
         }
 
         {
-            const commentThreads = await getDocumentCommentThreads(context.request(session), {
-                documentId: document.id,
-                commentThreadIds: [generateId()],
-            });
+            const commentThreads = await batchGetDocumentCommentThreadsIfExists(
+                context.request(session),
+                {
+                    documentId: document.id,
+                    commentThreadIds: [generateId()],
+                },
+            );
 
             expect(commentThreads.length).toEqual(1);
             expect(commentThreads[0]).toBeNull();
         }
 
         {
-            const commentThreads = await getDocumentCommentThreads(context.request(session), {
-                documentId: document.id,
-                commentThreadIds: [commentThreadId1, commentThreadId2, generateId()],
-            });
+            const commentThreads = await batchGetDocumentCommentThreadsIfExists(
+                context.request(session),
+                {
+                    documentId: document.id,
+                    commentThreadIds: [commentThreadId1, commentThreadId2, generateId()],
+                },
+            );
 
             expect(commentThreads.length).toEqual(3);
             expect(commentThreads[0]).not.toBeNull();
@@ -4773,10 +4784,13 @@ describe("Comments", () => {
         }
 
         {
-            const commentThreads = await getDocumentCommentThreads(context.request(session), {
-                documentId: document.id,
-                commentThreadIds: [commentThreadId1, commentThreadId2, generateId()],
-            });
+            const commentThreads = await batchGetDocumentCommentThreadsIfExists(
+                context.request(session),
+                {
+                    documentId: document.id,
+                    commentThreadIds: [commentThreadId1, commentThreadId2, generateId()],
+                },
+            );
 
             expect(commentThreads.length).toEqual(3);
             expect(commentThreads[0]).not.toBeNull();
@@ -4855,28 +4869,28 @@ describe("Comments", () => {
         });
 
         await expect(
-            getDocumentCommentThreads(context.request(otherSession), {
+            batchGetDocumentCommentThreadsIfExists(context.request(otherSession), {
                 documentId: document.id,
                 commentThreadIds: [],
             }),
         ).rejects.toThrow(PermissionDeniedError);
 
         await expect(
-            getDocumentCommentThreads(context.request(otherSession), {
+            batchGetDocumentCommentThreadsIfExists(context.request(otherSession), {
                 documentId: document.id,
                 commentThreadIds: [commentThreadId1],
             }),
         ).rejects.toThrow(PermissionDeniedError);
 
         await expect(
-            getDocumentCommentThreads(context.request(otherSession), {
+            batchGetDocumentCommentThreadsIfExists(context.request(otherSession), {
                 documentId: document.id,
                 commentThreadIds: [generateId()],
             }),
         ).rejects.toThrow(PermissionDeniedError);
 
         await expect(
-            getDocumentCommentThreads(context.request(otherSession), {
+            batchGetDocumentCommentThreadsIfExists(context.request(otherSession), {
                 documentId: document.id,
                 commentThreadIds: [commentThreadId1, commentThreadId2, generateId()],
             }),
@@ -4953,28 +4967,28 @@ describe("Comments", () => {
         });
 
         await expect(
-            getDocumentCommentThreads(context.request(otherSession), {
+            batchGetDocumentCommentThreadsIfExists(context.request(otherSession), {
                 documentId: generateId(),
                 commentThreadIds: [],
             }),
         ).rejects.toThrow(NotFoundError);
 
         await expect(
-            getDocumentCommentThreads(context.request(otherSession), {
+            batchGetDocumentCommentThreadsIfExists(context.request(otherSession), {
                 documentId: generateId(),
                 commentThreadIds: [commentThreadId1],
             }),
         ).rejects.toThrow(NotFoundError);
 
         await expect(
-            getDocumentCommentThreads(context.request(otherSession), {
+            batchGetDocumentCommentThreadsIfExists(context.request(otherSession), {
                 documentId: generateId(),
                 commentThreadIds: [generateId()],
             }),
         ).rejects.toThrow(NotFoundError);
 
         await expect(
-            getDocumentCommentThreads(context.request(otherSession), {
+            batchGetDocumentCommentThreadsIfExists(context.request(otherSession), {
                 documentId: generateId(),
                 commentThreadIds: [commentThreadId1, commentThreadId2, generateId()],
             }),
@@ -5026,9 +5040,8 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
         const DocumentsTable = getDocumentsTableForTest();
 
         const document = await getDocument(context, documentId);
-        if (!document) throw new NotFoundError("Document not found");
 
-        const commentThreadItem = await DocumentsTable.getItem(context, {
+        const commentThreadItem = await DocumentsTable.getItemIfExists(context, {
             partitionType: "Document",
             sortRangeType: "ArchivedCommentThread",
             documentId,

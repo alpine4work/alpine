@@ -43,7 +43,7 @@ export type GetMessageFunction<RoomKey extends string, Message extends MessageMo
         roomKey: RoomKey;
         messageIndex: number;
     },
-) => Promise<Message | null>;
+) => Promise<Message>;
 
 /**
  * Update the content of a message.

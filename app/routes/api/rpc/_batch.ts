@@ -1,6 +1,6 @@
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
 import {LoaderArgs} from "~/server/remix/loader_context";
-import {getRpcImplementation} from "~/server/rpc/get_rpc_implementation";
+import {getRpcImplementationIfExists} from "~/server/rpc/get_rpc_implementation";
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error";
 import {isSystemError} from "~/shared/error/is_system_error_code";
 import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises";
@@ -41,7 +41,7 @@ export async function action({request, context, span}: LoaderArgs) {
                     batchCall.calls.map(
                         async (call): Promise<SchemaType<typeof RpcHttpCallOutputSchema>> => {
                             try {
-                                const rpcImplementation = getRpcImplementation(call.name);
+                                const rpcImplementation = getRpcImplementationIfExists(call.name);
 
                                 if (!rpcImplementation)
                                     throw new NotFoundError(

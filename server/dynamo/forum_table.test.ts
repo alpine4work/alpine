@@ -88,7 +88,9 @@ test("can create a channel", async () => {
 });
 
 test("can not get a channel that does not exist", async () => {
-    expect(await getChannel(context.request(otherSession), generateId())).toEqual(null);
+    await expect(getChannel(context.request(otherSession), generateId())).rejects.toThrow(
+        NotFoundError,
+    );
 });
 
 test("can not get a channel for a different space", async () => {
@@ -298,7 +300,7 @@ test("can not create a post with invalid content", async () => {
 });
 
 test("can not get a post that does not exist", async () => {
-    expect(await getPost(context.request(session1), generateId())).toEqual(null);
+    await expect(getPost(context.request(session1), generateId())).rejects.toThrow(NotFoundError);
 });
 
 test("can not get a post for a different space", async () => {
@@ -1544,8 +1546,6 @@ testMessagingImplementation<PostId>(context, {
 
     async getRoom(context, postId) {
         const post = await getPost(context, postId);
-        if (!post) return null;
-
         return {
             key: post.id,
             spaceId: post.spaceId,

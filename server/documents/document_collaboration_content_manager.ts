@@ -1,11 +1,11 @@
 import {Node} from "prosemirror-model";
 import {Step} from "prosemirror-transform";
 import {DocumentCollaborationStepCache} from "~/server/documents/document_collaboration_step_cache";
-import {getAccountOrThrow} from "~/server/dynamo/accounts_table";
+import {getAccount} from "~/server/dynamo/accounts_table";
 import {ProcessContext} from "~/server/dynamo/context/process_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
 import {
-    getDocumentCommentThreads,
+    batchGetDocumentCommentThreadsIfExists,
     getUpdateDocumentContentResult,
     updateDocumentContent,
 } from "~/server/dynamo/documents_table";
@@ -577,7 +577,7 @@ export class DocumentCollaborationContentManager {
                             commentCount: 1,
                             lastCommentChangeTime: null,
                             commentAuthors: [
-                                await getAccountOrThrow(
+                                await getAccount(
                                     context,
                                     this.spaceId,
                                     optimisticCommentThread.initialComment.authorId,
@@ -591,7 +591,7 @@ export class DocumentCollaborationContentManager {
         const [commentThreads1, commentThreads2] = await runAllPromises([
             runAllPromises(commentThreadPromises),
             referencedCommentThreadIds.size > 0
-                ? getDocumentCommentThreads(context, {
+                ? batchGetDocumentCommentThreadsIfExists(context, {
                       documentId: this.id,
                       commentThreadIds: referencedCommentThreadIds,
                   })
@@ -617,7 +617,7 @@ export class DocumentCollaborationContentManager {
      * for it to be persisted in the database then we will return the information
      * we optimistically know about this thread and a promise for when it resolves.
      */
-    public getOptimisticCommentThread(
+    public getOptimisticCommentThreadIfExists(
         commentThreadId: DocumentCommentThreadId,
     ): DocumentCollaborationContentManagerOptimisticCommentThread | null {
         const optimisticCommentThread = this._optimisticCommentThreadById.get(commentThreadId);

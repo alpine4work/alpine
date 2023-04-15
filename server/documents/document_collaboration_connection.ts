@@ -3,7 +3,7 @@ import {
     DocumentCollaborationContentManager,
     DocumentCollaborationContentManagerOptimisticCommentThread,
 } from "~/server/documents/document_collaboration_content_manager";
-import {getAccountOrThrow} from "~/server/dynamo/accounts_table";
+import {getAccount} from "~/server/dynamo/accounts_table";
 import {ProcessContext} from "~/server/dynamo/context/process_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
 import {
@@ -13,7 +13,7 @@ import {
     getDocumentCommentThreadAndInitialComments,
     getDocumentCommentsFromEnd,
     getDocumentCommentsFromStart,
-    getDocumentPreview,
+    getDocumentPreviewIfExists,
     updateDocumentCommentContent,
 } from "~/server/dynamo/documents_table";
 import {
@@ -147,7 +147,7 @@ export class DocumentCollaborationConnection {
                     //
                     // So load the document from our database and if its version is ahead of the
                     // one in our durable object then we want to destroy the entire durable object.
-                    const documentPreview = await getDocumentPreview(
+                    const documentPreview = await getDocumentPreviewIfExists(
                         context,
                         this._contentManager.id,
                     );
@@ -157,7 +157,6 @@ export class DocumentCollaborationConnection {
                         );
 
                         this._sendFatalErrorMessageAndKillProcess(context, span, error);
-
                         throw error;
                     }
                     if (documentPreview.version > version) {
@@ -372,7 +371,7 @@ export class DocumentCollaborationConnection {
             // the body of our `run()` function.
             await this._state.run(async () => {});
 
-            const optimisticCommentThread = this._contentManager.getOptimisticCommentThread(
+            const optimisticCommentThread = this._contentManager.getOptimisticCommentThreadIfExists(
                 input.commentThreadId,
             );
 
@@ -414,7 +413,7 @@ export class DocumentCollaborationConnection {
             // the body of our `run()` function.
             await this._state.run(async () => {});
 
-            const optimisticCommentThread = this._contentManager.getOptimisticCommentThread(
+            const optimisticCommentThread = this._contentManager.getOptimisticCommentThreadIfExists(
                 input.commentThreadId,
             );
 
@@ -455,7 +454,7 @@ export class DocumentCollaborationConnection {
             // the body of our `run()` function.
             await this._state.run(async () => {});
 
-            const optimisticCommentThread = this._contentManager.getOptimisticCommentThread(
+            const optimisticCommentThread = this._contentManager.getOptimisticCommentThreadIfExists(
                 input.commentThreadId,
             );
 
@@ -582,7 +581,7 @@ export class DocumentCollaborationConnection {
                 // Wait for our optimistic comment thread to persist before talking to
                 // the database.
                 const optimisticCommentThread =
-                    this._contentManager.getOptimisticCommentThread(commentThreadId);
+                    this._contentManager.getOptimisticCommentThreadIfExists(commentThreadId);
                 if (optimisticCommentThread) {
                     await context.tracer.withSpan(
                         "Waiting for comment thread to persist",
@@ -611,7 +610,7 @@ export class DocumentCollaborationConnection {
                 // Wait for our optimistic comment thread to persist before talking to
                 // the database.
                 const optimisticCommentThread =
-                    this._contentManager.getOptimisticCommentThread(commentThreadId);
+                    this._contentManager.getOptimisticCommentThreadIfExists(commentThreadId);
                 if (optimisticCommentThread) {
                     await context.tracer.withSpan(
                         "Waiting for comment thread to persist",
@@ -632,7 +631,7 @@ export class DocumentCollaborationConnection {
                 // Wait for our optimistic comment thread to persist before talking to
                 // the database.
                 const optimisticCommentThread =
-                    this._contentManager.getOptimisticCommentThread(commentThreadId);
+                    this._contentManager.getOptimisticCommentThreadIfExists(commentThreadId);
                 if (optimisticCommentThread) {
                     await context.tracer.withSpan(
                         "Waiting for comment thread to persist",
@@ -657,7 +656,7 @@ export class DocumentCollaborationConnection {
                 // thread since going to the database would throw an error. That way the user
                 // can immediately open a comment thread even if it's not persisted.
                 const optimisticCommentThread =
-                    this._contentManager.getOptimisticCommentThread(commentThreadId);
+                    this._contentManager.getOptimisticCommentThreadIfExists(commentThreadId);
                 if (optimisticCommentThread) {
                     return context.tracer.withSpan(
                         "Comment thread hasn't persisted so returning optimistic backfill",
@@ -713,7 +712,7 @@ export class DocumentCollaborationConnection {
         optimisticCommentThread: DocumentCollaborationContentManagerOptimisticCommentThread,
     ) {
         const [author, contentReferences] = await runAllPromises([
-            getAccountOrThrow(
+            getAccount(
                 context,
                 this._contentManager.spaceId,
                 optimisticCommentThread.initialComment.authorId,

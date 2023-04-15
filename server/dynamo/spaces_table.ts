@@ -1,4 +1,4 @@
-import {getAccountOrThrow} from "~/server/dynamo/accounts_table";
+import {getAccount} from "~/server/dynamo/accounts_table";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {
     RequestContext,
@@ -160,7 +160,7 @@ export async function isAccountMemberOfSpace(
     accountId: AccountId,
 ): Promise<boolean> {
     const item = await SpaceAccountContextCache.get(context, `${spaceId}:${accountId}`, () =>
-        SpacesTable.getItem(context, {
+        SpacesTable.getItemIfExists(context, {
             partitionType: "Space",
             sortRangeType: "Account",
             spaceId,
@@ -232,7 +232,7 @@ export async function getSpace(
     optimisticSessionAccountId?: AccountId,
 ): Promise<SpaceModel> {
     const [spaceItem] = await runAllPromises([
-        SpacesTable.getItem(context, {
+        SpacesTable.getItemIfExists(context, {
             partitionType: "Space",
             sortRangeType: "Attributes",
             spaceId,
@@ -285,7 +285,7 @@ export async function expensivelyGetAllSpaceAccounts(
             // Future calls to `isAccountMemberOfSpace()` should not need to load a space
             // account item and should instead see the one we've already loaded here.
             SpaceAccountContextCache.set(context, `${item.spaceId}:${item.accountId}`, item);
-            return getAccountOrThrow(context, item.spaceId, item.accountId);
+            return getAccount(context, item.spaceId, item.accountId);
         },
     );
 }

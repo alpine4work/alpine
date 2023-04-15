@@ -649,7 +649,7 @@ class WebSocketServerConnectionWrapper<
                                 );
 
                             // TODO(calebmer): Can we at least give this some kind of TTL in-memory cache??
-                            const session = await Session.get(
+                            const session = await Session.getIfExists(
                                 context,
                                 this._sessionId,
                                 this._sessionAccountId,
@@ -949,7 +949,11 @@ class WebSocketServerTestConnectionWrapper<
             "Received test WebSocket message",
             async (context, span) => {
                 // TODO(calebmer): Can we at least give this some kind of TTL in-memory cache??
-                const session = await Session.get(context, this._sessionId, this._sessionAccountId);
+                const session = await Session.getIfExists(
+                    context,
+                    this._sessionId,
+                    this._sessionAccountId,
+                );
                 if (!session)
                     throw new NotFoundError("Session was revoked after the connection began");
 

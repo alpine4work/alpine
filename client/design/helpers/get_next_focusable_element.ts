@@ -60,7 +60,7 @@ function createFocusableTreeWalker(
  * You may also choose to include elements that are focusable but not a part of
  * the tab sequence (have `tabindex="-1"`).
  */
-export function getNextFocusableElement(
+export function getNextFocusableElementIfExists(
     element: Element,
     options?: {
         withinElement?: Element;
@@ -77,7 +77,7 @@ export function getNextFocusableElement(
  * You may also choose to include elements that are focusable but not a part of
  * the tab sequence (have `tabindex="-1"`).
  */
-export function getPreviousFocusableElement(
+export function getPreviousFocusableElementIfExists(
     element: Element,
     options?: {
         withinElement?: Element;

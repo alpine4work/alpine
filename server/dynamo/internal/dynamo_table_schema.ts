@@ -21,7 +21,7 @@ import {
 import {dynamoReservedWords} from "~/server/dynamo/internal/dynamo_reserved_words";
 import {
     getDynamoClient,
-    getDynamoRetryTransaction,
+    getDynamoRetryTransactionIfExists,
 } from "~/server/dynamo/internal/get_dynamo_client";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
 import {isDynamoResourceNotFoundError} from "~/server/dynamo/internal/is_dynamo_resource_not_found_error";
@@ -818,7 +818,7 @@ export class DynamoTableSchema<
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
      */
-    public async getItem<Key extends Types["ItemKey"]>(
+    public async getItemIfExists<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         key: Key,
         {
@@ -830,7 +830,7 @@ export class DynamoTableSchema<
         const client = await this._getClient(context, false);
         const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
 
-        const serializedItem = await client.getItem(context.tracer.getTracer(), {
+        const serializedItem = await client.getItemIfExists(context.tracer.getTracer(), {
             tableName: this._name,
             key: {partitionKey, sortKey},
             consistency,
@@ -857,14 +857,14 @@ export class DynamoTableSchema<
      * throw an error. Same as `getItem()` but throws an error instead of returning
      * null when an item is missing.
      */
-    public async getItemOrThrow<Key extends Types["ItemKey"]>(
+    public async getItem<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         key: Key,
         options?: {
             consistency?: DynamoReadConsistency;
         },
     ): Promise<MergeObjectIntersection<Types["Item"] & Key>> {
-        const item = await this.getItem(context, key, options);
+        const item = await this.getItemIfExists(context, key, options);
 
         if (!item) {
             throw new NotFoundError(
@@ -884,7 +884,7 @@ export class DynamoTableSchema<
      *
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
      */
-    public async getPartialItem<
+    public async getPartialItemIfExists<
         Key extends Types["ItemKey"],
         Attributes extends DistributiveKeyOf<Types["Item"]> & string,
     >(
@@ -926,7 +926,7 @@ export class DynamoTableSchema<
             }
         }
 
-        const serializedItem = await client.getItem(context.tracer.getTracer(), {
+        const serializedItem = await client.getItemIfExists(context.tracer.getTracer(), {
             tableName: this._name,
             key: {partitionKey, sortKey},
             consistency,
@@ -961,6 +961,37 @@ export class DynamoTableSchema<
                 throw new DataLossError(error.message, {cause: error});
             }
             throw error;
+        }
+
+        return item;
+    }
+
+    /**
+     * Gets a few attributes of a single item by its key from the database. Throws
+     * an error if the item does not exist.
+     *
+     * Corresponds to the [`GetItem`][1] command with `ProjectionExpression` set.
+     * At this time we do not batch `getPartialItem()` commands.
+     *
+     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
+     */
+    public async getPartialItem<
+        Key extends Types["ItemKey"],
+        Attributes extends DistributiveKeyOf<Types["Item"]> & string,
+    >(
+        context: DynamoContext,
+        key: Key,
+        options: {
+            attributes: Array<Attributes>;
+            consistency?: DynamoReadConsistency;
+        },
+    ): Promise<MergeObjectIntersection<Key & Pick<Types["Item"] & Key, Attributes>>> {
+        const item = await this.getPartialItemIfExists(context, key, options);
+
+        if (!item) {
+            throw new NotFoundError(
+                `Item not found (partition type "${key.partitionType}", sort range type "${key.sortRangeType}")`,
+            );
         }
 
         return item;
@@ -1126,7 +1157,7 @@ export class DynamoTableSchema<
             span.addData({dynamodb: {tableName: this.getName()}});
 
             await context.dynamo.retryTransaction(async context => {
-                const item = await this.getItem(context, key);
+                const item = await this.getItemIfExists(context, key);
 
                 const newItem = await update(item);
 
@@ -1293,7 +1324,7 @@ export class DynamoTableSchema<
                 conditionCompilationContext,
             );
 
-            const retryTransaction = getDynamoRetryTransaction(context);
+            const retryTransaction = getDynamoRetryTransactionIfExists(context);
 
             return client.putItem(context.tracer.getTracer(), {
                 tableName: this._name,
@@ -1478,7 +1509,7 @@ export class DynamoTableSchema<
                 conditionCompilationContext,
             );
 
-            const retryTransaction = getDynamoRetryTransaction(context);
+            const retryTransaction = getDynamoRetryTransactionIfExists(context);
 
             return client.deleteItem(context.tracer.getTracer(), {
                 tableName: this._name,
@@ -1529,7 +1560,7 @@ export class DynamoTableSchema<
 
         await client.executeTransaction(context.tracer.getTracer(), entries, {
             clientRequestToken,
-            retryConditionCheckError: getDynamoRetryTransaction(context),
+            retryConditionCheckError: getDynamoRetryTransactionIfExists(context),
         });
     }
 
@@ -2115,7 +2146,7 @@ export class DynamoTableSchema<
         // NOTE(calebmer): Maybe it's always better to always run our own nested
         // `retryWithExponentialBackoff()` for this function? Instead of plugging into
         // the full DynamoDB transaction. Unclear to me.
-        const retryTransaction = getDynamoRetryTransaction(context);
+        const retryTransaction = getDynamoRetryTransactionIfExists(context);
         if (retryTransaction) return run(retryTransaction);
         return retryWithExponentialBackoff(run);
     }

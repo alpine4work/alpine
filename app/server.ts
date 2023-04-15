@@ -286,7 +286,7 @@ async function handleFetch(
                         const {sessionId, sessionAccountId} = sessionCookie.get();
                         if (!sessionId) return null;
 
-                        const session = await Session.get(
+                        const session = await Session.getIfExists(
                             context,
                             sessionId,
                             sessionAccountId ?? null,

@@ -278,7 +278,7 @@ function PostListView(
     const isSingleMobilePostWithPinnedCommentInput =
         isMobile &&
         posts.getPostCount() === 1 &&
-        posts.getLastPostContentItem()?.postCommentsState === "AlwaysOpen";
+        posts.getLastPostContentItemIfExists()?.postCommentsState === "AlwaysOpen";
 
     const isLoadingRef = useRef(false);
     const [errorState, setErrorState] = useState<
@@ -320,7 +320,7 @@ function PostListView(
 
                 let nextIndex = renderedRange.startIndex;
                 while (nextIndex <= renderedRange.endIndex) {
-                    const item = posts.getPostContentItem(nextIndex);
+                    const item = posts.getPostContentItemIfExists(nextIndex);
 
                     // Skip non-posts (like channel header)
                     if (!item) {
@@ -415,7 +415,7 @@ function PostListView(
 
                 // If we are not loading any comments and the unloaded posts item is rendered,
                 // try loading that...
-                const renderedRangeEndItem = assertExists(posts.getItem(renderedRange.endIndex));
+                const renderedRangeEndItem = posts.getItem(renderedRange.endIndex);
                 if (renderedRangeEndItem.type === "MoreUnloadedPosts") {
                     return {
                         isLoading: true,
@@ -438,7 +438,7 @@ function PostListView(
                                 ),
                             );
 
-                            const lastPost = posts.getLastPostContentItem();
+                            const lastPost = posts.getLastPostContentItemIfExists();
 
                             const {hasMorePosts, posts: newPosts} = await onLoadMorePosts({
                                 limit,
@@ -487,7 +487,8 @@ function PostListView(
 
                 // If we already have some loaded messages then we are trying to finish the
                 // initial loaded message list by starting at our last loaded message.
-                const lastLoadedMessage = item.postComments.getLastLoadedMessageBefore(limit);
+                const lastLoadedMessage =
+                    item.postComments.getLastLoadedMessageBeforeIfExists(limit);
 
                 if (lastLoadedMessage === null || lastLoadedMessage.index < limit - 1) {
                     const {commentCount, comments, otherReferencedComments} =
@@ -623,7 +624,7 @@ function PostListView(
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
-            const item = assertExists(posts.getItem(index));
+            const item = posts.getItem(index);
             switch (item.type) {
                 case "ChannelHeader": {
                     return {
@@ -1638,7 +1639,9 @@ function PostListView(
                 />
                 {isSingleMobilePostWithPinnedCommentInput &&
                     (() => {
-                        const lastPostContentItem = assertExists(posts.getLastPostContentItem());
+                        const lastPostContentItem = assertExists(
+                            posts.getLastPostContentItemIfExists(),
+                        );
 
                         const replyingToPostCommentIndex = replyingToPostCommentIndexByPostId.get(
                             lastPostContentItem.post.id,
