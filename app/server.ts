@@ -6,7 +6,7 @@ import {defaultClientInfo, defaultMobileClientInfo} from "~/client/remix/client_
 import {createAwsContextModulesFromEnv} from "~/server/aws/create_aws_context_modules_from_env";
 import {fetchFromDurableObjectStub} from "~/server/cloudflare/fetch_from_durable_object_stub";
 import {Session} from "~/server/dynamo/accounts_table";
-import {UnauthenticatedSessionAuthContextModule} from "~/server/dynamo/context/auth_context_module";
+import {UnauthenticatedAuthContextModule} from "~/server/dynamo/context/auth_context_module";
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
 import {seedDynamo} from "~/server/dynamo/seed_dynamo";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base";
@@ -280,7 +280,7 @@ async function handleFetch(
                     }),
                     cache: new CacheContextModule(),
 
-                    auth: new UnauthenticatedSessionAuthContextModule(async context => {
+                    auth: new UnauthenticatedAuthContextModule(async context => {
                         const sessionCookie = await sessionCookiePromise;
 
                         const {sessionId, sessionAccountId} = sessionCookie.get();

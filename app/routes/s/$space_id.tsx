@@ -7,7 +7,7 @@ import {PeekStackContextProvider} from "~/client/peek/peek_stack";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {SpaceContextProvider} from "~/client/spaces/space_context";
 import {SpaceLayoutTopBar} from "~/client/spaces/space_layout_top_bar";
-import {getSpaceWithOptimisticSessionAccountId} from "~/server/dynamo/spaces_table";
+import {getSpace} from "~/server/dynamo/spaces_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
 import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises";
@@ -45,11 +45,7 @@ export async function loader({context, params}: LoaderArgs) {
         },
         async () => {
             const sessionCookie = await context.loader.getSessionCookie();
-            return getSpaceWithOptimisticSessionAccountId(
-                context,
-                spaceId,
-                sessionCookie.get().sessionAccountId,
-            );
+            return getSpace(context, spaceId, sessionCookie.get().sessionAccountId);
         },
     );
 

@@ -5,13 +5,13 @@ import path from "path";
 import {DynamoLocal, startDynamoLocal} from "~/admin/dynamo/local/start_dynamo_local";
 import {Session, SessionItem} from "~/server/dynamo/accounts_table";
 import {
-    AuthenticatedSessionAuthContextModule,
-    UnauthenticatedSessionAuthContextModule,
+    AuthenticatedAuthContextModule,
+    UnauthenticatedAuthContextModule,
 } from "~/server/dynamo/context/auth_context_module";
 import {ProcessContext, ProcessContextModules} from "~/server/dynamo/context/process_context";
 import {
-    SessionRequestContext,
-    UnauthenticatedSessionRequestContext,
+    RequestContext,
+    UnauthenticatedRequestContext,
 } from "~/server/dynamo/context/request_context";
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
 import {testSharedHooks} from "~/server/dynamo/test_helpers/shared/test_shared_hooks";
@@ -32,8 +32,8 @@ assert(process.env.NODE_ENV === "test");
 
 export type TestContext = ProcessContext & {
     getDynamoLocalPort(): number;
-    unauthenticatedRequest(): UnauthenticatedSessionRequestContext;
-    request(session: {item: SessionItem}): SessionRequestContext;
+    unauthenticatedRequest(): UnauthenticatedRequestContext;
+    request(session: {item: SessionItem}): RequestContext;
 };
 
 /**
@@ -78,17 +78,17 @@ export function createTestContext(): TestContext {
         return dynamoLocal.port;
     };
 
-    const createUnauthenticatedRequestContext = (): UnauthenticatedSessionRequestContext => {
+    const createUnauthenticatedRequestContext = (): UnauthenticatedRequestContext => {
         return context.clone({
             cache: new CacheContextModule(),
-            auth: new UnauthenticatedSessionAuthContextModule(async () => null),
+            auth: new UnauthenticatedAuthContextModule(async () => null),
         });
     };
 
-    const createRequestContext = (session: {item: SessionItem}): SessionRequestContext => {
+    const createRequestContext = (session: {item: SessionItem}): RequestContext => {
         return context.clone({
             cache: new CacheContextModule(),
-            auth: new AuthenticatedSessionAuthContextModule(Session.test(session.item)),
+            auth: new AuthenticatedAuthContextModule(Session.test(session.item)),
         });
     };
 

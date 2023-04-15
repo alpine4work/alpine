@@ -16,15 +16,15 @@ import {AccountModel} from "~/shared/models/account_model";
  * The `authenticate()` method returns a context module with methods that let
  * you ask questions about the authenticated account.
  */
-export class UnauthenticatedSessionAuthContextModule<
+export class UnauthenticatedAuthContextModule<
     Modules extends {
         tracer: TracerContextModule;
         dynamo: DynamoContextModule;
-        auth: UnauthenticatedSessionAuthContextModule;
+        auth: UnauthenticatedAuthContextModule;
     } = {
         tracer: TracerContextModule;
         dynamo: DynamoContextModule;
-        auth: UnauthenticatedSessionAuthContextModule;
+        auth: UnauthenticatedAuthContextModule;
     },
 > extends ContextModuleBase<Modules> {
     private readonly _createSession: (context: DynamoContext) => Promise<Session | null>;
@@ -52,27 +52,18 @@ export class UnauthenticatedSessionAuthContextModule<
         Modules extends {
             tracer: TracerContextModule;
             dynamo: DynamoContextModule;
-            auth: UnauthenticatedSessionAuthContextModule;
+            auth: UnauthenticatedAuthContextModule;
         },
     >(
-        this: UnauthenticatedSessionAuthContextModule<Modules>,
-    ): Promise<Context<Replace<Modules, {auth: AuthenticatedSessionAuthContextModule}>>> {
+        this: UnauthenticatedAuthContextModule<Modules>,
+    ): Promise<Context<Replace<Modules, {auth: AuthenticatedAuthContextModule}>>> {
         const session = await this._getSession();
         if (!session) throw unauthenticatedSessionError();
 
         return this._context.clone({
-            auth: new AuthenticatedSessionAuthContextModule(session),
+            auth: new AuthenticatedAuthContextModule(session),
         });
     }
-}
-
-export interface AuthenticatedAuthContextModule
-    extends ContextModuleBase<{
-        tracer: TracerContextModule;
-        dynamo: DynamoContextModule;
-    }> {
-    getAccountId(): AccountId;
-    getAccount(): Promise<AccountModel>;
 }
 
 /**
@@ -80,14 +71,11 @@ export interface AuthenticatedAuthContextModule
  * service. Provides access to session information like the authenticated
  * account's ID.
  */
-export class AuthenticatedSessionAuthContextModule
-    extends UnauthenticatedSessionAuthContextModule<{
-        tracer: TracerContextModule;
-        dynamo: DynamoContextModule;
-        auth: AuthenticatedSessionAuthContextModule;
-    }>
-    implements AuthenticatedAuthContextModule
-{
+export class AuthenticatedAuthContextModule extends UnauthenticatedAuthContextModule<{
+    tracer: TracerContextModule;
+    dynamo: DynamoContextModule;
+    auth: AuthenticatedAuthContextModule;
+}> {
     private readonly _session: Session;
 
     constructor(session: Session) {
@@ -103,12 +91,11 @@ export class AuthenticatedSessionAuthContextModule
         Modules extends {
             tracer: TracerContextModule;
             dynamo: DynamoContextModule;
-            auth: UnauthenticatedSessionAuthContextModule;
+            auth: UnauthenticatedAuthContextModule;
         },
     >(
-        this: UnauthenticatedSessionAuthContextModule<Modules> &
-            AuthenticatedSessionAuthContextModule,
-    ): Promise<Context<Replace<Modules, {auth: AuthenticatedSessionAuthContextModule}>>> {
+        this: UnauthenticatedAuthContextModule<Modules> & AuthenticatedAuthContextModule,
+    ): Promise<Context<Replace<Modules, {auth: AuthenticatedAuthContextModule}>>> {
         return this._context as any;
     }
 

@@ -1,7 +1,7 @@
 import {Session} from "~/server/dynamo/accounts_table";
-import {AuthenticatedSessionAuthContextModule} from "~/server/dynamo/context/auth_context_module";
+import {AuthenticatedAuthContextModule} from "~/server/dynamo/context/auth_context_module";
 import {ProcessContext} from "~/server/dynamo/context/process_context";
-import {RequestContext, SessionRequestContext} from "~/server/dynamo/context/request_context";
+import {RequestContext} from "~/server/dynamo/context/request_context";
 import {validateTracerEventFlatDataForPropagation} from "~/server/tracer/validate_tracer_event_flat_data";
 import {webSocketExpirationTimeoutMs} from "~/shared/cloudflare/web_socket_expiration_timeout_ms";
 import {
@@ -153,7 +153,7 @@ export class WebSocketServer<
     /**
      * Upgrade an HTTP request to a WebSocket connection.
      */
-    public upgrade(connectRequestContext: SessionRequestContext, request: Request): Response {
+    public upgrade(connectRequestContext: RequestContext, request: Request): Response {
         if (request.headers.get("Upgrade") !== "websocket")
             throw new InvalidArgumentError("Not a WebSocket request");
 
@@ -394,7 +394,7 @@ export class WebSocketServer<
      * client/server interface which only works in a trusted environment.
      */
     public connectForTest(
-        connectRequestContext: SessionRequestContext,
+        connectRequestContext: RequestContext,
     ): WebSocketServerTestConnection<Protocol, Connection> {
         assert(typeof jest !== "undefined");
 
@@ -675,9 +675,7 @@ class WebSocketServerConnectionWrapper<
                                         const output = await context.with(
                                             {
                                                 cache: new CacheContextModule(),
-                                                auth: new AuthenticatedSessionAuthContextModule(
-                                                    session,
-                                                ),
+                                                auth: new AuthenticatedAuthContextModule(session),
                                             },
                                             (context: RequestContext) => {
                                                 return this.connection.procedures[type](
@@ -962,7 +960,7 @@ class WebSocketServerTestConnectionWrapper<
                 return context.with(
                     {
                         cache: new CacheContextModule(),
-                        auth: new AuthenticatedSessionAuthContextModule(session),
+                        auth: new AuthenticatedAuthContextModule(session),
                     },
                     (context: RequestContext) => {
                         // Thrown errors should be handled by the test. We do not send acknowledgement

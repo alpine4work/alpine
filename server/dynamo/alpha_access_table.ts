@@ -7,7 +7,7 @@ import {
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {
     RequestContext,
-    UnauthenticatedSessionRequestContext,
+    UnauthenticatedRequestContext,
 } from "~/server/dynamo/context/request_context";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
@@ -129,7 +129,7 @@ export async function seedTestAlphaConfiguration(context: DynamoContext) {
  * Can not request alpha access twice for the same email address.
  */
 export async function requestAlphaAccess(
-    context: UnauthenticatedSessionRequestContext,
+    context: UnauthenticatedRequestContext,
     {
         name,
         emailAddress,

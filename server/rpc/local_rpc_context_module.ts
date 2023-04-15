@@ -1,4 +1,4 @@
-import {UnauthenticatedSessionRequestContextModules} from "~/server/dynamo/context/request_context";
+import {UnauthenticatedRequestContextModules} from "~/server/dynamo/context/request_context";
 import {getRpcImplementationIfExists} from "~/server/rpc/get_rpc_implementation";
 import {InternalError} from "~/shared/error/error";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base";
@@ -15,7 +15,7 @@ import {RpcDefinition} from "~/shared/rpc/rpc_definition";
  * important to the logic of the RPC. For example, validating a string is only
  * a single line.
  */
-export class LocalRpcContextModule extends RpcContextModuleBase<UnauthenticatedSessionRequestContextModules> {
+export class LocalRpcContextModule extends RpcContextModuleBase<UnauthenticatedRequestContextModules> {
     public async execute<Input, Output>(
         definition: RpcDefinition<Input, Output>,
         input: Input,

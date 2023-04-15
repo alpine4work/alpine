@@ -33,7 +33,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {isObject} from "~/shared/helpers/object/is_object";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
 import {decodeIdInto, encodeId, generateId} from "~/shared/id/id";
-import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types";
+import {AccountId, ChatId, SessionId, SpaceId} from "~/shared/id/types/id_types";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema";
 import {AccountModel} from "~/shared/models/account_model";
 import {ChatMessageModel, ChatModel} from "~/shared/models/chat_model";
@@ -208,7 +208,7 @@ export function getChatTableForTest() {
 }
 
 export const sendChatMessageToAccountsBeforeCreateChatTestCheckpoint =
-    new TestCheckpoint<AccountId>();
+    new TestCheckpoint<SessionId>();
 
 /**
  * Create a new chat with the provided accounts and no messages but only in
@@ -549,7 +549,7 @@ function actuallyGetOrCreateChatForAccounts(
 
             const createChatForAccounts = async (chatId: ChatId) => {
                 await sendChatMessageToAccountsBeforeCreateChatTestCheckpoint.waitForTest(
-                    context.auth.getAccountId(),
+                    context.auth.getSessionId(),
                 );
 
                 try {
