@@ -3,7 +3,7 @@ import {WebSocketServer} from "~/server/cloudflare/web_socket_server";
 import {DocumentCollaborationConnection} from "~/server/documents/document_collaboration_connection";
 import {DocumentCollaborationContentManager} from "~/server/documents/document_collaboration_content_manager";
 import {ProcessContext} from "~/server/dynamo/context/process_context";
-import {RequestContext} from "~/server/dynamo/context/request_context";
+import {RequestContext, SessionRequestContext} from "~/server/dynamo/context/request_context";
 import {getDocument} from "~/server/dynamo/documents_table";
 import {DocumentContent} from "~/shared/content/document_content_schema";
 import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol";
@@ -97,7 +97,7 @@ class DocumentCollaborationDurableObject {
         );
     }
 
-    public fetch(context: RequestContext, request: Request): Response {
+    public fetch(context: SessionRequestContext, request: Request): Response {
         // Propagate the document id to all logs for this durable object.
         context = context.tracer.withPropagatedData({
             context: {spaceId: this.spaceId, documentId: this.id},
@@ -108,7 +108,7 @@ class DocumentCollaborationDurableObject {
         return this._webSocketServer.upgrade(context, request);
     }
 
-    public connectForTest(context: RequestContext) {
+    public connectForTest(context: SessionRequestContext) {
         return this._webSocketServer.connectForTest(context);
     }
 

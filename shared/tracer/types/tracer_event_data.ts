@@ -534,6 +534,11 @@ export type TracerEventData = {
          */
         readonly messageType?: string;
     };
+
+    readonly notifications?: {
+        /** What is the notification event we are describing? */
+        readonly event?: string;
+    };
 };
 
 /**

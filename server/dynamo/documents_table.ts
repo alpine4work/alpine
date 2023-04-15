@@ -2202,6 +2202,11 @@ async function updateDocumentSnapshotAfterUpdatingContent(
                                     id,
                                 );
 
+                                // We move the comment thread in a transaction so only one version of the item
+                                // exists at any given time. Since we need to make updates to the item it would
+                                // be weird of two versions of the item exist at once and one has an update
+                                // applied. How do we make sure that update is not lost? Or the history
+                                // doesn't fork?
                                 await DynamoTableSchema.executeTransaction(context, [
                                     DocumentsTable.transactionDeleteItem(
                                         referencedCommentThreadItem,
@@ -2246,6 +2251,11 @@ async function updateDocumentSnapshotAfterUpdatingContent(
                                     id,
                                 );
 
+                                // We move the comment thread in a transaction so only one version of the item
+                                // exists at any given time. Since we need to make updates to the item it would
+                                // be weird of two versions of the item exist at once and one has an update
+                                // applied. How do we make sure that update is not lost? Or the history
+                                // doesn't fork?
                                 await DynamoTableSchema.executeTransaction(context, [
                                     DocumentsTable.transactionDeleteItem(archivedCommentThreadItem),
                                     DocumentsTable.transactionCreateOrReplaceItem({

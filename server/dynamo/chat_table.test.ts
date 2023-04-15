@@ -1312,7 +1312,7 @@ test("race condition where two accounts try to create the same chat at the same 
     const scenario = await createScenario();
 
     const pausePromise = sendChatMessageToAccountsBeforeCreateChatTestCheckpoint.pauseForTest(
-        scenario.sessionA1.item.sessionId,
+        scenario.sessionA1.accountId,
     );
 
     const message1Promise = sendChatMessageToAccounts(context.request(scenario.sessionA1), {
@@ -2541,7 +2541,7 @@ test("race condition where two accounts try to create the same chat at the same 
     });
 
     const pausePromise = sendChatMessageToAccountsBeforeCreateChatTestCheckpoint.pauseForTest(
-        scenario.sessionA1.item.sessionId,
+        scenario.sessionA1.accountId,
     );
 
     const message1Promise = sendChatMessageToAccounts(context.request(scenario.sessionA1), {

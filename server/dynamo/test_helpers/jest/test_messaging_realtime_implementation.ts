@@ -668,7 +668,7 @@ export function testMessagingRealtimeImplementation<
 
             const pausePromise =
                 messagingRealtimeBackfillMessagesBeforeFlushTestCheckpoint.pauseForTest(
-                    session3.id,
+                    session3.accountId,
                 );
 
             const connection3BackfillPromise = connection3.procedures.backfillMessages(
@@ -927,7 +927,7 @@ export function testMessagingRealtimeImplementation<
 
             const pausePromise =
                 messagingRealtimeBackfillMessagesBeforeFlushTestCheckpoint.pauseForTest(
-                    session3.id,
+                    session3.accountId,
                 );
 
             const connection3BackfillPromise = connection3.procedures.backfillMessages(
@@ -1139,7 +1139,9 @@ export function testMessagingRealtimeImplementation<
             connection3Events = [];
 
             const pausePromise =
-                messagingRealtimeCreateMessageBeforeSendTestCheckpoint.pauseForTest(session1.id);
+                messagingRealtimeCreateMessageBeforeSendTestCheckpoint.pauseForTest(
+                    session1.accountId,
+                );
 
             const connection1CreateMessagePromise = connection1.procedures.createMessage(
                 context.request(session1),
@@ -1348,7 +1350,9 @@ export function testMessagingRealtimeImplementation<
             connection3Events = [];
 
             const pause1Promise =
-                messagingRealtimeCreateMessageBeforeSendTestCheckpoint.pauseForTest(session1.id);
+                messagingRealtimeCreateMessageBeforeSendTestCheckpoint.pauseForTest(
+                    session1.accountId,
+                );
 
             const connection1CreateMessagePromise = connection1.procedures.createMessage(
                 context.request(session1),
@@ -1369,7 +1373,9 @@ export function testMessagingRealtimeImplementation<
             connection3Events = [];
 
             const pause2Promise =
-                messagingRealtimeCreateMessageBeforeSendTestCheckpoint.pauseForTest(session2.id);
+                messagingRealtimeCreateMessageBeforeSendTestCheckpoint.pauseForTest(
+                    session2.accountId,
+                );
 
             const connection2CreateMessagePromise = connection2.procedures.createMessage(
                 context.request(session2),
@@ -1584,7 +1590,9 @@ export function testMessagingRealtimeImplementation<
             connection4Messages = [];
 
             const pausePromise =
-                messagingRealtimeCreateMessageBeforeSendTestCheckpoint.pauseForTest(session1.id);
+                messagingRealtimeCreateMessageBeforeSendTestCheckpoint.pauseForTest(
+                    session1.accountId,
+                );
 
             const connection1CreateMessagePromise = connection1.procedures.createMessage(
                 context.request(session1),
@@ -1800,7 +1808,9 @@ export function testMessagingRealtimeImplementation<
             connection2Events = [];
 
             const pausePromise =
-                messagingRealtimeCreateMessageBeforeSendTestCheckpoint.pauseForTest(session1.id);
+                messagingRealtimeCreateMessageBeforeSendTestCheckpoint.pauseForTest(
+                    session1.accountId,
+                );
 
             const connection1CreateMessagePromise = connection1.procedures.createMessage(
                 context.request(session1),
@@ -1934,7 +1944,9 @@ export function testMessagingRealtimeImplementation<
             connection2Events = [];
 
             const pausePromise1 =
-                messagingRealtimeCreateMessageBeforeSendTestCheckpoint.pauseForTest(session1.id);
+                messagingRealtimeCreateMessageBeforeSendTestCheckpoint.pauseForTest(
+                    session1.accountId,
+                );
 
             const connection1CreateMessagePromise = connection1.procedures.createMessage(
                 context.request(session1),
@@ -1954,7 +1966,7 @@ export function testMessagingRealtimeImplementation<
 
             const pausePromise2 =
                 messagingRealtimeBackfillMessagesBeforeFlushTestCheckpoint.pauseForTest(
-                    session2.id,
+                    session2.accountId,
                 );
 
             const connection2BackfillPromise = connection2.procedures.backfillMessages(
@@ -2573,7 +2585,7 @@ export function testMessagingRealtimeImplementation<
 
             const pausePromise =
                 messagingRealtimeBackfillMessagesBeforeFlushTestCheckpoint.pauseForTest(
-                    session3.id,
+                    session3.accountId,
                 );
 
             const connection3BackfillPromise = connection3.procedures.backfillMessages(

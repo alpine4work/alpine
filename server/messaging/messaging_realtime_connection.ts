@@ -14,7 +14,7 @@ import {AsyncMutex} from "~/shared/helpers/async/async_mutex";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
-import {SessionId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types";
+import {AccountId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema";
 import {
     MessagingRealtimeEvent,
@@ -23,10 +23,10 @@ import {
 import {MessageModel} from "~/shared/models/message_model";
 
 export const messagingRealtimeBackfillMessagesBeforeFlushTestCheckpoint =
-    new TestCheckpoint<SessionId>();
+    new TestCheckpoint<AccountId>();
 
 export const messagingRealtimeCreateMessageBeforeSendTestCheckpoint =
-    new TestCheckpoint<SessionId>();
+    new TestCheckpoint<AccountId>();
 
 export class MessagingRealtimeConnection<
     RoomKey extends string,
@@ -296,7 +296,7 @@ export class MessagingRealtimeConnection<
             );
 
             await messagingRealtimeBackfillMessagesBeforeFlushTestCheckpoint.waitForTest(
-                context.auth.getSessionId(),
+                context.auth.getAccountId(),
             );
 
             this._isBackfilling = false;
@@ -363,7 +363,7 @@ export class MessagingRealtimeConnection<
         ]);
 
         await messagingRealtimeCreateMessageBeforeSendTestCheckpoint.waitForTest(
-            context.auth.getSessionId(),
+            context.auth.getAccountId(),
         );
 
         await this._typingState.run(async (typingState, setTypingState) => {
