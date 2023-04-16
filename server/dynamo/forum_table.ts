@@ -1,4 +1,5 @@
-import {getAccount} from "~/server/dynamo/accounts_table";
+import {Node} from "prosemirror-model";
+import {getAccount, getAccountIfExists} from "~/server/dynamo/accounts_table";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
@@ -8,6 +9,7 @@ import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/dynamo/h
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
+import {ContentMention} from "~/shared/content/content_mention";
 import {
     MessageContent,
     MessageContentSchema,
@@ -27,8 +29,10 @@ import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable";
@@ -44,6 +48,7 @@ import {
     PostModel,
     maxPostPreviewCommentAuthorCount,
 } from "~/shared/models/post_model";
+import {visitProsemirrorNode} from "~/shared/prosemirror/prosemirror_visitor";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 import {Schema} from "~/shared/schema/schema";
 
@@ -135,6 +140,28 @@ const ForumTable = DynamoTableSchema.new({
                                 Schema.id<AccountId>(),
                                 Schema.integer.min(1),
                             ),
+
+                            /**
+                             * All the accounts which have been mentioned at some point in the post's
+                             * comments or post's content and how many times the account was mentioned.
+                             *
+                             * Accounts that exist in the map with a mention count of zero have a
+                             * special meaning:
+                             *
+                             * - If an account exists in the map they were mentioned at some point
+                             * - If an account exists in the map with a mention count of zero then they
+                             *   were mentioned at some point but all mentions have been removed by updates
+                             * - If an account does not exist in the map they were never mentioned in
+                             *   the post
+                             *
+                             * While this is in `commentsSummary` it also includes mentions from the post
+                             * content. We put it in `commentsSummary` so we can update it atomically as a
+                             * single attribute with other comment information.
+                             */
+                            mentionCountByAccountId: Schema.map(
+                                Schema.id<AccountId>(),
+                                Schema.integer.min(0),
+                            ).default(new Map()),
                         }),
                     }),
                 },
@@ -466,6 +493,63 @@ export async function getChannelPosts(
 }
 
 /**
+ * Get all `AccountId`s mentioned in a piece of content and the number of times
+ * they were mentioned.
+ *
+ * IMPORTANT: You may copy/paste content across spaces and in that case an
+ * account may exist in one space but not another! So be careful using
+ * `getAccount()` on mentioned `AccountId`s and instead you should generally
+ * `getAccountIfExists()`.
+ */
+function getMentionCountByAccountIdInContent(content: Node): ReadonlyMap<AccountId, number> {
+    const mentionCountByAccountId = new Map<AccountId, number>();
+
+    visitProsemirrorNode(content, {
+        visitNode: node => {
+            if (node.type.name === "mention") {
+                const mention: ContentMention = node.attrs.mention;
+                const lastMentionCount = mentionCountByAccountId.get(mention.accountId);
+                mentionCountByAccountId.set(mention.accountId, (lastMentionCount ?? 0) + 1);
+            }
+        },
+    });
+
+    return mentionCountByAccountId;
+}
+
+function applyMentionCountByAccountIdDifferenceFromContentUpdate(
+    mentionCountByAccountId: ReadonlyMap<AccountId, number>,
+    oldContent: Node | null,
+    newContent: Node | null,
+): ReadonlyMap<AccountId, number> {
+    const oldMentionCountByAccountId = oldContent
+        ? getMentionCountByAccountIdInContent(oldContent)
+        : new Map();
+    const newMentionCountByAccountId = newContent
+        ? getMentionCountByAccountIdInContent(newContent)
+        : new Map();
+
+    const updatedMentionCountByAccountId = new Map(mentionCountByAccountId);
+
+    for (const accountId of new Set(
+        concatIterables(oldMentionCountByAccountId.keys(), newMentionCountByAccountId.keys()),
+    )) {
+        const oldMentionCount = oldMentionCountByAccountId.get(accountId) ?? 0;
+        const newMentionCount = newMentionCountByAccountId.get(accountId) ?? 0;
+        const mentionCountDifference = newMentionCount - oldMentionCount;
+
+        // Remember: If the mention count goes to zero we want to keep it in our map to
+        // signal "this account was mentioned at some point".
+        updatedMentionCountByAccountId.set(
+            accountId,
+            (updatedMentionCountByAccountId.get(accountId) ?? 0) + mentionCountDifference,
+        );
+    }
+
+    return updatedMentionCountByAccountId;
+}
+
+/**
  * Create a new post by the current account in the provided channel.
  */
 export async function createPost(
@@ -477,6 +561,8 @@ export async function createPost(
     createdTime: Date;
 }> {
     const channel = await getChannel(context, channelId);
+
+    const mentionCountByAccountId = getMentionCountByAccountIdInContent(content);
 
     const postItem: PostAttributesItem = {
         partitionType: "Post",
@@ -495,6 +581,7 @@ export async function createPost(
             nextCommentIndex: 0,
             lastChangeTime: null,
             commentCountByAuthorId: new Map(),
+            mentionCountByAccountId,
         },
     };
 
@@ -508,7 +595,7 @@ export async function createPost(
 }
 
 /**
- * Gets the post with the provided ID.
+ * Gets the post with the provided `PostId`.
  */
 export async function getPost(context: RequestContext, id: PostId): Promise<PostModel> {
     const postItem = await ForumTable.getItem(context, {
@@ -570,6 +657,44 @@ async function createPostModelFromItem(
 }
 
 /**
+ * Get accounts subscribed to notifications for the provided `PostId`.
+ */
+export async function getPostNotificationSubscribers(
+    context: RequestContext,
+    id: PostId,
+): Promise<ReadonlyArray<AccountModel>> {
+    const postItem = await ForumTable.getPartialItem(
+        context,
+        {
+            partitionType: "Post",
+            sortRangeType: "Attributes",
+            postId: id,
+        },
+        {
+            attributes: ["authorId", "channelId", "commentsSummary"],
+        },
+    );
+
+    const {spaceId} = await authorizeChannelAccess(context, postItem.channelId);
+
+    const accountIds = new Set<AccountId>(
+        concatIterables(
+            [postItem.authorId],
+            postItem.commentsSummary.commentCountByAuthorId.keys(),
+            postItem.commentsSummary.mentionCountByAccountId.keys(),
+        ),
+    );
+
+    const accounts = await runAllPromises(
+        // Use `getAccountIfExists()` since mentioned accounts may be copied from a
+        // different space and don't exist in this space.
+        mapIterable(accountIds, accountId => getAccountIfExists(context, spaceId, accountId)),
+    );
+
+    return accounts.filter(isNonNullable);
+}
+
+/**
  * Update the contents of a post if you are the post's author.
  */
 export async function updatePostContent(
@@ -602,6 +727,15 @@ export async function updatePostContent(
                 ...postItem,
                 content,
                 contentUpdatedTime,
+                commentsSummary: {
+                    ...postItem.commentsSummary,
+                    mentionCountByAccountId:
+                        applyMentionCountByAccountIdDifferenceFromContentUpdate(
+                            postItem.commentsSummary.mentionCountByAccountId,
+                            postItem.content,
+                            content,
+                        ),
+                },
             };
         },
     );
@@ -735,6 +869,12 @@ export async function createPostComment(
         const newCommentCountByAuthorId = new Map(postItem.commentsSummary.commentCountByAuthorId);
         newCommentCountByAuthorId.set(authorId, (newCommentCountByAuthorId.get(authorId) ?? 0) + 1);
 
+        const newMentionCountByAccountId = applyMentionCountByAccountIdDifferenceFromContentUpdate(
+            postItem.commentsSummary.mentionCountByAccountId,
+            null,
+            content,
+        );
+
         await DynamoTableSchema.executeTransaction(context, [
             ForumTable.transactionCreateItem({
                 partitionType: "Post",
@@ -757,6 +897,7 @@ export async function createPostComment(
                     nextCommentIndex: postItem.commentsSummary.nextCommentIndex + 1,
                     lastChangeTime: postItem.commentsSummary.lastChangeTime,
                     commentCountByAuthorId: newCommentCountByAuthorId,
+                    mentionCountByAccountId: newMentionCountByAccountId,
                 },
                 {updateLockVersion: postItem.updateLockVersion},
             ),
@@ -876,6 +1017,12 @@ export function updatePostCommentContent(
                 contentUpdatedTime > commentItem.payload.contentUpdatedTime,
         );
 
+        const newMentionCountByAccountId = applyMentionCountByAccountIdDifferenceFromContentUpdate(
+            postItem.commentsSummary.mentionCountByAccountId,
+            commentItem.payload.content,
+            content,
+        );
+
         await DynamoTableSchema.executeTransaction(context, [
             ForumTable.transactionDirectlyUpdateItem({
                 ...commentItem,
@@ -892,6 +1039,7 @@ export function updatePostCommentContent(
                     nextCommentIndex: postItem.commentsSummary.nextCommentIndex,
                     lastChangeTime: contentUpdatedTime,
                     commentCountByAuthorId: postItem.commentsSummary.commentCountByAuthorId,
+                    mentionCountByAccountId: newMentionCountByAccountId,
                 },
                 {updateLockVersion: postItem.updateLockVersion},
             ),
@@ -962,6 +1110,12 @@ export function deletePostComment(
                 deletedTime > commentItem.payload.contentUpdatedTime,
         );
 
+        const newMentionCountByAccountId = applyMentionCountByAccountIdDifferenceFromContentUpdate(
+            postItem.commentsSummary.mentionCountByAccountId,
+            commentItem.payload.content,
+            null,
+        );
+
         await DynamoTableSchema.executeTransaction(context, [
             ForumTable.transactionDirectlyUpdateItem({
                 ...commentItem,
@@ -974,6 +1128,7 @@ export function deletePostComment(
                     nextCommentIndex: postItem.commentsSummary.nextCommentIndex,
                     lastChangeTime: deletedTime,
                     commentCountByAuthorId: postItem.commentsSummary.commentCountByAuthorId,
+                    mentionCountByAccountId: newMentionCountByAccountId,
                 },
                 {updateLockVersion: postItem.updateLockVersion},
             ),
