@@ -2802,6 +2802,17 @@ type DynamoTableSchemaIndexConfig<
     itemTypes: ReadonlyArray<ItemTypes>;
     partitionKeyAttributes: PartitionKeyAttributesConfig;
     sortKeyAttributes: SortKeyAttributesConfig;
+
+    // NOTE(calebmer): It may be useful to add computed index attributes in the
+    // future. Where instead of relying on an attribute to exist in all item types
+    // you provide a function to compute the attribute from item types. In fact I
+    // thought I'd need this when implementing notifications so I built it out!
+    // Then I settled on a different schema design for notifications and removed
+    // computed attributes. My computed attributes implementation had a couple
+    // caveats so needed to be used carefully. If we want to add this feature back
+    // here is the commit where I removed it:
+    //
+    // https://github.com/cyberworlds/cyberworlds/commit/66f569c9b7aa8757a83d646d38f182b504bb476d
 };
 
 /**
