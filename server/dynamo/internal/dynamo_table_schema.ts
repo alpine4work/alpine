@@ -16,7 +16,6 @@ import {dynamoGeneratedSchemaDescription} from "~/server/dynamo/internal/dynamo_
 import {
     DynamoKeyAttribute,
     DynamoKeyAttributeSchema,
-    DynamoKeyAttributeSchemaType,
     dynamoKeySeparator,
 } from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {dynamoReservedWords} from "~/server/dynamo/internal/dynamo_reserved_words";
@@ -106,7 +105,6 @@ type DynamoTableSchemaIndexInternalConfig = {
     readonly name: string;
     readonly partitionKeyAttributes: DynamoTableSchemaTypes.KeyAttributes.ConfigBase;
     readonly sortKeyAttributes: DynamoTableSchemaTypes.KeyAttributes.ConfigBase;
-    readonly computedKeyAttributes: ReadonlyMap<string, (item: unknown) => unknown>;
     readonly projection: "KeysOnly" | "All";
 };
 
@@ -2026,10 +2024,6 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         // then we need to update the associated index attribute (e.g.
         // `indexNPartitionKey` or `indexNSortKey`). It's definitely possible to
         // implement this but we aren't for now to keep things simple.
-        //
-        // For computed indexed attributes, any attribute could be used when computing
-        // the index key! So disallow calling this method entirely when you have
-        // computed indexed attributes.
         const indexConfigs = this._initializationState.indexConfigsByItemType.get(
             `${key.partitionType}#${key.sortRangeType}`,
         );
@@ -2042,10 +2036,6 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 assert(
                     indexConfig.sortKeyAttributes[attribute] === undefined,
                     "Can not directly update an indexed attribute",
-                );
-                assert(
-                    indexConfig.computedKeyAttributes.size === 0,
-                    "Can not directly update an attribute when using computed index attributes",
                 );
             }
         }
@@ -2352,11 +2342,6 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      *   lexicographic serializations of many data types which is important for
      *   indexing.
      *
-     * - Index attributes may be computed from an item. Be careful when using this
-     *   feature! Make sure your functions to compute attributes are pure and
-     *   produce the same value for the same item across many deploys over time.
-     *   They run whenever we serialize the item to the database.
-     *
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/GSI.html
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-gsi-overloading.html
      */
@@ -2617,7 +2602,6 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         itemTypes,
         partitionKeyAttributes,
         sortKeyAttributes,
-        dangerousComputedKeyAttributes = {} as any,
         projection,
     }: DynamoTableSchemaIndexConfig<
         Types,
@@ -2655,8 +2639,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 assert(
                     hasOwnProperty(partitionConfig.partitionKeyAttributes, attributeKey) ||
                         hasOwnProperty(sortRangeConfig.sortKeyAttributes, attributeKey) ||
-                        sortRangeConfig.attributes.propertySchemaByKey.has(attributeKey) ||
-                        hasOwnProperty(dangerousComputedKeyAttributes, attributeKey),
+                        sortRangeConfig.attributes.propertySchemaByKey.has(attributeKey),
                     quote`Attribute ${attributeKey} does not exist in sort range ${sortRangeType} of partition ${partitionType}`,
                 );
             }
@@ -2665,8 +2648,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 assert(
                     hasOwnProperty(partitionConfig.partitionKeyAttributes, attributeKey) ||
                         hasOwnProperty(sortRangeConfig.sortKeyAttributes, attributeKey) ||
-                        sortRangeConfig.attributes.propertySchemaByKey.has(attributeKey) ||
-                        hasOwnProperty(dangerousComputedKeyAttributes, attributeKey),
+                        sortRangeConfig.attributes.propertySchemaByKey.has(attributeKey),
                     quote`Attribute ${attributeKey} does not exist in sort range ${sortRangeType} of partition ${partitionType}`,
                 );
             }
@@ -2733,7 +2715,6 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             partitionKeyAttributes:
                 partitionKeyAttributes as DynamoTableSchemaTypes.KeyAttributes.ConfigBase,
             sortKeyAttributes: sortKeyAttributes as DynamoTableSchemaTypes.KeyAttributes.ConfigBase,
-            computedKeyAttributes: new Map(Object.entries(dangerousComputedKeyAttributes)),
             projection,
         };
 
@@ -2821,38 +2802,6 @@ type DynamoTableSchemaIndexConfig<
     itemTypes: ReadonlyArray<ItemTypes>;
     partitionKeyAttributes: PartitionKeyAttributesConfig;
     sortKeyAttributes: SortKeyAttributesConfig;
-
-    /**
-     * If you'd like to compute an index key attribute from items instead of using
-     * a property shared across all item types then you may use this config option.
-     *
-     * However, you need to be careful! Compute functions should produce the exact
-     * same value for a given item any time it is called. This means:
-     *
-     * - Compute functions should be pure. It should not read from outside mutable
-     *   sources (like `new Date()`).
-     * - Compute functions should not change across deploys. We don't change
-     *   computed indexed attributes after a deploy and assume they're all
-     *   still valid.
-     *
-     * If your compute function does not return the same value for an item every
-     * time it is called over long periods of time then you'll have undefined
-     * behavior. We guarantee nothing about what happens next.
-     *
-     * Since you need to be careful when using this feature to avoid undefined
-     * behavior, we label it as dangerous.
-     */
-    dangerousComputedKeyAttributes?: MergeObjectIntersection<
-        {
-            [Key in keyof PartitionKeyAttributesConfig]?: (
-                item: MergeObjectIntersection<Types["Item"] & ItemTypes>,
-            ) => DynamoKeyAttributeSchemaType<NonNullable<PartitionKeyAttributesConfig[Key]>>;
-        } & {
-            [Key in keyof SortKeyAttributesConfig]?: (
-                item: MergeObjectIntersection<Types["Item"] & ItemTypes>,
-            ) => DynamoKeyAttributeSchemaType<NonNullable<SortKeyAttributesConfig[Key]>>;
-        }
-    >;
 };
 
 /**
@@ -2883,8 +2832,7 @@ function serializeDynamoTableSchemaIndexPartitionKey(
     for (const [attributeKey, attributeSchema] of Object.entries(
         indexConfig.partitionKeyAttributes,
     )) {
-        const compute = indexConfig.computedKeyAttributes.get(attributeKey);
-        const attributeValue = compute !== undefined ? compute(item) : item[attributeKey];
+        const attributeValue = item[attributeKey];
         indexPartitionKeyEntries.push(attributeSchema.serialize(attributeValue));
     }
 
@@ -2897,8 +2845,7 @@ function serializeDynamoTableSchemaIndexSortKey(
 ) {
     const itemSortKeyEntries = [];
     for (const [attributeKey, attributeSchema] of Object.entries(indexConfig.sortKeyAttributes)) {
-        const compute = indexConfig.computedKeyAttributes.get(attributeKey);
-        const attributeValue = compute !== undefined ? compute(item) : item[attributeKey];
+        const attributeValue = item[attributeKey];
         itemSortKeyEntries.push(attributeSchema.serialize(attributeValue));
     }
 
