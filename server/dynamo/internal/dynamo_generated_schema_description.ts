@@ -923,6 +923,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
             },
             "indexes": [
                 {
+                    "projection": "KeysOnly",
                     "overloadByName": {
                         "AccountChats": {
                             "itemTypes": [
@@ -2953,6 +2954,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
             },
             "indexes": [
                 {
+                    "projection": "KeysOnly",
                     "overloadByName": {
                         "ChannelPosts": {
                             "itemTypes": [

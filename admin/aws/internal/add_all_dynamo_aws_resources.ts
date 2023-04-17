@@ -36,12 +36,15 @@ export async function addAllDynamoAwsResources(scope: Construct) {
             billingMode: cdk.aws_dynamodb.BillingMode.PAY_PER_REQUEST,
         });
 
-        for (const [i] of tableDescription.indexes.entries()) {
+        for (const [i, indexDescription] of tableDescription.indexes.entries()) {
             const indexNumber = i + 1;
 
             table.addGlobalSecondaryIndex({
                 indexName: `Index${indexNumber}`,
-                projectionType: cdk.aws_dynamodb.ProjectionType.KEYS_ONLY,
+                projectionType: {
+                    KeysOnly: cdk.aws_dynamodb.ProjectionType.KEYS_ONLY,
+                    All: cdk.aws_dynamodb.ProjectionType.ALL,
+                }[indexDescription.projection],
                 partitionKey: {
                     name: `index${indexNumber}PartitionKey`,
                     type: cdk.aws_dynamodb.AttributeType.STRING,

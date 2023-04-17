@@ -16,6 +16,7 @@ import {dynamoGeneratedSchemaDescription} from "~/server/dynamo/internal/dynamo_
 import {
     DynamoKeyAttribute,
     DynamoKeyAttributeSchema,
+    DynamoKeyAttributeSchemaType,
     dynamoKeySeparator,
 } from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {dynamoReservedWords} from "~/server/dynamo/internal/dynamo_reserved_words";
@@ -100,6 +101,15 @@ const DynamoTableItemSharedExpirationTimeAttributeSchema = Schema.integer.transf
     deserialize: time => new Date(time * 1000),
 });
 
+type DynamoTableSchemaIndexInternalConfig = {
+    readonly indexNumber: number;
+    readonly name: string;
+    readonly partitionKeyAttributes: DynamoTableSchemaTypes.KeyAttributes.ConfigBase;
+    readonly sortKeyAttributes: DynamoTableSchemaTypes.KeyAttributes.ConfigBase;
+    readonly computedKeyAttributes: ReadonlyMap<string, (item: unknown) => unknown>;
+    readonly projection: "KeysOnly" | "All";
+};
+
 type DynamoTableSchemaInitializationState =
     | {
           readonly isInitialized: false;
@@ -108,7 +118,8 @@ type DynamoTableSchemaInitializationState =
            * Indexes may be added before initialization.
            */
           readonly indexDescriptions: Array<{
-              overloadByName: {
+              readonly projection: "KeysOnly" | "All";
+              readonly overloadByName: {
                   [name: string]: DynamoTableSchemaTypes.Index.OverloadDescription;
               };
           }>;
@@ -119,15 +130,7 @@ type DynamoTableSchemaInitializationState =
            *
            * Mutable before initialization.
            */
-          readonly indexConfigsByItemType: Map<
-              string,
-              Array<{
-                  readonly indexNumber: number;
-                  readonly name: string;
-                  readonly partitionKeyAttributes: DynamoTableSchemaTypes.KeyAttributes.ConfigBase;
-                  readonly sortKeyAttributes: DynamoTableSchemaTypes.KeyAttributes.ConfigBase;
-              }>
-          >;
+          readonly indexConfigsByItemType: Map<string, Array<DynamoTableSchemaIndexInternalConfig>>;
       }
     | {
           readonly isInitialized: true;
@@ -140,12 +143,7 @@ type DynamoTableSchemaInitializationState =
            */
           readonly indexConfigsByItemType: ReadonlyMap<
               string,
-              ReadonlyArray<{
-                  readonly indexNumber: number;
-                  readonly name: string;
-                  readonly partitionKeyAttributes: DynamoTableSchemaTypes.KeyAttributes.ConfigBase;
-                  readonly sortKeyAttributes: DynamoTableSchemaTypes.KeyAttributes.ConfigBase;
-              }>
+              ReadonlyArray<DynamoTableSchemaIndexInternalConfig>
           >;
 
           /**
@@ -182,6 +180,14 @@ type DynamoTableSchemaInitializationState =
           readonly writeCompatibilityError: Error | null;
       };
 
+type DynamoTableSchemaTypesBase = Replace<
+    DynamoTableSchemaTypes.Types<DynamoTableSchemaTypes.ConfigBase>,
+    // This types give TypeScript trouble when dealing with generics (try removing,
+    // the `new()` function should have errors). So any them out to not deal with
+    // it since we know it's safe.
+    {SortKeyMap: any; QueryKeyMap: any}
+>;
+
 /**
  * Abstraction over DynamoDB tables for defining the type of data that resides
  * within. Features of this abstraction:
@@ -200,15 +206,7 @@ type DynamoTableSchemaInitializationState =
  *   possible.
  * - Queries use async iterators to transparently paginate.
  */
-export class DynamoTableSchema<
-    Types extends Replace<
-        DynamoTableSchemaTypes.Types<DynamoTableSchemaTypes.ConfigBase>,
-        // This types give TypeScript trouble when dealing with generics (try removing,
-        // the `new()` function should have errors). So any them out to not deal with
-        // it since we know it's safe.
-        {SortKeyMap: any; QueryKeyMap: any}
-    >,
-> {
+export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     private readonly _name: string;
 
     /**
@@ -600,7 +598,10 @@ export class DynamoTableSchema<
                                           },
                                       ],
                                       Projection: {
-                                          ProjectionType: "KEYS_ONLY",
+                                          ProjectionType: {
+                                              KeysOnly: "KEYS_ONLY",
+                                              All: "ALL",
+                                          }[indexDescription.projection],
                                       },
                                   };
                               },
@@ -2025,6 +2026,10 @@ export class DynamoTableSchema<
         // then we need to update the associated index attribute (e.g.
         // `indexNPartitionKey` or `indexNSortKey`). It's definitely possible to
         // implement this but we aren't for now to keep things simple.
+        //
+        // For computed indexed attributes, any attribute could be used when computing
+        // the index key! So disallow calling this method entirely when you have
+        // computed indexed attributes.
         const indexConfigs = this._initializationState.indexConfigsByItemType.get(
             `${key.partitionType}#${key.sortRangeType}`,
         );
@@ -2037,6 +2042,10 @@ export class DynamoTableSchema<
                 assert(
                     indexConfig.sortKeyAttributes[attribute] === undefined,
                     "Can not directly update an indexed attribute",
+                );
+                assert(
+                    indexConfig.computedKeyAttributes.size === 0,
+                    "Can not directly update an attribute when using computed index attributes",
                 );
             }
         }
@@ -2331,162 +2340,52 @@ export class DynamoTableSchema<
      *   indexes but we put them in the same physical index to save on cost. Two
      *   indexes on the same item type will be in two different physical indexes.
      *
-     * - Currently we only support `KEYS_ONLY` index attribute projections for
-     *   cost. An `ALL` attribute projection would replicate the items entirely
-     *   doubling write costs. An `INCLUDE` attribute projection means we couldn't
-     *   overload multiple logical indexes onto one physical index. We may add
-     *   other options for attribute projections in the future.
+     * - This method only supports `KEYS_ONLY` index attribute projections. You may
+     *   use `addExpensiveFullIndex()` if you want an `ALL` attribute projection.
+     *   Be careful since an `ALL` attribute projection doubles storage costs for
+     *   items in the index! We don't support an `INCLUDE` attribute projection for
+     *   now because it means we couldn't overload multiple logical indexes onto
+     *   one physical index.
      *
      * - You can index any property on an item as long as it can be serialized with
      *   a `DynamoKeyAttributeSchema`. Since `DynamoKeyAttributeSchema` supports
      *   lexicographic serializations of many data types which is important for
      *   indexing.
      *
+     * - Index attributes may be computed from an item. Be careful when using this
+     *   feature! Make sure your functions to compute attributes are pure and
+     *   produce the same value for the same item across many deploys over time.
+     *   They run whenever we serialize the item to the database.
+     *
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/GSI.html
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-gsi-overloading.html
      */
     public addIndex<
         ItemTypes extends Types["ItemType"],
-        PartitionKeyAttributes extends {
-            [K in keyof (Types["Item"] & ItemTypes)]?: DynamoKeyAttributeSchema<
-                (Types["Item"] & ItemTypes)[K]
-            >;
-        },
-        SortKeyAttributes extends {
-            [K in keyof (Types["Item"] & ItemTypes)]?: DynamoKeyAttributeSchema<
-                (Types["Item"] & ItemTypes)[K]
-            >;
-        },
-    >({
-        name,
-        itemTypes,
-        partitionKeyAttributes,
-        sortKeyAttributes,
-    }: {
-        name: string;
-        itemTypes: ReadonlyArray<ItemTypes>;
-        partitionKeyAttributes: PartitionKeyAttributes;
-        sortKeyAttributes: SortKeyAttributes;
-    }): DynamoTableSchemaIndex<
+        PartitionKeyAttributesConfig extends DynamoTableSchemaIndexKeyAttributesConfigBase<
+            Types,
+            ItemTypes
+        >,
+        SortKeyAttributesConfig extends DynamoTableSchemaIndexKeyAttributesConfigBase<
+            Types,
+            ItemTypes
+        >,
+    >(
+        config: DynamoTableSchemaIndexConfig<
+            Types,
+            ItemTypes,
+            PartitionKeyAttributesConfig,
+            SortKeyAttributesConfig
+        >,
+    ): DynamoTableSchemaIndex<
         Types["ItemKey"] & ItemTypes,
-        DynamoTableSchemaTypes.KeyAttributes.Type<{
-            [K in keyof PartitionKeyAttributes]: NonNullable<PartitionKeyAttributes[K]>;
-        }>,
-        DynamoTableSchemaTypes.KeyAttributes.Type<{
-            [K in keyof SortKeyAttributes]: NonNullable<SortKeyAttributes[K]>;
-        }>
+        DynamoTableSchemaIndexKeyAttributesType<PartitionKeyAttributesConfig>,
+        DynamoTableSchemaIndexKeyAttributesType<SortKeyAttributesConfig>
     > {
-        assert(
-            !this._initializationState.isInitialized,
-            "Can not add indexes after schema has finished initializing",
-        );
-
-        for (const indexDescription of this._initializationState.indexDescriptions) {
-            for (const indexOverloadName of Object.keys(indexDescription.overloadByName)) {
-                assert(name !== indexOverloadName, "Index names must be unique within a table");
-            }
-        }
-
-        const itemTypeSet = new Set<string>();
-
-        for (const {partitionType, sortRangeType} of itemTypes) {
-            const partitionConfig = this._partitionConfigByName.get(partitionType);
-            assert(partitionConfig, "Invalid partition");
-            const sortRangeConfig = partitionConfig.sortRangeByName.get(sortRangeType);
-            assert(sortRangeConfig, "Invalid sort range");
-
-            const itemType = `${partitionType}#${sortRangeType}`;
-
-            assert(!itemTypeSet.has(itemType), "Item types must be unique");
-            itemTypeSet.add(itemType);
-
-            for (const attributeKey of Object.keys(partitionKeyAttributes)) {
-                assert(
-                    hasOwnProperty(partitionConfig.partitionKeyAttributes, attributeKey) ||
-                        hasOwnProperty(sortRangeConfig.sortKeyAttributes, attributeKey) ||
-                        sortRangeConfig.attributes.propertySchemaByKey.has(attributeKey),
-                    quote`Attribute ${attributeKey} does not exist in sort range ${sortRangeType} of partition ${partitionType}`,
-                );
-            }
-
-            for (const attributeKey of Object.keys(sortKeyAttributes)) {
-                assert(
-                    hasOwnProperty(partitionConfig.partitionKeyAttributes, attributeKey) ||
-                        hasOwnProperty(sortRangeConfig.sortKeyAttributes, attributeKey) ||
-                        sortRangeConfig.attributes.propertySchemaByKey.has(attributeKey),
-                    quote`Attribute ${attributeKey} does not exist in sort range ${sortRangeType} of partition ${partitionType}`,
-                );
-            }
-        }
-
-        const indexOverloadDescription: DynamoTableSchemaTypes.Index.OverloadDescription = {
-            itemTypes,
-            partitionKeyAttributeByKey: mapObjectValues(
-                partitionKeyAttributes,
-                keyAttribute => keyAttribute!.description,
-            ),
-            sortKeyAttributeByKey: mapObjectValues(
-                sortKeyAttributes,
-                keyAttribute => keyAttribute!.description,
-            ),
-        };
-
-        let addedToIndexNumber: number | null = null;
-
-        // We can add our logical index to an existing physical index if the physical
-        // index doesn't have an overload which conflicts with the item types in
-        // this index.
-        for (const [
-            i,
-            targetIndexDescription,
-        ] of this._initializationState.indexDescriptions.entries()) {
-            const targetIndexNumber = i + 1;
-            const targetItemTypeSet = new Set<string>();
-
-            for (const targetIndexOverloadDescription of Object.values(
-                targetIndexDescription.overloadByName,
-            )) {
-                for (const {
-                    partitionType,
-                    sortRangeType,
-                } of targetIndexOverloadDescription.itemTypes) {
-                    targetItemTypeSet.add(`${partitionType}#${sortRangeType}`);
-                }
-            }
-
-            if (iterableEvery(itemTypeSet, itemType => !targetItemTypeSet.has(itemType))) {
-                targetIndexDescription.overloadByName[name] = indexOverloadDescription;
-                addedToIndexNumber = targetIndexNumber;
-                break;
-            }
-        }
-
-        // Create a new physical index if we couldn't overload an existing
-        // physical index.
-        if (addedToIndexNumber === null) {
-            addedToIndexNumber = this._initializationState.indexDescriptions.length + 1;
-            this._initializationState.indexDescriptions.push({
-                overloadByName: {[name]: indexOverloadDescription},
-            });
-        }
-
-        const indexConfig = {
-            indexNumber: addedToIndexNumber,
-            name,
-            partitionKeyAttributes:
-                partitionKeyAttributes as DynamoTableSchemaTypes.KeyAttributes.ConfigBase,
-            sortKeyAttributes: sortKeyAttributes as DynamoTableSchemaTypes.KeyAttributes.ConfigBase,
-        };
-
-        // Store the attributes for the item types in this index so we can easily
-        // serialize those items in the future.
-        for (const itemType of itemTypeSet) {
-            getOrSetDefaultMapValue(
-                this._initializationState.indexConfigsByItemType,
-                itemType,
-                () => [],
-            ).push(indexConfig);
-        }
+        const indexConfig = this._defineIndex({
+            ...config,
+            projection: "KeysOnly",
+        });
 
         const schema = this;
 
@@ -2570,6 +2469,286 @@ export class DynamoTableSchema<
             },
         };
     }
+
+    /**
+     * Adds an index to the table that projects the entire item into the index
+     * instead of just the item's keys. This is labeled as expensive than
+     * `addIndex()` since it doubles the storage cost of items in the index! Only
+     * use when you're absolutely sure it makes sense for your workload.
+     *
+     * See `addIndex()` for more documentation on this function.
+     */
+    public addExpensiveFullIndex<
+        ItemTypes extends Types["ItemType"],
+        PartitionKeyAttributesConfig extends DynamoTableSchemaIndexKeyAttributesConfigBase<
+            Types,
+            ItemTypes
+        >,
+        SortKeyAttributesConfig extends DynamoTableSchemaIndexKeyAttributesConfigBase<
+            Types,
+            ItemTypes
+        >,
+    >(
+        config: DynamoTableSchemaIndexConfig<
+            Types,
+            ItemTypes,
+            PartitionKeyAttributesConfig,
+            SortKeyAttributesConfig
+        >,
+    ): DynamoTableSchemaIndex<
+        Types["Item"] & ItemTypes,
+        DynamoTableSchemaIndexKeyAttributesType<PartitionKeyAttributesConfig>,
+        DynamoTableSchemaIndexKeyAttributesType<SortKeyAttributesConfig>
+    > {
+        const indexConfig = this._defineIndex({
+            ...config,
+            projection: "All",
+        });
+
+        const schema = this;
+
+        return {
+            async *query(
+                context,
+                {
+                    partitionKey,
+                    startSortKey,
+                    endSortKey,
+                    isStartSortKeyExclusive,
+                    isEndSortKeyExclusive,
+                    limit,
+                    descending,
+                },
+            ) {
+                // Error if trying to a query an index with strong consistency. You must design
+                // your code assuming eventually consistent reads when querying an index.
+                if (context.dynamo.defaultReadConsistency !== "Eventual")
+                    throw new InternalError(
+                        "Dynamo only supports eventually consistent queries on indexes",
+                    );
+
+                const client = await schema._getClient(context, false);
+                const serializedPartitionKey = serializeDynamoTableSchemaIndexPartitionKey(
+                    indexConfig,
+                    partitionKey,
+                );
+                const serializedStartSortKey = startSortKey
+                    ? serializeDynamoTableSchemaIndexSortKey(indexConfig, startSortKey)
+                    : undefined;
+                const serializedEndSortKey = endSortKey
+                    ? serializeDynamoTableSchemaIndexSortKey(indexConfig, endSortKey)
+                    : undefined;
+
+                const partitionKeyAttributeName = `index${indexConfig.indexNumber}PartitionKey`;
+                const sortKeyAttributeName = `index${indexConfig.indexNumber}SortKey`;
+
+                const iterator = client.query(context.tracer.getTracer(), {
+                    tableName: schema._name,
+                    indexName: `Index${indexConfig.indexNumber}`,
+                    partitionKey: {
+                        name: partitionKeyAttributeName,
+                        value: serializedPartitionKey,
+                    },
+                    sortKey: {
+                        name: sortKeyAttributeName,
+                        startValue: serializedStartSortKey,
+                        endValue: serializedEndSortKey,
+                        isStartExclusive: isStartSortKeyExclusive,
+                        isEndExclusive: isEndSortKeyExclusive,
+                    },
+                    consistency: "Eventual",
+                    limit: limit !== "All" ? limit : undefined,
+                    descending,
+                });
+
+                for await (const serializedItem of iterator) {
+                    assert(typeof serializedItem.partitionKey === "string");
+                    assert(typeof serializedItem.sortKey === "string");
+
+                    const indexPartitionKey = serializedItem[partitionKeyAttributeName];
+                    const indexSortKey = serializedItem[sortKeyAttributeName];
+                    assert(typeof indexPartitionKey === "string");
+                    assert(typeof indexSortKey === "string");
+
+                    const {key, attributesSchema} = schema._deserializeItemKey(
+                        serializedItem.partitionKey,
+                        serializedItem.sortKey,
+                    );
+
+                    const item: any = key;
+                    try {
+                        attributesSchema.deserializeInto(serializedItem, item);
+                    } catch (error) {
+                        // Reclassify deserialization errors from data stored in the database as data
+                        // loss errors. It means we have corrupt data stored in the database!
+                        if (error instanceof SchemaDeserializationError) {
+                            throw new DataLossError(error.message, {cause: error});
+                        }
+                        throw error;
+                    }
+
+                    Object.assign(
+                        item,
+                        deserializeDynamoTableSchemaIndexKey(
+                            indexConfig,
+                            indexPartitionKey,
+                            indexSortKey,
+                        ),
+                    );
+
+                    yield item;
+                }
+            },
+        };
+    }
+
+    private _defineIndex<
+        ItemTypes extends Types["ItemType"],
+        PartitionKeyAttributesConfig extends DynamoTableSchemaIndexKeyAttributesConfigBase<
+            Types,
+            ItemTypes
+        >,
+        SortKeyAttributesConfig extends DynamoTableSchemaIndexKeyAttributesConfigBase<
+            Types,
+            ItemTypes
+        >,
+    >({
+        name,
+        itemTypes,
+        partitionKeyAttributes,
+        sortKeyAttributes,
+        dangerousComputedKeyAttributes = {} as any,
+        projection,
+    }: DynamoTableSchemaIndexConfig<
+        Types,
+        ItemTypes,
+        PartitionKeyAttributesConfig,
+        SortKeyAttributesConfig
+    > & {
+        projection: "KeysOnly" | "All";
+    }): DynamoTableSchemaIndexInternalConfig {
+        assert(
+            !this._initializationState.isInitialized,
+            "Can not add indexes after schema has finished initializing",
+        );
+
+        for (const indexDescription of this._initializationState.indexDescriptions) {
+            for (const indexOverloadName of Object.keys(indexDescription.overloadByName)) {
+                assert(name !== indexOverloadName, "Index names must be unique within a table");
+            }
+        }
+
+        const itemTypeSet = new Set<string>();
+
+        for (const {partitionType, sortRangeType} of itemTypes) {
+            const partitionConfig = this._partitionConfigByName.get(partitionType);
+            assert(partitionConfig, "Invalid partition");
+            const sortRangeConfig = partitionConfig.sortRangeByName.get(sortRangeType);
+            assert(sortRangeConfig, "Invalid sort range");
+
+            const itemType = `${partitionType}#${sortRangeType}`;
+
+            assert(!itemTypeSet.has(itemType), "Item types must be unique");
+            itemTypeSet.add(itemType);
+
+            for (const attributeKey of Object.keys(partitionKeyAttributes)) {
+                assert(
+                    hasOwnProperty(partitionConfig.partitionKeyAttributes, attributeKey) ||
+                        hasOwnProperty(sortRangeConfig.sortKeyAttributes, attributeKey) ||
+                        sortRangeConfig.attributes.propertySchemaByKey.has(attributeKey) ||
+                        hasOwnProperty(dangerousComputedKeyAttributes, attributeKey),
+                    quote`Attribute ${attributeKey} does not exist in sort range ${sortRangeType} of partition ${partitionType}`,
+                );
+            }
+
+            for (const attributeKey of Object.keys(sortKeyAttributes)) {
+                assert(
+                    hasOwnProperty(partitionConfig.partitionKeyAttributes, attributeKey) ||
+                        hasOwnProperty(sortRangeConfig.sortKeyAttributes, attributeKey) ||
+                        sortRangeConfig.attributes.propertySchemaByKey.has(attributeKey) ||
+                        hasOwnProperty(dangerousComputedKeyAttributes, attributeKey),
+                    quote`Attribute ${attributeKey} does not exist in sort range ${sortRangeType} of partition ${partitionType}`,
+                );
+            }
+        }
+
+        const indexOverloadDescription: DynamoTableSchemaTypes.Index.OverloadDescription = {
+            itemTypes,
+            partitionKeyAttributeByKey: mapObjectValues(
+                partitionKeyAttributes,
+                keyAttribute => keyAttribute!.description,
+            ),
+            sortKeyAttributeByKey: mapObjectValues(
+                sortKeyAttributes,
+                keyAttribute => keyAttribute!.description,
+            ),
+        };
+
+        let addedToIndexNumber: number | null = null;
+
+        // We can add our logical index to an existing physical index if the physical
+        // index doesn't have an overload which conflicts with the item types in
+        // this index.
+        for (const [
+            i,
+            targetIndexDescription,
+        ] of this._initializationState.indexDescriptions.entries()) {
+            const targetIndexNumber = i + 1;
+            const targetItemTypeSet = new Set<string>();
+
+            // Can't reuse a physical index with a different projection.
+            if (targetIndexDescription.projection !== projection) continue;
+
+            for (const targetIndexOverloadDescription of Object.values(
+                targetIndexDescription.overloadByName,
+            )) {
+                for (const {
+                    partitionType,
+                    sortRangeType,
+                } of targetIndexOverloadDescription.itemTypes) {
+                    targetItemTypeSet.add(`${partitionType}#${sortRangeType}`);
+                }
+            }
+
+            if (iterableEvery(itemTypeSet, itemType => !targetItemTypeSet.has(itemType))) {
+                targetIndexDescription.overloadByName[name] = indexOverloadDescription;
+                addedToIndexNumber = targetIndexNumber;
+                break;
+            }
+        }
+
+        // Create a new physical index if we couldn't overload an existing
+        // physical index.
+        if (addedToIndexNumber === null) {
+            addedToIndexNumber = this._initializationState.indexDescriptions.length + 1;
+            this._initializationState.indexDescriptions.push({
+                projection,
+                overloadByName: {[name]: indexOverloadDescription},
+            });
+        }
+
+        const indexConfig: DynamoTableSchemaIndexInternalConfig = {
+            indexNumber: addedToIndexNumber,
+            name,
+            partitionKeyAttributes:
+                partitionKeyAttributes as DynamoTableSchemaTypes.KeyAttributes.ConfigBase,
+            sortKeyAttributes: sortKeyAttributes as DynamoTableSchemaTypes.KeyAttributes.ConfigBase,
+            computedKeyAttributes: new Map(Object.entries(dangerousComputedKeyAttributes)),
+            projection,
+        };
+
+        // Store the attributes for the item types in this index so we can easily
+        // serialize those items in the future.
+        for (const itemType of itemTypeSet) {
+            getOrSetDefaultMapValue(
+                this._initializationState.indexConfigsByItemType,
+                itemType,
+                () => [],
+            ).push(indexConfig);
+        }
+
+        return indexConfig;
+    }
 }
 
 const allConstructedDynamoTableSchemas = new Map<
@@ -2614,10 +2793,72 @@ export function finishInitializingAllDynamoTableSchemas() {
     for (const callback of callbacks) callback();
 }
 
+type DynamoTableSchemaIndexKeyAttributesConfigBase<
+    Types extends DynamoTableSchemaTypesBase,
+    ItemTypes extends Types["ItemType"],
+> = {
+    [K in keyof (Types["Item"] & ItemTypes)]?: DynamoKeyAttributeSchema<
+        (Types["Item"] & ItemTypes)[K]
+    >;
+};
+
+type DynamoTableSchemaIndexKeyAttributesType<
+    KeyAttributesConfig extends DynamoTableSchemaIndexKeyAttributesConfigBase<any, any>,
+> = DynamoTableSchemaTypes.KeyAttributes.Type<{
+    [K in keyof KeyAttributesConfig]: NonNullable<KeyAttributesConfig[K]>;
+}>;
+
+type DynamoTableSchemaIndexConfig<
+    Types extends DynamoTableSchemaTypesBase,
+    ItemTypes extends Types["ItemType"],
+    PartitionKeyAttributesConfig extends DynamoTableSchemaIndexKeyAttributesConfigBase<
+        Types,
+        ItemTypes
+    >,
+    SortKeyAttributesConfig extends DynamoTableSchemaIndexKeyAttributesConfigBase<Types, ItemTypes>,
+> = {
+    name: string;
+    itemTypes: ReadonlyArray<ItemTypes>;
+    partitionKeyAttributes: PartitionKeyAttributesConfig;
+    sortKeyAttributes: SortKeyAttributesConfig;
+
+    /**
+     * If you'd like to compute an index key attribute from items instead of using
+     * a property shared across all item types then you may use this config option.
+     *
+     * However, you need to be careful! Compute functions should produce the exact
+     * same value for a given item any time it is called. This means:
+     *
+     * - Compute functions should be pure. It should not read from outside mutable
+     *   sources (like `new Date()`).
+     * - Compute functions should not change across deploys. We don't change
+     *   computed indexed attributes after a deploy and assume they're all
+     *   still valid.
+     *
+     * If your compute function does not return the same value for an item every
+     * time it is called over long periods of time then you'll have undefined
+     * behavior. We guarantee nothing about what happens next.
+     *
+     * Since you need to be careful when using this feature to avoid undefined
+     * behavior, we label it as dangerous.
+     */
+    dangerousComputedKeyAttributes?: MergeObjectIntersection<
+        {
+            [Key in keyof PartitionKeyAttributesConfig]?: (
+                item: MergeObjectIntersection<Types["Item"] & ItemTypes>,
+            ) => DynamoKeyAttributeSchemaType<NonNullable<PartitionKeyAttributesConfig[Key]>>;
+        } & {
+            [Key in keyof SortKeyAttributesConfig]?: (
+                item: MergeObjectIntersection<Types["Item"] & ItemTypes>,
+            ) => DynamoKeyAttributeSchemaType<NonNullable<SortKeyAttributesConfig[Key]>>;
+        }
+    >;
+};
+
 /**
  * The type to use for accessing an index on our DynamoDB table.
  */
-export interface DynamoTableSchemaIndex<ItemKey, IndexPartitionKey, IndexSortKey> {
+export interface DynamoTableSchemaIndex<QueryItem, IndexPartitionKey, IndexSortKey> {
     query(
         context: DynamoContext,
         options: {
@@ -2631,22 +2872,19 @@ export interface DynamoTableSchemaIndex<ItemKey, IndexPartitionKey, IndexSortKey
             limit: number | "All";
             descending?: boolean;
         },
-    ): AsyncIterableIterator<MergeObjectIntersection<ItemKey & IndexPartitionKey & IndexSortKey>>;
+    ): AsyncIterableIterator<MergeObjectIntersection<QueryItem & IndexPartitionKey & IndexSortKey>>;
 }
 
 function serializeDynamoTableSchemaIndexPartitionKey(
-    indexConfig: {
-        name: string;
-        partitionKeyAttributes: DynamoTableSchemaTypes.KeyAttributes.ConfigBase;
-        sortKeyAttributes: DynamoTableSchemaTypes.KeyAttributes.ConfigBase;
-    },
+    indexConfig: DynamoTableSchemaIndexInternalConfig,
     item: {[key: string]: unknown},
 ) {
     const indexPartitionKeyEntries = [indexConfig.name];
     for (const [attributeKey, attributeSchema] of Object.entries(
         indexConfig.partitionKeyAttributes,
     )) {
-        const attributeValue = item[attributeKey];
+        const compute = indexConfig.computedKeyAttributes.get(attributeKey);
+        const attributeValue = compute !== undefined ? compute(item) : item[attributeKey];
         indexPartitionKeyEntries.push(attributeSchema.serialize(attributeValue));
     }
 
@@ -2654,16 +2892,13 @@ function serializeDynamoTableSchemaIndexPartitionKey(
 }
 
 function serializeDynamoTableSchemaIndexSortKey(
-    indexConfig: {
-        name: string;
-        partitionKeyAttributes: DynamoTableSchemaTypes.KeyAttributes.ConfigBase;
-        sortKeyAttributes: DynamoTableSchemaTypes.KeyAttributes.ConfigBase;
-    },
+    indexConfig: DynamoTableSchemaIndexInternalConfig,
     item: {[key: string]: unknown},
 ) {
     const itemSortKeyEntries = [];
     for (const [attributeKey, attributeSchema] of Object.entries(indexConfig.sortKeyAttributes)) {
-        const attributeValue = item[attributeKey];
+        const compute = indexConfig.computedKeyAttributes.get(attributeKey);
+        const attributeValue = compute !== undefined ? compute(item) : item[attributeKey];
         itemSortKeyEntries.push(attributeSchema.serialize(attributeValue));
     }
 
@@ -2671,11 +2906,7 @@ function serializeDynamoTableSchemaIndexSortKey(
 }
 
 function deserializeDynamoTableSchemaIndexKey(
-    indexConfig: {
-        name: string;
-        partitionKeyAttributes: DynamoTableSchemaTypes.KeyAttributes.ConfigBase;
-        sortKeyAttributes: DynamoTableSchemaTypes.KeyAttributes.ConfigBase;
-    },
+    indexConfig: DynamoTableSchemaIndexInternalConfig,
     partitionKey: string,
     sortKey: string,
 ) {
@@ -3001,6 +3232,12 @@ function checkDynamoTableSchemaIndexDescriptionBackwardsCompatibility(
     lastDescription: DynamoTableSchemaTypes.Index.Description,
     nextDescription: DynamoTableSchemaTypes.Index.Description,
 ): void {
+    if (lastDescription.projection !== nextDescription.projection) {
+        throw new InvalidArgumentError(
+            `Can't change index attribute projection from \`${lastDescription.projection}\` to \`${nextDescription.projection}\``,
+        );
+    }
+
     const missingOverloadNames = new Set(Object.keys(lastDescription.overloadByName));
 
     for (const [overloadName, nextOverloadDescription] of Object.entries(
@@ -3015,8 +3252,9 @@ function checkDynamoTableSchemaIndexDescriptionBackwardsCompatibility(
         }
     }
 
-    for (const overloadName of missingOverloadNames)
+    for (const overloadName of missingOverloadNames) {
         throw new InvalidArgumentError(`Index overload \`${overloadName}\` is missing`);
+    }
 }
 
 function checkDynamoTableSchemaIndexOverloadDescriptionBackwardsCompatibility(

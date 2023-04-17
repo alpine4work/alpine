@@ -471,6 +471,7 @@ export namespace DynamoTableSchemaTypes {
          * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-gsi-overloading.html
          */
         export type Description = {
+            readonly projection: "KeysOnly" | "All";
             readonly overloadByName: {
                 readonly [name: string]: OverloadDescription;
             };
