@@ -51,7 +51,6 @@ import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
 import {Replace} from "~/shared/helpers/types/replace";
-import {Cursor} from "~/shared/models/cursor";
 import {
     ObjectSchema,
     Schema,
@@ -2410,15 +2409,6 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             partitionKeyAttributes: config.partitionKeyAttributes as any,
             sortKeyAttributes: config.sortKeyAttributes as any,
 
-            compare: (itemKey1, itemKey2) => {
-                const indexSortKey1 = serializeDynamoTableSchemaIndexSortKey(indexConfig, itemKey1);
-                const indexSortKey2 = serializeDynamoTableSchemaIndexSortKey(indexConfig, itemKey2);
-                return defaultCompareStrings(indexSortKey1, indexSortKey2);
-            },
-
-            serializeCursor: itemKey => this._serializeIndexCursor(indexConfig, itemKey),
-            deserializeCursor: cursor => this._deserializeIndexCursor(indexConfig, cursor) as any,
-
             async *query(
                 context,
                 {
@@ -2563,15 +2553,6 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         return {
             partitionKeyAttributes: config.partitionKeyAttributes as any,
             sortKeyAttributes: config.sortKeyAttributes as any,
-
-            compare: (itemKey1, itemKey2) => {
-                const indexSortKey1 = serializeDynamoTableSchemaIndexSortKey(indexConfig, itemKey1);
-                const indexSortKey2 = serializeDynamoTableSchemaIndexSortKey(indexConfig, itemKey2);
-                return defaultCompareStrings(indexSortKey1, indexSortKey2);
-            },
-
-            serializeCursor: itemKey => this._serializeIndexCursor(indexConfig, itemKey),
-            deserializeCursor: cursor => this._deserializeIndexCursor(indexConfig, cursor) as any,
 
             async *query(
                 context,
@@ -2833,45 +2814,6 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
         return indexConfig;
     }
-
-    private _serializeIndexCursor(
-        indexConfig: DynamoTableSchemaIndexInternalConfig,
-        item: Types["ItemKey"],
-    ): Cursor {
-        const indexPartitionKey = serializeDynamoTableSchemaIndexPartitionKey(indexConfig, item);
-        const indexSortKey = serializeDynamoTableSchemaIndexSortKey(indexConfig, item);
-        const {partitionKey, sortKey} = this._serializeItemKey(item);
-
-        const keys = [indexPartitionKey, indexSortKey, partitionKey, sortKey];
-        return btoa(keys.join(dynamoIndexCursorKeySeparator)) as Cursor;
-    }
-
-    private _deserializeIndexCursor(
-        indexConfig: DynamoTableSchemaIndexInternalConfig,
-        cursor: Cursor,
-    ): Types["ItemKey"] {
-        const [indexPartitionKey, indexSortKey, partitionKey, sortKey] = atob(cursor).split(
-            dynamoIndexCursorKeySeparator,
-        );
-
-        if (!indexPartitionKey || !indexSortKey || !partitionKey || !sortKey)
-            throw new InvalidArgumentError("Invalid cursor for DynamoDB index");
-
-        try {
-            return {
-                ...this._deserializeItemKey(partitionKey, sortKey).key,
-                ...deserializeDynamoTableSchemaIndexKey(
-                    indexConfig,
-                    indexPartitionKey,
-                    indexSortKey,
-                ),
-            };
-        } catch (error) {
-            // Reclassify any deserialization errors as invalid argument errors since the
-            // cursor is incorrectly formatted.
-            throw InvalidArgumentError.from(error, "Invalid cursor for DynamoDB index");
-        }
-    }
 }
 
 const allConstructedDynamoTableSchemas = new Map<
@@ -2915,14 +2857,6 @@ export function finishInitializingAllDynamoTableSchemas() {
     dynamoTableSchemaInitializationCallbacks = null;
     for (const callback of callbacks) callback();
 }
-
-/**
- * Separator character for keys in a cursor. Should be a character that is not
- * present in the `DynamoKeyAttributeSchema` character range so there are
- * no conflicts.
- */
-const dynamoIndexCursorKeySeparator = " ";
-assert(dynamoIndexCursorKeySeparator.charCodeAt(0) < dynamoKeySeparator.charCodeAt(0));
 
 type DynamoTableSchemaIndexKeyAttributesConfigBase<
     Types extends DynamoTableSchemaTypesBase,
@@ -3002,59 +2936,6 @@ export interface DynamoTableSchemaIndex<QueryItem, ItemKey, IndexPartitionKey, I
             descending?: boolean;
         },
     ): AsyncIterableIterator<MergeObjectIntersection<QueryItem & IndexPartitionKey & IndexSortKey>>;
-
-    /**
-     * Compares two items against each other for use in a sorting function. If they
-     * are equal, returns 0.
-     *
-     * You need to be careful when you use this function. It's behavior may
-     * surprise you. Some notes on the implementation of this function:
-     *
-     * - The index partition keys is ignored. Partition keys are hashed and not
-     *   meant to be compared unlike sort keys. Try to only use this function with
-     *   two items in the same partition.
-     *
-     * - If the index sort key is equivalent, we return 0. Treating the two items
-     *   as equal. DynamoDB [doesn't specify how items with equal index sort keys
-     *   are ordered][1]. We return 0 so that if you are using this function with a
-     *   stable sort algorithm and are operating on data from DynamoDB then the
-     *   order from DynamoDB will be preserved. Quote from the docs on ordering:
-     *
-     *   > In a DynamoDB table, each key value must be unique. However, the key
-     *   > values in a global secondary index do not need to be unique.
-     *   >
-     *   > [...]
-     *   >
-     *   > Only the items with the specified key values appear in the response;
-     *   > within that set of data, the items are in no particular order.
-     *
-     * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/GSI.html
-     */
-    compare(
-        itemKey1: MergeObjectIntersection<ItemKey & IndexPartitionKey & IndexSortKey>,
-        itemKey2: MergeObjectIntersection<ItemKey & IndexPartitionKey & IndexSortKey>,
-    ): number;
-
-    /**
-     * Serialize an item key to a cursor string. Useful for encoding an item's
-     * place in the list so the client can continue from that position.
-     *
-     * This cursor string is an opaque base64 encoded string. Be careful sharing it
-     * with a client! All information in your table's primary key and index's key
-     * should be safe to send to the client since a client could trivially access
-     * this data from the cursor string.
-     */
-    serializeCursor(
-        itemKey: MergeObjectIntersection<ItemKey & IndexPartitionKey & IndexSortKey>,
-    ): Cursor;
-
-    /**
-     * Deserialize an item key from a cursor string. Throws an error if the cursor
-     * is improperly formatted.
-     */
-    deserializeCursor(
-        cursor: Cursor,
-    ): MergeObjectIntersection<ItemKey & IndexPartitionKey & IndexSortKey>;
 }
 
 function serializeDynamoTableSchemaIndexPartitionKey(

@@ -183,13 +183,6 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         connectionId: Schema.id(),
         messageType: Schema.string,
     },
-    notifications: {
-        event: IdentifierStringSchema,
-        inbox: {
-            spaceId: Schema.id(),
-            accountId: Schema.id(),
-        },
-    },
 };
 
 /**
