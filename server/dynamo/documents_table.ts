@@ -1,7 +1,7 @@
 import {differenceInMinutes} from "date-fns";
 import {Node} from "prosemirror-model";
 import {Mapping, Step} from "prosemirror-transform";
-import {getAccount} from "~/server/dynamo/accounts_table";
+import {getAccount, getAccountIfExists} from "~/server/dynamo/accounts_table";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
@@ -14,6 +14,7 @@ import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_co
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint";
 import {TestCounter} from "~/server/helpers/test/test_counter";
+import {ContentMention} from "~/shared/content/content_mention";
 import {
     DocumentContent,
     DocumentContentSchema,
@@ -36,6 +37,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable";
@@ -49,6 +51,7 @@ import {assertId, generateId} from "~/shared/id/id";
 import {
     AccountId,
     ContentEditorClientId,
+    ContentMentionAccountId,
     DocumentCommentThreadId,
     DocumentId,
     SpaceId,
@@ -65,6 +68,56 @@ import {MessagePayloadSchema} from "~/shared/models/message_model";
 import {ExhaustiveStep} from "~/shared/prosemirror/prosemirror_exhaustive_step";
 import {visitProsemirrorNode, visitProsemirrorStep} from "~/shared/prosemirror/prosemirror_visitor";
 import {Schema} from "~/shared/schema/schema";
+
+const DocumentCommentThreadAttributesSchema = Schema.object({
+    /** The time at which the thread was created. */
+    createdTime: Schema.date,
+
+    /**
+     * Information regarding the comment thread. Nested in an object so we can
+     * update it at once.
+     */
+    commentsSummary: Schema.object({
+        /**
+         * The index of the next comment.
+         */
+        nextCommentIndex: Schema.integer.min(0),
+
+        /**
+         * The last time a comment was changed. This should equal the `changeTime` of
+         * the highest item in `CommentChangeLog`.
+         */
+        lastChangeTime: Schema.date.nullable().default(null),
+
+        /**
+         * All the accounts which have commented in this thread and the number of comments
+         * they have made. The map is ordered by when the account first commented on
+         * the document comment thread.
+         *
+         * This map can grow unbounded. When a user deletes a comment it leaves a
+         * gravestone so comment counts should never be decremented.
+         */
+        commentCountByAuthorId: Schema.map(Schema.id<AccountId>(), Schema.integer.min(1)),
+
+        /**
+         * All the accounts which have been mentioned at some point in this document
+         * comment thread.
+         *
+         * Accounts that exist in the map with a mention count of zero have a
+         * special meaning:
+         *
+         * - If an account exists in the map they were mentioned at some point
+         * - If an account exists in the map with a mention count of zero then they
+         *   were mentioned at some point but all mentions have been removed by updates
+         * - If an account does not exist in the map they were never mentioned in
+         *   the post
+         */
+        mentionCountByAccountId: Schema.map(
+            Schema.id<ContentMentionAccountId>(),
+            Schema.integer.min(0),
+        ).default(new Map()),
+    }),
+});
 
 const DocumentsTable = DynamoTableSchema.new({
     name: "Documents",
@@ -89,6 +142,13 @@ const DocumentsTable = DynamoTableSchema.new({
                         // TODO(calebmer): Could I make this a feature of `DynamoTableSchema` and force
                         // us to always authorize space access when reading/writing this data?
                         spaceId: Schema.id<SpaceId>(),
+
+                        /**
+                         * The owner of the document starts as the document's creator and can perform
+                         * certain administrative actions. In addition to being automatically
+                         * subscribed to new comment thread notifications.
+                         */
+                        ownerId: Schema.id<AccountId>().nullable().default(null),
 
                         /**
                          * The current version of the document.
@@ -209,40 +269,7 @@ const DocumentsTable = DynamoTableSchema.new({
                     sortKeyAttributes: {
                         commentThreadId: DynamoKeyAttributeSchema.id<DocumentCommentThreadId>(),
                     },
-                    attributes: Schema.object({
-                        /** The time at which the thread was created. */
-                        createdTime: Schema.date,
-
-                        /**
-                         * Information regarding the comment thread. Nested in an object so we can
-                         * update it at once.
-                         */
-                        commentsSummary: Schema.object({
-                            /**
-                             * The index of the next comment.
-                             */
-                            nextCommentIndex: Schema.integer.min(0),
-
-                            /**
-                             * The last time a comment was changed. This should equal the `changeTime` of
-                             * the highest item in `CommentChangeLog`.
-                             */
-                            lastChangeTime: Schema.date.nullable().default(null),
-
-                            /**
-                             * All the accounts which have commented in this thread and the number of comments
-                             * they have made. The map is ordered by when the account first commented on
-                             * the document comment thread.
-                             *
-                             * This map can grow unbounded. When a user deletes a comment it leaves a
-                             * gravestone so comment counts should never be decremented.
-                             */
-                            commentCountByAuthorId: Schema.map(
-                                Schema.id<AccountId>(),
-                                Schema.integer.min(1),
-                            ),
-                        }),
-                    }),
+                    attributes: DocumentCommentThreadAttributesSchema,
                 },
 
                 /**
@@ -254,40 +281,7 @@ const DocumentsTable = DynamoTableSchema.new({
                     sortKeyAttributes: {
                         commentThreadId: DynamoKeyAttributeSchema.id<DocumentCommentThreadId>(),
                     },
-                    attributes: Schema.object({
-                        /** The time at which the thread was created. */
-                        createdTime: Schema.date,
-
-                        /**
-                         * Information regarding the comment thread. Nested in an object so we can
-                         * update it at once.
-                         */
-                        commentsSummary: Schema.object({
-                            /**
-                             * The index of the next comment.
-                             */
-                            nextCommentIndex: Schema.integer.min(0),
-
-                            /**
-                             * The last time a comment was changed. This should equal the `changeTime` of
-                             * the highest item in `CommentChangeLog`.
-                             */
-                            lastChangeTime: Schema.date.nullable().default(null),
-
-                            /**
-                             * All the accounts which have commented in this thread and the number of comments
-                             * they have made. The map is ordered by when the account first commented on
-                             * the document comment thread.
-                             *
-                             * This map can grow unbounded. When a user deletes a comment it leaves a
-                             * gravestone so comment counts should never be decremented.
-                             */
-                            commentCountByAuthorId: Schema.map(
-                                Schema.id<AccountId>(),
-                                Schema.integer.min(1),
-                            ),
-                        }),
-                    }),
+                    attributes: DocumentCommentThreadAttributesSchema,
                 },
 
                 /**
@@ -500,6 +494,7 @@ export async function createDocument(
                 createdTime,
                 spaceId,
                 documentId: id,
+                ownerId: context.auth.getAccountId(),
                 version,
                 titleWithoutFallback: getDocumentContentTitleWithoutFallback(content),
             }),
@@ -960,6 +955,7 @@ export class DocumentContentCacheForUpdate {
     ): Promise<{
         readonly createdTime: Date;
         readonly spaceId: SpaceId;
+        readonly ownerId: AccountId | null;
         readonly version: number;
         readonly content: DocumentContent;
 
@@ -998,6 +994,7 @@ export class DocumentContentCacheForUpdate {
             return {
                 createdTime: internalDocument.attributes.createdTime,
                 spaceId: internalDocument.attributes.spaceId,
+                ownerId: internalDocument.attributes.ownerId,
                 version: internalDocument.version,
                 content: internalDocument.content,
                 stepsAfterInitialSnapshot: new PushOnlyArray(
@@ -1105,6 +1102,7 @@ export class DocumentContentCacheForUpdate {
                     return {
                         createdTime: entry.createdTime,
                         spaceId: entry.spaceId,
+                        ownerId: entry.ownerId,
                         version: attributes.version,
                         content,
                         stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot,
@@ -1119,6 +1117,7 @@ export class DocumentContentCacheForUpdate {
         return {
             createdTime: entry.createdTime,
             spaceId: entry.spaceId,
+            ownerId: entry.ownerId,
             version: entry.version,
             content: entry.content,
             // Create a slice of `stepsAfterInitialSnapshot` so that when we mutate the
@@ -1144,6 +1143,7 @@ export class DocumentContentCacheForUpdate {
                     return {
                         createdTime: entry.createdTime,
                         spaceId: entry.spaceId,
+                        ownerId: entry.ownerId,
                         version: entry.version + newSteps.length,
                         content: newContent,
                         stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot,
@@ -1157,6 +1157,7 @@ export class DocumentContentCacheForUpdate {
 type DocumentContentCacheForUpdateEntry = {
     readonly createdTime: Date;
     readonly spaceId: SpaceId;
+    readonly ownerId: AccountId | null;
     readonly version: number;
     readonly content: DocumentContent;
     /**
@@ -1396,6 +1397,56 @@ declare module "prosemirror-transform" {
     }
 }
 
+function getMentionCountByAccountIdInContent(
+    content: Node,
+): ReadonlyMap<ContentMentionAccountId, number> {
+    const mentionCountByAccountId = new Map<ContentMentionAccountId, number>();
+
+    visitProsemirrorNode(content, {
+        visitNode: node => {
+            if (node.type.name === "mention") {
+                const mention: ContentMention = node.attrs.mention;
+                const lastMentionCount = mentionCountByAccountId.get(mention.accountId);
+                mentionCountByAccountId.set(mention.accountId, (lastMentionCount ?? 0) + 1);
+            }
+        },
+    });
+
+    return mentionCountByAccountId;
+}
+
+function applyMentionCountByAccountIdDifferenceFromContentUpdate(
+    mentionCountByAccountId: ReadonlyMap<ContentMentionAccountId, number>,
+    oldContent: Node | null,
+    newContent: Node | null,
+): ReadonlyMap<ContentMentionAccountId, number> {
+    const oldMentionCountByAccountId = oldContent
+        ? getMentionCountByAccountIdInContent(oldContent)
+        : new Map();
+    const newMentionCountByAccountId = newContent
+        ? getMentionCountByAccountIdInContent(newContent)
+        : new Map();
+
+    const updatedMentionCountByAccountId = new Map(mentionCountByAccountId);
+
+    for (const accountId of new Set(
+        concatIterables(oldMentionCountByAccountId.keys(), newMentionCountByAccountId.keys()),
+    )) {
+        const oldMentionCount = oldMentionCountByAccountId.get(accountId) ?? 0;
+        const newMentionCount = newMentionCountByAccountId.get(accountId) ?? 0;
+        const mentionCountDifference = newMentionCount - oldMentionCount;
+
+        // Remember: If the mention count goes to zero we want to keep it in our map to
+        // signal "this account was mentioned at some point".
+        updatedMentionCountByAccountId.set(
+            accountId,
+            (updatedMentionCountByAccountId.get(accountId) ?? 0) + mentionCountDifference,
+        );
+    }
+
+    return updatedMentionCountByAccountId;
+}
+
 /**
  * Updates our document by applying some steps.
  *
@@ -1618,6 +1669,7 @@ export async function updateDocumentContent(
                         documentId: id,
                         createdTime: internalDocument.createdTime,
                         spaceId: internalDocument.spaceId,
+                        ownerId: internalDocument.ownerId,
                         version: internalDocument.version + steps.length,
                         titleWithoutFallback: getDocumentContentTitleWithoutFallback(newContent),
                     },
@@ -1669,6 +1721,9 @@ export async function updateDocumentContent(
                         nextCommentIndex: 1,
                         lastChangeTime: null,
                         commentCountByAuthorId: new Map([[context.auth.getAccountId(), 1]]),
+                        mentionCountByAccountId: getMentionCountByAccountIdInContent(
+                            createCommentThread.initialCommentContent,
+                        ),
                     },
                 }),
                 // Make sure an archive comment thread item also does not exist.
@@ -2179,15 +2234,15 @@ async function updateDocumentSnapshotAfterUpdatingContent(
                                 return;
                             }
 
-                            let hasInitiallyExecuted = false;
+                            let hasAttempted = false;
 
                             await context.dynamo.retryTransaction(async context => {
-                                const isInitialExecution = !hasInitiallyExecuted;
-                                hasInitiallyExecuted = true;
+                                const isInitialAttempt = !hasAttempted;
+                                hasAttempted = true;
 
                                 // If we are retrying then load the latest comment thread item. We are probably
                                 // retrying because the update lock version was changed.
-                                const referencedCommentThreadItem = isInitialExecution
+                                const referencedCommentThreadItem = isInitialAttempt
                                     ? expectedReferencedCommentThreadItem
                                     : await DocumentsTable.getItemIfExists(
                                           context,
@@ -2202,6 +2257,11 @@ async function updateDocumentSnapshotAfterUpdatingContent(
                                     id,
                                 );
 
+                                // We move the comment thread in a transaction so only one version of the item
+                                // exists at any given time. Since we need to make updates to the item it would
+                                // be weird of two versions of the item exist at once and one has an update
+                                // applied. How do we make sure that update is not lost? Or the history
+                                // doesn't fork?
                                 await DynamoTableSchema.executeTransaction(context, [
                                     DocumentsTable.transactionDeleteItem(
                                         referencedCommentThreadItem,
@@ -2246,6 +2306,11 @@ async function updateDocumentSnapshotAfterUpdatingContent(
                                     id,
                                 );
 
+                                // We move the comment thread in a transaction so only one version of the item
+                                // exists at any given time. Since we need to make updates to the item it would
+                                // be weird of two versions of the item exist at once and one has an update
+                                // applied. How do we make sure that update is not lost? Or the history
+                                // doesn't fork?
                                 await DynamoTableSchema.executeTransaction(context, [
                                     DocumentsTable.transactionDeleteItem(archivedCommentThreadItem),
                                     DocumentsTable.transactionCreateOrReplaceItem({
@@ -2864,6 +2929,12 @@ export async function createDocumentComment(
         );
         newCommentCountByAuthorId.set(authorId, (newCommentCountByAuthorId.get(authorId) ?? 0) + 1);
 
+        const newMentionCountByAccountId = applyMentionCountByAccountIdDifferenceFromContentUpdate(
+            commentThreadItem.commentsSummary.mentionCountByAccountId,
+            null,
+            content,
+        );
+
         await DynamoTableSchema.executeTransaction(context, [
             DocumentsTable.transactionCreateItem({
                 partitionType: "DocumentCommentThread",
@@ -2887,6 +2958,7 @@ export async function createDocumentComment(
                     nextCommentIndex: commentThreadItem.commentsSummary.nextCommentIndex + 1,
                     lastChangeTime: commentThreadItem.commentsSummary.lastChangeTime,
                     commentCountByAuthorId: newCommentCountByAuthorId,
+                    mentionCountByAccountId: newMentionCountByAccountId,
                 },
                 {updateLockVersion: commentThreadItem.updateLockVersion},
             ),
@@ -3022,6 +3094,12 @@ export function updateDocumentCommentContent(
                 contentUpdatedTime > commentItem.payload.contentUpdatedTime,
         );
 
+        const newMentionCountByAccountId = applyMentionCountByAccountIdDifferenceFromContentUpdate(
+            commentThreadItem.commentsSummary.mentionCountByAccountId,
+            commentItem.payload.content,
+            content,
+        );
+
         await DynamoTableSchema.executeTransaction(context, [
             DocumentsTable.transactionDirectlyUpdateItem({
                 ...commentItem,
@@ -3039,6 +3117,7 @@ export function updateDocumentCommentContent(
                     lastChangeTime: contentUpdatedTime,
                     commentCountByAuthorId:
                         commentThreadItem.commentsSummary.commentCountByAuthorId,
+                    mentionCountByAccountId: newMentionCountByAccountId,
                 },
                 {updateLockVersion: commentThreadItem.updateLockVersion},
             ),
@@ -3123,6 +3202,12 @@ export function deleteDocumentComment(
                 deletedTime > commentItem.payload.contentUpdatedTime,
         );
 
+        const newMentionCountByAccountId = applyMentionCountByAccountIdDifferenceFromContentUpdate(
+            commentThreadItem.commentsSummary.mentionCountByAccountId,
+            commentItem.payload.content,
+            null,
+        );
+
         await DynamoTableSchema.executeTransaction(context, [
             DocumentsTable.transactionDirectlyUpdateItem({
                 ...commentItem,
@@ -3136,6 +3221,7 @@ export function deleteDocumentComment(
                     lastChangeTime: deletedTime,
                     commentCountByAuthorId:
                         commentThreadItem.commentsSummary.commentCountByAuthorId,
+                    mentionCountByAccountId: newMentionCountByAccountId,
                 },
                 {updateLockVersion: commentThreadItem.updateLockVersion},
             ),
@@ -3762,4 +3848,61 @@ async function queryDocumentCommentChangeLogAssumingAuthorizedDocumentCommentThr
     );
 
     return {type: "Available", changes};
+}
+
+/**
+ * Get accounts subscribed to notifications for the provided document comment
+ * thread. For the first comment in a comment thread, the document owner is
+ * also considered a subscriber.
+ */
+export async function getDocumentCommentThreadNotificationSubscribers(
+    context: RequestContext,
+    {
+        documentId,
+        commentThreadId,
+        isFirstComment,
+    }: {
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+        isFirstComment: boolean;
+    },
+) {
+    const [documentItem, commentThreadItem] = await runAllPromises([
+        (async () => {
+            const documentItem = await DocumentsTable.getItem(context, {
+                partitionType: "Document",
+                sortRangeType: "Attributes",
+                documentId,
+            });
+
+            await authorizeSpaceAccess(context, documentItem.spaceId);
+
+            return documentItem;
+        })(),
+        getDocumentCommentThreadItem(context, {
+            documentId,
+            commentThreadId,
+        }),
+    ]);
+
+    const accountIds = new Set<ContentMentionAccountId>(
+        concatIterables(
+            isFirstComment && documentItem.ownerId ? [documentItem.ownerId] : [],
+            commentThreadItem.commentsSummary.commentCountByAuthorId.keys(),
+            commentThreadItem.commentsSummary.mentionCountByAccountId.keys(),
+        ),
+    );
+
+    const accounts = await runAllPromises(
+        // Use `getAccountIfExists()` since mentioned accounts may be copied from a
+        // different space and don't exist in this space.
+        mapIterable(accountIds, accountId =>
+            getAccountIfExists(context, documentItem.spaceId, accountId),
+        ),
+    );
+
+    return {
+        spaceId: documentItem.spaceId,
+        accounts: accounts.filter(isNonNullable),
+    };
 }

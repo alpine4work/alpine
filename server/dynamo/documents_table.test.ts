@@ -17,6 +17,7 @@ import {
     getDocument,
     getDocumentComment,
     getDocumentCommentThreadItemAfterFirstGetItemTestCheckpoint,
+    getDocumentCommentThreadNotificationSubscribers,
     getDocumentCommentsFromEnd,
     getDocumentCommentsFromStart,
     getDocumentContentSteps,
@@ -38,7 +39,11 @@ import {
     isDocumentContent,
     DocumentContentProsemirrorSchema as schema,
 } from "~/shared/content/document_content_schema";
-import {createSimpleMessageContent} from "~/shared/content/message_content_schema";
+import {
+    MessageContentProsemirrorSchema,
+    assertMessageContent,
+    createSimpleMessageContent,
+} from "~/shared/content/message_content_schema";
 import {
     DataLossError,
     FailedPreconditionError,
@@ -66,7 +71,13 @@ jest.useFakeTimers();
 
 const context = createTestContext();
 const space = createTestSpace(context);
-const session = createTestSession(context, space);
+const session1 = createTestSession(context, space);
+const session2 = createTestSession(context, space);
+const session3 = createTestSession(context, space);
+const session4 = createTestSession(context, space);
+const session5 = createTestSession(context, space);
+const session6 = createTestSession(context, space);
+const session7 = createTestSession(context, space);
 const otherSpace = createTestSpace(context);
 const otherSession = createTestSession(context, otherSpace);
 
@@ -99,7 +110,7 @@ afterEach(() => {
 });
 
 test("creates a document", async () => {
-    await createDocument(context.request(session), {
+    await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -114,14 +125,14 @@ test("can not create a document with the same id twice", async () => {
     ]);
     assert(isDocumentContent(content));
 
-    await createDocument(context.request(session), {
+    await createDocument(context.request(session1), {
         id,
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
     await expect(async () => {
-        await createDocument(context.request(session), {
+        await createDocument(context.request(session1), {
             id,
             spaceId: space.id,
             content,
@@ -137,7 +148,7 @@ test("can not create a document with invalid format", async () => {
     assert(isDocumentContent(content));
 
     await expect(
-        createDocument(context.request(session), {
+        createDocument(context.request(session1), {
             spaceId: space.id,
             content,
         }),
@@ -147,13 +158,13 @@ test("can not create a document with invalid format", async () => {
 test("can idempotently create a document twice", async () => {
     const id = generateId<DocumentId>();
 
-    await createDocument(context.request(session), {
+    await createDocument(context.request(session1), {
         id,
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await createDocument(context.request(session), {
+    await createDocument(context.request(session1), {
         id,
         spaceId: space.id,
         content: emptyDocumentContent,
@@ -163,7 +174,7 @@ test("can idempotently create a document twice", async () => {
 test("can not idempotently create a document twice if the content is different", async () => {
     const id = generateId<DocumentId>();
 
-    await createDocument(context.request(session), {
+    await createDocument(context.request(session1), {
         id,
         spaceId: space.id,
         content: emptyDocumentContent,
@@ -176,7 +187,7 @@ test("can not idempotently create a document twice if the content is different",
     assert(isDocumentContent(otherContent));
 
     await expect(async () => {
-        await createDocument(context.request(session), {
+        await createDocument(context.request(session1), {
             id,
             spaceId: space.id,
             content: otherContent,
@@ -191,16 +202,16 @@ test("can read a created document", async () => {
     ]);
     assert(isDocumentContent(content));
 
-    const {id: documentId} = await createDocument(context.request(session), {
+    const {id: documentId} = await createDocument(context.request(session1), {
         spaceId: space.id,
         content,
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 0,
         content: content.toJSON(),
     });
-    expect(await getDocumentPreviewIfExists(context.request(session), documentId)).toEqual({
+    expect(await getDocumentPreviewIfExists(context.request(session1), documentId)).toEqual({
         id: documentId,
         spaceId: space.id,
         createdTime: expect.any(Date),
@@ -210,19 +221,19 @@ test("can read a created document", async () => {
 });
 
 test("can update a document with a single step", async () => {
-    const {id: documentId} = await createDocument(context.request(session), {
+    const {id: documentId} = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -232,14 +243,14 @@ test("can update a document with a single step", async () => {
             .toJSON(),
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -249,14 +260,14 @@ test("can update a document with a single step", async () => {
             .toJSON(),
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 2,
         steps: [new ReplaceStep(5, 5, textSlice("c"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 3,
         content: schema
             .node("doc", {}, [
@@ -268,19 +279,19 @@ test("can update a document with a single step", async () => {
 });
 
 test("can update a document with multiple steps", async () => {
-    const {id: documentId} = await createDocument(context.request(session), {
+    const {id: documentId} = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -290,7 +301,7 @@ test("can update a document with multiple steps", async () => {
             .toJSON(),
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 1,
         steps: [
@@ -301,7 +312,7 @@ test("can update a document with multiple steps", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 4,
         content: schema
             .node("doc", {}, [
@@ -313,19 +324,19 @@ test("can update a document with multiple steps", async () => {
 });
 
 test("can not update a document if the version is greater than the current version", async () => {
-    const {id: documentId} = await createDocument(context.request(session), {
+    const {id: documentId} = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -336,7 +347,7 @@ test("can not update a document if the version is greater than the current versi
     });
 
     await expect(async () => {
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: documentId,
             version: 2,
             steps: [new ReplaceStep(5, 5, textSlice("c"))],
@@ -344,7 +355,7 @@ test("can not update a document if the version is greater than the current versi
         });
     }).rejects.toThrow(FailedPreconditionError);
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -356,19 +367,19 @@ test("can not update a document if the version is greater than the current versi
 });
 
 test("can update a document if the version is one less than the current version", async () => {
-    const {id: documentId} = await createDocument(context.request(session), {
+    const {id: documentId} = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -378,14 +389,14 @@ test("can update a document if the version is one less than the current version"
             .toJSON(),
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -395,14 +406,14 @@ test("can update a document if the version is one less than the current version"
             .toJSON(),
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("c"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 3,
         content: schema
             .node("doc", {}, [
@@ -414,19 +425,19 @@ test("can update a document if the version is one less than the current version"
 });
 
 test("can update a document if the version is many steps behind the current version", async () => {
-    const {id: documentId} = await createDocument(context.request(session), {
+    const {id: documentId} = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -436,35 +447,35 @@ test("can update a document if the version is many steps behind the current vers
             .toJSON(),
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
         clientId: generateId(),
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 2,
         steps: [new ReplaceStep(5, 5, textSlice("c"))],
         clientId: generateId(),
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 3,
         steps: [new ReplaceStep(6, 6, textSlice("d"))],
         clientId: generateId(),
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 4,
         steps: [new ReplaceStep(7, 7, textSlice("e"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 5,
         content: schema
             .node("doc", {}, [
@@ -474,14 +485,14 @@ test("can update a document if the version is many steps behind the current vers
             .toJSON(),
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("f"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 6,
         content: schema
             .node("doc", {}, [
@@ -493,19 +504,19 @@ test("can update a document if the version is many steps behind the current vers
 });
 
 test("can update a document with many steps if the version is one less than the current version", async () => {
-    const {id: documentId} = await createDocument(context.request(session), {
+    const {id: documentId} = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -515,14 +526,14 @@ test("can update a document with many steps if the version is one less than the 
             .toJSON(),
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -532,7 +543,7 @@ test("can update a document with many steps if the version is one less than the 
             .toJSON(),
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 1,
         steps: [
@@ -544,7 +555,7 @@ test("can update a document with many steps if the version is one less than the 
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 6,
         content: schema
             .node("doc", {}, [
@@ -556,19 +567,19 @@ test("can update a document with many steps if the version is one less than the 
 });
 
 test("can update a document with many steps if the version is many steps behind the current version", async () => {
-    const {id: documentId} = await createDocument(context.request(session), {
+    const {id: documentId} = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -578,35 +589,35 @@ test("can update a document with many steps if the version is many steps behind 
             .toJSON(),
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
         clientId: generateId(),
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 2,
         steps: [new ReplaceStep(5, 5, textSlice("c"))],
         clientId: generateId(),
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 3,
         steps: [new ReplaceStep(6, 6, textSlice("d"))],
         clientId: generateId(),
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 4,
         steps: [new ReplaceStep(7, 7, textSlice("e"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 5,
         content: schema
             .node("doc", {}, [
@@ -616,7 +627,7 @@ test("can update a document with many steps if the version is many steps behind 
             .toJSON(),
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 1,
         steps: [
@@ -628,7 +639,7 @@ test("can update a document with many steps if the version is many steps behind 
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 9,
         content: schema
             .node("doc", {}, [
@@ -640,19 +651,19 @@ test("can update a document with many steps if the version is many steps behind 
 });
 
 test("when two document updates race the loser will rebase", async () => {
-    const {id: documentId} = await createDocument(context.request(session), {
+    const {id: documentId} = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -668,7 +679,7 @@ test("when two document updates race the loser will rebase", async () => {
             id: documentId,
             clientId: request2ClientId,
         });
-    const request2Promise = updateDocumentContent(context.request(session), {
+    const request2Promise = updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
@@ -677,7 +688,7 @@ test("when two document updates race the loser will rebase", async () => {
 
     const {unpause: unpauseRequest2} = await request2PausePromise;
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -687,14 +698,14 @@ test("when two document updates race the loser will rebase", async () => {
             .toJSON(),
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("c"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -708,7 +719,7 @@ test("when two document updates race the loser will rebase", async () => {
 
     await request2Promise;
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 3,
         content: schema
             .node("doc", {}, [
@@ -720,19 +731,19 @@ test("when two document updates race the loser will rebase", async () => {
 });
 
 test("can not apply an invalid step", async () => {
-    const {id: documentId} = await createDocument(context.request(session), {
+    const {id: documentId} = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -743,7 +754,7 @@ test("can not apply an invalid step", async () => {
     });
 
     await expect(async () => {
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: documentId,
             version: 1,
             steps: [new ReplaceStep(5, 5, textSlice("b"))],
@@ -751,7 +762,7 @@ test("can not apply an invalid step", async () => {
         });
     }).rejects.toThrow(FailedPreconditionError);
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -763,19 +774,19 @@ test("can not apply an invalid step", async () => {
 });
 
 test("can not apply an invalid step even when rebasing", async () => {
-    const {id: documentId} = await createDocument(context.request(session), {
+    const {id: documentId} = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -785,14 +796,14 @@ test("can not apply an invalid step even when rebasing", async () => {
             .toJSON(),
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -803,7 +814,7 @@ test("can not apply an invalid step even when rebasing", async () => {
     });
 
     await expect(async () => {
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: documentId,
             version: 1,
             steps: [new ReplaceStep(5, 5, textSlice("c"))],
@@ -811,7 +822,7 @@ test("can not apply an invalid step even when rebasing", async () => {
         });
     }).rejects.toThrow(FailedPreconditionError);
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -823,19 +834,19 @@ test("can not apply an invalid step even when rebasing", async () => {
 });
 
 test("a single rebased step may end up as a noop", async () => {
-    const {id: documentId} = await createDocument(context.request(session), {
+    const {id: documentId} = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("foobar"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -845,14 +856,14 @@ test("a single rebased step may end up as a noop", async () => {
             .toJSON(),
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(5, 7, Slice.empty)],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -862,14 +873,14 @@ test("a single rebased step may end up as a noop", async () => {
             .toJSON(),
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(6, 6, textSlice("x"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -881,19 +892,19 @@ test("a single rebased step may end up as a noop", async () => {
 });
 
 test("many rebased steps may end up as a noop", async () => {
-    const {id: documentId} = await createDocument(context.request(session), {
+    const {id: documentId} = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("foobur"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -903,14 +914,14 @@ test("many rebased steps may end up as a noop", async () => {
             .toJSON(),
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(5, 7, Slice.empty)],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -920,7 +931,7 @@ test("many rebased steps may end up as a noop", async () => {
             .toJSON(),
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 1,
         steps: [
@@ -931,7 +942,7 @@ test("many rebased steps may end up as a noop", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -943,19 +954,19 @@ test("many rebased steps may end up as a noop", async () => {
 });
 
 test("some rebased steps may end up as a noop", async () => {
-    const {id: documentId} = await createDocument(context.request(session), {
+    const {id: documentId} = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("foobur"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -965,14 +976,14 @@ test("some rebased steps may end up as a noop", async () => {
             .toJSON(),
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(5, 7, Slice.empty)],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -982,7 +993,7 @@ test("some rebased steps may end up as a noop", async () => {
             .toJSON(),
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 1,
         steps: [
@@ -993,7 +1004,7 @@ test("some rebased steps may end up as a noop", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 3,
         content: schema
             .node("doc", {}, [
@@ -1005,7 +1016,7 @@ test("some rebased steps may end up as a noop", async () => {
 });
 
 test("reads the document on first update but not on subsequent updates", async () => {
-    const {id: documentId} = await createDocument(context.request(session), {
+    const {id: documentId} = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -1013,7 +1024,7 @@ test("reads the document on first update but not on subsequent updates", async (
     const {getCount} = getInternalDocumentTestCounter.recordForTest(documentId);
     expect(getCount()).toEqual(0);
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
@@ -1022,7 +1033,7 @@ test("reads the document on first update but not on subsequent updates", async (
 
     expect(getCount()).toEqual(1);
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -1034,7 +1045,7 @@ test("reads the document on first update but not on subsequent updates", async (
 
     expect(getCount()).toEqual(2);
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
@@ -1043,7 +1054,7 @@ test("reads the document on first update but not on subsequent updates", async (
 
     expect(getCount()).toEqual(2);
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -1055,7 +1066,7 @@ test("reads the document on first update but not on subsequent updates", async (
 
     expect(getCount()).toEqual(3);
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 2,
         steps: [new ReplaceStep(5, 5, textSlice("c"))],
@@ -1064,7 +1075,7 @@ test("reads the document on first update but not on subsequent updates", async (
 
     expect(getCount()).toEqual(3);
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 3,
         content: schema
             .node("doc", {}, [
@@ -1076,7 +1087,7 @@ test("reads the document on first update but not on subsequent updates", async (
 
     expect(getCount()).toEqual(4);
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 3,
         steps: [new ReplaceStep(6, 6, textSlice("d"))],
@@ -1085,7 +1096,7 @@ test("reads the document on first update but not on subsequent updates", async (
 
     expect(getCount()).toEqual(4);
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 4,
         content: schema
             .node("doc", {}, [
@@ -1102,7 +1113,7 @@ test("can't update a document that doesn't exist", async () => {
     const documentId = generateId<DocumentId>();
 
     await expect(async () => {
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: documentId,
             version: 0,
             steps: [new ReplaceStep(3, 3, textSlice("a"))],
@@ -1118,7 +1129,7 @@ test("won't cache a document that doesn't exist when updating", async () => {
     expect(getCount()).toEqual(0);
 
     await expect(async () => {
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: documentId,
             version: 0,
             steps: [new ReplaceStep(3, 3, textSlice("a"))],
@@ -1129,7 +1140,7 @@ test("won't cache a document that doesn't exist when updating", async () => {
     expect(getCount()).toEqual(1);
 
     await expect(async () => {
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: documentId,
             version: 0,
             steps: [new ReplaceStep(3, 3, textSlice("a"))],
@@ -1141,7 +1152,7 @@ test("won't cache a document that doesn't exist when updating", async () => {
 });
 
 test("can't read a corrupted document", async () => {
-    const {id: documentId} = await createDocument(context.request(session), {
+    const {id: documentId} = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -1153,12 +1164,12 @@ test("can't read a corrupted document", async () => {
     });
 
     await expect(async () => {
-        await getDocument(context.request(session), documentId);
+        await getDocument(context.request(session1), documentId);
     }).rejects.toThrow(DataLossError);
 });
 
 test("can't update a corrupted document", async () => {
-    const {id: documentId} = await createDocument(context.request(session), {
+    const {id: documentId} = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -1170,7 +1181,7 @@ test("can't update a corrupted document", async () => {
     });
 
     await expect(async () => {
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: documentId,
             version: 0,
             steps: [new ReplaceStep(3, 3, textSlice("b"))],
@@ -1180,7 +1191,7 @@ test("can't update a corrupted document", async () => {
 });
 
 test("won't cache a corrupted document while updating", async () => {
-    const {id: documentId} = await createDocument(context.request(session), {
+    const {id: documentId} = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -1195,7 +1206,7 @@ test("won't cache a corrupted document while updating", async () => {
     expect(getCount()).toEqual(0);
 
     await expect(async () => {
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: documentId,
             version: 0,
             steps: [new ReplaceStep(3, 3, textSlice("b"))],
@@ -1206,7 +1217,7 @@ test("won't cache a corrupted document while updating", async () => {
     expect(getCount()).toEqual(1);
 
     await expect(async () => {
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: documentId,
             version: 0,
             steps: [new ReplaceStep(3, 3, textSlice("b"))],
@@ -1218,7 +1229,7 @@ test("won't cache a corrupted document while updating", async () => {
 });
 
 test("updates made in parallel will only read the document once", async () => {
-    const {id: documentId} = await createDocument(context.request(session), {
+    const {id: documentId} = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -1226,35 +1237,35 @@ test("updates made in parallel will only read the document once", async () => {
     const {getCount} = getInternalDocumentTestCounter.recordForTest(documentId);
     expect(getCount()).toEqual(0);
 
-    const request1Promise = updateDocumentContent(context.request(session), {
+    const request1Promise = updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
         clientId: generateId(),
     });
 
-    const request2Promise = updateDocumentContent(context.request(session), {
+    const request2Promise = updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("b")), new ReplaceStep(4, 4, textSlice("c"))],
         clientId: generateId(),
     });
 
-    const request3Promise = updateDocumentContent(context.request(session), {
+    const request3Promise = updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("d"))],
         clientId: generateId(),
     });
 
-    const request4Promise = updateDocumentContent(context.request(session), {
+    const request4Promise = updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("e"))],
         clientId: generateId(),
     });
 
-    const request5Promise = updateDocumentContent(context.request(session), {
+    const request5Promise = updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("f"))],
@@ -1272,7 +1283,7 @@ test("updates made in parallel will only read the document once", async () => {
     expect(getCount()).toEqual(1);
 
     {
-        const document = await getDocument(context.request(session), documentId);
+        const document = await getDocument(context.request(session1), documentId);
         expect(document.version).toEqual(6);
         expect(document.content.doc.child(1).textContent.split("").sort().join("")).toEqual(
             "abcdef",
@@ -1281,7 +1292,7 @@ test("updates made in parallel will only read the document once", async () => {
 });
 
 test("if a document was deleted in the database then the cache will pick that up", async () => {
-    const {id: documentId} = await createDocument(context.request(session), {
+    const {id: documentId} = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -1289,7 +1300,7 @@ test("if a document was deleted in the database then the cache will pick that up
     const {getCount} = getInternalDocumentTestCounter.recordForTest(documentId);
     expect(getCount()).toEqual(0);
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
@@ -1307,7 +1318,7 @@ test("if a document was deleted in the database then the cache will pick that up
     expect(getCount()).toEqual(1);
 
     await expect(async () => {
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: documentId,
             version: 1,
             steps: [new ReplaceStep(4, 4, textSlice("b"))],
@@ -1319,7 +1330,7 @@ test("if a document was deleted in the database then the cache will pick that up
 });
 
 test("updates may happen with different caches", async () => {
-    const {id: documentId} = await createDocument(context.request(session), {
+    const {id: documentId} = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -1327,7 +1338,7 @@ test("updates may happen with different caches", async () => {
     const {getCount} = getInternalDocumentTestCounter.recordForTest(documentId);
     expect(getCount()).toEqual(0);
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
@@ -1336,7 +1347,7 @@ test("updates may happen with different caches", async () => {
 
     expect(getCount()).toEqual(1);
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -1348,7 +1359,7 @@ test("updates may happen with different caches", async () => {
 
     expect(getCount()).toEqual(2);
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
@@ -1357,7 +1368,7 @@ test("updates may happen with different caches", async () => {
 
     expect(getCount()).toEqual(2);
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -1369,7 +1380,7 @@ test("updates may happen with different caches", async () => {
 
     expect(getCount()).toEqual(3);
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 2,
         steps: [new ReplaceStep(5, 5, textSlice("c"))],
@@ -1379,7 +1390,7 @@ test("updates may happen with different caches", async () => {
 
     expect(getCount()).toEqual(4);
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 3,
         content: schema
             .node("doc", {}, [
@@ -1391,7 +1402,7 @@ test("updates may happen with different caches", async () => {
 
     expect(getCount()).toEqual(5);
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 3,
         steps: [new ReplaceStep(6, 6, textSlice("d"))],
@@ -1401,7 +1412,7 @@ test("updates may happen with different caches", async () => {
 
     expect(getCount()).toEqual(5);
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 4,
         content: schema
             .node("doc", {}, [
@@ -1413,7 +1424,7 @@ test("updates may happen with different caches", async () => {
 
     expect(getCount()).toEqual(6);
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 4,
         steps: [new ReplaceStep(7, 7, textSlice("e"))],
@@ -1422,7 +1433,7 @@ test("updates may happen with different caches", async () => {
 
     expect(getCount()).toEqual(6);
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 5,
         content: schema
             .node("doc", {}, [
@@ -1434,7 +1445,7 @@ test("updates may happen with different caches", async () => {
 
     expect(getCount()).toEqual(7);
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 5,
         steps: [new ReplaceStep(8, 8, textSlice("f"))],
@@ -1444,7 +1455,7 @@ test("updates may happen with different caches", async () => {
 
     expect(getCount()).toEqual(7);
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 6,
         content: schema
             .node("doc", {}, [
@@ -1458,7 +1469,7 @@ test("updates may happen with different caches", async () => {
 });
 
 test("reads the document again after an expiration timer fires", async () => {
-    const {id: documentId} = await createDocument(context.request(session), {
+    const {id: documentId} = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -1466,7 +1477,7 @@ test("reads the document again after an expiration timer fires", async () => {
     const {getCount} = getInternalDocumentTestCounter.recordForTest(documentId);
     expect(getCount()).toEqual(0);
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
@@ -1475,7 +1486,7 @@ test("reads the document again after an expiration timer fires", async () => {
 
     expect(getCount()).toEqual(1);
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -1487,7 +1498,7 @@ test("reads the document again after an expiration timer fires", async () => {
 
     expect(getCount()).toEqual(2);
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
@@ -1496,7 +1507,7 @@ test("reads the document again after an expiration timer fires", async () => {
 
     expect(getCount()).toEqual(2);
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -1510,7 +1521,7 @@ test("reads the document again after an expiration timer fires", async () => {
 
     jest.runAllTimers();
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 2,
         steps: [new ReplaceStep(5, 5, textSlice("c"))],
@@ -1519,7 +1530,7 @@ test("reads the document again after an expiration timer fires", async () => {
 
     expect(getCount()).toEqual(4);
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 3,
         content: schema
             .node("doc", {}, [
@@ -1531,7 +1542,7 @@ test("reads the document again after an expiration timer fires", async () => {
 
     expect(getCount()).toEqual(5);
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 3,
         steps: [new ReplaceStep(6, 6, textSlice("d"))],
@@ -1540,7 +1551,7 @@ test("reads the document again after an expiration timer fires", async () => {
 
     expect(getCount()).toEqual(5);
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 4,
         content: schema
             .node("doc", {}, [
@@ -1554,7 +1565,7 @@ test("reads the document again after an expiration timer fires", async () => {
 });
 
 test("resets the timer eviction timer on every update", async () => {
-    const {id: documentId} = await createDocument(context.request(session), {
+    const {id: documentId} = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -1562,7 +1573,7 @@ test("resets the timer eviction timer on every update", async () => {
     const {getCount} = getInternalDocumentTestCounter.recordForTest(documentId);
     expect(getCount()).toEqual(0);
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
@@ -1571,7 +1582,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     expect(getCount()).toEqual(1);
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -1585,7 +1596,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     jest.advanceTimersByTime(documentContentCacheEvictionTimeoutMs);
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
@@ -1594,7 +1605,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     expect(getCount()).toEqual(3);
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -1610,7 +1621,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     expect(getCount()).toEqual(4);
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 2,
         steps: [new ReplaceStep(5, 5, textSlice("c"))],
@@ -1619,7 +1630,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     expect(getCount()).toEqual(4);
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 3,
         content: schema
             .node("doc", {}, [
@@ -1635,7 +1646,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     expect(getCount()).toEqual(5);
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 3,
         steps: [new ReplaceStep(6, 6, textSlice("d"))],
@@ -1644,7 +1655,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     expect(getCount()).toEqual(5);
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 4,
         content: schema
             .node("doc", {}, [
@@ -1660,7 +1671,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     expect(getCount()).toEqual(6);
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 4,
         steps: [new ReplaceStep(7, 7, textSlice("e"))],
@@ -1669,7 +1680,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     expect(getCount()).toEqual(6);
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 5,
         content: schema
             .node("doc", {}, [
@@ -1685,7 +1696,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     expect(getCount()).toEqual(7);
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 5,
         steps: [new ReplaceStep(8, 8, textSlice("f"))],
@@ -1694,7 +1705,7 @@ test("resets the timer eviction timer on every update", async () => {
 
     expect(getCount()).toEqual(8);
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 6,
         content: schema
             .node("doc", {}, [
@@ -1708,18 +1719,18 @@ test("resets the timer eviction timer on every update", async () => {
 });
 
 test("updates the document title whenever it changes", async () => {
-    const {id: documentId} = await createDocument(context.request(session), {
+    const {id: documentId} = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 0,
         content: schema
             .node("doc", {}, [schema.node("title", {}, []), schema.node("paragraph", {}, [])])
             .toJSON(),
     });
-    expect(await getDocumentPreviewIfExists(context.request(session), documentId)).toEqual({
+    expect(await getDocumentPreviewIfExists(context.request(session1), documentId)).toEqual({
         id: documentId,
         spaceId: space.id,
         createdTime: expect.any(Date),
@@ -1727,14 +1738,14 @@ test("updates the document title whenever it changes", async () => {
         titleWithoutFallback: "",
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("b"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -1743,7 +1754,7 @@ test("updates the document title whenever it changes", async () => {
             ])
             .toJSON(),
     });
-    expect(await getDocumentPreviewIfExists(context.request(session), documentId)).toEqual({
+    expect(await getDocumentPreviewIfExists(context.request(session1), documentId)).toEqual({
         id: documentId,
         spaceId: space.id,
         createdTime: expect.any(Date),
@@ -1751,14 +1762,14 @@ test("updates the document title whenever it changes", async () => {
         titleWithoutFallback: "",
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(1, 1, textSlice("f"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -1767,7 +1778,7 @@ test("updates the document title whenever it changes", async () => {
             ])
             .toJSON(),
     });
-    expect(await getDocumentPreviewIfExists(context.request(session), documentId)).toEqual({
+    expect(await getDocumentPreviewIfExists(context.request(session1), documentId)).toEqual({
         id: documentId,
         spaceId: space.id,
         createdTime: expect.any(Date),
@@ -1775,14 +1786,14 @@ test("updates the document title whenever it changes", async () => {
         titleWithoutFallback: "f",
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 2,
         steps: [new ReplaceStep(5, 5, textSlice("a"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 3,
         content: schema
             .node("doc", {}, [
@@ -1791,7 +1802,7 @@ test("updates the document title whenever it changes", async () => {
             ])
             .toJSON(),
     });
-    expect(await getDocumentPreviewIfExists(context.request(session), documentId)).toEqual({
+    expect(await getDocumentPreviewIfExists(context.request(session1), documentId)).toEqual({
         id: documentId,
         spaceId: space.id,
         createdTime: expect.any(Date),
@@ -1799,14 +1810,14 @@ test("updates the document title whenever it changes", async () => {
         titleWithoutFallback: "f",
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 3,
         steps: [new ReplaceStep(2, 2, textSlice("o")), new ReplaceStep(3, 3, textSlice("o"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 5,
         content: schema
             .node("doc", {}, [
@@ -1815,7 +1826,7 @@ test("updates the document title whenever it changes", async () => {
             ])
             .toJSON(),
     });
-    expect(await getDocumentPreviewIfExists(context.request(session), documentId)).toEqual({
+    expect(await getDocumentPreviewIfExists(context.request(session1), documentId)).toEqual({
         id: documentId,
         spaceId: space.id,
         createdTime: expect.any(Date),
@@ -1823,14 +1834,14 @@ test("updates the document title whenever it changes", async () => {
         titleWithoutFallback: "foo",
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 5,
         steps: [new ReplaceStep(8, 8, textSlice("r"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 6,
         content: schema
             .node("doc", {}, [
@@ -1839,7 +1850,7 @@ test("updates the document title whenever it changes", async () => {
             ])
             .toJSON(),
     });
-    expect(await getDocumentPreviewIfExists(context.request(session), documentId)).toEqual({
+    expect(await getDocumentPreviewIfExists(context.request(session1), documentId)).toEqual({
         id: documentId,
         spaceId: space.id,
         createdTime: expect.any(Date),
@@ -1847,7 +1858,7 @@ test("updates the document title whenever it changes", async () => {
         titleWithoutFallback: "foo",
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 6,
         steps: [
@@ -1865,7 +1876,7 @@ test("updates the document title whenever it changes", async () => {
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 7,
         content: schema
             .node("doc", {}, [
@@ -1875,7 +1886,7 @@ test("updates the document title whenever it changes", async () => {
             ])
             .toJSON(),
     });
-    expect(await getDocumentPreviewIfExists(context.request(session), documentId)).toEqual({
+    expect(await getDocumentPreviewIfExists(context.request(session1), documentId)).toEqual({
         id: documentId,
         spaceId: space.id,
         createdTime: expect.any(Date),
@@ -1883,14 +1894,14 @@ test("updates the document title whenever it changes", async () => {
         titleWithoutFallback: "foo",
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 7,
         steps: [new ReplaceStep(4, 6, Slice.empty, true)],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 8,
         content: schema
             .node("doc", {}, [
@@ -1899,7 +1910,7 @@ test("updates the document title whenever it changes", async () => {
             ])
             .toJSON(),
     });
-    expect(await getDocumentPreviewIfExists(context.request(session), documentId)).toEqual({
+    expect(await getDocumentPreviewIfExists(context.request(session1), documentId)).toEqual({
         id: documentId,
         spaceId: space.id,
         createdTime: expect.any(Date),
@@ -1909,19 +1920,19 @@ test("updates the document title whenever it changes", async () => {
 });
 
 test("resolves a conflict when typing in deleted content", async () => {
-    const {id: documentId} = await createDocument(context.request(session), {
+    const {id: documentId} = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("foo")), new ReplaceStep(6, 6, textSlice("bar"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -1931,28 +1942,28 @@ test("resolves a conflict when typing in deleted content", async () => {
             .toJSON(),
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 2,
         steps: [new ReplaceStep(3, 9, textSlice(""))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 3,
         content: schema
             .node("doc", {}, [schema.node("title", {}, []), schema.node("paragraph", {}, [])])
             .toJSON(),
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 2,
         steps: [new ReplaceStep(6, 6, textSlice("x"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 3,
         content: schema
             .node("doc", {}, [schema.node("title", {}, []), schema.node("paragraph", {}, [])])
@@ -1961,19 +1972,19 @@ test("resolves a conflict when typing in deleted content", async () => {
 });
 
 test("resolves a conflict when typing in deleted content and the delete action itself was a conflict", async () => {
-    const {id: documentId} = await createDocument(context.request(session), {
+    const {id: documentId} = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("foo")), new ReplaceStep(6, 6, textSlice("bar"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -1983,14 +1994,14 @@ test("resolves a conflict when typing in deleted content and the delete action i
             .toJSON(),
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 2,
         steps: [new ReplaceStep(1, 1, textSlice("x"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 3,
         content: schema
             .node("doc", {}, [
@@ -2000,14 +2011,14 @@ test("resolves a conflict when typing in deleted content and the delete action i
             .toJSON(),
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 2,
         steps: [new ReplaceStep(3, 9, textSlice(""))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 4,
         content: schema
             .node("doc", {}, [
@@ -2017,14 +2028,14 @@ test("resolves a conflict when typing in deleted content and the delete action i
             .toJSON(),
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 2,
         steps: [new ReplaceStep(6, 6, textSlice("x"))],
         clientId: generateId(),
     });
 
-    expect(massageDocument(await getDocument(context.request(session), documentId))).toEqual({
+    expect(massageDocument(await getDocument(context.request(session1), documentId))).toEqual({
         version: 4,
         content: schema
             .node("doc", {}, [
@@ -2036,12 +2047,12 @@ test("resolves a conflict when typing in deleted content and the delete action i
 });
 
 test("can read steps in a single transaction with many steps", async () => {
-    const {id: documentId} = await createDocument(context.request(session), {
+    const {id: documentId} = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 0,
         steps: [
@@ -2059,7 +2070,7 @@ test("can read steps in a single transaction with many steps", async () => {
 
     expect(
         massageSteps(
-            await getDocumentContentSteps(context.request(session), {
+            await getDocumentContentSteps(context.request(session1), {
                 id: documentId,
                 startVersion: 0,
                 endVersion: 6,
@@ -2078,7 +2089,7 @@ test("can read steps in a single transaction with many steps", async () => {
 
     expect(
         massageSteps(
-            await getDocumentContentSteps(context.request(session), {
+            await getDocumentContentSteps(context.request(session1), {
                 id: documentId,
                 startVersion: 1,
                 endVersion: 5,
@@ -2095,7 +2106,7 @@ test("can read steps in a single transaction with many steps", async () => {
 
     expect(
         massageSteps(
-            await getDocumentContentSteps(context.request(session), {
+            await getDocumentContentSteps(context.request(session1), {
                 id: documentId,
                 startVersion: 2,
                 endVersion: 4,
@@ -2109,7 +2120,7 @@ test("can read steps in a single transaction with many steps", async () => {
 
     expect(
         massageSteps(
-            await getDocumentContentSteps(context.request(session), {
+            await getDocumentContentSteps(context.request(session1), {
                 id: documentId,
                 startVersion: 3,
                 endVersion: 5,
@@ -2123,7 +2134,7 @@ test("can read steps in a single transaction with many steps", async () => {
 
     expect(
         massageSteps(
-            await getDocumentContentSteps(context.request(session), {
+            await getDocumentContentSteps(context.request(session1), {
                 id: documentId,
                 startVersion: 2,
                 endVersion: 3,
@@ -2133,42 +2144,42 @@ test("can read steps in a single transaction with many steps", async () => {
 });
 
 test("can read steps in individual transactions of single steps", async () => {
-    const {id: documentId} = await createDocument(context.request(session), {
+    const {id: documentId} = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a"))],
         clientId: generateId(),
     });
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 1,
         steps: [new ReplaceStep(4, 4, textSlice("b"))],
         clientId: generateId(),
     });
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 2,
         steps: [new ReplaceStep(5, 5, textSlice("c"))],
         clientId: generateId(),
     });
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 3,
         steps: [new ReplaceStep(6, 6, textSlice("d"))],
         clientId: generateId(),
     });
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 4,
         steps: [new ReplaceStep(7, 7, textSlice("e"))],
         clientId: generateId(),
     });
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 5,
         steps: [new ReplaceStep(8, 8, textSlice("f"))],
@@ -2179,7 +2190,7 @@ test("can read steps in individual transactions of single steps", async () => {
 
     expect(
         massageSteps(
-            await getDocumentContentSteps(context.request(session), {
+            await getDocumentContentSteps(context.request(session1), {
                 id: documentId,
                 startVersion: 0,
                 endVersion: 6,
@@ -2198,7 +2209,7 @@ test("can read steps in individual transactions of single steps", async () => {
 
     expect(
         massageSteps(
-            await getDocumentContentSteps(context.request(session), {
+            await getDocumentContentSteps(context.request(session1), {
                 id: documentId,
                 startVersion: 1,
                 endVersion: 5,
@@ -2215,7 +2226,7 @@ test("can read steps in individual transactions of single steps", async () => {
 
     expect(
         massageSteps(
-            await getDocumentContentSteps(context.request(session), {
+            await getDocumentContentSteps(context.request(session1), {
                 id: documentId,
                 startVersion: 2,
                 endVersion: 4,
@@ -2229,7 +2240,7 @@ test("can read steps in individual transactions of single steps", async () => {
 
     expect(
         massageSteps(
-            await getDocumentContentSteps(context.request(session), {
+            await getDocumentContentSteps(context.request(session1), {
                 id: documentId,
                 startVersion: 3,
                 endVersion: 5,
@@ -2243,7 +2254,7 @@ test("can read steps in individual transactions of single steps", async () => {
 
     expect(
         massageSteps(
-            await getDocumentContentSteps(context.request(session), {
+            await getDocumentContentSteps(context.request(session1), {
                 id: documentId,
                 startVersion: 2,
                 endVersion: 3,
@@ -2253,24 +2264,24 @@ test("can read steps in individual transactions of single steps", async () => {
 });
 
 test("can read steps in a couple multi-step transactions", async () => {
-    const {id: documentId} = await createDocument(context.request(session), {
+    const {id: documentId} = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("a")), new ReplaceStep(4, 4, textSlice("b"))],
         clientId: generateId(),
     });
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 2,
         steps: [new ReplaceStep(5, 5, textSlice("c")), new ReplaceStep(6, 6, textSlice("d"))],
         clientId: generateId(),
     });
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id: documentId,
         version: 4,
         steps: [new ReplaceStep(7, 7, textSlice("e")), new ReplaceStep(8, 8, textSlice("f"))],
@@ -2281,7 +2292,7 @@ test("can read steps in a couple multi-step transactions", async () => {
 
     expect(
         massageSteps(
-            await getDocumentContentSteps(context.request(session), {
+            await getDocumentContentSteps(context.request(session1), {
                 id: documentId,
                 startVersion: 0,
                 endVersion: 6,
@@ -2300,7 +2311,7 @@ test("can read steps in a couple multi-step transactions", async () => {
 
     expect(
         massageSteps(
-            await getDocumentContentSteps(context.request(session), {
+            await getDocumentContentSteps(context.request(session1), {
                 id: documentId,
                 startVersion: 1,
                 endVersion: 5,
@@ -2317,7 +2328,7 @@ test("can read steps in a couple multi-step transactions", async () => {
 
     expect(
         massageSteps(
-            await getDocumentContentSteps(context.request(session), {
+            await getDocumentContentSteps(context.request(session1), {
                 id: documentId,
                 startVersion: 2,
                 endVersion: 4,
@@ -2331,7 +2342,7 @@ test("can read steps in a couple multi-step transactions", async () => {
 
     expect(
         massageSteps(
-            await getDocumentContentSteps(context.request(session), {
+            await getDocumentContentSteps(context.request(session1), {
                 id: documentId,
                 startVersion: 3,
                 endVersion: 5,
@@ -2345,7 +2356,7 @@ test("can read steps in a couple multi-step transactions", async () => {
 
     expect(
         massageSteps(
-            await getDocumentContentSteps(context.request(session), {
+            await getDocumentContentSteps(context.request(session1), {
                 id: documentId,
                 startVersion: 2,
                 endVersion: 3,
@@ -2381,10 +2392,10 @@ test("can not read a created document in a different space", async () => {
         content,
     });
 
-    await expect(getDocument(context.request(session), documentId)).rejects.toThrow(
+    await expect(getDocument(context.request(session1), documentId)).rejects.toThrow(
         PermissionDeniedError,
     );
-    await expect(getDocumentPreviewIfExists(context.request(session), documentId)).rejects.toThrow(
+    await expect(getDocumentPreviewIfExists(context.request(session1), documentId)).rejects.toThrow(
         PermissionDeniedError,
     );
 });
@@ -2396,7 +2407,7 @@ test("can not update a document in a different space", async () => {
     });
 
     await expect(
-        updateDocumentContent(context.request(session), {
+        updateDocumentContent(context.request(session1), {
             id: documentId,
             version: 0,
             steps: [new ReplaceStep(3, 3, textSlice("a"))],
@@ -2436,7 +2447,7 @@ test("can not update a cached document in a different space", async () => {
     });
 
     await expect(
-        updateDocumentContent(context.request(session), {
+        updateDocumentContent(context.request(session1), {
             id: documentId,
             version: 1,
             steps: [new ReplaceStep(4, 4, textSlice("b"))],
@@ -2462,7 +2473,7 @@ test("can update a cached document after rejecting an update in a different spac
     });
 
     await expect(
-        updateDocumentContent(context.request(session), {
+        updateDocumentContent(context.request(session1), {
             id: documentId,
             version: 0,
             steps: [new ReplaceStep(3, 3, textSlice("a"))],
@@ -2497,12 +2508,12 @@ test("can update a cached document after rejecting an update in a different spac
 
 test("can not update a document with an invalid step", async () => {
     {
-        const {id} = await createDocument(context.request(session), {
+        const {id} = await createDocument(context.request(session1), {
             spaceId: space.id,
             content: emptyDocumentContent,
         });
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id,
             version: 0,
             steps: [
@@ -2523,7 +2534,7 @@ test("can not update a document with an invalid step", async () => {
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(context.request(session), id))).toEqual({
+        expect(massageDocument(await getDocument(context.request(session1), id))).toEqual({
             version: 1,
             content: schema
                 .node("doc", {}, [
@@ -2537,13 +2548,13 @@ test("can not update a document with an invalid step", async () => {
     }
 
     {
-        const {id} = await createDocument(context.request(session), {
+        const {id} = await createDocument(context.request(session1), {
             spaceId: space.id,
             content: emptyDocumentContent,
         });
 
         await expect(
-            updateDocumentContent(context.request(session), {
+            updateDocumentContent(context.request(session1), {
                 id,
                 version: 0,
                 steps: [
@@ -2571,12 +2582,12 @@ test("can not update a document with an invalid step", async () => {
 
 test("can not update a document such that it would have invalid content", async () => {
     {
-        const {id} = await createDocument(context.request(session), {
+        const {id} = await createDocument(context.request(session1), {
             spaceId: space.id,
             content: emptyDocumentContent,
         });
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id,
             version: 0,
             steps: [
@@ -2597,7 +2608,7 @@ test("can not update a document such that it would have invalid content", async 
             clientId: generateId(),
         });
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id,
             version: 1,
             steps: [
@@ -2614,7 +2625,7 @@ test("can not update a document such that it would have invalid content", async 
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(context.request(session), id))).toEqual({
+        expect(massageDocument(await getDocument(context.request(session1), id))).toEqual({
             version: 2,
             content: schema
                 .node("doc", {}, [
@@ -2628,12 +2639,12 @@ test("can not update a document such that it would have invalid content", async 
     }
 
     {
-        const {id} = await createDocument(context.request(session), {
+        const {id} = await createDocument(context.request(session1), {
             spaceId: space.id,
             content: emptyDocumentContent,
         });
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id,
             version: 0,
             steps: [
@@ -2657,7 +2668,7 @@ test("can not update a document such that it would have invalid content", async 
         });
 
         await expect(
-            updateDocumentContent(context.request(session), {
+            updateDocumentContent(context.request(session1), {
                 id,
                 version: 1,
                 steps: [
@@ -2680,12 +2691,12 @@ test("can not update a document such that it would have invalid content", async 
 });
 
 test("can not update a document with an invalid step even when there is a concurrent update", async () => {
-    const {id} = await createDocument(context.request(session), {
+    const {id} = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("test"))],
@@ -2693,7 +2704,7 @@ test("can not update a document with an invalid step even when there is a concur
     });
 
     await expect(
-        updateDocumentContent(context.request(session), {
+        updateDocumentContent(context.request(session1), {
             id,
             version: 0,
             steps: [
@@ -2717,12 +2728,12 @@ test("can not update a document with an invalid step even when there is a concur
 });
 
 test("can not update a document such that it would have invalid content even when there is a concurrent update", async () => {
-    const {id} = await createDocument(context.request(session), {
+    const {id} = await createDocument(context.request(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id,
         version: 0,
         steps: [
@@ -2745,7 +2756,7 @@ test("can not update a document such that it would have invalid content even whe
         clientId: generateId(),
     });
 
-    await updateDocumentContent(context.request(session), {
+    await updateDocumentContent(context.request(session1), {
         id,
         version: 1,
         steps: [new ReplaceStep(7, 7, textSlice("eeeee"))],
@@ -2753,7 +2764,7 @@ test("can not update a document such that it would have invalid content even whe
     });
 
     await expect(
-        updateDocumentContent(context.request(session), {
+        updateDocumentContent(context.request(session1), {
             id,
             version: 1,
             steps: [
@@ -2778,12 +2789,12 @@ describe("Comments", () => {
     test("can create a comment thread while updating content", async () => {
         const DocumentsTable = getDocumentsTableForTest();
 
-        const document = await createDocument(context.request(session), {
+        const document = await createDocument(context.request(session1), {
             spaceId: space.id,
             content: emptyDocumentContent,
         });
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 0,
             steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
@@ -2793,7 +2804,7 @@ describe("Comments", () => {
         const commentThreadId = generateId<DocumentCommentThreadId>();
 
         await expect(() =>
-            getDocumentComment(context.request(session), {
+            getDocumentComment(context.request(session1), {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 0,
@@ -2818,7 +2829,7 @@ describe("Comments", () => {
             }),
         ).toBeNull();
 
-        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+        expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
             version: 1,
             content: schema
                 .node("doc", {}, [
@@ -2828,7 +2839,7 @@ describe("Comments", () => {
                 .toJSON(),
         });
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 1,
             steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
@@ -2841,7 +2852,7 @@ describe("Comments", () => {
             ],
         });
 
-        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+        expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
             version: 2,
             content: schema
                 .node("doc", {}, [
@@ -2856,7 +2867,7 @@ describe("Comments", () => {
         });
 
         expect(
-            await getDocumentComment(context.request(session), {
+            await getDocumentComment(context.request(session1), {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 0,
@@ -2885,12 +2896,12 @@ describe("Comments", () => {
     test("can not create a comment thread with the same id twice", async () => {
         const DocumentsTable = getDocumentsTableForTest();
 
-        const document = await createDocument(context.request(session), {
+        const document = await createDocument(context.request(session1), {
             spaceId: space.id,
             content: emptyDocumentContent,
         });
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 0,
             steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
@@ -2900,7 +2911,7 @@ describe("Comments", () => {
         const commentThreadId = generateId<DocumentCommentThreadId>();
 
         await expect(() =>
-            getDocumentComment(context.request(session), {
+            getDocumentComment(context.request(session1), {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 0,
@@ -2925,7 +2936,7 @@ describe("Comments", () => {
             }),
         ).toBeNull();
 
-        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+        expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
             version: 1,
             content: schema
                 .node("doc", {}, [
@@ -2935,7 +2946,7 @@ describe("Comments", () => {
                 .toJSON(),
         });
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 1,
             steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
@@ -2948,7 +2959,7 @@ describe("Comments", () => {
             ],
         });
 
-        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+        expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
             version: 2,
             content: schema
                 .node("doc", {}, [
@@ -2963,7 +2974,7 @@ describe("Comments", () => {
         });
 
         await expect(() =>
-            updateDocumentContent(context.request(session), {
+            updateDocumentContent(context.request(session1), {
                 id: document.id,
                 version: 2,
                 steps: [new AddMarkStep(3, 8, schema.mark("comment", {commentThreadId}))],
@@ -2985,12 +2996,12 @@ describe("Comments", () => {
     test("can not create a comment thread if the comment thread id is not in steps", async () => {
         const DocumentsTable = getDocumentsTableForTest();
 
-        const document = await createDocument(context.request(session), {
+        const document = await createDocument(context.request(session1), {
             spaceId: space.id,
             content: emptyDocumentContent,
         });
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 0,
             steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
@@ -3000,7 +3011,7 @@ describe("Comments", () => {
         const commentThreadId = generateId<DocumentCommentThreadId>();
 
         await expect(() =>
-            getDocumentComment(context.request(session), {
+            getDocumentComment(context.request(session1), {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 0,
@@ -3025,7 +3036,7 @@ describe("Comments", () => {
             }),
         ).toBeNull();
 
-        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+        expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
             version: 1,
             content: schema
                 .node("doc", {}, [
@@ -3036,7 +3047,7 @@ describe("Comments", () => {
         });
 
         await expect(() =>
-            updateDocumentContent(context.request(session), {
+            updateDocumentContent(context.request(session1), {
                 id: document.id,
                 version: 1,
                 steps: [new AddMarkStep(10, 15, schema.mark("bold"))],
@@ -3050,7 +3061,7 @@ describe("Comments", () => {
             }),
         ).rejects.toThrow(InvalidArgumentError);
 
-        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+        expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
             version: 1,
             content: schema
                 .node("doc", {}, [
@@ -3061,7 +3072,7 @@ describe("Comments", () => {
         });
 
         await expect(() =>
-            getDocumentComment(context.request(session), {
+            getDocumentComment(context.request(session1), {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 0,
@@ -3090,12 +3101,12 @@ describe("Comments", () => {
     test("can mark text with a comment style even if there is no related thread", async () => {
         const DocumentsTable = getDocumentsTableForTest();
 
-        const document = await createDocument(context.request(session), {
+        const document = await createDocument(context.request(session1), {
             spaceId: space.id,
             content: emptyDocumentContent,
         });
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 0,
             steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
@@ -3105,7 +3116,7 @@ describe("Comments", () => {
         const commentThreadId = generateId<DocumentCommentThreadId>();
 
         await expect(() =>
-            getDocumentComment(context.request(session), {
+            getDocumentComment(context.request(session1), {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 0,
@@ -3130,7 +3141,7 @@ describe("Comments", () => {
             }),
         ).toBeNull();
 
-        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+        expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
             version: 1,
             content: schema
                 .node("doc", {}, [
@@ -3140,14 +3151,14 @@ describe("Comments", () => {
                 .toJSON(),
         });
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 1,
             steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+        expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
             version: 2,
             content: schema
                 .node("doc", {}, [
@@ -3162,7 +3173,7 @@ describe("Comments", () => {
         });
 
         await expect(() =>
-            getDocumentComment(context.request(session), {
+            getDocumentComment(context.request(session1), {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 0,
@@ -3191,12 +3202,12 @@ describe("Comments", () => {
     test("comment threads that are no longer referenced will be archived after a snapshot update", async () => {
         const DocumentsTable = getDocumentsTableForTest();
 
-        const document = await createDocument(context.request(session), {
+        const document = await createDocument(context.request(session1), {
             spaceId: space.id,
             content: emptyDocumentContent,
         });
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 0,
             steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
@@ -3206,7 +3217,7 @@ describe("Comments", () => {
         const commentThreadId = generateId<DocumentCommentThreadId>();
 
         await expect(() =>
-            getDocumentComment(context.request(session), {
+            getDocumentComment(context.request(session1), {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 0,
@@ -3231,7 +3242,7 @@ describe("Comments", () => {
             }),
         ).toBeNull();
 
-        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+        expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
             version: 1,
             content: schema
                 .node("doc", {}, [
@@ -3243,11 +3254,11 @@ describe("Comments", () => {
 
         expect(
             (
-                await getDocument(context.request(session), document.id)
+                await getDocument(context.request(session1), document.id)
             ).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(false);
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 1,
             steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
@@ -3260,7 +3271,7 @@ describe("Comments", () => {
             ],
         });
 
-        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+        expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
             version: 2,
             content: schema
                 .node("doc", {}, [
@@ -3276,12 +3287,12 @@ describe("Comments", () => {
 
         expect(
             (
-                await getDocument(context.request(session), document.id)
+                await getDocument(context.request(session1), document.id)
             ).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(true);
 
         expect(
-            await getDocumentComment(context.request(session), {
+            await getDocumentComment(context.request(session1), {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 0,
@@ -3306,14 +3317,14 @@ describe("Comments", () => {
             }),
         ).toBeNull();
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 2,
             steps: [new RemoveMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+        expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
             version: 3,
             content: schema
                 .node("doc", {}, [
@@ -3325,12 +3336,12 @@ describe("Comments", () => {
 
         expect(
             (
-                await getDocument(context.request(session), document.id)
+                await getDocument(context.request(session1), document.id)
             ).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(false);
 
         expect(
-            await getDocumentComment(context.request(session), {
+            await getDocumentComment(context.request(session1), {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 0,
@@ -3355,9 +3366,9 @@ describe("Comments", () => {
             }),
         ).toBeNull();
 
-        await updateDocumentSnapshotForTest(context.request(session), document.id);
+        await updateDocumentSnapshotForTest(context.request(session1), document.id);
 
-        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+        expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
             version: 3,
             content: schema
                 .node("doc", {}, [
@@ -3369,12 +3380,12 @@ describe("Comments", () => {
 
         expect(
             (
-                await getDocument(context.request(session), document.id)
+                await getDocument(context.request(session1), document.id)
             ).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(false);
 
         expect(
-            await getDocumentComment(context.request(session), {
+            await getDocumentComment(context.request(session1), {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 0,
@@ -3403,12 +3414,12 @@ describe("Comments", () => {
     test("can not re-create a comment thread that has been archived", async () => {
         const DocumentsTable = getDocumentsTableForTest();
 
-        const document = await createDocument(context.request(session), {
+        const document = await createDocument(context.request(session1), {
             spaceId: space.id,
             content: emptyDocumentContent,
         });
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 0,
             steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
@@ -3418,7 +3429,7 @@ describe("Comments", () => {
         const commentThreadId = generateId<DocumentCommentThreadId>();
 
         await expect(() =>
-            getDocumentComment(context.request(session), {
+            getDocumentComment(context.request(session1), {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 0,
@@ -3443,7 +3454,7 @@ describe("Comments", () => {
             }),
         ).toBeNull();
 
-        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+        expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
             version: 1,
             content: schema
                 .node("doc", {}, [
@@ -3455,11 +3466,11 @@ describe("Comments", () => {
 
         expect(
             (
-                await getDocument(context.request(session), document.id)
+                await getDocument(context.request(session1), document.id)
             ).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(false);
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 1,
             steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
@@ -3472,7 +3483,7 @@ describe("Comments", () => {
             ],
         });
 
-        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+        expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
             version: 2,
             content: schema
                 .node("doc", {}, [
@@ -3488,12 +3499,12 @@ describe("Comments", () => {
 
         expect(
             (
-                await getDocument(context.request(session), document.id)
+                await getDocument(context.request(session1), document.id)
             ).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(true);
 
         expect(
-            await getDocumentComment(context.request(session), {
+            await getDocumentComment(context.request(session1), {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 0,
@@ -3518,14 +3529,14 @@ describe("Comments", () => {
             }),
         ).toBeNull();
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 2,
             steps: [new RemoveMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+        expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
             version: 3,
             content: schema
                 .node("doc", {}, [
@@ -3537,12 +3548,12 @@ describe("Comments", () => {
 
         expect(
             (
-                await getDocument(context.request(session), document.id)
+                await getDocument(context.request(session1), document.id)
             ).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(false);
 
         expect(
-            await getDocumentComment(context.request(session), {
+            await getDocumentComment(context.request(session1), {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 0,
@@ -3567,9 +3578,9 @@ describe("Comments", () => {
             }),
         ).toBeNull();
 
-        await updateDocumentSnapshotForTest(context.request(session), document.id);
+        await updateDocumentSnapshotForTest(context.request(session1), document.id);
 
-        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+        expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
             version: 3,
             content: schema
                 .node("doc", {}, [
@@ -3581,12 +3592,12 @@ describe("Comments", () => {
 
         expect(
             (
-                await getDocument(context.request(session), document.id)
+                await getDocument(context.request(session1), document.id)
             ).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(false);
 
         expect(
-            await getDocumentComment(context.request(session), {
+            await getDocumentComment(context.request(session1), {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 0,
@@ -3612,7 +3623,7 @@ describe("Comments", () => {
         ).not.toBeNull();
 
         await expect(() =>
-            updateDocumentContent(context.request(session), {
+            updateDocumentContent(context.request(session1), {
                 id: document.id,
                 version: 3,
                 steps: [new AddMarkStep(3, 8, schema.mark("comment", {commentThreadId}))],
@@ -3630,7 +3641,7 @@ describe("Comments", () => {
             ),
         );
 
-        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+        expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
             version: 3,
             content: schema
                 .node("doc", {}, [
@@ -3642,12 +3653,12 @@ describe("Comments", () => {
 
         expect(
             (
-                await getDocument(context.request(session), document.id)
+                await getDocument(context.request(session1), document.id)
             ).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(false);
 
         expect(
-            await getDocumentComment(context.request(session), {
+            await getDocumentComment(context.request(session1), {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 0,
@@ -3676,12 +3687,12 @@ describe("Comments", () => {
     test("comment threads that were unreferenced then re-referenced will be unarchived after a snapshot update", async () => {
         const DocumentsTable = getDocumentsTableForTest();
 
-        const document = await createDocument(context.request(session), {
+        const document = await createDocument(context.request(session1), {
             spaceId: space.id,
             content: emptyDocumentContent,
         });
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 0,
             steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
@@ -3691,7 +3702,7 @@ describe("Comments", () => {
         const commentThreadId = generateId<DocumentCommentThreadId>();
 
         await expect(() =>
-            getDocumentComment(context.request(session), {
+            getDocumentComment(context.request(session1), {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 0,
@@ -3716,7 +3727,7 @@ describe("Comments", () => {
             }),
         ).toBeNull();
 
-        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+        expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
             version: 1,
             content: schema
                 .node("doc", {}, [
@@ -3728,11 +3739,11 @@ describe("Comments", () => {
 
         expect(
             (
-                await getDocument(context.request(session), document.id)
+                await getDocument(context.request(session1), document.id)
             ).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(false);
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 1,
             steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
@@ -3745,7 +3756,7 @@ describe("Comments", () => {
             ],
         });
 
-        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+        expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
             version: 2,
             content: schema
                 .node("doc", {}, [
@@ -3761,12 +3772,12 @@ describe("Comments", () => {
 
         expect(
             (
-                await getDocument(context.request(session), document.id)
+                await getDocument(context.request(session1), document.id)
             ).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(true);
 
         expect(
-            await getDocumentComment(context.request(session), {
+            await getDocumentComment(context.request(session1), {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 0,
@@ -3791,14 +3802,14 @@ describe("Comments", () => {
             }),
         ).toBeNull();
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 2,
             steps: [new RemoveMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+        expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
             version: 3,
             content: schema
                 .node("doc", {}, [
@@ -3810,12 +3821,12 @@ describe("Comments", () => {
 
         expect(
             (
-                await getDocument(context.request(session), document.id)
+                await getDocument(context.request(session1), document.id)
             ).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(false);
 
         expect(
-            await getDocumentComment(context.request(session), {
+            await getDocumentComment(context.request(session1), {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 0,
@@ -3840,9 +3851,9 @@ describe("Comments", () => {
             }),
         ).toBeNull();
 
-        await updateDocumentSnapshotForTest(context.request(session), document.id);
+        await updateDocumentSnapshotForTest(context.request(session1), document.id);
 
-        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+        expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
             version: 3,
             content: schema
                 .node("doc", {}, [
@@ -3854,12 +3865,12 @@ describe("Comments", () => {
 
         expect(
             (
-                await getDocument(context.request(session), document.id)
+                await getDocument(context.request(session1), document.id)
             ).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(false);
 
         expect(
-            await getDocumentComment(context.request(session), {
+            await getDocumentComment(context.request(session1), {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 0,
@@ -3884,14 +3895,14 @@ describe("Comments", () => {
             }),
         ).not.toBeNull();
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 3,
             steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
             clientId: generateId(),
         });
 
-        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+        expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
             version: 4,
             content: schema
                 .node("doc", {}, [
@@ -3907,12 +3918,12 @@ describe("Comments", () => {
 
         expect(
             (
-                await getDocument(context.request(session), document.id)
+                await getDocument(context.request(session1), document.id)
             ).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(true);
 
         expect(
-            await getDocumentComment(context.request(session), {
+            await getDocumentComment(context.request(session1), {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 0,
@@ -3937,9 +3948,9 @@ describe("Comments", () => {
             }),
         ).not.toBeNull();
 
-        await updateDocumentSnapshotForTest(context.request(session), document.id);
+        await updateDocumentSnapshotForTest(context.request(session1), document.id);
 
-        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+        expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
             version: 4,
             content: schema
                 .node("doc", {}, [
@@ -3955,12 +3966,12 @@ describe("Comments", () => {
 
         expect(
             (
-                await getDocument(context.request(session), document.id)
+                await getDocument(context.request(session1), document.id)
             ).content.references.commentThreadById.has(commentThreadId),
         ).toEqual(true);
 
         expect(
-            await getDocumentComment(context.request(session), {
+            await getDocumentComment(context.request(session1), {
                 documentId: document.id,
                 commentThreadId,
                 commentIndex: 0,
@@ -3989,12 +4000,12 @@ describe("Comments", () => {
     test("comment threads correctly archived or unarchived will be left alone after a snapshot update", async () => {
         const DocumentsTable = getDocumentsTableForTest();
 
-        const document = await createDocument(context.request(session), {
+        const document = await createDocument(context.request(session1), {
             spaceId: space.id,
             content: emptyDocumentContent,
         });
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 0,
             steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
@@ -4004,7 +4015,7 @@ describe("Comments", () => {
         const commentThreadId1 = generateId<DocumentCommentThreadId>();
         const commentThreadId2 = generateId<DocumentCommentThreadId>();
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 1,
             steps: [
@@ -4023,7 +4034,7 @@ describe("Comments", () => {
             ],
         });
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 2,
             steps: [
@@ -4036,9 +4047,9 @@ describe("Comments", () => {
             clientId: generateId(),
         });
 
-        await updateDocumentSnapshotForTest(context.request(session), document.id);
+        await updateDocumentSnapshotForTest(context.request(session1), document.id);
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 3,
             steps: [
@@ -4057,7 +4068,7 @@ describe("Comments", () => {
             ],
         });
 
-        expect(massageDocument(await getDocument(context.request(session), document.id))).toEqual({
+        expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
             version: 4,
             content: schema
                 .node("doc", {}, [
@@ -4074,7 +4085,7 @@ describe("Comments", () => {
         });
 
         expect(
-            await getDocumentComment(context.request(session), {
+            await getDocumentComment(context.request(session1), {
                 documentId: document.id,
                 commentThreadId: commentThreadId1,
                 commentIndex: 0,
@@ -4100,7 +4111,7 @@ describe("Comments", () => {
         ).not.toBeNull();
 
         expect(
-            await getDocumentComment(context.request(session), {
+            await getDocumentComment(context.request(session1), {
                 documentId: document.id,
                 commentThreadId: commentThreadId2,
                 commentIndex: 0,
@@ -4125,10 +4136,10 @@ describe("Comments", () => {
             }),
         ).toBeNull();
 
-        await updateDocumentSnapshotForTest(context.request(session), document.id);
+        await updateDocumentSnapshotForTest(context.request(session1), document.id);
 
         expect(
-            await getDocumentComment(context.request(session), {
+            await getDocumentComment(context.request(session1), {
                 documentId: document.id,
                 commentThreadId: commentThreadId1,
                 commentIndex: 0,
@@ -4154,7 +4165,7 @@ describe("Comments", () => {
         ).not.toBeNull();
 
         expect(
-            await getDocumentComment(context.request(session), {
+            await getDocumentComment(context.request(session1), {
                 documentId: document.id,
                 commentThreadId: commentThreadId2,
                 commentIndex: 0,
@@ -4183,12 +4194,12 @@ describe("Comments", () => {
     test("can archive a comment thread even when it is actively being updated", async () => {
         const DocumentsTable = getDocumentsTableForTest();
 
-        const document = await createDocument(context.request(session), {
+        const document = await createDocument(context.request(session1), {
             spaceId: space.id,
             content: emptyDocumentContent,
         });
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 0,
             steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
@@ -4197,7 +4208,7 @@ describe("Comments", () => {
 
         const commentThreadId = generateId<DocumentCommentThreadId>();
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 1,
             steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
@@ -4210,7 +4221,7 @@ describe("Comments", () => {
             ],
         });
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 2,
             steps: [new RemoveMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
@@ -4233,7 +4244,8 @@ describe("Comments", () => {
             commentsSummary: {
                 nextCommentIndex: 1,
                 lastChangeTime: null,
-                commentCountByAuthorId: new Map([[session.account.id, 1]]),
+                commentCountByAuthorId: new Map([[session1.account.id, 1]]),
+                mentionCountByAccountId: new Map(),
             },
         });
 
@@ -4250,7 +4262,7 @@ describe("Comments", () => {
             updateDocumentSnapshotBeforeMovingCommentThreadTestCheckpoint.pauseForTest(document.id);
 
         const updateSnapshotPromise = updateDocumentSnapshotForTest(
-            context.request(session),
+            context.request(session1),
             document.id,
         );
 
@@ -4272,7 +4284,8 @@ describe("Comments", () => {
             commentsSummary: {
                 nextCommentIndex: 1,
                 lastChangeTime: null,
-                commentCountByAuthorId: new Map([[session.account.id, 1]]),
+                commentCountByAuthorId: new Map([[session1.account.id, 1]]),
+                mentionCountByAccountId: new Map(),
             },
         });
 
@@ -4285,7 +4298,7 @@ describe("Comments", () => {
             }),
         ).toEqual(null);
 
-        await createDocumentComment(context.request(session), {
+        await createDocumentComment(context.request(session1), {
             documentId: document.id,
             commentThreadId,
             parentCommentIndex: null,
@@ -4308,7 +4321,8 @@ describe("Comments", () => {
             commentsSummary: {
                 nextCommentIndex: 2,
                 lastChangeTime: null,
-                commentCountByAuthorId: new Map([[session.account.id, 2]]),
+                commentCountByAuthorId: new Map([[session1.account.id, 2]]),
+                mentionCountByAccountId: new Map(),
             },
             updateLockVersion: 1,
         });
@@ -4351,7 +4365,8 @@ describe("Comments", () => {
             commentsSummary: {
                 nextCommentIndex: 2,
                 lastChangeTime: null,
-                commentCountByAuthorId: new Map([[session.account.id, 2]]),
+                commentCountByAuthorId: new Map([[session1.account.id, 2]]),
+                mentionCountByAccountId: new Map(),
             },
             updateLockVersion: 1,
         });
@@ -4360,12 +4375,12 @@ describe("Comments", () => {
     test("can unarchive a comment thread even when it is actively being updated", async () => {
         const DocumentsTable = getDocumentsTableForTest();
 
-        const document = await createDocument(context.request(session), {
+        const document = await createDocument(context.request(session1), {
             spaceId: space.id,
             content: emptyDocumentContent,
         });
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 0,
             steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
@@ -4374,7 +4389,7 @@ describe("Comments", () => {
 
         const commentThreadId = generateId<DocumentCommentThreadId>();
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 1,
             steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
@@ -4387,16 +4402,16 @@ describe("Comments", () => {
             ],
         });
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 2,
             steps: [new RemoveMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
             clientId: generateId(),
         });
 
-        await updateDocumentSnapshotForTest(context.request(session), document.id);
+        await updateDocumentSnapshotForTest(context.request(session1), document.id);
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 3,
             steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
@@ -4428,7 +4443,8 @@ describe("Comments", () => {
             commentsSummary: {
                 nextCommentIndex: 1,
                 lastChangeTime: null,
-                commentCountByAuthorId: new Map([[session.account.id, 1]]),
+                commentCountByAuthorId: new Map([[session1.account.id, 1]]),
+                mentionCountByAccountId: new Map(),
             },
         });
 
@@ -4436,7 +4452,7 @@ describe("Comments", () => {
             updateDocumentSnapshotBeforeMovingCommentThreadTestCheckpoint.pauseForTest(document.id);
 
         const updateSnapshotPromise = updateDocumentSnapshotForTest(
-            context.request(session),
+            context.request(session1),
             document.id,
         );
 
@@ -4467,11 +4483,12 @@ describe("Comments", () => {
             commentsSummary: {
                 nextCommentIndex: 1,
                 lastChangeTime: null,
-                commentCountByAuthorId: new Map([[session.account.id, 1]]),
+                commentCountByAuthorId: new Map([[session1.account.id, 1]]),
+                mentionCountByAccountId: new Map(),
             },
         });
 
-        await createDocumentComment(context.request(session), {
+        await createDocumentComment(context.request(session1), {
             documentId: document.id,
             commentThreadId,
             parentCommentIndex: null,
@@ -4503,7 +4520,8 @@ describe("Comments", () => {
             commentsSummary: {
                 nextCommentIndex: 2,
                 lastChangeTime: null,
-                commentCountByAuthorId: new Map([[session.account.id, 2]]),
+                commentCountByAuthorId: new Map([[session1.account.id, 2]]),
+                mentionCountByAccountId: new Map(),
             },
             updateLockVersion: 1,
         });
@@ -4528,7 +4546,8 @@ describe("Comments", () => {
             commentsSummary: {
                 nextCommentIndex: 2,
                 lastChangeTime: null,
-                commentCountByAuthorId: new Map([[session.account.id, 2]]),
+                commentCountByAuthorId: new Map([[session1.account.id, 2]]),
+                mentionCountByAccountId: new Map(),
             },
             updateLockVersion: 1,
         });
@@ -4546,12 +4565,12 @@ describe("Comments", () => {
     test("reading a comment thread while unarchiving works", async () => {
         const DocumentsTable = getDocumentsTableForTest();
 
-        const document = await createDocument(context.request(session), {
+        const document = await createDocument(context.request(session1), {
             spaceId: space.id,
             content: emptyDocumentContent,
         });
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 0,
             steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
@@ -4560,7 +4579,7 @@ describe("Comments", () => {
 
         const commentThreadId = generateId<DocumentCommentThreadId>();
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 1,
             steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
@@ -4573,16 +4592,16 @@ describe("Comments", () => {
             ],
         });
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 2,
             steps: [new RemoveMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
             clientId: generateId(),
         });
 
-        await updateDocumentSnapshotForTest(context.request(session), document.id);
+        await updateDocumentSnapshotForTest(context.request(session1), document.id);
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 3,
             steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
@@ -4610,7 +4629,7 @@ describe("Comments", () => {
         const pausePromise =
             getDocumentCommentThreadItemAfterFirstGetItemTestCheckpoint.pauseForTest(document.id);
 
-        const commentPromise = getDocumentComment(context.request(session), {
+        const commentPromise = getDocumentComment(context.request(session1), {
             documentId: document.id,
             commentThreadId,
             commentIndex: 0,
@@ -4636,7 +4655,7 @@ describe("Comments", () => {
             }),
         ).not.toBeNull();
 
-        await updateDocumentSnapshotForTest(context.request(session), document.id);
+        await updateDocumentSnapshotForTest(context.request(session1), document.id);
 
         expect(
             await DocumentsTable.getItemIfExists(context, {
@@ -4662,12 +4681,12 @@ describe("Comments", () => {
     });
 
     test("can get many comment threads at once", async () => {
-        const document = await createDocument(context.request(session), {
+        const document = await createDocument(context.request(session1), {
             spaceId: space.id,
             content: emptyDocumentContent,
         });
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 0,
             steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
@@ -4677,7 +4696,7 @@ describe("Comments", () => {
         const commentThreadId1 = generateId<DocumentCommentThreadId>();
         const commentThreadId2 = generateId<DocumentCommentThreadId>();
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 1,
             steps: [
@@ -4696,7 +4715,7 @@ describe("Comments", () => {
             ],
         });
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 2,
             steps: [
@@ -4709,9 +4728,9 @@ describe("Comments", () => {
             clientId: generateId(),
         });
 
-        await updateDocumentSnapshotForTest(context.request(session), document.id);
+        await updateDocumentSnapshotForTest(context.request(session1), document.id);
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 3,
             steps: [
@@ -4732,7 +4751,7 @@ describe("Comments", () => {
 
         {
             const commentThreads = await batchGetDocumentCommentThreadsIfExists(
-                context.request(session),
+                context.request(session1),
                 {
                     documentId: document.id,
                     commentThreadIds: [],
@@ -4744,7 +4763,7 @@ describe("Comments", () => {
 
         {
             const commentThreads = await batchGetDocumentCommentThreadsIfExists(
-                context.request(session),
+                context.request(session1),
                 {
                     documentId: document.id,
                     commentThreadIds: [commentThreadId1],
@@ -4757,7 +4776,7 @@ describe("Comments", () => {
 
         {
             const commentThreads = await batchGetDocumentCommentThreadsIfExists(
-                context.request(session),
+                context.request(session1),
                 {
                     documentId: document.id,
                     commentThreadIds: [generateId()],
@@ -4770,7 +4789,7 @@ describe("Comments", () => {
 
         {
             const commentThreads = await batchGetDocumentCommentThreadsIfExists(
-                context.request(session),
+                context.request(session1),
                 {
                     documentId: document.id,
                     commentThreadIds: [commentThreadId1, commentThreadId2, generateId()],
@@ -4785,7 +4804,7 @@ describe("Comments", () => {
 
         {
             const commentThreads = await batchGetDocumentCommentThreadsIfExists(
-                context.request(session),
+                context.request(session1),
                 {
                     documentId: document.id,
                     commentThreadIds: [commentThreadId1, commentThreadId2, generateId()],
@@ -4800,12 +4819,12 @@ describe("Comments", () => {
     });
 
     test("can not get comment threads for a document in another space", async () => {
-        const document = await createDocument(context.request(session), {
+        const document = await createDocument(context.request(session1), {
             spaceId: space.id,
             content: emptyDocumentContent,
         });
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 0,
             steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
@@ -4815,7 +4834,7 @@ describe("Comments", () => {
         const commentThreadId1 = generateId<DocumentCommentThreadId>();
         const commentThreadId2 = generateId<DocumentCommentThreadId>();
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 1,
             steps: [
@@ -4834,7 +4853,7 @@ describe("Comments", () => {
             ],
         });
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 2,
             steps: [
@@ -4847,9 +4866,9 @@ describe("Comments", () => {
             clientId: generateId(),
         });
 
-        await updateDocumentSnapshotForTest(context.request(session), document.id);
+        await updateDocumentSnapshotForTest(context.request(session1), document.id);
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 3,
             steps: [
@@ -4898,12 +4917,12 @@ describe("Comments", () => {
     });
 
     test("can not get comment threads for a document that doesn't exist", async () => {
-        const document = await createDocument(context.request(session), {
+        const document = await createDocument(context.request(session1), {
             spaceId: space.id,
             content: emptyDocumentContent,
         });
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 0,
             steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
@@ -4913,7 +4932,7 @@ describe("Comments", () => {
         const commentThreadId1 = generateId<DocumentCommentThreadId>();
         const commentThreadId2 = generateId<DocumentCommentThreadId>();
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 1,
             steps: [
@@ -4932,7 +4951,7 @@ describe("Comments", () => {
             ],
         });
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 2,
             steps: [
@@ -4945,9 +4964,9 @@ describe("Comments", () => {
             clientId: generateId(),
         });
 
-        await updateDocumentSnapshotForTest(context.request(session), document.id);
+        await updateDocumentSnapshotForTest(context.request(session1), document.id);
 
-        await updateDocumentContent(context.request(session), {
+        await updateDocumentContent(context.request(session1), {
             id: document.id,
             version: 3,
             steps: [
@@ -4994,195 +5013,1690 @@ describe("Comments", () => {
             }),
         ).rejects.toThrow(NotFoundError);
     });
-});
 
-testMessagingImplementation<DocumentCommentRoomKey>(context, {
-    async createRoom(context, spaceId) {
-        const DocumentsTable = getDocumentsTableForTest();
+    describe("Notification subscribers", () => {
+        test("throws when trying to access a comment thread that doesn't exist", async () => {
+            await expect(
+                getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: generateId(),
+                    commentThreadId: generateId(),
+                    isFirstComment: true,
+                }),
+            ).rejects.toThrow(NotFoundError);
 
-        const document = await createDocument(context, {
-            spaceId,
-            content: emptyDocumentContent,
+            await expect(
+                getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: generateId(),
+                    commentThreadId: generateId(),
+                    isFirstComment: false,
+                }),
+            ).rejects.toThrow(NotFoundError);
+
+            const document = await createDocument(context.request(session1), {
+                spaceId: space.id,
+                content: emptyDocumentContent,
+            });
+
+            await expect(
+                getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId: generateId(),
+                    isFirstComment: true,
+                }),
+            ).rejects.toThrow(NotFoundError);
+
+            await expect(
+                getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId: generateId(),
+                    isFirstComment: false,
+                }),
+            ).rejects.toThrow(NotFoundError);
         });
 
-        const commentThreadId = generateId<DocumentCommentThreadId>();
-        const createdTime = new Date(Date.now());
+        test("throws when trying to access a comment thread in a different space", async () => {
+            const document = await createDocument(context.request(session1), {
+                spaceId: space.id,
+                content: emptyDocumentContent,
+            });
 
-        await DocumentsTable.createItem(context, {
-            partitionType: "Document",
-            // NOTE(calebmer): Our messaging tests run against an archived comment thread
-            // since it's less common than a referenced comment thread.
-            sortRangeType: "ArchivedCommentThread",
-            documentId: document.id,
-            commentThreadId,
-            createdTime,
-            commentsSummary: {
-                nextCommentIndex: 0,
-                lastChangeTime: null,
-                commentCountByAuthorId: new Map(),
+            await updateDocumentContent(context.request(session1), {
+                id: document.id,
+                version: 0,
+                steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+                clientId: generateId(),
+            });
+
+            const commentThreadId = generateId<DocumentCommentThreadId>();
+
+            await updateDocumentContent(context.request(session2), {
+                id: document.id,
+                version: 1,
+                steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+                clientId: generateId(),
+                createCommentThreads: [
+                    {
+                        commentThreadId,
+                        initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                    },
+                ],
+            });
+
+            await expect(
+                getDocumentCommentThreadNotificationSubscribers(context.request(otherSession), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }),
+            ).rejects.toThrow(PermissionDeniedError);
+
+            await expect(
+                getDocumentCommentThreadNotificationSubscribers(context.request(otherSession), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }),
+            ).rejects.toThrow(PermissionDeniedError);
+        });
+
+        test("the document owner is a subscriber for the first comment on their document", async () => {
+            const document = await createDocument(context.request(session1), {
+                spaceId: space.id,
+                content: emptyDocumentContent,
+            });
+
+            await updateDocumentContent(context.request(session1), {
+                id: document.id,
+                version: 0,
+                steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+                clientId: generateId(),
+            });
+
+            const commentThreadId = generateId<DocumentCommentThreadId>();
+
+            await updateDocumentContent(context.request(session2), {
+                id: document.id,
+                version: 1,
+                steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+                clientId: generateId(),
+                createCommentThreads: [
+                    {
+                        commentThreadId,
+                        initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                    },
+                ],
+            });
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session2.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session2.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session2), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session2.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session2), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session2.account]);
+        });
+
+        test("an account that comments on a comment thread is subscribed to notifications", async () => {
+            const document = await createDocument(context.request(session1), {
+                spaceId: space.id,
+                content: emptyDocumentContent,
+            });
+
+            await updateDocumentContent(context.request(session1), {
+                id: document.id,
+                version: 0,
+                steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+                clientId: generateId(),
+            });
+
+            const commentThreadId = generateId<DocumentCommentThreadId>();
+
+            await updateDocumentContent(context.request(session2), {
+                id: document.id,
+                version: 1,
+                steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+                clientId: generateId(),
+                createCommentThreads: [
+                    {
+                        commentThreadId,
+                        initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                    },
+                ],
+            });
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session2.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session2.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session4), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session2.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session4), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session2.account]);
+
+            await createDocumentComment(context.request(session3), {
+                documentId: document.id,
+                commentThreadId,
+                parentCommentIndex: null,
+                content: createSimpleMessageContent("Test message content 2"),
+            });
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session2.account, session3.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session2.account, session3.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session4), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session2.account, session3.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session4), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session2.account, session3.account]);
+
+            await createDocumentComment(context.request(session4), {
+                documentId: document.id,
+                commentThreadId,
+                parentCommentIndex: null,
+                content: createSimpleMessageContent("Test message content 3"),
+            });
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session2.account, session3.account, session4.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session2.account, session3.account, session4.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session4), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session2.account, session3.account, session4.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session4), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session2.account, session3.account, session4.account]);
+
+            await createDocumentComment(context.request(session2), {
+                documentId: document.id,
+                commentThreadId,
+                parentCommentIndex: null,
+                content: createSimpleMessageContent("Test message content 4"),
+            });
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session2.account, session3.account, session4.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session2.account, session3.account, session4.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session4), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session2.account, session3.account, session4.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session4), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session2.account, session3.account, session4.account]);
+        });
+
+        test("an account that comments on a comment thread is subscribed to notifications even if the comment is deleted", async () => {
+            const document = await createDocument(context.request(session1), {
+                spaceId: space.id,
+                content: emptyDocumentContent,
+            });
+
+            await updateDocumentContent(context.request(session1), {
+                id: document.id,
+                version: 0,
+                steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+                clientId: generateId(),
+            });
+
+            const commentThreadId = generateId<DocumentCommentThreadId>();
+
+            await updateDocumentContent(context.request(session2), {
+                id: document.id,
+                version: 1,
+                steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+                clientId: generateId(),
+                createCommentThreads: [
+                    {
+                        commentThreadId,
+                        initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                    },
+                ],
+            });
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session2.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session2.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session4), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session2.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session4), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session2.account]);
+
+            await createDocumentComment(context.request(session3), {
+                documentId: document.id,
+                commentThreadId,
+                parentCommentIndex: null,
+                content: createSimpleMessageContent("Test message content 2"),
+            });
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session2.account, session3.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session2.account, session3.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session4), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session2.account, session3.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session4), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session2.account, session3.account]);
+
+            await deleteDocumentComment(context.request(session3), {
+                documentId: document.id,
+                commentThreadId,
+                commentIndex: 1,
+            });
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session2.account, session3.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session2.account, session3.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session4), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session2.account, session3.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session4), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session2.account, session3.account]);
+        });
+
+        test("an account that is mentioned in a comment thread is subscribed to notifications", async () => {
+            const document = await createDocument(context.request(session1), {
+                spaceId: space.id,
+                content: emptyDocumentContent,
+            });
+
+            await updateDocumentContent(context.request(session1), {
+                id: document.id,
+                version: 0,
+                steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+                clientId: generateId(),
+            });
+
+            const commentThreadId = generateId<DocumentCommentThreadId>();
+
+            await updateDocumentContent(context.request(session1), {
+                id: document.id,
+                version: 1,
+                steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+                clientId: generateId(),
+                createCommentThreads: [
+                    {
+                        commentThreadId,
+                        initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                    },
+                ],
+            });
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session4), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session4), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account]);
+
+            await createDocumentComment(context.request(session3), {
+                documentId: document.id,
+                commentThreadId,
+                parentCommentIndex: null,
+                content: assertMessageContent(
+                    MessageContentProsemirrorSchema.node("doc", {}, [
+                        MessageContentProsemirrorSchema.node("paragraph", {}, [
+                            MessageContentProsemirrorSchema.text("Hello, "),
+                            MessageContentProsemirrorSchema.node("mention", {
+                                mention: {accountId: session4.accountId},
+                            }),
+                            MessageContentProsemirrorSchema.text("!"),
+                        ]),
+                    ]),
+                ),
+            });
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session3.account, session4.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session2), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session3.account, session4.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session3), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session3.account, session4.account]);
+        });
+
+        test("an unknown account that is mentioned in a comment thread is not subscribed to notifications", async () => {
+            const document = await createDocument(context.request(session1), {
+                spaceId: space.id,
+                content: emptyDocumentContent,
+            });
+
+            await updateDocumentContent(context.request(session1), {
+                id: document.id,
+                version: 0,
+                steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+                clientId: generateId(),
+            });
+
+            const commentThreadId = generateId<DocumentCommentThreadId>();
+
+            await updateDocumentContent(context.request(session1), {
+                id: document.id,
+                version: 1,
+                steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+                clientId: generateId(),
+                createCommentThreads: [
+                    {
+                        commentThreadId,
+                        initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                    },
+                ],
+            });
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session4), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session4), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account]);
+
+            await createDocumentComment(context.request(session3), {
+                documentId: document.id,
+                commentThreadId,
+                parentCommentIndex: null,
+                content: assertMessageContent(
+                    MessageContentProsemirrorSchema.node("doc", {}, [
+                        MessageContentProsemirrorSchema.node("paragraph", {}, [
+                            MessageContentProsemirrorSchema.text("Hello, "),
+                            MessageContentProsemirrorSchema.node("mention", {
+                                mention: {accountId: generateId()},
+                            }),
+                            MessageContentProsemirrorSchema.text("!"),
+                        ]),
+                    ]),
+                ),
+            });
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session3.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session2), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session3.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session3), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session3.account]);
+        });
+
+        test("a mentioned account from another space in a comment thread is not subscribed to notifications", async () => {
+            const document = await createDocument(context.request(session1), {
+                spaceId: space.id,
+                content: emptyDocumentContent,
+            });
+
+            await updateDocumentContent(context.request(session1), {
+                id: document.id,
+                version: 0,
+                steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+                clientId: generateId(),
+            });
+
+            const commentThreadId = generateId<DocumentCommentThreadId>();
+
+            await updateDocumentContent(context.request(session1), {
+                id: document.id,
+                version: 1,
+                steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+                clientId: generateId(),
+                createCommentThreads: [
+                    {
+                        commentThreadId,
+                        initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                    },
+                ],
+            });
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session4), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session4), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account]);
+
+            await createDocumentComment(context.request(session3), {
+                documentId: document.id,
+                commentThreadId,
+                parentCommentIndex: null,
+                content: assertMessageContent(
+                    MessageContentProsemirrorSchema.node("doc", {}, [
+                        MessageContentProsemirrorSchema.node("paragraph", {}, [
+                            MessageContentProsemirrorSchema.text("Hello, "),
+                            MessageContentProsemirrorSchema.node("mention", {
+                                mention: {accountId: otherSession.accountId},
+                            }),
+                            MessageContentProsemirrorSchema.text("!"),
+                        ]),
+                    ]),
+                ),
+            });
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session3.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session2), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session3.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session3), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session3.account]);
+        });
+
+        test("an account that is mentioned in a comment thread is subscribed to notifications even if the message is updated to remove the mention", async () => {
+            const document = await createDocument(context.request(session1), {
+                spaceId: space.id,
+                content: emptyDocumentContent,
+            });
+
+            await updateDocumentContent(context.request(session1), {
+                id: document.id,
+                version: 0,
+                steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+                clientId: generateId(),
+            });
+
+            const commentThreadId = generateId<DocumentCommentThreadId>();
+
+            await updateDocumentContent(context.request(session1), {
+                id: document.id,
+                version: 1,
+                steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+                clientId: generateId(),
+                createCommentThreads: [
+                    {
+                        commentThreadId,
+                        initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                    },
+                ],
+            });
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session4), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session4), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account]);
+
+            await createDocumentComment(context.request(session3), {
+                documentId: document.id,
+                commentThreadId,
+                parentCommentIndex: null,
+                content: assertMessageContent(
+                    MessageContentProsemirrorSchema.node("doc", {}, [
+                        MessageContentProsemirrorSchema.node("paragraph", {}, [
+                            MessageContentProsemirrorSchema.text("Hello, "),
+                            MessageContentProsemirrorSchema.node("mention", {
+                                mention: {accountId: session4.accountId},
+                            }),
+                            MessageContentProsemirrorSchema.text("!"),
+                        ]),
+                    ]),
+                ),
+            });
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session3.account, session4.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session2), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session3.account, session4.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session3), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session3.account, session4.account]);
+
+            await updateDocumentCommentContent(context.request(session3), {
+                documentId: document.id,
+                commentThreadId,
+                commentIndex: 1,
+                content: assertMessageContent(
+                    MessageContentProsemirrorSchema.node("doc", {}, [
+                        MessageContentProsemirrorSchema.node("paragraph", {}, [
+                            MessageContentProsemirrorSchema.text("Hello, world!"),
+                        ]),
+                    ]),
+                ),
+            });
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session3.account, session4.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session2), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session3.account, session4.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session3), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session3.account, session4.account]);
+        });
+
+        test("an account that is mentioned in a comment thread is subscribed to notifications even if the message is deleted", async () => {
+            const document = await createDocument(context.request(session1), {
+                spaceId: space.id,
+                content: emptyDocumentContent,
+            });
+
+            await updateDocumentContent(context.request(session1), {
+                id: document.id,
+                version: 0,
+                steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+                clientId: generateId(),
+            });
+
+            const commentThreadId = generateId<DocumentCommentThreadId>();
+
+            await updateDocumentContent(context.request(session1), {
+                id: document.id,
+                version: 1,
+                steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+                clientId: generateId(),
+                createCommentThreads: [
+                    {
+                        commentThreadId,
+                        initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                    },
+                ],
+            });
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session4), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session4), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account]);
+
+            await createDocumentComment(context.request(session3), {
+                documentId: document.id,
+                commentThreadId,
+                parentCommentIndex: null,
+                content: assertMessageContent(
+                    MessageContentProsemirrorSchema.node("doc", {}, [
+                        MessageContentProsemirrorSchema.node("paragraph", {}, [
+                            MessageContentProsemirrorSchema.text("Hello, "),
+                            MessageContentProsemirrorSchema.node("mention", {
+                                mention: {accountId: session4.accountId},
+                            }),
+                            MessageContentProsemirrorSchema.text("!"),
+                        ]),
+                    ]),
+                ),
+            });
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session3.account, session4.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session2), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session3.account, session4.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session3), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session3.account, session4.account]);
+
+            await deleteDocumentComment(context.request(session3), {
+                documentId: document.id,
+                commentThreadId,
+                commentIndex: 1,
+            });
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session3.account, session4.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session2), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session3.account, session4.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session3), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session3.account, session4.account]);
+        });
+
+        test("an account that is mentioned in a comment thread after it is updated is subscribed to notifications", async () => {
+            const document = await createDocument(context.request(session1), {
+                spaceId: space.id,
+                content: emptyDocumentContent,
+            });
+
+            await updateDocumentContent(context.request(session1), {
+                id: document.id,
+                version: 0,
+                steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+                clientId: generateId(),
+            });
+
+            const commentThreadId = generateId<DocumentCommentThreadId>();
+
+            await updateDocumentContent(context.request(session1), {
+                id: document.id,
+                version: 1,
+                steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+                clientId: generateId(),
+                createCommentThreads: [
+                    {
+                        commentThreadId,
+                        initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                    },
+                ],
+            });
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session4), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session4), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account]);
+
+            await createDocumentComment(context.request(session3), {
+                documentId: document.id,
+                commentThreadId,
+                parentCommentIndex: null,
+                content: assertMessageContent(
+                    MessageContentProsemirrorSchema.node("doc", {}, [
+                        MessageContentProsemirrorSchema.node("paragraph", {}, [
+                            MessageContentProsemirrorSchema.text("Hello, world!"),
+                        ]),
+                    ]),
+                ),
+            });
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session3.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session2), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session3.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session3), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session3.account]);
+
+            await updateDocumentCommentContent(context.request(session3), {
+                documentId: document.id,
+                commentThreadId,
+                commentIndex: 1,
+                content: assertMessageContent(
+                    MessageContentProsemirrorSchema.node("doc", {}, [
+                        MessageContentProsemirrorSchema.node("paragraph", {}, [
+                            MessageContentProsemirrorSchema.text("Hello, "),
+                            MessageContentProsemirrorSchema.node("mention", {
+                                mention: {accountId: session4.accountId},
+                            }),
+                            MessageContentProsemirrorSchema.text("!"),
+                        ]),
+                    ]),
+                ),
+            });
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session3.account, session4.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session2), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session3.account, session4.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session3), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session3.account, session4.account]);
+        });
+
+        test("notification subscribers are not duplicated and can be added from many different sources", async () => {
+            const document = await createDocument(context.request(session1), {
+                spaceId: space.id,
+                content: emptyDocumentContent,
+            });
+
+            await updateDocumentContent(context.request(session1), {
+                id: document.id,
+                version: 0,
+                steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+                clientId: generateId(),
+            });
+
+            const commentThreadId = generateId<DocumentCommentThreadId>();
+
+            await updateDocumentContent(context.request(session5), {
+                id: document.id,
+                version: 1,
+                steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+                clientId: generateId(),
+                createCommentThreads: [
+                    {
+                        commentThreadId,
+                        initialCommentContent: assertMessageContent(
+                            MessageContentProsemirrorSchema.node("doc", {}, [
+                                MessageContentProsemirrorSchema.node("paragraph", {}, [
+                                    MessageContentProsemirrorSchema.text("Hello, "),
+                                    MessageContentProsemirrorSchema.node("mention", {
+                                        mention: {accountId: session2.accountId},
+                                    }),
+                                    MessageContentProsemirrorSchema.text("!"),
+                                ]),
+                            ]),
+                        ),
+                    },
+                ],
+            });
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session5.account, session2.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session5.account, session2.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session7), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session5.account, session2.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session7), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session5.account, session2.account]);
+
+            await createDocumentComment(context.request(session1), {
+                documentId: document.id,
+                commentThreadId,
+                parentCommentIndex: null,
+                content: assertMessageContent(
+                    MessageContentProsemirrorSchema.node("doc", {}, [
+                        MessageContentProsemirrorSchema.node("paragraph", {}, [
+                            MessageContentProsemirrorSchema.text("Hello, world!"),
+                        ]),
+                    ]),
+                ),
+            });
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session5.account, session2.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session5.account, session1.account, session2.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session7), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session5.account, session2.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session7), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session5.account, session1.account, session2.account]);
+
+            await createDocumentComment(context.request(session3), {
+                documentId: document.id,
+                commentThreadId,
+                parentCommentIndex: null,
+                content: assertMessageContent(
+                    MessageContentProsemirrorSchema.node("doc", {}, [
+                        MessageContentProsemirrorSchema.node("paragraph", {}, [
+                            MessageContentProsemirrorSchema.text("Hello, "),
+                            MessageContentProsemirrorSchema.node("mention", {
+                                mention: {accountId: session1.accountId},
+                            }),
+                            MessageContentProsemirrorSchema.text("!"),
+                        ]),
+                    ]),
+                ),
+            });
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session5.account, session3.account, session2.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session5.account, session1.account, session3.account, session2.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session7), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session1.account, session5.account, session3.account, session2.account]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session7), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([session5.account, session1.account, session3.account, session2.account]);
+
+            const comment = await createDocumentComment(context.request(session2), {
+                documentId: document.id,
+                commentThreadId,
+                parentCommentIndex: null,
+                content: assertMessageContent(
+                    MessageContentProsemirrorSchema.node("doc", {}, [
+                        MessageContentProsemirrorSchema.node("paragraph", {}, [
+                            MessageContentProsemirrorSchema.text("Hello, "),
+                            MessageContentProsemirrorSchema.node("mention", {
+                                mention: {accountId: session4.accountId},
+                            }),
+                            MessageContentProsemirrorSchema.text("!"),
+                        ]),
+                    ]),
+                ),
+            });
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([
+                session1.account,
+                session5.account,
+                session3.account,
+                session2.account,
+                session4.account,
+            ]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([
+                session5.account,
+                session1.account,
+                session3.account,
+                session2.account,
+                session4.account,
+            ]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session7), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([
+                session1.account,
+                session5.account,
+                session3.account,
+                session2.account,
+                session4.account,
+            ]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session7), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([
+                session5.account,
+                session1.account,
+                session3.account,
+                session2.account,
+                session4.account,
+            ]);
+
+            await updateDocumentCommentContent(context.request(session2), {
+                documentId: document.id,
+                commentThreadId,
+                commentIndex: comment.index,
+                content: assertMessageContent(
+                    MessageContentProsemirrorSchema.node("doc", {}, [
+                        MessageContentProsemirrorSchema.node("paragraph", {}, [
+                            MessageContentProsemirrorSchema.text("Hello, "),
+                            MessageContentProsemirrorSchema.node("mention", {
+                                mention: {accountId: session6.accountId},
+                            }),
+                            MessageContentProsemirrorSchema.text("!"),
+                        ]),
+                    ]),
+                ),
+            });
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([
+                session1.account,
+                session5.account,
+                session3.account,
+                session2.account,
+                session4.account,
+                session6.account,
+            ]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session1), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([
+                session5.account,
+                session1.account,
+                session3.account,
+                session2.account,
+                session4.account,
+                session6.account,
+            ]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session7), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: true,
+                }).then(({accounts}) => accounts),
+            ).toEqual([
+                session1.account,
+                session5.account,
+                session3.account,
+                session2.account,
+                session4.account,
+                session6.account,
+            ]);
+
+            expect(
+                await getDocumentCommentThreadNotificationSubscribers(context.request(session7), {
+                    documentId: document.id,
+                    commentThreadId,
+                    isFirstComment: false,
+                }).then(({accounts}) => accounts),
+            ).toEqual([
+                session5.account,
+                session1.account,
+                session3.account,
+                session2.account,
+                session4.account,
+                session6.account,
+            ]);
+        });
+    });
+
+    testMessagingImplementation<DocumentCommentRoomKey>(context, {
+        async createRoom(context, spaceId) {
+            const DocumentsTable = getDocumentsTableForTest();
+
+            const document = await createDocument(context, {
+                spaceId,
+                content: emptyDocumentContent,
+            });
+
+            const commentThreadId = generateId<DocumentCommentThreadId>();
+            const createdTime = new Date(Date.now());
+
+            await DocumentsTable.createItem(context, {
+                partitionType: "Document",
+                // NOTE(calebmer): Our messaging tests run against an archived comment thread
+                // since it's less common than a referenced comment thread.
+                sortRangeType: "ArchivedCommentThread",
+                documentId: document.id,
+                commentThreadId,
+                createdTime,
+                commentsSummary: {
+                    nextCommentIndex: 0,
+                    lastChangeTime: null,
+                    commentCountByAuthorId: new Map(),
+                    mentionCountByAccountId: new Map(),
+                },
+            });
+
+            return {
+                key: encodeDocumentCommentRoomKey(document.id, commentThreadId),
+                spaceId,
+                createdTime,
+                messageCount: 0,
+            };
+        },
+
+        // TODO(calebmer): Implement when we can have private documents!
+        createPrivateRoom: "Unimplemented",
+
+        async getRoom(context, roomKey) {
+            const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+            const DocumentsTable = getDocumentsTableForTest();
+
+            const document = await getDocument(context, documentId);
+
+            const commentThreadItem = await DocumentsTable.getItemIfExists(context, {
+                partitionType: "Document",
+                sortRangeType: "ArchivedCommentThread",
+                documentId,
+                commentThreadId,
+            });
+            if (!commentThreadItem) throw new NotFoundError("Document comment thread not found");
+
+            return {
+                key: roomKey,
+                spaceId: document.spaceId,
+                createdTime: commentThreadItem.createdTime,
+                messageCount: reduceIterable(
+                    commentThreadItem.commentsSummary.commentCountByAuthorId.values(),
+                    (commentCount, authorCommentCount) => commentCount + authorCommentCount,
+                    0,
+                ),
+            };
+        },
+        getMissingRoomKey() {
+            return encodeDocumentCommentRoomKey(generateId(), generateId());
+        },
+        async createMessage(context, {roomKey, parentMessageIndex: parentCommentIndex, content}) {
+            const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+            const comment = await createDocumentComment(context, {
+                documentId,
+                commentThreadId,
+                parentCommentIndex,
+                content,
+            });
+
+            return {
+                index: comment.index,
+                createdTime: comment.createdTime,
+            };
+        },
+        async getMessage(context, {roomKey, messageIndex: commentIndex}) {
+            const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+            return getDocumentComment(context, {documentId, commentThreadId, commentIndex});
+        },
+        async updateMessageContent(context, {roomKey, messageIndex: commentIndex, content}) {
+            const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+            return updateDocumentCommentContent(context, {
+                documentId,
+                commentThreadId,
+                commentIndex,
+                content,
+            });
+        },
+        async deleteMessage(context, {roomKey, messageIndex: commentIndex}) {
+            const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+            return deleteDocumentComment(context, {documentId, commentThreadId, commentIndex});
+        },
+        async getMessagesFromStart(
+            context,
+            {
+                roomKey,
+                limit,
+                afterMessageIndex: afterCommentIndex,
+                beforeMessageIndex: beforeCommentIndex,
             },
-        });
+        ) {
+            const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
-        return {
-            key: encodeDocumentCommentRoomKey(document.id, commentThreadId),
-            spaceId,
-            createdTime,
-            messageCount: 0,
-        };
-    },
+            const {commentCount, comments, otherReferencedComments, lastCommentChangeTime} =
+                await getDocumentCommentsFromStart(context, {
+                    documentId,
+                    commentThreadId,
+                    limit,
+                    afterCommentIndex,
+                    beforeCommentIndex,
+                });
 
-    // TODO(calebmer): Implement when we can have private documents!
-    createPrivateRoom: "Unimplemented",
-
-    async getRoom(context, roomKey) {
-        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
-
-        const DocumentsTable = getDocumentsTableForTest();
-
-        const document = await getDocument(context, documentId);
-
-        const commentThreadItem = await DocumentsTable.getItemIfExists(context, {
-            partitionType: "Document",
-            sortRangeType: "ArchivedCommentThread",
-            documentId,
-            commentThreadId,
-        });
-        if (!commentThreadItem) throw new NotFoundError("Document comment thread not found");
-
-        return {
-            key: roomKey,
-            spaceId: document.spaceId,
-            createdTime: commentThreadItem.createdTime,
-            messageCount: reduceIterable(
-                commentThreadItem.commentsSummary.commentCountByAuthorId.values(),
-                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
-                0,
-            ),
-        };
-    },
-    getMissingRoomKey() {
-        return encodeDocumentCommentRoomKey(generateId(), generateId());
-    },
-    async createMessage(context, {roomKey, parentMessageIndex: parentCommentIndex, content}) {
-        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
-
-        const comment = await createDocumentComment(context, {
-            documentId,
-            commentThreadId,
-            parentCommentIndex,
-            content,
-        });
-
-        return {
-            index: comment.index,
-            createdTime: comment.createdTime,
-        };
-    },
-    async getMessage(context, {roomKey, messageIndex: commentIndex}) {
-        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
-
-        return getDocumentComment(context, {documentId, commentThreadId, commentIndex});
-    },
-    async updateMessageContent(context, {roomKey, messageIndex: commentIndex, content}) {
-        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
-
-        return updateDocumentCommentContent(context, {
-            documentId,
-            commentThreadId,
-            commentIndex,
-            content,
-        });
-    },
-    async deleteMessage(context, {roomKey, messageIndex: commentIndex}) {
-        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
-
-        return deleteDocumentComment(context, {documentId, commentThreadId, commentIndex});
-    },
-    async getMessagesFromStart(
-        context,
-        {
-            roomKey,
-            limit,
-            afterMessageIndex: afterCommentIndex,
-            beforeMessageIndex: beforeCommentIndex,
+            return {
+                messageCount: commentCount,
+                messages: comments,
+                otherReferencedMessages: otherReferencedComments,
+                lastMessageChangeTime: lastCommentChangeTime,
+            };
         },
-    ) {
-        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+        async getMessagesFromEnd(
+            context,
+            {
+                roomKey,
+                limit,
+                afterMessageIndex: afterCommentIndex,
+                beforeMessageIndex: beforeCommentIndex,
+            },
+        ) {
+            const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
-        const {commentCount, comments, otherReferencedComments, lastCommentChangeTime} =
-            await getDocumentCommentsFromStart(context, {
+            const {commentCount, comments, otherReferencedComments, lastCommentChangeTime} =
+                await getDocumentCommentsFromEnd(context, {
+                    documentId,
+                    commentThreadId,
+                    limit,
+                    afterCommentIndex,
+                    beforeCommentIndex,
+                });
+
+            return {
+                messageCount: commentCount,
+                messages: comments,
+                otherReferencedMessages: otherReferencedComments,
+                lastMessageChangeTime: lastCommentChangeTime,
+            };
+        },
+        async backfillMessages(
+            context,
+            {
+                roomKey,
+                clientMessageCount: clientCommentCount,
+                clientLastMessageChangeTime: clientLastCommentChangeTime,
+                newMessageLimit: newCommentLimit,
+            },
+        ) {
+            const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+            const {
+                commentCount,
+                lastCommentChangeTime,
+                newComments,
+                newOtherReferencedComments,
+                commentChangesResult,
+            } = await backfillDocumentComments(context, {
                 documentId,
                 commentThreadId,
-                limit,
-                afterCommentIndex,
-                beforeCommentIndex,
+                clientCommentCount,
+                clientLastCommentChangeTime,
+                newCommentLimit,
             });
 
-        return {
-            messageCount: commentCount,
-            messages: comments,
-            otherReferencedMessages: otherReferencedComments,
-            lastMessageChangeTime: lastCommentChangeTime,
-        };
-    },
-    async getMessagesFromEnd(
-        context,
-        {
-            roomKey,
-            limit,
-            afterMessageIndex: afterCommentIndex,
-            beforeMessageIndex: beforeCommentIndex,
+            return {
+                messageCount: commentCount,
+                lastMessageChangeTime: lastCommentChangeTime,
+                newMessages: newComments,
+                newOtherReferencedMessages: newOtherReferencedComments,
+                messageChangesResult: commentChangesResult,
+            };
         },
-    ) {
-        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
-
-        const {commentCount, comments, otherReferencedComments, lastCommentChangeTime} =
-            await getDocumentCommentsFromEnd(context, {
-                documentId,
-                commentThreadId,
-                limit,
-                afterCommentIndex,
-                beforeCommentIndex,
-            });
-
-        return {
-            messageCount: commentCount,
-            messages: comments,
-            otherReferencedMessages: otherReferencedComments,
-            lastMessageChangeTime: lastCommentChangeTime,
-        };
-    },
-    async backfillMessages(
-        context,
-        {
-            roomKey,
-            clientMessageCount: clientCommentCount,
-            clientLastMessageChangeTime: clientLastCommentChangeTime,
-            newMessageLimit: newCommentLimit,
-        },
-    ) {
-        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
-
-        const {
-            commentCount,
-            lastCommentChangeTime,
-            newComments,
-            newOtherReferencedComments,
-            commentChangesResult,
-        } = await backfillDocumentComments(context, {
-            documentId,
-            commentThreadId,
-            clientCommentCount,
-            clientLastCommentChangeTime,
-            newCommentLimit,
-        });
-
-        return {
-            messageCount: commentCount,
-            lastMessageChangeTime: lastCommentChangeTime,
-            newMessages: newComments,
-            newOtherReferencedMessages: newOtherReferencedComments,
-            messageChangesResult: commentChangesResult,
-        };
-    },
+    });
 });
