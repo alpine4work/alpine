@@ -1271,7 +1271,7 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
     }
 }
 
-type ValueSchemaValueBase = SchemaSerializedScalarValue | Date;
+type ValueSchemaValueBase = null | boolean | number | string | Date;
 
 /**
  * Schema that only permits a single value.
@@ -1291,9 +1291,9 @@ export class ValueSchema<Value extends ValueSchemaValueBase> extends Schema<Valu
      * The value that is serialized. May be the same as our runtime value or may
      * be different.
      */
-    public readonly serializedValue: SchemaSerializedScalarValue;
+    public readonly serializedValue: null | boolean | number | string;
 
-    private constructor(value: Value, serializedValue: SchemaSerializedScalarValue) {
+    private constructor(value: Value, serializedValue: null | boolean | number | string) {
         super({
             getDescription: () => ({
                 type: "Value",
@@ -1324,7 +1324,7 @@ export class ValueSchema<Value extends ValueSchemaValueBase> extends Schema<Valu
      * The original value of this schema. We will use the original value in
      * serialization and deserialization to not break old types.
      */
-    public originalValue(serializedValue: string | number | boolean): ValueSchema<Value> {
+    public originalValue(serializedValue: null | string | number | boolean): ValueSchema<Value> {
         return new ValueSchema(this.value, serializedValue);
     }
 }

@@ -1,16 +1,19 @@
 import {jwtVerify} from "jose";
 import {createAwsContextModulesFromEnv} from "~/server/aws/create_aws_context_modules_from_env";
+import {Queue} from "~/server/cloudflare/types/cloudflare_queues";
 import {
     WebSocketServerConnectionBase,
     WebSocketServerTestConnection,
 } from "~/server/cloudflare/web_socket_server";
 import {Session} from "~/server/dynamo/accounts_table";
-import {UnauthenticatedAuthContextModule} from "~/server/dynamo/context/auth_context_module";
+import {UnauthenticatedSessionAuthContextModule} from "~/server/dynamo/context/auth_context_module";
+import {NotificationsContextModule} from "~/server/dynamo/context/notifications_context_module";
 import {ProcessContext, ProcessContextModules} from "~/server/dynamo/context/process_context";
 import {
-    RequestContext,
-    UnauthenticatedRequestContextModules,
+    SessionRequestContext,
+    UnauthenticatedSessionRequestContextModules,
 } from "~/server/dynamo/context/request_context";
+import {EmptySystemContextModule} from "~/server/dynamo/context/system_context_module";
 import {createServerTracer} from "~/server/tracer/server_tracer";
 import {traceFetchResponse} from "~/server/tracer/trace_fetch_response";
 import {WebSocketProtocolBase} from "~/shared/cloudflare/web_socket_protocol";
@@ -37,6 +40,7 @@ import {DurableObjectServiceName, TracerRoot} from "~/shared/tracer/tracer_root"
  * Environment object provided to a Durable Object.
  */
 export type DurableObjectEnv = {
+    NotificationsQueue: Queue;
     DYNAMO_LOCAL_PORT?: string;
     SESSION_COOKIE_SECRET?: string;
     AWS_ACCESS_KEY_ID?: string;
@@ -56,9 +60,9 @@ export type DurableObjectEnv = {
  */
 export function createDurableObject<
     DurableObject extends {
-        fetch(context: RequestContext, request: Request): MaybePromise<Response>;
+        fetch(context: SessionRequestContext, request: Request): MaybePromise<Response>;
         connectForTest?(
-            context: RequestContext,
+            context: SessionRequestContext,
         ): WebSocketServerTestConnection<WebSocketProtocolBase, WebSocketServerConnectionBase<any>>;
     },
 >({
@@ -68,7 +72,7 @@ export function createDurableObject<
     serviceName: DurableObjectServiceName;
     initialize: (options: {
         processContext: ProcessContext;
-        initializeRequestContext: RequestContext;
+        initializeRequestContext: SessionRequestContext;
         idName: string;
         destroy: () => void;
     }) => Promise<DurableObject>;
@@ -79,7 +83,7 @@ export function createDurableObject<
     };
     test(context: ProcessContext): {
         connectForTest: (
-            context: RequestContext,
+            context: SessionRequestContext,
             idName: string,
         ) => Promise<ReturnType<NonNullable<DurableObject["connectForTest"]>>>;
     };
@@ -117,6 +121,11 @@ export function createDurableObject<
                     waitUntil: promise => this._state.waitUntil(promise),
                 }),
                 tracer: new TracerContextModule(this._tracer),
+                notifications: new NotificationsContextModule(env),
+                // IMPORTANT: It's important that this is an empty system context module and
+                // not `DangerousSystemContextModule` so our code doesn't have access to
+                // system context capabilities.
+                system: new EmptySystemContextModule(),
             });
         }
 
@@ -127,7 +136,7 @@ export function createDurableObject<
                 try {
                     const response = await this._context.with<
                         Omit<
-                            UnauthenticatedRequestContextModules,
+                            UnauthenticatedSessionRequestContextModules,
                             Exclude<keyof ProcessContextModules, "tracer">
                         >,
                         Response
@@ -138,7 +147,7 @@ export function createDurableObject<
                             tracer: new TracerContextModule(span),
                             cache: new CacheContextModule(),
 
-                            auth: new UnauthenticatedAuthContextModule(async context => {
+                            auth: new UnauthenticatedSessionAuthContextModule(async context => {
                                 const authorizationHeader = request.headers.get("authorization");
                                 if (!authorizationHeader) return null;
                                 const authorizationHeaderMatch =
@@ -168,7 +177,7 @@ export function createDurableObject<
                             }),
                         },
                         async _requestContext => {
-                            const requestContext: RequestContext =
+                            const requestContext: SessionRequestContext =
                                 await _requestContext.auth.authenticate();
 
                             const idName = request.headers.get("cyberworlds-id-name");
@@ -226,7 +235,7 @@ export function createDurableObject<
          */
         public static test(processContext: ProcessContext): {
             connectForTest: (
-                context: RequestContext,
+                context: SessionRequestContext,
                 idName: string,
             ) => Promise<ReturnType<NonNullable<DurableObject["connectForTest"]>>>;
         } {

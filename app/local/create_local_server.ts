@@ -52,6 +52,16 @@ export function createLocalServer({
             PostRealtimeDurableObjectNamespace: "PostRealtimeDurableObject",
             ChatRealtimeDurableObjectNamespace: "ChatRealtimeDurableObject",
         },
+        queueBindings: [{name: "NotificationsQueue", queueName: "NotificationsQueue"}],
+        queueConsumers: [
+            {
+                queueName: "NotificationsQueue",
+                maxBatchSize: 1,
+                maxWaitMs: 0,
+                maxRetries: 10,
+                deadLetterQueue: "NotificationsDeadLetterQueue",
+            },
+        ],
         globals,
     });
 

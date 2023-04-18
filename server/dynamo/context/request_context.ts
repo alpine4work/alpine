@@ -1,11 +1,17 @@
 import {
     AuthenticatedAuthContextModule,
-    UnauthenticatedAuthContextModule,
+    AuthenticatedSessionAuthContextModule,
+    UnauthenticatedSessionAuthContextModule,
 } from "~/server/dynamo/context/auth_context_module";
 import {ProcessContextModules} from "~/server/dynamo/context/process_context";
 import {CacheContextModule} from "~/shared/context/cache_context_module";
 import {Context} from "~/shared/context/context";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
+
+/**
+ * Generic context for handling requests with unknown authentication state.
+ */
+export type RequestContextBase = Context<RequestContextModulesBase>;
 
 type RequestContextModulesBase = ProcessContextModules & {
     /**
@@ -16,6 +22,11 @@ type RequestContextModulesBase = ProcessContextModules & {
 
 /**
  * Generic context for handling authenticated requests.
+ *
+ * This could be either:
+ *
+ * - A session authenticated request
+ * - A system impersonated request on behalf of an account
  */
 export type RequestContext = Context<RequestContextModules>;
 
@@ -26,12 +37,26 @@ export type RequestContextModules = MergeObjectIntersection<
 >;
 
 /**
- * Generic context for handling unauthenticated requests.
+ * Context for handling authenticated requests when the authenticated request
+ * comes from the request including a session.
  */
-export type UnauthenticatedRequestContext = Context<UnauthenticatedRequestContextModules>;
+export type SessionRequestContext = Context<SessionRequestContextModules>;
 
-export type UnauthenticatedRequestContextModules = MergeObjectIntersection<
+export type SessionRequestContextModules = MergeObjectIntersection<
     RequestContextModulesBase & {
-        auth: UnauthenticatedAuthContextModule;
+        auth: AuthenticatedSessionAuthContextModule;
+    }
+>;
+
+/**
+ * Generic context for handling unauthenticated requests but the request may
+ * have a session so we can upgrade to an authenticated context.
+ */
+export type UnauthenticatedSessionRequestContext =
+    Context<UnauthenticatedSessionRequestContextModules>;
+
+export type UnauthenticatedSessionRequestContextModules = MergeObjectIntersection<
+    RequestContextModulesBase & {
+        auth: UnauthenticatedSessionAuthContextModule;
     }
 >;

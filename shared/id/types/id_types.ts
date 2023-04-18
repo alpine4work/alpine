@@ -31,6 +31,7 @@ export type WebSocketProcedureRequestId = NominalIdType<"WebSocketProcedureReque
 export type ContentEditorClientId = NominalIdType<"ContentEditorClient">;
 export type PeekId = NominalIdType<"Peek">;
 export type ChatId = NominalIdType<"Chat">;
+export type NotificationEventId = NominalIdType<"NotificationEvent">;
 
 /**
  * A specialization of `AccountId`. We use this as the type of a

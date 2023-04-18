@@ -1,5 +1,6 @@
 import {CancelledError, DeadlineExceededError} from "~/shared/error/error";
-import {wait} from "~/shared/helpers/async/wait";
+
+const originalSetTimeout = setTimeout;
 
 /**
  * Retries an action with exponential backoff with jitter. Since we use
@@ -61,24 +62,10 @@ export function retryWithExponentialBackoff<Value>(
             // See: https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter
             const delayMsWithJitter = Math.floor(Math.random() * delayMs);
 
-            // In Jest, don't wait for some milliseconds, immediately retry.
-            //
-            // Unit test timing should be predictable. And all unit tests should be
-            // isolated on a single thread. So there's concurrency but no parallelism. We
-            // don't have real world load in unit tests that depend on an exponential
-            // backoff to perform well. So to save some time, skip the backoff.
-            //
-            // This also means when you're faking timers in Jest, you don't need to
-            // remember to advance a timer for an exponential backoff. That allows this
-            // function to be transparent. Developers don't need to think about advancing
-            // exponential backoff timers. (This is the original reason we removed the
-            // wait, then expanded it to all unit tests not just unit tests with timer
-            // mocking on.)
-            if (typeof jest !== "undefined") {
-                return attempt(attemptNumber + 1);
-            }
-
-            await wait(delayMsWithJitter);
+            // We can't use `wait()` or `setTimeout()` since Jest will override
+            // `setTimeout()` when `jest.useFakeTimers()` is on. But we want to wait the
+            // timeout anyway.
+            await new Promise(resolve => originalSetTimeout(resolve, delayMsWithJitter));
             return attempt(attemptNumber + 1);
         }
     };

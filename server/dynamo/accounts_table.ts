@@ -2,7 +2,7 @@ import {differenceInHours, differenceInMinutes} from "date-fns";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {
     RequestContext,
-    UnauthenticatedRequestContext,
+    UnauthenticatedSessionRequestContext,
 } from "~/server/dynamo/context/request_context";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
@@ -288,7 +288,7 @@ export function createAccountForAlphaTransactionEntries({
  * provided email address. Sends the password to the account's email address.
  */
 export async function regenerateOneTimePasswordSignIn(
-    context: UnauthenticatedRequestContext,
+    context: UnauthenticatedSessionRequestContext,
     emailAddress: EmailAddress,
 ): Promise<void> {
     const generatedTime = new Date();
@@ -672,18 +672,14 @@ export class Session {
         if (this._preloadedAccount !== null) return Promise.resolve(this._preloadedAccount);
 
         if (this._accountPromise === null) {
-            this._accountPromise = (async () => {
-                const accountItem = assertExists(
-                    await AccountsTable.getItemIfExists(context, {
-                        partitionType: "Account",
-                        sortRangeType: "Attributes",
-                        accountId: this.accountId,
-                    }),
+            this._accountPromise = (async () =>
+                assertExists(
+                    await dangerouslyGetAccountIfExistsWithoutAuthorization(
+                        context,
+                        this.accountId,
+                    ),
                     "Expected account referenced by session to exist",
-                );
-
-                return createAccountModelFromItem(accountItem);
-            })();
+                ))();
         }
 
         return this._accountPromise;
@@ -737,19 +733,10 @@ export function getAccountIfExists(
         // from our context which may already be cached.
         if (context.auth.getAccountId() === accountId) return context.auth.getAccount();
 
-        const [account, isMemberOfSpace] = await runAllPromiseThunks(
-            async () => {
-                const accountItem = await AccountsTable.getItemIfExists(context, {
-                    partitionType: "Account",
-                    sortRangeType: "Attributes",
-                    accountId: accountId as AccountId,
-                });
-                if (!accountItem) return null;
-
-                return createAccountModelFromItem(accountItem);
-            },
-            () => isAccountMemberOfSpace(context, spaceId, accountId as AccountId),
-        );
+        const [account, isMemberOfSpace] = await runAllPromises([
+            dangerouslyGetAccountIfExistsWithoutAuthorization(context, accountId as AccountId),
+            isAccountMemberOfSpace(context, spaceId, accountId as AccountId),
+        ]);
 
         // If the account exists but is not a member of the space provided to this
         // function then you are not allowed to read the account.
@@ -776,4 +763,22 @@ export async function getAccount(
     const account = await getAccountIfExists(context, spaceId, accountId);
     if (!account) throw new NotFoundError("Can not find account in space");
     return account;
+}
+
+/**
+ * Get an account without authorizing whether the current context has
+ * access or not.
+ */
+export async function dangerouslyGetAccountIfExistsWithoutAuthorization(
+    context: DynamoContext,
+    accountId: AccountId | ContentMentionAccountId,
+) {
+    const accountItem = await AccountsTable.getItemIfExists(context, {
+        partitionType: "Account",
+        sortRangeType: "Attributes",
+        accountId: accountId as AccountId,
+    });
+    if (!accountItem) return null;
+
+    return createAccountModelFromItem(accountItem);
 }

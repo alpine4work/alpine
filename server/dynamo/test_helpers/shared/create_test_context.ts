@@ -5,14 +5,20 @@ import path from "path";
 import {DynamoLocal, startDynamoLocal} from "~/admin/dynamo/local/start_dynamo_local";
 import {Session, SessionItem} from "~/server/dynamo/accounts_table";
 import {
-    AuthenticatedAuthContextModule,
-    UnauthenticatedAuthContextModule,
+    AuthenticatedSessionAuthContextModule,
+    UnauthenticatedSessionAuthContextModule,
 } from "~/server/dynamo/context/auth_context_module";
-import {ProcessContext, ProcessContextModules} from "~/server/dynamo/context/process_context";
+import {TestNotificationsContextModule} from "~/server/dynamo/context/notifications_context_module";
+import {ProcessContext, ProcessContextModulesBase} from "~/server/dynamo/context/process_context";
 import {
-    RequestContext,
-    UnauthenticatedRequestContext,
+    SessionRequestContext,
+    UnauthenticatedSessionRequestContext,
 } from "~/server/dynamo/context/request_context";
+import {SystemContext} from "~/server/dynamo/context/system_context";
+import {
+    DangerousSystemContextModule,
+    EmptySystemContextModule,
+} from "~/server/dynamo/context/system_context_module";
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
 import {testSharedHooks} from "~/server/dynamo/test_helpers/shared/test_shared_hooks";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module";
@@ -31,9 +37,10 @@ assert(process.release.name === "node");
 assert(process.env.NODE_ENV === "test");
 
 export type TestContext = ProcessContext & {
+    readonly systemContext: SystemContext;
     getDynamoLocalPort(): number;
-    unauthenticatedRequest(): UnauthenticatedRequestContext;
-    request(session: {item: SessionItem}): RequestContext;
+    unauthenticatedRequest(): UnauthenticatedSessionRequestContext;
+    request(session: {item: SessionItem}): SessionRequestContext;
 };
 
 /**
@@ -64,11 +71,20 @@ export function createTestContext(): TestContext {
 
     const dynamoContextModule = DynamoContextModule.test();
 
-    const _context = Context.new<ProcessContextModules>({
+    const _contextBase = Context.new<ProcessContextModulesBase>({
         process: ProcessContextModule.test(),
         tracer: new TracerContextModule(tracer),
         dynamo: dynamoContextModule,
         email: new NoopEmailContextModule(),
+        notifications: new TestNotificationsContextModule(() => systemContext),
+    });
+
+    const _context: ProcessContext = _contextBase.clone({
+        system: new EmptySystemContextModule(),
+    });
+
+    const systemContext: SystemContext = _contextBase.clone({
+        system: new DangerousSystemContextModule(),
     });
 
     let dynamoLocal: DynamoLocal | null = null;
@@ -78,21 +94,22 @@ export function createTestContext(): TestContext {
         return dynamoLocal.port;
     };
 
-    const createUnauthenticatedRequestContext = (): UnauthenticatedRequestContext => {
+    const createUnauthenticatedRequestContext = (): UnauthenticatedSessionRequestContext => {
         return context.clone({
             cache: new CacheContextModule(),
-            auth: new UnauthenticatedAuthContextModule(async () => null),
+            auth: new UnauthenticatedSessionAuthContextModule(async () => null),
         });
     };
 
-    const createRequestContext = (session: {item: SessionItem}): RequestContext => {
+    const createRequestContext = (session: {item: SessionItem}): SessionRequestContext => {
         return context.clone({
             cache: new CacheContextModule(),
-            auth: new AuthenticatedAuthContextModule(Session.test(session.item)),
+            auth: new AuthenticatedSessionAuthContextModule(Session.test(session.item)),
         });
     };
 
     const context = Object.assign(_context, {
+        systemContext,
         getDynamoLocalPort,
         unauthenticatedRequest: createUnauthenticatedRequestContext,
         request: createRequestContext,

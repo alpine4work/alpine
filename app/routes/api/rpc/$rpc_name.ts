@@ -1,4 +1,4 @@
-import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
+import {authorizeSpaceAccessWithOptimisticSessionAccountId} from "~/server/dynamo/spaces_table";
 import {LoaderArgs} from "~/server/remix/loader_context";
 import {getRpcImplementationIfExists} from "~/server/rpc/get_rpc_implementation";
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error";
@@ -26,10 +26,10 @@ export async function action({request, context, span, params}: LoaderArgs) {
 
                 if (currentSpaceId) {
                     const sessionCookie = await context.loader.getSessionCookie();
-                    await authorizeSpaceAccess(
+                    await authorizeSpaceAccessWithOptimisticSessionAccountId(
                         context,
                         currentSpaceId,
-                        sessionCookie.get().sessionAccountId,
+                        sessionCookie.get().sessionAccountId ?? null,
                     );
                 }
             },

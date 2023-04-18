@@ -1,15 +1,20 @@
-import {Node} from "prosemirror-model";
 import {getAccount, getAccountIfExists} from "~/server/dynamo/accounts_table";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
+import {SystemContext} from "~/server/dynamo/context/system_context";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
 import {getContentReferencesForNode} from "~/server/dynamo/helpers/get_content_references";
+import {
+    applyMentionCountByAccountIdDifferenceFromContentUpdate,
+    getMentionCountByAccountIdInContent,
+} from "~/server/dynamo/helpers/get_mentioned_account_ids_in_content";
+import {getMentionedAccountIdsInContent} from "~/server/dynamo/helpers/get_mentioned_account_ids_in_content";
 import {createMessagePayloadModel} from "~/server/dynamo/helpers/messaging/create_message_payload_model";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/dynamo/helpers/messaging/get_message_change_log_expiration_time_from_change_time";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
+import {getNotificationMessageContentSnippet} from "~/server/dynamo/notifications_table";
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
-import {ContentMention} from "~/shared/content/content_mention";
 import {
     MessageContent,
     MessageContentSchema,
@@ -54,7 +59,6 @@ import {
     PostModel,
     maxPostPreviewCommentAuthorCount,
 } from "~/shared/models/post_model";
-import {visitProsemirrorNode} from "~/shared/prosemirror/prosemirror_visitor";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 import {Schema} from "~/shared/schema/schema";
 
@@ -498,56 +502,6 @@ export async function getChannelPosts(
     };
 }
 
-function getMentionCountByAccountIdInContent(
-    content: Node,
-): ReadonlyMap<ContentMentionAccountId, number> {
-    const mentionCountByAccountId = new Map<ContentMentionAccountId, number>();
-
-    visitProsemirrorNode(content, {
-        visitNode: node => {
-            if (node.type.name === "mention") {
-                const mention: ContentMention = node.attrs.mention;
-                const lastMentionCount = mentionCountByAccountId.get(mention.accountId);
-                mentionCountByAccountId.set(mention.accountId, (lastMentionCount ?? 0) + 1);
-            }
-        },
-    });
-
-    return mentionCountByAccountId;
-}
-
-function applyMentionCountByAccountIdDifferenceFromContentUpdate(
-    mentionCountByAccountId: ReadonlyMap<ContentMentionAccountId, number>,
-    oldContent: Node | null,
-    newContent: Node | null,
-): ReadonlyMap<ContentMentionAccountId, number> {
-    const oldMentionCountByAccountId = oldContent
-        ? getMentionCountByAccountIdInContent(oldContent)
-        : new Map();
-    const newMentionCountByAccountId = newContent
-        ? getMentionCountByAccountIdInContent(newContent)
-        : new Map();
-
-    const updatedMentionCountByAccountId = new Map(mentionCountByAccountId);
-
-    for (const accountId of new Set(
-        concatIterables(oldMentionCountByAccountId.keys(), newMentionCountByAccountId.keys()),
-    )) {
-        const oldMentionCount = oldMentionCountByAccountId.get(accountId) ?? 0;
-        const newMentionCount = newMentionCountByAccountId.get(accountId) ?? 0;
-        const mentionCountDifference = newMentionCount - oldMentionCount;
-
-        // Remember: If the mention count goes to zero we want to keep it in our map to
-        // signal "this account was mentioned at some point".
-        updatedMentionCountByAccountId.set(
-            accountId,
-            (updatedMentionCountByAccountId.get(accountId) ?? 0) + mentionCountDifference,
-        );
-    }
-
-    return updatedMentionCountByAccountId;
-}
-
 /**
  * Create a new post by the current account in the provided channel.
  */
@@ -685,16 +639,8 @@ export async function getPostChannel(
 /**
  * Get accounts subscribed to notifications for the provided `PostId`.
  */
-// TODO(calebmer): Currently any account with access to the post can call this
-// function to get subscribers. Right now the subscriber list is inferred from
-// public information (post creator, post commentor, mentioned account).
-// However, when we allow users to subscribe to notifications or unsubscribe
-// from notifications explicitly there's no reason for that information to be
-// public so we'd like to treat it as private. There's some generic "system"
-// permission level or specific "notification fan-out" permission level we need
-// then for this function.
 export async function getPostNotificationSubscribers(
-    context: RequestContext,
+    context: SystemContext,
     id: PostId,
 ): Promise<{
     spaceId: SpaceId;
@@ -708,11 +654,9 @@ export async function getPostNotificationSubscribers(
             postId: id,
         },
         {
-            attributes: ["authorId", "channelId", "commentsSummary"],
+            attributes: ["authorId", "spaceId", "channelId", "commentsSummary"],
         },
     );
-
-    const {spaceId} = await authorizeChannelAccess(context, postItem.channelId);
 
     const accountIds = new Set<ContentMentionAccountId>(
         concatIterables(
@@ -722,14 +666,18 @@ export async function getPostNotificationSubscribers(
         ),
     );
 
+    const requestContext = context.system.impersonateAccount(postItem.authorId);
+
     const accounts = await runAllPromises(
         // Use `getAccountIfExists()` since mentioned accounts may be copied from a
         // different space and don't exist in this space.
-        mapIterable(accountIds, accountId => getAccountIfExists(context, spaceId, accountId)),
+        mapIterable(accountIds, accountId =>
+            getAccountIfExists(requestContext, postItem.spaceId, accountId),
+        ),
     );
 
     return {
-        spaceId,
+        spaceId: postItem.spaceId,
         accounts: accounts.filter(isNonNullable),
     };
 }
@@ -942,6 +890,17 @@ export async function createPostComment(
                 {updateLockVersion: postItem.updateLockVersion},
             ),
         ]);
+
+        context.notifications.sendNotificationEvent({
+            type: "CreatePostComment",
+            id: generateId(),
+            postId,
+            commentIndex,
+            createdTime,
+            authorId,
+            mentionedAccountIds: getMentionedAccountIdsInContent(content),
+            contentSnippet: getNotificationMessageContentSnippet(content),
+        });
 
         return {
             index: commentIndex,

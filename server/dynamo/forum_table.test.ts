@@ -1525,24 +1525,8 @@ test("if time hasn't moved forward updating a post will set it to +1ms of the la
 describe("Notification subscribers", () => {
     test("throws when trying to access a post that doesn't exist", async () => {
         await expect(
-            getPostNotificationSubscribers(context.request(session1), generateId()),
+            getPostNotificationSubscribers(context.systemContext, generateId()),
         ).rejects.toThrow(NotFoundError);
-    });
-
-    test("throws when trying to access a post in a different space", async () => {
-        const channel = await createChannel(context.request(session1), {
-            spaceId: space.id,
-            name: "Test",
-        });
-
-        const post = await createPost(context.request(session1), {
-            channelId: channel.id,
-            content: testContent1,
-        });
-
-        await expect(
-            getPostNotificationSubscribers(context.request(otherSession), post.id),
-        ).rejects.toThrow(PermissionDeniedError);
     });
 
     test("the post author is a subscriber of their own post", async () => {
@@ -1557,13 +1541,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session2), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account]);
@@ -1591,19 +1569,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session2), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account, session3.account]);
@@ -1631,19 +1597,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session2), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account]);
@@ -1671,19 +1625,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session2), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account]);
@@ -1711,19 +1653,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session2), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account, session3.account]);
@@ -1740,19 +1670,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session2), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account, session3.account]);
@@ -1776,19 +1694,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session2), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account]);
@@ -1809,19 +1715,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session2), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account, session3.account]);
@@ -1839,19 +1733,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session2), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account]);
@@ -1863,19 +1745,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session2), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account, session3.account]);
@@ -1887,19 +1757,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session2), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account, session3.account]);
@@ -1911,19 +1769,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account, session2.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session2), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account, session2.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account, session3.account, session2.account]);
@@ -1941,19 +1787,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session2), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account]);
@@ -1965,19 +1799,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session2), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account, session3.account]);
@@ -1988,19 +1810,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session2), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account, session3.account]);
@@ -2018,19 +1828,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session2), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account]);
@@ -2052,19 +1850,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account, session4.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session2), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account, session4.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account, session3.account, session4.account]);
@@ -2082,19 +1868,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session2), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account]);
@@ -2116,19 +1890,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session2), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account, session3.account]);
@@ -2146,19 +1908,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session2), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account]);
@@ -2180,19 +1930,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session2), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account, session3.account]);
@@ -2210,19 +1948,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session2), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account]);
@@ -2244,19 +1970,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account, session4.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session2), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account, session4.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account, session3.account, session4.account]);
@@ -2274,19 +1988,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account, session4.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session2), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account, session4.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account, session3.account, session4.account]);
@@ -2304,19 +2006,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session2), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account]);
@@ -2338,19 +2028,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account, session4.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session2), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account, session4.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account, session3.account, session4.account]);
@@ -2361,19 +2039,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account, session4.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session2), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account, session4.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account, session3.account, session4.account]);
@@ -2391,19 +2057,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session2), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account]);
@@ -2421,19 +2075,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session2), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account, session3.account]);
@@ -2455,19 +2097,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account, session4.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session2), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account, session4.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account, session3.account, session4.account]);
@@ -2495,13 +2125,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session2.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session8), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account, session2.account]);
@@ -2519,13 +2143,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session2.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session8), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account, session2.account]);
@@ -2547,13 +2165,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account, session2.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session8), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account, session3.account, session2.account]);
@@ -2575,13 +2187,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([session1.account, session3.account, session2.account, session4.account]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session8), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([session1.account, session3.account, session2.account, session4.account]);
@@ -2603,19 +2209,7 @@ describe("Notification subscribers", () => {
         });
 
         expect(
-            await getPostNotificationSubscribers(context.request(session1), post.id).then(
-                ({accounts}) => accounts,
-            ),
-        ).toEqual([
-            session1.account,
-            session3.account,
-            session2.account,
-            session4.account,
-            session5.account,
-        ]);
-
-        expect(
-            await getPostNotificationSubscribers(context.request(session8), post.id).then(
+            await getPostNotificationSubscribers(context.systemContext, post.id).then(
                 ({accounts}) => accounts,
             ),
         ).toEqual([

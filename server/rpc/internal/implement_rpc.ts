@@ -1,4 +1,4 @@
-import {UnauthenticatedRequestContext} from "~/server/dynamo/context/request_context";
+import {UnauthenticatedSessionRequestContext} from "~/server/dynamo/context/request_context";
 import {assert} from "~/shared/helpers/control/assert";
 import {quote} from "~/shared/helpers/string/quote";
 import {BlockInference} from "~/shared/helpers/types/block_inference";
@@ -7,11 +7,11 @@ import {SchemaSerializedValue} from "~/shared/schema/schema";
 
 export type RpcImplementation = {
     execute(
-        context: UnauthenticatedRequestContext,
+        context: UnauthenticatedSessionRequestContext,
         input: SchemaSerializedValue,
     ): Promise<SchemaSerializedValue>;
     executeWithoutSerialization(
-        context: UnauthenticatedRequestContext,
+        context: UnauthenticatedSessionRequestContext,
         input: unknown,
     ): Promise<unknown>;
 };
@@ -24,7 +24,7 @@ export type RpcImplementation = {
 export function implementRpc<Input, Output>(
     definition: RpcDefinition<Input, Output>,
     implementation: (
-        context: UnauthenticatedRequestContext,
+        context: UnauthenticatedSessionRequestContext,
         input: Input,
     ) => Promise<BlockInference<Output>>,
 ) {
@@ -34,7 +34,7 @@ export function implementRpc<Input, Output>(
     );
 
     const executeWithoutSerialization = (
-        context: UnauthenticatedRequestContext,
+        context: UnauthenticatedSessionRequestContext,
         input: Input,
     ): Promise<Output> => {
         return context.tracer.withSpan(`RPC server ${definition.name}`, async context => {
@@ -44,7 +44,7 @@ export function implementRpc<Input, Output>(
     };
 
     const execute = async (
-        context: UnauthenticatedRequestContext,
+        context: UnauthenticatedSessionRequestContext,
         serializedInput: SchemaSerializedValue,
     ): Promise<SchemaSerializedValue> => {
         const input = definition.inputSchema.deserialize(serializedInput);

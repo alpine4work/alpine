@@ -1,7 +1,7 @@
 import {createDurableObject} from "~/server/cloudflare/create_durable_object";
 import {WebSocketServer} from "~/server/cloudflare/web_socket_server";
 import {ProcessContext} from "~/server/dynamo/context/process_context";
-import {RequestContext} from "~/server/dynamo/context/request_context";
+import {SessionRequestContext} from "~/server/dynamo/context/request_context";
 import {authorizePostAccess} from "~/server/dynamo/forum_table";
 import {PostRealtimeConnection} from "~/server/posts/post_realtime_connection";
 import {PostId, SpaceId} from "~/shared/id/types/id_types";
@@ -26,7 +26,7 @@ class PostRealtimeDurableObject {
         idName,
     }: {
         processContext: ProcessContext;
-        initializeRequestContext: RequestContext;
+        initializeRequestContext: SessionRequestContext;
         idName: string;
     }): Promise<PostRealtimeDurableObject> {
         const postId = Schema.id<PostId>().deserialize(idName);
@@ -70,7 +70,7 @@ class PostRealtimeDurableObject {
         );
     }
 
-    public async fetch(context: RequestContext, request: Request): Promise<Response> {
+    public async fetch(context: SessionRequestContext, request: Request): Promise<Response> {
         // Propagate the post id to all logs for this durable object.
         context = context.tracer.withPropagatedData({
             context: {spaceId: this._spaceId, postId: this._postId},

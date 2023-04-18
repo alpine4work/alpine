@@ -981,6 +981,15 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                                         },
                                         "optional": false
                                     },
+                                    "ownerId": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Id"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "version": {
                                         "valueSchema": {
                                             "type": "Integer"
@@ -2076,8 +2085,21 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                                                         }
                                                     },
                                                     "optional": false
+                                                },
+                                                "mentionCountByAccountId": {
+                                                    "valueSchema": {
+                                                        "type": "Map",
+                                                        "keySchema": {
+                                                            "type": "Id"
+                                                        },
+                                                        "valueSchema": {
+                                                            "type": "Integer"
+                                                        }
+                                                    },
+                                                    "optional": true
                                                 }
-                                            }
+                                            },
+                                            "referenceId": "00fe7549"
                                         },
                                         "optional": false
                                     },
@@ -2108,36 +2130,8 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                                     },
                                     "commentsSummary": {
                                         "valueSchema": {
-                                            "type": "Object",
-                                            "propertySchemaByKey": {
-                                                "nextCommentIndex": {
-                                                    "valueSchema": {
-                                                        "type": "Integer"
-                                                    },
-                                                    "optional": false
-                                                },
-                                                "lastChangeTime": {
-                                                    "valueSchema": {
-                                                        "type": "Nullable",
-                                                        "schema": {
-                                                            "type": "Date"
-                                                        }
-                                                    },
-                                                    "optional": true
-                                                },
-                                                "commentCountByAuthorId": {
-                                                    "valueSchema": {
-                                                        "type": "Map",
-                                                        "keySchema": {
-                                                            "type": "Id"
-                                                        },
-                                                        "valueSchema": {
-                                                            "type": "Integer"
-                                                        }
-                                                    },
-                                                    "optional": false
-                                                }
-                                            }
+                                            "type": "Reference",
+                                            "reuseReferenceId": "00fe7549"
                                         },
                                         "optional": false
                                     },
@@ -2826,6 +2820,18 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                                                         }
                                                     },
                                                     "optional": false
+                                                },
+                                                "mentionCountByAccountId": {
+                                                    "valueSchema": {
+                                                        "type": "Map",
+                                                        "keySchema": {
+                                                            "type": "Id"
+                                                        },
+                                                        "valueSchema": {
+                                                            "type": "Integer"
+                                                        }
+                                                    },
+                                                    "optional": true
                                                 }
                                             }
                                         },
@@ -2974,6 +2980,276 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                                 },
                                 "postId": {
                                     "type": "Id"
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "Notifications": {
+            "name": "Notifications",
+            "partitionByType": {
+                "Inbox": {
+                    "partitionKeyAttributeByKey": {
+                        "spaceId": {
+                            "type": "Id"
+                        },
+                        "accountId": {
+                            "type": "Id"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "Attributes": {
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {},
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "generation": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "loudNotificationCount": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        },
+                        "ChatEntry": {
+                            "orderKey": "a1",
+                            "sortKeyAttributeByKey": {
+                                "chatId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "isArchived": {
+                                        "valueSchema": {
+                                            "type": "Boolean"
+                                        },
+                                        "optional": false
+                                    },
+                                    "generation": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "enteredTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "loudNotificationCount": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "latestMessage": {
+                                        "valueSchema": {
+                                            "type": "Object",
+                                            "propertySchemaByKey": {
+                                                "index": {
+                                                    "valueSchema": {
+                                                        "type": "Integer"
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "authorId": {
+                                                    "valueSchema": {
+                                                        "type": "Id"
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "createdTime": {
+                                                    "valueSchema": {
+                                                        "type": "Date"
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "contentSnippet": {
+                                                    "valueSchema": {
+                                                        "type": "Reference",
+                                                        "reuseReferenceId": "05d7837f"
+                                                    },
+                                                    "optional": false
+                                                }
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        },
+                        "PostCommentsEntry": {
+                            "orderKey": "a2",
+                            "sortKeyAttributeByKey": {
+                                "postId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "isArchived": {
+                                        "valueSchema": {
+                                            "type": "Boolean"
+                                        },
+                                        "optional": false
+                                    },
+                                    "generation": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "enteredTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "loudNotificationCount": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "latestComment": {
+                                        "valueSchema": {
+                                            "type": "Object",
+                                            "propertySchemaByKey": {
+                                                "index": {
+                                                    "valueSchema": {
+                                                        "type": "Integer"
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "authorId": {
+                                                    "valueSchema": {
+                                                        "type": "Id"
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "createdTime": {
+                                                    "valueSchema": {
+                                                        "type": "Date"
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "contentSnippet": {
+                                                    "valueSchema": {
+                                                        "type": "Reference",
+                                                        "reuseReferenceId": "05d7837f"
+                                                    },
+                                                    "optional": false
+                                                }
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "NotificationEvent": {
+                    "partitionKeyAttributeByKey": {
+                        "eventId": {
+                            "type": "Id"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "Receipt": {
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {},
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    },
+                                    "expirationTime": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "indexes": [
+                {
+                    "projection": "All",
+                    "overloadByName": {
+                        "InboxEntries": {
+                            "itemTypes": [
+                                {
+                                    "partitionType": "Inbox",
+                                    "sortRangeType": "ChatEntry"
+                                },
+                                {
+                                    "partitionType": "Inbox",
+                                    "sortRangeType": "PostCommentsEntry"
+                                }
+                            ],
+                            "partitionKeyAttributeByKey": {
+                                "spaceId": {
+                                    "type": "Id"
+                                },
+                                "accountId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "sortKeyAttributeByKey": {
+                                "isArchived": {
+                                    "type": "Boolean"
+                                },
+                                "generation": {
+                                    "type": "Reverse",
+                                    "schema": {
+                                        "type": "Integer"
+                                    }
+                                },
+                                "enteredTime": {
+                                    "type": "Reverse",
+                                    "schema": {
+                                        "type": "Date"
+                                    }
                                 }
                             }
                         }

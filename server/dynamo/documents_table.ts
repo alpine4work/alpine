@@ -6,6 +6,10 @@ import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {RequestContext} from "~/server/dynamo/context/request_context";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
 import {getContentReferencesForNode} from "~/server/dynamo/helpers/get_content_references";
+import {
+    applyMentionCountByAccountIdDifferenceFromContentUpdate,
+    getMentionCountByAccountIdInContent,
+} from "~/server/dynamo/helpers/get_mentioned_account_ids_in_content";
 import {createMessagePayloadModel} from "~/server/dynamo/helpers/messaging/create_message_payload_model";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/dynamo/helpers/messaging/get_message_change_log_expiration_time_from_change_time";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
@@ -14,7 +18,6 @@ import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_co
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint";
 import {TestCounter} from "~/server/helpers/test/test_counter";
-import {ContentMention} from "~/shared/content/content_mention";
 import {
     DocumentContent,
     DocumentContentSchema,
@@ -1395,56 +1398,6 @@ declare module "prosemirror-transform" {
         // https://github.com/ProseMirror/prosemirror-collab/blob/94df0cc9288960e7e64dc9721abbf8f656df444f/src/collab.ts#L22
         setMirror(n: number, m: number): void;
     }
-}
-
-function getMentionCountByAccountIdInContent(
-    content: Node,
-): ReadonlyMap<ContentMentionAccountId, number> {
-    const mentionCountByAccountId = new Map<ContentMentionAccountId, number>();
-
-    visitProsemirrorNode(content, {
-        visitNode: node => {
-            if (node.type.name === "mention") {
-                const mention: ContentMention = node.attrs.mention;
-                const lastMentionCount = mentionCountByAccountId.get(mention.accountId);
-                mentionCountByAccountId.set(mention.accountId, (lastMentionCount ?? 0) + 1);
-            }
-        },
-    });
-
-    return mentionCountByAccountId;
-}
-
-function applyMentionCountByAccountIdDifferenceFromContentUpdate(
-    mentionCountByAccountId: ReadonlyMap<ContentMentionAccountId, number>,
-    oldContent: Node | null,
-    newContent: Node | null,
-): ReadonlyMap<ContentMentionAccountId, number> {
-    const oldMentionCountByAccountId = oldContent
-        ? getMentionCountByAccountIdInContent(oldContent)
-        : new Map();
-    const newMentionCountByAccountId = newContent
-        ? getMentionCountByAccountIdInContent(newContent)
-        : new Map();
-
-    const updatedMentionCountByAccountId = new Map(mentionCountByAccountId);
-
-    for (const accountId of new Set(
-        concatIterables(oldMentionCountByAccountId.keys(), newMentionCountByAccountId.keys()),
-    )) {
-        const oldMentionCount = oldMentionCountByAccountId.get(accountId) ?? 0;
-        const newMentionCount = newMentionCountByAccountId.get(accountId) ?? 0;
-        const mentionCountDifference = newMentionCount - oldMentionCount;
-
-        // Remember: If the mention count goes to zero we want to keep it in our map to
-        // signal "this account was mentioned at some point".
-        updatedMentionCountByAccountId.set(
-            accountId,
-            (updatedMentionCountByAccountId.get(accountId) ?? 0) + mentionCountDifference,
-        );
-    }
-
-    return updatedMentionCountByAccountId;
 }
 
 /**

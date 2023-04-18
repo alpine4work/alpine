@@ -3,6 +3,7 @@ import {
     ChannelId,
     ChatId,
     DocumentId,
+    NotificationEventId,
     PeekId,
     PostId,
     RealmId,
@@ -533,6 +534,22 @@ export type TracerEventData = {
          * will be a system type like `Ping`, `Pong`, or `AcknowledgeMessage`.
          */
         readonly messageType?: string;
+    };
+
+    readonly notifications?: {
+        /** What is the notification event we are describing? */
+        readonly eventType?: string;
+
+        /** The ID of the notification we are processing. */
+        readonly eventId?: NotificationEventId;
+
+        readonly inbox?: {
+            /** The space the inbox belongs to. */
+            readonly spaceId?: SpaceId;
+
+            /** The account the inbox belongs to. */
+            readonly accountId?: AccountId;
+        };
     };
 };
 

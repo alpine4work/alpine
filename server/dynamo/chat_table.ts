@@ -2,12 +2,14 @@ import murmurhash from "murmurhash";
 import {getAccount} from "~/server/dynamo/accounts_table";
 import {RequestContext} from "~/server/dynamo/context/request_context";
 import {getContentReferencesForNode} from "~/server/dynamo/helpers/get_content_references";
+import {getMentionedAccountIdsInContent} from "~/server/dynamo/helpers/get_mentioned_account_ids_in_content";
 import {createMessagePayloadModel} from "~/server/dynamo/helpers/messaging/create_message_payload_model";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/dynamo/helpers/messaging/get_message_change_log_expiration_time_from_change_time";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/internal/is_dynamo_idempotent_parameter_mismatch_error";
+import {getNotificationMessageContentSnippet} from "~/server/dynamo/notifications_table";
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint";
 import {MessageContent, MessageContentSchema} from "~/shared/content/message_content_schema";
@@ -33,7 +35,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {isObject} from "~/shared/helpers/object/is_object";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
 import {decodeIdInto, encodeId, generateId} from "~/shared/id/id";
-import {AccountId, ChatId, SessionId, SpaceId} from "~/shared/id/types/id_types";
+import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema";
 import {AccountModel} from "~/shared/models/account_model";
 import {ChatMessageModel, ChatModel} from "~/shared/models/chat_model";
@@ -208,7 +210,7 @@ export function getChatTableForTest() {
 }
 
 export const sendChatMessageToAccountsBeforeCreateChatTestCheckpoint =
-    new TestCheckpoint<SessionId>();
+    new TestCheckpoint<AccountId>();
 
 /**
  * Create a new chat with the provided accounts and no messages but only in
@@ -549,7 +551,7 @@ function actuallyGetOrCreateChatForAccounts(
 
             const createChatForAccounts = async (chatId: ChatId) => {
                 await sendChatMessageToAccountsBeforeCreateChatTestCheckpoint.waitForTest(
-                    context.auth.getSessionId(),
+                    context.auth.getAccountId(),
                 );
 
                 try {
@@ -753,6 +755,17 @@ export function sendChatMessage(
                 {updateLockVersion: chatItem.updateLockVersion},
             ),
         ]);
+
+        context.notifications.sendNotificationEvent({
+            type: "CreateChatMessage",
+            id: generateId(),
+            chatId,
+            messageIndex,
+            createdTime,
+            authorId,
+            mentionedAccountIds: getMentionedAccountIdsInContent(content),
+            contentSnippet: getNotificationMessageContentSnippet(content),
+        });
 
         return {
             chatId,

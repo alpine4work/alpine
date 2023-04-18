@@ -22,7 +22,12 @@ export class ProcessContextModule extends ContextModuleBase {
     public static test() {
         assert(process.env.NODE_ENV === "test");
         return new ProcessContextModule({
-            waitUntil: promise => jestAfterEachPromises.push(promise),
+            waitUntil: promise => {
+                // Don't treat errors as unhandled. They will be reported in `afterEach()`.
+                promise.catch(() => {});
+
+                jestAfterEachPromises.push(promise);
+            },
         });
     }
 

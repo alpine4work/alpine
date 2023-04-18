@@ -5,8 +5,11 @@ import {parse as parseCookieHeader} from "cookie";
 import {defaultClientInfo, defaultMobileClientInfo} from "~/client/remix/client_info_context";
 import {createAwsContextModulesFromEnv} from "~/server/aws/create_aws_context_modules_from_env";
 import {fetchFromDurableObjectStub} from "~/server/cloudflare/fetch_from_durable_object_stub";
+import {Queue} from "~/server/cloudflare/types/cloudflare_queues";
 import {Session} from "~/server/dynamo/accounts_table";
-import {UnauthenticatedAuthContextModule} from "~/server/dynamo/context/auth_context_module";
+import {UnauthenticatedSessionAuthContextModule} from "~/server/dynamo/context/auth_context_module";
+import {NotificationsContextModule} from "~/server/dynamo/context/notifications_context_module";
+import {EmptySystemContextModule} from "~/server/dynamo/context/system_context_module";
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
 import {seedDynamo} from "~/server/dynamo/seed_dynamo";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base";
@@ -23,7 +26,7 @@ import {CacheContextModule} from "~/shared/context/cache_context_module";
 import {Context} from "~/shared/context/context";
 import {ProcessContextModule} from "~/shared/context/process_context_module";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";
-import {InternalError} from "~/shared/error/error";
+import {InternalError, UnimplementedError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {ClientInfoSchema} from "~/shared/remix/client_info";
 import {Schema} from "~/shared/schema/schema";
@@ -32,6 +35,7 @@ type AppWorkerEnv = {
     DocumentCollaborationDurableObjectNamespace: DurableObjectNamespace;
     PostRealtimeDurableObjectNamespace: DurableObjectNamespace;
     ChatRealtimeDurableObjectNamespace: DurableObjectNamespace;
+    NotificationsQueue: Queue;
     DEV_SERVER_PORT?: string;
     DYNAMO_LOCAL_PORT?: string;
     SESSION_COOKIE_SECRET?: string;
@@ -278,9 +282,14 @@ async function handleFetch(
                             ? parseInt(env.DEV_SERVER_PORT, 10)
                             : null,
                     }),
+                    // IMPORTANT: It's important that we use our empty system context module here
+                    // instead of the full system context module. HTTP requests to our worker should
+                    // not have system access.
+                    system: new EmptySystemContextModule(),
                     cache: new CacheContextModule(),
+                    notifications: new NotificationsContextModule(env),
 
-                    auth: new UnauthenticatedAuthContextModule(async context => {
+                    auth: new UnauthenticatedSessionAuthContextModule(async context => {
                         const sessionCookie = await sessionCookiePromise;
 
                         const {sessionId, sessionAccountId} = sessionCookie.get();
@@ -339,7 +348,12 @@ async function handleFetch(
     });
 }
 
-export default {fetch: handleFetch};
+async function handleQueue() {
+    // NOCOMMIT: Implement this
+    throw new UnimplementedError("TODO");
+}
+
+export default {fetch: handleFetch, queue: handleQueue};
 
 export {DocumentCollaborationDurableObject} from "~/server/documents/document_collaboration_durable_object";
 export {PostRealtimeDurableObject} from "~/server/posts/post_realtime_durable_object";

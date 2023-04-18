@@ -15,6 +15,17 @@ bucket = "./public"
 type = "ESModule"
 globs = ["**/*.js"]
 
+[[queues.producers]]
+queue = "NotificationsQueue"
+binding = "NotificationsQueue"
+
+[[queues.consumers]]
+queue = "NotificationsQueue"
+max_batch_size = 1
+max_batch_timeout = 0
+max_retries = 10
+dead_letter_queue = "NotificationsDeadLetterQueue"
+
 [[durable_objects.bindings]]
 name = "DocumentCollaborationDurableObjectNamespace"
 class_name = "DocumentCollaborationDurableObject"
