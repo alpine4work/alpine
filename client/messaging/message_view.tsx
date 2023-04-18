@@ -42,6 +42,7 @@ import {
     messageViewBubbleBorderRadius,
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
+    minMessageViewTimestampDividerElapsedMinutes,
 } from "~/shared/messaging/messaging_shared_styles";
 import {emptyContentReferences} from "~/shared/models/content_references";
 import {
@@ -591,18 +592,13 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     ]);
 
     const timestampDividerNode = useMemo(() => {
-        // If an hour passed without a message, insert a divider between messages. We
-        // use an hour since that's a pretty standard meeting time. If an hour long
-        // meeting has passed we assume context is lost so revealing the time
-        // is useful.
-        const minElapsedMinutes = 60;
-
         const shouldShowTimestampBeforeMessage = isFirstMessage
             ? !roomDisplayedCreatedTime ||
-              differenceInMinutes(message.createdTime, roomDisplayedCreatedTime) > minElapsedMinutes
+              differenceInMinutes(message.createdTime, roomDisplayedCreatedTime) >
+                  minMessageViewTimestampDividerElapsedMinutes
             : previousMessage &&
               differenceInMinutes(message.createdTime, previousMessage.createdTime) >
-                  minElapsedMinutes;
+                  minMessageViewTimestampDividerElapsedMinutes;
         if (!shouldShowTimestampBeforeMessage) return null;
 
         const isCurrentYear = new Date().getFullYear() === message.createdTime.getFullYear();
