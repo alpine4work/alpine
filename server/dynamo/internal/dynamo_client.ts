@@ -550,6 +550,7 @@ export class DynamoClient {
             indexName,
             partitionKey,
             sortKey,
+            lastEvaluatedKey: _lastEvaluatedKey,
             consistency = "Eventual",
             limit,
             descending = false,
@@ -567,6 +568,7 @@ export class DynamoClient {
                 isStartExclusive?: boolean;
                 isEndExclusive?: boolean;
             };
+            lastEvaluatedKey?: SchemaSerializedObjectValue;
             consistency?: DynamoReadConsistency;
             limit?: number;
             descending?: boolean;
@@ -611,7 +613,9 @@ export class DynamoClient {
         });
 
         let totalScannedCount = 0;
-        let lastEvaluatedKey: {[key: string]: types.AttributeValue} | undefined;
+        let lastEvaluatedKey: {[key: string]: types.AttributeValue} | undefined = _lastEvaluatedKey
+            ? intoDynamoAttributeValueObject(_lastEvaluatedKey)
+            : undefined;
 
         do {
             const output = await this._client.Query(tracer, {

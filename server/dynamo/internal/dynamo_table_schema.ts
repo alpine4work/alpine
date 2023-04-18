@@ -84,6 +84,16 @@ export type DynamoTableItemType<
     }
 >;
 
+export type DynamoTableIndexItemType<Schema extends DynamoTableSchemaIndex<any, any, any, any>> =
+    Schema extends DynamoTableSchemaIndex<
+        infer QueryItem,
+        any,
+        infer IndexPartitionKey,
+        infer IndexSortKey
+    >
+        ? MergeObjectIntersection<QueryItem & IndexPartitionKey & IndexSortKey>
+        : never;
+
 const DynamoTableItemSharedAttributesSchema: ObjectSchema<DynamoTableSchemaTypes.ItemSharedAttributes> =
     Schema.object({
         updateLockVersion: Schema.integer.min(1).optional(),
@@ -1150,61 +1160,81 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         key: Key,
         update: (
             item: MergeObjectIntersection<Types["Item"] & Key> | null,
-        ) => MaybePromise<MergeObjectIntersection<Types["Item"] & Key>>,
+        ) => MaybePromise<MergeObjectIntersection<Types["Item"] & Key> | null>,
+        {initialItem}: {initialItem?: Types["Item"] & Key} = {},
     ): Promise<void> {
         await context.tracer.withSpan("DynamoTableSchema.updateItem", async (context, span) => {
             span.addData({dynamodb: {tableName: this.getName()}});
 
+            let hasAttempted = false;
+
             await context.dynamo.retryTransaction(async context => {
-                const item = await this.getItemIfExists(context, key);
+                const isInitialAttempt = !hasAttempted;
+                hasAttempted = true;
+
+                const item =
+                    isInitialAttempt && initialItem
+                        ? initialItem
+                        : await this.getItemIfExists(context, key);
 
                 const newItem = await update(item);
 
                 // Update was short-circuited.
                 if (item === newItem) return;
 
-                await this._putItem(
-                    context,
-                    {
-                        ...newItem,
-                        // Increment the lock version in this new item.
-                        //
-                        // The `update()` function should not change the `updateLockVersion` property
-                        // itself. If it does (e.g. creates a new item without the property instead of
-                        // spreading the old object) then we override the change.
-                        //
-                        // An undefined lock version is the same as a lock version of 0. Except we
-                        // can't set to 0 because our conditional update looks for a lock version that
-                        // does not exist for version 0.
-                        updateLockVersion: !item
-                            ? undefined
-                            : typeof item.updateLockVersion === "number"
-                            ? item.updateLockVersion + 1
-                            : 1,
-                    },
-                    {
-                        condition: !item
-                            ? DynamoConditionExpression._unsafeRaw(
-                                  "attribute_not_exists(partitionKey)",
-                                  DynamoConditionExpressionPrecedence.Function,
-                              )
-                            : DynamoConditionExpression._unsafeRaw(
-                                  "attribute_exists(partitionKey)",
-                                  DynamoConditionExpressionPrecedence.Function,
-                              ).and(
-                                  DynamoConditionExpression.from({
-                                      // Verify that the lock version was not changed by a concurrent writer.
-                                      updateLockVersion:
-                                          typeof item.updateLockVersion === "number"
-                                              ? DynamoConditionExpression.eq(item.updateLockVersion)
-                                              : DynamoConditionExpression.exists().not(),
-                                  }),
-                              ),
+                const condition = !item
+                    ? DynamoConditionExpression._unsafeRaw(
+                          "attribute_not_exists(partitionKey)",
+                          DynamoConditionExpressionPrecedence.Function,
+                      )
+                    : DynamoConditionExpression._unsafeRaw(
+                          "attribute_exists(partitionKey)",
+                          DynamoConditionExpressionPrecedence.Function,
+                      ).and(
+                          DynamoConditionExpression.from({
+                              // Verify that the lock version was not changed by a concurrent writer.
+                              updateLockVersion:
+                                  typeof item.updateLockVersion === "number"
+                                      ? DynamoConditionExpression.eq(item.updateLockVersion)
+                                      : DynamoConditionExpression.exists().not(),
+                          }),
+                      );
+
+                if (newItem !== null) {
+                    await this._putItem(
+                        context,
+                        {
+                            ...newItem,
+                            // Increment the lock version in this new item.
+                            //
+                            // The `update()` function should not change the `updateLockVersion` property
+                            // itself. If it does (e.g. creates a new item without the property instead of
+                            // spreading the old object) then we override the change.
+                            //
+                            // An undefined lock version is the same as a lock version of 0. Except we
+                            // can't set to 0 because our conditional update looks for a lock version that
+                            // does not exist for version 0.
+                            updateLockVersion: !item
+                                ? undefined
+                                : typeof item.updateLockVersion === "number"
+                                ? item.updateLockVersion + 1
+                                : 1,
+                        },
+                        {
+                            condition,
+                            // This operation implements an optimistic locking scheme. Retrying the
+                            // operation should read the latest item version and eventually succeed.
+                            isConditionCheckErrorRetriable: true,
+                        },
+                    );
+                } else {
+                    await this._deleteItem(context, key, {
+                        condition,
                         // This operation implements an optimistic locking scheme. Retrying the
                         // operation should read the latest item version and eventually succeed.
                         isConditionCheckErrorRetriable: true,
-                    },
-                );
+                    });
+                }
             });
         });
     }
@@ -2364,6 +2394,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         >,
     ): DynamoTableSchemaIndex<
         Types["ItemKey"] & ItemTypes,
+        Types["ItemKey"] & ItemTypes,
         DynamoTableSchemaIndexKeyAttributesType<PartitionKeyAttributesConfig>,
         DynamoTableSchemaIndexKeyAttributesType<SortKeyAttributesConfig>
     > {
@@ -2375,6 +2406,9 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         const schema = this;
 
         return {
+            partitionKeyAttributes: config.partitionKeyAttributes as any,
+            sortKeyAttributes: config.sortKeyAttributes as any,
+
             async *query(
                 context,
                 {
@@ -2383,6 +2417,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     endSortKey,
                     isStartSortKeyExclusive,
                     isEndSortKeyExclusive,
+                    afterItemKey,
                     limit,
                     descending,
                 },
@@ -2409,6 +2444,27 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 const partitionKeyAttributeName = `index${indexConfig.indexNumber}PartitionKey`;
                 const sortKeyAttributeName = `index${indexConfig.indexNumber}SortKey`;
 
+                let lastEvaluatedKey: SchemaSerializedObjectValue | undefined;
+                if (afterItemKey) {
+                    const serializedAfterPrimaryKey = schema._serializeItemKey(afterItemKey);
+
+                    const serializedAfterPartitionKey = serializeDynamoTableSchemaIndexPartitionKey(
+                        indexConfig,
+                        afterItemKey,
+                    );
+                    const serializedAfterSortKey = serializeDynamoTableSchemaIndexSortKey(
+                        indexConfig,
+                        afterItemKey,
+                    );
+
+                    lastEvaluatedKey = {
+                        partitionKey: serializedAfterPrimaryKey.partitionKey,
+                        sortKey: serializedAfterPrimaryKey.sortKey,
+                        [partitionKeyAttributeName]: serializedAfterPartitionKey,
+                        [sortKeyAttributeName]: serializedAfterSortKey,
+                    };
+                }
+
                 const iterator = client.query(context.tracer.getTracer(), {
                     tableName: schema._name,
                     indexName: `Index${indexConfig.indexNumber}`,
@@ -2423,6 +2479,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                         isStartExclusive: isStartSortKeyExclusive,
                         isEndExclusive: isEndSortKeyExclusive,
                     },
+                    lastEvaluatedKey,
                     consistency: "Eventual",
                     limit: limit !== "All" ? limit : undefined,
                     descending,
@@ -2482,6 +2539,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         >,
     ): DynamoTableSchemaIndex<
         Types["Item"] & ItemTypes,
+        Types["ItemKey"] & ItemTypes,
         DynamoTableSchemaIndexKeyAttributesType<PartitionKeyAttributesConfig>,
         DynamoTableSchemaIndexKeyAttributesType<SortKeyAttributesConfig>
     > {
@@ -2493,6 +2551,9 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         const schema = this;
 
         return {
+            partitionKeyAttributes: config.partitionKeyAttributes as any,
+            sortKeyAttributes: config.sortKeyAttributes as any,
+
             async *query(
                 context,
                 {
@@ -2501,6 +2562,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     endSortKey,
                     isStartSortKeyExclusive,
                     isEndSortKeyExclusive,
+                    afterItemKey,
                     limit,
                     descending,
                 },
@@ -2527,6 +2589,27 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 const partitionKeyAttributeName = `index${indexConfig.indexNumber}PartitionKey`;
                 const sortKeyAttributeName = `index${indexConfig.indexNumber}SortKey`;
 
+                let lastEvaluatedKey: SchemaSerializedObjectValue | undefined;
+                if (afterItemKey) {
+                    const serializedAfterPrimaryKey = schema._serializeItemKey(afterItemKey);
+
+                    const serializedAfterPartitionKey = serializeDynamoTableSchemaIndexPartitionKey(
+                        indexConfig,
+                        afterItemKey,
+                    );
+                    const serializedAfterSortKey = serializeDynamoTableSchemaIndexSortKey(
+                        indexConfig,
+                        afterItemKey,
+                    );
+
+                    lastEvaluatedKey = {
+                        partitionKey: serializedAfterPrimaryKey.partitionKey,
+                        sortKey: serializedAfterPrimaryKey.sortKey,
+                        [partitionKeyAttributeName]: serializedAfterPartitionKey,
+                        [sortKeyAttributeName]: serializedAfterSortKey,
+                    };
+                }
+
                 const iterator = client.query(context.tracer.getTracer(), {
                     tableName: schema._name,
                     indexName: `Index${indexConfig.indexNumber}`,
@@ -2541,6 +2624,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                         isStartExclusive: isStartSortKeyExclusive,
                         isEndExclusive: isEndSortKeyExclusive,
                     },
+                    lastEvaluatedKey,
                     consistency: "Eventual",
                     limit: limit !== "All" ? limit : undefined,
                     descending,
@@ -2818,7 +2902,18 @@ type DynamoTableSchemaIndexConfig<
 /**
  * The type to use for accessing an index on our DynamoDB table.
  */
-export interface DynamoTableSchemaIndex<QueryItem, IndexPartitionKey, IndexSortKey> {
+export interface DynamoTableSchemaIndex<QueryItem, ItemKey, IndexPartitionKey, IndexSortKey> {
+    readonly partitionKeyAttributes: {
+        readonly [Key in keyof IndexPartitionKey]: DynamoKeyAttributeSchema<IndexPartitionKey[Key]>;
+    };
+
+    readonly sortKeyAttributes: {
+        readonly [Key in keyof IndexSortKey]: DynamoKeyAttributeSchema<IndexSortKey[Key]>;
+    };
+
+    /**
+     * Query the index.
+     */
     query(
         context: DynamoContext,
         options: {
@@ -2827,6 +2922,14 @@ export interface DynamoTableSchemaIndex<QueryItem, IndexPartitionKey, IndexSortK
             endSortKey?: IndexSortKey;
             isStartSortKeyExclusive?: boolean;
             isEndSortKeyExclusive?: boolean;
+            /**
+             * Our query will return all values after this item. Behaves the same as
+             * `startSortKey` but is more precise since an index can contain multiple items
+             * with the same sort key.
+             *
+             * The item key contains both the key of the item and the index attributes.
+             */
+            afterItemKey?: MergeObjectIntersection<ItemKey & IndexPartitionKey & IndexSortKey>;
             // Required to specify a limit or the `All` string. So if you intentionally
             // want everything you have to say so.
             limit: number | "All";
