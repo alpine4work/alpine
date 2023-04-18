@@ -1,5 +1,7 @@
 import {Schema} from "~/shared/schema/schema";
 
+export const maxLabelStringLength = 512;
+
 /**
  * A label string is a short, non-empty, single-line string.
  *
@@ -18,4 +20,8 @@ import {Schema} from "~/shared/schema/schema";
  *
  * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ServiceQuotas.html
  */
-export const LabelStringSchema = Schema.string.minLength(1).maxLength(512).singleLine().trim();
+export const LabelStringSchema = Schema.string
+    .minLength(1)
+    .maxLength(maxLabelStringLength)
+    .singleLine()
+    .trim();

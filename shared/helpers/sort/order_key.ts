@@ -52,7 +52,8 @@ export function isOrderKey(string: string): string is OrderKey {
 }
 
 const zeroOrderKey = "a0" as OrderKey;
-const smallestOrderKey = "A00000000000000000000000000" as OrderKey;
+export const minOrderKey = "A00000000000000000000000000" as OrderKey;
+export const maxOrderKey = "zzzzzzzzzzzzzzzzzzzzzzzzzzz" as OrderKey;
 
 function midpoint(a: string, b: string | null): string {
     assert(!b || a < b);
@@ -163,7 +164,7 @@ function decrementIntegerOrderKey(x: OrderKey): OrderKey | null {
 }
 
 function validateOrderKey(key: OrderKey) {
-    assert(key !== smallestOrderKey);
+    assert(key !== minOrderKey);
     const i = getOrderKeyIntegerPart(key);
     const f = key.slice(i.length);
     assert(f.slice(-1) !== "0");
@@ -191,7 +192,7 @@ export function generateOrderKeyBetween(a: OrderKey | null, b: OrderKey | null):
 
         const ib = getOrderKeyIntegerPart(b);
         const fb = b.slice(ib.length);
-        if (ib === smallestOrderKey) {
+        if (ib === minOrderKey) {
             return (ib + midpoint("", fb)) as OrderKey;
         }
         return ib < b ? ib : decrementIntegerOrderKey(ib)!;

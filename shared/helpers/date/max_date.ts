@@ -22,6 +22,11 @@
 export const maxDate = new Date(8640000000000000);
 
 /**
+ * The minimum date which can be lexicographically sorted in ISO 8601 format.
+ */
+export const minIsoLexicographicallySortableDate = new Date("0000-01-01T00:00:00.000Z");
+
+/**
  * The maximum date which can be lexicographically sorted in ISO 8601 format.
  *
  * At years larger than 9999 ISO 8601 uses the following format:

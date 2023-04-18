@@ -7,7 +7,10 @@ import {
     isDateString,
     serializeDateString,
 } from "~/shared/helpers/date/date_string";
-import {maxIsoLexicographicallySortableDate} from "~/shared/helpers/date/max_date";
+import {
+    maxIsoLexicographicallySortableDate,
+    minIsoLexicographicallySortableDate,
+} from "~/shared/helpers/date/max_date";
 import {
     ElenFloat,
     decodeElenFloatIfPossible,
@@ -18,9 +21,9 @@ import {
     decodeElenIntegerIfPossible,
     encodeElenInteger,
 } from "~/shared/helpers/number/elen_integer";
-import {OrderKey, isOrderKey} from "~/shared/helpers/sort/order_key";
+import {OrderKey, isOrderKey, maxOrderKey, minOrderKey} from "~/shared/helpers/sort/order_key";
 import {Id, getMaxId, getMinId, isId} from "~/shared/id/id";
-import {LabelStringSchema} from "~/shared/schema/label_string_schema";
+import {LabelStringSchema, maxLabelStringLength} from "~/shared/schema/label_string_schema";
 
 /**
  * An attribute of a DynamoDB key is an ASCII string excluding the `#`
@@ -137,13 +140,18 @@ export type DynamoKeyAttributeSchemaDescription =
     | {readonly type: "Id"}
     | {readonly type: "Date"}
     | {readonly type: "Boolean"}
+    | {readonly type: "BooleanReversed"}
     | {readonly type: "Integer"}
     | {readonly type: "Float"}
     | {readonly type: "OrderKey"}
     | {readonly type: "LabelString"}
     | {readonly type: "EmailAddress"}
     | {readonly type: "Reverse"; readonly schema: DynamoKeyAttributeSchemaDescription}
-    | {readonly type: "Nullable"; readonly schema: DynamoKeyAttributeSchemaDescription};
+    | {
+          readonly type: "Nullable";
+          readonly nullsOrder: "First" | "Last";
+          readonly schema: DynamoKeyAttributeSchemaDescription;
+      };
 
 /**
  * An attribute of a DynamoDB key.
@@ -172,6 +180,8 @@ export class DynamoKeyAttributeSchema<Value> {
             assert(isId(keyAttribute));
             return keyAttribute;
         },
+        minValue: getMinId(),
+        maxValue: getMaxId(),
     });
 
     /**
@@ -179,35 +189,43 @@ export class DynamoKeyAttributeSchema<Value> {
      *
      * [1]: https://en.wikipedia.org/wiki/ISO_8601
      */
-    public static date = Object.assign(
-        new DynamoKeyAttributeSchema<Date>({
-            description: {type: "Date"},
-            serialize: date => {
-                // If the date is larger than `maxIsoLexicographicallySortableDate` it won't be
-                // sorted properly by DynamoDB.
-                assert(
-                    date.getTime() <= maxIsoLexicographicallySortableDate.getTime(),
-                    "DynamoDB date key attribute too large",
-                );
-                return serializeDateString(date);
-            },
-            deserialize: keyAttribute => {
-                assert(isDateString(keyAttribute));
-                return deserializeDateString(keyAttribute);
-            },
-        }),
-        {
-            maxValue: maxIsoLexicographicallySortableDate,
+    public static date = new DynamoKeyAttributeSchema<Date>({
+        description: {type: "Date"},
+        serialize: serializeDateString,
+        deserialize: keyAttribute => {
+            assert(isDateString(keyAttribute));
+            return deserializeDateString(keyAttribute);
         },
-    );
+        minValue: minIsoLexicographicallySortableDate,
+        maxValue: maxIsoLexicographicallySortableDate,
+    });
 
     /**
      * Booleans are serialized to either the `true` or `false` string.
+     *
+     * `false` is  ordered first and `true` is ordered second. Conveniently that's
+     * how the strings `true` and `false` order themselves.
      */
     public static boolean = new DynamoKeyAttributeSchema<boolean>({
         description: {type: "Boolean"},
         serialize: value => (value ? "true" : "false") as DynamoKeyAttribute,
         deserialize: value => value === "true",
+        minValue: false,
+        maxValue: true,
+    });
+
+    /**
+     * Booleans are serialized to either the `true` or `false` string. Except we
+     * append `0-` to `true` and `1-` to `false` so that true values are ordered
+     * first and false values are ordered second. Same functionality as calling
+     * `.reverse()` but with more legible serialized values.
+     */
+    public static booleanReversed = new DynamoKeyAttributeSchema<boolean>({
+        description: {type: "BooleanReversed"},
+        serialize: value => (value ? "0-true" : "1-false") as DynamoKeyAttribute,
+        deserialize: value => value === "0-true",
+        minValue: true,
+        maxValue: false,
     });
 
     /**
@@ -221,6 +239,8 @@ export class DynamoKeyAttributeSchema<Value> {
             assert(value !== null);
             return value;
         },
+        minValue: Number.MIN_SAFE_INTEGER,
+        maxValue: Number.MAX_SAFE_INTEGER,
     });
 
     /**
@@ -237,6 +257,10 @@ export class DynamoKeyAttributeSchema<Value> {
             assert(value !== null);
             return value;
         },
+        // In the elen encoding of floats, `-NaN` is smaller than `-Infinity` and
+        // `+NaN` is larger than `+Infinity`.
+        minValue: -NaN,
+        maxValue: NaN,
     });
 
     /**
@@ -249,6 +273,8 @@ export class DynamoKeyAttributeSchema<Value> {
             assert(isOrderKey(keyAttribute));
             return keyAttribute;
         },
+        minValue: minOrderKey,
+        maxValue: maxOrderKey,
     });
 
     /**
@@ -263,6 +289,8 @@ export class DynamoKeyAttributeSchema<Value> {
         },
         deserialize: keyAttribute =>
             LabelStringSchema.deserialize(deserializeStringDynamoKeyAttribute(keyAttribute)),
+        minValue: String.fromCharCode(0),
+        maxValue: String.fromCharCode(0xffff).repeat(maxLabelStringLength),
     });
 
     /**
@@ -281,6 +309,8 @@ export class DynamoKeyAttributeSchema<Value> {
         },
         deserialize: keyAttribute =>
             DynamoEmailAddressSchema.deserialize(deserializeStringDynamoKeyAttribute(keyAttribute)),
+        minValue: String.fromCharCode(0) as EmailAddress,
+        maxValue: String.fromCharCode(0xffff).repeat(maxLabelStringLength) as EmailAddress,
     });
 
     /**
@@ -300,18 +330,52 @@ export class DynamoKeyAttributeSchema<Value> {
      */
     public readonly deserialize: (keyAttribute: DynamoKeyAttribute) => Value;
 
+    /**
+     * The smallest value serializable by this schema. Useful for creating
+     * query bounds.
+     */
+    public readonly minValue: Value;
+
+    /**
+     * The largest value serializable by this schema. Useful for creating
+     * query bounds.
+     */
+    public readonly maxValue: Value;
+
     private constructor({
         description,
         serialize,
         deserialize,
+        minValue,
+        maxValue,
     }: {
         description: DynamoKeyAttributeSchemaDescription;
         serialize: (value: Value) => DynamoKeyAttribute;
         deserialize: (keyAttribute: DynamoKeyAttribute) => Value;
+        minValue: Value;
+        maxValue: Value;
     }) {
         this.description = description;
         this.serialize = serialize;
         this.deserialize = deserialize;
+        this.minValue = minValue;
+        this.maxValue = maxValue;
+
+        // In development and test environments, make sure our value is within the min
+        // max value bounds. In production we don't check to avoid extra overhead in a
+        // hot code path.
+        if (process.env.NODE_ENV !== "production") {
+            const serializedMinValue = serialize(minValue);
+            const serializedMaxValue = serialize(maxValue);
+            assert(serializedMinValue <= serializedMaxValue);
+
+            this.serialize = value => {
+                const serializedValue = serialize(value);
+                assert(serializedValue >= serializedMinValue);
+                assert(serializedValue <= serializedMaxValue);
+                return serializedValue;
+            };
+        }
     }
 
     /**
@@ -331,6 +395,8 @@ export class DynamoKeyAttributeSchema<Value> {
                 const keyAttribute = deserializeReversedDynamoKeyAttribute(reversedKeyAttribute);
                 return this.deserialize(keyAttribute);
             },
+            minValue: this.maxValue,
+            maxValue: this.minValue,
         });
     }
 
@@ -338,22 +404,33 @@ export class DynamoKeyAttributeSchema<Value> {
      * Allow the key value to be null.
      *
      * If null then the value serializes to `0`. Otherwise we append `1-` to the
-     * serialized value. This means that null values always come first.
+     * serialized value. This means that null values come first by default. You can
+     * customize this behavior with `nullsOrder`. When set to `Last` null
+     * serializes to `1` and we append `0-` to other values.
      */
-    public nullable(): DynamoKeyAttributeSchema<Value | null> {
+    public nullable({
+        nullsOrder = "First",
+    }: {
+        nullsOrder?: "First" | "Last";
+    } = {}): DynamoKeyAttributeSchema<Value | null> {
+        const nullPrefix = nullsOrder === "First" ? "0" : "1";
+        const nonNullPrefix = nullsOrder === "First" ? "1" : "0";
+
         return new DynamoKeyAttributeSchema<Value | null>({
-            description: {type: "Nullable", schema: this.description},
+            description: {type: "Nullable", nullsOrder, schema: this.description},
             serialize: value => {
-                if (value === null) return "0" as DynamoKeyAttribute;
+                if (value === null) return nullPrefix as DynamoKeyAttribute;
                 const keyAttribute = this.serialize(value);
-                return `1-${keyAttribute}` as DynamoKeyAttribute;
+                return `${nonNullPrefix}-${keyAttribute}` as DynamoKeyAttribute;
             },
             deserialize: nullableKeyAttribute => {
-                if (nullableKeyAttribute === "0") return null;
-                assert(nullableKeyAttribute.startsWith("1-"));
+                if (nullableKeyAttribute === nullPrefix) return null;
+                assert(nullableKeyAttribute.startsWith(`${nonNullPrefix}-`));
                 const keyAttribute = nullableKeyAttribute.slice(2) as DynamoKeyAttribute;
                 return this.deserialize(keyAttribute);
             },
+            minValue: nullsOrder === "First" ? null : this.minValue,
+            maxValue: nullsOrder === "First" ? this.maxValue : null,
         });
     }
 }
