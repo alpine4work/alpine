@@ -7,6 +7,7 @@ import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_ty
 import {assert} from "~/shared/helpers/control/assert";
 import {cast} from "~/shared/helpers/control/cast";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {serializeDateString} from "~/shared/helpers/date/date_string";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier";
@@ -427,7 +428,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     /**
      * Accept only values exactly equal to the provided value.
      */
-    public static value<Value extends number | boolean | string>(value: Value): ValueSchema<Value> {
+    public static value<Value extends ValueSchemaValueBase>(value: Value): ValueSchema<Value> {
         return ValueSchema._new(value);
     }
 
@@ -1270,12 +1271,14 @@ export class ObjectPropertySchema<Value, SchemaValue extends Value> {
     }
 }
 
+type ValueSchemaValueBase = SchemaSerializedScalarValue | Date;
+
 /**
  * Schema that only permits a single value.
  *
  * You should only create this with `Schema.value()`.
  */
-export class ValueSchema<Value extends string | number | boolean> extends Schema<Value> {
+export class ValueSchema<Value extends ValueSchemaValueBase> extends Schema<Value> {
     /**
      * The only value this schema permits. This is the value at runtime and may not
      * be the value that is serialized.
@@ -1288,9 +1291,9 @@ export class ValueSchema<Value extends string | number | boolean> extends Schema
      * The value that is serialized. May be the same as our runtime value or may
      * be different.
      */
-    public readonly serializedValue: string | number | boolean;
+    public readonly serializedValue: SchemaSerializedScalarValue;
 
-    private constructor(value: Value, serializedValue: string | number | boolean) {
+    private constructor(value: Value, serializedValue: SchemaSerializedScalarValue) {
         super({
             getDescription: () => ({
                 type: "Value",
@@ -1313,8 +1316,8 @@ export class ValueSchema<Value extends string | number | boolean> extends Schema
     /**
      * Prefer `Schema.value()` which directly calls this method.
      */
-    public static _new<Value extends string | number | boolean>(value: Value) {
-        return new ValueSchema(value, value);
+    public static _new<Value extends ValueSchemaValueBase>(value: Value) {
+        return new ValueSchema(value, value instanceof Date ? serializeDateString(value) : value);
     }
 
     /**
