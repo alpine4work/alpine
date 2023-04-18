@@ -38,7 +38,13 @@ import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
 import {generateId} from "~/shared/id/id";
-import {AccountId, ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types";
+import {
+    AccountId,
+    ChannelId,
+    ContentMentionAccountId,
+    PostId,
+    SpaceId,
+} from "~/shared/id/types/id_types";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema";
 import {AccountModel} from "~/shared/models/account_model";
 import {ChannelModel, ChannelPreviewModel} from "~/shared/models/channel_model";
@@ -159,7 +165,7 @@ const ForumTable = DynamoTableSchema.new({
                              * single attribute with other comment information.
                              */
                             mentionCountByAccountId: Schema.map(
-                                Schema.id<AccountId>(),
+                                Schema.id<ContentMentionAccountId>(),
                                 Schema.integer.min(0),
                             ).default(new Map()),
                         }),
@@ -492,17 +498,10 @@ export async function getChannelPosts(
     };
 }
 
-/**
- * Get all `AccountId`s mentioned in a piece of content and the number of times
- * they were mentioned.
- *
- * IMPORTANT: You may copy/paste content across spaces and in that case an
- * account may exist in one space but not another! So be careful using
- * `getAccount()` on mentioned `AccountId`s and instead you should generally
- * `getAccountIfExists()`.
- */
-function getMentionCountByAccountIdInContent(content: Node): ReadonlyMap<AccountId, number> {
-    const mentionCountByAccountId = new Map<AccountId, number>();
+function getMentionCountByAccountIdInContent(
+    content: Node,
+): ReadonlyMap<ContentMentionAccountId, number> {
+    const mentionCountByAccountId = new Map<ContentMentionAccountId, number>();
 
     visitProsemirrorNode(content, {
         visitNode: node => {
@@ -518,10 +517,10 @@ function getMentionCountByAccountIdInContent(content: Node): ReadonlyMap<Account
 }
 
 function applyMentionCountByAccountIdDifferenceFromContentUpdate(
-    mentionCountByAccountId: ReadonlyMap<AccountId, number>,
+    mentionCountByAccountId: ReadonlyMap<ContentMentionAccountId, number>,
     oldContent: Node | null,
     newContent: Node | null,
-): ReadonlyMap<AccountId, number> {
+): ReadonlyMap<ContentMentionAccountId, number> {
     const oldMentionCountByAccountId = oldContent
         ? getMentionCountByAccountIdInContent(oldContent)
         : new Map();
@@ -657,12 +656,50 @@ async function createPostModelFromItem(
 }
 
 /**
+ * Get the `ChannelId` and `SpaceId` for a post.
+ */
+export async function getPostChannel(
+    context: RequestContext,
+    postId: PostId,
+): Promise<{spaceId: SpaceId; channelId: ChannelId}> {
+    const postItem = await ForumTable.getPartialItem(
+        context,
+        {
+            partitionType: "Post",
+            sortRangeType: "Attributes",
+            postId,
+        },
+        {
+            attributes: ["channelId"],
+        },
+    );
+
+    const {spaceId} = await authorizeChannelAccess(context, postItem.channelId);
+
+    return {
+        spaceId,
+        channelId: postItem.channelId,
+    };
+}
+
+/**
  * Get accounts subscribed to notifications for the provided `PostId`.
  */
+// TODO(calebmer): Currently any account with access to the post can call this
+// function to get subscribers. Right now the subscriber list is inferred from
+// public information (post creator, post commentor, mentioned account).
+// However, when we allow users to subscribe to notifications or unsubscribe
+// from notifications explicitly there's no reason for that information to be
+// public so we'd like to treat it as private. There's some generic "system"
+// permission level or specific "notification fan-out" permission level we need
+// then for this function.
 export async function getPostNotificationSubscribers(
     context: RequestContext,
     id: PostId,
-): Promise<ReadonlyArray<AccountModel>> {
+): Promise<{
+    spaceId: SpaceId;
+    accounts: ReadonlyArray<AccountModel>;
+}> {
     const postItem = await ForumTable.getPartialItem(
         context,
         {
@@ -677,7 +714,7 @@ export async function getPostNotificationSubscribers(
 
     const {spaceId} = await authorizeChannelAccess(context, postItem.channelId);
 
-    const accountIds = new Set<AccountId>(
+    const accountIds = new Set<ContentMentionAccountId>(
         concatIterables(
             [postItem.authorId],
             postItem.commentsSummary.commentCountByAuthorId.keys(),
@@ -691,7 +728,10 @@ export async function getPostNotificationSubscribers(
         mapIterable(accountIds, accountId => getAccountIfExists(context, spaceId, accountId)),
     );
 
-    return accounts.filter(isNonNullable);
+    return {
+        spaceId,
+        accounts: accounts.filter(isNonNullable),
+    };
 }
 
 /**

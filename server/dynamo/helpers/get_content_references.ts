@@ -61,6 +61,8 @@ async function getContentReferences(
                 const accountPromise = getOrSetDefaultMapValue(
                     accountPromiseById,
                     mention.accountId,
+                    // You may have copy/pasted some content from a different space. In that case a
+                    // mentioned user may not exist.
                     () => getAccountIfExists(context, spaceId, mention.accountId),
                 );
 

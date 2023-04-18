@@ -1522,7 +1522,7 @@ test("if time hasn't moved forward updating a post will set it to +1ms of the la
     }
 });
 
-describe.only("Notification subscribers", () => {
+describe("Notification subscribers", () => {
     test("throws when trying to access a post that doesn't exist", async () => {
         await expect(
             getPostNotificationSubscribers(context.request(session1), generateId()),
@@ -1556,13 +1556,17 @@ describe.only("Notification subscribers", () => {
             content: testContent1,
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session2), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session2), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
     });
 
     test("an account mentioned in the post's content is subscribed to notifications", async () => {
@@ -1586,20 +1590,23 @@ describe.only("Notification subscribers", () => {
             ),
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session2), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session2), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session3), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
     });
 
     test("an unknown account in the post's content is not subscribed to notifications", async () => {
@@ -1623,17 +1630,23 @@ describe.only("Notification subscribers", () => {
             ),
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session2), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session2), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session3), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
     });
 
     test("a mentioned account from another space in the post's content is not subscribed to notifications", async () => {
@@ -1657,17 +1670,23 @@ describe.only("Notification subscribers", () => {
             ),
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session2), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session2), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session3), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
     });
 
     test("an account mentioned in the post's content is subscribed to notifications even if it is removed from the post's content", async () => {
@@ -1691,20 +1710,23 @@ describe.only("Notification subscribers", () => {
             ),
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session2), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session2), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session3), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
 
         await updatePostContent(context.request(session1), {
             postId: post.id,
@@ -1717,20 +1739,23 @@ describe.only("Notification subscribers", () => {
             ),
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session2), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session2), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session3), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
     });
 
     test("an account mentioned in the post's content after an update is subscribed to notifications", async () => {
@@ -1750,17 +1775,23 @@ describe.only("Notification subscribers", () => {
             ),
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session2), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session2), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session3), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
         await updatePostContent(context.request(session1), {
             postId: post.id,
@@ -1777,20 +1808,23 @@ describe.only("Notification subscribers", () => {
             ),
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session2), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session2), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session3), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
     });
 
     test("an account that comments on a post is subscribed to notifications", async () => {
@@ -1804,17 +1838,23 @@ describe.only("Notification subscribers", () => {
             content: testContent1,
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session2), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session2), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session3), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
         await createPostComment(context.request(session3), {
             postId: post.id,
@@ -1822,20 +1862,23 @@ describe.only("Notification subscribers", () => {
             content: testMessageContent1,
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session2), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session2), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session3), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
 
         await createPostComment(context.request(session3), {
             postId: post.id,
@@ -1843,20 +1886,23 @@ describe.only("Notification subscribers", () => {
             content: testMessageContent2,
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session2), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session2), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session3), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
 
         await createPostComment(context.request(session2), {
             postId: post.id,
@@ -1864,23 +1910,23 @@ describe.only("Notification subscribers", () => {
             content: testMessageContent1,
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-            session3.account,
-            session2.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account, session2.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session2), post.id)).toEqual([
-            session1.account,
-            session3.account,
-            session2.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session2), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account, session2.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session3), post.id)).toEqual([
-            session1.account,
-            session3.account,
-            session2.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account, session2.account]);
     });
 
     test("an account that comments on a post is subscribed to notifications even if the comment is deleted", async () => {
@@ -1894,17 +1940,23 @@ describe.only("Notification subscribers", () => {
             content: testContent1,
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session2), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session2), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session3), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
         await createPostComment(context.request(session3), {
             postId: post.id,
@@ -1912,40 +1964,46 @@ describe.only("Notification subscribers", () => {
             content: testMessageContent1,
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session2), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session2), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session3), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
 
         await deletePostComment(context.request(session3), {
             postId: post.id,
             commentIndex: 0,
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session2), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session2), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session3), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
     });
 
     test("an account that is mentioned in a post comment is subscribed to notifications", async () => {
@@ -1959,17 +2017,23 @@ describe.only("Notification subscribers", () => {
             content: testContent1,
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session2), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session2), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session3), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
         await createPostComment(context.request(session3), {
             postId: post.id,
@@ -1987,26 +2051,26 @@ describe.only("Notification subscribers", () => {
             ),
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-            session3.account,
-            session4.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account, session4.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session2), post.id)).toEqual([
-            session1.account,
-            session3.account,
-            session4.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session2), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account, session4.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session3), post.id)).toEqual([
-            session1.account,
-            session3.account,
-            session4.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account, session4.account]);
     });
 
-    test("an unknown account that is mentioned in a post comment is subscribed to notifications", async () => {
+    test("an unknown account that is mentioned in a post comment is not subscribed to notifications", async () => {
         const channel = await createChannel(context.request(session1), {
             spaceId: space.id,
             name: "Test",
@@ -2017,17 +2081,23 @@ describe.only("Notification subscribers", () => {
             content: testContent1,
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session2), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session2), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session3), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
         await createPostComment(context.request(session3), {
             postId: post.id,
@@ -2045,23 +2115,26 @@ describe.only("Notification subscribers", () => {
             ),
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session2), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session2), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session3), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
     });
 
-    test("a mentioned account from another space in a post comment is subscribed to notifications", async () => {
+    test("a mentioned account from another space in a post comment is not subscribed to notifications", async () => {
         const channel = await createChannel(context.request(session1), {
             spaceId: space.id,
             name: "Test",
@@ -2072,17 +2145,23 @@ describe.only("Notification subscribers", () => {
             content: testContent1,
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session2), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session2), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session3), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
         await createPostComment(context.request(session3), {
             postId: post.id,
@@ -2100,20 +2179,23 @@ describe.only("Notification subscribers", () => {
             ),
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session2), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session2), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session3), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
     });
 
     test("an account that is mentioned in a post comment is subscribed to notifications even if the message is updated to remove the mention", async () => {
@@ -2127,17 +2209,23 @@ describe.only("Notification subscribers", () => {
             content: testContent1,
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session2), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session2), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session3), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
         await createPostComment(context.request(session3), {
             postId: post.id,
@@ -2155,23 +2243,23 @@ describe.only("Notification subscribers", () => {
             ),
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-            session3.account,
-            session4.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account, session4.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session2), post.id)).toEqual([
-            session1.account,
-            session3.account,
-            session4.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session2), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account, session4.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session3), post.id)).toEqual([
-            session1.account,
-            session3.account,
-            session4.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account, session4.account]);
 
         await updatePostCommentContent(context.request(session3), {
             postId: post.id,
@@ -2185,23 +2273,23 @@ describe.only("Notification subscribers", () => {
             ),
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-            session3.account,
-            session4.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account, session4.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session2), post.id)).toEqual([
-            session1.account,
-            session3.account,
-            session4.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session2), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account, session4.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session3), post.id)).toEqual([
-            session1.account,
-            session3.account,
-            session4.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account, session4.account]);
     });
 
     test("an account that is mentioned in a post comment is subscribed to notifications even if the message is deleted", async () => {
@@ -2215,17 +2303,23 @@ describe.only("Notification subscribers", () => {
             content: testContent1,
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session2), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session2), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session3), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
         await createPostComment(context.request(session3), {
             postId: post.id,
@@ -2243,46 +2337,46 @@ describe.only("Notification subscribers", () => {
             ),
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-            session3.account,
-            session4.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account, session4.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session2), post.id)).toEqual([
-            session1.account,
-            session3.account,
-            session4.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session2), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account, session4.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session3), post.id)).toEqual([
-            session1.account,
-            session3.account,
-            session4.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account, session4.account]);
 
         await deletePostComment(context.request(session3), {
             postId: post.id,
             commentIndex: 0,
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-            session3.account,
-            session4.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account, session4.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session2), post.id)).toEqual([
-            session1.account,
-            session3.account,
-            session4.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session2), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account, session4.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session3), post.id)).toEqual([
-            session1.account,
-            session3.account,
-            session4.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account, session4.account]);
     });
 
     test("an account that is mentioned in a post comment after it is updated is subscribed to notifications", async () => {
@@ -2296,17 +2390,23 @@ describe.only("Notification subscribers", () => {
             content: testContent1,
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session2), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session2), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session3), post.id)).toEqual([
-            session1.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account]);
 
         await createPostComment(context.request(session3), {
             postId: post.id,
@@ -2320,20 +2420,23 @@ describe.only("Notification subscribers", () => {
             ),
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session2), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session2), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session3), post.id)).toEqual([
-            session1.account,
-            session3.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account]);
 
         await updatePostCommentContent(context.request(session3), {
             postId: post.id,
@@ -2351,23 +2454,23 @@ describe.only("Notification subscribers", () => {
             ),
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-            session3.account,
-            session4.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account, session4.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session2), post.id)).toEqual([
-            session1.account,
-            session3.account,
-            session4.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session2), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account, session4.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session3), post.id)).toEqual([
-            session1.account,
-            session3.account,
-            session4.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session3), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account, session4.account]);
     });
 
     test("notification subscribers are not duplicated and can be added from many different sources", async () => {
@@ -2391,15 +2494,17 @@ describe.only("Notification subscribers", () => {
             ),
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-            session2.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session2.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session8), post.id)).toEqual([
-            session1.account,
-            session2.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session8), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session2.account]);
 
         await createPostComment(context.request(session1), {
             postId: post.id,
@@ -2413,15 +2518,17 @@ describe.only("Notification subscribers", () => {
             ),
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-            session2.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session2.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session8), post.id)).toEqual([
-            session1.account,
-            session2.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session8), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session2.account]);
 
         await createPostComment(context.request(session3), {
             postId: post.id,
@@ -2439,17 +2546,17 @@ describe.only("Notification subscribers", () => {
             ),
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-            session3.account,
-            session2.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account, session2.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session8), post.id)).toEqual([
-            session1.account,
-            session3.account,
-            session2.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session8), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account, session2.account]);
 
         const comment = await createPostComment(context.request(session2), {
             postId: post.id,
@@ -2467,19 +2574,17 @@ describe.only("Notification subscribers", () => {
             ),
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
-            session1.account,
-            session3.account,
-            session2.account,
-            session4.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account, session2.account, session4.account]);
 
-        expect(await getPostNotificationSubscribers(context.request(session8), post.id)).toEqual([
-            session1.account,
-            session3.account,
-            session2.account,
-            session4.account,
-        ]);
+        expect(
+            await getPostNotificationSubscribers(context.request(session8), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([session1.account, session3.account, session2.account, session4.account]);
 
         await updatePostCommentContent(context.request(session2), {
             postId: post.id,
@@ -2497,7 +2602,11 @@ describe.only("Notification subscribers", () => {
             ),
         });
 
-        expect(await getPostNotificationSubscribers(context.request(session1), post.id)).toEqual([
+        expect(
+            await getPostNotificationSubscribers(context.request(session1), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([
             session1.account,
             session3.account,
             session2.account,
@@ -2505,7 +2614,11 @@ describe.only("Notification subscribers", () => {
             session5.account,
         ]);
 
-        expect(await getPostNotificationSubscribers(context.request(session8), post.id)).toEqual([
+        expect(
+            await getPostNotificationSubscribers(context.request(session8), post.id).then(
+                ({accounts}) => accounts,
+            ),
+        ).toEqual([
             session1.account,
             session3.account,
             session2.account,

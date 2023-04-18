@@ -23,7 +23,7 @@ import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_al
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {generateId} from "~/shared/id/id";
-import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types";
+import {AccountId, ContentMentionAccountId, SessionId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 import {Schema} from "~/shared/schema/schema";
@@ -725,7 +725,9 @@ const AccountContextCache = new ContextCache<`${SpaceId}:${AccountId}`, AccountM
 export function getAccountIfExists(
     context: RequestContext,
     spaceId: SpaceId,
-    accountId: AccountId,
+    // You may call this function `ContentMentionAccountId` since it does not throw
+    // when the account does not exist in the space.
+    accountId: AccountId | ContentMentionAccountId,
 ): Promise<AccountModel | null> {
     return AccountContextCache.get(context, `${spaceId}:${accountId}`, async () => {
         // Make sure we have access to the space being requested.
@@ -740,13 +742,13 @@ export function getAccountIfExists(
                 const accountItem = await AccountsTable.getItemIfExists(context, {
                     partitionType: "Account",
                     sortRangeType: "Attributes",
-                    accountId,
+                    accountId: accountId as AccountId,
                 });
                 if (!accountItem) return null;
 
                 return createAccountModelFromItem(accountItem);
             },
-            () => isAccountMemberOfSpace(context, spaceId, accountId),
+            () => isAccountMemberOfSpace(context, spaceId, accountId as AccountId),
         );
 
         // If the account exists but is not a member of the space provided to this
@@ -759,6 +761,12 @@ export function getAccountIfExists(
 
 /**
  * Throw an error if the account can not be found.
+ *
+ * You should not call this function with `ContentMentionAccountId`! Instead
+ * you should call `getAccountIfExists()` since `ContentMentionAccountId` may
+ * reference an account in a different space you don't have access to. You
+ * should get a type error if you try to call this function
+ * with `ContentMentionAccountId`.
  */
 export async function getAccount(
     context: RequestContext,

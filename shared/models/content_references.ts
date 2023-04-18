@@ -1,7 +1,7 @@
 import {Node} from "prosemirror-model";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables";
-import {AccountId} from "~/shared/id/types/id_types";
+import {ContentMentionAccountId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 
@@ -19,7 +19,7 @@ export const ContentReferencesSchema = Schema.object({
     /**
      * Accounts referenced in mentions.
      */
-    accountById: Schema.map(Schema.id<AccountId>(), AccountModel.schema()),
+    accountById: Schema.map(Schema.id<ContentMentionAccountId>(), AccountModel.schema()),
 });
 
 /**

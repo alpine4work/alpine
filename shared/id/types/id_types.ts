@@ -31,3 +31,22 @@ export type WebSocketProcedureRequestId = NominalIdType<"WebSocketProcedureReque
 export type ContentEditorClientId = NominalIdType<"ContentEditorClient">;
 export type PeekId = NominalIdType<"Peek">;
 export type ChatId = NominalIdType<"Chat">;
+
+/**
+ * A specialization of `AccountId`. We use this as the type of a
+ * `ContentMention`'s `accountId`.
+ *
+ * The `AccountId` type is compatible with `ContentMentionAccountId` but the
+ * `ContentMentionAccountId` is not compatible with `AccountId`! That's because
+ * you need to be careful you don't assume the `accountId` in a mention exists.
+ * A mention could be copied across spaces (where one space has access to an
+ * account and another doesn't) or environments (where one environment has an
+ * account and the other doesn't at all).
+ *
+ * You shouldn't use `getAccount()` with `ContentMentionAccountId` since it
+ * throws on these edge cases. Instead you should use `getAccountIfExists()`.
+ * Leveraging TypeScript like this we can make calling `getAccount()` with
+ * `ContentMentionAccountId` an error but allow the type with
+ * `getAccountIfExists()`.
+ */
+export type ContentMentionAccountId = NominalIdType<"ContentMentionAccount"> | AccountId;

@@ -3,10 +3,12 @@ import {
     attemptOneTimePasswordSignIn,
     captureOneTimePasswordSignInEmailsForTest,
     generateOneTimePassword,
+    getAccount,
     getAccountIfExists,
     getAccountsTableForTest,
     regenerateOneTimePasswordSignIn,
 } from "~/server/dynamo/accounts_table";
+import {RequestContext} from "~/server/dynamo/context/request_context";
 import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
@@ -15,7 +17,7 @@ import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address"
 import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {generateId} from "~/shared/id/id";
-import {AccountId} from "~/shared/id/types/id_types";
+import {AccountId, ContentMentionAccountId, SpaceId} from "~/shared/id/types/id_types";
 
 const context = createTestContext();
 const space1 = createTestSpace(context);
@@ -987,4 +989,31 @@ test("can not get accounts through a space we don't have access to even if we ha
     await expect(() =>
         getAccountIfExists(context.request(space1Session1), space2.id, space1Session3.accountId),
     ).rejects.toThrow(PermissionDeniedError);
+});
+
+test("can not call `getAccount()` with `ContentMentionAccountId`", () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async function testTypes(
+        context: RequestContext,
+        spaceId: SpaceId,
+        accountId: ContentMentionAccountId,
+    ) {
+        await getAccount(
+            context,
+            spaceId,
+            // @ts-expect-error: Can't call with `ContentMentionId`
+            accountId,
+        );
+    }
+});
+
+test("can call `getAccountIfExists()` with `ContentMentionAccountId`", () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async function testTypes(
+        context: RequestContext,
+        spaceId: SpaceId,
+        accountId: ContentMentionAccountId,
+    ) {
+        await getAccountIfExists(context, spaceId, accountId);
+    }
 });
