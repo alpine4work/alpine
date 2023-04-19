@@ -19,8 +19,9 @@ import {
     MessageContentSchema,
     assertMessageContent,
 } from "~/shared/content/message_content_schema";
-import {CancelledError} from "~/shared/error/error";
+import {CancelledError, NotFoundError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
+import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array";
 import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of";
@@ -38,6 +39,7 @@ import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/messaging/m
 import {AccountModel} from "~/shared/models/account_model";
 import {
     InboxChatEntryModel,
+    InboxEntryKey,
     InboxEntryModel,
     InboxPostCommentsEntryModel,
 } from "~/shared/models/inbox_entry_model";
@@ -47,6 +49,7 @@ const initialInboxGeneration = 0;
 
 // NOCOMMIT: Document!
 const loudNotificationInboxGenerationIncrement = 1;
+const unarchivedInboxEntryGenerationIncrement = 1;
 const observeInboxGenerationIncrement = 2;
 
 const NotificationsTable = DynamoTableSchema.new({
@@ -424,6 +427,163 @@ export async function observeInbox(
             };
         },
     );
+}
+
+function getInboxEntryItemKey({
+    spaceId,
+    accountId,
+    key,
+}: {
+    spaceId: SpaceId;
+    accountId: AccountId;
+    key: InboxEntryKey;
+}): InboxEntryItemKey {
+    switch (key.type) {
+        case "Chat": {
+            return {
+                partitionType: "Inbox",
+                sortRangeType: "ChatEntry",
+                spaceId,
+                accountId,
+                chatId: key.chatId,
+            };
+        }
+        case "PostComments": {
+            return {
+                partitionType: "Inbox",
+                sortRangeType: "PostCommentsEntry",
+                spaceId,
+                accountId,
+                postId: key.postId,
+            };
+        }
+        default:
+            throw exhaustive(key);
+    }
+}
+
+/**
+ * Archives an inbox entry, moving it out of the account's primary inbox and
+ * into an archive. The user can still manually revive archived inbox entries
+ * if desired.
+ */
+export function archiveInboxEntry(
+    context: RequestContext,
+    {spaceId, key}: {spaceId: SpaceId; key: InboxEntryKey},
+): Promise<void> {
+    return archiveInboxEntryItemKey(
+        context,
+        getInboxEntryItemKey({
+            spaceId,
+            accountId: context.auth.getAccountId(),
+            key,
+        }),
+    );
+}
+
+/**
+ * Unarchives an inbox entry. Moves the entry out of an account's archive and
+ * into their primary inbox. Puts the unarchived entry at the top of the
+ * primary inbox so the user can easily find it.
+ */
+export function unarchiveInboxEntry(
+    context: RequestContext,
+    {spaceId, key}: {spaceId: SpaceId; key: InboxEntryKey},
+): Promise<void> {
+    return unarchiveInboxEntryItemKey(
+        context,
+        getInboxEntryItemKey({
+            spaceId,
+            accountId: context.auth.getAccountId(),
+            key,
+        }),
+    );
+}
+
+async function archiveInboxEntryItemKey(
+    context: RequestContext,
+    itemKey: InboxEntryItemKey,
+): Promise<void> {
+    await context.dynamo.retryTransaction(async context => {
+        const [inboxItem, inboxEntryItem] = await runAllPromises([
+            NotificationsTable.getItemIfExists(context, {
+                partitionType: "Inbox",
+                sortRangeType: "Attributes",
+                spaceId: itemKey.spaceId,
+                accountId: itemKey.accountId,
+            }),
+            NotificationsTable.getItemIfExists(context, itemKey),
+        ]);
+
+        if (!inboxEntryItem) throw new NotFoundError("Inbox entry not found");
+
+        assert(
+            inboxItem,
+            "Can't have inbox entry item without corresponding inbox attributes item",
+        );
+
+        // If the inbox entry item is already archived, do nothing.
+        if (inboxEntryItem.isArchived) return;
+
+        const newInboxEntryItem = {
+            ...inboxEntryItem,
+            isArchived: true,
+            // Archiving an entry clears all of its loud notifications.
+            loudNotificationCount: 0,
+        };
+
+        // Optimization: If we don't need to update the inbox item, save some write
+        // capacity units.
+        if (inboxEntryItem.loudNotificationCount === 0) {
+            await NotificationsTable.directlyUpdateItem(context, newInboxEntryItem);
+        } else {
+            await DynamoTableSchema.executeTransaction(context, [
+                NotificationsTable.transactionDirectlyUpdateItem({
+                    ...inboxItem,
+                    loudNotificationCount:
+                        inboxItem.loudNotificationCount - inboxEntryItem.loudNotificationCount,
+                }),
+                NotificationsTable.transactionDirectlyUpdateItem(newInboxEntryItem),
+            ]);
+        }
+    });
+}
+
+async function unarchiveInboxEntryItemKey(
+    context: RequestContext,
+    itemKey: InboxEntryItemKey,
+): Promise<void> {
+    await context.dynamo.retryTransaction(async context => {
+        const [inboxItem, inboxEntryItem] = await runAllPromises([
+            NotificationsTable.getItemIfExists(context, {
+                partitionType: "Inbox",
+                sortRangeType: "Attributes",
+                spaceId: itemKey.spaceId,
+                accountId: itemKey.accountId,
+            }),
+            NotificationsTable.getItemIfExists(context, itemKey),
+        ]);
+
+        if (!inboxEntryItem) throw new NotFoundError("Inbox entry not found");
+
+        assert(
+            inboxItem,
+            "Can't have inbox entry item without corresponding inbox attributes item",
+        );
+
+        // If the inbox entry item is already unarchived, do nothing.
+        if (!inboxEntryItem.isArchived) return;
+
+        await NotificationsTable.directlyUpdateItem(context, {
+            ...inboxEntryItem,
+            isArchived: false,
+            // When unarchiving, move the unarchived entry to the top of the inbox so it's
+            // easier to find. Unarchiving is a clear signal from the user that they care
+            // about this entry.
+            generation: inboxItem.generation + unarchivedInboxEntryGenerationIncrement,
+            enteredTime: new Date(),
+        });
+    });
 }
 
 // TODO(calebmer): Add message and comment update events in case they add a mention.
