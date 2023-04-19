@@ -340,7 +340,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -379,7 +379,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment2.createdTime,
@@ -396,7 +396,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment2.createdTime,
@@ -428,7 +428,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -445,7 +445,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -462,7 +462,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -522,7 +522,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -546,7 +546,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post.id,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -571,7 +571,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post.id,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment2.createdTime,
@@ -595,7 +595,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post.id,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment2.createdTime,
@@ -620,7 +620,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post.id,
                 loudNotificationCount: 2,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -637,7 +637,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -654,7 +654,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post.id,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -714,7 +714,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -753,7 +753,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment2.createdTime,
@@ -770,7 +770,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment2.createdTime,
@@ -802,7 +802,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -819,7 +819,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -889,7 +889,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post.id,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -921,7 +921,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post.id,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -938,7 +938,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: otherPost.id,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment2.createdTime,
@@ -1001,7 +1001,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post.id,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -1033,7 +1033,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post.id,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -1116,7 +1116,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -1133,7 +1133,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -1153,7 +1153,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -1170,7 +1170,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post.id,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -1228,7 +1228,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -1253,7 +1253,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post2.id,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment2.createdTime,
@@ -1262,7 +1262,7 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -1287,7 +1287,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post2.id,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment2.createdTime,
@@ -1296,7 +1296,7 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post3.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -1305,7 +1305,7 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -1330,7 +1330,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post2.id,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment2.createdTime,
@@ -1339,7 +1339,7 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post3.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -1348,7 +1348,7 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment4.createdTime,
@@ -1373,7 +1373,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post2.id,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment5.createdTime,
@@ -1382,7 +1382,7 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post3.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -1391,7 +1391,7 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment4.createdTime,
@@ -1416,7 +1416,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post3.id,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment6.createdTime,
@@ -1425,7 +1425,7 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post2.id,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment5.createdTime,
@@ -1434,7 +1434,7 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment4.createdTime,
@@ -1459,7 +1459,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post3.id,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment6.createdTime,
@@ -1468,7 +1468,7 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post2.id,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment7.createdTime,
@@ -1477,7 +1477,7 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment4.createdTime,
@@ -1502,7 +1502,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post2.id,
                 loudNotificationCount: 2,
                 latestComment: {
                     createdTime: comment8.createdTime,
@@ -1511,7 +1511,7 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post3.id,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment6.createdTime,
@@ -1520,7 +1520,7 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment4.createdTime,
@@ -1591,7 +1591,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -1616,7 +1616,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post2.id,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment2.createdTime,
@@ -1625,7 +1625,7 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -1650,7 +1650,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post2.id,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment2.createdTime,
@@ -1659,7 +1659,7 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post3.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -1668,7 +1668,7 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -1687,7 +1687,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post2.id,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment2.createdTime,
@@ -1696,7 +1696,7 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post3.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -1705,7 +1705,7 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -1730,7 +1730,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post4.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment4.createdTime,
@@ -1739,7 +1739,7 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post2.id,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment2.createdTime,
@@ -1748,7 +1748,7 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post3.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -1757,7 +1757,7 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -1782,7 +1782,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post4.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment4.createdTime,
@@ -1791,7 +1791,7 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post2.id,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment5.createdTime,
@@ -1800,7 +1800,7 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post3.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -1809,7 +1809,7 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -1834,7 +1834,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post4.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment4.createdTime,
@@ -1843,7 +1843,7 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post2.id,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment5.createdTime,
@@ -1852,7 +1852,7 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post3.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment6.createdTime,
@@ -1861,7 +1861,7 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -1886,7 +1886,7 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post3.id,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment7.createdTime,
@@ -1895,7 +1895,7 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post4.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment4.createdTime,
@@ -1904,7 +1904,7 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post2.id,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment5.createdTime,
@@ -1913,7 +1913,7 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -1970,7 +1970,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -1994,7 +1994,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -2019,7 +2019,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -2036,7 +2036,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -2053,7 +2053,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -2078,7 +2078,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -2095,7 +2095,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -2112,7 +2112,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -2167,7 +2167,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -2191,7 +2191,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -2216,7 +2216,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -2240,7 +2240,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 2,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -2265,7 +2265,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 2,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -2289,7 +2289,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 2,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -2314,7 +2314,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 3,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -2331,7 +2331,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -2348,7 +2348,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 2,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -2410,7 +2410,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -2427,7 +2427,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -2452,7 +2452,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -2469,7 +2469,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -2486,7 +2486,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -2511,7 +2511,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -2528,7 +2528,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -2545,7 +2545,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -2570,7 +2570,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -2587,7 +2587,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -2604,7 +2604,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -2660,7 +2660,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -2692,7 +2692,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -2709,7 +2709,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: otherChatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -2770,7 +2770,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -2802,7 +2802,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -2834,7 +2834,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -2912,7 +2912,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -2929,7 +2929,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -2949,7 +2949,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -2966,7 +2966,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 2,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -3019,7 +3019,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -3044,7 +3044,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -3053,7 +3053,7 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -3078,7 +3078,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat3Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -3087,7 +3087,7 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -3096,7 +3096,7 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -3121,7 +3121,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat3Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -3130,7 +3130,7 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -3139,7 +3139,7 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -3164,7 +3164,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat3Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -3173,7 +3173,7 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message5.createdTime,
@@ -3182,7 +3182,7 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -3207,7 +3207,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat1Id,
                 loudNotificationCount: 2,
                 latestMessage: {
                     createdTime: message6.createdTime,
@@ -3216,7 +3216,7 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat3Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -3225,7 +3225,7 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message5.createdTime,
@@ -3250,7 +3250,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat1Id,
                 loudNotificationCount: 2,
                 latestMessage: {
                     createdTime: message6.createdTime,
@@ -3259,7 +3259,7 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat3Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -3268,7 +3268,7 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message7.createdTime,
@@ -3293,7 +3293,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat2Id,
                 loudNotificationCount: 2,
                 latestMessage: {
                     createdTime: message8.createdTime,
@@ -3302,7 +3302,7 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat1Id,
                 loudNotificationCount: 2,
                 latestMessage: {
                     createdTime: message6.createdTime,
@@ -3311,7 +3311,7 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat3Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -3377,7 +3377,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -3402,7 +3402,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -3411,7 +3411,7 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -3436,7 +3436,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat3Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -3445,7 +3445,7 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -3454,7 +3454,7 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -3473,7 +3473,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat3Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -3482,7 +3482,7 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -3491,7 +3491,7 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -3516,7 +3516,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat4Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -3525,7 +3525,7 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat3Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -3534,7 +3534,7 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -3543,7 +3543,7 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -3568,7 +3568,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat4Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -3577,7 +3577,7 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat3Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -3586,7 +3586,7 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message5.createdTime,
@@ -3595,7 +3595,7 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -3620,7 +3620,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat4Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -3629,7 +3629,7 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat3Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message6.createdTime,
@@ -3638,7 +3638,7 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message5.createdTime,
@@ -3647,7 +3647,7 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -3672,7 +3672,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat3Id,
                 loudNotificationCount: 2,
                 latestMessage: {
                     createdTime: message8.createdTime,
@@ -3681,7 +3681,7 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat4Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -3690,7 +3690,7 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message5.createdTime,
@@ -3699,7 +3699,7 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -3754,7 +3754,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -3779,7 +3779,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -3796,7 +3796,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -3821,7 +3821,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -3838,7 +3838,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -3873,7 +3873,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -3890,7 +3890,7 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
-                type: "Chat",
+                chatId,
                 loudNotificationCount: 2,
                 latestMessage: {
                     createdTime: message4.createdTime,

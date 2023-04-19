@@ -373,7 +373,7 @@ async function createInboxEntryModelFromItem(
     switch (item.sortRangeType) {
         case "ChatEntry": {
             return new InboxChatEntryModel({
-                type: "Chat",
+                chatId: item.chatId,
                 loudNotificationCount: item.loudNotificationCount,
                 latestMessage: {
                     author: await getAccount(context, spaceId, item.latestMessage.authorId),
@@ -384,7 +384,7 @@ async function createInboxEntryModelFromItem(
         }
         case "PostCommentsEntry": {
             return new InboxPostCommentsEntryModel({
-                type: "PostComments",
+                postId: item.postId,
                 loudNotificationCount: item.loudNotificationCount,
                 latestComment: {
                     author: await getAccount(context, spaceId, item.latestComment.authorId),
