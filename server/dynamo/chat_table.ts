@@ -726,7 +726,9 @@ export function sendChatMessage(
         );
 
         const messageIndex = chatItem.messagesSummary.nextMessageIndex;
-        const createdTime = new Date();
+        // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
+        // `Date.now()` and override the time that is returned.
+        const createdTime = new Date(Date.now());
         const authorId = context.auth.getAccountId();
 
         await DynamoTableSchema.executeTransaction(context, [

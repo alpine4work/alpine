@@ -1,5 +1,7 @@
 import {addMinutes, differenceInMinutes} from "date-fns";
+import {getAccount} from "~/server/dynamo/accounts_table";
 import {getChat} from "~/server/dynamo/chat_table";
+import {RequestContext} from "~/server/dynamo/context/request_context";
 import {SystemContext} from "~/server/dynamo/context/system_context";
 import {getPostNotificationSubscribers} from "~/server/dynamo/forum_table";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
@@ -9,6 +11,8 @@ import {
     DynamoTableSchemaGetTypes,
 } from "~/server/dynamo/internal/dynamo_table_schema";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
+import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
+import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint";
 import {getContentSnippet} from "~/shared/content/get_content_snippet";
 import {
     MessageContent,
@@ -18,6 +22,7 @@ import {
 import {CancelledError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array";
 import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit";
 import {DistributivePick} from "~/shared/helpers/types/distributive_pick";
@@ -31,9 +36,18 @@ import {
 } from "~/shared/id/types/id_types";
 import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/messaging/messaging_shared_styles";
 import {AccountModel} from "~/shared/models/account_model";
+import {
+    InboxChatEntryModel,
+    InboxEntryModel,
+    InboxPostCommentsEntryModel,
+} from "~/shared/models/inbox_entry_model";
 import {Schema} from "~/shared/schema/schema";
 
 const initialInboxGeneration = 0;
+
+// NOCOMMIT: Document!
+const loudNotificationInboxGenerationIncrement = 1;
+const observeInboxGenerationIncrement = 2;
 
 const NotificationsTable = DynamoTableSchema.new({
     name: "Notifications",
@@ -314,6 +328,104 @@ const InboxEntriesIndex = NotificationsTable.addExpensiveFullIndex({
     },
 });
 
+/**
+ * Get the entries for the current account's inbox.
+ */
+// NOCOMMIT: Add pagination!
+export async function getInboxEntries(
+    context: RequestContext,
+    {
+        spaceId,
+        limit,
+    }: {
+        spaceId: SpaceId;
+        limit: number;
+    },
+): Promise<{
+    entries: ReadonlyArray<InboxEntryModel>;
+}> {
+    await authorizeSpaceAccess(context, spaceId);
+
+    const entries = await parallelMapAsyncIterableToArray(
+        InboxEntriesIndex.query(context, {
+            partitionKey: {
+                spaceId,
+                accountId: context.auth.getAccountId(),
+            },
+            endSortKey: {
+                isArchived: false,
+                generation: InboxEntriesIndex.sortKeyAttributes.generation.maxValue,
+                enteredTime: InboxEntriesIndex.sortKeyAttributes.enteredTime.maxValue,
+            },
+            limit,
+        }),
+        item => createInboxEntryModelFromItem(context, spaceId, item),
+    );
+
+    return {entries};
+}
+
+async function createInboxEntryModelFromItem(
+    context: RequestContext,
+    spaceId: SpaceId,
+    item: InboxEntryItem,
+): Promise<InboxEntryModel> {
+    switch (item.sortRangeType) {
+        case "ChatEntry": {
+            return new InboxChatEntryModel({
+                type: "Chat",
+                loudNotificationCount: item.loudNotificationCount,
+                latestMessage: {
+                    author: await getAccount(context, spaceId, item.latestMessage.authorId),
+                    createdTime: item.latestMessage.createdTime,
+                    contentSnippet: item.latestMessage.contentSnippet,
+                },
+            });
+        }
+        case "PostCommentsEntry": {
+            return new InboxPostCommentsEntryModel({
+                type: "PostComments",
+                loudNotificationCount: item.loudNotificationCount,
+                latestComment: {
+                    author: await getAccount(context, spaceId, item.latestComment.authorId),
+                    createdTime: item.latestComment.createdTime,
+                    contentSnippet: item.latestComment.contentSnippet,
+                },
+            });
+        }
+        default:
+            throw exhaustive(item);
+    }
+}
+
+/**
+ * Mark the current account's inbox as observed. Any loud notifications will
+ * freeze in place at this point.
+ */
+export async function observeInbox(
+    context: RequestContext,
+    {spaceId}: {spaceId: SpaceId},
+): Promise<void> {
+    await authorizeSpaceAccess(context, spaceId);
+
+    await NotificationsTable.updateItem(
+        context,
+        {
+            partitionType: "Inbox",
+            sortRangeType: "Attributes",
+            spaceId,
+            accountId: context.auth.getAccountId(),
+        },
+        item => {
+            if (!item) return null;
+            return {
+                ...item,
+                generation: item.generation + observeInboxGenerationIncrement,
+            };
+        },
+    );
+}
+
 // TODO(calebmer): Add message and comment update events in case they add a mention.
 export type NotificationEvent =
     | NotificationCreateChatMessageEvent
@@ -350,6 +462,9 @@ export function getNotificationMessageContentSnippet(content: MessageContent): M
     );
 }
 
+export const notificationEventBeforeProcessingTestCheckpoint = new TestCheckpoint<AccountId>();
+export const notificationEventAfterProcessingTestCheckpoint = new TestCheckpoint<AccountId>();
+
 /**
  * Processes a notification generating event by fanning out to subscriber
  * inboxes and notification destinations (like email or mobile push
@@ -363,17 +478,11 @@ export async function processNotificationEvent(
     context: SystemContext,
     event: NotificationEvent,
 ): Promise<void> {
-    // In development and test environments, process each notification event twice
-    // 1% of the time. We use queues that guarantee at-least once delivery which
-    // means on occasion we may see an event twice. By running events twice outside
-    // of production, developers are forced to make their processor idempotent.
-    if (process.env.NODE_ENV !== "production" && Math.random() < 0.01) {
-        await runAllPromises([
-            actuallyProcessNotificationEvent(context, event),
-            actuallyProcessNotificationEvent(context, event),
-        ]);
-    } else {
+    await notificationEventBeforeProcessingTestCheckpoint.waitForTest(event.authorId);
+    try {
         await actuallyProcessNotificationEvent(context, event);
+    } finally {
+        await notificationEventAfterProcessingTestCheckpoint.waitForTest(event.authorId);
     }
 }
 
@@ -480,9 +589,6 @@ function createNotificationEventProcessor<
 
             await runAllPromises(
                 accounts.map(async account => {
-                    // Don't send the message author a notification.
-                    if (account.id === event.authorId) return;
-
                     await context.tracer.withSpan("Updating inbox entry", async (context, span) => {
                         span.addData({
                             notifications: {
@@ -507,6 +613,7 @@ function createNotificationEventProcessor<
  */
 async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
     context: SystemContext,
+    event: NotificationEvent,
     itemKey: ItemKey,
     update: (
         item: (InboxEntryItem & ItemKey) | null,
@@ -532,7 +639,7 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             newInboxEntryItemPartial1.loudNotificationCount -
             (oldInboxEntryItem?.loudNotificationCount ?? 0);
 
-        const generation = inboxItem?.generation ?? initialInboxGeneration;
+        const inboxGeneration = inboxItem?.generation ?? initialInboxGeneration;
 
         const newInboxEntryItemPartial2 = {
             ...newInboxEntryItemPartial1,
@@ -543,15 +650,38 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             "isArchived" | "generation" | "enteredTime"
         >;
 
+        // Unarchive the inbox entry after a notification.
+        let isArchived = false;
+
+        // If the notification event author is the owner of this inbox then we have a
+        // "silent" notification. A silent notification updates the inbox entry so it's
+        // recent but does not deliver a push notification to the user or update any
+        // notification indicator.
+        //
+        // An edge case is when a notification event creates a loud notification for
+        // the event author. Usually we defend against this in our notification event
+        // implementations.
+        //
+        // - If there is no existing inbox entry, don't create one
+        // - If there is an existing archived inbox entry then keep it in the archive
+        if (event.authorId === itemKey.accountId && loudNotificationCountDifference === 0) {
+            if (!oldInboxEntryItem) {
+                return;
+            } else {
+                // NOCOMMIT: Test this!
+                isArchived = oldInboxEntryItem.isArchived;
+            }
+        }
+
         // Move the entry to the top of the inbox if:
         //
         // - The entry is newly created; OR
         // - The entry is revived from the archive; OR
         // - The entry has a loud notification
-        const shouldMaintainPlace =
-            oldInboxEntryItem &&
-            !oldInboxEntryItem.isArchived &&
-            loudNotificationCountDifference <= 0;
+        const shouldMoveToTop =
+            !oldInboxEntryItem ||
+            (!isArchived && oldInboxEntryItem.isArchived) ||
+            loudNotificationCountDifference > 0;
 
         await DynamoTableSchema.executeTransaction(context, [
             NotificationsTable.transactionDirectlyUpdateItem({
@@ -560,17 +690,35 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
                 sortRangeType: "Attributes",
                 spaceId: itemKey.spaceId,
                 accountId: itemKey.accountId,
-                generation,
+                generation: inboxGeneration,
                 loudNotificationCount:
                     (inboxItem?.loudNotificationCount ?? 0) + loudNotificationCountDifference,
             }),
             NotificationsTable.transactionDirectlyUpdateItem({
                 ...newInboxEntryItemPartial2,
-                isArchived: false,
-                generation: shouldMaintainPlace ? oldInboxEntryItem.generation : generation,
-                enteredTime: shouldMaintainPlace
-                    ? oldInboxEntryItem.enteredTime
-                    : getInboxEntryLatestUpdateTime(newInboxEntryItemPartial2),
+                isArchived,
+
+                generation: shouldMoveToTop
+                    ? // Move our entry to the higher generation of:
+                      //
+                      // - The entry's current generation
+                      // - The inbox's current generation plus an increment if this is a loud
+                      //   notification since loud notifications should appear on top
+                      //
+                      // If our entry moves to a higher generation (usually due to a loud
+                      // notification) then it should stay at that generation.
+                      Math.max(
+                          ...(oldInboxEntryItem ? [oldInboxEntryItem.generation] : []),
+                          inboxGeneration +
+                              (loudNotificationCountDifference > 0
+                                  ? loudNotificationInboxGenerationIncrement
+                                  : 0),
+                      )
+                    : oldInboxEntryItem.generation,
+
+                enteredTime: shouldMoveToTop
+                    ? getInboxEntryLatestUpdateTime(newInboxEntryItemPartial2)
+                    : oldInboxEntryItem.enteredTime,
             }),
         ]);
     });
@@ -603,6 +751,7 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
     updateInboxEntry: async (context, event, {info: {spaceId}, account}) => {
         await updateInboxEntry(
             context,
+            event,
             {
                 partitionType: "Inbox",
                 sortRangeType: "ChatEntry",
@@ -635,14 +784,16 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
                 // is the work involved to resolve your inbox entries is proportional to number
                 // of entries (vs number of messages within an entry).
                 const shouldIncrementLoudNotificationCount =
-                    event.mentionedAccountIds.has(account.id) ||
-                    item?.isArchived ||
-                    !item?.latestMessage ||
-                    // Events might arrive out-of-order but if events 10min+ apart are arriving
-                    // out-of-order we have a bigger problem so we don't worry about the
-                    // out-of-order case when subtracting timestamps here.
-                    differenceInMinutes(event.createdTime, item.latestMessage.createdTime) >=
-                        minMessageViewTimestampDividerElapsedMinutes;
+                    account.id !== event.authorId &&
+                    (event.mentionedAccountIds.has(account.id) ||
+                        // NOCOMMIT: Test that when unarchiving we use a loud notification
+                        item?.isArchived ||
+                        !item?.latestMessage ||
+                        // Events might arrive out-of-order but if events 10min+ apart are arriving
+                        // out-of-order we have a bigger problem so we don't worry about the
+                        // out-of-order case when subtracting timestamps here.
+                        differenceInMinutes(event.createdTime, item.latestMessage.createdTime) >=
+                            minMessageViewTimestampDividerElapsedMinutes);
 
                 return {
                     loudNotificationCount:
@@ -680,6 +831,7 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
     updateInboxEntry: async (context, event, {info: {spaceId}, account}) => {
         await updateInboxEntry(
             context,
+            event,
             {
                 partitionType: "Inbox",
                 sortRangeType: "PostCommentsEntry",
@@ -691,9 +843,8 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
                 // We increment the loud notification count only if someone is explicitly
                 // trying to get your attention by mentioning your account. Otherwise, we
                 // expect users will respond to new post comments in their own time.
-                const shouldIncrementLoudNotificationCount = event.mentionedAccountIds.has(
-                    account.id,
-                );
+                const shouldIncrementLoudNotificationCount =
+                    account.id !== event.authorId && event.mentionedAccountIds.has(account.id);
 
                 return {
                     loudNotificationCount:

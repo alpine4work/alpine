@@ -101,12 +101,16 @@ def ts_project(
                     # crawling. Defaults to true. Disable using `--no-watchman`. Watching is
                     # `ibazel`'s job
                     "--no-watchman",
-                    # https://jestjs.io/docs/cli#--ci. When this option is provided, Jest will
+                    # https://jestjs.io/docs/cli#--ci: When this option is provided, Jest will
                     # assume it is running in a CI environment. This changes the behavior when a new
                     # snapshot is encountered. Instead of the regular behavior of storing a new
                     # snapshot automatically, it will fail the test and require Jest to be run with
                     # `--updateSnapshot`.
                     "--ci",
+                    # https://jestjs.io/docs/cli#--runinband: We only run a single test with this
+                    # command so run all tests serially in the current process instead of creating a
+                    # worker pool to simplify things.
+                    "--runInBand",
                     # Always use colors. Bazel will clear colors when necessary.
                     "--colors",
                     # Use our custom Jest config.

@@ -67,6 +67,15 @@ export class TestNotificationsContextModule extends NotificationsContextModuleBa
         // `this._context.process.waitUntil()`! That's because we don't want
         // notification processing to extend the lifetime of our request context.
         const systemContext = this._getSystemContext();
+
         systemContext.process.waitUntil(processNotificationEvent(systemContext, event));
+
+        // 1% of the time process the event twice in tests to exercise our idempotence
+        // logic. We use queues with at-least-once delivery semantics which means an
+        // event could be delivered twice. So we want our tests to exercise this
+        // eventuality.
+        if (Math.random() < 0.01) {
+            systemContext.process.waitUntil(processNotificationEvent(systemContext, event));
+        }
     }
 }
