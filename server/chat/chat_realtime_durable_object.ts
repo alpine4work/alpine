@@ -58,15 +58,24 @@ class ChatRealtimeDurableObject {
         this._webSocketServer = new WebSocketServer(
             this._context,
             ChatRealtimeProtocol,
-            ({connectionId, sendEvent, sendEventToOthers, iterateOtherConnections}) =>
-                new ChatRealtimeConnection({
+            async ({
+                connectRequestContext,
+                connectionId,
+                sendEvent,
+                sendEventToOthers,
+                iterateOtherConnections,
+            }) => {
+                await authorizeChatAccess(connectRequestContext, chatId);
+
+                return new ChatRealtimeConnection({
                     connectionId,
                     spaceId,
                     chatId,
                     sendEvent,
                     sendEventToOthers,
                     iterateOtherConnections,
-                }),
+                });
+            },
         );
     }
 
@@ -77,6 +86,10 @@ class ChatRealtimeDurableObject {
         });
 
         return this._webSocketServer.upgrade(context, request);
+    }
+
+    public connectForTest(context: SessionRequestContext) {
+        return this._webSocketServer.connectForTest(context);
     }
 }
 

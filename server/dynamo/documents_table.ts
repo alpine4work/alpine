@@ -549,6 +549,17 @@ export async function getDocumentPreviewIfExists(
     });
 }
 
+/**
+ * Authorizes that the current request can access the document.
+ */
+export async function authorizeDocumentAccess(
+    context: RequestContext,
+    id: DocumentId,
+): Promise<void> {
+    const document = await getDocumentPreviewIfExists(context, id);
+    if (!document) throw new NotFoundError("Document not found");
+}
+
 type InternalDocument = {
     readonly attributes: DocumentAttributesItem;
     readonly stepTransactionsAfterSnapshot: ReadonlyArray<DocumentStepTransactionAfterSnapshotItem>;

@@ -68,6 +68,7 @@ export class WebSocketServer<
     private readonly _messageFromClientSchema: Schema<WebSocketMessageFromClient<Protocol>>;
     private readonly _messageFromServerSchema: Schema<WebSocketMessageFromServer<Protocol>>;
     private readonly _createConnection: (connection: {
+        connectRequestContext: SessionRequestContext;
         connectionId: WebSocketConnectionId;
         sendEvent: (context: ProcessContext, message: WebSocketProtocolEventType<Protocol>) => void;
         sendEventToOthers: (
@@ -75,7 +76,7 @@ export class WebSocketServer<
             message: WebSocketProtocolEventType<Protocol>,
         ) => void;
         iterateOtherConnections: () => Iterable<Connection>;
-    }) => Connection;
+    }) => Promise<Connection>;
 
     private readonly _connections = new Map<
         WebSocketConnectionId,
@@ -87,6 +88,7 @@ export class WebSocketServer<
         processContext: ProcessContext,
         protocol: Protocol,
         createConnection: (connection: {
+            connectRequestContext: SessionRequestContext;
             connectionId: WebSocketConnectionId;
             sendEvent: (
                 context: ProcessContext,
@@ -97,7 +99,7 @@ export class WebSocketServer<
                 message: WebSocketProtocolEventType<Protocol>,
             ) => void;
             iterateOtherConnections: () => Iterable<Connection>;
-        }) => Connection,
+        }) => Promise<Connection>,
     ) {
         this._processContext = processContext;
         this._protocol = protocol;
@@ -154,7 +156,10 @@ export class WebSocketServer<
     /**
      * Upgrade an HTTP request to a WebSocket connection.
      */
-    public upgrade(connectRequestContext: SessionRequestContext, request: Request): Response {
+    public async upgrade(
+        connectRequestContext: SessionRequestContext,
+        request: Request,
+    ): Promise<Response> {
         if (request.headers.get("Upgrade") !== "websocket")
             throw new InvalidArgumentError("Not a WebSocket request");
 
@@ -195,7 +200,8 @@ export class WebSocketServer<
 
         const connectionId = generateId<WebSocketConnectionId>();
 
-        const actualConnection = this._createConnection({
+        const actualConnection = await this._createConnection({
+            connectRequestContext,
             connectionId,
             sendEvent,
             sendEventToOthers,
@@ -394,9 +400,9 @@ export class WebSocketServer<
      * Jest unit tests because it does not implement the full WebSocket
      * client/server interface which only works in a trusted environment.
      */
-    public connectForTest(
+    public async connectForTest(
         connectRequestContext: SessionRequestContext,
-    ): WebSocketServerTestConnection<Protocol, Connection> {
+    ): Promise<WebSocketServerTestConnection<Protocol, Connection>> {
         assert(typeof jest !== "undefined");
 
         const sendEvent = (
@@ -427,7 +433,8 @@ export class WebSocketServer<
 
         const connectionId = generateId<WebSocketConnectionId>();
 
-        const actualConnection = this._createConnection({
+        const actualConnection = await this._createConnection({
+            connectRequestContext,
             connectionId,
             sendEvent,
             sendEventToOthers,

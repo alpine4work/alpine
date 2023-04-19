@@ -63,7 +63,9 @@ export function createDurableObject<
         fetch(context: SessionRequestContext, request: Request): MaybePromise<Response>;
         connectForTest?(
             context: SessionRequestContext,
-        ): WebSocketServerTestConnection<WebSocketProtocolBase, WebSocketServerConnectionBase<any>>;
+        ): Promise<
+            WebSocketServerTestConnection<WebSocketProtocolBase, WebSocketServerConnectionBase<any>>
+        >;
     },
 >({
     serviceName,
@@ -242,7 +244,9 @@ export function createDurableObject<
             assert(typeof jest !== "undefined");
 
             const objectByIdName = new Map<string, Promise<DurableObject>>();
-            let connections: Array<ReturnType<NonNullable<DurableObject["connectForTest"]>>> = [];
+            let connections: Array<
+                Awaited<ReturnType<NonNullable<DurableObject["connectForTest"]>>>
+            > = [];
 
             afterEach(() => {
                 const lastConnections = connections;
@@ -268,8 +272,8 @@ export function createDurableObject<
                             "Underlying durable object must implement `connectForTest()`",
                         );
 
-                    const connection = object.connectForTest(requestContext) as ReturnType<
-                        NonNullable<DurableObject["connectForTest"]>
+                    const connection = (await object.connectForTest(requestContext)) as Awaited<
+                        ReturnType<NonNullable<DurableObject["connectForTest"]>>
                     >;
 
                     connections.push(connection);

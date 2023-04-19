@@ -23,7 +23,7 @@ import {
 } from "~/shared/content/document_content_schema";
 import {createSimpleMessageContent} from "~/shared/content/message_content_schema";
 import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol";
-import {NotFoundError} from "~/shared/error/error";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error";
 import {wait} from "~/shared/helpers/async/wait";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
 import {generateId} from "~/shared/id/id";
@@ -42,6 +42,8 @@ const space = createTestSpace(context);
 const session1 = createTestSession(context, space);
 const session2 = createTestSession(context, space);
 const session3 = createTestSession(context, space);
+const otherSpace = createTestSpace(context);
+const otherSession = createTestSession(context, otherSpace);
 
 function massageDocument(document: DocumentModel) {
     return {
@@ -79,6 +81,36 @@ function waitForPersistance(
         });
     });
 }
+
+test("can not connect to a document that does not exist", async () => {
+    await expect(connectForTest(context.request(session1), generateId())).rejects.toThrow(
+        NotFoundError,
+    );
+});
+
+test("can not connect to a document in a different space", async () => {
+    const document = await createDocument(context.request(session1), {
+        spaceId: space.id,
+        content: emptyDocumentContent,
+    });
+
+    await expect(connectForTest(context.request(otherSession), document.id)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+});
+
+test("can not connect to an existing document durable object in a different space", async () => {
+    const document = await createDocument(context.request(session1), {
+        spaceId: space.id,
+        content: emptyDocumentContent,
+    });
+
+    await connectForTest(context.request(session1), document.id);
+
+    await expect(connectForTest(context.request(otherSession), document.id)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+});
 
 test("can update document content", async () => {
     const document = await createDocument(context.request(session1), {

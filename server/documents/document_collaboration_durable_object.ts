@@ -4,7 +4,7 @@ import {DocumentCollaborationConnection} from "~/server/documents/document_colla
 import {DocumentCollaborationContentManager} from "~/server/documents/document_collaboration_content_manager";
 import {ProcessContext} from "~/server/dynamo/context/process_context";
 import {RequestContext, SessionRequestContext} from "~/server/dynamo/context/request_context";
-import {getDocument} from "~/server/dynamo/documents_table";
+import {authorizeDocumentAccess, getDocument} from "~/server/dynamo/documents_table";
 import {DocumentContent} from "~/shared/content/document_content_schema";
 import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol";
 import {NotFoundError} from "~/shared/error/error";
@@ -85,19 +85,28 @@ class DocumentCollaborationDurableObject {
         this._webSocketServer = new WebSocketServer(
             this._context,
             DocumentCollaborationProtocol,
-            ({connectionId, sendEvent, sendEventToOthers, iterateOtherConnections}) =>
-                new DocumentCollaborationConnection({
+            async ({
+                connectRequestContext,
+                connectionId,
+                sendEvent,
+                sendEventToOthers,
+                iterateOtherConnections,
+            }) => {
+                await authorizeDocumentAccess(connectRequestContext, id);
+
+                return new DocumentCollaborationConnection({
                     connectionId,
                     contentManager: this._contentManager,
                     sendEvent,
                     sendEventToOthers,
                     iterateOtherConnections,
                     killProcess: context => this._destroy(context),
-                }),
+                });
+            },
         );
     }
 
-    public fetch(context: SessionRequestContext, request: Request): Response {
+    public fetch(context: SessionRequestContext, request: Request): Promise<Response> {
         // Propagate the document id to all logs for this durable object.
         context = context.tracer.withPropagatedData({
             context: {spaceId: this.spaceId, documentId: this.id},

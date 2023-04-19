@@ -58,15 +58,24 @@ class PostRealtimeDurableObject {
         this._webSocketServer = new WebSocketServer(
             this._context,
             PostRealtimeProtocol,
-            ({connectionId, sendEvent, sendEventToOthers, iterateOtherConnections}) =>
-                new PostRealtimeConnection({
+            async ({
+                connectRequestContext,
+                connectionId,
+                sendEvent,
+                sendEventToOthers,
+                iterateOtherConnections,
+            }) => {
+                await authorizePostAccess(connectRequestContext, postId);
+
+                return new PostRealtimeConnection({
                     connectionId,
                     spaceId,
                     postId,
                     sendEvent,
                     sendEventToOthers,
                     iterateOtherConnections,
-                }),
+                });
+            },
         );
     }
 
@@ -77,6 +86,10 @@ class PostRealtimeDurableObject {
         });
 
         return this._webSocketServer.upgrade(context, request);
+    }
+
+    public connectForTest(context: SessionRequestContext) {
+        return this._webSocketServer.connectForTest(context);
     }
 }
 
