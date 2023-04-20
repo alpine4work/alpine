@@ -45,27 +45,31 @@ import {
 } from "~/shared/models/inbox_entry_model";
 import {Schema} from "~/shared/schema/schema";
 
+/**
+ * The initial generation of a new inbox.
+ */
 const initialInboxGeneration = 0;
-
-// NOCOMMIT: Document!
-const loudNotificationInboxGenerationIncrement = 1;
-const unarchivedInboxEntryGenerationIncrement = 1;
-const observeInboxGenerationIncrement = 2;
 
 const NotificationsTable = DynamoTableSchema.new({
     name: "Notifications",
     partitions: [
-        // NOCOMMIT: Revise documentation
         /**
          * Users receive a lot of notifications from our product. Mentions in document
          * comment threads, new posts in channels, chat messages, and more. These
          * notifications can be overwhelming to manage so we provide the inbox. A
          * unified home for all notifications the user may care about.
          *
-         * The inbox is intelligent. It's designed to leverage a computer, which is
-         * good at crunching numbers, to distill and summarize all the information the
+         * The inbox is designed to be intelligent. It leverages computers, which are
+         * good at crunching numbers, to distill and summarize all the information a
          * user needs to process. It doesn't blindly add every notification event to
          * the inbox. Instead the inbox groups and sorts entries for the user.
+         *
+         * Grouping of notifications should be predictable and allow the user to follow
+         * consistent workflows. Ranking of notifications can be more black boxed since
+         * users don't typically depend on notification ranking. Right now our
+         * notification ranking is based on simple heuristics but in the future we may
+         * leverage more intelligent recommender systems if we find they benefit the
+         * user experience.
          *
          * Some terminology:
          *
@@ -87,13 +91,15 @@ const NotificationsTable = DynamoTableSchema.new({
          *
          *   The majority of notifications should not be loud notifications! Loud
          *   notifications can be anxiety inducing. It's red which screams "urgent" and
-         *   the count gives you a sense of scope to how much your work will be
+         *   the count gives you a sense of scope to how much work you will need
          *   to address these notifications. We want zero loud notifications to be a
          *   practical state for the user to achieve daily. The count should be
-         *   meaningful to a human (unlike when Slack tells you 143 unreads). Counting
-         *   individual messages often is not meaningful to a human since your
-         *   conversation partner may be using messages like sentences, or you may be
-         *   in a group chat where a conversation is happening you're uninterested in.
+         *   meaningful to a human (unlike when Slack frequently tells you 143
+         *   unreads). Counting individual messages often is not meaningful to a human
+         *   since your conversation partner may be using messages to separate
+         *   individual thoughts (instead of sentences, common trend among the youngs
+         *   these days), or you may be in a group chat where a conversation is
+         *   happening you're uninterested in.
          *
          *   We will sometimes get it wrong and mark unimportant notifications as loud.
          *   If the user doesn't address a loud notification we think it should decay
@@ -101,30 +107,27 @@ const NotificationsTable = DynamoTableSchema.new({
          *   completely).
          *
          * - Inbox observation: When a user opens their inbox and continues to look at
-         *   it we say the inbox is "observed". We don't know the order of entries in
-         *   the inbox until it is observed! While the inbox is unobserved we collect
-         *   notification events and group them. Then when the user observes their
-         *   inbox we rank the entries, save our ranking, and present the entries.
+         *   it we say the inbox is "observed". We freeze the order of entries in the
+         *   inbox when it is observed. While the inbox is unobserved, entries may move
+         *   around in unpredictable ways as we use intelligent heuristics/systems to
+         *   determine ranking. Inbox order is unknown when unobserved.
          *
-         *   The inbox is in a "quantum superposition" state while unobserved. It's
-         *   unclear what order the entries are in.
+         *   At least, this is how the inbox works in theory. In practice, we only
+         *   leverage observation as a way to freeze the position of loud
+         *   notifications. Loud notifications are always at the top of your inbox.
+         *   Until the inbox is observed, then new notifications are added above
+         *   previous loud notifications. This effectively "decays" a loud
+         *   notification. If the user doesn't address it immediately the notification
+         *   falls below more relevant and timely notifications.
          *
-         *   While this is how the inbox is designed in theory, as of 2023-04-17 we
-         *   don't do any interesting ranking of inbox entries. They are ranked
-         *   chronologically by the time they entered the inbox. (So first update time
-         *   for the batch vs last update time for the batch.) With the exception of
-         *   loud notifications. Loud notifications are put at the top of the inbox
-         *   when the inbox is observed and are freezed there.
-         *
-         * - Inbox generation: We implement inbox observed/unobserved states with the
-         *   generation counter. Whenever the inbox is observed we increment the
-         *   generation counter. Other pieces of data stored about an inbox store
-         *   generation numbers and compare it against the current generation number.
-         *
-         *   An example is when we get a loud notification in a chat we store the
-         *   current inbox generation number. When the inbox is observed, the inbox
-         *   generation number moves forward, and we "freeze" the position of all chat
-         *   entries at the top of the inbox.
+         * - Inbox generation: The inbox generation is an integer counter that we use
+         *   for segmenting different "stratas" of the inbox. Inbox entries are ranked
+         *   first by generation and then by the time they entered the inbox. We put
+         *   entries with loud notifications in a higher generation than entries
+         *   without loud notifications. When the inbox is observed, the inbox
+         *   generation counter increases and new entries are put above loud
+         *   notifications. See `observeInboxGenerationIncrement` and related constants
+         *   for a deeper understanding of how we create these inbox stratas.
          *
          * - Inbox archive: The user manually clears entries from their inbox instead
          *   of entries being automatically cleared when they view them. The user may
@@ -135,17 +138,17 @@ const NotificationsTable = DynamoTableSchema.new({
          *
          * The table is partitioned by inbox. Each account has an inbox for every space
          * they are in. The inbox contains an attributes item which contains metadata
-         * for the entire inbox and individual, grouped, inbox entries. The inbox
-         * entries are not sorted within this partition. The table is designed to have
-         * unique, accessible, keys for each inbox entry. So when a notification event
-         * happens it can be added to the appropriate entry.
+         * for the entire inbox and inbox entries. The inbox entries are not sorted
+         * within this partition. The table is designed to have unique, accessible,
+         * keys for each inbox entry. So when a notification event happens it can be
+         * added to the appropriate entry.
          *
          * Then we have an index which provides the inbox entries in the correct sort
          * order. The index (called `InboxEntriesIndex`) copies the entire item into
          * the index. While this does double storage requirements for the inbox it's
          * necessary to both be able to uniquely address inbox entries and to fetch the
          * full inbox entry items without multiple partition hops. We have more
-         * documentation on the `InboxEntriesIndex`.
+         * documentation on this index on the `InboxEntriesIndex` definition.
          */
         {
             name: "Inbox",
@@ -160,8 +163,8 @@ const NotificationsTable = DynamoTableSchema.new({
                     attributes: Schema.object({
                         /**
                          * The current inbox generation. This is incremented whenever the inbox is
-                         * observed, signifying any unobserved entries need to find their place
-                         * and freeze.
+                         * observed so new entries are always placed above old entries (including
+                         * old entries with loud notifications).
                          */
                         generation: Schema.integer.min(initialInboxGeneration),
 
@@ -174,6 +177,10 @@ const NotificationsTable = DynamoTableSchema.new({
                          *
                          * `loudNotificationCount` on individual entries will also be displayed on that
                          * entry so you know where the loud notifications are coming from.
+                         *
+                         * Individual entries should have `loudNotificationCount` set to zero when they
+                         * are archived! Archived entries do not contribute to the overall notification
+                         * indicators.
                          */
                         loudNotificationCount: Schema.integer.min(0),
                     }),
@@ -265,21 +272,24 @@ type InboxEntryItem = DynamoTableIndexItemType<typeof InboxEntriesIndex>;
 type InboxEntryItemKey = NotificationTableTypes["ItemKey"] &
     DistributivePick<InboxEntryItem, "partitionType" | "sortRangeType">;
 
-// NOCOMMIT: Revise documentation
 /**
  * First, see the documentation on the `Inbox` partition of `NotificationsTable`
- * to help understand the purpose of this index. In short, inbox entries are
- * not ordered in `Inbox` partitions of the notifications table. Inbox entries
+ * to help understand the purpose of this index.
+ *
+ * In short, inbox entries are NOT ordered in `Inbox` partitions of the
+ * notifications table. But when the user views their index they should only
+ * see unarchived entries and the entries should be in a meaningful order.
+ *
+ * Inbox entries are not ordered in `Inbox` partitions because inbox entries
  * need to be uniquely addressable so we can add to them when a notification
- * event occurs. However, when the user views their inbox they only see
- * unarchived entries in a meaningful sort order. So this index copies inbox
- * entries for efficient access of an account's inbox.
+ * event occurs. So this index provides sorting by copying index entries into
+ * the appropriate order.
  *
  * ## DynamoDB implementation notes
  *
  * The index is backed by a [DynamoDB global secondary index][1]. This global
- * secondary index has the same partition key as our `Inbox` partition! That
- * means it could be using a [local secondary index][2]. However, a local
+ * secondary index has the same partition key as our `Inbox` partition. That
+ * means it could be using a [local secondary index][2]! However, a local
  * secondary index puts a size constraint on the `Inbox` partition which needs
  * to grow unbounded. Constantly moving data out of the `Inbox` partition to
  * keep it within the partition bounds would complicate our implementation.
@@ -287,12 +297,8 @@ type InboxEntryItemKey = NotificationTableTypes["ItemKey"] &
  * The main advantage of a local secondary index is it allows for strongly
  * consistent reads. This is appealing since we need to maintain the inbox in
  * realtime so strongly consistent reads can be helpful for ensuring we don't
- * miss realtime updates. What we do instead is we include the inbox attributes
- * item in our index. That way we can put a realtime version in that item and
- * read the attributes item with strong consistency to compare with our read of
- * the attributes item with eventual consistency. If they don't match then we
- * throw away the eventually consistent read and keep trying until we see the
- * latest inbox.
+ * miss realtime updates. Instead we're going with a realtime implementation
+ * that works with eventually consistent initial reads.
  *
  * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/GSI.html
  * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/LSI.html
@@ -317,7 +323,13 @@ const InboxEntriesIndex = NotificationsTable.addExpensiveFullIndex({
          */
         isArchived: DynamoKeyAttributeSchema.boolean,
 
-        // NOCOMMIT: Revise documentation
+        /**
+         * What inbox generation does the entry live in? See the terminology
+         * explanation of "inbox generations" in the `Inbox` partition documentation.
+         *
+         * Generations create "stratas" in the inbox. We put all entries at a higher
+         * generation first then sort by time.
+         */
         generation: DynamoKeyAttributeSchema.integer.reverse(),
 
         /**
@@ -326,15 +338,47 @@ const InboxEntriesIndex = NotificationsTable.addExpensiveFullIndex({
          * loud notification occurred which will cause us to move the entry up to the
          * top of the inbox.
          */
-        // NOCOMMIT: Revise documentation
         enteredTime: DynamoKeyAttributeSchema.date.reverse(),
     },
 });
 
 /**
+ * When the inbox is observed, we increment the inbox's generation counter by
+ * this amount. New entries will use the generation from the inbox's generation
+ * counter.
+ *
+ * This value is higher than `loudNotificationInboxGenerationIncrement`. Loud
+ * notifications add that value to the inbox's generation counter so that loud
+ * notifications are at the top of the inbox. When the inbox is observed we
+ * therefore need to move the inbox generation counter past this intermediate
+ * generation.
+ */
+const observeInboxGenerationIncrement = 2;
+
+/**
+ * For inbox entries with loud notifications we add this value to the inbox's
+ * generation counter to determine the generation of the inbox entry. This puts
+ * inbox entries with loud notifications above all other entries that use the
+ * inbox's generation counter unmodified.
+ *
+ * When we observe the inbox we need to increment the inbox's generation
+ * counter past the intermediate generation used by loud notifications so that
+ * new entries are placed at the top of the inbox.
+ */
+const loudNotificationInboxGenerationIncrement = 1;
+
+/**
+ * When we unarchive inbox entries we want to put them at the top of the inbox.
+ * Even above inbox entries with loud notifications! We do this, currently, by
+ * putting them at the same generation as loud notifications. The `enteredTime`
+ * of the unarchived entry will be higher than the ones for loud notifications
+ * so the entry goes at the top.
+ */
+const unarchivedInboxEntryGenerationIncrement = 1;
+
+/**
  * Get the entries for the current account's inbox.
  */
-// NOCOMMIT: Add pagination!
 export async function getInboxEntries(
     context: RequestContext,
     {
