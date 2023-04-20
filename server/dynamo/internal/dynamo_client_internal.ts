@@ -507,8 +507,6 @@ export class DynamoClientInternal {
                 ReturnConsumedCapacity: "TOTAL",
             });
 
-            console.log(output.Items);
-
             span.addData({
                 dynamodb: {
                     consumedCapacity: getConsumedCapacityTracerEventData(
