@@ -2987,6 +2987,190 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                 }
             ]
         },
+        "IndexSortOrderTest": {
+            "name": "IndexSortOrderTest",
+            "partitionByType": {
+                "PartitionA": {
+                    "partitionKeyAttributeByKey": {
+                        "partitionA": {
+                            "type": "Integer"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "SortRangeA1": {
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {
+                                "sortRangeA1": {
+                                    "type": "Integer"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "attributeX": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "attributeY": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        },
+                        "SortRangeA2": {
+                            "orderKey": "a1",
+                            "sortKeyAttributeByKey": {
+                                "sortRangeA2": {
+                                    "type": "Integer"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "attributeX": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "attributeY": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "PartitionB": {
+                    "partitionKeyAttributeByKey": {
+                        "partitionB": {
+                            "type": "Integer"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "SortRangeB1": {
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {
+                                "sortRangeB1": {
+                                    "type": "Integer"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "attributeX": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "attributeY": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        },
+                        "SortRangeB2": {
+                            "orderKey": "a1",
+                            "sortKeyAttributeByKey": {
+                                "sortRangeB2": {
+                                    "type": "Integer"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "attributeX": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "attributeY": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "indexes": [
+                {
+                    "projection": "KeysOnly",
+                    "overloadByName": {
+                        "IndexSortOrderTestIndex": {
+                            "itemTypes": [
+                                {
+                                    "partitionType": "PartitionA",
+                                    "sortRangeType": "SortRangeA1"
+                                },
+                                {
+                                    "partitionType": "PartitionA",
+                                    "sortRangeType": "SortRangeA2"
+                                },
+                                {
+                                    "partitionType": "PartitionB",
+                                    "sortRangeType": "SortRangeB1"
+                                },
+                                {
+                                    "partitionType": "PartitionB",
+                                    "sortRangeType": "SortRangeB2"
+                                }
+                            ],
+                            "partitionKeyAttributeByKey": {
+                                "attributeX": {
+                                    "type": "Integer"
+                                }
+                            },
+                            "sortKeyAttributeByKey": {
+                                "attributeY": {
+                                    "type": "Integer"
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
+        },
         "Notifications": {
             "name": "Notifications",
             "partitionByType": {
