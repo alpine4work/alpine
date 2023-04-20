@@ -2561,6 +2561,273 @@ describe("Post comments", () => {
             }),
         ]);
     });
+
+    test("notification on an archived entry revives it", async () => {
+        const scenario = await createScenario();
+
+        const channel = await createChannel(context.request(scenario.session1), {
+            spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const post = await createPost(context.request(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.request(scenario.session1), {
+                spaceId: scenario.space.id,
+                limit: 100,
+            }).then(({entries}) => entries),
+        ).toEqual([]);
+
+        const comment1 = await createPostComment(context.request(scenario.session2), {
+            postId: post.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("comment1"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.request(scenario.session1), {
+                spaceId: scenario.space.id,
+                limit: 100,
+            }).then(({entries}) => entries),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                postId: post.id,
+                loudNotificationCount: 0,
+                latestComment: {
+                    createdTime: comment1.createdTime,
+                    author: scenario.session2.account,
+                    contentSnippet: createSimpleMessageContent("comment1"),
+                },
+            }),
+        ]);
+
+        await archiveInboxEntry(context.request(scenario.session1), {
+            spaceId: scenario.space.id,
+            key: {type: "PostComments", postId: post.id},
+        });
+
+        expect(
+            await getInboxEntries(context.request(scenario.session1), {
+                spaceId: scenario.space.id,
+                limit: 100,
+            }).then(({entries}) => entries),
+        ).toEqual([]);
+
+        const comment2 = await createPostComment(context.request(scenario.session2), {
+            postId: post.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("comment2"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.request(scenario.session1), {
+                spaceId: scenario.space.id,
+                limit: 100,
+            }).then(({entries}) => entries),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                postId: post.id,
+                loudNotificationCount: 0,
+                latestComment: {
+                    createdTime: comment2.createdTime,
+                    author: scenario.session2.account,
+                    contentSnippet: createSimpleMessageContent("comment2"),
+                },
+            }),
+        ]);
+    });
+
+    test("notification on an archived entry revives it clearing old loud notification count", async () => {
+        const scenario = await createScenario();
+
+        const channel = await createChannel(context.request(scenario.session1), {
+            spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const post = await createPost(context.request(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.request(scenario.session1), {
+                spaceId: scenario.space.id,
+                limit: 100,
+            }).then(({entries}) => entries),
+        ).toEqual([]);
+
+        const comment1 = await createPostComment(context.request(scenario.session2), {
+            postId: post.id,
+            parentCommentIndex: null,
+            content: scenario.mentionAccount1MessageContent,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.request(scenario.session1), {
+                spaceId: scenario.space.id,
+                limit: 100,
+            }).then(({entries}) => entries),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                postId: post.id,
+                loudNotificationCount: 1,
+                latestComment: {
+                    createdTime: comment1.createdTime,
+                    author: scenario.session2.account,
+                    contentSnippet: scenario.mentionAccount1MessageContent,
+                },
+            }),
+        ]);
+
+        await archiveInboxEntry(context.request(scenario.session1), {
+            spaceId: scenario.space.id,
+            key: {type: "PostComments", postId: post.id},
+        });
+
+        expect(
+            await getInboxEntries(context.request(scenario.session1), {
+                spaceId: scenario.space.id,
+                limit: 100,
+            }).then(({entries}) => entries),
+        ).toEqual([]);
+
+        const comment2 = await createPostComment(context.request(scenario.session2), {
+            postId: post.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("comment2"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.request(scenario.session1), {
+                spaceId: scenario.space.id,
+                limit: 100,
+            }).then(({entries}) => entries),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                postId: post.id,
+                loudNotificationCount: 0,
+                latestComment: {
+                    createdTime: comment2.createdTime,
+                    author: scenario.session2.account,
+                    contentSnippet: createSimpleMessageContent("comment2"),
+                },
+            }),
+        ]);
+    });
+
+    test("notification on an archived entry from own account does not revive it", async () => {
+        const scenario = await createScenario();
+
+        const channel = await createChannel(context.request(scenario.session1), {
+            spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const post = await createPost(context.request(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.request(scenario.session1), {
+                spaceId: scenario.space.id,
+                limit: 100,
+            }).then(({entries}) => entries),
+        ).toEqual([]);
+
+        const comment1 = await createPostComment(context.request(scenario.session2), {
+            postId: post.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("comment1"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.request(scenario.session1), {
+                spaceId: scenario.space.id,
+                limit: 100,
+            }).then(({entries}) => entries),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                postId: post.id,
+                loudNotificationCount: 0,
+                latestComment: {
+                    createdTime: comment1.createdTime,
+                    author: scenario.session2.account,
+                    contentSnippet: createSimpleMessageContent("comment1"),
+                },
+            }),
+        ]);
+
+        await archiveInboxEntry(context.request(scenario.session1), {
+            spaceId: scenario.space.id,
+            key: {type: "PostComments", postId: post.id},
+        });
+
+        expect(
+            await getInboxEntries(context.request(scenario.session1), {
+                spaceId: scenario.space.id,
+                limit: 100,
+            }).then(({entries}) => entries),
+        ).toEqual([]);
+
+        const comment2 = await createPostComment(context.request(scenario.session1), {
+            postId: post.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("comment2"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.request(scenario.session1), {
+                spaceId: scenario.space.id,
+                limit: 100,
+            }).then(({entries}) => entries),
+        ).toEqual([]);
+
+        await unarchiveInboxEntry(context.request(scenario.session1), {
+            spaceId: scenario.space.id,
+            key: {type: "PostComments", postId: post.id},
+        });
+
+        expect(
+            await getInboxEntries(context.request(scenario.session1), {
+                spaceId: scenario.space.id,
+                limit: 100,
+            }).then(({entries}) => entries),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                postId: post.id,
+                loudNotificationCount: 0,
+                latestComment: {
+                    createdTime: comment2.createdTime,
+                    author: scenario.session1.account,
+                    contentSnippet: createSimpleMessageContent("comment2"),
+                },
+            }),
+        ]);
+    });
 });
 
 describe("Chat", () => {
@@ -5253,6 +5520,178 @@ describe("Chat", () => {
                     createdTime: message4.createdTime,
                     author: scenario.session1.account,
                     contentSnippet: scenario.mentionAccount2MessageContent,
+                },
+            }),
+        ]);
+    });
+
+    test("notification on an archived entry revives it", async () => {
+        const scenario = await createScenario();
+
+        const chatId = await getOrCreateChatForAccounts(context.request(scenario.session1), {
+            spaceId: scenario.space.id,
+            otherAccountIds: [scenario.session2.account.id],
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.request(scenario.session1), {
+                spaceId: scenario.space.id,
+                limit: 100,
+            }).then(({entries}) => entries),
+        ).toEqual([]);
+
+        const message1 = await sendChatMessage(context.request(scenario.session2), {
+            chatId,
+            parentMessageIndex: null,
+            content: createSimpleMessageContent("message1"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.request(scenario.session1), {
+                spaceId: scenario.space.id,
+                limit: 100,
+            }).then(({entries}) => entries),
+        ).toEqual([
+            new InboxChatEntryModel({
+                chatId,
+                loudNotificationCount: 1,
+                latestMessage: {
+                    createdTime: message1.createdTime,
+                    author: scenario.session2.account,
+                    contentSnippet: createSimpleMessageContent("message1"),
+                },
+            }),
+        ]);
+
+        await archiveInboxEntry(context.request(scenario.session1), {
+            spaceId: scenario.space.id,
+            key: {type: "Chat", chatId},
+        });
+
+        expect(
+            await getInboxEntries(context.request(scenario.session1), {
+                spaceId: scenario.space.id,
+                limit: 100,
+            }).then(({entries}) => entries),
+        ).toEqual([]);
+
+        const message2 = await sendChatMessage(context.request(scenario.session2), {
+            chatId,
+            parentMessageIndex: null,
+            content: createSimpleMessageContent("message2"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.request(scenario.session1), {
+                spaceId: scenario.space.id,
+                limit: 100,
+            }).then(({entries}) => entries),
+        ).toEqual([
+            new InboxChatEntryModel({
+                chatId,
+                loudNotificationCount: 1,
+                latestMessage: {
+                    createdTime: message2.createdTime,
+                    author: scenario.session2.account,
+                    contentSnippet: createSimpleMessageContent("message2"),
+                },
+            }),
+        ]);
+    });
+
+    test("notification on an archived entry from own account does not revive it", async () => {
+        const scenario = await createScenario();
+
+        const chatId = await getOrCreateChatForAccounts(context.request(scenario.session1), {
+            spaceId: scenario.space.id,
+            otherAccountIds: [scenario.session2.account.id],
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.request(scenario.session1), {
+                spaceId: scenario.space.id,
+                limit: 100,
+            }).then(({entries}) => entries),
+        ).toEqual([]);
+
+        const message1 = await sendChatMessage(context.request(scenario.session2), {
+            chatId,
+            parentMessageIndex: null,
+            content: createSimpleMessageContent("message1"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.request(scenario.session1), {
+                spaceId: scenario.space.id,
+                limit: 100,
+            }).then(({entries}) => entries),
+        ).toEqual([
+            new InboxChatEntryModel({
+                chatId,
+                loudNotificationCount: 1,
+                latestMessage: {
+                    createdTime: message1.createdTime,
+                    author: scenario.session2.account,
+                    contentSnippet: createSimpleMessageContent("message1"),
+                },
+            }),
+        ]);
+
+        await archiveInboxEntry(context.request(scenario.session1), {
+            spaceId: scenario.space.id,
+            key: {type: "Chat", chatId},
+        });
+
+        expect(
+            await getInboxEntries(context.request(scenario.session1), {
+                spaceId: scenario.space.id,
+                limit: 100,
+            }).then(({entries}) => entries),
+        ).toEqual([]);
+
+        const message2 = await sendChatMessage(context.request(scenario.session1), {
+            chatId,
+            parentMessageIndex: null,
+            content: createSimpleMessageContent("message2"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.request(scenario.session1), {
+                spaceId: scenario.space.id,
+                limit: 100,
+            }).then(({entries}) => entries),
+        ).toEqual([]);
+
+        await unarchiveInboxEntry(context.request(scenario.session1), {
+            spaceId: scenario.space.id,
+            key: {type: "Chat", chatId},
+        });
+
+        expect(
+            await getInboxEntries(context.request(scenario.session1), {
+                spaceId: scenario.space.id,
+                limit: 100,
+            }).then(({entries}) => entries),
+        ).toEqual([
+            new InboxChatEntryModel({
+                chatId,
+                loudNotificationCount: 0,
+                latestMessage: {
+                    createdTime: message2.createdTime,
+                    author: scenario.session1.account,
+                    contentSnippet: createSimpleMessageContent("message2"),
                 },
             }),
         ]);

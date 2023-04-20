@@ -872,7 +872,6 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             if (!oldInboxEntryItem) {
                 return;
             } else {
-                // NOCOMMIT: Test this!
                 isArchived = oldInboxEntryItem.isArchived;
             }
         }
@@ -990,7 +989,6 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
                 const shouldIncrementLoudNotificationCount =
                     account.id !== event.authorId &&
                     (event.mentionedAccountIds.has(account.id) ||
-                        // NOCOMMIT: Test that when unarchiving we use a loud notification
                         item?.isArchived ||
                         !item?.latestMessage ||
                         // Events might arrive out-of-order but if events 10min+ apart are arriving
