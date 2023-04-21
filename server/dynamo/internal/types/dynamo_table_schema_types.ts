@@ -6,7 +6,7 @@ import type {
 import type {OrderKey} from "~/shared/helpers/sort/order_key";
 import {IdentityType} from "~/shared/helpers/types/identity_type";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
-import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection";
+import {ObjectFromEntries} from "~/shared/helpers/types/object_from_entries";
 import type {ObjectSchema, SchemaType} from "~/shared/schema/schema";
 import {SchemaSerializedValueDescription} from "~/shared/schema/types/schema_description_types";
 
@@ -114,6 +114,31 @@ export namespace DynamoTableSchemaTypes {
     };
 
     /**
+     * Create the type of a DynamoDB item from the partition config and sort range
+     * config for the item.
+     */
+    export type ItemType<
+        PartitionConfig extends Partition.ConfigBase,
+        SortRangeConfig extends SortRange.ConfigBase,
+    > = MergeObjectIntersection<
+        {
+            readonly partitionType: PartitionConfig["name"];
+            readonly sortRangeType: SortRangeConfig["name"];
+        } & KeyAttributes.Type<PartitionConfig["partitionKeyAttributes"]> &
+            KeyAttributes.Type<SortRangeConfig["sortKeyAttributes"]> &
+            SchemaType<SortRangeConfig["attributes"]> &
+            ExpirationTimeType<SortRangeConfig["withExpirationTime"]> &
+            ItemSharedAttributes
+    >;
+
+    type ExpirationTimeType<Config extends "Optional" | "Required" | undefined> =
+        Config extends "Optional"
+            ? {readonly expirationTime?: Date}
+            : Config extends "Required"
+            ? {readonly expirationTime: Date}
+            : {};
+
+    /**
      * Types shared by both `partitionKeyAttributes` and `sortKeyAttributes`.
      */
     export namespace KeyAttributes {
@@ -173,18 +198,12 @@ export namespace DynamoTableSchemaTypes {
         /**
          * A map of partition type to the sort key type union for that partition.
          */
-        export type SortKeyMapTypes<Config extends ReadonlyArray<ConfigBase>> =
-            MergeObjectIntersection<
-                UnionToIntersection<
-                    {
-                        [Index in keyof Config]: {
-                            [Key in Config[Index]["name"]]: SortRange.SortKeyTypes<
-                                Config[Index]["sortRanges"]
-                            >;
-                        };
-                    }[number]
-                >
-            >;
+        export type SortKeyMapTypes<Config extends ReadonlyArray<ConfigBase>> = ObjectFromEntries<{
+            [Index in keyof Config]: [
+                Config[Index]["name"],
+                SortRange.SortKeyTypes<Config[Index]["sortRanges"]>,
+            ];
+        }>;
 
         /**
          * The type of items in our table.
@@ -267,16 +286,11 @@ export namespace DynamoTableSchemaTypes {
          * that partition.
          */
         export type ItemTypes<Config extends ReadonlyArray<ConfigBase>> = {
-            [Index in keyof Config]: ItemType<Config[Index]>;
+            [Index in keyof Config]: SortRange.ItemTypes<
+                Config[Index],
+                Config[Index]["sortRanges"]
+            >;
         }[number];
-
-        type ItemType<Config extends ConfigBase> = MergeObjectIntersection<
-            {
-                readonly partitionType: Config["name"];
-            } & KeyAttributes.Type<Config["partitionKeyAttributes"]> &
-                SortRange.ItemTypes<Config["sortRanges"]> &
-                ItemSharedAttributes
-        >;
 
         /**
          * A map we use for determining the return type of the `query()` function.
@@ -296,19 +310,15 @@ export namespace DynamoTableSchemaTypes {
          * `query()` function returns an item type that only includes items from those
          * sort ranges.
          */
-        export type QueryKeyMapType<Config extends ReadonlyArray<ConfigBase>> =
-            MergeObjectIntersection<
-                UnionToIntersection<
-                    {
-                        [Index in keyof Config]: {
-                            [Key in Config[Index]["name"]]: QueryKeyMapTypeStartMap<
-                                Config[Index]["sortRanges"],
-                                SortRangeTypeTuple<Config[Index]["sortRanges"]>
-                            >;
-                        };
-                    }[number]
-                >
-            >;
+        export type QueryKeyMapType<Config extends ReadonlyArray<ConfigBase>> = ObjectFromEntries<{
+            [Index in keyof Config]: [
+                Config[Index]["name"],
+                QueryKeyMapTypeStartMap<
+                    Config[Index]["sortRanges"],
+                    SortRangeTypeTuple<Config[Index]["sortRanges"]>
+                >,
+            ];
+        }>;
 
         type SortRangeTypeTuple<Config extends ConfigBase["sortRanges"]> = {
             [Index in keyof Config]: Config[Index]["name"];
@@ -317,37 +327,27 @@ export namespace DynamoTableSchemaTypes {
         type QueryKeyMapTypeStartMap<
             Config extends ConfigBase["sortRanges"],
             SortTypes,
-        > = MergeObjectIntersection<
-            UnionToIntersection<
-                {
-                    [StartIndex in keyof Config]: {
-                        [Key in Config[StartIndex]["name"]]: QueryKeyMapTypeEndMap<
-                            Config,
-                            SortTypes,
-                            Config[StartIndex]["name"]
-                        >;
-                    };
-                }[number]
-            >
-        >;
+        > = ObjectFromEntries<{
+            [StartIndex in keyof Config]: [
+                Config[StartIndex]["name"],
+                QueryKeyMapTypeEndMap<Config, SortTypes, Config[StartIndex]["name"]>,
+            ];
+        }>;
 
         type QueryKeyMapTypeEndMap<
             Config extends ConfigBase["sortRanges"],
             SortTypes,
             StartSortType extends string,
-        > = MergeObjectIntersection<
-            UnionToIntersection<
-                {
-                    [EndIndex in keyof Config]: {
-                        [Key in Config[EndIndex]["name"]]: TupleDropBeforeAndTakeUntil<
-                            SortTypes,
-                            StartSortType,
-                            Config[EndIndex]["name"]
-                        >[number];
-                    };
-                }[number]
-            >
-        >;
+        > = ObjectFromEntries<{
+            [EndIndex in keyof Config]: [
+                Config[EndIndex]["name"],
+                TupleDropBeforeAndTakeUntil<
+                    SortTypes,
+                    StartSortType,
+                    Config[EndIndex]["name"]
+                >[number],
+            ];
+        }>;
 
         /**
          * Take a `Tuple` and return values between `DropBefore` and `TakeUntil`.
@@ -444,22 +444,12 @@ export namespace DynamoTableSchemaTypes {
             readonly sortRangeType: Config["name"];
         } & KeyAttributes.Type<Config["sortKeyAttributes"]>;
 
-        export type ItemTypes<Config extends ReadonlyArray<ConfigBase>> = {
-            [Index in keyof Config]: ItemType<Config[Index]>;
+        export type ItemTypes<
+            PartitionConfig extends Partition.ConfigBase,
+            Config extends ReadonlyArray<ConfigBase>,
+        > = {
+            [Index in keyof Config]: ItemType<PartitionConfig, Config[Index]>;
         }[number];
-
-        type ItemType<Config extends ConfigBase> = {
-            readonly sortRangeType: Config["name"];
-        } & KeyAttributes.Type<Config["sortKeyAttributes"]> &
-            SchemaType<Config["attributes"]> &
-            ExpirationTimeType<Config["withExpirationTime"]>;
-
-        type ExpirationTimeType<Config extends "Optional" | "Required" | undefined> =
-            Config extends "Optional"
-                ? {readonly expirationTime?: Date}
-                : Config extends "Required"
-                ? {readonly expirationTime: Date}
-                : {};
     }
 
     export namespace Index {

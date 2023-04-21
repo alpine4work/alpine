@@ -18,6 +18,7 @@ import {
     DynamoKeyAttributeSchema,
     dynamoKeySeparator,
 } from "~/server/dynamo/internal/dynamo_key_attribute_schema";
+import {DynamoRealtimeTableSchema} from "~/server/dynamo/internal/dynamo_realtime_table_schema";
 import {dynamoReservedWords} from "~/server/dynamo/internal/dynamo_reserved_words";
 import {
     getDynamoClient,
@@ -37,6 +38,7 @@ import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exp
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {assert} from "~/shared/helpers/control/assert";
+import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
@@ -115,6 +117,7 @@ type DynamoTableSchemaIndexInternalConfig = {
     readonly name: string;
     readonly partitionKeyAttributes: DynamoTableSchemaTypes.KeyAttributes.ConfigBase;
     readonly sortKeyAttributes: DynamoTableSchemaTypes.KeyAttributes.ConfigBase;
+    readonly includePrimaryKeyInSortKey: boolean;
     readonly projection: "KeysOnly" | "All";
 };
 
@@ -188,12 +191,58 @@ type DynamoTableSchemaInitializationState =
           readonly writeCompatibilityError: Error | null;
       };
 
-type DynamoTableSchemaTypesBase = Replace<
+/**
+ * An opaque string representing the primary key of a DynamoDB item.
+ *
+ * The lexicographic order of items in different partitions is arbitrary and
+ * has no meaning. The lexicographic order of items within a partition follows
+ * the sort key.
+ *
+ * The string uses a base64 encoding so the data within is opaque but easily
+ * reversible. Make sure to only share this string with clients who are allowed
+ * to read the data within the item's primary key.
+ *
+ * Developers shouldn't try to parse the string for information. Instead data
+ * relevant to the client should be sent by other means.
+ */
+export type DynamoItemKey = string & {readonly _DynamoItemKey: never};
+
+/**
+ * An opaque string representing a position in a DynamoDB index.
+ *
+ * The lexicographic order of this string mostly corresponds to the order of
+ * items in the index. Except for in one important edge case: If two items have
+ * the same index key DynamoDB does not specify how the items are sorted. The
+ * lexicographic order of cursors does not correspond to DynamoDB's internal
+ * sorting of conflicting index items.
+ *
+ * If you want the lexicographic order of this string to EXACTLY match the
+ * order of items in the index then set `includePrimaryKeyInSortKey` to true on
+ * your index. This will use the item's primary key to tiebreak the order.
+ *
+ * The string uses a base64 encoding so the data within is opaque but easily
+ * reversible. Make sure to only share this string with clients who are allowed
+ * to read the data within the item's index key AND primary key.
+ *
+ * Developers shouldn't try to parse the string for information. Instead data
+ * relevant to the client should be sent by other means.
+ */
+export type DynamoIndexCursor = string & {readonly _DynamoIndexCursor: never};
+
+/**
+ * Our opaque strings are multiple DynamoDB keys combined together. Our
+ * separator character needs to be less than all other characters in a key so
+ * they sort correctly and can be split back apart.
+ */
+const dynamoOpaqueStringSeparator = " ";
+assert(dynamoOpaqueStringSeparator.charCodeAt(0) < dynamoKeySeparator.charCodeAt(0));
+
+export type DynamoTableSchemaTypesBase = Replace<
     DynamoTableSchemaTypes.Types<DynamoTableSchemaTypes.ConfigBase>,
     // This types give TypeScript trouble when dealing with generics (try removing,
-    // the `new()` function should have errors). So any them out to not deal with
+    // `accounts_table.ts` should have errors). So any them out to not deal with
     // it since we know it's safe.
-    {SortKeyMap: any; QueryKeyMap: any}
+    {QueryKeyMap: any}
 >;
 
 /**
@@ -669,7 +718,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         return sortKeyEntries.join(dynamoKeySeparator);
     }
 
-    private _serializeItemKey(key: Types["ItemKey"]): {
+    private _serializeItemKey(key: Types["ItemKey"] | Types["Item"]): {
         partitionKey: string;
         sortKey: string;
         attributesSchema: DynamoTableSchemaTypes.SortRange.ConfigBase["attributes"];
@@ -770,6 +819,39 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     }
 
     /**
+     * Serialize the item key into an opaque string that can be conveniently shared
+     * with clients.
+     *
+     * Remember this data is not secured in any way! If you share this with a
+     * client then the client should be able to see all data in the item's index
+     * key AND primary key.
+     */
+    public serializeOpaqueItemKey(key: Types["ItemKey"] | Types["Item"]): DynamoItemKey {
+        const {partitionKey, sortKey} = this._serializeItemKey(key);
+        return btoa([partitionKey, sortKey].join(dynamoOpaqueStringSeparator)) as DynamoItemKey;
+    }
+
+    /**
+     * Deserialize the item key from our opaque string format that is shared with
+     * clients.
+     */
+    public deserializeOpaqueItemKey(key: DynamoItemKey): Types["ItemKey"] {
+        const parts = atob(key).split(dynamoOpaqueStringSeparator);
+        if (parts.length !== 2)
+            throw new InvalidArgumentError("Invalid opaque item key: Wrong number of parts");
+
+        const partitionKey = parts[0]!;
+        const sortKey = parts[1]!;
+
+        try {
+            const {key} = this._deserializeItemKey(partitionKey, sortKey);
+            return key;
+        } catch (error) {
+            throw InvalidArgumentError.from(error, "Invalid opaque item key");
+        }
+    }
+
+    /**
      * Serializes an item into a representation for saving to DynamoDB.
      *
      * Serializes the item's key, attributes, and adds any index attributes.
@@ -784,9 +866,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     } {
         assert(this._initializationState.isInitialized, "Schema has not finished initializing");
 
-        const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(
-            item as Types["ItemKey"],
-        );
+        const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(item);
 
         const serializedItem: {[key: string]: SchemaSerializedValue} = {partitionKey, sortKey};
         attributesSchema.serializeInto(item, serializedItem);
@@ -797,11 +877,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         );
         if (indexConfigs) {
             for (const indexConfig of indexConfigs) {
-                const indexPartitionKey = serializeDynamoTableSchemaIndexPartitionKey(
-                    indexConfig,
-                    item,
-                );
-                const indexSortKey = serializeDynamoTableSchemaIndexSortKey(indexConfig, item);
+                const indexPartitionKey = this._serializeIndexPartitionKey(indexConfig, item);
+                const indexSortKey = this._serializeItemIndexSortKey(indexConfig, item);
 
                 serializedItem[`index${indexConfig.indexNumber}PartitionKey`] = indexPartitionKey;
                 serializedItem[`index${indexConfig.indexNumber}SortKey`] = indexSortKey;
@@ -1155,87 +1232,85 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html
      */
-    public async updateItem<Key extends Types["ItemKey"]>(
+    public updateItem<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         key: Key,
         update: (
             item: MergeObjectIntersection<Types["Item"] & Key> | null,
         ) => MaybePromise<MergeObjectIntersection<Types["Item"] & Key> | null>,
         {initialItem}: {initialItem?: Types["Item"] & Key} = {},
-    ): Promise<void> {
-        await context.tracer.withSpan("DynamoTableSchema.updateItem", async (context, span) => {
-            span.addData({dynamodb: {tableName: this.getName()}});
+    ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null> {
+        let hasAttempted = false;
 
-            let hasAttempted = false;
+        return context.dynamo.retryTransaction(async context => {
+            const isInitialAttempt = !hasAttempted;
+            hasAttempted = true;
 
-            await context.dynamo.retryTransaction(async context => {
-                const isInitialAttempt = !hasAttempted;
-                hasAttempted = true;
+            const item =
+                isInitialAttempt && initialItem
+                    ? initialItem
+                    : await this.getItemIfExists(context, key);
 
-                const item =
-                    isInitialAttempt && initialItem
-                        ? initialItem
-                        : await this.getItemIfExists(context, key);
+            const newItem = await update(item);
 
-                const newItem = await update(item);
+            // Update was short-circuited.
+            if (item === newItem) return item;
 
-                // Update was short-circuited.
-                if (item === newItem) return;
+            const condition = !item
+                ? DynamoConditionExpression._unsafeRaw(
+                      "attribute_not_exists(partitionKey)",
+                      DynamoConditionExpressionPrecedence.Function,
+                  )
+                : DynamoConditionExpression._unsafeRaw(
+                      "attribute_exists(partitionKey)",
+                      DynamoConditionExpressionPrecedence.Function,
+                  ).and(
+                      DynamoConditionExpression.from({
+                          // Verify that the lock version was not changed by a concurrent writer.
+                          updateLockVersion:
+                              typeof item.updateLockVersion === "number"
+                                  ? DynamoConditionExpression.eq(item.updateLockVersion)
+                                  : DynamoConditionExpression.exists().not(),
+                      }),
+                  );
 
-                const condition = !item
-                    ? DynamoConditionExpression._unsafeRaw(
-                          "attribute_not_exists(partitionKey)",
-                          DynamoConditionExpressionPrecedence.Function,
-                      )
-                    : DynamoConditionExpression._unsafeRaw(
-                          "attribute_exists(partitionKey)",
-                          DynamoConditionExpressionPrecedence.Function,
-                      ).and(
-                          DynamoConditionExpression.from({
-                              // Verify that the lock version was not changed by a concurrent writer.
-                              updateLockVersion:
-                                  typeof item.updateLockVersion === "number"
-                                      ? DynamoConditionExpression.eq(item.updateLockVersion)
-                                      : DynamoConditionExpression.exists().not(),
-                          }),
-                      );
+            if (newItem !== null) {
+                const actualNewItem = {
+                    ...newItem,
+                    // Increment the lock version in this new item.
+                    //
+                    // The `update()` function should not change the `updateLockVersion` property
+                    // itself. If it does (e.g. creates a new item without the property instead of
+                    // spreading the old object) then we override the change.
+                    //
+                    // An undefined lock version is the same as a lock version of 0. Except we
+                    // can't set to 0 because our conditional update looks for a lock version that
+                    // does not exist for version 0.
+                    updateLockVersion: !item
+                        ? undefined
+                        : typeof item.updateLockVersion === "number"
+                        ? item.updateLockVersion + 1
+                        : 1,
+                };
 
-                if (newItem !== null) {
-                    await this._putItem(
-                        context,
-                        {
-                            ...newItem,
-                            // Increment the lock version in this new item.
-                            //
-                            // The `update()` function should not change the `updateLockVersion` property
-                            // itself. If it does (e.g. creates a new item without the property instead of
-                            // spreading the old object) then we override the change.
-                            //
-                            // An undefined lock version is the same as a lock version of 0. Except we
-                            // can't set to 0 because our conditional update looks for a lock version that
-                            // does not exist for version 0.
-                            updateLockVersion: !item
-                                ? undefined
-                                : typeof item.updateLockVersion === "number"
-                                ? item.updateLockVersion + 1
-                                : 1,
-                        },
-                        {
-                            condition,
-                            // This operation implements an optimistic locking scheme. Retrying the
-                            // operation should read the latest item version and eventually succeed.
-                            isConditionCheckErrorRetriable: true,
-                        },
-                    );
-                } else {
-                    await this._deleteItem(context, key, {
-                        condition,
-                        // This operation implements an optimistic locking scheme. Retrying the
-                        // operation should read the latest item version and eventually succeed.
-                        isConditionCheckErrorRetriable: true,
-                    });
-                }
-            });
+                await this._putItem(context, actualNewItem, {
+                    condition,
+                    // This operation implements an optimistic locking scheme. Retrying the
+                    // operation should read the latest item version and eventually succeed.
+                    isConditionCheckErrorRetriable: true,
+                });
+
+                return actualNewItem;
+            } else {
+                await this._deleteItem(context, key, {
+                    condition,
+                    // This operation implements an optimistic locking scheme. Retrying the
+                    // operation should read the latest item version and eventually succeed.
+                    isConditionCheckErrorRetriable: true,
+                });
+
+                return null;
+            }
         });
     }
 
@@ -1591,6 +1666,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             clientRequestToken,
             retryConditionCheckError: getDynamoRetryTransactionIfExists(context),
         });
+
+        // If this transaction had any entries from a `DynamoRealtimeTableSchema` then
+        // we need to broadcast realtime events related to the changes that happened in
+        // this transaction.
+        await DynamoRealtimeTableSchema._broadcastEventsAfterTransaction(context, entries);
     }
 
     /**
@@ -2409,6 +2489,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             partitionKeyAttributes: config.partitionKeyAttributes as any,
             sortKeyAttributes: config.sortKeyAttributes as any,
 
+            serializeOpaqueCursor: itemKey =>
+                this._serializeOpaqueIndexCursor(indexConfig, itemKey),
+            deserializeOpaqueCursor: cursor =>
+                this._deserializeOpaqueIndexCursor(indexConfig, cursor),
+
             async *query(
                 context,
                 {
@@ -2430,15 +2515,23 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     );
 
                 const client = await schema._getClient(context, false);
-                const serializedPartitionKey = serializeDynamoTableSchemaIndexPartitionKey(
+                const serializedPartitionKey = schema._serializeIndexPartitionKey(
                     indexConfig,
                     partitionKey,
                 );
                 const serializedStartSortKey = startSortKey
-                    ? serializeDynamoTableSchemaIndexSortKey(indexConfig, startSortKey)
+                    ? schema._serializeIndexSortKeyBoundWithoutPrimaryKey(
+                          indexConfig,
+                          startSortKey,
+                          isStartSortKeyExclusive ? "StartExclusive" : "StartInclusive",
+                      )
                     : undefined;
                 const serializedEndSortKey = endSortKey
-                    ? serializeDynamoTableSchemaIndexSortKey(indexConfig, endSortKey)
+                    ? schema._serializeIndexSortKeyBoundWithoutPrimaryKey(
+                          indexConfig,
+                          endSortKey,
+                          isEndSortKeyExclusive ? "EndExclusive" : "EndInclusive",
+                      )
                     : undefined;
 
                 const partitionKeyAttributeName = `index${indexConfig.indexNumber}PartitionKey`;
@@ -2448,11 +2541,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 if (afterItemKey) {
                     const serializedAfterPrimaryKey = schema._serializeItemKey(afterItemKey);
 
-                    const serializedAfterPartitionKey = serializeDynamoTableSchemaIndexPartitionKey(
+                    const serializedAfterPartitionKey = schema._serializeIndexPartitionKey(
                         indexConfig,
                         afterItemKey,
                     );
-                    const serializedAfterSortKey = serializeDynamoTableSchemaIndexSortKey(
+                    const serializedAfterSortKey = schema._serializeItemIndexSortKey(
                         indexConfig,
                         afterItemKey,
                     );
@@ -2499,7 +2592,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                             serializedItem.partitionKey,
                             serializedItem.sortKey,
                         ).key,
-                        ...deserializeDynamoTableSchemaIndexKey(
+                        ...schema._deserializeIndexKey(
                             indexConfig,
                             indexPartitionKey,
                             indexSortKey,
@@ -2554,6 +2647,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             partitionKeyAttributes: config.partitionKeyAttributes as any,
             sortKeyAttributes: config.sortKeyAttributes as any,
 
+            serializeOpaqueCursor: itemKey =>
+                this._serializeOpaqueIndexCursor(indexConfig, itemKey),
+            deserializeOpaqueCursor: cursor =>
+                this._deserializeOpaqueIndexCursor(indexConfig, cursor),
+
             async *query(
                 context,
                 {
@@ -2575,15 +2673,23 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     );
 
                 const client = await schema._getClient(context, false);
-                const serializedPartitionKey = serializeDynamoTableSchemaIndexPartitionKey(
+                const serializedPartitionKey = schema._serializeIndexPartitionKey(
                     indexConfig,
                     partitionKey,
                 );
                 const serializedStartSortKey = startSortKey
-                    ? serializeDynamoTableSchemaIndexSortKey(indexConfig, startSortKey)
+                    ? schema._serializeIndexSortKeyBoundWithoutPrimaryKey(
+                          indexConfig,
+                          startSortKey,
+                          isStartSortKeyExclusive ? "StartExclusive" : "StartInclusive",
+                      )
                     : undefined;
                 const serializedEndSortKey = endSortKey
-                    ? serializeDynamoTableSchemaIndexSortKey(indexConfig, endSortKey)
+                    ? schema._serializeIndexSortKeyBoundWithoutPrimaryKey(
+                          indexConfig,
+                          endSortKey,
+                          isEndSortKeyExclusive ? "EndExclusive" : "EndInclusive",
+                      )
                     : undefined;
 
                 const partitionKeyAttributeName = `index${indexConfig.indexNumber}PartitionKey`;
@@ -2593,11 +2699,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 if (afterItemKey) {
                     const serializedAfterPrimaryKey = schema._serializeItemKey(afterItemKey);
 
-                    const serializedAfterPartitionKey = serializeDynamoTableSchemaIndexPartitionKey(
+                    const serializedAfterPartitionKey = schema._serializeIndexPartitionKey(
                         indexConfig,
                         afterItemKey,
                     );
-                    const serializedAfterSortKey = serializeDynamoTableSchemaIndexSortKey(
+                    const serializedAfterSortKey = schema._serializeItemIndexSortKey(
                         indexConfig,
                         afterItemKey,
                     );
@@ -2658,11 +2764,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
                     Object.assign(
                         item,
-                        deserializeDynamoTableSchemaIndexKey(
-                            indexConfig,
-                            indexPartitionKey,
-                            indexSortKey,
-                        ),
+                        schema._deserializeIndexKey(indexConfig, indexPartitionKey, indexSortKey),
                     );
 
                     yield item;
@@ -2686,6 +2788,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         itemTypes,
         partitionKeyAttributes,
         sortKeyAttributes,
+        includePrimaryKeyInSortKey = false,
         projection,
     }: DynamoTableSchemaIndexConfig<
         Types,
@@ -2799,6 +2902,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             partitionKeyAttributes:
                 partitionKeyAttributes as DynamoTableSchemaTypes.KeyAttributes.ConfigBase,
             sortKeyAttributes: sortKeyAttributes as DynamoTableSchemaTypes.KeyAttributes.ConfigBase,
+            includePrimaryKeyInSortKey,
             projection,
         };
 
@@ -2813,6 +2917,306 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         }
 
         return indexConfig;
+    }
+
+    private _serializeIndexPartitionKey(
+        indexConfig: DynamoTableSchemaIndexInternalConfig,
+        item: {[key: string]: unknown},
+    ) {
+        const indexPartitionKeyEntries = [indexConfig.name];
+        for (const [attributeKey, attributeSchema] of Object.entries(
+            indexConfig.partitionKeyAttributes,
+        )) {
+            const attributeValue = item[attributeKey];
+            indexPartitionKeyEntries.push(attributeSchema.serialize(attributeValue));
+        }
+
+        return indexPartitionKeyEntries.join(dynamoKeySeparator);
+    }
+
+    private _serializeIndexSortKeyBoundWithoutPrimaryKey(
+        indexConfig: DynamoTableSchemaIndexInternalConfig,
+        item: {[key: string]: unknown},
+        boundType: "StartExclusive" | "StartInclusive" | "EndExclusive" | "EndInclusive",
+    ) {
+        const itemSortKeyEntries = [];
+        for (const [attributeKey, attributeSchema] of Object.entries(
+            indexConfig.sortKeyAttributes,
+        )) {
+            const attributeValue = item[attributeKey];
+            itemSortKeyEntries.push(attributeSchema.serialize(attributeValue));
+        }
+
+        const key = itemSortKeyEntries.join(dynamoKeySeparator);
+
+        // If we are not including the primary key in our sort key then we can ignore
+        // `boundType` since the operator we use on the query will do all the work.
+        if (!indexConfig.includePrimaryKeyInSortKey) return key;
+
+        // So here we are serializing the bound of an index query. The index sort key
+        // contains the primary key but we do not know the primary key here, only the
+        // declared index sort key. In practice, the index sort key will always be
+        // followed by the partition type identifier (ASCII alphanumeric string).
+        //
+        // To figure out the return for each of these cases we need to think about how
+        // the key will be used as a bounds check in the presence of a longer key that
+        // includes the primary key.
+        //
+        // NOCOMMIT: Test this!
+        switch (boundType) {
+            // `"${key}#${partitionType}" < "${key}~"` is true. We correctly exclude items
+            // before `key`.
+            //
+            // This works since `~` is larger than `#`. `~` should not conflict with key
+            // attribute values since it is compared against the `#` separator character.
+            case "StartExclusive": {
+                return key + "~";
+            }
+            // `"${key}" < "${key}#${partitionType}"` is true. We correctly include items
+            // that start with `key`.
+            case "StartInclusive": {
+                return key;
+            }
+            // `"${key}~" > "${key}#${partitionType}"` is true. We correctly exclude items
+            // that start with `key`.
+            //
+            // This works since `~` is larger than `#`. `~` should not conflict with key
+            // attribute values since it is compared against the `#` separator character.
+            case "EndExclusive": {
+                return key + "~";
+            }
+            // `"${key}#${partitionType}" < "${key}"` is true. We correctly include items
+            // that start with `key`.
+            case "EndInclusive": {
+                return key;
+            }
+            default:
+                throw exhaustive(boundType);
+        }
+    }
+
+    /**
+     * Serializes the index sort key for a full DynamoDB item. The sort key for a
+     * full DynamoDB item sometimes includes the primary key to help sort index
+     * items in a well understood way (instead of relying on undocumented
+     * DynamoDB internals).
+     *
+     * If you don't have the primary key for an item you may use
+     * `_serializeItemIndexSortKeyWithoutPrimaryKey()`.
+     */
+    private _serializeItemIndexSortKey(
+        indexConfig: DynamoTableSchemaIndexInternalConfig,
+        item: {[key: string]: unknown},
+    ) {
+        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
+        assert(typeof item.partitionType === "string");
+        assert(typeof item.sortRangeType === "string");
+        const partitionConfig = this._partitionConfigByName.get(item.partitionType);
+        const partitionDescription =
+            this._initializationState.description.partitionByType[item.partitionType];
+        assert(partitionConfig && partitionDescription, "Invalid partition");
+        const sortRangeConfig = partitionConfig.sortRangeByName.get(item.sortRangeType);
+        const sortRangeDescription = partitionDescription.sortRangeByType[item.sortRangeType];
+        assert(sortRangeConfig && sortRangeDescription, "Invalid sort range");
+
+        const sortKeyEntries = [];
+        for (const [attributeKey, attributeSchema] of Object.entries(
+            indexConfig.sortKeyAttributes,
+        )) {
+            const attributeValue = item[attributeKey];
+            sortKeyEntries.push(attributeSchema.serialize(attributeValue));
+        }
+
+        // If this index sort key includes the primary key then add any attributes not
+        // in our index key already to the sort key.
+        if (indexConfig.includePrimaryKeyInSortKey) {
+            sortKeyEntries.push(item.partitionType);
+            for (const [attributeKey, attributeSchema] of Object.entries(
+                partitionConfig.partitionKeyAttributes,
+            )) {
+                if (
+                    !hasOwnProperty(indexConfig.partitionKeyAttributes, attributeKey) &&
+                    !hasOwnProperty(indexConfig.sortKeyAttributes, attributeKey)
+                ) {
+                    sortKeyEntries.push(attributeSchema.serialize(item[attributeKey]));
+                }
+            }
+
+            sortKeyEntries.push(item.sortRangeType);
+            for (const [attributeKey, attributeSchema] of Object.entries(
+                sortRangeConfig.sortKeyAttributes,
+            )) {
+                if (
+                    !hasOwnProperty(indexConfig.partitionKeyAttributes, attributeKey) &&
+                    !hasOwnProperty(indexConfig.sortKeyAttributes, attributeKey)
+                ) {
+                    sortKeyEntries.push(attributeSchema.serialize(item[attributeKey]));
+                }
+            }
+        }
+
+        return sortKeyEntries.join(dynamoKeySeparator);
+    }
+
+    private _deserializeIndexKey(
+        indexConfig: DynamoTableSchemaIndexInternalConfig,
+        partitionKey: string,
+        sortKey: string,
+    ) {
+        const partitionKeyEntries = partitionKey.split(dynamoKeySeparator);
+        const sortKeyEntries = sortKey.split(dynamoKeySeparator);
+
+        const indexName = partitionKeyEntries[0];
+        assert(indexName === indexConfig.name, "Invalid index partition key");
+
+        const key: any = {};
+
+        let partitionKeyEntryIndex = 1;
+        for (const [attributeKey, attributeSchema] of Object.entries(
+            indexConfig.partitionKeyAttributes,
+        )) {
+            const partitionKeyEntry = partitionKeyEntries[partitionKeyEntryIndex++];
+            assert(partitionKeyEntry !== undefined, "Invalid index partition key");
+            key[attributeKey] = attributeSchema.deserialize(
+                partitionKeyEntry as DynamoKeyAttribute,
+            );
+        }
+
+        let sortKeyEntryIndex = 0;
+        for (const [attributeKey, attributeSchema] of Object.entries(
+            indexConfig.sortKeyAttributes,
+        )) {
+            const sortKeyEntry = sortKeyEntries[sortKeyEntryIndex++];
+            assert(sortKeyEntry !== undefined, "Invalid index sort key");
+            key[attributeKey] = attributeSchema.deserialize(sortKeyEntry as DynamoKeyAttribute);
+        }
+
+        return key;
+    }
+
+    private _serializeOpaqueIndexCursor(
+        indexConfig: DynamoTableSchemaIndexInternalConfig,
+        item: {[key: string]: unknown},
+    ): DynamoIndexCursor {
+        const indexPartitionKey = this._serializeIndexPartitionKey(indexConfig, item);
+        const indexSortKey = this._serializeItemIndexSortKey(indexConfig, item);
+
+        // The primary key is already included in the index key so we don't need to
+        // include it in the cursor.
+        if (indexConfig.includePrimaryKeyInSortKey) {
+            return btoa(
+                [indexPartitionKey, indexSortKey].join(dynamoOpaqueStringSeparator),
+            ) as DynamoIndexCursor;
+        }
+
+        const {partitionKey, sortKey} = this._serializeItemKey(item);
+
+        return btoa(
+            [indexPartitionKey, indexSortKey, partitionKey, sortKey].join(
+                dynamoOpaqueStringSeparator,
+            ),
+        ) as DynamoIndexCursor;
+    }
+
+    private _deserializeOpaqueIndexCursor(
+        indexConfig: DynamoTableSchemaIndexInternalConfig,
+        key: DynamoIndexCursor,
+    ) {
+        const parts = atob(key).split(dynamoOpaqueStringSeparator);
+
+        // If the primary key is not included in the index sort key then cursors are
+        // simple. It's our four keys that we can deserialize directly.
+        if (!indexConfig.includePrimaryKeyInSortKey) {
+            if (parts.length !== 4) {
+                throw new InvalidArgumentError(
+                    "Invalid opaque index cursor: Wrong number of parts",
+                );
+            }
+
+            const indexPartitionKey = parts[0]!;
+            const indexSortKey = parts[1]!;
+            const partitionKey = parts[2]!;
+            const sortKey = parts[3]!;
+
+            try {
+                return {
+                    ...this._deserializeItemKey(partitionKey, sortKey),
+                    ...this._deserializeIndexKey(indexConfig, indexPartitionKey, indexSortKey),
+                };
+            } catch (error) {
+                throw InvalidArgumentError.from(error, "Invalid opaque index cursor");
+            }
+        }
+
+        // Otherwise, the primary key is included in the index sort key. This means all
+        // primary key attributes that don't appear in the index are appended to the
+        // end of the index sort key so we need to deserialize from there.
+
+        if (parts.length !== 2) {
+            throw new InvalidArgumentError("Invalid opaque index cursor: Wrong number of parts");
+        }
+
+        const indexPartitionKey = parts[0]!;
+        const indexSortKey = parts[1]!;
+
+        try {
+            const deserializedKey = this._deserializeIndexKey(
+                indexConfig,
+                indexPartitionKey,
+                indexSortKey,
+            );
+
+            const sortKeyEntries = indexSortKey.split(dynamoKeySeparator);
+            let sortKeyEntryIndex = Object.keys(indexConfig.sortKeyAttributes).length;
+
+            const partitionType = sortKeyEntries[sortKeyEntryIndex++];
+            assert(typeof partitionType === "string", "Invalid index sort key");
+            deserializedKey.partitionType = partitionType;
+            const partitionConfig = this._partitionConfigByName.get(partitionType);
+            assert(partitionConfig, "Invalid partition key");
+
+            for (const [attributeKey, attributeSchema] of Object.entries(
+                partitionConfig.partitionKeyAttributes,
+            )) {
+                if (
+                    !hasOwnProperty(indexConfig.partitionKeyAttributes, attributeKey) &&
+                    !hasOwnProperty(indexConfig.sortKeyAttributes, attributeKey)
+                ) {
+                    const sortKeyEntry = sortKeyEntries[sortKeyEntryIndex++];
+                    assert(sortKeyEntry !== undefined, "Invalid index sort key");
+
+                    deserializedKey[attributeKey] = attributeSchema.deserialize(
+                        sortKeyEntry as DynamoKeyAttribute,
+                    );
+                }
+            }
+
+            const sortRangeType = sortKeyEntries[sortKeyEntryIndex++];
+            assert(typeof sortRangeType === "string", "Invalid index sort key");
+            deserializedKey.sortRangeType = sortRangeType;
+            const sortRangeConfig = partitionConfig.sortRangeByName.get(sortRangeType);
+            assert(sortRangeConfig, "Invalid sort key");
+
+            for (const [attributeKey, attributeSchema] of Object.entries(
+                sortRangeConfig.sortKeyAttributes,
+            )) {
+                if (
+                    !hasOwnProperty(indexConfig.partitionKeyAttributes, attributeKey) &&
+                    !hasOwnProperty(indexConfig.sortKeyAttributes, attributeKey)
+                ) {
+                    const sortKeyEntry = sortKeyEntries[sortKeyEntryIndex++];
+                    assert(sortKeyEntry !== undefined, "Invalid index sort key");
+
+                    deserializedKey[attributeKey] = attributeSchema.deserialize(
+                        sortKeyEntry as DynamoKeyAttribute,
+                    );
+                }
+            }
+
+            return deserializedKey;
+        } catch (error) {
+            throw InvalidArgumentError.from(error, "Invalid opaque index cursor");
+        }
     }
 }
 
@@ -2858,7 +3262,7 @@ export function finishInitializingAllDynamoTableSchemas() {
     for (const callback of callbacks) callback();
 }
 
-type DynamoTableSchemaIndexKeyAttributesConfigBase<
+export type DynamoTableSchemaIndexKeyAttributesConfigBase<
     Types extends DynamoTableSchemaTypesBase,
     ItemTypes extends Types["ItemType"],
 > = {
@@ -2867,13 +3271,13 @@ type DynamoTableSchemaIndexKeyAttributesConfigBase<
     >;
 };
 
-type DynamoTableSchemaIndexKeyAttributesType<
+export type DynamoTableSchemaIndexKeyAttributesType<
     KeyAttributesConfig extends DynamoTableSchemaIndexKeyAttributesConfigBase<any, any>,
 > = DynamoTableSchemaTypes.KeyAttributes.Type<{
     [K in keyof KeyAttributesConfig]: NonNullable<KeyAttributesConfig[K]>;
 }>;
 
-type DynamoTableSchemaIndexConfig<
+export type DynamoTableSchemaIndexConfig<
     Types extends DynamoTableSchemaTypesBase,
     ItemTypes extends Types["ItemType"],
     PartitionKeyAttributesConfig extends DynamoTableSchemaIndexKeyAttributesConfigBase<
@@ -2886,6 +3290,20 @@ type DynamoTableSchemaIndexConfig<
     itemTypes: ReadonlyArray<ItemTypes>;
     partitionKeyAttributes: PartitionKeyAttributesConfig;
     sortKeyAttributes: SortKeyAttributesConfig;
+
+    /**
+     * Include an item's primary key in the index sort key. This makes sure you
+     * never have two items with identical index keys. DynamoDB [does not
+     * specify][1] how items are sorted when they have the same index key, it's
+     * implementation dependent. Including the primary key in the index sort key
+     * allows us to sort items in userspace with the same order as the database.
+     *
+     * If an attribute in the item's primary key is already included in the index
+     * key then we don't include it in the sort key.
+     *
+     * [1]: https://stackoverflow.com/questions/51135606/dynamodb-sorting-order-on-duplicate-global-secondary-indexes
+     */
+    includePrimaryKeyInSortKey?: boolean;
 
     // NOTE(calebmer): It may be useful to add computed index attributes in the
     // future. Where instead of relying on an attribute to exist in all item types
@@ -2936,66 +3354,29 @@ export interface DynamoTableSchemaIndex<QueryItem, ItemKey, IndexPartitionKey, I
             descending?: boolean;
         },
     ): AsyncIterableIterator<MergeObjectIntersection<QueryItem & IndexPartitionKey & IndexSortKey>>;
-}
 
-function serializeDynamoTableSchemaIndexPartitionKey(
-    indexConfig: DynamoTableSchemaIndexInternalConfig,
-    item: {[key: string]: unknown},
-) {
-    const indexPartitionKeyEntries = [indexConfig.name];
-    for (const [attributeKey, attributeSchema] of Object.entries(
-        indexConfig.partitionKeyAttributes,
-    )) {
-        const attributeValue = item[attributeKey];
-        indexPartitionKeyEntries.push(attributeSchema.serialize(attributeValue));
-    }
+    /**
+     * Serialize the item key into an opaque string that can be conveniently shared
+     * with clients. This item key can be used for resuming pagination with the
+     * `afterItemKey` option on `query()`.
+     *
+     * Remember this data is not secured in any way! If you share this with a
+     * client then the client should be able to see all data in the item's index
+     * key AND primary key.
+     */
+    serializeOpaqueCursor(
+        itemKey:
+            | MergeObjectIntersection<ItemKey & IndexPartitionKey & IndexSortKey>
+            | MergeObjectIntersection<QueryItem & IndexPartitionKey & IndexSortKey>,
+    ): DynamoIndexCursor;
 
-    return indexPartitionKeyEntries.join(dynamoKeySeparator);
-}
-
-function serializeDynamoTableSchemaIndexSortKey(
-    indexConfig: DynamoTableSchemaIndexInternalConfig,
-    item: {[key: string]: unknown},
-) {
-    const itemSortKeyEntries = [];
-    for (const [attributeKey, attributeSchema] of Object.entries(indexConfig.sortKeyAttributes)) {
-        const attributeValue = item[attributeKey];
-        itemSortKeyEntries.push(attributeSchema.serialize(attributeValue));
-    }
-
-    return itemSortKeyEntries.join(dynamoKeySeparator);
-}
-
-function deserializeDynamoTableSchemaIndexKey(
-    indexConfig: DynamoTableSchemaIndexInternalConfig,
-    partitionKey: string,
-    sortKey: string,
-) {
-    const partitionKeyEntries = partitionKey.split(dynamoKeySeparator);
-    const sortKeyEntries = sortKey.split(dynamoKeySeparator);
-
-    const indexName = partitionKeyEntries[0];
-    assert(indexName === indexConfig.name, "Invalid index partition key");
-
-    const key: any = {};
-
-    let partitionKeyEntryIndex = 1;
-    for (const [attributeKey, attributeSchema] of Object.entries(
-        indexConfig.partitionKeyAttributes,
-    )) {
-        const partitionKeyEntry = partitionKeyEntries[partitionKeyEntryIndex++];
-        assert(partitionKeyEntry !== undefined, "Invalid index partition key");
-        key[attributeKey] = attributeSchema.deserialize(partitionKeyEntry as DynamoKeyAttribute);
-    }
-
-    let sortKeyEntryIndex = 0;
-    for (const [attributeKey, attributeSchema] of Object.entries(indexConfig.sortKeyAttributes)) {
-        const sortKeyEntry = sortKeyEntries[sortKeyEntryIndex++];
-        assert(sortKeyEntry !== undefined, "Invalid index sort key");
-        key[attributeKey] = attributeSchema.deserialize(sortKeyEntry as DynamoKeyAttribute);
-    }
-
-    return key;
+    /**
+     * Deserialize the cursor from our opaque string format that is shared with
+     * clients.
+     */
+    deserializeOpaqueCursor(
+        cursor: DynamoIndexCursor,
+    ): MergeObjectIntersection<ItemKey & IndexPartitionKey & IndexSortKey>;
 }
 
 /**

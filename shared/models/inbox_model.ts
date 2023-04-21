@@ -1,8 +1,14 @@
-import {MessageContentSchema} from "~/shared/content/message_content_schema";
 import {ChatId, PostId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
+import {MessageContentWithReferencesSchema} from "~/shared/models/message_model";
 import {Model} from "~/shared/models/model";
 import {Schema, SchemaType} from "~/shared/schema/schema";
+
+export class InboxModel extends Model(
+    Schema.object({
+        loudNotificationCount: Schema.integer.min(0),
+    }),
+) {}
 
 export type InboxEntryKey = SchemaType<typeof InboxEntryKeySchema>;
 
@@ -30,7 +36,7 @@ export class InboxChatEntryModel extends Model(
         latestMessage: Schema.object({
             author: AccountModel.schema(),
             createdTime: Schema.date,
-            contentSnippet: MessageContentSchema,
+            contentSnippet: MessageContentWithReferencesSchema,
         }),
     }),
 ) {
@@ -48,7 +54,7 @@ export class InboxPostCommentsEntryModel extends Model(
         latestComment: Schema.object({
             author: AccountModel.schema(),
             createdTime: Schema.date,
-            contentSnippet: MessageContentSchema,
+            contentSnippet: MessageContentWithReferencesSchema,
         }),
     }),
 ) {

@@ -44,7 +44,7 @@ export class DynamoTransactionEntry {
      * Should not call this outside of `DynamoClient`! A transaction entry should
      * be treated as an opaque object outside of this file. We require you to pass
      * in a `DynamoClient` to make sure you at least have access to a
-     * `DynamoClient` which is in an internal directory..
+     * `DynamoClient` which is in an internal directory.
      */
     public _getTransactItemForClient(client: typeof DynamoClient): types.TransactWriteItem {
         return this._transactItem;

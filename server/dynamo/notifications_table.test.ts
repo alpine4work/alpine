@@ -23,7 +23,8 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {generateId} from "~/shared/id/id";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
-import {InboxChatEntryModel, InboxPostCommentsEntryModel} from "~/shared/models/inbox_entry_model";
+import {emptyContentReferences} from "~/shared/models/content_references";
+import {InboxChatEntryModel, InboxPostCommentsEntryModel} from "~/shared/models/inbox_model";
 
 const context = createTestContext();
 
@@ -347,7 +348,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -386,7 +390,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session3.account,
-                    contentSnippet: createSimpleMessageContent("comment2"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment2"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -403,7 +410,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session3.account,
-                    contentSnippet: createSimpleMessageContent("comment2"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment2"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -435,7 +445,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -452,7 +465,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -469,7 +485,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -529,7 +548,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount3MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount3MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -553,7 +575,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount3MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount3MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -578,7 +603,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -602,7 +630,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -627,7 +658,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session3.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -644,7 +678,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session3.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -661,7 +698,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session3.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -721,7 +761,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -760,7 +803,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: createSimpleMessageContent("comment2"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment2"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -777,7 +823,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: createSimpleMessageContent("comment2"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment2"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -809,7 +858,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -826,7 +878,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -896,7 +951,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionSharedAccountMessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionSharedAccountMessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -928,7 +986,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionSharedAccountMessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionSharedAccountMessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -945,7 +1006,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.otherSession.account,
-                    contentSnippet: scenario.mentionSharedAccountMessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionSharedAccountMessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -1008,7 +1072,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount3MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount3MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -1040,7 +1107,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount3MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount3MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -1123,7 +1193,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -1140,7 +1213,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -1160,7 +1236,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -1177,7 +1256,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -1235,7 +1317,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -1260,7 +1345,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -1269,7 +1357,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -1294,7 +1385,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -1303,7 +1397,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -1312,7 +1409,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -1337,7 +1437,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -1346,7 +1449,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -1355,7 +1461,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment4"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment4"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -1380,7 +1489,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment5.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment5"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment5"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -1389,7 +1501,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -1398,7 +1513,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment4"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment4"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -1423,7 +1541,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment6.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -1432,7 +1553,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment5.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment5"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment5"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -1441,7 +1565,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment4"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment4"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -1466,7 +1593,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment6.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -1475,7 +1605,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment7.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment7"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment7"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -1484,7 +1617,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment4"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment4"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -1509,7 +1645,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment8.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -1518,7 +1657,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment6.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -1527,7 +1669,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment4"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment4"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -1598,7 +1743,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -1623,7 +1771,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -1632,7 +1783,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -1657,7 +1811,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -1666,7 +1823,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -1675,7 +1835,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -1694,7 +1857,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -1703,7 +1869,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -1712,7 +1881,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -1737,7 +1909,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment4"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment4"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -1746,7 +1921,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -1755,7 +1933,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -1764,7 +1945,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -1789,7 +1973,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment4"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment4"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -1798,7 +1985,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment5.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment5"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment5"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -1807,7 +1997,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -1816,7 +2009,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -1841,7 +2037,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment4"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment4"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -1850,7 +2049,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment5.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment5"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment5"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -1859,7 +2061,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment6.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment6"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment6"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -1868,7 +2073,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -1893,7 +2101,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment7.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -1902,7 +2113,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment4"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment4"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -1911,7 +2125,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment5.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment5"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment5"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -1920,7 +2137,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -1991,7 +2211,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2008,7 +2231,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -2017,7 +2243,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2034,7 +2263,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2056,7 +2288,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2073,7 +2308,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -2082,7 +2320,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2111,7 +2352,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2128,7 +2372,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2157,7 +2404,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2253,7 +2503,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2270,7 +2523,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment5.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -2279,7 +2535,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -2288,7 +2547,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2305,7 +2567,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2337,7 +2602,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2354,7 +2622,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment5.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2383,7 +2654,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2400,7 +2674,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment5.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2417,7 +2694,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2439,7 +2719,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2456,7 +2739,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -2465,7 +2751,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment5.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2482,7 +2771,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2504,7 +2796,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2521,7 +2816,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -2530,7 +2828,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxPostCommentsEntryModel({
@@ -2539,7 +2840,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment5.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2556,7 +2860,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2604,7 +2911,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2641,7 +2951,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment2"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment2"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2689,7 +3002,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2726,7 +3042,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment2"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment2"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2774,7 +3093,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("comment1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2823,7 +3145,10 @@ describe("Post comments", () => {
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: createSimpleMessageContent("comment2"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment2"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2880,7 +3205,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2904,7 +3232,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2929,7 +3260,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message2.createdTime,
                     author: scenario.session3.account,
-                    contentSnippet: createSimpleMessageContent("message2"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message2"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2946,7 +3280,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message2.createdTime,
                     author: scenario.session3.account,
-                    contentSnippet: createSimpleMessageContent("message2"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message2"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2963,7 +3300,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message2.createdTime,
                     author: scenario.session3.account,
-                    contentSnippet: createSimpleMessageContent("message2"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message2"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -2988,7 +3328,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3005,7 +3348,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3022,7 +3368,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3077,7 +3426,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3101,7 +3453,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3126,7 +3481,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message2.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount3MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount3MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3150,7 +3508,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message2.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount3MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount3MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3175,7 +3536,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3199,7 +3563,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3224,7 +3591,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message4.createdTime,
                     author: scenario.session3.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3241,7 +3611,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message4.createdTime,
                     author: scenario.session3.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3258,7 +3631,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message4.createdTime,
                     author: scenario.session3.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3320,7 +3696,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message1.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: createSimpleMessageContent("message1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3337,7 +3716,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message1.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: createSimpleMessageContent("message1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3362,7 +3744,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message2.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3379,7 +3764,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message2.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3396,7 +3784,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message2.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3421,7 +3812,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3438,7 +3832,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3455,7 +3852,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3480,7 +3880,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message4.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3497,7 +3900,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message4.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3514,7 +3920,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message4.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3570,7 +3979,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message1.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: createSimpleMessageContent("message1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3602,7 +4014,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message1.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: createSimpleMessageContent("message1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3619,7 +4034,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message2.createdTime,
                     author: scenario.otherSession.account,
-                    contentSnippet: createSimpleMessageContent("message2"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message2"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3680,7 +4098,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount3MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount3MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3712,7 +4133,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount3MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount3MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3744,7 +4168,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount3MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount3MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3822,7 +4249,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3839,7 +4269,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3859,7 +4292,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3876,7 +4312,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3929,7 +4368,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3954,7 +4396,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message2.createdTime,
                     author: scenario.session3.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -3963,7 +4408,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -3988,7 +4436,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -3997,7 +4448,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message2.createdTime,
                     author: scenario.session3.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -4006,7 +4460,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -4031,7 +4488,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -4040,7 +4500,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message2.createdTime,
                     author: scenario.session3.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -4049,7 +4512,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message4.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message4"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message4"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -4074,7 +4540,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -4083,7 +4552,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message5.createdTime,
                     author: scenario.session3.account,
-                    contentSnippet: createSimpleMessageContent("message5"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message5"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -4092,7 +4564,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message4.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message4"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message4"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -4117,7 +4592,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message6.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -4126,7 +4604,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -4135,7 +4616,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message5.createdTime,
                     author: scenario.session3.account,
-                    contentSnippet: createSimpleMessageContent("message5"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message5"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -4160,7 +4644,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message6.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -4169,7 +4656,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -4178,7 +4668,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message7.createdTime,
                     author: scenario.session3.account,
-                    contentSnippet: createSimpleMessageContent("message7"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message7"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -4203,7 +4696,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message8.createdTime,
                     author: scenario.session3.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -4212,7 +4708,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message6.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -4221,7 +4720,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -4287,7 +4789,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -4312,7 +4817,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message2.createdTime,
                     author: scenario.session3.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -4321,7 +4829,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -4346,7 +4857,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -4355,7 +4869,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message2.createdTime,
                     author: scenario.session3.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -4364,7 +4881,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -4383,7 +4903,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -4392,7 +4915,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message2.createdTime,
                     author: scenario.session3.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -4401,7 +4927,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -4426,7 +4955,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message4.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message4"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message4"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -4435,7 +4967,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -4444,7 +4979,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message2.createdTime,
                     author: scenario.session3.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -4453,7 +4991,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -4478,7 +5019,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message4.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message4"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message4"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -4487,7 +5031,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -4496,7 +5043,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message5.createdTime,
                     author: scenario.session3.account,
-                    contentSnippet: createSimpleMessageContent("message5"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message5"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -4505,7 +5055,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -4530,7 +5083,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message4.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message4"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message4"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -4539,7 +5095,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message6.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message6"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message6"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -4548,7 +5107,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message5.createdTime,
                     author: scenario.session3.account,
-                    contentSnippet: createSimpleMessageContent("message5"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message5"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -4557,7 +5119,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -4582,7 +5147,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message8.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: scenario.mentionAccount1MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount1MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -4591,7 +5159,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message4.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message4"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message4"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -4600,7 +5171,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message5.createdTime,
                     author: scenario.session3.account,
-                    contentSnippet: createSimpleMessageContent("message5"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message5"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -4609,7 +5183,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -4664,7 +5241,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message1.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: createSimpleMessageContent("message1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -4689,7 +5269,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message2.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message2"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message2"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -4706,7 +5289,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message2.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message2"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message2"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -4731,7 +5317,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -4748,7 +5337,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -4783,7 +5375,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message4.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: createSimpleMessageContent("message4"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message4"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -4800,7 +5395,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message4.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: createSimpleMessageContent("message4"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message4"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -4870,7 +5468,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -4887,7 +5488,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message4.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -4896,7 +5500,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -4913,7 +5520,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message4.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -4922,7 +5532,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -4944,7 +5557,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -4961,7 +5577,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message4.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -4970,7 +5589,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -4987,7 +5609,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message4.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -5009,7 +5634,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -5026,7 +5654,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -5043,7 +5674,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message4.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -5065,7 +5699,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -5089,7 +5726,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message4.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -5170,7 +5810,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -5187,7 +5830,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message5.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -5196,7 +5842,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message4.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -5205,7 +5854,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -5222,7 +5874,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message4.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -5231,7 +5886,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -5263,7 +5921,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -5280,7 +5941,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message5.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -5297,7 +5961,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message4.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -5319,7 +5986,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -5336,7 +6006,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message5.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -5353,7 +6026,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -5362,7 +6038,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message4.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -5384,7 +6063,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -5401,7 +6083,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message4.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -5410,7 +6095,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message5.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -5427,7 +6115,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -5436,7 +6127,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message4.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -5458,7 +6152,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -5475,7 +6172,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -5484,7 +6184,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message4.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -5493,7 +6196,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message5.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -5510,7 +6216,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message3.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message3"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message3"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
             new InboxChatEntryModel({
@@ -5519,7 +6228,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message4.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: scenario.mentionAccount2MessageContent,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -5562,7 +6274,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -5599,7 +6314,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message2.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message2"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message2"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -5642,7 +6360,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message1.createdTime,
                     author: scenario.session2.account,
-                    contentSnippet: createSimpleMessageContent("message1"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message1"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);
@@ -5691,7 +6412,10 @@ describe("Chat", () => {
                 latestMessage: {
                     createdTime: message2.createdTime,
                     author: scenario.session1.account,
-                    contentSnippet: createSimpleMessageContent("message2"),
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("message2"),
+                        references: emptyContentReferences,
+                    },
                 },
             }),
         ]);

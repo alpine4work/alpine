@@ -2987,8 +2987,8 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                 }
             ]
         },
-        "Notifications": {
-            "name": "Notifications",
+        "Inbox": {
+            "name": "Inbox",
             "partitionByType": {
                 "Inbox": {
                     "partitionKeyAttributeByKey": {
@@ -3180,36 +3180,6 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                             }
                         }
                     }
-                },
-                "NotificationEvent": {
-                    "partitionKeyAttributeByKey": {
-                        "eventId": {
-                            "type": "Id"
-                        }
-                    },
-                    "sortRangeByType": {
-                        "Receipt": {
-                            "orderKey": "a0",
-                            "sortKeyAttributeByKey": {},
-                            "attributesSchema": {
-                                "type": "Object",
-                                "propertySchemaByKey": {
-                                    "updateLockVersion": {
-                                        "valueSchema": {
-                                            "type": "Integer"
-                                        },
-                                        "optional": true
-                                    },
-                                    "expirationTime": {
-                                        "valueSchema": {
-                                            "type": "Integer"
-                                        },
-                                        "optional": false
-                                    }
-                                }
-                            }
-                        }
-                    }
                 }
             },
             "indexes": [
@@ -3256,6 +3226,42 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                     }
                 }
             ]
+        },
+        "Notifications": {
+            "name": "Notifications",
+            "partitionByType": {
+                "NotificationEvent": {
+                    "partitionKeyAttributeByKey": {
+                        "eventId": {
+                            "type": "Id"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "Receipt": {
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {},
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    },
+                                    "expirationTime": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "indexes": []
         },
         "Spaces": {
             "name": "Spaces",

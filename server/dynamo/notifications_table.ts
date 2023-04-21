@@ -1,15 +1,15 @@
 import {addMinutes, differenceInMinutes} from "date-fns";
-import {getAccount} from "~/server/dynamo/accounts_table";
+import {dangerouslyGetAccountIfExistsWithoutAuthorization} from "~/server/dynamo/accounts_table";
 import {getChat} from "~/server/dynamo/chat_table";
 import {RequestContext} from "~/server/dynamo/context/request_context";
 import {SystemContext} from "~/server/dynamo/context/system_context";
 import {getPostNotificationSubscribers} from "~/server/dynamo/forum_table";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {
-    DynamoTableIndexItemType,
-    DynamoTableSchema,
-    DynamoTableSchemaGetTypes,
-} from "~/server/dynamo/internal/dynamo_table_schema";
+    DynamoRealtimeTableSchema,
+    DynamoRealtimeTableSchemaGetTypes,
+} from "~/server/dynamo/internal/dynamo_realtime_table_schema";
+import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint";
@@ -23,10 +23,9 @@ import {CancelledError, NotFoundError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array";
 import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit";
-import {DistributivePick} from "~/shared/helpers/types/distributive_pick";
+import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
 import {
     AccountId,
     ChatId,
@@ -37,12 +36,14 @@ import {
 } from "~/shared/id/types/id_types";
 import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/messaging/messaging_shared_styles";
 import {AccountModel} from "~/shared/models/account_model";
+import {emptyContentReferences} from "~/shared/models/content_references";
 import {
     InboxChatEntryModel,
     InboxEntryKey,
     InboxEntryModel,
+    InboxModel,
     InboxPostCommentsEntryModel,
-} from "~/shared/models/inbox_entry_model";
+} from "~/shared/models/inbox_model";
 import {Schema} from "~/shared/schema/schema";
 
 /**
@@ -50,8 +51,8 @@ import {Schema} from "~/shared/schema/schema";
  */
 const initialInboxGeneration = 0;
 
-const NotificationsTable = DynamoTableSchema.new({
-    name: "Notifications",
+const InboxTable = DynamoRealtimeTableSchema.new({
+    name: "Inbox",
     partitions: [
         /**
          * Users receive a lot of notifications from our product. Mentions in document
@@ -241,36 +242,90 @@ const NotificationsTable = DynamoTableSchema.new({
                 },
             ],
         },
-
-        /**
-         * For every notification event we record a receipt when we start processing it
-         * so we only process it once.
-         *
-         * Receipts eventually expire so we don't have unbounded storage growth.
-         */
-        {
-            name: "NotificationEvent",
-            partitionKeyAttributes: {
-                eventId: DynamoKeyAttributeSchema.id<NotificationEventId>(),
-            },
-            sortRanges: [
-                {
-                    name: "Receipt",
-                    sortKeyAttributes: {},
-                    withExpirationTime: "Required",
-                    attributes: Schema.object({}),
-                },
-            ],
-        },
     ],
+    models: {
+        Inbox: {
+            Attributes: {
+                async build(context, item) {
+                    return new InboxModel({
+                        loudNotificationCount: item.loudNotificationCount,
+                    });
+                },
+            },
+            ChatEntry: {
+                async build(context, item) {
+                    const [author] = await runAllPromises([
+                        dangerouslyGetAccountIfExistsWithoutAuthorization(
+                            context,
+                            item.latestMessage.authorId,
+                        ),
+                        // NOCOMMIT
+                        // getContentReferencesForNode(
+                        //     context,
+                        //     item.spaceId,
+                        //     item.latestMessage.contentSnippet,
+                        // ),
+                    ]);
+
+                    const references = emptyContentReferences;
+
+                    return new InboxChatEntryModel({
+                        chatId: item.chatId,
+                        loudNotificationCount: item.loudNotificationCount,
+                        latestMessage: {
+                            author,
+                            createdTime: item.latestMessage.createdTime,
+                            contentSnippet: {doc: item.latestMessage.contentSnippet, references},
+                        },
+                    });
+                },
+            },
+            PostCommentsEntry: {
+                async build(context, item) {
+                    const [author] = await runAllPromises([
+                        dangerouslyGetAccountIfExistsWithoutAuthorization(
+                            context,
+                            item.latestComment.authorId,
+                        ),
+                        // NOCOMMIT:
+                        // getContentReferencesForNode(
+                        //     context,
+                        //     item.spaceId,
+                        //     item.latestComment.contentSnippet,
+                        // ),
+                    ]);
+
+                    const references = emptyContentReferences;
+
+                    return new InboxPostCommentsEntryModel({
+                        postId: item.postId,
+                        loudNotificationCount: item.loudNotificationCount,
+                        latestComment: {
+                            author,
+                            createdTime: item.latestComment.createdTime,
+                            contentSnippet: {doc: item.latestComment.contentSnippet, references},
+                        },
+                    });
+                },
+            },
+        },
+    },
 });
 
-type NotificationTableTypes = DynamoTableSchemaGetTypes<typeof NotificationsTable>;
+const inboxEntryItemTypes = [
+    {partitionType: "Inbox", sortRangeType: "ChatEntry"},
+    {partitionType: "Inbox", sortRangeType: "PostCommentsEntry"},
+] as const;
 
-type InboxEntryItem = DynamoTableIndexItemType<typeof InboxEntriesIndex>;
+type InboxTableTypes = DynamoRealtimeTableSchemaGetTypes<typeof InboxTable>;
 
-type InboxEntryItemKey = NotificationTableTypes["ItemKey"] &
-    DistributivePick<InboxEntryItem, "partitionType" | "sortRangeType">;
+type InboxEntryItem = MergeObjectIntersection<
+    InboxTableTypes["Item"] & (typeof inboxEntryItemTypes)[number]
+>;
+
+type InboxEntryItemKey = MergeObjectIntersection<
+    InboxTableTypes["ItemKey"] & (typeof inboxEntryItemTypes)[number]
+>;
 
 /**
  * First, see the documentation on the `Inbox` partition of `NotificationsTable`
@@ -303,12 +358,9 @@ type InboxEntryItemKey = NotificationTableTypes["ItemKey"] &
  * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/GSI.html
  * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/LSI.html
  */
-const InboxEntriesIndex = NotificationsTable.addExpensiveFullIndex({
+const InboxEntriesIndex = InboxTable.addExpensiveFullIndex({
     name: "InboxEntries",
-    itemTypes: [
-        {partitionType: "Inbox", sortRangeType: "ChatEntry"},
-        {partitionType: "Inbox", sortRangeType: "PostCommentsEntry"},
-    ],
+    itemTypes: inboxEntryItemTypes,
     partitionKeyAttributes: {
         spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
         accountId: DynamoKeyAttributeSchema.id<AccountId>(),
@@ -340,6 +392,32 @@ const InboxEntriesIndex = NotificationsTable.addExpensiveFullIndex({
          */
         enteredTime: DynamoKeyAttributeSchema.date.reverse(),
     },
+});
+
+const NotificationsTable = DynamoTableSchema.new({
+    name: "Notifications",
+    partitions: [
+        /**
+         * For every notification event we record a receipt when we start processing it
+         * so we only process it once.
+         *
+         * Receipts eventually expire so we don't have unbounded storage growth.
+         */
+        {
+            name: "NotificationEvent",
+            partitionKeyAttributes: {
+                eventId: DynamoKeyAttributeSchema.id<NotificationEventId>(),
+            },
+            sortRanges: [
+                {
+                    name: "Receipt",
+                    sortKeyAttributes: {},
+                    withExpirationTime: "Required",
+                    attributes: Schema.object({}),
+                },
+            ],
+        },
+    ],
 });
 
 /**
@@ -393,56 +471,21 @@ export async function getInboxEntries(
 }> {
     await authorizeSpaceAccess(context, spaceId);
 
-    const entries = await parallelMapAsyncIterableToArray(
-        InboxEntriesIndex.query(context, {
-            partitionKey: {
-                spaceId,
-                accountId: context.auth.getAccountId(),
-            },
-            endSortKey: {
-                isArchived: false,
-                generation: InboxEntriesIndex.sortKeyAttributes.generation.maxValue,
-                enteredTime: InboxEntriesIndex.sortKeyAttributes.enteredTime.maxValue,
-            },
-            limit,
-        }),
-        item => createInboxEntryModelFromItem(context, spaceId, item),
-    );
+    const entries = await InboxEntriesIndex.query(context, {
+        partitionKey: {
+            spaceId,
+            accountId: context.auth.getAccountId(),
+        },
+        endSortKey: {
+            isArchived: false,
+            generation: InboxEntriesIndex.sortKeyAttributes.generation.maxValue,
+            enteredTime: InboxEntriesIndex.sortKeyAttributes.enteredTime.maxValue,
+        },
+        limit,
+    });
 
-    return {entries};
-}
-
-async function createInboxEntryModelFromItem(
-    context: RequestContext,
-    spaceId: SpaceId,
-    item: InboxEntryItem,
-): Promise<InboxEntryModel> {
-    switch (item.sortRangeType) {
-        case "ChatEntry": {
-            return new InboxChatEntryModel({
-                chatId: item.chatId,
-                loudNotificationCount: item.loudNotificationCount,
-                latestMessage: {
-                    author: await getAccount(context, spaceId, item.latestMessage.authorId),
-                    createdTime: item.latestMessage.createdTime,
-                    contentSnippet: item.latestMessage.contentSnippet,
-                },
-            });
-        }
-        case "PostCommentsEntry": {
-            return new InboxPostCommentsEntryModel({
-                postId: item.postId,
-                loudNotificationCount: item.loudNotificationCount,
-                latestComment: {
-                    author: await getAccount(context, spaceId, item.latestComment.authorId),
-                    createdTime: item.latestComment.createdTime,
-                    contentSnippet: item.latestComment.contentSnippet,
-                },
-            });
-        }
-        default:
-            throw exhaustive(item);
-    }
+    // NOCOMMIT: Return all the realtime stuffs
+    return {entries: entries.items.map(item => item.model)};
 }
 
 /**
@@ -455,7 +498,7 @@ export async function observeInbox(
 ): Promise<void> {
     await authorizeSpaceAccess(context, spaceId);
 
-    await NotificationsTable.updateItem(
+    await InboxTable.updateItem(
         context,
         {
             partitionType: "Inbox",
@@ -463,13 +506,16 @@ export async function observeInbox(
             spaceId,
             accountId: context.auth.getAccountId(),
         },
-        item => {
-            if (!item) return null;
-            return {
-                ...item,
-                generation: item.generation + observeInboxGenerationIncrement,
-            };
-        },
+        item => ({
+            ...item,
+            partitionType: "Inbox",
+            sortRangeType: "Attributes",
+            spaceId,
+            accountId: context.auth.getAccountId(),
+            generation:
+                (item?.generation ?? initialInboxGeneration) + observeInboxGenerationIncrement,
+            loudNotificationCount: item?.loudNotificationCount ?? 0,
+        }),
     );
 }
 
@@ -550,13 +596,13 @@ async function archiveInboxEntryItemKey(
 ): Promise<void> {
     await context.dynamo.retryTransaction(async context => {
         const [inboxItem, inboxEntryItem] = await runAllPromises([
-            NotificationsTable.getItemIfExists(context, {
+            InboxTable.getItemIfExists(context, {
                 partitionType: "Inbox",
                 sortRangeType: "Attributes",
                 spaceId: itemKey.spaceId,
                 accountId: itemKey.accountId,
             }),
-            NotificationsTable.getItemIfExists(context, itemKey),
+            InboxTable.getItemIfExists(context, itemKey),
         ]);
 
         if (!inboxEntryItem) throw new NotFoundError("Inbox entry not found");
@@ -579,15 +625,15 @@ async function archiveInboxEntryItemKey(
         // Optimization: If we don't need to update the inbox item, save some write
         // capacity units.
         if (inboxEntryItem.loudNotificationCount === 0) {
-            await NotificationsTable.directlyUpdateItem(context, newInboxEntryItem);
+            await InboxTable.directlyUpdateItem(context, newInboxEntryItem);
         } else {
             await DynamoTableSchema.executeTransaction(context, [
-                NotificationsTable.transactionDirectlyUpdateItem({
+                InboxTable.transactionDirectlyUpdateItem({
                     ...inboxItem,
                     loudNotificationCount:
                         inboxItem.loudNotificationCount - inboxEntryItem.loudNotificationCount,
                 }),
-                NotificationsTable.transactionDirectlyUpdateItem(newInboxEntryItem),
+                InboxTable.transactionDirectlyUpdateItem(newInboxEntryItem),
             ]);
         }
     });
@@ -599,13 +645,13 @@ async function unarchiveInboxEntryItemKey(
 ): Promise<void> {
     await context.dynamo.retryTransaction(async context => {
         const [inboxItem, inboxEntryItem] = await runAllPromises([
-            NotificationsTable.getItemIfExists(context, {
+            InboxTable.getItemIfExists(context, {
                 partitionType: "Inbox",
                 sortRangeType: "Attributes",
                 spaceId: itemKey.spaceId,
                 accountId: itemKey.accountId,
             }),
-            NotificationsTable.getItemIfExists(context, itemKey),
+            InboxTable.getItemIfExists(context, itemKey),
         ]);
 
         if (!inboxEntryItem) throw new NotFoundError("Inbox entry not found");
@@ -618,7 +664,7 @@ async function unarchiveInboxEntryItemKey(
         // If the inbox entry item is already unarchived, do nothing.
         if (!inboxEntryItem.isArchived) return;
 
-        await NotificationsTable.directlyUpdateItem(context, {
+        await InboxTable.directlyUpdateItem(context, {
             ...inboxEntryItem,
             isArchived: false,
             // When unarchiving, move the unarchived entry to the top of the inbox so it's
@@ -828,13 +874,13 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
 ): Promise<void> {
     await context.dynamo.retryTransaction(async context => {
         const [inboxItem, oldInboxEntryItem] = await runAllPromises([
-            NotificationsTable.getItemIfExists(context, {
+            InboxTable.getItemIfExists(context, {
                 partitionType: "Inbox",
                 sortRangeType: "Attributes",
                 spaceId: itemKey.spaceId,
                 accountId: itemKey.accountId,
             }),
-            NotificationsTable.getItemIfExists(context, itemKey),
+            InboxTable.getItemIfExists(context, itemKey),
         ]);
 
         const newInboxEntryItemPartial1 = update(oldInboxEntryItem);
@@ -887,7 +933,7 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             loudNotificationCountDifference > 0;
 
         await DynamoTableSchema.executeTransaction(context, [
-            NotificationsTable.transactionDirectlyUpdateItem({
+            InboxTable.transactionDirectlyUpdateItem({
                 ...inboxItem,
                 partitionType: "Inbox",
                 sortRangeType: "Attributes",
@@ -897,7 +943,7 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
                 loudNotificationCount:
                     (inboxItem?.loudNotificationCount ?? 0) + loudNotificationCountDifference,
             }),
-            NotificationsTable.transactionDirectlyUpdateItem({
+            InboxTable.transactionDirectlyUpdateItem({
                 ...newInboxEntryItemPartial2,
                 isArchived,
 
