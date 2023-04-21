@@ -338,16 +338,20 @@ export namespace DynamoTableSchemaTypes {
             Config extends ConfigBase["sortRanges"],
             SortTypes,
             StartSortType extends string,
-        > = ObjectFromEntries<{
-            [EndIndex in keyof Config]: [
-                Config[EndIndex]["name"],
-                TupleDropBeforeAndTakeUntil<
-                    SortTypes,
-                    StartSortType,
-                    Config[EndIndex]["name"]
-                >[number],
-            ];
-        }>;
+        > = IdentityType<
+            MergeObjectIntersection<
+                ObjectFromEntries<{
+                    [EndIndex in keyof Config]: [
+                        Config[EndIndex]["name"],
+                        TupleDropBeforeAndTakeUntil<
+                            SortTypes,
+                            StartSortType,
+                            Config[EndIndex]["name"]
+                        >[number],
+                    ];
+                }>
+            >
+        >;
 
         /**
          * Take a `Tuple` and return values between `DropBefore` and `TakeUntil`.

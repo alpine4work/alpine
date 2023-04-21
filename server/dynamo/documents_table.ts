@@ -13,7 +13,11 @@ import {
 import {createMessagePayloadModel} from "~/server/dynamo/helpers/messaging/create_message_payload_model";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/dynamo/helpers/messaging/get_message_change_log_expiration_time_from_change_time";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
-import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
+import {
+    DynamoTableItemType,
+    DynamoTableSchema,
+    DynamoTableSchemaGetTypes,
+} from "~/server/dynamo/internal/dynamo_table_schema";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint";
@@ -50,7 +54,7 @@ import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/paralle
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
 import {clamp} from "~/shared/helpers/number/clamp";
 import {Replace} from "~/shared/helpers/types/replace";
-import {assertId, generateId} from "~/shared/id/id";
+import {assertId, generateId, getMaxId, getMinId} from "~/shared/id/id";
 import {
     AccountId,
     ContentEditorClientId,
@@ -702,7 +706,7 @@ export async function getDocument(context: RequestContext, id: DocumentId): Prom
         },
         endSortKey: {
             sortRangeType: "ReferencedCommentThread",
-            commentThreadId: DynamoKeyAttributeSchema.id.getMaxValue(),
+            commentThreadId: getMaxId<DocumentCommentThreadId>(),
         },
         limit: "All",
     })) {
@@ -2167,11 +2171,11 @@ async function updateDocumentSnapshotAfterUpdatingContent(
                         },
                         startSortKey: {
                             sortRangeType: "ReferencedCommentThread",
-                            commentThreadId: DynamoKeyAttributeSchema.id.getMinValue(),
+                            commentThreadId: getMinId<DocumentCommentThreadId>(),
                         },
                         endSortKey: {
                             sortRangeType: "ReferencedCommentThread",
-                            commentThreadId: DynamoKeyAttributeSchema.id.getMaxValue(),
+                            commentThreadId: getMaxId<DocumentCommentThreadId>(),
                         },
                         limit: "All",
                     }),

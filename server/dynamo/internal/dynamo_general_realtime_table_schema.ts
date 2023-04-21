@@ -540,9 +540,9 @@ export class DynamoGeneralRealtimeTableSchema<
      * necessary for a client to keep a query up-to-date in realtime.
      */
     public async query<
-        PartitionKey extends Types["PartitionKey"],
-        StartSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
-        EndSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
+        const PartitionKey extends Types["PartitionKey"],
+        const StartSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
+        const EndSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
     >(
         context: DynamoContext,
         {

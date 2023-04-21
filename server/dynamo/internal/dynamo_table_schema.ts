@@ -2237,9 +2237,9 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Query.html
      */
     public async *query<
-        PartitionKey extends Types["PartitionKey"],
-        StartSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
-        EndSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
+        const PartitionKey extends Types["PartitionKey"],
+        const StartSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
+        const EndSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
     >(
         context: DynamoContext,
         {

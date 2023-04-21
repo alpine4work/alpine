@@ -6,7 +6,11 @@ import {getMentionedAccountIdsInContent} from "~/server/dynamo/helpers/get_menti
 import {createMessagePayloadModel} from "~/server/dynamo/helpers/messaging/create_message_payload_model";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/dynamo/helpers/messaging/get_message_change_log_expiration_time_from_change_time";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
-import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
+import {
+    DynamoTableItemType,
+    DynamoTableSchema,
+    DynamoTableSchemaGetTypes,
+} from "~/server/dynamo/internal/dynamo_table_schema";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/internal/is_dynamo_idempotent_parameter_mismatch_error";
 import {getNotificationMessageContentSnippet} from "~/server/dynamo/notifications_table";
