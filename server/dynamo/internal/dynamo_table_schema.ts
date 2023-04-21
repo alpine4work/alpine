@@ -2925,7 +2925,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         // the key will be used as a bounds check in the presence of a longer key that
         // includes the primary key.
         //
-        // NOCOMMIT: Test this!
+        // TODO(calebmer): Write tests for this! I think it works but have never
+        // actually run this code to see if it works...
         switch (boundType) {
             // `"${key}#${partitionType}" < "${key}~"` is true. We correctly exclude items
             // before `key`.
