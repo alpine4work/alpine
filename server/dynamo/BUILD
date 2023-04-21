@@ -30,6 +30,7 @@ ts_project(
         "//shared/content",
         "//shared/context",
         "//shared/documents",
+        "//shared/dynamo",
         "//shared/error",
         "//shared/helpers",
         "//shared/id",

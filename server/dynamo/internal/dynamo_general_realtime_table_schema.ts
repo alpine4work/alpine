@@ -4,8 +4,6 @@ import {DynamoReadConsistency} from "~/server/dynamo/internal/dynamo_client";
 import {DynamoCondition} from "~/server/dynamo/internal/dynamo_condition";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {
-    DynamoIndexCursor,
-    DynamoItemKey,
     DynamoTableSchema,
     DynamoTableSchemaIndexConfig,
     DynamoTableSchemaIndexKeyAttributesConfigBase,
@@ -13,6 +11,13 @@ import {
     DynamoTableSchemaTypesBase,
 } from "~/server/dynamo/internal/dynamo_table_schema";
 import {DynamoTableSchemaTypes} from "~/server/dynamo/internal/types/dynamo_table_schema_types";
+import {
+    DynamoGeneralRealtimeEvent,
+    DynamoGeneralRealtimeIndexQueryResult,
+    DynamoGeneralRealtimeItemResult,
+    DynamoGeneralRealtimeQueryResult,
+} from "~/shared/dynamo/dynamo_general_realtime_types";
+import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
@@ -22,73 +27,23 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
 import {ObjectFromEntries} from "~/shared/helpers/types/object_from_entries";
 
-// NOCOMMIT: Document item vs model naming
-type DynamoRealtimeItemResult<Model> = {
-    readonly readTime: Date;
-    readonly key: DynamoItemKey;
-    readonly version: number;
-    readonly model: Model;
-};
+export type DynamoGeneralRealtimeTableSchemaGetTypes<
+    Schema extends DynamoGeneralRealtimeTableSchema<any, any>,
+> = Schema extends DynamoGeneralRealtimeTableSchema<infer Types, any> ? Types : never;
 
-type DynamoRealtimeQueryResult<Model> = {
-    readonly readTime: Date;
-    readonly items: ReadonlyArray<{
-        readonly key: DynamoItemKey;
-        readonly version: number;
-        readonly model: Model;
-    }>;
-    readonly hasMoreItems: boolean;
-};
-
-type DynamoRealtimeIndexQueryResult<Model> = {
-    readonly readTime: Date;
-    readonly indexName: string;
-    readonly items: ReadonlyArray<{
-        readonly cursor: DynamoIndexCursor;
-        readonly key: DynamoItemKey;
-        readonly version: number;
-        readonly model: Model;
-    }>;
-    readonly hasMoreItems: boolean;
-};
-
-// NOCOMMIT: Explain why we don't currently support deleting items
-type DynamoRealtimeEvent<Model> =
-    | DynamoRealtimeCreateItemEvent<Model>
-    | DynamoRealtimeUpdateItemEvent<Model>;
-
-type DynamoRealtimeCreateItemEvent<Model> = {
-    readonly type: "CreateItem";
-    readonly key: DynamoItemKey;
-    readonly version: number;
-    readonly model: Model;
-    readonly cursorByIndexName: ReadonlyMap<string, DynamoIndexCursor>;
-};
-
-type DynamoRealtimeUpdateItemEvent<Model> = {
-    readonly type: "UpdateItem";
-    readonly key: DynamoItemKey;
-    readonly version: number;
-    readonly model: Model;
-    readonly cursorByIndexName: ReadonlyMap<string, DynamoIndexCursor>;
-};
-
-export type DynamoRealtimeTableSchemaGetTypes<Schema extends DynamoRealtimeTableSchema<any, any>> =
-    Schema extends DynamoRealtimeTableSchema<infer Types, any> ? Types : never;
-
-type DynamoRealtimeTableSchemaPartitionModelConfigType<
+type DynamoGeneralRealtimeTableSchemaPartitionModelConfigType<
     PartitionsConfig extends ReadonlyArray<DynamoTableSchemaTypes.Partition.ConfigBase>,
 > = ObjectFromEntries<{
     [Index in keyof PartitionsConfig]: [
         PartitionsConfig[Index]["name"],
-        DynamoRealtimeTableSchemaSortRangeModelConfigType<
+        DynamoGeneralRealtimeTableSchemaSortRangeModelConfigType<
             PartitionsConfig[Index],
             PartitionsConfig[Index]["sortRanges"]
         >,
     ];
 }>;
 
-type DynamoRealtimeTableSchemaSortRangeModelConfigType<
+type DynamoGeneralRealtimeTableSchemaSortRangeModelConfigType<
     PartitionConfig extends DynamoTableSchemaTypes.Partition.ConfigBase,
     SortRangesConfig extends ReadonlyArray<DynamoTableSchemaTypes.SortRange.ConfigBase>,
 > = ObjectFromEntries<{
@@ -103,7 +58,7 @@ type DynamoRealtimeTableSchemaSortRangeModelConfigType<
     ];
 }>;
 
-type DynamoRealtimeTableSchemaModelMapType<
+type DynamoGeneralRealtimeTableSchemaModelMapType<
     ModelsConfig extends {
         [partitionType: string]: {[sortRangeType: string]: {build: () => Promise<any>}};
     },
@@ -113,12 +68,94 @@ type DynamoRealtimeTableSchemaModelMapType<
     };
 };
 
-export class DynamoRealtimeTableSchema<
+/**
+ * Abstraction on top of `DynamoTableSchema` for creating DynamoDB tables where
+ * clients can not only load data but also subscribe to all future changes to
+ * that data.
+ *
+ * This abstraction is great if you have some simple data that needs realtime
+ * updates but you may need a custom realtime implementation for more advanced
+ * collaborative use cases. This is where the name comes from. The abstraction
+ * is "general" purpose but by trying to serve a general use case it may not be
+ * good for specific applications.
+ *
+ * This DynamoDB realtime implementation is:
+ *
+ * - General purpose. This realtime implementation works with any arbitrary
+ *   data you put into DynamoDB. While sometimes you may have pretty custom
+ *   realtime needs and choose to use a regular table with your own realtime
+ *   implementation (like for documents and messaging), this abstraction can
+ *   support many simple cases where you have a list of data you need updated
+ *   in realtime.
+ *
+ * - Preserves the speed of DynamoDB. You still design your tables in such a
+ *   way that related data is collated so it can be read at once. Realtime adds
+ *   no overhead to reads. (But some overhead to writes.)
+ *
+ * - Eventually correct. Every single update to data you've queried can be
+ *   observed. While updates may arrive out of order they include a version
+ *   number so clients can serialize updates on a given item.
+ *
+ * - Works with stale reads. You can read data on the server then a second
+ *   later connect to a WebSocket on the client and any updates during that
+ *   time will be backfilled. Similarly, we support have realtime updates for
+ *   DynamoDB global secondary indexes that only have eventually
+ *   consistent reads.
+ *
+ * This implementation does have some limitations you need to keep in mind
+ * before using:
+ *
+ * - Does not support all DynamoDB actions. For example, there is no
+ *   `replaceItem()`. All item updates must have a version number so if clients
+ *   receive out-of-order events they can use the version number to
+ *   serialize them.
+ *
+ * - Shares the primary key and index key of an item with the client. While
+ *   this data is base64 encoded, that's not secure! Any attacker can trivially
+ *   get this data from the opaque string keys we send to the client to
+ *   maintain data in realtime. This data must not be sensitive.
+ *
+ * - You are still responsible for broadcasting update events to clients and
+ *   authorizing that clients have access to an update event stream. Similarly,
+ *   clients need to know the right channel to subscribe to in order to receive
+ *   realtime events for the data it's displaying.
+ *
+ * - Clients may skip update events. Because events may arrive out-of-order if
+ *   you have an item at version N and an update to N+1 and N+2 but the event
+ *   for N+2 arrives on the client first them the client will update their item
+ *   to N+2 and ignore the N+1 event when it arrives. Make sure it's not
+ *   essential that a client sees every update.
+ *
+ * - Item-centric. The smallest granularity of realtime update is the item.
+ *   There are no realtime updates for item attributes and we send the entire
+ *   item on updates instead of a diff. There are no consistency guarantees for
+ *   updates across items (unless you use a transaction). Forces you to think
+ *   of items as individual entities all the way down to the client (which
+ *   makes some table designs harder, for example a document table design is
+ *   harder where there are many step items that comprise a document entity).
+ */
+// TODO(calebmer): This abstraction currently doesn't implement `deleteItem()`!
+// Not because it can't but because the implementation is a little tricky. We
+// need a serializable version number for items so that if the client receives
+// realtime events out-of-order then it can still process the items locally in
+// the correct order. Think about how the client would handle delete and create
+// item events that arrive out of order? How would it make sure the latest
+// delete or create item event wins to achieve eventual consistency with the
+// database?
+//
+// One solution is whenever you delete an item to create a gravestone with the
+// old item's `updateLockVersion + 1` (a delete is an update that should
+// increment the version). Then when you create a new item, check if there's a
+// gravestone for that key. If there is a gravestone then the new item's
+// version should be set to `updateLockVersion + 2` so the new version is past
+// the gravestone version. In this design, clients can still use a version to
+// order create/delete events.
+export class DynamoGeneralRealtimeTableSchema<
     Types extends DynamoTableSchemaTypesBase,
     ModelMap extends {[partitionType: string]: {[sortRangeType: string]: any}},
 > {
     private readonly _table: DynamoTableSchema<Types>;
-    private readonly _models: DynamoRealtimeTableSchemaPartitionModelConfigType<
+    private readonly _models: DynamoGeneralRealtimeTableSchemaPartitionModelConfigType<
         DynamoTableSchemaTypes.ConfigBase["partitions"]
     >;
 
@@ -129,21 +166,21 @@ export class DynamoRealtimeTableSchema<
 
     public static new<
         const PartitionsConfig extends ReadonlyArray<DynamoTableSchemaTypes.Partition.ConfigBase>,
-        const ModelsConfig extends DynamoRealtimeTableSchemaPartitionModelConfigType<PartitionsConfig>,
+        const ModelsConfig extends DynamoGeneralRealtimeTableSchemaPartitionModelConfigType<PartitionsConfig>,
     >(config: {
         name: string;
         partitions: PartitionsConfig;
         models: ModelsConfig;
-    }): DynamoRealtimeTableSchema<
+    }): DynamoGeneralRealtimeTableSchema<
         DynamoTableSchemaTypes.Types<{name: string; partitions: PartitionsConfig}>,
-        DynamoRealtimeTableSchemaModelMapType<ModelsConfig>
+        DynamoGeneralRealtimeTableSchemaModelMapType<ModelsConfig>
     > {
-        return new DynamoRealtimeTableSchema(DynamoTableSchema.new(config), config.models);
+        return new DynamoGeneralRealtimeTableSchema(DynamoTableSchema.new(config), config.models);
     }
 
     private constructor(
         table: DynamoTableSchema<Types>,
-        models: DynamoRealtimeTableSchemaPartitionModelConfigType<
+        models: DynamoGeneralRealtimeTableSchemaPartitionModelConfigType<
             DynamoTableSchemaTypes.ConfigBase["partitions"]
         >,
     ) {
@@ -177,15 +214,25 @@ export class DynamoRealtimeTableSchema<
 
     private async _broadcastEventTransaction<Model>(
         context: DynamoContext,
-        event: ReadonlyArray<DynamoRealtimeEvent<Model>>,
+        event: ReadonlyArray<DynamoGeneralRealtimeEvent<Model>>,
     ): Promise<void> {
         // NOCOMMIT: Implement!
     }
 
+    /**
+     * Create an item in the database.
+     *
+     * An item with the same key must not already exist. If it does this method
+     * will throw an error. We do not support replacing items in realtime table
+     * schemas because we need to maintain the item's version number across updates
+     * to correctly order events received out-of-order on the client.
+     */
     public async createItem<Item extends Types["Item"]>(
         context: DynamoContext,
         item: Item,
-    ): Promise<DynamoRealtimeItemResult<ModelMap[Item["partitionType"]][Item["sortRangeType"]]>> {
+    ): Promise<
+        DynamoGeneralRealtimeItemResult<ModelMap[Item["partitionType"]][Item["sortRangeType"]]>
+    > {
         // We backfill realtime updates to `readTime` so it should be before the data
         // is saved to the database to avoid missing realtime updates.
         const readTime = new Date();
@@ -214,13 +261,32 @@ export class DynamoRealtimeTableSchema<
         };
     }
 
+    /**
+     * Update an item in the database based on its previous value.
+     *
+     * Uses [optimistic concurrency control][1] to make sure we don't clobber
+     * other updates. If a concurrent process updated the same item before we
+     * did then we will discard our update and retry the provided `update`
+     * function.
+     *
+     * If you want to manually implement an update retry loop (perhaps to perform
+     * your update in a transaction) then you may use `directlyUpdateItem()` or
+     * `transactionDirectlyUpdateItem()` with `context.dynamo.retryTransaction()`.
+     *
+     * [1]: https://en.wikipedia.org/wiki/Optimistic_concurrency_control
+     */
+    // TODO(calebmer): Does not currently support deleting items but could in the
+    // future. See the TODO note on the top of our class for how we might implement
+    // item deletion.
     public async updateItem<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         itemKey: Key,
         update: (
             item: MergeObjectIntersection<Types["Item"] & Key> | null,
         ) => MaybePromise<MergeObjectIntersection<Types["Item"] & Key>>,
-    ): Promise<DynamoRealtimeItemResult<ModelMap[Key["partitionType"]][Key["sortRangeType"]]>> {
+    ): Promise<
+        DynamoGeneralRealtimeItemResult<ModelMap[Key["partitionType"]][Key["sortRangeType"]]>
+    > {
         // We backfill realtime updates to `readTime` so it should be before the data
         // is saved to the database to avoid missing realtime updates.
         const readTime = new Date();
@@ -254,10 +320,24 @@ export class DynamoRealtimeTableSchema<
         };
     }
 
+    /**
+     * Directly update an item in the database with the new item object.
+     *
+     * The new item object must have an `updateLockVersion` that matches the
+     * `updateLockVersion` of the item currently in the database. Otherwise this
+     * function will throw an error. If you wrap your action in
+     * `context.dynamo.retryTransaction()` then `updateLockVersion` errors will be
+     * retried so you can attempt reading the latest value from the database.
+     *
+     * If you don't want to write a retry loop yourself, consider using
+     * `updateItem()` which does it for you.
+     */
     public async directlyUpdateItem<Item extends Types["Item"]>(
         context: DynamoContext,
         item: Item,
-    ): Promise<DynamoRealtimeItemResult<ModelMap[Item["partitionType"]][Item["sortRangeType"]]>> {
+    ): Promise<
+        DynamoGeneralRealtimeItemResult<ModelMap[Item["partitionType"]][Item["sortRangeType"]]>
+    > {
         // We backfill realtime updates to `readTime` so it should be before the data
         // is saved to the database to avoid missing realtime updates.
         const readTime = new Date();
@@ -286,6 +366,13 @@ export class DynamoRealtimeTableSchema<
         };
     }
 
+    /**
+     * Create an item in the database as the part of a transaction. In a
+     * transaction either all entries succeed or all entries fail. See the
+     * documentation on `createItem()` for more information.
+     *
+     * You execute transactions with `DynamoTableSchema.executeTransaction()`.
+     */
     public transactionCreateItem<Item extends Types["Item"]>(item: Item): DynamoTransactionEntry {
         const entry: DynamoTransactionEntryWithGetTransactionEntryEvent =
             this._table.transactionCreateItem(item);
@@ -310,6 +397,13 @@ export class DynamoRealtimeTableSchema<
         return entry;
     }
 
+    /**
+     * Update an item in the database as the part of a transaction. In a
+     * transaction either all entries succeed or all entries fail. See the
+     * documentation on `directlyUpdateItem()` for more information.
+     *
+     * You execute transactions with `DynamoTableSchema.executeTransaction()`.
+     */
     public transactionDirectlyUpdateItem<Item extends Types["Item"]>(
         item: Item,
     ): DynamoTransactionEntry {
@@ -336,6 +430,10 @@ export class DynamoRealtimeTableSchema<
         return entry;
     }
 
+    /**
+     * Checks whether an item exists and optionally some other conditions on
+     * the item. If this condition fails then the entire transaction fails.
+     */
     public transactionConditionCheck<Key extends Types["ItemKey"]>(
         key: Key,
         condition?: DynamoCondition<Types["Item"] & Key>,
@@ -343,12 +441,19 @@ export class DynamoRealtimeTableSchema<
         return this._table.transactionConditionCheck(key, condition);
     }
 
+    /**
+     * Checks that an item does not exist as a part of a transaction. If this
+     * condition fails then the entire transaction fails.
+     */
     public transactionDoesNotExistConditionCheck<Key extends Types["ItemKey"]>(
         key: Key,
     ): DynamoTransactionEntry {
         return this._table.transactionDoesNotExistConditionCheck(key);
     }
 
+    /**
+     * Get an item from the database and if it doesn't exist then return null.
+     */
     public getItemIfExists<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         key: Key,
@@ -357,6 +462,9 @@ export class DynamoRealtimeTableSchema<
         return this._table.getItemIfExists(context, key, options);
     }
 
+    /**
+     * Get an item from the database and if it doesn't exist then throw an error.
+     */
     public getItem<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         key: Key,
@@ -365,11 +473,16 @@ export class DynamoRealtimeTableSchema<
         return this._table.getItem(context, key, options);
     }
 
+    /**
+     * Get an item from the database and if it doesn't exist then return null. Also
+     * returns all the auxillary information a client will need to maintain this
+     * data in realtime.
+     */
     public async getModelIfExists<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         itemKey: Key,
         options?: {consistency?: DynamoReadConsistency},
-    ): Promise<DynamoRealtimeItemResult<
+    ): Promise<DynamoGeneralRealtimeItemResult<
         ModelMap[Key["partitionType"]][Key["sortRangeType"]]
     > | null> {
         // We backfill realtime updates to `readTime` so it should be before the data
@@ -391,11 +504,18 @@ export class DynamoRealtimeTableSchema<
         };
     }
 
+    /**
+     * Get an item from the database and if it doesn't exist then throw an error.
+     * Also returns all the auxillary information a client will need to maintain
+     * this data in realtime.
+     */
     public async getModel<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         itemKey: Key,
         options?: {consistency?: DynamoReadConsistency},
-    ): Promise<DynamoRealtimeItemResult<ModelMap[Key["partitionType"]][Key["sortRangeType"]]>> {
+    ): Promise<
+        DynamoGeneralRealtimeItemResult<ModelMap[Key["partitionType"]][Key["sortRangeType"]]>
+    > {
         // We backfill realtime updates to `readTime` so it should be before the data
         // is read from the database to avoid missing realtime updates.
         const readTime = new Date();
@@ -414,6 +534,11 @@ export class DynamoRealtimeTableSchema<
         };
     }
 
+    /**
+     * Query a range of items from the table. Highly efficient as DynamoDB
+     * collocates related data. Also returns all the auxillary information
+     * necessary for a client to keep a query up-to-date in realtime.
+     */
     public async query<
         PartitionKey extends Types["PartitionKey"],
         StartSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
@@ -442,7 +567,7 @@ export class DynamoRealtimeTableSchema<
             consistency?: DynamoReadConsistency;
         },
     ): Promise<
-        DynamoRealtimeQueryResult<
+        DynamoGeneralRealtimeQueryResult<
             ModelMap[PartitionKey["partitionType"]][Types["QueryKeyMap"][PartitionKey["partitionType"]][StartSortKey["sortRangeType"]][EndSortKey["sortRangeType"]]]
         >
     > {
@@ -496,7 +621,19 @@ export class DynamoRealtimeTableSchema<
         };
     }
 
-    // NOCOMMIT: Note that the index name will be shared with the client
+    /**
+     * Adds an index to the table that replicates the entire item in the index.
+     * This doubles your storage costs for the table! Once for the base table and
+     * once for the index. You should have ideally zero indexes on the table but if
+     * you absolutely need them don't create too many.
+     *
+     * Index queries contain a cursor for every item. The lexicographic order of
+     * cursors is the same order as items in the index which allows the client to
+     * sort locally.
+     *
+     * Our realtime implementation shares the index name you provide here with the
+     * client! Make sure this name doesn't contain any secrets.
+     */
     public addExpensiveFullIndex<
         ItemTypes extends Types["ItemType"],
         PartitionKeyAttributesConfig extends DynamoTableSchemaIndexKeyAttributesConfigBase<
@@ -517,7 +654,7 @@ export class DynamoRealtimeTableSchema<
             >,
             "includePrimaryKeyInSortKey"
         >,
-    ): DynamoRealtimeTableSchemaIndex<
+    ): DynamoGeneralRealtimeTableSchemaIndex<
         ModelMap[ItemTypes["partitionType"]][ItemTypes["sortRangeType"]],
         DynamoTableSchemaIndexKeyAttributesType<PartitionKeyAttributesConfig>,
         DynamoTableSchemaIndexKeyAttributesType<SortKeyAttributesConfig>
@@ -559,7 +696,7 @@ export class DynamoRealtimeTableSchema<
                     descending,
                 },
             ): Promise<
-                DynamoRealtimeIndexQueryResult<
+                DynamoGeneralRealtimeIndexQueryResult<
                     ModelMap[ItemTypes["partitionType"]][ItemTypes["sortRangeType"]]
                 >
             > => {
@@ -620,6 +757,14 @@ export class DynamoRealtimeTableSchema<
         };
     }
 
+    /**
+     * Broadcast any update events after a transaction successfully completes.
+     * Transactions may update multiple items at once and items from both realtime
+     * and non-realtime tables alike.
+     *
+     * We call this at the end of `DynamoTableSchema.executeTransaction()` which is
+     * why it's public but it should only be called by `DynamoTableSchema`!
+     */
     public static async _broadcastEventsAfterTransaction(
         context: DynamoContext,
         entries: ReadonlyArray<DynamoTransactionEntryWithGetTransactionEntryEvent>,
@@ -628,11 +773,11 @@ export class DynamoRealtimeTableSchema<
         if (entries.every(entry => !entry[getTransactionEntryEventSymbol])) return;
 
         const eventsBySchema = new Map<
-            DynamoRealtimeTableSchema<
+            DynamoGeneralRealtimeTableSchema<
                 DynamoTableSchemaTypesBase,
                 {[partitionType: string]: {[sortRangeType: string]: any}}
             >,
-            Array<DynamoRealtimeEvent<unknown>>
+            Array<DynamoGeneralRealtimeEvent<unknown>>
         >();
 
         await runAllPromises(
@@ -657,7 +802,7 @@ export class DynamoRealtimeTableSchema<
 /**
  * The type to use for accessing an index on our DynamoDB table.
  */
-export interface DynamoRealtimeTableSchemaIndex<Model, IndexPartitionKey, IndexSortKey> {
+export interface DynamoGeneralRealtimeTableSchemaIndex<Model, IndexPartitionKey, IndexSortKey> {
     readonly partitionKeyAttributes: {
         readonly [Key in keyof IndexPartitionKey]: DynamoKeyAttributeSchema<IndexPartitionKey[Key]>;
     };
@@ -688,14 +833,14 @@ export interface DynamoRealtimeTableSchemaIndex<Model, IndexPartitionKey, IndexS
             limit: number | "All";
             descending?: boolean;
         },
-    ): Promise<DynamoRealtimeIndexQueryResult<Model>>;
+    ): Promise<DynamoGeneralRealtimeIndexQueryResult<Model>>;
 }
 
 const getTransactionEntryEventSymbol = Symbol("getTransactionEntryEvent");
 
 type DynamoTransactionEntryWithGetTransactionEntryEvent = DynamoTransactionEntry & {
     [getTransactionEntryEventSymbol]?: (context: DynamoContext) => Promise<{
-        schema: DynamoRealtimeTableSchema<any, any>;
-        event: DynamoRealtimeEvent<unknown>;
+        schema: DynamoGeneralRealtimeTableSchema<any, any>;
+        event: DynamoGeneralRealtimeEvent<unknown>;
     }>;
 };

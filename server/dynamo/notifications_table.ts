@@ -6,9 +6,9 @@ import {SystemContext} from "~/server/dynamo/context/system_context";
 import {getPostNotificationSubscribers} from "~/server/dynamo/forum_table";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {
-    DynamoRealtimeTableSchema,
-    DynamoRealtimeTableSchemaGetTypes,
-} from "~/server/dynamo/internal/dynamo_realtime_table_schema";
+    DynamoGeneralRealtimeTableSchema,
+    DynamoGeneralRealtimeTableSchemaGetTypes,
+} from "~/server/dynamo/internal/dynamo_general_realtime_table_schema";
 import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
@@ -51,7 +51,7 @@ import {Schema} from "~/shared/schema/schema";
  */
 const initialInboxGeneration = 0;
 
-const InboxTable = DynamoRealtimeTableSchema.new({
+const InboxTable = DynamoGeneralRealtimeTableSchema.new({
     name: "Inbox",
     partitions: [
         /**
@@ -317,7 +317,7 @@ const inboxEntryItemTypes = [
     {partitionType: "Inbox", sortRangeType: "PostCommentsEntry"},
 ] as const;
 
-type InboxTableTypes = DynamoRealtimeTableSchemaGetTypes<typeof InboxTable>;
+type InboxTableTypes = DynamoGeneralRealtimeTableSchemaGetTypes<typeof InboxTable>;
 
 type InboxEntryItem = MergeObjectIntersection<
     InboxTableTypes["Item"] & (typeof inboxEntryItemTypes)[number]

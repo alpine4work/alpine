@@ -12,13 +12,13 @@ import {
     DynamoConditionExpressionCompilationContext,
     DynamoConditionExpressionPrecedence,
 } from "~/server/dynamo/internal/dynamo_condition";
+import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/internal/dynamo_general_realtime_table_schema";
 import {dynamoGeneratedSchemaDescription} from "~/server/dynamo/internal/dynamo_generated_schema_description";
 import {
     DynamoKeyAttribute,
     DynamoKeyAttributeSchema,
     dynamoKeySeparator,
 } from "~/server/dynamo/internal/dynamo_key_attribute_schema";
-import {DynamoRealtimeTableSchema} from "~/server/dynamo/internal/dynamo_realtime_table_schema";
 import {dynamoReservedWords} from "~/server/dynamo/internal/dynamo_reserved_words";
 import {
     getDynamoClient,
@@ -28,6 +28,7 @@ import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_co
 import {isDynamoResourceNotFoundError} from "~/server/dynamo/internal/is_dynamo_resource_not_found_error";
 import {DynamoTableSchemaTypes} from "~/server/dynamo/internal/types/dynamo_table_schema_types";
 import {checkSchemaBackwardsCompatibility} from "~/server/schema/check_schema_backwards_compatibility";
+import {DynamoIndexCursor, DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings";
 import {
     DataLossError,
     InternalError,
@@ -190,44 +191,6 @@ type DynamoTableSchemaInitializationState =
            */
           readonly writeCompatibilityError: Error | null;
       };
-
-/**
- * An opaque string representing the primary key of a DynamoDB item.
- *
- * The lexicographic order of items in different partitions is arbitrary and
- * has no meaning. The lexicographic order of items within a partition follows
- * the sort key.
- *
- * The string uses a base64 encoding so the data within is opaque but easily
- * reversible. Make sure to only share this string with clients who are allowed
- * to read the data within the item's primary key.
- *
- * Developers shouldn't try to parse the string for information. Instead data
- * relevant to the client should be sent by other means.
- */
-export type DynamoItemKey = string & {readonly _DynamoItemKey: never};
-
-/**
- * An opaque string representing a position in a DynamoDB index.
- *
- * The lexicographic order of this string mostly corresponds to the order of
- * items in the index. Except for in one important edge case: If two items have
- * the same index key DynamoDB does not specify how the items are sorted. The
- * lexicographic order of cursors does not correspond to DynamoDB's internal
- * sorting of conflicting index items.
- *
- * If you want the lexicographic order of this string to EXACTLY match the
- * order of items in the index then set `includePrimaryKeyInSortKey` to true on
- * your index. This will use the item's primary key to tiebreak the order.
- *
- * The string uses a base64 encoding so the data within is opaque but easily
- * reversible. Make sure to only share this string with clients who are allowed
- * to read the data within the item's index key AND primary key.
- *
- * Developers shouldn't try to parse the string for information. Instead data
- * relevant to the client should be sent by other means.
- */
-export type DynamoIndexCursor = string & {readonly _DynamoIndexCursor: never};
 
 /**
  * Our opaque strings are multiple DynamoDB keys combined together. Our
@@ -1667,10 +1630,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             retryConditionCheckError: getDynamoRetryTransactionIfExists(context),
         });
 
-        // If this transaction had any entries from a `DynamoRealtimeTableSchema` then
-        // we need to broadcast realtime events related to the changes that happened in
-        // this transaction.
-        await DynamoRealtimeTableSchema._broadcastEventsAfterTransaction(context, entries);
+        // If this transaction had any entries from a
+        // `DynamoGeneralRealtimeTableSchema` then we need to broadcast realtime events
+        // related to the changes that happened in this transaction.
+        await DynamoGeneralRealtimeTableSchema._broadcastEventsAfterTransaction(context, entries);
     }
 
     /**
