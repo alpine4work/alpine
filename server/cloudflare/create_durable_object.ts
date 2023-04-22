@@ -1,6 +1,5 @@
 import {jwtVerify} from "jose";
 import {createAwsContextModulesFromEnv} from "~/server/aws/create_aws_context_modules_from_env";
-import {Queue} from "~/server/cloudflare/types/cloudflare_queues";
 import {
     WebSocketServerConnectionBase,
     WebSocketServerTestConnection,
@@ -16,6 +15,7 @@ import {
 } from "~/server/dynamo/context/actor_context_module";
 import {NotificationsContextModule} from "~/server/dynamo/context/notifications_context_module";
 import {ProcessContext, ProcessContextModules} from "~/server/dynamo/context/process_context";
+import {Queue} from "~/server/helpers/types/cloudflare_queues";
 import {createServerTracer} from "~/server/tracer/server_tracer";
 import {traceFetchResponse} from "~/server/tracer/trace_fetch_response";
 import {WebSocketProtocolBase} from "~/shared/cloudflare/web_socket_protocol";

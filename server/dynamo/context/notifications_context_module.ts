@@ -1,6 +1,6 @@
-import {Queue} from "~/server/cloudflare/types/cloudflare_queues";
 import {SystemActionContext} from "~/server/dynamo/context/action_context";
 import {NotificationEvent, processNotificationEvent} from "~/server/dynamo/notifications_table";
+import {Queue} from "~/server/helpers/types/cloudflare_queues";
 import {ContextModuleBase} from "~/shared/context/context_module_base";
 import {ProcessContextModule} from "~/shared/context/process_context_module";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";

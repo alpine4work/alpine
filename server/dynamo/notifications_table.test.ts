@@ -550,7 +550,12 @@ describe("Post comments", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount3MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session3.account.id, scenario.session3.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -577,7 +582,12 @@ describe("Post comments", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount3MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session3.account.id, scenario.session3.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -605,7 +615,12 @@ describe("Post comments", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -632,7 +647,12 @@ describe("Post comments", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -660,7 +680,12 @@ describe("Post comments", () => {
                     author: scenario.session3.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -680,7 +705,12 @@ describe("Post comments", () => {
                     author: scenario.session3.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -700,7 +730,12 @@ describe("Post comments", () => {
                     author: scenario.session3.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -763,7 +798,12 @@ describe("Post comments", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -860,7 +900,12 @@ describe("Post comments", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -880,7 +925,12 @@ describe("Post comments", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -953,7 +1003,12 @@ describe("Post comments", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionSharedAccountMessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.sharedSession.account.id, scenario.sharedSession.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -988,7 +1043,12 @@ describe("Post comments", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionSharedAccountMessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.sharedSession.account.id, scenario.sharedSession.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -1008,7 +1068,12 @@ describe("Post comments", () => {
                     author: scenario.otherSession.account,
                     contentSnippet: {
                         doc: scenario.mentionSharedAccountMessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.sharedSession.account.id, scenario.sharedSession.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -1074,7 +1139,12 @@ describe("Post comments", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount3MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session3.account.id, scenario.session3.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -1109,7 +1179,12 @@ describe("Post comments", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount3MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session3.account.id, scenario.session3.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -1347,7 +1422,12 @@ describe("Post comments", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -1387,7 +1467,12 @@ describe("Post comments", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -1439,7 +1524,12 @@ describe("Post comments", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -1543,7 +1633,12 @@ describe("Post comments", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -1595,7 +1690,12 @@ describe("Post comments", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -1647,7 +1747,12 @@ describe("Post comments", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -1659,7 +1764,12 @@ describe("Post comments", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -1773,7 +1883,12 @@ describe("Post comments", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -1813,7 +1928,12 @@ describe("Post comments", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -1859,7 +1979,12 @@ describe("Post comments", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -1923,7 +2048,12 @@ describe("Post comments", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -2103,7 +2233,12 @@ describe("Post comments", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -2233,7 +2368,12 @@ describe("Post comments", () => {
                     author: scenario.session1.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -2310,7 +2450,12 @@ describe("Post comments", () => {
                     author: scenario.session1.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -2525,7 +2670,12 @@ describe("Post comments", () => {
                     author: scenario.session1.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -2537,7 +2687,12 @@ describe("Post comments", () => {
                     author: scenario.session1.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -2624,7 +2779,12 @@ describe("Post comments", () => {
                     author: scenario.session1.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -2676,7 +2836,12 @@ describe("Post comments", () => {
                     author: scenario.session1.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -2741,7 +2906,12 @@ describe("Post comments", () => {
                     author: scenario.session1.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -2753,7 +2923,12 @@ describe("Post comments", () => {
                     author: scenario.session1.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -2830,7 +3005,12 @@ describe("Post comments", () => {
                     author: scenario.session1.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -2842,7 +3022,12 @@ describe("Post comments", () => {
                     author: scenario.session1.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -3034,7 +3219,12 @@ describe("Post comments", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -3513,7 +3703,12 @@ describe("Chat", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount3MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session3.account.id, scenario.session3.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -3540,7 +3735,12 @@ describe("Chat", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount3MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session3.account.id, scenario.session3.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -3568,7 +3768,12 @@ describe("Chat", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -3595,7 +3800,12 @@ describe("Chat", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -3623,7 +3833,12 @@ describe("Chat", () => {
                     author: scenario.session3.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -3643,7 +3858,12 @@ describe("Chat", () => {
                     author: scenario.session3.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -3663,7 +3883,12 @@ describe("Chat", () => {
                     author: scenario.session3.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -3776,7 +4001,12 @@ describe("Chat", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -3796,7 +4026,12 @@ describe("Chat", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -3816,7 +4051,12 @@ describe("Chat", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -3912,7 +4152,12 @@ describe("Chat", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -3932,7 +4177,12 @@ describe("Chat", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -3952,7 +4202,12 @@ describe("Chat", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -4130,7 +4385,12 @@ describe("Chat", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount3MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session3.account.id, scenario.session3.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -4165,7 +4425,12 @@ describe("Chat", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount3MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session3.account.id, scenario.session3.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -4200,7 +4465,12 @@ describe("Chat", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount3MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session3.account.id, scenario.session3.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -4428,7 +4698,12 @@ describe("Chat", () => {
                     author: scenario.session3.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -4480,7 +4755,12 @@ describe("Chat", () => {
                     author: scenario.session3.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -4532,7 +4812,12 @@ describe("Chat", () => {
                     author: scenario.session3.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -4624,7 +4909,12 @@ describe("Chat", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -4676,7 +4966,12 @@ describe("Chat", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -4728,7 +5023,12 @@ describe("Chat", () => {
                     author: scenario.session3.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -4740,7 +5040,12 @@ describe("Chat", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -4849,7 +5154,12 @@ describe("Chat", () => {
                     author: scenario.session3.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -4901,7 +5211,12 @@ describe("Chat", () => {
                     author: scenario.session3.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -4947,7 +5262,12 @@ describe("Chat", () => {
                     author: scenario.session3.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -5011,7 +5331,12 @@ describe("Chat", () => {
                     author: scenario.session3.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -5179,7 +5504,12 @@ describe("Chat", () => {
                     author: scenario.session2.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount1MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session1.account.id, scenario.session1.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -5520,7 +5850,12 @@ describe("Chat", () => {
                     author: scenario.session1.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -5552,7 +5887,12 @@ describe("Chat", () => {
                     author: scenario.session1.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -5609,7 +5949,12 @@ describe("Chat", () => {
                     author: scenario.session1.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -5641,7 +5986,12 @@ describe("Chat", () => {
                     author: scenario.session1.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -5706,7 +6056,12 @@ describe("Chat", () => {
                     author: scenario.session1.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -5758,7 +6113,12 @@ describe("Chat", () => {
                     author: scenario.session1.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -5862,7 +6222,12 @@ describe("Chat", () => {
                     author: scenario.session1.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -5874,7 +6239,12 @@ describe("Chat", () => {
                     author: scenario.session1.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -5906,7 +6276,12 @@ describe("Chat", () => {
                     author: scenario.session1.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -5973,7 +6348,12 @@ describe("Chat", () => {
                     author: scenario.session1.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -5993,7 +6373,12 @@ describe("Chat", () => {
                     author: scenario.session1.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -6038,7 +6423,12 @@ describe("Chat", () => {
                     author: scenario.session1.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -6070,7 +6460,12 @@ describe("Chat", () => {
                     author: scenario.session1.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -6115,7 +6510,12 @@ describe("Chat", () => {
                     author: scenario.session1.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -6127,7 +6527,12 @@ describe("Chat", () => {
                     author: scenario.session1.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -6159,7 +6564,12 @@ describe("Chat", () => {
                     author: scenario.session1.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -6216,7 +6626,12 @@ describe("Chat", () => {
                     author: scenario.session1.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -6228,7 +6643,12 @@ describe("Chat", () => {
                     author: scenario.session1.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),
@@ -6260,7 +6680,12 @@ describe("Chat", () => {
                     author: scenario.session1.account,
                     contentSnippet: {
                         doc: scenario.mentionAccount2MessageContent,
-                        references: emptyContentReferences,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
                     },
                 },
             }),

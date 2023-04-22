@@ -636,6 +636,8 @@ async function unarchiveInboxEntryItemKey(
     context: ActionContext,
     itemKey: InboxEntryItemKey,
 ): Promise<void> {
+    await authorizeSpaceAccess(context, itemKey.spaceId);
+
     await context.dynamo.retryTransaction(async context => {
         const [inboxItem, inboxEntryItem] = await runAllPromises([
             InboxTable.getItemIfExists(context, {

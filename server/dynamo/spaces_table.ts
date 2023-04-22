@@ -192,7 +192,6 @@ export async function authorizeSpaceAccess(
             break;
         }
         case "System": {
-            // NOCOMMIT: Test this?
             if (context.actor.getSpaceId() !== spaceId) {
                 throw new PermissionDeniedError("System does not have access to space");
             }

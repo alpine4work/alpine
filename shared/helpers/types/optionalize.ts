@@ -1,4 +1,3 @@
-/* eslint-disable only-erasable-types */
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
 
 /**

@@ -2,7 +2,7 @@ import {createDurableObject} from "~/server/cloudflare/create_durable_object";
 import {WebSocketServer} from "~/server/cloudflare/web_socket_server";
 import {DocumentCollaborationConnection} from "~/server/documents/document_collaboration_connection";
 import {DocumentCollaborationContentManager} from "~/server/documents/document_collaboration_content_manager";
-import {ActionContext, SessionActionContext} from "~/server/dynamo/context/action_context";
+import {SessionActionContext} from "~/server/dynamo/context/action_context";
 import {ProcessContext} from "~/server/dynamo/context/process_context";
 import {authorizeDocumentAccess, getDocument} from "~/server/dynamo/documents_table";
 import {DocumentContent} from "~/shared/content/document_content_schema";

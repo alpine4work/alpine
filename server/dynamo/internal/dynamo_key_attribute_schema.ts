@@ -23,7 +23,11 @@ import {
 } from "~/shared/helpers/number/elen_integer";
 import {OrderKey, isOrderKey, maxOrderKey, minOrderKey} from "~/shared/helpers/sort/order_key";
 import {Id, getMaxId, getMinId, isId} from "~/shared/id/id";
-import {LabelStringSchema, maxLabelStringLength} from "~/shared/schema/label_string_schema";
+import {
+    LabelStringSchema,
+    maxLabelString,
+    minLabelString,
+} from "~/shared/schema/label_string_schema";
 
 /**
  * An attribute of a DynamoDB key is an ASCII string excluding the `#`
@@ -289,8 +293,8 @@ export class DynamoKeyAttributeSchema<Value> {
         },
         deserialize: keyAttribute =>
             LabelStringSchema.deserialize(deserializeStringDynamoKeyAttribute(keyAttribute)),
-        minValue: String.fromCharCode(0),
-        maxValue: String.fromCharCode(0xffff).repeat(maxLabelStringLength),
+        minValue: minLabelString,
+        maxValue: maxLabelString,
     });
 
     /**
@@ -309,8 +313,8 @@ export class DynamoKeyAttributeSchema<Value> {
         },
         deserialize: keyAttribute =>
             DynamoEmailAddressSchema.deserialize(deserializeStringDynamoKeyAttribute(keyAttribute)),
-        minValue: String.fromCharCode(0) as EmailAddress,
-        maxValue: String.fromCharCode(0xffff).repeat(maxLabelStringLength) as EmailAddress,
+        minValue: minLabelString as EmailAddress,
+        maxValue: maxLabelString as EmailAddress,
     });
 
     /**
@@ -446,37 +450,70 @@ function serializeStringDynamoKeyAttribute(string: string): DynamoKeyAttribute {
     // restriction we believe we can relax in the future.
     assert(string.length > 0);
 
-    let newString = "";
+    let serializedString = "";
 
     for (let index = 0; index < string.length; index++) {
         const char = string[index]!;
         const charCode = string.charCodeAt(index);
 
         if (
-            charCode >= dynamoKeyAttributeMinCharCode &&
-            charCode <= dynamoKeyAttributeMaxCharCode &&
-            // Make sure we escape the backslash character and the double quote character.
-            // That way we can parse the string using JSON.
-            char !== "\\" &&
-            char !== '"'
+            charCode >= dynamoKeyAttributeMinCharCode + 1 &&
+            charCode <= dynamoKeyAttributeMaxCharCode - 1
         ) {
-            newString += char;
+            serializedString += char;
         } else {
             // Any characters outside our key attribute character range need to be escaped
             // using a Unicode escape sequence.
-            newString += `\\u${charCode.toString(16).padStart(4, "0").toUpperCase()}`;
+            //
+            // We use either the minimum or maximum key attribute character as the escape
+            // character. We use the minimum character if the escaped character is before
+            // our valid character range.
+            serializedString += `${
+                charCode < dynamoKeyAttributeMinCharCode + 1
+                    ? String.fromCharCode(dynamoKeyAttributeMinCharCode)
+                    : String.fromCharCode(dynamoKeyAttributeMaxCharCode)
+            }u${charCode.toString(16).padStart(4, "0").toUpperCase()}`;
         }
     }
 
-    return newString as DynamoKeyAttribute;
+    return serializedString as DynamoKeyAttribute;
 }
 
 /**
  * Deserializes a string produced from `serializeStringDynamoKeyAttribute()`
  * back into a regular string.
  */
-function deserializeStringDynamoKeyAttribute(string: string): string {
-    return JSON.parse(`"${string}"`);
+function deserializeStringDynamoKeyAttribute(string: DynamoKeyAttribute): string {
+    let deserializedString = "";
+
+    for (let index = 0; index < string.length; index++) {
+        const char = string[index]!;
+        const charCode = string.charCodeAt(index);
+
+        if (
+            charCode >= dynamoKeyAttributeMinCharCode + 1 &&
+            charCode <= dynamoKeyAttributeMaxCharCode - 1
+        ) {
+            deserializedString += char;
+        } else {
+            assert(
+                charCode === dynamoKeyAttributeMinCharCode ||
+                    charCode === dynamoKeyAttributeMaxCharCode,
+            );
+
+            index++;
+            assert(string[index] === "u", "Expected unicode escape");
+
+            const escapedCharCodeString = string.slice(index + 1, index + 5);
+            assert(/^[0-9A-F]{4}$/.test(escapedCharCodeString), "Expected unicode escape");
+            const escapedCharCode = parseInt(escapedCharCodeString, 16);
+            index += 4;
+
+            deserializedString += String.fromCharCode(escapedCharCode);
+        }
+    }
+
+    return deserializedString;
 }
 
 /**

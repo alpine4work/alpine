@@ -1776,6 +1776,67 @@ export class StringSchema extends Schema<string> {
     }
 
     /**
+     * Verifies that an string is greater than or equal to the provided value.
+     */
+    public min(string: string): StringSchema {
+        return this._transformString({
+            serialize: value => {
+                if (value < string)
+                    throw new InvalidArgumentError(
+                        `Expected string to be greater than or equal to ${JSON.stringify(string)}`,
+                    );
+
+                return value;
+            },
+            deserialize: value => {
+                if (value < string)
+                    throw new SchemaDeserializationError(
+                        `Expected string to be greater than or equal to ${JSON.stringify(string)}`,
+                    );
+
+                return value;
+            },
+            validate: value => {
+                if (value < string)
+                    throw new InvalidArgumentError(
+                        `Expected string to be greater than or equal to ${JSON.stringify(string)}`,
+                    );
+            },
+        });
+    }
+
+    /**
+     * Verifies that a string is less than or equal to the provided value.
+     */
+    // TODO(calebmer): Backwards compatibility validation?
+    public max(string: string): StringSchema {
+        return this._transformString({
+            serialize: value => {
+                if (value > string)
+                    throw new InvalidArgumentError(
+                        `Expected string to be less than or equal to ${JSON.stringify(string)}`,
+                    );
+
+                return value;
+            },
+            deserialize: value => {
+                if (value > string)
+                    throw new SchemaDeserializationError(
+                        `Expected string to be less than or equal to ${JSON.stringify(string)}`,
+                    );
+
+                return value;
+            },
+            validate: value => {
+                if (value > string)
+                    throw new InvalidArgumentError(
+                        `Expected string to be less than or equal to ${JSON.stringify(string)}`,
+                    );
+            },
+        });
+    }
+
+    /**
      * Verifies that a string only occupies a single line.
      */
     // TODO(calebmer): Backwards compatibility validation?

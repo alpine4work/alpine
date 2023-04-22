@@ -159,22 +159,32 @@ test("can serialize and deserialize a reversed key attribute", () => {
     );
 });
 
-test("can serialize and deserialize label strings", () => {
+test("can serialize and deserialize label strings in the right order", () => {
     const strings = [
         "Hello, world!",
         "😍",
-        "\\ud83d\\ude0d",
+        "\ud83d\ude0d",
+        String.raw`\ud83d\ude0d`,
         "☃★♲",
         "foo#bar",
+        "foo~bar",
+        "foo$bar",
         "caleb.meredith@example.com",
         'So called "cats"',
     ];
 
-    for (const string of strings) {
-        const serializedString = DynamoKeyAttributeSchema.labelString.serialize(string);
-        expect(isDynamoKeyAttribute(serializedString)).toEqual(true);
-        const deserializedString =
-            DynamoKeyAttributeSchema.labelString.deserialize(serializedString);
-        expect(string).toEqual(deserializedString);
-    }
+    expect(Array.from(strings).sort()).toEqual(
+        strings
+            .map(string => {
+                const serializedString = DynamoKeyAttributeSchema.labelString.serialize(string);
+                expect(isDynamoKeyAttribute(serializedString)).toEqual(true);
+                return serializedString;
+            })
+            .sort()
+            .map(serializedString => {
+                const deserializedString =
+                    DynamoKeyAttributeSchema.labelString.deserialize(serializedString);
+                return deserializedString;
+            }),
+    );
 });

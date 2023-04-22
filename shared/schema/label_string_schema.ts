@@ -1,6 +1,7 @@
 import {Schema} from "~/shared/schema/schema";
 
-export const maxLabelStringLength = 512;
+export const minLabelString = String.fromCharCode(0);
+export const maxLabelString = String.fromCharCode(0xffff);
 
 /**
  * A label string is a short, non-empty, single-line string.
@@ -22,6 +23,7 @@ export const maxLabelStringLength = 512;
  */
 export const LabelStringSchema = Schema.string
     .minLength(1)
-    .maxLength(maxLabelStringLength)
+    .maxLength(512)
+    .max(maxLabelString)
     .singleLine()
     .trim();
