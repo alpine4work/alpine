@@ -297,38 +297,38 @@ describe("Post comments", () => {
     test("commenting creates an inbox entry for all subscribers", async () => {
         const scenario = await createScenario();
 
-        const channel = await createChannel(context.request(scenario.session1), {
+        const channel = await createChannel(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             name: "Test",
         });
 
-        const post = await createPost(context.request(scenario.session1), {
+        const post = await createPost(context.action(scenario.session1), {
             channelId: channel.id,
             content: emptyPostContent,
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        const comment1 = await createPostComment(context.request(scenario.session2), {
+        const comment1 = await createPostComment(context.action(scenario.session2), {
             postId: post.id,
             parentCommentIndex: null,
             content: createSimpleMessageContent("comment1"),
@@ -337,7 +337,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -357,20 +357,20 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        const comment2 = await createPostComment(context.request(scenario.session3), {
+        const comment2 = await createPostComment(context.action(scenario.session3), {
             postId: post.id,
             parentCommentIndex: null,
             content: createSimpleMessageContent("comment2"),
@@ -379,7 +379,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -399,7 +399,7 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -419,13 +419,13 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        const comment3 = await createPostComment(context.request(scenario.session1), {
+        const comment3 = await createPostComment(context.action(scenario.session1), {
             postId: post.id,
             parentCommentIndex: null,
             content: createSimpleMessageContent("comment3"),
@@ -434,7 +434,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -454,7 +454,7 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -474,7 +474,7 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -497,38 +497,38 @@ describe("Post comments", () => {
     test("mentioning someone in a creates a loud notification for them whether or not they are a subscriber", async () => {
         const scenario = await createScenario();
 
-        const channel = await createChannel(context.request(scenario.session1), {
+        const channel = await createChannel(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             name: "Test",
         });
 
-        const post = await createPost(context.request(scenario.session1), {
+        const post = await createPost(context.action(scenario.session1), {
             channelId: channel.id,
             content: emptyPostContent,
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        const comment1 = await createPostComment(context.request(scenario.session2), {
+        const comment1 = await createPostComment(context.action(scenario.session2), {
             postId: post.id,
             parentCommentIndex: null,
             content: scenario.mentionAccount3MessageContent,
@@ -537,7 +537,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -557,14 +557,14 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -583,7 +583,7 @@ describe("Post comments", () => {
             }),
         ]);
 
-        const comment2 = await createPostComment(context.request(scenario.session2), {
+        const comment2 = await createPostComment(context.action(scenario.session2), {
             postId: post.id,
             parentCommentIndex: null,
             content: scenario.mentionAccount1MessageContent,
@@ -592,7 +592,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -612,14 +612,14 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -638,7 +638,7 @@ describe("Post comments", () => {
             }),
         ]);
 
-        const comment3 = await createPostComment(context.request(scenario.session3), {
+        const comment3 = await createPostComment(context.action(scenario.session3), {
             postId: post.id,
             parentCommentIndex: null,
             content: scenario.mentionAccount1MessageContent,
@@ -647,7 +647,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -667,7 +667,7 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -687,7 +687,7 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -710,38 +710,38 @@ describe("Post comments", () => {
     test("mentioning yourself does not create a loud notification for yourself", async () => {
         const scenario = await createScenario();
 
-        const channel = await createChannel(context.request(scenario.session1), {
+        const channel = await createChannel(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             name: "Test",
         });
 
-        const post = await createPost(context.request(scenario.session1), {
+        const post = await createPost(context.action(scenario.session1), {
             channelId: channel.id,
             content: emptyPostContent,
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        const comment1 = await createPostComment(context.request(scenario.session2), {
+        const comment1 = await createPostComment(context.action(scenario.session2), {
             postId: post.id,
             parentCommentIndex: null,
             content: scenario.mentionAccount2MessageContent,
@@ -750,7 +750,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -770,20 +770,20 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        const comment2 = await createPostComment(context.request(scenario.session1), {
+        const comment2 = await createPostComment(context.action(scenario.session1), {
             postId: post.id,
             parentCommentIndex: null,
             content: createSimpleMessageContent("comment2"),
@@ -792,7 +792,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -812,7 +812,7 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -832,13 +832,13 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        const comment3 = await createPostComment(context.request(scenario.session2), {
+        const comment3 = await createPostComment(context.action(scenario.session2), {
             postId: post.id,
             parentCommentIndex: null,
             content: scenario.mentionAccount2MessageContent,
@@ -847,7 +847,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -867,7 +867,7 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -887,7 +887,7 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -897,41 +897,41 @@ describe("Post comments", () => {
     test("accounts have separate inboxes for each space", async () => {
         const scenario = await createScenario();
 
-        const channel = await createChannel(context.request(scenario.session1), {
+        const channel = await createChannel(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             name: "Test",
         });
 
-        const post = await createPost(context.request(scenario.session1), {
+        const post = await createPost(context.action(scenario.session1), {
             channelId: channel.id,
             content: emptyPostContent,
         });
 
-        const otherChannel = await createChannel(context.request(scenario.otherSession), {
+        const otherChannel = await createChannel(context.action(scenario.otherSession), {
             spaceId: scenario.otherSpace.id,
             name: "Test",
         });
 
-        const otherPost = await createPost(context.request(scenario.otherSession), {
+        const otherPost = await createPost(context.action(scenario.otherSession), {
             channelId: otherChannel.id,
             content: emptyPostContent,
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.sharedSession), {
+            await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
         expect(
-            await getInboxEntries(context.request(scenario.sharedSession), {
+            await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        const comment1 = await createPostComment(context.request(scenario.session2), {
+        const comment1 = await createPostComment(context.action(scenario.session2), {
             postId: post.id,
             parentCommentIndex: null,
             content: scenario.mentionSharedAccountMessageContent,
@@ -940,7 +940,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.sharedSession), {
+            await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -960,13 +960,13 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.sharedSession), {
+            await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        const comment2 = await createPostComment(context.request(scenario.otherSession), {
+        const comment2 = await createPostComment(context.action(scenario.otherSession), {
             postId: otherPost.id,
             parentCommentIndex: null,
             content: scenario.mentionSharedAccountMessageContent,
@@ -975,7 +975,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.sharedSession), {
+            await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -995,7 +995,7 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.sharedSession), {
+            await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -1018,41 +1018,41 @@ describe("Post comments", () => {
     test("account can not see mention in a different space", async () => {
         const scenario = await createScenario();
 
-        const channel = await createChannel(context.request(scenario.session1), {
+        const channel = await createChannel(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             name: "Test",
         });
 
-        const post = await createPost(context.request(scenario.session1), {
+        const post = await createPost(context.action(scenario.session1), {
             channelId: channel.id,
             content: emptyPostContent,
         });
 
-        const otherChannel = await createChannel(context.request(scenario.otherSession), {
+        const otherChannel = await createChannel(context.action(scenario.otherSession), {
             spaceId: scenario.otherSpace.id,
             name: "Test",
         });
 
-        const otherPost = await createPost(context.request(scenario.otherSession), {
+        const otherPost = await createPost(context.action(scenario.otherSession), {
             channelId: otherChannel.id,
             content: emptyPostContent,
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
         await expect(
-            getInboxEntries(context.request(scenario.session3), {
+            getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).rejects.toThrow(PermissionDeniedError);
 
-        const comment1 = await createPostComment(context.request(scenario.session2), {
+        const comment1 = await createPostComment(context.action(scenario.session2), {
             postId: post.id,
             parentCommentIndex: null,
             content: scenario.mentionAccount3MessageContent,
@@ -1061,7 +1061,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -1081,13 +1081,13 @@ describe("Post comments", () => {
         ]);
 
         await expect(
-            getInboxEntries(context.request(scenario.session3), {
+            getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).rejects.toThrow(PermissionDeniedError);
 
-        await createPostComment(context.request(scenario.otherSession), {
+        await createPostComment(context.action(scenario.otherSession), {
             postId: otherPost.id,
             parentCommentIndex: null,
             content: scenario.mentionAccount3MessageContent,
@@ -1096,7 +1096,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -1116,7 +1116,7 @@ describe("Post comments", () => {
         ]);
 
         await expect(
-            getInboxEntries(context.request(scenario.session3), {
+            getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -1126,31 +1126,31 @@ describe("Post comments", () => {
     test("comment notification events processed out of order result in the same latest comment", async () => {
         const scenario = await createScenario();
 
-        const channel = await createChannel(context.request(scenario.session2), {
+        const channel = await createChannel(context.action(scenario.session2), {
             spaceId: scenario.space.id,
             name: "Test",
         });
 
-        const post = await createPost(context.request(scenario.session2), {
+        const post = await createPost(context.action(scenario.session2), {
             channelId: channel.id,
             content: emptyPostContent,
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        await createPostComment(context.request(scenario.session1), {
+        await createPostComment(context.action(scenario.session1), {
             postId: post.id,
             parentCommentIndex: null,
             content: createSimpleMessageContent("comment1"),
@@ -1165,13 +1165,13 @@ describe("Post comments", () => {
             scenario.session2.account.id,
         );
 
-        await createPostComment(context.request(scenario.session1), {
+        await createPostComment(context.action(scenario.session1), {
             postId: post.id,
             parentCommentIndex: null,
             content: scenario.mentionAccount2MessageContent,
         });
 
-        const comment3 = await createPostComment(context.request(scenario.session2), {
+        const comment3 = await createPostComment(context.action(scenario.session2), {
             postId: post.id,
             parentCommentIndex: null,
             content: createSimpleMessageContent("comment3"),
@@ -1182,7 +1182,7 @@ describe("Post comments", () => {
         unpause2();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -1202,7 +1202,7 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -1225,7 +1225,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -1245,7 +1245,7 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -1268,22 +1268,22 @@ describe("Post comments", () => {
     test("loud notifications are always at the top of the inbox", async () => {
         const scenario = await createScenario();
 
-        const channel = await createChannel(context.request(scenario.session1), {
+        const channel = await createChannel(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             name: "Test",
         });
 
-        const post1 = await createPost(context.request(scenario.session1), {
+        const post1 = await createPost(context.action(scenario.session1), {
             channelId: channel.id,
             content: emptyPostContent,
         });
 
-        const post2 = await createPost(context.request(scenario.session1), {
+        const post2 = await createPost(context.action(scenario.session1), {
             channelId: channel.id,
             content: emptyPostContent,
         });
 
-        const post3 = await createPost(context.request(scenario.session1), {
+        const post3 = await createPost(context.action(scenario.session1), {
             channelId: channel.id,
             content: emptyPostContent,
         });
@@ -1291,13 +1291,13 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        const comment1 = await createPostComment(context.request(scenario.session2), {
+        const comment1 = await createPostComment(context.action(scenario.session2), {
             postId: post1.id,
             parentCommentIndex: null,
             content: createSimpleMessageContent("comment1"),
@@ -1306,7 +1306,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -1325,7 +1325,7 @@ describe("Post comments", () => {
             }),
         ]);
 
-        const comment2 = await createPostComment(context.request(scenario.session2), {
+        const comment2 = await createPostComment(context.action(scenario.session2), {
             postId: post2.id,
             parentCommentIndex: null,
             content: scenario.mentionAccount1MessageContent,
@@ -1334,7 +1334,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -1365,7 +1365,7 @@ describe("Post comments", () => {
             }),
         ]);
 
-        const comment3 = await createPostComment(context.request(scenario.session2), {
+        const comment3 = await createPostComment(context.action(scenario.session2), {
             postId: post3.id,
             parentCommentIndex: null,
             content: createSimpleMessageContent("comment3"),
@@ -1374,7 +1374,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -1417,7 +1417,7 @@ describe("Post comments", () => {
             }),
         ]);
 
-        const comment4 = await createPostComment(context.request(scenario.session2), {
+        const comment4 = await createPostComment(context.action(scenario.session2), {
             postId: post1.id,
             parentCommentIndex: null,
             content: createSimpleMessageContent("comment4"),
@@ -1426,7 +1426,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -1469,7 +1469,7 @@ describe("Post comments", () => {
             }),
         ]);
 
-        const comment5 = await createPostComment(context.request(scenario.session2), {
+        const comment5 = await createPostComment(context.action(scenario.session2), {
             postId: post2.id,
             parentCommentIndex: null,
             content: createSimpleMessageContent("comment5"),
@@ -1478,7 +1478,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -1521,7 +1521,7 @@ describe("Post comments", () => {
             }),
         ]);
 
-        const comment6 = await createPostComment(context.request(scenario.session2), {
+        const comment6 = await createPostComment(context.action(scenario.session2), {
             postId: post3.id,
             parentCommentIndex: null,
             content: scenario.mentionAccount1MessageContent,
@@ -1530,7 +1530,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -1573,7 +1573,7 @@ describe("Post comments", () => {
             }),
         ]);
 
-        const comment7 = await createPostComment(context.request(scenario.session2), {
+        const comment7 = await createPostComment(context.action(scenario.session2), {
             postId: post2.id,
             parentCommentIndex: null,
             content: createSimpleMessageContent("comment7"),
@@ -1582,7 +1582,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -1625,7 +1625,7 @@ describe("Post comments", () => {
             }),
         ]);
 
-        const comment8 = await createPostComment(context.request(scenario.session2), {
+        const comment8 = await createPostComment(context.action(scenario.session2), {
             postId: post2.id,
             parentCommentIndex: null,
             content: scenario.mentionAccount1MessageContent,
@@ -1634,7 +1634,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -1682,34 +1682,34 @@ describe("Post comments", () => {
         const scenario = await createScenario();
 
         await expect(
-            observeInbox(context.request(scenario.session1), {spaceId: scenario.otherSpace.id}),
+            observeInbox(context.action(scenario.session1), {spaceId: scenario.otherSpace.id}),
         ).rejects.toThrow(PermissionDeniedError);
     });
 
     test("observing an inbox freezes loud notifications in place", async () => {
         const scenario = await createScenario();
 
-        const channel = await createChannel(context.request(scenario.session1), {
+        const channel = await createChannel(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             name: "Test",
         });
 
-        const post1 = await createPost(context.request(scenario.session1), {
+        const post1 = await createPost(context.action(scenario.session1), {
             channelId: channel.id,
             content: emptyPostContent,
         });
 
-        const post2 = await createPost(context.request(scenario.session1), {
+        const post2 = await createPost(context.action(scenario.session1), {
             channelId: channel.id,
             content: emptyPostContent,
         });
 
-        const post3 = await createPost(context.request(scenario.session1), {
+        const post3 = await createPost(context.action(scenario.session1), {
             channelId: channel.id,
             content: emptyPostContent,
         });
 
-        const post4 = await createPost(context.request(scenario.session1), {
+        const post4 = await createPost(context.action(scenario.session1), {
             channelId: channel.id,
             content: emptyPostContent,
         });
@@ -1717,13 +1717,13 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        const comment1 = await createPostComment(context.request(scenario.session2), {
+        const comment1 = await createPostComment(context.action(scenario.session2), {
             postId: post1.id,
             parentCommentIndex: null,
             content: createSimpleMessageContent("comment1"),
@@ -1732,7 +1732,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -1751,7 +1751,7 @@ describe("Post comments", () => {
             }),
         ]);
 
-        const comment2 = await createPostComment(context.request(scenario.session2), {
+        const comment2 = await createPostComment(context.action(scenario.session2), {
             postId: post2.id,
             parentCommentIndex: null,
             content: scenario.mentionAccount1MessageContent,
@@ -1760,7 +1760,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -1791,7 +1791,7 @@ describe("Post comments", () => {
             }),
         ]);
 
-        const comment3 = await createPostComment(context.request(scenario.session2), {
+        const comment3 = await createPostComment(context.action(scenario.session2), {
             postId: post3.id,
             parentCommentIndex: null,
             content: createSimpleMessageContent("comment3"),
@@ -1800,7 +1800,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -1843,10 +1843,10 @@ describe("Post comments", () => {
             }),
         ]);
 
-        await observeInbox(context.request(scenario.session1), {spaceId: scenario.space.id});
+        await observeInbox(context.action(scenario.session1), {spaceId: scenario.space.id});
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -1889,7 +1889,7 @@ describe("Post comments", () => {
             }),
         ]);
 
-        const comment4 = await createPostComment(context.request(scenario.session2), {
+        const comment4 = await createPostComment(context.action(scenario.session2), {
             postId: post4.id,
             parentCommentIndex: null,
             content: createSimpleMessageContent("comment4"),
@@ -1898,7 +1898,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -1953,7 +1953,7 @@ describe("Post comments", () => {
             }),
         ]);
 
-        const comment5 = await createPostComment(context.request(scenario.session2), {
+        const comment5 = await createPostComment(context.action(scenario.session2), {
             postId: post2.id,
             parentCommentIndex: null,
             content: createSimpleMessageContent("comment5"),
@@ -1962,7 +1962,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -2017,7 +2017,7 @@ describe("Post comments", () => {
             }),
         ]);
 
-        const comment6 = await createPostComment(context.request(scenario.session2), {
+        const comment6 = await createPostComment(context.action(scenario.session2), {
             postId: post3.id,
             parentCommentIndex: null,
             content: createSimpleMessageContent("comment6"),
@@ -2026,7 +2026,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -2081,7 +2081,7 @@ describe("Post comments", () => {
             }),
         ]);
 
-        const comment7 = await createPostComment(context.request(scenario.session2), {
+        const comment7 = await createPostComment(context.action(scenario.session2), {
             postId: post3.id,
             parentCommentIndex: null,
             content: scenario.mentionAccount1MessageContent,
@@ -2090,7 +2090,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -2149,17 +2149,17 @@ describe("Post comments", () => {
     test("can archive inbox entries", async () => {
         const scenario = await createScenario();
 
-        const channel = await createChannel(context.request(scenario.session1), {
+        const channel = await createChannel(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             name: "Test",
         });
 
-        const post1 = await createPost(context.request(scenario.session1), {
+        const post1 = await createPost(context.action(scenario.session1), {
             channelId: channel.id,
             content: emptyPostContent,
         });
 
-        const post2 = await createPost(context.request(scenario.session1), {
+        const post2 = await createPost(context.action(scenario.session1), {
             channelId: channel.id,
             content: emptyPostContent,
         });
@@ -2167,31 +2167,31 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        await createPostComment(context.request(scenario.session2), {
+        await createPostComment(context.action(scenario.session2), {
             postId: post1.id,
             parentCommentIndex: null,
             content: createSimpleMessageContent("comment1"),
         });
 
-        await createPostComment(context.request(scenario.session3), {
+        await createPostComment(context.action(scenario.session3), {
             postId: post1.id,
             parentCommentIndex: null,
             content: createSimpleMessageContent("comment2"),
         });
 
-        const comment3 = await createPostComment(context.request(scenario.session2), {
+        const comment3 = await createPostComment(context.action(scenario.session2), {
             postId: post1.id,
             parentCommentIndex: null,
             content: createSimpleMessageContent("comment3"),
         });
 
-        const comment4 = await createPostComment(context.request(scenario.session1), {
+        const comment4 = await createPostComment(context.action(scenario.session1), {
             postId: post2.id,
             parentCommentIndex: null,
             content: scenario.mentionAccount2MessageContent,
@@ -2200,7 +2200,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -2220,7 +2220,7 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -2252,7 +2252,7 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -2271,13 +2271,13 @@ describe("Post comments", () => {
             }),
         ]);
 
-        await archiveInboxEntry(context.request(scenario.session3), {
+        await archiveInboxEntry(context.action(scenario.session3), {
             spaceId: scenario.space.id,
             key: {type: "PostComments", postId: post1.id},
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -2297,7 +2297,7 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -2329,19 +2329,19 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        await archiveInboxEntry(context.request(scenario.session2), {
+        await archiveInboxEntry(context.action(scenario.session2), {
             spaceId: scenario.space.id,
             key: {type: "PostComments", postId: post2.id},
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -2361,7 +2361,7 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -2381,19 +2381,19 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        await archiveInboxEntry(context.request(scenario.session2), {
+        await archiveInboxEntry(context.action(scenario.session2), {
             spaceId: scenario.space.id,
             key: {type: "PostComments", postId: post1.id},
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -2413,14 +2413,14 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -2430,22 +2430,22 @@ describe("Post comments", () => {
     test("can unarchive inbox entries", async () => {
         const scenario = await createScenario();
 
-        const channel = await createChannel(context.request(scenario.session1), {
+        const channel = await createChannel(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             name: "Test",
         });
 
-        const post1 = await createPost(context.request(scenario.session1), {
+        const post1 = await createPost(context.action(scenario.session1), {
             channelId: channel.id,
             content: emptyPostContent,
         });
 
-        const post2 = await createPost(context.request(scenario.session1), {
+        const post2 = await createPost(context.action(scenario.session1), {
             channelId: channel.id,
             content: emptyPostContent,
         });
 
-        const post3 = await createPost(context.request(scenario.session1), {
+        const post3 = await createPost(context.action(scenario.session1), {
             channelId: channel.id,
             content: emptyPostContent,
         });
@@ -2453,37 +2453,37 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        await createPostComment(context.request(scenario.session2), {
+        await createPostComment(context.action(scenario.session2), {
             postId: post1.id,
             parentCommentIndex: null,
             content: createSimpleMessageContent("comment1"),
         });
 
-        await createPostComment(context.request(scenario.session3), {
+        await createPostComment(context.action(scenario.session3), {
             postId: post1.id,
             parentCommentIndex: null,
             content: createSimpleMessageContent("comment2"),
         });
 
-        const comment3 = await createPostComment(context.request(scenario.session2), {
+        const comment3 = await createPostComment(context.action(scenario.session2), {
             postId: post1.id,
             parentCommentIndex: null,
             content: createSimpleMessageContent("comment3"),
         });
 
-        const comment4 = await createPostComment(context.request(scenario.session1), {
+        const comment4 = await createPostComment(context.action(scenario.session1), {
             postId: post2.id,
             parentCommentIndex: null,
             content: scenario.mentionAccount2MessageContent,
         });
 
-        const comment5 = await createPostComment(context.request(scenario.session1), {
+        const comment5 = await createPostComment(context.action(scenario.session1), {
             postId: post3.id,
             parentCommentIndex: null,
             content: scenario.mentionAccount2MessageContent,
@@ -2492,7 +2492,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -2512,7 +2512,7 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -2556,7 +2556,7 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -2575,23 +2575,23 @@ describe("Post comments", () => {
             }),
         ]);
 
-        await archiveInboxEntry(context.request(scenario.session3), {
+        await archiveInboxEntry(context.action(scenario.session3), {
             spaceId: scenario.space.id,
             key: {type: "PostComments", postId: post1.id},
         });
 
-        await archiveInboxEntry(context.request(scenario.session2), {
+        await archiveInboxEntry(context.action(scenario.session2), {
             spaceId: scenario.space.id,
             key: {type: "PostComments", postId: post2.id},
         });
 
-        await archiveInboxEntry(context.request(scenario.session2), {
+        await archiveInboxEntry(context.action(scenario.session2), {
             spaceId: scenario.space.id,
             key: {type: "PostComments", postId: post1.id},
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -2611,7 +2611,7 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -2631,19 +2631,19 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        await unarchiveInboxEntry(context.request(scenario.session3), {
+        await unarchiveInboxEntry(context.action(scenario.session3), {
             spaceId: scenario.space.id,
             key: {type: "PostComments", postId: post1.id},
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -2663,7 +2663,7 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -2683,7 +2683,7 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -2702,13 +2702,13 @@ describe("Post comments", () => {
             }),
         ]);
 
-        await unarchiveInboxEntry(context.request(scenario.session2), {
+        await unarchiveInboxEntry(context.action(scenario.session2), {
             spaceId: scenario.space.id,
             key: {type: "PostComments", postId: post2.id},
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -2728,7 +2728,7 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -2760,7 +2760,7 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -2779,13 +2779,13 @@ describe("Post comments", () => {
             }),
         ]);
 
-        await unarchiveInboxEntry(context.request(scenario.session2), {
+        await unarchiveInboxEntry(context.action(scenario.session2), {
             spaceId: scenario.space.id,
             key: {type: "PostComments", postId: post1.id},
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -2805,7 +2805,7 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -2849,7 +2849,7 @@ describe("Post comments", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -2869,15 +2869,45 @@ describe("Post comments", () => {
         ]);
     });
 
-    test("notification on an archived entry revives it", async () => {
+    test("can not archive or unarchive inbox entries in a space you don't have access to", async () => {
         const scenario = await createScenario();
 
-        const channel = await createChannel(context.request(scenario.session1), {
+        const channel = await createChannel(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             name: "Test",
         });
 
-        const post = await createPost(context.request(scenario.session1), {
+        const post = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        await expect(
+            archiveInboxEntry(context.action(scenario.otherSession), {
+                spaceId: scenario.space.id,
+                key: {type: "PostComments", postId: post.id},
+            }),
+        ).rejects.toThrow(PermissionDeniedError);
+
+        await expect(
+            unarchiveInboxEntry(context.action(scenario.otherSession), {
+                spaceId: scenario.space.id,
+                key: {type: "PostComments", postId: post.id},
+            }),
+        ).rejects.toThrow(PermissionDeniedError);
+    });
+
+    test("notification on an archived entry revives it", async () => {
+        const scenario = await createScenario();
+
+        const channel = await createChannel(context.action(scenario.session1), {
+            spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const post = await createPost(context.action(scenario.session1), {
             channelId: channel.id,
             content: emptyPostContent,
         });
@@ -2885,13 +2915,13 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        const comment1 = await createPostComment(context.request(scenario.session2), {
+        const comment1 = await createPostComment(context.action(scenario.session2), {
             postId: post.id,
             parentCommentIndex: null,
             content: createSimpleMessageContent("comment1"),
@@ -2900,7 +2930,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -2919,19 +2949,19 @@ describe("Post comments", () => {
             }),
         ]);
 
-        await archiveInboxEntry(context.request(scenario.session1), {
+        await archiveInboxEntry(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             key: {type: "PostComments", postId: post.id},
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        const comment2 = await createPostComment(context.request(scenario.session2), {
+        const comment2 = await createPostComment(context.action(scenario.session2), {
             postId: post.id,
             parentCommentIndex: null,
             content: createSimpleMessageContent("comment2"),
@@ -2940,7 +2970,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -2963,12 +2993,12 @@ describe("Post comments", () => {
     test("notification on an archived entry revives it clearing old loud notification count", async () => {
         const scenario = await createScenario();
 
-        const channel = await createChannel(context.request(scenario.session1), {
+        const channel = await createChannel(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             name: "Test",
         });
 
-        const post = await createPost(context.request(scenario.session1), {
+        const post = await createPost(context.action(scenario.session1), {
             channelId: channel.id,
             content: emptyPostContent,
         });
@@ -2976,13 +3006,13 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        const comment1 = await createPostComment(context.request(scenario.session2), {
+        const comment1 = await createPostComment(context.action(scenario.session2), {
             postId: post.id,
             parentCommentIndex: null,
             content: scenario.mentionAccount1MessageContent,
@@ -2991,7 +3021,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3010,19 +3040,19 @@ describe("Post comments", () => {
             }),
         ]);
 
-        await archiveInboxEntry(context.request(scenario.session1), {
+        await archiveInboxEntry(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             key: {type: "PostComments", postId: post.id},
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        const comment2 = await createPostComment(context.request(scenario.session2), {
+        const comment2 = await createPostComment(context.action(scenario.session2), {
             postId: post.id,
             parentCommentIndex: null,
             content: createSimpleMessageContent("comment2"),
@@ -3031,7 +3061,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3054,12 +3084,12 @@ describe("Post comments", () => {
     test("notification on an archived entry from own account does not revive it", async () => {
         const scenario = await createScenario();
 
-        const channel = await createChannel(context.request(scenario.session1), {
+        const channel = await createChannel(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             name: "Test",
         });
 
-        const post = await createPost(context.request(scenario.session1), {
+        const post = await createPost(context.action(scenario.session1), {
             channelId: channel.id,
             content: emptyPostContent,
         });
@@ -3067,13 +3097,13 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        const comment1 = await createPostComment(context.request(scenario.session2), {
+        const comment1 = await createPostComment(context.action(scenario.session2), {
             postId: post.id,
             parentCommentIndex: null,
             content: createSimpleMessageContent("comment1"),
@@ -3082,7 +3112,7 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3101,19 +3131,19 @@ describe("Post comments", () => {
             }),
         ]);
 
-        await archiveInboxEntry(context.request(scenario.session1), {
+        await archiveInboxEntry(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             key: {type: "PostComments", postId: post.id},
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        const comment2 = await createPostComment(context.request(scenario.session1), {
+        const comment2 = await createPostComment(context.action(scenario.session1), {
             postId: post.id,
             parentCommentIndex: null,
             content: createSimpleMessageContent("comment2"),
@@ -3122,19 +3152,19 @@ describe("Post comments", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        await unarchiveInboxEntry(context.request(scenario.session1), {
+        await unarchiveInboxEntry(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             key: {type: "PostComments", postId: post.id},
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3159,33 +3189,33 @@ describe("Chat", () => {
     test("messaging creates an inbox entry for all subscribers", async () => {
         const scenario = await createScenario();
 
-        const chatId = await getOrCreateChatForAccounts(context.request(scenario.session1), {
+        const chatId = await getOrCreateChatForAccounts(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             otherAccountIds: [scenario.session2.account.id, scenario.session3.account.id],
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        const message1 = await sendChatMessage(context.request(scenario.session2), {
+        const message1 = await sendChatMessage(context.action(scenario.session2), {
             chatId,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message1"),
@@ -3194,7 +3224,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3214,14 +3244,14 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3240,7 +3270,7 @@ describe("Chat", () => {
             }),
         ]);
 
-        const message2 = await sendChatMessage(context.request(scenario.session3), {
+        const message2 = await sendChatMessage(context.action(scenario.session3), {
             chatId,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message2"),
@@ -3249,7 +3279,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3269,7 +3299,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3289,7 +3319,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3308,7 +3338,7 @@ describe("Chat", () => {
             }),
         ]);
 
-        const message3 = await sendChatMessage(context.request(scenario.session1), {
+        const message3 = await sendChatMessage(context.action(scenario.session1), {
             chatId,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message3"),
@@ -3317,7 +3347,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3337,7 +3367,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3357,7 +3387,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3380,33 +3410,33 @@ describe("Chat", () => {
     test("mentioning someone in a creates a second loud notification for them", async () => {
         const scenario = await createScenario();
 
-        const chatId = await getOrCreateChatForAccounts(context.request(scenario.session1), {
+        const chatId = await getOrCreateChatForAccounts(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             otherAccountIds: [scenario.session2.account.id, scenario.session3.account.id],
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        const message1 = await sendChatMessage(context.request(scenario.session2), {
+        const message1 = await sendChatMessage(context.action(scenario.session2), {
             chatId,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message1"),
@@ -3415,7 +3445,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3435,14 +3465,14 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3461,7 +3491,7 @@ describe("Chat", () => {
             }),
         ]);
 
-        const message2 = await sendChatMessage(context.request(scenario.session2), {
+        const message2 = await sendChatMessage(context.action(scenario.session2), {
             chatId,
             parentMessageIndex: null,
             content: scenario.mentionAccount3MessageContent,
@@ -3470,7 +3500,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3490,14 +3520,14 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3516,7 +3546,7 @@ describe("Chat", () => {
             }),
         ]);
 
-        const message3 = await sendChatMessage(context.request(scenario.session2), {
+        const message3 = await sendChatMessage(context.action(scenario.session2), {
             chatId,
             parentMessageIndex: null,
             content: scenario.mentionAccount1MessageContent,
@@ -3525,7 +3555,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3545,14 +3575,14 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3571,7 +3601,7 @@ describe("Chat", () => {
             }),
         ]);
 
-        const message4 = await sendChatMessage(context.request(scenario.session3), {
+        const message4 = await sendChatMessage(context.action(scenario.session3), {
             chatId,
             parentMessageIndex: null,
             content: scenario.mentionAccount1MessageContent,
@@ -3580,7 +3610,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3600,7 +3630,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3620,7 +3650,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3643,33 +3673,33 @@ describe("Chat", () => {
     test("mentioning yourself does not create an extra loud notification for yourself", async () => {
         const scenario = await createScenario();
 
-        const chatId = await getOrCreateChatForAccounts(context.request(scenario.session1), {
+        const chatId = await getOrCreateChatForAccounts(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             otherAccountIds: [scenario.session2.account.id, scenario.session3.account.id],
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        const message1 = await sendChatMessage(context.request(scenario.session1), {
+        const message1 = await sendChatMessage(context.action(scenario.session1), {
             chatId,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message1"),
@@ -3678,14 +3708,14 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3705,7 +3735,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3724,7 +3754,7 @@ describe("Chat", () => {
             }),
         ]);
 
-        const message2 = await sendChatMessage(context.request(scenario.session2), {
+        const message2 = await sendChatMessage(context.action(scenario.session2), {
             chatId,
             parentMessageIndex: null,
             content: scenario.mentionAccount2MessageContent,
@@ -3733,7 +3763,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3753,7 +3783,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3773,7 +3803,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3792,7 +3822,7 @@ describe("Chat", () => {
             }),
         ]);
 
-        const message3 = await sendChatMessage(context.request(scenario.session1), {
+        const message3 = await sendChatMessage(context.action(scenario.session1), {
             chatId,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message3"),
@@ -3801,7 +3831,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3821,7 +3851,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3841,7 +3871,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3860,7 +3890,7 @@ describe("Chat", () => {
             }),
         ]);
 
-        const message4 = await sendChatMessage(context.request(scenario.session2), {
+        const message4 = await sendChatMessage(context.action(scenario.session2), {
             chatId,
             parentMessageIndex: null,
             content: scenario.mentionAccount2MessageContent,
@@ -3869,7 +3899,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3889,7 +3919,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3909,7 +3939,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3932,13 +3962,13 @@ describe("Chat", () => {
     test("accounts have separate inboxes for each space", async () => {
         const scenario = await createScenario();
 
-        const chatId = await getOrCreateChatForAccounts(context.request(scenario.session1), {
+        const chatId = await getOrCreateChatForAccounts(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             otherAccountIds: [scenario.sharedSession.account.id],
         });
 
         const otherChatId = await getOrCreateChatForAccounts(
-            context.request(scenario.otherSession),
+            context.action(scenario.otherSession),
             {
                 spaceId: scenario.otherSpace.id,
                 otherAccountIds: [scenario.sharedSession.account.id],
@@ -3946,20 +3976,20 @@ describe("Chat", () => {
         );
 
         expect(
-            await getInboxEntries(context.request(scenario.sharedSession), {
+            await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
         expect(
-            await getInboxEntries(context.request(scenario.sharedSession), {
+            await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        const message1 = await sendChatMessage(context.request(scenario.session1), {
+        const message1 = await sendChatMessage(context.action(scenario.session1), {
             chatId,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message1"),
@@ -3968,7 +3998,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.sharedSession), {
+            await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -3988,13 +4018,13 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.sharedSession), {
+            await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        const message2 = await sendChatMessage(context.request(scenario.otherSession), {
+        const message2 = await sendChatMessage(context.action(scenario.otherSession), {
             chatId: otherChatId,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message2"),
@@ -4003,7 +4033,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.sharedSession), {
+            await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -4023,7 +4053,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.sharedSession), {
+            await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -4046,18 +4076,18 @@ describe("Chat", () => {
     test("account can not see mention in chat they don't have access to", async () => {
         const scenario = await createScenario();
 
-        const chat1Id = await getOrCreateChatForAccounts(context.request(scenario.session1), {
+        const chat1Id = await getOrCreateChatForAccounts(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             otherAccountIds: [scenario.session2.account.id, scenario.session3.account.id],
         });
 
-        const chat2Id = await getOrCreateChatForAccounts(context.request(scenario.session1), {
+        const chat2Id = await getOrCreateChatForAccounts(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             otherAccountIds: [scenario.session2.account.id],
         });
 
         const otherChatId = await getOrCreateChatForAccounts(
-            context.request(scenario.otherSession),
+            context.action(scenario.otherSession),
             {
                 spaceId: scenario.otherSpace.id,
                 otherAccountIds: [scenario.sharedSession.account.id],
@@ -4065,20 +4095,20 @@ describe("Chat", () => {
         );
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
         await expect(
-            getInboxEntries(context.request(scenario.session3), {
+            getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).rejects.toThrow(PermissionDeniedError);
 
-        const message1 = await sendChatMessage(context.request(scenario.session2), {
+        const message1 = await sendChatMessage(context.action(scenario.session2), {
             chatId: chat1Id,
             parentMessageIndex: null,
             content: scenario.mentionAccount3MessageContent,
@@ -4087,7 +4117,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -4107,13 +4137,13 @@ describe("Chat", () => {
         ]);
 
         await expect(
-            getInboxEntries(context.request(scenario.session3), {
+            getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).rejects.toThrow(PermissionDeniedError);
 
-        await sendChatMessage(context.request(scenario.session2), {
+        await sendChatMessage(context.action(scenario.session2), {
             chatId: chat2Id,
             parentMessageIndex: null,
             content: scenario.mentionAccount3MessageContent,
@@ -4122,7 +4152,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -4142,13 +4172,13 @@ describe("Chat", () => {
         ]);
 
         await expect(
-            getInboxEntries(context.request(scenario.session3), {
+            getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).rejects.toThrow(PermissionDeniedError);
 
-        await sendChatMessage(context.request(scenario.otherSession), {
+        await sendChatMessage(context.action(scenario.otherSession), {
             chatId: otherChatId,
             parentMessageIndex: null,
             content: scenario.mentionAccount3MessageContent,
@@ -4157,7 +4187,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -4177,7 +4207,7 @@ describe("Chat", () => {
         ]);
 
         await expect(
-            getInboxEntries(context.request(scenario.session3), {
+            getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -4187,26 +4217,26 @@ describe("Chat", () => {
     test("message notification events processed out of order result in the same latest message", async () => {
         const scenario = await createScenario();
 
-        const chatId = await getOrCreateChatForAccounts(context.request(scenario.session1), {
+        const chatId = await getOrCreateChatForAccounts(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             otherAccountIds: [scenario.session2.account.id],
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        await sendChatMessage(context.request(scenario.session1), {
+        await sendChatMessage(context.action(scenario.session1), {
             chatId,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message1"),
@@ -4221,13 +4251,13 @@ describe("Chat", () => {
             scenario.session2.account.id,
         );
 
-        await sendChatMessage(context.request(scenario.session1), {
+        await sendChatMessage(context.action(scenario.session1), {
             chatId,
             parentMessageIndex: null,
             content: scenario.mentionAccount2MessageContent,
         });
 
-        const message3 = await sendChatMessage(context.request(scenario.session2), {
+        const message3 = await sendChatMessage(context.action(scenario.session2), {
             chatId,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message3"),
@@ -4238,7 +4268,7 @@ describe("Chat", () => {
         unpause2();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -4258,7 +4288,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -4281,7 +4311,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -4301,7 +4331,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -4324,17 +4354,17 @@ describe("Chat", () => {
     test("loud notifications are always at the top of the inbox", async () => {
         const scenario = await createScenario();
 
-        const chat1Id = await getOrCreateChatForAccounts(context.request(scenario.session1), {
+        const chat1Id = await getOrCreateChatForAccounts(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             otherAccountIds: [scenario.session2.account.id],
         });
 
-        const chat2Id = await getOrCreateChatForAccounts(context.request(scenario.session1), {
+        const chat2Id = await getOrCreateChatForAccounts(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             otherAccountIds: [scenario.session3.account.id],
         });
 
-        const chat3Id = await getOrCreateChatForAccounts(context.request(scenario.session1), {
+        const chat3Id = await getOrCreateChatForAccounts(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             otherAccountIds: [scenario.session2.account.id, scenario.session3.account.id],
         });
@@ -4342,13 +4372,13 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        const message1 = await sendChatMessage(context.request(scenario.session2), {
+        const message1 = await sendChatMessage(context.action(scenario.session2), {
             chatId: chat1Id,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message1"),
@@ -4357,7 +4387,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -4376,7 +4406,7 @@ describe("Chat", () => {
             }),
         ]);
 
-        const message2 = await sendChatMessage(context.request(scenario.session3), {
+        const message2 = await sendChatMessage(context.action(scenario.session3), {
             chatId: chat2Id,
             parentMessageIndex: null,
             content: scenario.mentionAccount1MessageContent,
@@ -4385,7 +4415,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -4416,7 +4446,7 @@ describe("Chat", () => {
             }),
         ]);
 
-        const message3 = await sendChatMessage(context.request(scenario.session2), {
+        const message3 = await sendChatMessage(context.action(scenario.session2), {
             chatId: chat3Id,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message3"),
@@ -4425,7 +4455,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -4468,7 +4498,7 @@ describe("Chat", () => {
             }),
         ]);
 
-        const message4 = await sendChatMessage(context.request(scenario.session2), {
+        const message4 = await sendChatMessage(context.action(scenario.session2), {
             chatId: chat1Id,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message4"),
@@ -4477,7 +4507,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -4520,7 +4550,7 @@ describe("Chat", () => {
             }),
         ]);
 
-        const message5 = await sendChatMessage(context.request(scenario.session3), {
+        const message5 = await sendChatMessage(context.action(scenario.session3), {
             chatId: chat2Id,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message5"),
@@ -4529,7 +4559,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -4572,7 +4602,7 @@ describe("Chat", () => {
             }),
         ]);
 
-        const message6 = await sendChatMessage(context.request(scenario.session2), {
+        const message6 = await sendChatMessage(context.action(scenario.session2), {
             chatId: chat1Id,
             parentMessageIndex: null,
             content: scenario.mentionAccount1MessageContent,
@@ -4581,7 +4611,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -4624,7 +4654,7 @@ describe("Chat", () => {
             }),
         ]);
 
-        const message7 = await sendChatMessage(context.request(scenario.session3), {
+        const message7 = await sendChatMessage(context.action(scenario.session3), {
             chatId: chat2Id,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message7"),
@@ -4633,7 +4663,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -4676,7 +4706,7 @@ describe("Chat", () => {
             }),
         ]);
 
-        const message8 = await sendChatMessage(context.request(scenario.session3), {
+        const message8 = await sendChatMessage(context.action(scenario.session3), {
             chatId: chat2Id,
             parentMessageIndex: null,
             content: scenario.mentionAccount1MessageContent,
@@ -4685,7 +4715,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -4733,29 +4763,29 @@ describe("Chat", () => {
         const scenario = await createScenario();
 
         await expect(
-            observeInbox(context.request(scenario.session1), {spaceId: scenario.otherSpace.id}),
+            observeInbox(context.action(scenario.session1), {spaceId: scenario.otherSpace.id}),
         ).rejects.toThrow(PermissionDeniedError);
     });
 
     test("observing an inbox freezes loud notifications in place", async () => {
         const scenario = await createScenario();
 
-        const chat1Id = await getOrCreateChatForAccounts(context.request(scenario.session1), {
+        const chat1Id = await getOrCreateChatForAccounts(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             otherAccountIds: [scenario.session2.account.id],
         });
 
-        const chat2Id = await getOrCreateChatForAccounts(context.request(scenario.session1), {
+        const chat2Id = await getOrCreateChatForAccounts(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             otherAccountIds: [scenario.session3.account.id],
         });
 
-        const chat3Id = await getOrCreateChatForAccounts(context.request(scenario.session1), {
+        const chat3Id = await getOrCreateChatForAccounts(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             otherAccountIds: [scenario.session2.account.id, scenario.session3.account.id],
         });
 
-        const chat4Id = await getOrCreateChatForAccounts(context.request(scenario.session1), {
+        const chat4Id = await getOrCreateChatForAccounts(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             otherAccountIds: [scenario.session2.account.id, scenario.sharedSession.account.id],
         });
@@ -4763,13 +4793,13 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        const message1 = await sendChatMessage(context.request(scenario.session2), {
+        const message1 = await sendChatMessage(context.action(scenario.session2), {
             chatId: chat1Id,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message1"),
@@ -4778,7 +4808,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -4797,7 +4827,7 @@ describe("Chat", () => {
             }),
         ]);
 
-        const message2 = await sendChatMessage(context.request(scenario.session3), {
+        const message2 = await sendChatMessage(context.action(scenario.session3), {
             chatId: chat2Id,
             parentMessageIndex: null,
             content: scenario.mentionAccount1MessageContent,
@@ -4806,7 +4836,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -4837,7 +4867,7 @@ describe("Chat", () => {
             }),
         ]);
 
-        const message3 = await sendChatMessage(context.request(scenario.session2), {
+        const message3 = await sendChatMessage(context.action(scenario.session2), {
             chatId: chat3Id,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message3"),
@@ -4846,7 +4876,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -4889,10 +4919,10 @@ describe("Chat", () => {
             }),
         ]);
 
-        await observeInbox(context.request(scenario.session1), {spaceId: scenario.space.id});
+        await observeInbox(context.action(scenario.session1), {spaceId: scenario.space.id});
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -4935,7 +4965,7 @@ describe("Chat", () => {
             }),
         ]);
 
-        const message4 = await sendChatMessage(context.request(scenario.session2), {
+        const message4 = await sendChatMessage(context.action(scenario.session2), {
             chatId: chat4Id,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message4"),
@@ -4944,7 +4974,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -4999,7 +5029,7 @@ describe("Chat", () => {
             }),
         ]);
 
-        const message5 = await sendChatMessage(context.request(scenario.session3), {
+        const message5 = await sendChatMessage(context.action(scenario.session3), {
             chatId: chat2Id,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message5"),
@@ -5008,7 +5038,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -5063,7 +5093,7 @@ describe("Chat", () => {
             }),
         ]);
 
-        const message6 = await sendChatMessage(context.request(scenario.session2), {
+        const message6 = await sendChatMessage(context.action(scenario.session2), {
             chatId: chat3Id,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message6"),
@@ -5072,7 +5102,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -5127,7 +5157,7 @@ describe("Chat", () => {
             }),
         ]);
 
-        const message8 = await sendChatMessage(context.request(scenario.session2), {
+        const message8 = await sendChatMessage(context.action(scenario.session2), {
             chatId: chat3Id,
             parentMessageIndex: null,
             content: scenario.mentionAccount1MessageContent,
@@ -5136,7 +5166,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -5195,26 +5225,26 @@ describe("Chat", () => {
     test("sends a loud notification on any message after some period of time", async () => {
         const scenario = await createScenario();
 
-        const chatId = await getOrCreateChatForAccounts(context.request(scenario.session1), {
+        const chatId = await getOrCreateChatForAccounts(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             otherAccountIds: [scenario.session2.account.id],
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        const message1 = await sendChatMessage(context.request(scenario.session1), {
+        const message1 = await sendChatMessage(context.action(scenario.session1), {
             chatId,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message1"),
@@ -5223,14 +5253,14 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -5249,7 +5279,7 @@ describe("Chat", () => {
             }),
         ]);
 
-        const message2 = await sendChatMessage(context.request(scenario.session2), {
+        const message2 = await sendChatMessage(context.action(scenario.session2), {
             chatId,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message2"),
@@ -5258,7 +5288,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -5278,7 +5308,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -5297,7 +5327,7 @@ describe("Chat", () => {
             }),
         ]);
 
-        const message3 = await sendChatMessage(context.request(scenario.session1), {
+        const message3 = await sendChatMessage(context.action(scenario.session1), {
             chatId,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message3"),
@@ -5306,7 +5336,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -5326,7 +5356,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -5352,7 +5382,7 @@ describe("Chat", () => {
         try {
             Date.now = () => mockTime;
 
-            message4 = await sendChatMessage(context.request(scenario.session1), {
+            message4 = await sendChatMessage(context.action(scenario.session1), {
                 chatId,
                 parentMessageIndex: null,
                 content: createSimpleMessageContent("message4"),
@@ -5364,7 +5394,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -5384,7 +5414,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -5407,12 +5437,12 @@ describe("Chat", () => {
     test("can archive inbox entries", async () => {
         const scenario = await createScenario();
 
-        const chat1Id = await getOrCreateChatForAccounts(context.request(scenario.session1), {
+        const chat1Id = await getOrCreateChatForAccounts(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             otherAccountIds: [scenario.session2.account.id, scenario.session3.account.id],
         });
 
-        const chat2Id = await getOrCreateChatForAccounts(context.request(scenario.session1), {
+        const chat2Id = await getOrCreateChatForAccounts(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             otherAccountIds: [
                 scenario.session2.account.id,
@@ -5424,31 +5454,31 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        await sendChatMessage(context.request(scenario.session2), {
+        await sendChatMessage(context.action(scenario.session2), {
             chatId: chat1Id,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message1"),
         });
 
-        await sendChatMessage(context.request(scenario.session3), {
+        await sendChatMessage(context.action(scenario.session3), {
             chatId: chat1Id,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message2"),
         });
 
-        const message3 = await sendChatMessage(context.request(scenario.session2), {
+        const message3 = await sendChatMessage(context.action(scenario.session2), {
             chatId: chat1Id,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message3"),
         });
 
-        const message4 = await sendChatMessage(context.request(scenario.session1), {
+        const message4 = await sendChatMessage(context.action(scenario.session1), {
             chatId: chat2Id,
             parentMessageIndex: null,
             content: scenario.mentionAccount2MessageContent,
@@ -5457,7 +5487,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -5477,7 +5507,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -5509,7 +5539,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -5540,13 +5570,13 @@ describe("Chat", () => {
             }),
         ]);
 
-        await archiveInboxEntry(context.request(scenario.session3), {
+        await archiveInboxEntry(context.action(scenario.session3), {
             spaceId: scenario.space.id,
             key: {type: "Chat", chatId: chat1Id},
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -5566,7 +5596,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -5598,7 +5628,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -5617,13 +5647,13 @@ describe("Chat", () => {
             }),
         ]);
 
-        await archiveInboxEntry(context.request(scenario.session2), {
+        await archiveInboxEntry(context.action(scenario.session2), {
             spaceId: scenario.space.id,
             key: {type: "Chat", chatId: chat2Id},
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -5643,7 +5673,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -5663,7 +5693,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -5682,13 +5712,13 @@ describe("Chat", () => {
             }),
         ]);
 
-        await archiveInboxEntry(context.request(scenario.session2), {
+        await archiveInboxEntry(context.action(scenario.session2), {
             spaceId: scenario.space.id,
             key: {type: "Chat", chatId: chat1Id},
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -5708,14 +5738,14 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -5738,12 +5768,12 @@ describe("Chat", () => {
     test("can unarchive inbox entries", async () => {
         const scenario = await createScenario();
 
-        const chat1Id = await getOrCreateChatForAccounts(context.request(scenario.session1), {
+        const chat1Id = await getOrCreateChatForAccounts(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             otherAccountIds: [scenario.session2.account.id, scenario.session3.account.id],
         });
 
-        const chat2Id = await getOrCreateChatForAccounts(context.request(scenario.session1), {
+        const chat2Id = await getOrCreateChatForAccounts(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             otherAccountIds: [
                 scenario.session2.account.id,
@@ -5752,7 +5782,7 @@ describe("Chat", () => {
             ],
         });
 
-        const chat3Id = await getOrCreateChatForAccounts(context.request(scenario.session1), {
+        const chat3Id = await getOrCreateChatForAccounts(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             otherAccountIds: [scenario.session2.account.id],
         });
@@ -5760,37 +5790,37 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        await sendChatMessage(context.request(scenario.session2), {
+        await sendChatMessage(context.action(scenario.session2), {
             chatId: chat1Id,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message1"),
         });
 
-        await sendChatMessage(context.request(scenario.session3), {
+        await sendChatMessage(context.action(scenario.session3), {
             chatId: chat1Id,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message2"),
         });
 
-        const message3 = await sendChatMessage(context.request(scenario.session2), {
+        const message3 = await sendChatMessage(context.action(scenario.session2), {
             chatId: chat1Id,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message3"),
         });
 
-        const message4 = await sendChatMessage(context.request(scenario.session1), {
+        const message4 = await sendChatMessage(context.action(scenario.session1), {
             chatId: chat2Id,
             parentMessageIndex: null,
             content: scenario.mentionAccount2MessageContent,
         });
 
-        const message5 = await sendChatMessage(context.request(scenario.session1), {
+        const message5 = await sendChatMessage(context.action(scenario.session1), {
             chatId: chat3Id,
             parentMessageIndex: null,
             content: scenario.mentionAccount2MessageContent,
@@ -5799,7 +5829,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -5819,7 +5849,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -5863,7 +5893,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -5894,23 +5924,23 @@ describe("Chat", () => {
             }),
         ]);
 
-        await archiveInboxEntry(context.request(scenario.session3), {
+        await archiveInboxEntry(context.action(scenario.session3), {
             spaceId: scenario.space.id,
             key: {type: "Chat", chatId: chat1Id},
         });
 
-        await archiveInboxEntry(context.request(scenario.session2), {
+        await archiveInboxEntry(context.action(scenario.session2), {
             spaceId: scenario.space.id,
             key: {type: "Chat", chatId: chat2Id},
         });
 
-        await archiveInboxEntry(context.request(scenario.session2), {
+        await archiveInboxEntry(context.action(scenario.session2), {
             spaceId: scenario.space.id,
             key: {type: "Chat", chatId: chat1Id},
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -5930,7 +5960,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -5950,7 +5980,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -5969,13 +5999,13 @@ describe("Chat", () => {
             }),
         ]);
 
-        await unarchiveInboxEntry(context.request(scenario.session3), {
+        await unarchiveInboxEntry(context.action(scenario.session3), {
             spaceId: scenario.space.id,
             key: {type: "Chat", chatId: chat1Id},
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -5995,7 +6025,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -6015,7 +6045,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -6046,13 +6076,13 @@ describe("Chat", () => {
             }),
         ]);
 
-        await unarchiveInboxEntry(context.request(scenario.session2), {
+        await unarchiveInboxEntry(context.action(scenario.session2), {
             spaceId: scenario.space.id,
             key: {type: "Chat", chatId: chat2Id},
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -6072,7 +6102,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -6104,7 +6134,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -6135,13 +6165,13 @@ describe("Chat", () => {
             }),
         ]);
 
-        await unarchiveInboxEntry(context.request(scenario.session2), {
+        await unarchiveInboxEntry(context.action(scenario.session2), {
             spaceId: scenario.space.id,
             key: {type: "Chat", chatId: chat1Id},
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -6161,7 +6191,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session2), {
+            await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -6205,7 +6235,7 @@ describe("Chat", () => {
         ]);
 
         expect(
-            await getInboxEntries(context.request(scenario.session3), {
+            await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -6240,7 +6270,7 @@ describe("Chat", () => {
     test("notification on an archived entry revives it", async () => {
         const scenario = await createScenario();
 
-        const chatId = await getOrCreateChatForAccounts(context.request(scenario.session1), {
+        const chatId = await getOrCreateChatForAccounts(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             otherAccountIds: [scenario.session2.account.id],
         });
@@ -6248,13 +6278,13 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        const message1 = await sendChatMessage(context.request(scenario.session2), {
+        const message1 = await sendChatMessage(context.action(scenario.session2), {
             chatId,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message1"),
@@ -6263,7 +6293,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -6282,19 +6312,19 @@ describe("Chat", () => {
             }),
         ]);
 
-        await archiveInboxEntry(context.request(scenario.session1), {
+        await archiveInboxEntry(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             key: {type: "Chat", chatId},
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        const message2 = await sendChatMessage(context.request(scenario.session2), {
+        const message2 = await sendChatMessage(context.action(scenario.session2), {
             chatId,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message2"),
@@ -6303,7 +6333,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -6326,7 +6356,7 @@ describe("Chat", () => {
     test("notification on an archived entry from own account does not revive it", async () => {
         const scenario = await createScenario();
 
-        const chatId = await getOrCreateChatForAccounts(context.request(scenario.session1), {
+        const chatId = await getOrCreateChatForAccounts(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             otherAccountIds: [scenario.session2.account.id],
         });
@@ -6334,13 +6364,13 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        const message1 = await sendChatMessage(context.request(scenario.session2), {
+        const message1 = await sendChatMessage(context.action(scenario.session2), {
             chatId,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message1"),
@@ -6349,7 +6379,7 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
@@ -6368,19 +6398,19 @@ describe("Chat", () => {
             }),
         ]);
 
-        await archiveInboxEntry(context.request(scenario.session1), {
+        await archiveInboxEntry(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             key: {type: "Chat", chatId},
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        const message2 = await sendChatMessage(context.request(scenario.session1), {
+        const message2 = await sendChatMessage(context.action(scenario.session1), {
             chatId,
             parentMessageIndex: null,
             content: createSimpleMessageContent("message2"),
@@ -6389,19 +6419,19 @@ describe("Chat", () => {
         await ProcessContextModule.waitForTestTasks();
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),
         ).toEqual([]);
 
-        await unarchiveInboxEntry(context.request(scenario.session1), {
+        await unarchiveInboxEntry(context.action(scenario.session1), {
             spaceId: scenario.space.id,
             key: {type: "Chat", chatId},
         });
 
         expect(
-            await getInboxEntries(context.request(scenario.session1), {
+            await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
             }).then(({entries}) => entries),

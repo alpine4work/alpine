@@ -1,10 +1,10 @@
 import {getAccount} from "~/server/dynamo/accounts_table";
-import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {
-    RequestContext,
-    RequestContextBase,
-    UnauthenticatedSessionRequestContext,
-} from "~/server/dynamo/context/request_context";
+    ActionContext,
+    ActionContextBase,
+    MaybeSessionActionContext,
+} from "~/server/dynamo/context/action_context";
+import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
@@ -14,6 +14,7 @@ import {NotFoundError, PermissionDeniedError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
+import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array";
 import {getMaxId, getMinId} from "~/shared/id/id";
 import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types";
@@ -156,7 +157,7 @@ const SpaceAccountContextCache = new ContextCache<
  * Is the `accountId` a member of the provided `spaceId`?
  */
 export async function isAccountMemberOfSpace(
-    context: RequestContextBase,
+    context: ActionContextBase,
     spaceId: SpaceId,
     accountId: AccountId,
 ): Promise<boolean> {
@@ -176,15 +177,29 @@ export async function isAccountMemberOfSpace(
  * `spaceId`. Throws if the account does not have access.
  */
 export async function authorizeSpaceAccess(
-    context: RequestContext,
+    context: ActionContext,
     spaceId: SpaceId,
 ): Promise<void> {
-    if (!(await isAccountMemberOfSpace(context, spaceId, context.auth.getAccountId()))) {
-        throw new PermissionDeniedError("Account does not have access to space", {
-            // TODO(calebmer): Add link to page that lists all spaces an account has access
-            // to in the help part of this error message.
-            displayMessage: errorDisplayMessage`You are not a member of this space.`,
-        });
+    switch (context.actor.type) {
+        case "Session": {
+            if (!(await isAccountMemberOfSpace(context, spaceId, context.actor.getAccountId()))) {
+                throw new PermissionDeniedError("Account does not have access to space", {
+                    // TODO(calebmer): Add link to page that lists all spaces an account has access
+                    // to in the help part of this error message.
+                    displayMessage: errorDisplayMessage`You are not a member of this space.`,
+                });
+            }
+            break;
+        }
+        case "System": {
+            // NOCOMMIT: Test this?
+            if (context.actor.getSpaceId() !== spaceId) {
+                throw new PermissionDeniedError("System does not have access to space");
+            }
+            break;
+        }
+        default:
+            throw exhaustive(context.actor);
     }
 }
 
@@ -194,19 +209,19 @@ export async function authorizeSpaceAccess(
  *
  * If you know the account ID before authenticating, you may pass it in here.
  * This will increase the parallelization of this function since we can call
- * `context.auth.authenticate()` in parallel with authorizing space access for
+ * `context.actor.authenticate()` in parallel with authorizing space access for
  * the session account.
  *
  * If you pass in the wrong account ID an error will be thrown.
  */
 export async function authorizeSpaceAccessWithOptimisticSessionAccountId(
-    context: UnauthenticatedSessionRequestContext,
+    context: MaybeSessionActionContext,
     spaceId: SpaceId,
     optimisticSessionAccountId: AccountId | null,
 ): Promise<void> {
-    const actualAccountIdPromise = context.auth
+    const actualAccountIdPromise = context.actor
         .authenticate()
-        .then(context => context.auth.getAccountId());
+        .then(context => context.actor.getAccountId());
 
     const [actualAccountId] = await runAllPromises([
         actualAccountIdPromise,
@@ -238,7 +253,7 @@ export async function authorizeSpaceAccessWithOptimisticSessionAccountId(
  * function for the purpose of `optimisticSessionAccountId`.
  */
 export async function getSpaceWithOptimisticSessionAccountId(
-    context: UnauthenticatedSessionRequestContext,
+    context: MaybeSessionActionContext,
     spaceId: SpaceId,
     optimisticSessionAccountId: AccountId | null,
 ): Promise<SpaceModel> {
@@ -275,7 +290,7 @@ export async function getSpaceWithOptimisticSessionAccountId(
  * Returns in `AccountId` order.
  */
 export async function expensivelyGetAllSpaceAccounts(
-    context: RequestContext,
+    context: ActionContext,
     spaceId: SpaceId,
 ): Promise<Array<AccountModel>> {
     await authorizeSpaceAccess(context, spaceId);

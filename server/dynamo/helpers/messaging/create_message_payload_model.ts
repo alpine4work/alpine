@@ -1,4 +1,4 @@
-import {RequestContext} from "~/server/dynamo/context/request_context";
+import {ActionContext} from "~/server/dynamo/context/action_context";
 import {getContentReferencesForNode} from "~/server/dynamo/helpers/get_content_references";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {SpaceId} from "~/shared/id/types/id_types";
@@ -9,7 +9,7 @@ import {MessagePayload, MessagePayloadModel} from "~/shared/models/message_model
  * `MessagePayload` (what we store in the database).
  */
 export async function createMessagePayloadModel(
-    context: RequestContext,
+    context: ActionContext,
     spaceId: SpaceId,
     payload: MessagePayload,
 ): Promise<MessagePayloadModel> {

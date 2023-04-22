@@ -22,7 +22,7 @@ test("can search for an account in mention menu", async ({
 }) => {
     assert(viewport);
 
-    const document = await createDocument(context.request(session1), {
+    const document = await createDocument(context.action(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -62,7 +62,7 @@ test("can see a mention added by another user", async ({
 }) => {
     assert(viewport);
 
-    const document = await createDocument(context.request(session1), {
+    const document = await createDocument(context.action(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });

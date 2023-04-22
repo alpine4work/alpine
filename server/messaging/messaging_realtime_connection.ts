@@ -1,5 +1,5 @@
+import {ActionContext, SessionActionContext} from "~/server/dynamo/context/action_context";
 import {ProcessContext} from "~/server/dynamo/context/process_context";
-import {RequestContext} from "~/server/dynamo/context/request_context";
 import {getContentReferencesForNode} from "~/server/dynamo/helpers/get_content_references";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint";
 import {
@@ -130,7 +130,7 @@ export class MessagingRealtimeConnection<
         RoomKey extends string,
         Message extends MessageModel<RoomKey>,
     >(
-        context: RequestContext,
+        context: ActionContext,
         fromConnection: MessagingRealtimeConnection<RoomKey, Message>,
         toConnection: MessagingRealtimeConnection<RoomKey, Message>,
         message: Message,
@@ -190,7 +190,7 @@ export class MessagingRealtimeConnection<
         toConnection._flushQueuedMessages(context);
     }
 
-    private _flushQueuedMessages(context: RequestContext) {
+    private _flushQueuedMessages(context: ActionContext) {
         // If this is null then nothing should be queued.
         if (this._nextMessageIndexToSend === null) return;
 
@@ -227,7 +227,7 @@ export class MessagingRealtimeConnection<
         }
     }
 
-    private _sendMessageChange(context: RequestContext, messageChange: MessageChange) {
+    private _sendMessageChange(context: ActionContext, messageChange: MessageChange) {
         // Wait until we are done backfilling to send any message changes...
         if (this._isBackfilling) {
             this._queuedMessageChanges.push(messageChange);
@@ -243,7 +243,7 @@ export class MessagingRealtimeConnection<
     private readonly _backfillMutex = new AsyncMutex(undefined);
 
     public backfillMessages(
-        context: RequestContext,
+        context: SessionActionContext,
         {
             clientMessageCount,
             clientLastMessageChangeTime,
@@ -296,7 +296,7 @@ export class MessagingRealtimeConnection<
             );
 
             await messagingRealtimeBackfillMessagesBeforeFlushTestCheckpoint.waitForTest(
-                context.auth.getAccountId(),
+                context.actor.getAccountId(),
             );
 
             this._isBackfilling = false;
@@ -349,7 +349,7 @@ export class MessagingRealtimeConnection<
     }
 
     public async createMessage(
-        context: RequestContext,
+        context: SessionActionContext,
         {parentMessageIndex, content}: {parentMessageIndex: number | null; content: MessageContent},
     ): Promise<{}> {
         const [{index, createdTime}, author, contentReferences] = await runAllPromises([
@@ -358,12 +358,12 @@ export class MessagingRealtimeConnection<
                 parentMessageIndex,
                 content,
             }),
-            context.auth.getAccount(),
+            context.actor.getAccount(),
             getContentReferencesForNode(context, this._spaceId, content),
         ]);
 
         await messagingRealtimeCreateMessageBeforeSendTestCheckpoint.waitForTest(
-            context.auth.getAccountId(),
+            context.actor.getAccountId(),
         );
 
         await this._typingState.run(async (typingState, setTypingState) => {
@@ -407,7 +407,7 @@ export class MessagingRealtimeConnection<
     }
 
     public async updateMessageContent(
-        context: RequestContext,
+        context: SessionActionContext,
         {
             messageIndex,
             content,
@@ -444,7 +444,7 @@ export class MessagingRealtimeConnection<
     }
 
     public async deleteMessage(
-        context: RequestContext,
+        context: SessionActionContext,
         {messageIndex}: {messageIndex: number},
     ): Promise<{}> {
         const {deletedTime} = await this._deleteMessage(context, {
@@ -466,14 +466,14 @@ export class MessagingRealtimeConnection<
         return {};
     }
 
-    public async startTypingInMessageInput(context: RequestContext, input: {}): Promise<{}> {
+    public async startTypingInMessageInput(context: SessionActionContext, input: {}): Promise<{}> {
         await this._typingState.run(async (oldTypingState, setTypingState) => {
             if (oldTypingState !== null) return;
 
             const typingState: MessagingTypingState = {
                 isTyping: true,
                 startTime: new Date(),
-                account: await context.auth.getAccount(),
+                account: await context.actor.getAccount(),
             };
 
             setTypingState(typingState);
@@ -488,7 +488,7 @@ export class MessagingRealtimeConnection<
         return {};
     }
 
-    // The stop typing function needs to be called outside of a `RequestContext`
+    // The stop typing function needs to be called outside of a `ActionContext`
     // when the connection is closing. This means it may not have authorization
     // information.
     public async stopTypingInMessageInput(context: ProcessContext, input: {}): Promise<{}> {

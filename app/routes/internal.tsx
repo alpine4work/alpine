@@ -8,7 +8,7 @@ import {LoaderArgs} from "~/server/remix/loader_context";
 export const unstable_shouldReload = () => false;
 
 export async function loader({context}: LoaderArgs) {
-    await authorizeInternalAccess(await context.auth.authenticate());
+    await authorizeInternalAccess(await context.actor.authenticate());
     return json({});
 }
 

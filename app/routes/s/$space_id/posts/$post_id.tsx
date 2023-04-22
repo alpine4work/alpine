@@ -26,7 +26,7 @@ export async function loader({params, context}: LoaderArgs) {
     const commentLimit = getInitialLoadMessageCount(context.loader.clientInfo);
 
     const {post, initialComments, initialOtherReferencedComments} = await getPostAndInitialComments(
-        await context.auth.authenticate(),
+        await context.actor.authenticate(),
         {
             postId,
             commentLimit,

@@ -2,8 +2,8 @@ import {differenceInMinutes} from "date-fns";
 import {Node} from "prosemirror-model";
 import {Mapping, Step} from "prosemirror-transform";
 import {getAccount, getAccountIfExists} from "~/server/dynamo/accounts_table";
+import {ActionContext, SessionActionContext} from "~/server/dynamo/context/action_context";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
-import {RequestContext} from "~/server/dynamo/context/request_context";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
 import {getContentReferencesForNode} from "~/server/dynamo/helpers/get_content_references";
 import {
@@ -13,11 +13,7 @@ import {
 import {createMessagePayloadModel} from "~/server/dynamo/helpers/messaging/create_message_payload_model";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/dynamo/helpers/messaging/get_message_change_log_expiration_time_from_change_time";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
-import {
-    DynamoTableItemType,
-    DynamoTableSchema,
-    DynamoTableSchemaGetTypes,
-} from "~/server/dynamo/internal/dynamo_table_schema";
+import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint";
@@ -472,7 +468,7 @@ type DocumentCommentItem = DynamoTableItemType<
  * Creates a new document with no history using the initial content provided.
  */
 export async function createDocument(
-    context: RequestContext,
+    context: SessionActionContext,
     {
         id = generateId<DocumentId>(),
         spaceId,
@@ -501,7 +497,7 @@ export async function createDocument(
                 createdTime,
                 spaceId,
                 documentId: id,
-                ownerId: context.auth.getAccountId(),
+                ownerId: context.actor.getAccountId(),
                 version,
                 titleWithoutFallback: getDocumentContentTitleWithoutFallback(content),
             }),
@@ -531,7 +527,7 @@ export async function createDocument(
  * Cheaper than `getDocument()` since we don't return the full content.
  */
 export async function getDocumentPreviewIfExists(
-    context: RequestContext,
+    context: ActionContext,
     id: DocumentId,
 ): Promise<DocumentPreviewModel | null> {
     const attributes = await DocumentsTable.getItemIfExists(context, {
@@ -557,7 +553,7 @@ export async function getDocumentPreviewIfExists(
  * Authorizes that the current request can access the document.
  */
 export async function authorizeDocumentAccess(
-    context: RequestContext,
+    context: ActionContext,
     id: DocumentId,
 ): Promise<void> {
     const document = await getDocumentPreviewIfExists(context, id);
@@ -575,7 +571,7 @@ type InternalDocument = {
 export const getInternalDocumentTestCounter = new TestCounter();
 
 async function getInternalDocumentIfExists(
-    context: RequestContext,
+    context: ActionContext,
     id: DocumentId,
 ): Promise<InternalDocument | null> {
     getInternalDocumentTestCounter.incrementForTest(id);
@@ -685,7 +681,7 @@ async function getInternalDocumentIfExists(
 /**
  * Get the full document with the provided id.
  */
-export async function getDocument(context: RequestContext, id: DocumentId): Promise<DocumentModel> {
+export async function getDocument(context: ActionContext, id: DocumentId): Promise<DocumentModel> {
     getInternalDocumentTestCounter.incrementForTest(id);
 
     let _attributes: DocumentAttributesItem | null = null;
@@ -862,7 +858,7 @@ function getReferencedDocumentCommentThreadIds(content: Node): Set<DocumentComme
 }
 
 async function createDocumentCommentThreadModelFromItem(
-    context: RequestContext,
+    context: ActionContext,
     spaceId: SpaceId,
     item: DocumentReferencedCommentThreadItem | DocumentArchivedCommentThreadItem,
 ) {
@@ -893,7 +889,7 @@ async function createDocumentCommentThreadModelFromItem(
  * thread separately. Use it sparingly.
  */
 export async function batchGetDocumentCommentThreadsIfExists(
-    context: RequestContext,
+    context: ActionContext,
     {
         documentId,
         commentThreadIds,
@@ -968,7 +964,7 @@ export class DocumentContentCacheForUpdate {
     private readonly _entries = new DocumentContentCacheForUpdateEntries();
 
     public async getAndCacheDocument(
-        context: RequestContext,
+        context: ActionContext,
         id: DocumentId,
     ): Promise<{
         readonly createdTime: Date;
@@ -1457,7 +1453,7 @@ declare module "prosemirror-transform" {
 // object we should throw an error or restart the durable object or something.
 // Because the durable object's internal state will be wrong.
 export async function updateDocumentContent(
-    context: RequestContext,
+    context: SessionActionContext,
     {
         id,
         version: clientVersion,
@@ -1688,7 +1684,7 @@ export async function updateDocumentContent(
                     commentsSummary: {
                         nextCommentIndex: 1,
                         lastChangeTime: null,
-                        commentCountByAuthorId: new Map([[context.auth.getAccountId(), 1]]),
+                        commentCountByAuthorId: new Map([[context.actor.getAccountId(), 1]]),
                         mentionCountByAccountId: getMentionCountByAccountIdInContent(
                             createCommentThread.initialCommentContent,
                         ),
@@ -1707,7 +1703,7 @@ export async function updateDocumentContent(
                     documentId: id,
                     commentThreadId: createCommentThread.commentThreadId,
                     commentIndex: 0,
-                    authorId: context.auth.getAccountId(),
+                    authorId: context.actor.getAccountId(),
                     createdTime,
                     payload: {
                         type: "Content",
@@ -2299,7 +2295,7 @@ async function updateDocumentSnapshotAfterUpdatingContent(
  * Force an update of the document's snapshot in a test environment.
  */
 export async function updateDocumentSnapshotForTest(
-    context: RequestContext,
+    context: ActionContext,
     documentId: DocumentId,
 ): Promise<void> {
     assert(typeof jest !== "undefined");
@@ -2324,7 +2320,7 @@ export const getDocumentContentStepsTestCounter = new TestCounter<{
  * Reads all steps between `startVersion` (inclusive) and `endVersion` (exclusive).
  */
 export async function getDocumentContentSteps(
-    context: RequestContext,
+    context: ActionContext,
     {
         id,
         startVersion,
@@ -2761,7 +2757,7 @@ export const getDocumentCommentThreadItemAfterFirstGetItemTestCheckpoint =
  * This function should not be exported! It does not implement authorization.
  */
 async function getDocumentCommentThreadItemIfExists(
-    context: RequestContext,
+    context: ActionContext,
     {
         documentId,
         commentThreadId,
@@ -2830,7 +2826,7 @@ async function getDocumentCommentThreadItemIfExists(
 }
 
 async function getDocumentCommentThreadItem(
-    context: RequestContext,
+    context: ActionContext,
     {
         documentId,
         commentThreadId,
@@ -2848,7 +2844,7 @@ async function getDocumentCommentThreadItem(
  * Add a new comment to a document comment thread.
  */
 export async function createDocumentComment(
-    context: RequestContext,
+    context: SessionActionContext,
     {
         documentId,
         commentThreadId,
@@ -2890,7 +2886,7 @@ export async function createDocumentComment(
 
         const commentIndex = commentThreadItem.commentsSummary.nextCommentIndex;
         const createdTime = new Date();
-        const authorId = context.auth.getAccountId();
+        const authorId = context.actor.getAccountId();
 
         const newCommentCountByAuthorId = new Map(
             commentThreadItem.commentsSummary.commentCountByAuthorId,
@@ -2943,7 +2939,7 @@ export async function createDocumentComment(
  * Get a single document comment.
  */
 export async function getDocumentComment(
-    context: RequestContext,
+    context: ActionContext,
     {
         documentId,
         commentThreadId,
@@ -2979,7 +2975,7 @@ export async function getDocumentComment(
 }
 
 async function createDocumentCommentModelFromItem(
-    context: RequestContext,
+    context: ActionContext,
     spaceId: SpaceId,
     item: DocumentCommentItem,
 ): Promise<DocumentCommentModel> {
@@ -3002,7 +2998,7 @@ async function createDocumentCommentModelFromItem(
  * Update the content on one of your document comments.
  */
 export function updateDocumentCommentContent(
-    context: RequestContext,
+    context: SessionActionContext,
     {
         documentId,
         commentThreadId,
@@ -3039,7 +3035,7 @@ export function updateDocumentCommentContent(
 
         await authorizeSpaceAccess(context, documentItem.spaceId);
 
-        if (commentItem.authorId !== context.auth.getAccountId())
+        if (commentItem.authorId !== context.actor.getAccountId())
             throw new PermissionDeniedError("Can only update comments you authored");
 
         if (commentItem.payload.type !== "Content")
@@ -3114,7 +3110,7 @@ export function updateDocumentCommentContent(
  * Delete a single document comment.
  */
 export function deleteDocumentComment(
-    context: RequestContext,
+    context: SessionActionContext,
     {
         documentId,
         commentThreadId,
@@ -3147,7 +3143,7 @@ export function deleteDocumentComment(
 
         await authorizeSpaceAccess(context, documentItem.spaceId);
 
-        if (commentItem.authorId !== context.auth.getAccountId())
+        if (commentItem.authorId !== context.actor.getAccountId())
             throw new PermissionDeniedError("Can only delete comments you authored");
 
         if (commentItem.payload.type !== "Content")
@@ -3215,7 +3211,7 @@ export function deleteDocumentComment(
  * Get a document comment thread and some initial comments for that thread.
  */
 export async function getDocumentCommentThreadAndInitialComments(
-    context: RequestContext,
+    context: ActionContext,
     {
         documentId,
         commentThreadId,
@@ -3278,7 +3274,7 @@ export async function getDocumentCommentThreadAndInitialComments(
  * Paginate through document comments from start to finish.
  */
 export async function getDocumentCommentsFromStart(
-    context: RequestContext,
+    context: ActionContext,
     {
         documentId,
         commentThreadId,
@@ -3341,7 +3337,7 @@ export async function getDocumentCommentsFromStart(
 }
 
 async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
-    context: RequestContext,
+    context: ActionContext,
     {
         documentId,
         commentThreadId,
@@ -3443,7 +3439,7 @@ async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
  * Paginate through document comments from finish to start.
  */
 export async function getDocumentCommentsFromEnd(
-    context: RequestContext,
+    context: ActionContext,
     {
         documentId,
         commentThreadId,
@@ -3506,7 +3502,7 @@ export async function getDocumentCommentsFromEnd(
 }
 
 async function getDocumentCommentsFromEndAssumingAuthorizedCommentThread(
-    context: RequestContext,
+    context: ActionContext,
     {
         documentId,
         commentThreadId,
@@ -3641,7 +3637,7 @@ export type DocumentCommentChangesResult =
  * your client has loaded and try loading the data again.
  */
 export async function backfillDocumentComments(
-    context: RequestContext,
+    context: ActionContext,
     {
         documentId,
         commentThreadId,
@@ -3731,7 +3727,7 @@ export async function backfillDocumentComments(
 }
 
 async function queryDocumentCommentChangeLogAssumingAuthorizedDocumentCommentThread(
-    context: RequestContext,
+    context: ActionContext,
     {
         documentItem,
         commentThreadItem,
@@ -3824,7 +3820,7 @@ async function queryDocumentCommentChangeLogAssumingAuthorizedDocumentCommentThr
  * also considered a subscriber.
  */
 export async function getDocumentCommentThreadNotificationSubscribers(
-    context: RequestContext,
+    context: ActionContext,
     {
         documentId,
         commentThreadId,

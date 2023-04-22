@@ -1,9 +1,13 @@
 import {addMinutes, differenceInMinutes} from "date-fns";
-import {dangerouslyGetAccountIfExistsWithoutAuthorization} from "~/server/dynamo/accounts_table";
+import {getAccount} from "~/server/dynamo/accounts_table";
 import {getChat} from "~/server/dynamo/chat_table";
-import {RequestContext} from "~/server/dynamo/context/request_context";
-import {SystemContext} from "~/server/dynamo/context/system_context";
+import {
+    ActionContext,
+    SessionActionContext,
+    SystemActionContext,
+} from "~/server/dynamo/context/action_context";
 import {getPostNotificationSubscribers} from "~/server/dynamo/forum_table";
+import {getContentReferencesForNode} from "~/server/dynamo/helpers/get_content_references";
 import {
     DynamoGeneralRealtimeTableSchema,
     DynamoGeneralRealtimeTableSchemaGetTypes,
@@ -36,7 +40,6 @@ import {
 } from "~/shared/id/types/id_types";
 import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/messaging/messaging_shared_styles";
 import {AccountModel} from "~/shared/models/account_model";
-import {emptyContentReferences} from "~/shared/models/content_references";
 import {
     InboxChatEntryModel,
     InboxEntryKey,
@@ -254,20 +257,14 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
             },
             ChatEntry: {
                 async build(context, item) {
-                    const [author] = await runAllPromises([
-                        dangerouslyGetAccountIfExistsWithoutAuthorization(
+                    const [author, references] = await runAllPromises([
+                        getAccount(context, item.spaceId, item.latestMessage.authorId),
+                        getContentReferencesForNode(
                             context,
-                            item.latestMessage.authorId,
+                            item.spaceId,
+                            item.latestMessage.contentSnippet,
                         ),
-                        // NOCOMMIT
-                        // getContentReferencesForNode(
-                        //     context,
-                        //     item.spaceId,
-                        //     item.latestMessage.contentSnippet,
-                        // ),
                     ]);
-
-                    const references = emptyContentReferences;
 
                     return new InboxChatEntryModel({
                         chatId: item.chatId,
@@ -282,20 +279,14 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
             },
             PostCommentsEntry: {
                 async build(context, item) {
-                    const [author] = await runAllPromises([
-                        dangerouslyGetAccountIfExistsWithoutAuthorization(
+                    const [author, references] = await runAllPromises([
+                        getAccount(context, item.spaceId, item.latestComment.authorId),
+                        getContentReferencesForNode(
                             context,
-                            item.latestComment.authorId,
+                            item.spaceId,
+                            item.latestComment.contentSnippet,
                         ),
-                        // NOCOMMIT:
-                        // getContentReferencesForNode(
-                        //     context,
-                        //     item.spaceId,
-                        //     item.latestComment.contentSnippet,
-                        // ),
                     ]);
-
-                    const references = emptyContentReferences;
 
                     return new InboxPostCommentsEntryModel({
                         postId: item.postId,
@@ -458,7 +449,7 @@ const unarchivedInboxEntryGenerationIncrement = 1;
  * Get the entries for the current account's inbox.
  */
 export async function getInboxEntries(
-    context: RequestContext,
+    context: SessionActionContext,
     {
         spaceId,
         limit,
@@ -474,7 +465,7 @@ export async function getInboxEntries(
     const entries = await InboxEntriesIndex.query(context, {
         partitionKey: {
             spaceId,
-            accountId: context.auth.getAccountId(),
+            accountId: context.actor.getAccountId(),
         },
         endSortKey: {
             isArchived: false,
@@ -493,7 +484,7 @@ export async function getInboxEntries(
  * freeze in place at this point.
  */
 export async function observeInbox(
-    context: RequestContext,
+    context: SessionActionContext,
     {spaceId}: {spaceId: SpaceId},
 ): Promise<void> {
     await authorizeSpaceAccess(context, spaceId);
@@ -504,14 +495,14 @@ export async function observeInbox(
             partitionType: "Inbox",
             sortRangeType: "Attributes",
             spaceId,
-            accountId: context.auth.getAccountId(),
+            accountId: context.actor.getAccountId(),
         },
         item => ({
             ...item,
             partitionType: "Inbox",
             sortRangeType: "Attributes",
             spaceId,
-            accountId: context.auth.getAccountId(),
+            accountId: context.actor.getAccountId(),
             generation:
                 (item?.generation ?? initialInboxGeneration) + observeInboxGenerationIncrement,
             loudNotificationCount: item?.loudNotificationCount ?? 0,
@@ -558,14 +549,14 @@ function getInboxEntryItemKey({
  * if desired.
  */
 export function archiveInboxEntry(
-    context: RequestContext,
+    context: SessionActionContext,
     {spaceId, key}: {spaceId: SpaceId; key: InboxEntryKey},
 ): Promise<void> {
     return archiveInboxEntryItemKey(
         context,
         getInboxEntryItemKey({
             spaceId,
-            accountId: context.auth.getAccountId(),
+            accountId: context.actor.getAccountId(),
             key,
         }),
     );
@@ -577,23 +568,25 @@ export function archiveInboxEntry(
  * primary inbox so the user can easily find it.
  */
 export function unarchiveInboxEntry(
-    context: RequestContext,
+    context: SessionActionContext,
     {spaceId, key}: {spaceId: SpaceId; key: InboxEntryKey},
 ): Promise<void> {
     return unarchiveInboxEntryItemKey(
         context,
         getInboxEntryItemKey({
             spaceId,
-            accountId: context.auth.getAccountId(),
+            accountId: context.actor.getAccountId(),
             key,
         }),
     );
 }
 
 async function archiveInboxEntryItemKey(
-    context: RequestContext,
+    context: ActionContext,
     itemKey: InboxEntryItemKey,
 ): Promise<void> {
+    await authorizeSpaceAccess(context, itemKey.spaceId);
+
     await context.dynamo.retryTransaction(async context => {
         const [inboxItem, inboxEntryItem] = await runAllPromises([
             InboxTable.getItemIfExists(context, {
@@ -627,7 +620,7 @@ async function archiveInboxEntryItemKey(
         if (inboxEntryItem.loudNotificationCount === 0) {
             await InboxTable.directlyUpdateItem(context, newInboxEntryItem);
         } else {
-            await DynamoTableSchema.executeTransaction(context, [
+            await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
                 InboxTable.transactionDirectlyUpdateItem({
                     ...inboxItem,
                     loudNotificationCount:
@@ -640,7 +633,7 @@ async function archiveInboxEntryItemKey(
 }
 
 async function unarchiveInboxEntryItemKey(
-    context: RequestContext,
+    context: ActionContext,
     itemKey: InboxEntryItemKey,
 ): Promise<void> {
     await context.dynamo.retryTransaction(async context => {
@@ -684,6 +677,7 @@ export type NotificationEvent =
 export type NotificationCreateChatMessageEvent = {
     readonly type: "CreateChatMessage";
     readonly id: NotificationEventId;
+    readonly spaceId: SpaceId;
     readonly chatId: ChatId;
     readonly messageIndex: number;
     readonly createdTime: Date;
@@ -695,6 +689,7 @@ export type NotificationCreateChatMessageEvent = {
 export type NotificationCreatePostCommentEvent = {
     readonly type: "CreatePostComment";
     readonly id: NotificationEventId;
+    readonly spaceId: SpaceId;
     readonly postId: PostId;
     readonly commentIndex: number;
     readonly createdTime: Date;
@@ -725,7 +720,7 @@ export const notificationEventAfterProcessingTestCheckpoint = new TestCheckpoint
  * delivery queues.
  */
 export async function processNotificationEvent(
-    context: SystemContext,
+    context: SystemActionContext,
     event: NotificationEvent,
 ): Promise<void> {
     await notificationEventBeforeProcessingTestCheckpoint.waitForTest(event.authorId);
@@ -737,7 +732,7 @@ export async function processNotificationEvent(
 }
 
 function actuallyProcessNotificationEvent(
-    context: SystemContext,
+    context: SystemActionContext,
     event: NotificationEvent,
 ): Promise<void> {
     switch (event.type) {
@@ -769,7 +764,7 @@ function createNotificationEventProcessor<
      * Get the accounts subscribed to notifications for this event.
      */
     getSubscribers: (
-        context: SystemContext,
+        context: SystemActionContext,
         event: Event,
     ) => Promise<{
         info: Info;
@@ -780,14 +775,14 @@ function createNotificationEventProcessor<
      * Update the inbox entry for each subscriber. Called in parallel.
      */
     updateInboxEntry: (
-        context: SystemContext,
+        context: SystemActionContext,
         event: Event,
         options: {
             info: Info;
             account: AccountModel;
         },
     ) => Promise<void>;
-}): (context: SystemContext, event: Event) => Promise<void> {
+}): (context: SystemActionContext, event: Event) => Promise<void> {
     return async (context, event) => {
         await context.tracer.withSpan("Processing notification event", async (context, span) => {
             span.addData({
@@ -862,7 +857,7 @@ function createNotificationEventProcessor<
  * notification count updates.
  */
 async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
-    context: SystemContext,
+    context: SystemActionContext,
     event: NotificationEvent,
     itemKey: ItemKey,
     update: (
@@ -932,7 +927,7 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             (!isArchived && oldInboxEntryItem.isArchived) ||
             loudNotificationCountDifference > 0;
 
-        await DynamoTableSchema.executeTransaction(context, [
+        await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
             InboxTable.transactionDirectlyUpdateItem({
                 ...inboxItem,
                 partitionType: "Inbox",
@@ -991,7 +986,7 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
     {spaceId: SpaceId}
 >({
     getSubscribers: async (context, event) => {
-        const chat = await getChat(context.system.impersonateAccount(event.authorId), event.chatId);
+        const chat = await getChat(context, event.chatId);
         return {
             info: {spaceId: chat.spaceId},
             accounts: chat.accounts,

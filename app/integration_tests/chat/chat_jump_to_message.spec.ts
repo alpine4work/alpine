@@ -13,13 +13,13 @@ const session1 = createTestSession(context, space);
 const session2 = createTestSession(context, space);
 
 test("can jump to message in chat", async ({context: browserContext, page}) => {
-    const chatId = await getOrCreateChatForAccounts(context.request(session1), {
+    const chatId = await getOrCreateChatForAccounts(context.action(session1), {
         spaceId: space.id,
         otherAccountIds: [session2.accountId],
     });
 
     for (let i = 0; i < 300; i++) {
-        await sendChatMessage(context.request(session1), {
+        await sendChatMessage(context.action(session1), {
             chatId,
             parentMessageIndex: null,
             content: createSimpleMessageContent(`Message ${i}`),

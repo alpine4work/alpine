@@ -12,7 +12,6 @@ import {
     DynamoConditionExpressionCompilationContext,
     DynamoConditionExpressionPrecedence,
 } from "~/server/dynamo/internal/dynamo_condition";
-import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/internal/dynamo_general_realtime_table_schema";
 import {dynamoGeneratedSchemaDescription} from "~/server/dynamo/internal/dynamo_generated_schema_description";
 import {
     DynamoKeyAttribute,
@@ -1629,11 +1628,6 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             clientRequestToken,
             retryConditionCheckError: getDynamoRetryTransactionIfExists(context),
         });
-
-        // If this transaction had any entries from a
-        // `DynamoGeneralRealtimeTableSchema` then we need to broadcast realtime events
-        // related to the changes that happened in this transaction.
-        await DynamoGeneralRealtimeTableSchema._broadcastEventsAfterTransaction(context, entries);
     }
 
     /**

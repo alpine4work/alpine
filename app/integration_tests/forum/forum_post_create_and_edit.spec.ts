@@ -15,7 +15,7 @@ const session1 = createTestSession(context, space);
 const session2 = createTestSession(context, space);
 
 test("can create posts", async ({page, context: browserContext}) => {
-    const channel = await createChannel(context.request(session1), {
+    const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
     });
@@ -47,7 +47,7 @@ test("can create posts", async ({page, context: browserContext}) => {
 });
 
 test("can create multiline formatted posts", async ({page, context: browserContext}) => {
-    const channel = await createChannel(context.request(session1), {
+    const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
     });
@@ -72,12 +72,12 @@ test("can create multiline formatted posts", async ({page, context: browserConte
 });
 
 test("can edit a post", async ({page, context: browserContext}) => {
-    const channel = await createChannel(context.request(session1), {
+    const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
     });
 
-    await createPost(context.request(session1), {
+    await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
     });
@@ -122,12 +122,12 @@ test("asks for confirmation when closing edit post modal", async ({
     page,
     context: browserContext,
 }) => {
-    const channel = await createChannel(context.request(session1), {
+    const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
     });
 
-    await createPost(context.request(session1), {
+    await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
     });

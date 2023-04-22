@@ -24,7 +24,7 @@ const LoaderSchema = Schema.object({
 });
 
 export async function loader({context: _context, params}: LoaderArgs) {
-    const context = await _context.auth.authenticate();
+    const context = await _context.actor.authenticate();
     const chatId = Schema.id<ChatId>().deserialize(params.chat_id ?? null);
 
     const {chat, initialMessages, initialOtherReferencedMessages} = await getChatAndInitialMessages(

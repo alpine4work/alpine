@@ -7,9 +7,8 @@ import {createAwsContextModulesFromEnv} from "~/server/aws/create_aws_context_mo
 import {fetchFromDurableObjectStub} from "~/server/cloudflare/fetch_from_durable_object_stub";
 import {Queue} from "~/server/cloudflare/types/cloudflare_queues";
 import {Session} from "~/server/dynamo/accounts_table";
-import {UnauthenticatedSessionAuthContextModule} from "~/server/dynamo/context/auth_context_module";
+import {MaybeSessionActorContextModule} from "~/server/dynamo/context/actor_context_module";
 import {NotificationsContextModule} from "~/server/dynamo/context/notifications_context_module";
-import {EmptySystemContextModule} from "~/server/dynamo/context/system_context_module";
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
 import {seedDynamo} from "~/server/dynamo/seed_dynamo";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base";
@@ -282,14 +281,10 @@ async function handleFetch(
                             ? parseInt(env.DEV_SERVER_PORT, 10)
                             : null,
                     }),
-                    // IMPORTANT: It's important that we use our empty system context module here
-                    // instead of the full system context module. HTTP requests to our worker should
-                    // not have system access.
-                    system: new EmptySystemContextModule(),
                     cache: new CacheContextModule(),
                     notifications: new NotificationsContextModule(env),
 
-                    auth: new UnauthenticatedSessionAuthContextModule(async context => {
+                    actor: new MaybeSessionActorContextModule(async context => {
                         const sessionCookie = await sessionCookiePromise;
 
                         const {sessionId, sessionAccountId} = sessionCookie.get();

@@ -23,12 +23,12 @@ test("can search for an account in mention menu", async ({
     context: browserContext,
     isMobile,
 }) => {
-    const channel = await createChannel(context.request(session1), {
+    const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
     });
 
-    const post = await createPost(context.request(session1), {
+    const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
     });
@@ -95,12 +95,12 @@ test("can undo to get the full mention when a short mention was inferred", async
     context: browserContext,
     isMobile,
 }) => {
-    const channel = await createChannel(context.request(session1), {
+    const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
     });
 
-    const post = await createPost(context.request(session1), {
+    const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
     });
@@ -152,12 +152,12 @@ test("if a name is ambiguous you get the full mention and pressing backspace wil
     context: browserContext,
     isMobile,
 }) => {
-    const channel = await createChannel(context.request(session1), {
+    const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
     });
 
-    const post = await createPost(context.request(session1), {
+    const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
     });

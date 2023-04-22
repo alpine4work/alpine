@@ -5,7 +5,9 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module";
 /**
  * Context with only the modules required by DynamoDB.
  */
-export type DynamoContext = Context<{
+export type DynamoContext = Context<DynamoContextModules>;
+
+export type DynamoContextModules = {
     tracer: TracerContextModule;
     dynamo: DynamoContextModule;
-}>;
+};

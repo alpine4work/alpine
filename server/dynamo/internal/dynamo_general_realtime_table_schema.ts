@@ -1,4 +1,4 @@
-import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
+import {ActionContext} from "~/server/dynamo/context/action_context";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
 import {DynamoReadConsistency} from "~/server/dynamo/internal/dynamo_client";
 import {DynamoCondition} from "~/server/dynamo/internal/dynamo_condition";
@@ -51,7 +51,7 @@ type DynamoGeneralRealtimeTableSchemaSortRangeModelConfigType<
         SortRangesConfig[Index]["name"],
         {
             build: (
-                context: DynamoContext,
+                context: ActionContext,
                 item: DynamoTableSchemaTypes.ItemType<PartitionConfig, SortRangesConfig[Index]>,
             ) => Promise<unknown>;
         },
@@ -189,7 +189,7 @@ export class DynamoGeneralRealtimeTableSchema<
     }
 
     private _buildModel<Item extends Types["Item"]>(
-        context: DynamoContext,
+        context: ActionContext,
         item: Item,
     ): Promise<ModelMap[Item["partitionType"]][Item["sortRangeType"]]> {
         return this._models[item.partitionType]![item.sortRangeType]!.build(
@@ -213,7 +213,7 @@ export class DynamoGeneralRealtimeTableSchema<
     }
 
     private async _broadcastEventTransaction<Model>(
-        context: DynamoContext,
+        context: ActionContext,
         event: ReadonlyArray<DynamoGeneralRealtimeEvent<Model>>,
     ): Promise<void> {
         // NOCOMMIT: Implement!
@@ -228,7 +228,7 @@ export class DynamoGeneralRealtimeTableSchema<
      * to correctly order events received out-of-order on the client.
      */
     public async createItem<Item extends Types["Item"]>(
-        context: DynamoContext,
+        context: ActionContext,
         item: Item,
     ): Promise<
         DynamoGeneralRealtimeItemResult<ModelMap[Item["partitionType"]][Item["sortRangeType"]]>
@@ -279,7 +279,7 @@ export class DynamoGeneralRealtimeTableSchema<
     // future. See the TODO note on the top of our class for how we might implement
     // item deletion.
     public async updateItem<Key extends Types["ItemKey"]>(
-        context: DynamoContext,
+        context: ActionContext,
         itemKey: Key,
         update: (
             item: MergeObjectIntersection<Types["Item"] & Key> | null,
@@ -333,7 +333,7 @@ export class DynamoGeneralRealtimeTableSchema<
      * `updateItem()` which does it for you.
      */
     public async directlyUpdateItem<Item extends Types["Item"]>(
-        context: DynamoContext,
+        context: ActionContext,
         item: Item,
     ): Promise<
         DynamoGeneralRealtimeItemResult<ModelMap[Item["partitionType"]][Item["sortRangeType"]]>
@@ -367,34 +367,91 @@ export class DynamoGeneralRealtimeTableSchema<
     }
 
     /**
+     * Perform multiple actions atomically. Either all actions in the transaction
+     * succeed or if one action fails then none of the actions in the transaction
+     * will be applied.
+     *
+     * Supports realtime transaction entries from this class unlike
+     * `DynamoTableSchema`. But may also include non-realtime transaction entries
+     * from `DynamoTableSchema`.
+     */
+    public static async executeTransaction(
+        context: ActionContext,
+        entries: ReadonlyArray<DynamoTransactionEntry | DynamoGeneralRealtimeTransactionEntry>,
+        options?: {clientRequestToken?: string},
+    ): Promise<void> {
+        const getEvents: Array<
+            (context: ActionContext) => Promise<{
+                schema: DynamoGeneralRealtimeTableSchema<any, any>;
+                event: DynamoGeneralRealtimeEvent<unknown>;
+            }>
+        > = [];
+
+        await DynamoTableSchema.executeTransaction(
+            context,
+            entries.map(entry => {
+                if (entry instanceof DynamoTransactionEntry) return entry;
+                const {entry: actualEntry, getEvent} = entry._get(privateSymbol);
+                getEvents.push(getEvent);
+                return actualEntry;
+            }),
+            options,
+        );
+
+        const eventsBySchema = new Map<
+            DynamoGeneralRealtimeTableSchema<
+                DynamoTableSchemaTypesBase,
+                {[partitionType: string]: {[sortRangeType: string]: any}}
+            >,
+            Array<DynamoGeneralRealtimeEvent<unknown>>
+        >();
+
+        await runAllPromises(
+            getEvents.map(async getEvent => {
+                const {schema, event} = await getEvent(context);
+                getOrSetDefaultMapValue(eventsBySchema, schema, () => []).push(event);
+            }),
+        );
+
+        await runAllPromises(
+            mapIterable(eventsBySchema, async ([schema, events]) => {
+                await schema._broadcastEventTransaction(context, events);
+            }),
+        );
+    }
+
+    /**
      * Create an item in the database as the part of a transaction. In a
      * transaction either all entries succeed or all entries fail. See the
      * documentation on `createItem()` for more information.
      *
-     * You execute transactions with `DynamoTableSchema.executeTransaction()`.
+     * You execute transactions with
+     * `DynamoGeneralRealtimeTableSchema.executeTransaction()`. Can not be executed
+     * with `DynamoTableSchema.executeTransaction()`.
      */
-    public transactionCreateItem<Item extends Types["Item"]>(item: Item): DynamoTransactionEntry {
-        const entry: DynamoTransactionEntryWithGetTransactionEntryEvent =
-            this._table.transactionCreateItem(item);
+    public transactionCreateItem<Item extends Types["Item"]>(
+        item: Item,
+    ): DynamoGeneralRealtimeTransactionEntry {
+        return DynamoGeneralRealtimeTransactionEntry._new(
+            privateSymbol,
+            this._table.transactionCreateItem(item),
+            async context => {
+                const key = this._table.serializeOpaqueItemKey(item);
+                const version: number = item.updateLockVersion ?? 0;
+                const model = await this._buildModel(context, item);
 
-        entry[getTransactionEntryEventSymbol] = async context => {
-            const key = this._table.serializeOpaqueItemKey(item);
-            const version: number = item.updateLockVersion ?? 0;
-            const model = await this._buildModel(context, item);
-
-            return {
-                schema: this,
-                event: {
-                    type: "CreateItem",
-                    key,
-                    version,
-                    model,
-                    cursorByIndexName: this._getCursorByIndexName(item),
-                },
-            };
-        };
-
-        return entry;
+                return {
+                    schema: this,
+                    event: {
+                        type: "CreateItem",
+                        key,
+                        version,
+                        model,
+                        cursorByIndexName: this._getCursorByIndexName(item),
+                    },
+                };
+            },
+        );
     }
 
     /**
@@ -402,32 +459,33 @@ export class DynamoGeneralRealtimeTableSchema<
      * transaction either all entries succeed or all entries fail. See the
      * documentation on `directlyUpdateItem()` for more information.
      *
-     * You execute transactions with `DynamoTableSchema.executeTransaction()`.
+     * You execute transactions with
+     * `DynamoGeneralRealtimeTableSchema.executeTransaction()`. Can not be executed
+     * with `DynamoTableSchema.executeTransaction()`.
      */
     public transactionDirectlyUpdateItem<Item extends Types["Item"]>(
         item: Item,
-    ): DynamoTransactionEntry {
-        const entry: DynamoTransactionEntryWithGetTransactionEntryEvent =
-            this._table.transactionDirectlyUpdateItem(item);
+    ): DynamoGeneralRealtimeTransactionEntry {
+        return DynamoGeneralRealtimeTransactionEntry._new(
+            privateSymbol,
+            this._table.transactionDirectlyUpdateItem(item),
+            async context => {
+                const key = this._table.serializeOpaqueItemKey(item);
+                const version: number = item.updateLockVersion ?? 0;
+                const model = await this._buildModel(context, item);
 
-        entry[getTransactionEntryEventSymbol] = async context => {
-            const key = this._table.serializeOpaqueItemKey(item);
-            const version: number = item.updateLockVersion ?? 0;
-            const model = await this._buildModel(context, item);
-
-            return {
-                schema: this,
-                event: {
-                    type: "UpdateItem",
-                    key,
-                    version,
-                    model,
-                    cursorByIndexName: this._getCursorByIndexName(item),
-                },
-            };
-        };
-
-        return entry;
+                return {
+                    schema: this,
+                    event: {
+                        type: "UpdateItem",
+                        key,
+                        version,
+                        model,
+                        cursorByIndexName: this._getCursorByIndexName(item),
+                    },
+                };
+            },
+        );
     }
 
     /**
@@ -455,7 +513,7 @@ export class DynamoGeneralRealtimeTableSchema<
      * Get an item from the database and if it doesn't exist then return null.
      */
     public getItemIfExists<Key extends Types["ItemKey"]>(
-        context: DynamoContext,
+        context: ActionContext,
         key: Key,
         options?: {consistency?: DynamoReadConsistency},
     ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null> {
@@ -466,7 +524,7 @@ export class DynamoGeneralRealtimeTableSchema<
      * Get an item from the database and if it doesn't exist then throw an error.
      */
     public getItem<Key extends Types["ItemKey"]>(
-        context: DynamoContext,
+        context: ActionContext,
         key: Key,
         options?: {consistency?: DynamoReadConsistency},
     ): Promise<MergeObjectIntersection<Types["Item"] & Key>> {
@@ -479,7 +537,7 @@ export class DynamoGeneralRealtimeTableSchema<
      * data in realtime.
      */
     public async getModelIfExists<Key extends Types["ItemKey"]>(
-        context: DynamoContext,
+        context: ActionContext,
         itemKey: Key,
         options?: {consistency?: DynamoReadConsistency},
     ): Promise<DynamoGeneralRealtimeItemResult<
@@ -510,7 +568,7 @@ export class DynamoGeneralRealtimeTableSchema<
      * this data in realtime.
      */
     public async getModel<Key extends Types["ItemKey"]>(
-        context: DynamoContext,
+        context: ActionContext,
         itemKey: Key,
         options?: {consistency?: DynamoReadConsistency},
     ): Promise<
@@ -544,7 +602,7 @@ export class DynamoGeneralRealtimeTableSchema<
         const StartSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
         const EndSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
     >(
-        context: DynamoContext,
+        context: ActionContext,
         {
             partitionKey,
             startSortKey,
@@ -756,47 +814,6 @@ export class DynamoGeneralRealtimeTableSchema<
             },
         };
     }
-
-    /**
-     * Broadcast any update events after a transaction successfully completes.
-     * Transactions may update multiple items at once and items from both realtime
-     * and non-realtime tables alike.
-     *
-     * We call this at the end of `DynamoTableSchema.executeTransaction()` which is
-     * why it's public but it should only be called by `DynamoTableSchema`!
-     */
-    public static async _broadcastEventsAfterTransaction(
-        context: DynamoContext,
-        entries: ReadonlyArray<DynamoTransactionEntryWithGetTransactionEntryEvent>,
-    ) {
-        // If no entries have a corresponding realtime event then bail early...
-        if (entries.every(entry => !entry[getTransactionEntryEventSymbol])) return;
-
-        const eventsBySchema = new Map<
-            DynamoGeneralRealtimeTableSchema<
-                DynamoTableSchemaTypesBase,
-                {[partitionType: string]: {[sortRangeType: string]: any}}
-            >,
-            Array<DynamoGeneralRealtimeEvent<unknown>>
-        >();
-
-        await runAllPromises(
-            entries.map(async entry => {
-                const getTransactionEntryEvent = entry[getTransactionEntryEventSymbol];
-                if (!getTransactionEntryEvent) return;
-
-                const {schema, event} = await getTransactionEntryEvent(context);
-
-                getOrSetDefaultMapValue(eventsBySchema, schema, () => []).push(event);
-            }),
-        );
-
-        await runAllPromises(
-            mapIterable(eventsBySchema, async ([schema, events]) => {
-                await schema._broadcastEventTransaction(context, events);
-            }),
-        );
-    }
 }
 
 /**
@@ -815,7 +832,7 @@ export interface DynamoGeneralRealtimeTableSchemaIndex<Model, IndexPartitionKey,
      * Query the index.
      */
     query(
-        context: DynamoContext,
+        context: ActionContext,
         options: {
             partitionKey: IndexPartitionKey;
             startSortKey?: IndexSortKey;
@@ -836,11 +853,57 @@ export interface DynamoGeneralRealtimeTableSchemaIndex<Model, IndexPartitionKey,
     ): Promise<DynamoGeneralRealtimeIndexQueryResult<Model>>;
 }
 
-const getTransactionEntryEventSymbol = Symbol("getTransactionEntryEvent");
+// Do not export this symbol! It lets us have methods that are private within
+// this file. Notably we want to construct
+// `DynamoGeneralRealtimeTransactionEntry` within this file but have the class
+// be opaque to the outside world.
+const privateSymbol = Symbol("private");
 
-type DynamoTransactionEntryWithGetTransactionEntryEvent = DynamoTransactionEntry & {
-    [getTransactionEntryEventSymbol]?: (context: DynamoContext) => Promise<{
+/**
+ * Wrapper around a `DynamoTransactionEntry` that includes extra information we
+ * need for updating a realtime table.
+ */
+export class DynamoGeneralRealtimeTransactionEntry {
+    private readonly _entry: DynamoTransactionEntry;
+    private readonly _getEvent: (context: ActionContext) => Promise<{
         schema: DynamoGeneralRealtimeTableSchema<any, any>;
         event: DynamoGeneralRealtimeEvent<unknown>;
     }>;
-};
+
+    private constructor(
+        entry: DynamoTransactionEntry,
+        getEvent: (context: ActionContext) => Promise<{
+            schema: DynamoGeneralRealtimeTableSchema<any, any>;
+            event: DynamoGeneralRealtimeEvent<unknown>;
+        }>,
+    ) {
+        this._entry = entry;
+        this._getEvent = getEvent;
+    }
+
+    public static _new(
+        symbol: typeof privateSymbol,
+        entry: DynamoTransactionEntry,
+        getEvent: (context: ActionContext) => Promise<{
+            schema: DynamoGeneralRealtimeTableSchema<any, any>;
+            event: DynamoGeneralRealtimeEvent<unknown>;
+        }>,
+    ): DynamoGeneralRealtimeTransactionEntry {
+        // `privateSymbol` is only accessible in this module so this assert makes sure
+        // we don't call this method from outside of this module.
+        assert(symbol === privateSymbol);
+
+        return new DynamoGeneralRealtimeTransactionEntry(entry, getEvent);
+    }
+
+    public _get(symbol: typeof privateSymbol) {
+        // `privateSymbol` is only accessible in this module so this assert makes sure
+        // we don't call this method from outside of this module.
+        assert(symbol === privateSymbol);
+
+        return {
+            entry: this._entry,
+            getEvent: this._getEvent,
+        };
+    }
+}

@@ -40,7 +40,7 @@ export const meta: MetaFunction = () => {
 };
 
 export async function loader({request, context: _context, params}: LoaderArgs) {
-    const context = await _context.auth.authenticate();
+    const context = await _context.actor.authenticate();
 
     const url = new URL(request.url);
     const spaceId = Schema.id<SpaceId>().deserialize(params.space_id ?? null);

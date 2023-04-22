@@ -53,7 +53,7 @@ afterEach(() => {
 test(
     "snapshot updates after many steps committed individually",
     async () => {
-        const {id: documentId} = await createDocument(context.request(session), {
+        const {id: documentId} = await createDocument(context.action(session), {
             spaceId: space.id,
             content: emptyDocumentContent,
         });
@@ -65,7 +65,7 @@ test(
         for (let i = 1; i <= 240; i++) {
             const newText = `${i} `;
 
-            await updateDocumentContent(context.request(session), {
+            await updateDocumentContent(context.action(session), {
                 id: documentId,
                 version: i - 1,
                 steps: [new ReplaceStep(3 + text.length, 3 + text.length, textSlice(newText))],
@@ -93,7 +93,7 @@ test(
                     )?.version,
                 );
 
-                const document = await getDocument(context.request(session), documentId);
+                const document = await getDocument(context.action(session), documentId);
                 expect(document.version).toEqual(i);
                 expect(document.content.doc.toJSON()).toEqual(
                     schema
@@ -115,7 +115,7 @@ test(
 
         expect(
             (
-                await getDocumentContentSteps(context.request(session), {
+                await getDocumentContentSteps(context.action(session), {
                     id: documentId,
                     startVersion: 0,
                     endVersion: 240,
@@ -125,7 +125,7 @@ test(
 
         expect(
             (
-                await getDocumentContentSteps(context.request(session), {
+                await getDocumentContentSteps(context.action(session), {
                     id: documentId,
                     startVersion: 10,
                     endVersion: 20,
@@ -135,7 +135,7 @@ test(
 
         expect(
             (
-                await getDocumentContentSteps(context.request(session), {
+                await getDocumentContentSteps(context.action(session), {
                     id: documentId,
                     startVersion: 110,
                     endVersion: 120,
@@ -145,7 +145,7 @@ test(
 
         expect(
             (
-                await getDocumentContentSteps(context.request(session), {
+                await getDocumentContentSteps(context.action(session), {
                     id: documentId,
                     startVersion: 210,
                     endVersion: 220,
@@ -155,7 +155,7 @@ test(
 
         expect(
             (
-                await getDocumentContentSteps(context.request(session), {
+                await getDocumentContentSteps(context.action(session), {
                     id: documentId,
                     startVersion: 180,
                     endVersion: 220,
@@ -170,7 +170,7 @@ test(
 test(
     "snapshot updates after many steps committed at once",
     async () => {
-        const {id: documentId} = await createDocument(context.request(session), {
+        const {id: documentId} = await createDocument(context.action(session), {
             spaceId: space.id,
             content: emptyDocumentContent,
         });
@@ -200,7 +200,7 @@ test(
             const step6 = new ReplaceStep(3 + text.length, 3 + text.length, textSlice(newText6));
             text += newText6;
 
-            await updateDocumentContent(context.request(session), {
+            await updateDocumentContent(context.action(session), {
                 id: documentId,
                 version: i - 1,
                 steps: [step1, step2, step3, step4, step5, step6],
@@ -225,7 +225,7 @@ test(
                 )?.version,
             );
 
-            const document = await getDocument(context.request(session), documentId);
+            const document = await getDocument(context.action(session), documentId);
             expect(document.version).toEqual(i + 5);
             expect(document.content.doc.toJSON()).toEqual(
                 schema
@@ -246,7 +246,7 @@ test(
 test(
     "can read document while in the middle of updating a snapshot",
     async () => {
-        const {id: documentId} = await createDocument(context.request(session), {
+        const {id: documentId} = await createDocument(context.action(session), {
             spaceId: space.id,
             content: emptyDocumentContent,
         });
@@ -277,7 +277,7 @@ test(
             const requestPausePromise =
                 updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint.pauseForTest(documentId);
 
-            const requestPromise = updateDocumentContent(context.request(session), {
+            const requestPromise = updateDocumentContent(context.action(session), {
                 id: documentId,
                 version: i - 1,
                 steps: [step1, step2, step3, step4, step5, step6],
@@ -295,7 +295,7 @@ test(
 
             // Read the document before the request is unpaused so old steps have not been
             // deleted yet.
-            const document = await getDocument(context.request(session), documentId);
+            const document = await getDocument(context.action(session), documentId);
             expect(document.version).toEqual(i + 5);
             expect(document.content.doc.toJSON()).toEqual(
                 schema
@@ -319,7 +319,7 @@ test(
 test(
     "can update document at a version before the document snapshot",
     async () => {
-        const {id: documentId} = await createDocument(context.request(session), {
+        const {id: documentId} = await createDocument(context.action(session), {
             spaceId: space.id,
             content: emptyDocumentContent,
         });
@@ -376,7 +376,7 @@ test(
             // in the cache and instead need to go read them from the database.
             jest.runAllTimers();
 
-            await updateDocumentContent(context.request(session), {
+            await updateDocumentContent(context.action(session), {
                 id: documentId,
                 version: 0,
                 steps: [step1, step2, step3, step4, step5, step6],
@@ -387,7 +387,7 @@ test(
 
             // Read the document before the request is unpaused so old steps have not been
             // deleted yet.
-            const document = await getDocument(context.request(session), documentId);
+            const document = await getDocument(context.action(session), documentId);
             expect(document.version).toEqual(i + 5);
             expect(document.content.doc.toJSON()).toEqual(
                 schema

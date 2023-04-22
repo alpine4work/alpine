@@ -17,7 +17,7 @@ const LoaderSchema = Schema.object({
 export async function loader({params, context}: LoaderArgs) {
     const documentId = Schema.id<DocumentId>().deserialize(params.document_id ?? null);
 
-    const document = await getDocument(await context.auth.authenticate(), documentId);
+    const document = await getDocument(await context.actor.authenticate(), documentId);
 
     const propagateEventData: TracerEventData = {
         context: {documentId},

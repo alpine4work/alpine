@@ -4,11 +4,12 @@ import {
     checkAccountEmailAddressDoesNotExistTransactionEntry,
     createAccountForAlphaTransactionEntries,
 } from "~/server/dynamo/accounts_table";
-import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {
-    RequestContext,
-    UnauthenticatedSessionRequestContext,
-} from "~/server/dynamo/context/request_context";
+    ActionContext,
+    MaybeSessionActionContext,
+    SessionActionContext,
+} from "~/server/dynamo/context/action_context";
+import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
@@ -129,7 +130,7 @@ export async function seedTestAlphaConfiguration(context: DynamoContext) {
  * Can not request alpha access twice for the same email address.
  */
 export async function requestAlphaAccess(
-    context: UnauthenticatedSessionRequestContext,
+    context: MaybeSessionActionContext,
     {
         name,
         emailAddress,
@@ -218,7 +219,7 @@ export async function requestAlphaAccess(
  * Get the list of alpha access requests for an internal user who will decide
  * whether to accept or reject them.
  */
-export async function getUndecidedAlphaAccessRequests(context: RequestContext) {
+export async function getUndecidedAlphaAccessRequests(context: ActionContext) {
     await authorizeInternalAccess(context);
 
     const requests = await arrayFromAsyncIterable(
@@ -255,7 +256,7 @@ export async function getUndecidedAlphaAccessRequests(context: RequestContext) {
  * user and we send them an email with instructions on how to sign in.
  */
 export async function approveAlphaAccessRequest(
-    context: RequestContext,
+    context: SessionActionContext,
     emailAddress: EmailAddress,
 ) {
     await authorizeInternalAccess(context);
@@ -281,7 +282,7 @@ export async function approveAlphaAccessRequest(
             ...requestItem,
             decision: {
                 type: "Approved",
-                approvedByAccountId: context.auth.getAccountId(),
+                approvedByAccountId: context.actor.getAccountId(),
                 accountId,
             },
         }),
@@ -310,7 +311,10 @@ export async function approveAlphaAccessRequest(
 /**
  * Denies a request for alpha access.
  */
-export async function denyAlphaAccessRequest(context: RequestContext, emailAddress: EmailAddress) {
+export async function denyAlphaAccessRequest(
+    context: SessionActionContext,
+    emailAddress: EmailAddress,
+) {
     await authorizeInternalAccess(context);
 
     const requestItem = await AlphaAccessTable.getItemIfExists(context, {
@@ -327,7 +331,7 @@ export async function denyAlphaAccessRequest(context: RequestContext, emailAddre
         ...requestItem,
         decision: {
             type: "Denied",
-            deniedByAccountId: context.auth.getAccountId(),
+            deniedByAccountId: context.actor.getAccountId(),
         },
     });
 }
@@ -337,7 +341,7 @@ export async function denyAlphaAccessRequest(context: RequestContext, emailAddre
  * accounts with internal access may call this function.
  */
 export async function* getAllApprovedAlphaAccessRequestEmailAddresses(
-    context: RequestContext,
+    context: ActionContext,
 ): AsyncIterableIterator<EmailAddress> {
     await authorizeInternalAccess(context);
 
@@ -362,7 +366,7 @@ export async function getAlphaConfiguration(context: DynamoContext): Promise<Alp
 }
 
 export async function saveAlphaConfiguration(
-    context: RequestContext,
+    context: ActionContext,
     configuration: AlphaConfiguration,
 ) {
     await authorizeInternalAccess(context);

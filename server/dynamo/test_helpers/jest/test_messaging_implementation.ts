@@ -1,4 +1,4 @@
-import {RequestContext} from "~/server/dynamo/context/request_context";
+import {ActionContext, SessionActionContext} from "~/server/dynamo/context/action_context";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/dynamo/helpers/messaging/get_message_change_log_expiration_time_from_change_time";
 import {TestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
 import {
@@ -72,7 +72,7 @@ export type TestMessagingImplementation<RoomKey extends string> = {
      * All rooms must be part of a space.
      */
     createRoom: (
-        context: RequestContext,
+        context: SessionActionContext,
         spaceId: SpaceId,
         sessions: Array<TestSession>,
     ) => Promise<RoomInterface<RoomKey>>;
@@ -84,7 +84,7 @@ export type TestMessagingImplementation<RoomKey extends string> = {
      */
     createPrivateRoom:
         | ((
-              context: RequestContext,
+              context: SessionActionContext,
               spaceId: SpaceId,
               insideSessions: Array<TestSession>,
               outsideSession: TestSession,
@@ -94,7 +94,7 @@ export type TestMessagingImplementation<RoomKey extends string> = {
     /**
      * Gets an existing room.
      */
-    getRoom: (context: RequestContext, key: RoomKey) => Promise<RoomInterface<RoomKey>>;
+    getRoom: (context: SessionActionContext, key: RoomKey) => Promise<RoomInterface<RoomKey>>;
 
     /**
      * Get the key for a room that doesn't exist.
@@ -197,12 +197,12 @@ export function testMessagingImplementation<RoomKey extends string>(
     const content3 = createSimpleMessageContent("test3");
     const content4 = createSimpleMessageContent("test4");
 
-    const createRoom = (context: RequestContext, spaceId: SpaceId) =>
+    const createRoom = (context: SessionActionContext, spaceId: SpaceId) =>
         _createRoom(context, spaceId, [session1, session2, session3]);
 
     const createPrivateRoom =
         typeof _createPrivateRoom === "function"
-            ? (context: RequestContext, spaceId: SpaceId) =>
+            ? (context: SessionActionContext, spaceId: SpaceId) =>
                   _createPrivateRoom(context, spaceId, [session1, session2, session3], session4)
             : "Unimplemented";
 
@@ -301,57 +301,57 @@ export function testMessagingImplementation<RoomKey extends string>(
 
     describe("Messaging implementation", () => {
         test("can create room", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
             expect(room.messageCount).toEqual(0);
         });
 
         test("can not create room in a space you don't have access to", async () => {
-            await expect(createRoom(context.request(session1), otherSpace.id)).rejects.toThrow(
+            await expect(createRoom(context.action(session1), otherSpace.id)).rejects.toThrow(
                 PermissionDeniedError,
             );
         });
 
         test("can get room", async () => {
-            const room1 = await createRoom(context.request(session1), space.id);
+            const room1 = await createRoom(context.action(session1), space.id);
 
-            const room2 = await getRoom(context.request(session1), room1.key);
+            const room2 = await getRoom(context.action(session1), room1.key);
 
             expect(room2?.messageCount).toEqual(0);
         });
 
         test("can not get room in a space you don't have access to", async () => {
-            const room1 = await createRoom(context.request(session1), space.id);
+            const room1 = await createRoom(context.action(session1), space.id);
 
-            await expect(getRoom(context.request(otherSpaceSession), room1.key)).rejects.toThrow(
+            await expect(getRoom(context.action(otherSpaceSession), room1.key)).rejects.toThrow(
                 PermissionDeniedError,
             );
         });
 
         if (createPrivateRoom !== "Unimplemented") {
             test("can not get private room when you don't have access", async () => {
-                const room1 = await createPrivateRoom(context.request(session1), space.id);
+                const room1 = await createPrivateRoom(context.action(session1), space.id);
 
-                expect((await getRoom(context.request(session1), room1.key))?.messageCount).toEqual(
+                expect((await getRoom(context.action(session1), room1.key))?.messageCount).toEqual(
                     0,
                 );
-                expect((await getRoom(context.request(session2), room1.key))?.messageCount).toEqual(
+                expect((await getRoom(context.action(session2), room1.key))?.messageCount).toEqual(
                     0,
                 );
-                expect((await getRoom(context.request(session3), room1.key))?.messageCount).toEqual(
+                expect((await getRoom(context.action(session3), room1.key))?.messageCount).toEqual(
                     0,
                 );
 
-                await expect(getRoom(context.request(session4), room1.key)).rejects.toThrow(
+                await expect(getRoom(context.action(session4), room1.key)).rejects.toThrow(
                     PermissionDeniedError,
                 );
             });
         }
 
         test("can create message", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            const message = await createMessage(context.request(session1), {
+            const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
@@ -361,7 +361,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessage(
-                    await getMessage(context.request(session1), {
+                    await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     }),
@@ -375,9 +375,9 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can create multiple messages", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            const message1 = await createMessage(context.request(session1), {
+            const message1 = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
@@ -387,7 +387,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessage(
-                    await getMessage(context.request(session1), {
+                    await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message1.index,
                     }),
@@ -399,7 +399,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 hasContentUpdated: false,
             });
 
-            const message2 = await createMessage(context.request(session1), {
+            const message2 = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
@@ -409,7 +409,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessage(
-                    await getMessage(context.request(session1), {
+                    await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message2.index,
                     }),
@@ -421,7 +421,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 hasContentUpdated: false,
             });
 
-            const message3 = await createMessage(context.request(session1), {
+            const message3 = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
@@ -431,7 +431,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessage(
-                    await getMessage(context.request(session1), {
+                    await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message3.index,
                     }),
@@ -445,9 +445,9 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can create message from a different account", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            const message = await createMessage(context.request(session2), {
+            const message = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
@@ -455,7 +455,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessage(
-                    await getMessage(context.request(session1), {
+                    await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     }),
@@ -470,7 +470,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
         test("can not create message in a room that doesn't exist", async () => {
             await expect(
-                createMessage(context.request(session1), {
+                createMessage(context.action(session1), {
                     roomKey: getMissingRoomKey(),
                     parentMessageIndex: null,
                     content: content1,
@@ -479,10 +479,10 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can not create message in a different space", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
             await expect(
-                createMessage(context.request(otherSpaceSession), {
+                createMessage(context.action(otherSpaceSession), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content1,
@@ -492,28 +492,28 @@ export function testMessagingImplementation<RoomKey extends string>(
 
         if (createPrivateRoom !== "Unimplemented") {
             test("can not create message in private room from an account without access", async () => {
-                const room = await createPrivateRoom(context.request(session1), space.id);
+                const room = await createPrivateRoom(context.action(session1), space.id);
 
-                await createMessage(context.request(session1), {
+                await createMessage(context.action(session1), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content1,
                 });
 
-                await createMessage(context.request(session2), {
+                await createMessage(context.action(session2), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content2,
                 });
 
-                await createMessage(context.request(session3), {
+                await createMessage(context.action(session3), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content3,
                 });
 
                 await expect(
-                    createMessage(context.request(session4), {
+                    createMessage(context.action(session4), {
                         roomKey: room.key,
                         parentMessageIndex: null,
                         content: content4,
@@ -523,7 +523,7 @@ export function testMessagingImplementation<RoomKey extends string>(
         }
 
         test("can not create message with invalid content", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
             const schema = MessageContentProsemirrorSchema;
             const content = assertMessageContent(
@@ -533,7 +533,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             );
 
             await expect(
-                createMessage(context.request(session2), {
+                createMessage(context.action(session2), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content,
@@ -542,30 +542,30 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can not get a message which doesn't exist", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
             await expect(() =>
-                getMessage(context.request(session1), {roomKey: room.key, messageIndex: 42}),
+                getMessage(context.action(session1), {roomKey: room.key, messageIndex: 42}),
             ).rejects.toThrow(NotFoundError);
         });
 
         test("can not get a message in a different space", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            const message = await createMessage(context.request(session1), {
+            const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
             await expect(
-                getMessage(context.request(otherSpaceSession), {
+                getMessage(context.action(otherSpaceSession), {
                     roomKey: room.key,
                     messageIndex: message.index,
                 }),
@@ -574,37 +574,37 @@ export function testMessagingImplementation<RoomKey extends string>(
 
         if (createPrivateRoom !== "Unimplemented") {
             test("can not get a message in a private room when account doesn't have access", async () => {
-                const room = await createPrivateRoom(context.request(session1), space.id);
+                const room = await createPrivateRoom(context.action(session1), space.id);
 
-                const message = await createMessage(context.request(session1), {
+                const message = await createMessage(context.action(session1), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content1,
                 });
 
                 expect(
-                    await getMessage(context.request(session1), {
+                    await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     }),
                 ).not.toBeNull();
 
                 expect(
-                    await getMessage(context.request(session2), {
+                    await getMessage(context.action(session2), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     }),
                 ).not.toBeNull();
 
                 expect(
-                    await getMessage(context.request(session3), {
+                    await getMessage(context.action(session3), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     }),
                 ).not.toBeNull();
 
                 await expect(
-                    getMessage(context.request(session4), {
+                    getMessage(context.action(session4), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     }),
@@ -613,27 +613,27 @@ export function testMessagingImplementation<RoomKey extends string>(
         }
 
         test("can create a message with a parent", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            const message1 = await createMessage(context.request(session1), {
+            const message1 = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            const message2 = await createMessage(context.request(session1), {
+            const message2 = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: message1.index,
                 content: content2,
             });
 
-            const message3 = await createMessage(context.request(session1), {
+            const message3 = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: message2.index,
                 content: content3,
             });
 
-            const message4 = await createMessage(context.request(session1), {
+            const message4 = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: message2.index,
                 content: content4,
@@ -641,7 +641,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessage(
-                    await getMessage(context.request(session1), {
+                    await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message1.index,
                     }),
@@ -655,7 +655,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessage(
-                    await getMessage(context.request(session1), {
+                    await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message2.index,
                     }),
@@ -669,7 +669,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessage(
-                    await getMessage(context.request(session1), {
+                    await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message3.index,
                     }),
@@ -683,7 +683,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessage(
-                    await getMessage(context.request(session1), {
+                    await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message4.index,
                     }),
@@ -697,10 +697,10 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can not create message with a parent that doesn't exist", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
             await expect(
-                createMessage(context.request(session1), {
+                createMessage(context.action(session1), {
                     roomKey: room.key,
                     parentMessageIndex: 42,
                     content: content1,
@@ -709,54 +709,54 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("room keeps track of message count", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            expect((await getRoom(context.request(session1), room.key))?.messageCount).toEqual(0);
+            expect((await getRoom(context.action(session1), room.key))?.messageCount).toEqual(0);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            expect((await getRoom(context.request(session1), room.key))?.messageCount).toEqual(1);
+            expect((await getRoom(context.action(session1), room.key))?.messageCount).toEqual(1);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            expect((await getRoom(context.request(session1), room.key))?.messageCount).toEqual(2);
+            expect((await getRoom(context.action(session1), room.key))?.messageCount).toEqual(2);
 
-            const message = await createMessage(context.request(session1), {
+            const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            expect((await getRoom(context.request(session1), room.key))?.messageCount).toEqual(3);
+            expect((await getRoom(context.action(session1), room.key))?.messageCount).toEqual(3);
 
-            await deleteMessage(context.request(session1), {
+            await deleteMessage(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message.index,
             });
 
-            expect((await getRoom(context.request(session1), room.key))?.messageCount).toEqual(3);
+            expect((await getRoom(context.action(session1), room.key))?.messageCount).toEqual(3);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
             });
 
-            expect((await getRoom(context.request(session1), room.key))?.messageCount).toEqual(4);
+            expect((await getRoom(context.action(session1), room.key))?.messageCount).toEqual(4);
         });
 
         test("can update message with different content", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            const message = await createMessage(context.request(session1), {
+            const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
@@ -764,7 +764,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessage(
-                    await getMessage(context.request(session1), {
+                    await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     }),
@@ -776,7 +776,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 hasContentUpdated: false,
             });
 
-            await updateMessageContent(context.request(session1), {
+            await updateMessageContent(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message.index,
                 content: content2,
@@ -784,7 +784,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessage(
-                    await getMessage(context.request(session1), {
+                    await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     }),
@@ -799,7 +799,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
         test("can not update message on room that doesn't exist", async () => {
             await expect(
-                updateMessageContent(context.request(session2), {
+                updateMessageContent(context.action(session2), {
                     roomKey: getMissingRoomKey(),
                     messageIndex: 42,
                     content: content2,
@@ -808,10 +808,10 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can not update message that doesn't exist", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
             await expect(
-                updateMessageContent(context.request(session2), {
+                updateMessageContent(context.action(session2), {
                     roomKey: room.key,
                     messageIndex: 42,
                     content: content2,
@@ -820,9 +820,9 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can not update message from different author", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            const message = await createMessage(context.request(session1), {
+            const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
@@ -830,7 +830,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessage(
-                    await getMessage(context.request(session1), {
+                    await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     }),
@@ -843,7 +843,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             });
 
             await expect(
-                updateMessageContent(context.request(session2), {
+                updateMessageContent(context.action(session2), {
                     roomKey: room.key,
                     messageIndex: message.index,
                     content: content2,
@@ -852,7 +852,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessage(
-                    await getMessage(context.request(session1), {
+                    await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     }),
@@ -866,9 +866,9 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can not update message from different space", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            const message = await createMessage(context.request(session1), {
+            const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
@@ -876,7 +876,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessage(
-                    await getMessage(context.request(session1), {
+                    await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     }),
@@ -889,7 +889,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             });
 
             await expect(
-                updateMessageContent(context.request(otherSpaceSession), {
+                updateMessageContent(context.action(otherSpaceSession), {
                     roomKey: room.key,
                     messageIndex: message.index,
                     content: content2,
@@ -898,7 +898,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessage(
-                    await getMessage(context.request(session1), {
+                    await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     }),
@@ -913,9 +913,9 @@ export function testMessagingImplementation<RoomKey extends string>(
 
         if (createPrivateRoom !== "Unimplemented") {
             test("can not update message in private room from account without access", async () => {
-                const room = await createPrivateRoom(context.request(session1), space.id);
+                const room = await createPrivateRoom(context.action(session1), space.id);
 
-                const message = await createMessage(context.request(session1), {
+                const message = await createMessage(context.action(session1), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content1,
@@ -923,7 +923,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 expect(
                     massageMessage(
-                        await getMessage(context.request(session1), {
+                        await getMessage(context.action(session1), {
                             roomKey: room.key,
                             messageIndex: message.index,
                         }),
@@ -936,7 +936,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 });
 
                 await expect(
-                    updateMessageContent(context.request(session4), {
+                    updateMessageContent(context.action(session4), {
                         roomKey: room.key,
                         messageIndex: message.index,
                         content: content2,
@@ -945,7 +945,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 expect(
                     massageMessage(
-                        await getMessage(context.request(session1), {
+                        await getMessage(context.action(session1), {
                             roomKey: room.key,
                             messageIndex: message.index,
                         }),
@@ -960,7 +960,7 @@ export function testMessagingImplementation<RoomKey extends string>(
         }
 
         test("can not update message with invalid content", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
             const schema = MessageContentProsemirrorSchema;
             const invalidContent = assertMessageContent(
@@ -969,7 +969,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ]),
             );
 
-            const message = await createMessage(context.request(session1), {
+            const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
@@ -977,7 +977,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessage(
-                    await getMessage(context.request(session1), {
+                    await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     }),
@@ -990,7 +990,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             });
 
             await expect(
-                updateMessageContent(context.request(session1), {
+                updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message.index,
                     content: invalidContent,
@@ -999,7 +999,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessage(
-                    await getMessage(context.request(session1), {
+                    await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     }),
@@ -1013,9 +1013,9 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can delete message", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            const message = await createMessage(context.request(session1), {
+            const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
@@ -1023,7 +1023,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessage(
-                    await getMessage(context.request(session1), {
+                    await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     }),
@@ -1035,14 +1035,14 @@ export function testMessagingImplementation<RoomKey extends string>(
                 hasContentUpdated: false,
             });
 
-            await deleteMessage(context.request(session1), {
+            await deleteMessage(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message.index,
             });
 
             expect(
                 massageMessage(
-                    await getMessage(context.request(session1), {
+                    await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     }),
@@ -1055,7 +1055,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
         test("can not delete message on room that doesn't exist", async () => {
             await expect(
-                deleteMessage(context.request(session2), {
+                deleteMessage(context.action(session2), {
                     roomKey: getMissingRoomKey(),
                     messageIndex: 42,
                 }),
@@ -1063,10 +1063,10 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can not delete message that doesn't exist", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
             await expect(
-                deleteMessage(context.request(session2), {
+                deleteMessage(context.action(session2), {
                     roomKey: room.key,
                     messageIndex: 42,
                 }),
@@ -1074,9 +1074,9 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can not delete message from different author", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            const message = await createMessage(context.request(session1), {
+            const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
@@ -1084,7 +1084,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessage(
-                    await getMessage(context.request(session1), {
+                    await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     }),
@@ -1097,7 +1097,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             });
 
             await expect(
-                deleteMessage(context.request(session2), {
+                deleteMessage(context.action(session2), {
                     roomKey: room.key,
                     messageIndex: message.index,
                 }),
@@ -1105,7 +1105,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessage(
-                    await getMessage(context.request(session1), {
+                    await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     }),
@@ -1119,9 +1119,9 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can not delete message from different space", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            const message = await createMessage(context.request(session1), {
+            const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
@@ -1129,7 +1129,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessage(
-                    await getMessage(context.request(session1), {
+                    await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     }),
@@ -1142,7 +1142,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             });
 
             await expect(
-                deleteMessage(context.request(otherSpaceSession), {
+                deleteMessage(context.action(otherSpaceSession), {
                     roomKey: room.key,
                     messageIndex: message.index,
                 }),
@@ -1150,7 +1150,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessage(
-                    await getMessage(context.request(session1), {
+                    await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     }),
@@ -1165,9 +1165,9 @@ export function testMessagingImplementation<RoomKey extends string>(
 
         if (createPrivateRoom !== "Unimplemented") {
             test("can not delete message in private room from account without access", async () => {
-                const room = await createRoom(context.request(session1), space.id);
+                const room = await createRoom(context.action(session1), space.id);
 
-                const message = await createMessage(context.request(session1), {
+                const message = await createMessage(context.action(session1), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content1,
@@ -1175,7 +1175,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 expect(
                     massageMessage(
-                        await getMessage(context.request(session1), {
+                        await getMessage(context.action(session1), {
                             roomKey: room.key,
                             messageIndex: message.index,
                         }),
@@ -1188,7 +1188,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 });
 
                 await expect(
-                    deleteMessage(context.request(session4), {
+                    deleteMessage(context.action(session4), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     }),
@@ -1196,7 +1196,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 expect(
                     massageMessage(
-                        await getMessage(context.request(session1), {
+                        await getMessage(context.action(session1), {
                             roomKey: room.key,
                             messageIndex: message.index,
                         }),
@@ -1211,9 +1211,9 @@ export function testMessagingImplementation<RoomKey extends string>(
         }
 
         test("can not delete a message twice", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            const message = await createMessage(context.request(session1), {
+            const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
@@ -1221,7 +1221,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessage(
-                    await getMessage(context.request(session1), {
+                    await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     }),
@@ -1233,14 +1233,14 @@ export function testMessagingImplementation<RoomKey extends string>(
                 hasContentUpdated: false,
             });
 
-            await deleteMessage(context.request(session1), {
+            await deleteMessage(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message.index,
             });
 
             expect(
                 massageMessage(
-                    await getMessage(context.request(session1), {
+                    await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     }),
@@ -1251,7 +1251,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             });
 
             await expect(
-                deleteMessage(context.request(session1), {
+                deleteMessage(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message.index,
                 }),
@@ -1259,9 +1259,9 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can not update a deleted message", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            const message = await createMessage(context.request(session1), {
+            const message = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
@@ -1269,7 +1269,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessage(
-                    await getMessage(context.request(session1), {
+                    await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     }),
@@ -1281,14 +1281,14 @@ export function testMessagingImplementation<RoomKey extends string>(
                 hasContentUpdated: false,
             });
 
-            await deleteMessage(context.request(session1), {
+            await deleteMessage(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message.index,
             });
 
             expect(
                 massageMessage(
-                    await getMessage(context.request(session1), {
+                    await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     }),
@@ -1299,7 +1299,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             });
 
             await expect(
-                updateMessageContent(context.request(session1), {
+                updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message.index,
                     content: content2,
@@ -1308,51 +1308,51 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can get messages from start", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
@@ -1360,7 +1360,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: null,
@@ -1423,58 +1423,58 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can not get messages from start when before cursor is greater than after cursor", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
             });
 
             await expect(
-                getMessagesFromStart(context.request(session1), {
+                getMessagesFromStart(context.action(session1), {
                     roomKey: room.key,
                     limit: 100,
                     afterMessageIndex: 10,
@@ -1484,11 +1484,11 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can get empty messages", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
             expect(
                 massageMessages(
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: null,
@@ -1502,11 +1502,11 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can see new messages as they are added when loading from start", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
             expect(
                 massageMessages(
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: null,
@@ -1518,7 +1518,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messages: [],
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
@@ -1526,7 +1526,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: null,
@@ -1545,7 +1545,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ],
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
@@ -1553,7 +1553,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: null,
@@ -1578,7 +1578,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ],
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
@@ -1586,7 +1586,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: null,
@@ -1620,7 +1620,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
         test("can not get messages for room that doesn't exist", async () => {
             await expect(
-                getMessagesFromStart(context.request(session1), {
+                getMessagesFromStart(context.action(session1), {
                     roomKey: getMissingRoomKey(),
                     limit: 100,
                     afterMessageIndex: null,
@@ -1630,10 +1630,10 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can not get messages for room in a different space", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
             await expect(
-                getMessagesFromStart(context.request(otherSpaceSession), {
+                getMessagesFromStart(context.action(otherSpaceSession), {
                     roomKey: room.key,
                     limit: 100,
                     afterMessageIndex: null,
@@ -1644,11 +1644,11 @@ export function testMessagingImplementation<RoomKey extends string>(
 
         if (createPrivateRoom !== "Unimplemented") {
             test("can not get messages for private room from account who doesn't have access", async () => {
-                const room = await createPrivateRoom(context.request(session1), space.id);
+                const room = await createPrivateRoom(context.action(session1), space.id);
 
                 expect(
                     massageMessages(
-                        await getMessagesFromStart(context.request(session1), {
+                        await getMessagesFromStart(context.action(session1), {
                             roomKey: room.key,
                             limit: 100,
                             afterMessageIndex: null,
@@ -1662,7 +1662,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 expect(
                     massageMessages(
-                        await getMessagesFromStart(context.request(session2), {
+                        await getMessagesFromStart(context.action(session2), {
                             roomKey: room.key,
                             limit: 100,
                             afterMessageIndex: null,
@@ -1676,7 +1676,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 expect(
                     massageMessages(
-                        await getMessagesFromStart(context.request(session3), {
+                        await getMessagesFromStart(context.action(session3), {
                             roomKey: room.key,
                             limit: 100,
                             afterMessageIndex: null,
@@ -1689,7 +1689,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 });
 
                 await expect(
-                    getMessagesFromStart(context.request(session4), {
+                    getMessagesFromStart(context.action(session4), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: null,
@@ -1700,51 +1700,51 @@ export function testMessagingImplementation<RoomKey extends string>(
         }
 
         test("can get messages from start with limit", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
@@ -1752,7 +1752,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 3,
                         afterMessageIndex: null,
@@ -1785,7 +1785,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 5,
                         afterMessageIndex: null,
@@ -1830,7 +1830,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 7,
                         afterMessageIndex: null,
@@ -1887,7 +1887,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 8,
                         afterMessageIndex: null,
@@ -1950,51 +1950,51 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can get messages from start with after cursor", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            const message2 = await createMessage(context.request(session2), {
+            const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            const message5 = await createMessage(context.request(session2), {
+            const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
             });
 
-            const message8 = await createMessage(context.request(session2), {
+            const message8 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
@@ -2002,7 +2002,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: message2.index,
@@ -2053,7 +2053,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: message5.index,
@@ -2086,7 +2086,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: message8.index,
@@ -2100,51 +2100,51 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can get messages from start with before cursor", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            const message2 = await createMessage(context.request(session2), {
+            const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            const message5 = await createMessage(context.request(session2), {
+            const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
             });
 
-            const message8 = await createMessage(context.request(session2), {
+            const message8 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
@@ -2152,7 +2152,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: null,
@@ -2173,7 +2173,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: null,
@@ -2212,7 +2212,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: null,
@@ -2269,51 +2269,51 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can get messages from start with limit and after cursor", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            const message2 = await createMessage(context.request(session2), {
+            const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            const message5 = await createMessage(context.request(session2), {
+            const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
             });
 
-            const message8 = await createMessage(context.request(session2), {
+            const message8 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
@@ -2321,7 +2321,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 3,
                         afterMessageIndex: message2.index,
@@ -2354,7 +2354,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 2,
                         afterMessageIndex: message5.index,
@@ -2381,7 +2381,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 3,
                         afterMessageIndex: message5.index,
@@ -2414,7 +2414,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 4,
                         afterMessageIndex: message8.index,
@@ -2425,51 +2425,51 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can get messages from start with limit and before cursor", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            const message5 = await createMessage(context.request(session2), {
+            const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
@@ -2477,7 +2477,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 3,
                         afterMessageIndex: null,
@@ -2510,7 +2510,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 5,
                         afterMessageIndex: null,
@@ -2549,51 +2549,51 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can get messages from start with limit, before cursor, and after cursor", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            const message2 = await createMessage(context.request(session2), {
+            const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            const message7 = await createMessage(context.request(session1), {
+            const message7 = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
@@ -2601,7 +2601,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 3,
                         afterMessageIndex: message2.index,
@@ -2634,7 +2634,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 4,
                         afterMessageIndex: message2.index,
@@ -2673,7 +2673,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 5,
                         afterMessageIndex: message2.index,
@@ -2712,51 +2712,51 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can get messages from end", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
@@ -2764,7 +2764,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: null,
@@ -2827,58 +2827,58 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can not get messages from end when before cursor is greater than after cursor", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
             });
 
             await expect(
-                getMessagesFromEnd(context.request(session1), {
+                getMessagesFromEnd(context.action(session1), {
                     roomKey: room.key,
                     limit: 100,
                     afterMessageIndex: 10,
@@ -2888,11 +2888,11 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can get empty messages from end", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
             expect(
                 massageMessages(
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: null,
@@ -2906,11 +2906,11 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can see new messages as they are added when loading from end", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
             expect(
                 massageMessages(
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: null,
@@ -2922,7 +2922,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messages: [],
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
@@ -2930,7 +2930,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: null,
@@ -2949,7 +2949,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ],
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
@@ -2957,7 +2957,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: null,
@@ -2982,7 +2982,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ],
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
@@ -2990,7 +2990,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: null,
@@ -3024,7 +3024,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
         test("can not get messages from end for room that doesn't exist", async () => {
             await expect(
-                getMessagesFromEnd(context.request(session1), {
+                getMessagesFromEnd(context.action(session1), {
                     roomKey: getMissingRoomKey(),
                     limit: 100,
                     afterMessageIndex: null,
@@ -3034,10 +3034,10 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can not get messages from end for room in a different space", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
             await expect(
-                getMessagesFromEnd(context.request(otherSpaceSession), {
+                getMessagesFromEnd(context.action(otherSpaceSession), {
                     roomKey: room.key,
                     limit: 100,
                     afterMessageIndex: null,
@@ -3048,11 +3048,11 @@ export function testMessagingImplementation<RoomKey extends string>(
 
         if (createPrivateRoom !== "Unimplemented") {
             test("can not get messages from end for private room account doesn't have access to", async () => {
-                const room = await createPrivateRoom(context.request(session1), space.id);
+                const room = await createPrivateRoom(context.action(session1), space.id);
 
                 expect(
                     massageMessages(
-                        await getMessagesFromEnd(context.request(session1), {
+                        await getMessagesFromEnd(context.action(session1), {
                             roomKey: room.key,
                             limit: 100,
                             afterMessageIndex: null,
@@ -3066,7 +3066,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 expect(
                     massageMessages(
-                        await getMessagesFromEnd(context.request(session2), {
+                        await getMessagesFromEnd(context.action(session2), {
                             roomKey: room.key,
                             limit: 100,
                             afterMessageIndex: null,
@@ -3080,7 +3080,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 expect(
                     massageMessages(
-                        await getMessagesFromEnd(context.request(session3), {
+                        await getMessagesFromEnd(context.action(session3), {
                             roomKey: room.key,
                             limit: 100,
                             afterMessageIndex: null,
@@ -3093,7 +3093,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 });
 
                 await expect(
-                    getMessagesFromEnd(context.request(session4), {
+                    getMessagesFromEnd(context.action(session4), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: null,
@@ -3104,51 +3104,51 @@ export function testMessagingImplementation<RoomKey extends string>(
         }
 
         test("can get messages from end with limit", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
@@ -3156,7 +3156,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 3,
                         afterMessageIndex: null,
@@ -3189,7 +3189,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 5,
                         afterMessageIndex: null,
@@ -3234,7 +3234,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 7,
                         afterMessageIndex: null,
@@ -3291,7 +3291,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 8,
                         afterMessageIndex: null,
@@ -3354,51 +3354,51 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can get messages from end with before cursor", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            const message2 = await createMessage(context.request(session2), {
+            const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            const message5 = await createMessage(context.request(session2), {
+            const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
             });
 
-            const message8 = await createMessage(context.request(session2), {
+            const message8 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
@@ -3406,7 +3406,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: null,
@@ -3427,7 +3427,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: null,
@@ -3466,7 +3466,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: null,
@@ -3523,51 +3523,51 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can get messages from end with after cursor", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            const message2 = await createMessage(context.request(session2), {
+            const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            const message5 = await createMessage(context.request(session2), {
+            const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
             });
 
-            const message8 = await createMessage(context.request(session2), {
+            const message8 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
@@ -3575,7 +3575,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: message2.index,
@@ -3626,7 +3626,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: message5.index,
@@ -3659,7 +3659,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: message8.index,
@@ -3670,51 +3670,51 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can get messages from end with limit and before cursor", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            const message1 = await createMessage(context.request(session1), {
+            const message1 = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            const message4 = await createMessage(context.request(session1), {
+            const message4 = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            const message6 = await createMessage(context.request(session3), {
+            const message6 = await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
@@ -3722,7 +3722,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 3,
                         afterMessageIndex: null,
@@ -3755,7 +3755,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 2,
                         afterMessageIndex: null,
@@ -3782,7 +3782,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 3,
                         afterMessageIndex: null,
@@ -3815,7 +3815,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 4,
                         afterMessageIndex: null,
@@ -3826,51 +3826,51 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can get messages from end with limit and after cursor", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            const message5 = await createMessage(context.request(session2), {
+            const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
@@ -3878,7 +3878,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 2,
                         afterMessageIndex: message5.index,
@@ -3905,7 +3905,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 4,
                         afterMessageIndex: message5.index,
@@ -3938,51 +3938,51 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can get messages from end with limit, before cursor, and after cursor", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            const message2 = await createMessage(context.request(session2), {
+            const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            const message7 = await createMessage(context.request(session1), {
+            const message7 = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
@@ -3990,7 +3990,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 3,
                         afterMessageIndex: message2.index,
@@ -4023,7 +4023,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 4,
                         afterMessageIndex: message2.index,
@@ -4062,7 +4062,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 5,
                         afterMessageIndex: message2.index,
@@ -4101,67 +4101,67 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can get messages from start in a room with deleted and update messages", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            const message2 = await createMessage(context.request(session2), {
+            const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            const message4 = await createMessage(context.request(session1), {
+            const message4 = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            const message5 = await createMessage(context.request(session2), {
+            const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
             });
 
-            await deleteMessage(context.request(session2), {
+            await deleteMessage(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message2.index,
             });
 
-            await deleteMessage(context.request(session1), {
+            await deleteMessage(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message4.index,
             });
 
-            await updateMessageContent(context.request(session2), {
+            await updateMessageContent(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message5.index,
                 content: content2,
@@ -4169,7 +4169,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: null,
@@ -4228,67 +4228,67 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can get messages from end in a room with deleted and update messages", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            const message2 = await createMessage(context.request(session2), {
+            const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            const message4 = await createMessage(context.request(session1), {
+            const message4 = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            const message5 = await createMessage(context.request(session2), {
+            const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
             });
 
-            await deleteMessage(context.request(session2), {
+            await deleteMessage(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message2.index,
             });
 
-            await deleteMessage(context.request(session1), {
+            await deleteMessage(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message4.index,
             });
 
-            await updateMessageContent(context.request(session2), {
+            await updateMessageContent(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message5.index,
                 content: content2,
@@ -4296,7 +4296,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: null,
@@ -4360,11 +4360,11 @@ export function testMessagingImplementation<RoomKey extends string>(
             Date.now = () => mockTime;
 
             try {
-                const room = await createRoom(context.request(session1), space.id);
+                const room = await createRoom(context.action(session1), space.id);
 
                 expect(room.createdTime).toEqual(new Date(mockTime));
 
-                const message = await createMessage(context.request(session1), {
+                const message = await createMessage(context.action(session1), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content1,
@@ -4372,14 +4372,14 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 Date.now = () => mockTime - 1000 * 60;
 
-                await updateMessageContent(context.request(session1), {
+                await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message.index,
                     content: content2,
                 });
 
                 {
-                    const updatedMessage = await getMessage(context.request(session1), {
+                    const updatedMessage = await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     });
@@ -4399,11 +4399,11 @@ export function testMessagingImplementation<RoomKey extends string>(
             Date.now = () => mockTime;
 
             try {
-                const room = await createRoom(context.request(session1), space.id);
+                const room = await createRoom(context.action(session1), space.id);
 
                 expect(room.createdTime).toEqual(new Date(mockTime));
 
-                const message = await createMessage(context.request(session1), {
+                const message = await createMessage(context.action(session1), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content1,
@@ -4411,13 +4411,13 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 Date.now = () => mockTime - 1000 * 60;
 
-                await deleteMessage(context.request(session1), {
+                await deleteMessage(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message.index,
                 });
 
                 {
-                    const updatedMessage = await getMessage(context.request(session1), {
+                    const updatedMessage = await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     });
@@ -4435,24 +4435,24 @@ export function testMessagingImplementation<RoomKey extends string>(
             Date.now = () => mockTime;
 
             try {
-                const room = await createRoom(context.request(session1), space.id);
+                const room = await createRoom(context.action(session1), space.id);
 
                 expect(room.createdTime).toEqual(new Date(mockTime));
 
-                const message = await createMessage(context.request(session1), {
+                const message = await createMessage(context.action(session1), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content1,
                 });
 
-                await updateMessageContent(context.request(session1), {
+                await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message.index,
                     content: content2,
                 });
 
                 {
-                    const updatedMessage = await getMessage(context.request(session1), {
+                    const updatedMessage = await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     });
@@ -4462,14 +4462,14 @@ export function testMessagingImplementation<RoomKey extends string>(
                     );
                 }
 
-                await updateMessageContent(context.request(session1), {
+                await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message.index,
                     content: content3,
                 });
 
                 {
-                    const updatedMessage = await getMessage(context.request(session1), {
+                    const updatedMessage = await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     });
@@ -4481,14 +4481,14 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 Date.now = () => mockTime - 1000 * 60;
 
-                await updateMessageContent(context.request(session1), {
+                await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message.index,
                     content: content3,
                 });
 
                 {
-                    const updatedMessage = await getMessage(context.request(session1), {
+                    const updatedMessage = await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     });
@@ -4508,24 +4508,24 @@ export function testMessagingImplementation<RoomKey extends string>(
             Date.now = () => mockTime;
 
             try {
-                const room = await createRoom(context.request(session1), space.id);
+                const room = await createRoom(context.action(session1), space.id);
 
                 expect(room.createdTime).toEqual(new Date(mockTime));
 
-                const message = await createMessage(context.request(session1), {
+                const message = await createMessage(context.action(session1), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content1,
                 });
 
-                await updateMessageContent(context.request(session1), {
+                await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message.index,
                     content: content2,
                 });
 
                 {
-                    const updatedMessage = await getMessage(context.request(session1), {
+                    const updatedMessage = await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     });
@@ -4535,13 +4535,13 @@ export function testMessagingImplementation<RoomKey extends string>(
                     );
                 }
 
-                await deleteMessage(context.request(session1), {
+                await deleteMessage(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message.index,
                 });
 
                 {
-                    const updatedMessage = await getMessage(context.request(session1), {
+                    const updatedMessage = await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     });
@@ -4559,36 +4559,36 @@ export function testMessagingImplementation<RoomKey extends string>(
             Date.now = () => mockTime;
 
             try {
-                const room = await createRoom(context.request(session1), space.id);
+                const room = await createRoom(context.action(session1), space.id);
 
                 expect(room.createdTime).toEqual(new Date(mockTime));
 
-                const message1 = await createMessage(context.request(session1), {
+                const message1 = await createMessage(context.action(session1), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content1,
                 });
 
-                const message2 = await createMessage(context.request(session1), {
+                const message2 = await createMessage(context.action(session1), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content2,
                 });
 
-                const message3 = await createMessage(context.request(session1), {
+                const message3 = await createMessage(context.action(session1), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content3,
                 });
 
-                await updateMessageContent(context.request(session1), {
+                await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message1.index,
                     content: content4,
                 });
 
                 {
-                    const updatedMessage = await getMessage(context.request(session1), {
+                    const updatedMessage = await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message1.index,
                     });
@@ -4598,14 +4598,14 @@ export function testMessagingImplementation<RoomKey extends string>(
                     );
                 }
 
-                await updateMessageContent(context.request(session1), {
+                await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message2.index,
                     content: content4,
                 });
 
                 {
-                    const updatedMessage = await getMessage(context.request(session1), {
+                    const updatedMessage = await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message2.index,
                     });
@@ -4617,14 +4617,14 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 Date.now = () => mockTime - 1000 * 60;
 
-                await updateMessageContent(context.request(session1), {
+                await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message3.index,
                     content: content4,
                 });
 
                 {
-                    const updatedMessage = await getMessage(context.request(session1), {
+                    const updatedMessage = await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message3.index,
                     });
@@ -4644,36 +4644,36 @@ export function testMessagingImplementation<RoomKey extends string>(
             Date.now = () => mockTime;
 
             try {
-                const room = await createRoom(context.request(session1), space.id);
+                const room = await createRoom(context.action(session1), space.id);
 
                 expect(room.createdTime).toEqual(new Date(mockTime));
 
-                const message1 = await createMessage(context.request(session1), {
+                const message1 = await createMessage(context.action(session1), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content1,
                 });
 
-                const message2 = await createMessage(context.request(session1), {
+                const message2 = await createMessage(context.action(session1), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content2,
                 });
 
-                const message3 = await createMessage(context.request(session1), {
+                const message3 = await createMessage(context.action(session1), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content3,
                 });
 
-                await updateMessageContent(context.request(session1), {
+                await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message1.index,
                     content: content4,
                 });
 
                 {
-                    const updatedMessage = await getMessage(context.request(session1), {
+                    const updatedMessage = await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message1.index,
                     });
@@ -4683,13 +4683,13 @@ export function testMessagingImplementation<RoomKey extends string>(
                     );
                 }
 
-                await deleteMessage(context.request(session1), {
+                await deleteMessage(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message2.index,
                 });
 
                 {
-                    const updatedMessage = await getMessage(context.request(session1), {
+                    const updatedMessage = await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message2.index,
                     });
@@ -4699,13 +4699,13 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 Date.now = () => mockTime - 1000 * 60;
 
-                await deleteMessage(context.request(session1), {
+                await deleteMessage(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message3.index,
                 });
 
                 {
-                    const updatedMessage = await getMessage(context.request(session1), {
+                    const updatedMessage = await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message3.index,
                     });
@@ -4723,35 +4723,35 @@ export function testMessagingImplementation<RoomKey extends string>(
             Date.now = () => mockTime;
 
             try {
-                const room = await createRoom(context.request(session1), space.id);
+                const room = await createRoom(context.action(session1), space.id);
 
                 expect(room.createdTime).toEqual(new Date(mockTime));
 
-                await createMessage(context.request(session1), {
+                await createMessage(context.action(session1), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content1,
                 });
 
-                const message2 = await createMessage(context.request(session1), {
+                const message2 = await createMessage(context.action(session1), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content2,
                 });
 
-                const message3 = await createMessage(context.request(session1), {
+                const message3 = await createMessage(context.action(session1), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content3,
                 });
 
-                await deleteMessage(context.request(session1), {
+                await deleteMessage(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message2.index,
                 });
 
                 {
-                    const updatedMessage = await getMessage(context.request(session1), {
+                    const updatedMessage = await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message2.index,
                     });
@@ -4761,14 +4761,14 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 Date.now = () => mockTime - 1000 * 60;
 
-                await updateMessageContent(context.request(session1), {
+                await updateMessageContent(context.action(session1), {
                     roomKey: room.key,
                     messageIndex: message3.index,
                     content: content4,
                 });
 
                 {
-                    const updatedMessage = await getMessage(context.request(session1), {
+                    const updatedMessage = await getMessage(context.action(session1), {
                         roomKey: room.key,
                         messageIndex: message3.index,
                     });
@@ -4783,51 +4783,51 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("will get messages referenced outside the queried range when loading from start", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            const message2 = await createMessage(context.request(session2), {
+            const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            const message3 = await createMessage(context.request(session3), {
+            const message3 = await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: message3.index,
                 content: content3,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: message3.index,
                 content: content1,
             });
 
-            const message6 = await createMessage(context.request(session3), {
+            const message6 = await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: message6.index,
                 content: content4,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: message2.index,
                 content: content4,
@@ -4835,7 +4835,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: null,
@@ -4898,7 +4898,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: message3.index,
@@ -4957,7 +4957,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 3,
                         afterMessageIndex: message3.index,
@@ -4998,57 +4998,57 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("will get messages referenced outside the queried range when loading from end", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            const message2 = await createMessage(context.request(session2), {
+            const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            const message3 = await createMessage(context.request(session3), {
+            const message3 = await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: message3.index,
                 content: content3,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: message3.index,
                 content: content1,
             });
 
-            const message6 = await createMessage(context.request(session3), {
+            const message6 = await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            const message7 = await createMessage(context.request(session1), {
+            const message7 = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: message6.index,
                 content: content4,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: message2.index,
                 content: content4,
             });
 
-            const message9 = await createMessage(context.request(session3), {
+            const message9 = await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content4,
@@ -5056,7 +5056,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: null,
@@ -5125,7 +5125,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 5,
                         afterMessageIndex: null,
@@ -5184,7 +5184,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 3,
                         afterMessageIndex: null,
@@ -5225,7 +5225,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessages(
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: null,
@@ -5276,39 +5276,39 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("get from start returns the last time any message was updated even if it is not visible", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            const message2 = await createMessage(context.request(session2), {
+            const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            const message5 = await createMessage(context.request(session2), {
+            const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
@@ -5316,7 +5316,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 (
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 3,
                         afterMessageIndex: null,
@@ -5325,7 +5325,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ).lastMessageChangeTime,
             ).toEqual(null);
 
-            const updatedMessage2 = await updateMessageContent(context.request(session2), {
+            const updatedMessage2 = await updateMessageContent(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message2.index,
                 content: content2,
@@ -5333,7 +5333,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 (
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 3,
                         afterMessageIndex: null,
@@ -5342,7 +5342,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ).lastMessageChangeTime,
             ).toEqual(updatedMessage2.contentUpdatedTime);
 
-            const updatedMessage5 = await updateMessageContent(context.request(session2), {
+            const updatedMessage5 = await updateMessageContent(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message5.index,
                 content: content1,
@@ -5350,7 +5350,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 (
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 3,
                         afterMessageIndex: null,
@@ -5361,39 +5361,39 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("get from end returns the last time any message was updated even if it is not visible", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            const message2 = await createMessage(context.request(session2), {
+            const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            const message5 = await createMessage(context.request(session2), {
+            const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
@@ -5401,7 +5401,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 (
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 3,
                         afterMessageIndex: null,
@@ -5410,7 +5410,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ).lastMessageChangeTime,
             ).toEqual(null);
 
-            const updatedMessage5 = await updateMessageContent(context.request(session2), {
+            const updatedMessage5 = await updateMessageContent(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message5.index,
                 content: content1,
@@ -5418,7 +5418,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 (
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 3,
                         afterMessageIndex: null,
@@ -5427,7 +5427,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ).lastMessageChangeTime,
             ).toEqual(updatedMessage5.contentUpdatedTime);
 
-            const updatedMessage2 = await updateMessageContent(context.request(session2), {
+            const updatedMessage2 = await updateMessageContent(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message2.index,
                 content: content2,
@@ -5435,7 +5435,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 (
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 3,
                         afterMessageIndex: null,
@@ -5446,39 +5446,39 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("get from start returns the last time any message was deleted even if it is not visible", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            const message2 = await createMessage(context.request(session2), {
+            const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            const message5 = await createMessage(context.request(session2), {
+            const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
@@ -5486,7 +5486,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 (
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 3,
                         afterMessageIndex: null,
@@ -5495,14 +5495,14 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ).lastMessageChangeTime,
             ).toEqual(null);
 
-            const deletedMessage2 = await deleteMessage(context.request(session2), {
+            const deletedMessage2 = await deleteMessage(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message2.index,
             });
 
             expect(
                 (
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 3,
                         afterMessageIndex: null,
@@ -5511,14 +5511,14 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ).lastMessageChangeTime,
             ).toEqual(deletedMessage2.deletedTime);
 
-            const deletedMessage5 = await deleteMessage(context.request(session2), {
+            const deletedMessage5 = await deleteMessage(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message5.index,
             });
 
             expect(
                 (
-                    await getMessagesFromStart(context.request(session1), {
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 3,
                         afterMessageIndex: null,
@@ -5529,39 +5529,39 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("get from end returns the last time any message was deleted even if it is not visible", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            const message2 = await createMessage(context.request(session2), {
+            const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            const message5 = await createMessage(context.request(session2), {
+            const message5 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
@@ -5569,7 +5569,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 (
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 3,
                         afterMessageIndex: null,
@@ -5578,14 +5578,14 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ).lastMessageChangeTime,
             ).toEqual(null);
 
-            const deletedMessage5 = await deleteMessage(context.request(session2), {
+            const deletedMessage5 = await deleteMessage(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message5.index,
             });
 
             expect(
                 (
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 3,
                         afterMessageIndex: null,
@@ -5594,14 +5594,14 @@ export function testMessagingImplementation<RoomKey extends string>(
                 ).lastMessageChangeTime,
             ).toEqual(deletedMessage5.deletedTime);
 
-            const deletedMessage2 = await deleteMessage(context.request(session2), {
+            const deletedMessage2 = await deleteMessage(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message2.index,
             });
 
             expect(
                 (
-                    await getMessagesFromEnd(context.request(session1), {
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 3,
                         afterMessageIndex: null,
@@ -5612,11 +5612,11 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("backfill returns nothing if client is up-to-date", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
             expect(
                 massageMessageBackfill(
-                    await backfillMessages(context.request(session1), {
+                    await backfillMessages(context.action(session1), {
                         roomKey: room.key,
                         clientMessageCount: 0,
                         clientLastMessageChangeTime: null,
@@ -5630,19 +5630,19 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageChangesResult: {type: "Available", changes: []},
             });
 
-            const message1 = await createMessage(context.request(session1), {
+            const message1 = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            const message3 = await createMessage(context.request(session3), {
+            const message3 = await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
@@ -5650,7 +5650,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessageBackfill(
-                    await backfillMessages(context.request(session1), {
+                    await backfillMessages(context.action(session1), {
                         roomKey: room.key,
                         clientMessageCount: 3,
                         clientLastMessageChangeTime: null,
@@ -5664,13 +5664,13 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageChangesResult: {type: "Available", changes: []},
             });
 
-            await updateMessageContent(context.request(session3), {
+            await updateMessageContent(context.action(session3), {
                 roomKey: room.key,
                 messageIndex: message3.index,
                 content: content2,
             });
 
-            const updatedMessage1 = await updateMessageContent(context.request(session1), {
+            const updatedMessage1 = await updateMessageContent(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message1.index,
                 content: content2,
@@ -5678,7 +5678,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessageBackfill(
-                    await backfillMessages(context.request(session1), {
+                    await backfillMessages(context.action(session1), {
                         roomKey: room.key,
                         clientMessageCount: 3,
                         clientLastMessageChangeTime: updatedMessage1.contentUpdatedTime,
@@ -5692,20 +5692,20 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageChangesResult: {type: "Available", changes: []},
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            const deletedMessage1 = await deleteMessage(context.request(session1), {
+            const deletedMessage1 = await deleteMessage(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message1.index,
             });
 
             expect(
                 massageMessageBackfill(
-                    await backfillMessages(context.request(session1), {
+                    await backfillMessages(context.action(session1), {
                         roomKey: room.key,
                         clientMessageCount: 4,
                         clientLastMessageChangeTime: deletedMessage1.deletedTime,
@@ -5721,21 +5721,21 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("backfill returns missing changes", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            const message1 = await createMessage(context.request(session1), {
+            const message1 = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            const message3 = await createMessage(context.request(session3), {
+            const message3 = await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
@@ -5743,7 +5743,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessageBackfill(
-                    await backfillMessages(context.request(session1), {
+                    await backfillMessages(context.action(session1), {
                         roomKey: room.key,
                         clientMessageCount: 0,
                         clientLastMessageChangeTime: null,
@@ -5776,13 +5776,13 @@ export function testMessagingImplementation<RoomKey extends string>(
                 messageChangesResult: {type: "Available", changes: []},
             });
 
-            const updatedMessage3 = await updateMessageContent(context.request(session3), {
+            const updatedMessage3 = await updateMessageContent(context.action(session3), {
                 roomKey: room.key,
                 messageIndex: message3.index,
                 content: content2,
             });
 
-            const updatedMessage1 = await updateMessageContent(context.request(session1), {
+            const updatedMessage1 = await updateMessageContent(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message1.index,
                 content: content2,
@@ -5790,7 +5790,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessageBackfill(
-                    await backfillMessages(context.request(session1), {
+                    await backfillMessages(context.action(session1), {
                         roomKey: room.key,
                         clientMessageCount: 0,
                         clientLastMessageChangeTime: null,
@@ -5831,7 +5831,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessageBackfill(
-                    await backfillMessages(context.request(session1), {
+                    await backfillMessages(context.action(session1), {
                         roomKey: room.key,
                         clientMessageCount: 1,
                         clientLastMessageChangeTime: null,
@@ -5866,7 +5866,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessageBackfill(
-                    await backfillMessages(context.request(session1), {
+                    await backfillMessages(context.action(session1), {
                         roomKey: room.key,
                         clientMessageCount: 3,
                         clientLastMessageChangeTime: null,
@@ -5888,7 +5888,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessageBackfill(
-                    await backfillMessages(context.request(session1), {
+                    await backfillMessages(context.action(session1), {
                         roomKey: room.key,
                         clientMessageCount: 3,
                         clientLastMessageChangeTime: updatedMessage3.contentUpdatedTime,
@@ -5907,7 +5907,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessageBackfill(
-                    await backfillMessages(context.request(session1), {
+                    await backfillMessages(context.action(session1), {
                         roomKey: room.key,
                         clientMessageCount: 2,
                         clientLastMessageChangeTime: updatedMessage3.contentUpdatedTime,
@@ -5931,20 +5931,20 @@ export function testMessagingImplementation<RoomKey extends string>(
                 },
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
             });
 
-            const deletedMessage1 = await deleteMessage(context.request(session1), {
+            const deletedMessage1 = await deleteMessage(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message1.index,
             });
 
             expect(
                 massageMessageBackfill(
-                    await backfillMessages(context.request(session1), {
+                    await backfillMessages(context.action(session1), {
                         roomKey: room.key,
                         clientMessageCount: 0,
                         clientLastMessageChangeTime: null,
@@ -5990,7 +5990,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessageBackfill(
-                    await backfillMessages(context.request(session1), {
+                    await backfillMessages(context.action(session1), {
                         roomKey: room.key,
                         clientMessageCount: 3,
                         clientLastMessageChangeTime: null,
@@ -6020,7 +6020,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessageBackfill(
-                    await backfillMessages(context.request(session1), {
+                    await backfillMessages(context.action(session1), {
                         roomKey: room.key,
                         clientMessageCount: 3,
                         clientLastMessageChangeTime: updatedMessage1.contentUpdatedTime,
@@ -6046,28 +6046,28 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can not backfill messages for room that doesn't exist", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
             await expect(
-                backfillMessages(context.request(session1), {
+                backfillMessages(context.action(session1), {
                     roomKey: getMissingRoomKey(),
                     clientMessageCount: 0,
                     clientLastMessageChangeTime: null,
@@ -6077,28 +6077,28 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("can not backfill messages for a room in a different space", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
             await expect(
-                backfillMessages(context.request(otherSpaceSession), {
+                backfillMessages(context.action(otherSpaceSession), {
                     roomKey: room.key,
                     clientMessageCount: 0,
                     clientLastMessageChangeTime: null,
@@ -6109,21 +6109,21 @@ export function testMessagingImplementation<RoomKey extends string>(
 
         if (createPrivateRoom !== "Unimplemented") {
             test("can not backfill messages for a private room account doesn't have access to", async () => {
-                const room = await createPrivateRoom(context.request(session1), space.id);
+                const room = await createPrivateRoom(context.action(session1), space.id);
 
-                await createMessage(context.request(session1), {
+                await createMessage(context.action(session1), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content1,
                 });
 
-                await createMessage(context.request(session2), {
+                await createMessage(context.action(session2), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content1,
                 });
 
-                await createMessage(context.request(session3), {
+                await createMessage(context.action(session3), {
                     roomKey: room.key,
                     parentMessageIndex: null,
                     content: content1,
@@ -6131,7 +6131,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 expect(
                     massageMessageBackfill(
-                        await backfillMessages(context.request(session1), {
+                        await backfillMessages(context.action(session1), {
                             roomKey: room.key,
                             clientMessageCount: 0,
                             clientLastMessageChangeTime: null,
@@ -6168,7 +6168,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 });
 
                 await expect(
-                    backfillMessages(context.request(session4), {
+                    backfillMessages(context.action(session4), {
                         roomKey: room.key,
                         clientMessageCount: 0,
                         clientLastMessageChangeTime: null,
@@ -6179,39 +6179,39 @@ export function testMessagingImplementation<RoomKey extends string>(
         }
 
         test("limits the number of new messages when backfilling", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
@@ -6219,7 +6219,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessageBackfill(
-                    await backfillMessages(context.request(session1), {
+                    await backfillMessages(context.action(session1), {
                         roomKey: room.key,
                         clientMessageCount: 0,
                         clientLastMessageChangeTime: null,
@@ -6257,7 +6257,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessageBackfill(
-                    await backfillMessages(context.request(session1), {
+                    await backfillMessages(context.action(session1), {
                         roomKey: room.key,
                         clientMessageCount: 2,
                         clientLastMessageChangeTime: null,
@@ -6295,33 +6295,33 @@ export function testMessagingImplementation<RoomKey extends string>(
         });
 
         test("changes are not available for backfill after a certain amount of time", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            const message1 = await createMessage(context.request(session1), {
+            const message1 = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            const message3 = await createMessage(context.request(session3), {
+            const message3 = await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            const updatedMessage3 = await updateMessageContent(context.request(session3), {
+            const updatedMessage3 = await updateMessageContent(context.action(session3), {
                 roomKey: room.key,
                 messageIndex: message3.index,
                 content: content2,
             });
 
-            const updatedMessage1 = await updateMessageContent(context.request(session1), {
+            const updatedMessage1 = await updateMessageContent(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message1.index,
                 content: content2,
@@ -6329,7 +6329,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(
                 massageMessageBackfill(
-                    await backfillMessages(context.request(session1), {
+                    await backfillMessages(context.action(session1), {
                         roomKey: room.key,
                         clientMessageCount: 3,
                         clientLastMessageChangeTime: null,
@@ -6358,7 +6358,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             try {
                 expect(
                     massageMessageBackfill(
-                        await backfillMessages(context.request(session1), {
+                        await backfillMessages(context.action(session1), {
                             roomKey: room.key,
                             clientMessageCount: 3,
                             clientLastMessageChangeTime: null,
@@ -6374,7 +6374,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 expect(
                     massageMessageBackfill(
-                        await backfillMessages(context.request(session1), {
+                        await backfillMessages(context.action(session1), {
                             roomKey: room.key,
                             clientMessageCount: 3,
                             clientLastMessageChangeTime: updatedMessage3.contentUpdatedTime,
@@ -6390,7 +6390,7 @@ export function testMessagingImplementation<RoomKey extends string>(
 
                 expect(
                     massageMessageBackfill(
-                        await backfillMessages(context.request(session1), {
+                        await backfillMessages(context.action(session1), {
                             roomKey: room.key,
                             clientMessageCount: 3,
                             clientLastMessageChangeTime: updatedMessage1.contentUpdatedTime,

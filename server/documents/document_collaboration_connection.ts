@@ -5,7 +5,7 @@ import {
 } from "~/server/documents/document_collaboration_content_manager";
 import {getAccount} from "~/server/dynamo/accounts_table";
 import {ProcessContext} from "~/server/dynamo/context/process_context";
-import {RequestContext} from "~/server/dynamo/context/request_context";
+import {ActionContext} from "~/server/dynamo/context/action_context";
 import {
     backfillDocumentComments,
     createDocumentComment,
@@ -707,7 +707,7 @@ export class DocumentCollaborationConnection {
     });
 
     private async _getOptimisticCommentThreadComment(
-        context: RequestContext,
+        context: ActionContext,
         commentThreadId: DocumentCommentThreadId,
         optimisticCommentThread: DocumentCollaborationContentManagerOptimisticCommentThread,
     ) {

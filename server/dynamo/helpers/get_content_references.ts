@@ -1,7 +1,7 @@
 import {Node} from "prosemirror-model";
 import {Step} from "prosemirror-transform";
 import {getAccountIfExists} from "~/server/dynamo/accounts_table";
-import {RequestContext} from "~/server/dynamo/context/request_context";
+import {ActionContext} from "~/server/dynamo/context/action_context";
 import {ContentMention} from "~/shared/content/content_mention";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
@@ -20,7 +20,7 @@ import {
  * example, finds all mentions and loads the mentioned accounts.
  */
 export function getContentReferencesForNode(
-    context: RequestContext,
+    context: ActionContext,
     spaceId: SpaceId,
     content: Node,
 ): Promise<ContentReferences> {
@@ -35,7 +35,7 @@ export function getContentReferencesForNode(
  * mentioned accounts.
  */
 export function getContentReferencesForSteps(
-    context: RequestContext,
+    context: ActionContext,
     spaceId: SpaceId,
     steps: ReadonlyArray<Step>,
 ): Promise<ContentReferences> {
@@ -47,7 +47,7 @@ export function getContentReferencesForSteps(
 }
 
 async function getContentReferences(
-    context: RequestContext,
+    context: ActionContext,
     spaceId: SpaceId,
     visit: (visitor: ProsemirrorVisitor) => void,
 ): Promise<ContentReferences> {

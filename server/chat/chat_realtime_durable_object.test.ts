@@ -16,55 +16,55 @@ const otherSpace = createTestSpace(context);
 const otherSession = createTestSession(context, otherSpace);
 
 test("can not connect to a chat that does not exist", async () => {
-    await expect(connectForTest(context.request(session1), generateId())).rejects.toThrow(
+    await expect(connectForTest(context.action(session1), generateId())).rejects.toThrow(
         NotFoundError,
     );
 });
 
 test("can not connect to a chat in a different space", async () => {
-    const chatId = await getOrCreateChatForAccounts(context.request(session1), {
+    const chatId = await getOrCreateChatForAccounts(context.action(session1), {
         spaceId: space.id,
         otherAccountIds: [session2.accountId],
     });
 
-    await expect(connectForTest(context.request(otherSession), chatId)).rejects.toThrow(
+    await expect(connectForTest(context.action(otherSession), chatId)).rejects.toThrow(
         PermissionDeniedError,
     );
 });
 
 test("can not connect to an existing chat durable object in a different space", async () => {
-    const chatId = await getOrCreateChatForAccounts(context.request(session1), {
+    const chatId = await getOrCreateChatForAccounts(context.action(session1), {
         spaceId: space.id,
         otherAccountIds: [session2.accountId],
     });
 
-    await connectForTest(context.request(session1), chatId);
+    await connectForTest(context.action(session1), chatId);
 
-    await expect(connectForTest(context.request(otherSession), chatId)).rejects.toThrow(
+    await expect(connectForTest(context.action(otherSession), chatId)).rejects.toThrow(
         PermissionDeniedError,
     );
 });
 
 test("can not connect to a chat as an account without access", async () => {
-    const chatId = await getOrCreateChatForAccounts(context.request(session1), {
+    const chatId = await getOrCreateChatForAccounts(context.action(session1), {
         spaceId: space.id,
         otherAccountIds: [session2.accountId],
     });
 
-    await expect(connectForTest(context.request(session3), chatId)).rejects.toThrow(
+    await expect(connectForTest(context.action(session3), chatId)).rejects.toThrow(
         PermissionDeniedError,
     );
 });
 
 test("can not connect to an existing chat durable object as an account without access", async () => {
-    const chatId = await getOrCreateChatForAccounts(context.request(session1), {
+    const chatId = await getOrCreateChatForAccounts(context.action(session1), {
         spaceId: space.id,
         otherAccountIds: [session2.accountId],
     });
 
-    await connectForTest(context.request(session1), chatId);
+    await connectForTest(context.action(session1), chatId);
 
-    await expect(connectForTest(context.request(session3), chatId)).rejects.toThrow(
+    await expect(connectForTest(context.action(session3), chatId)).rejects.toThrow(
         PermissionDeniedError,
     );
 });

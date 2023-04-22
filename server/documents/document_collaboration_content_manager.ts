@@ -2,8 +2,8 @@ import {Node} from "prosemirror-model";
 import {Step} from "prosemirror-transform";
 import {DocumentCollaborationStepCache} from "~/server/documents/document_collaboration_step_cache";
 import {getAccount} from "~/server/dynamo/accounts_table";
+import {ActionContext, SessionActionContext} from "~/server/dynamo/context/action_context";
 import {ProcessContext} from "~/server/dynamo/context/process_context";
-import {RequestContext} from "~/server/dynamo/context/request_context";
 import {
     batchGetDocumentCommentThreadsIfExists,
     getUpdateDocumentContentResult,
@@ -187,7 +187,7 @@ export class DocumentCollaborationContentManager {
      * Gets the document content at the specified version number.
      */
     public async getContentAtVersion(
-        context: RequestContext,
+        context: ActionContext,
         version: number,
     ): Promise<DocumentContent> {
         const state = this._state.get();
@@ -223,7 +223,7 @@ export class DocumentCollaborationContentManager {
      * `newSteps` applied to `content` produces `newContent`.
      */
     public async update(
-        context: RequestContext,
+        context: SessionActionContext,
         connectionId: WebSocketConnectionId,
         update: {
             version: number;
@@ -325,7 +325,7 @@ export class DocumentCollaborationContentManager {
                         persistedPromiseResolver,
                         createdTime: commentThreadCreatedTime,
                         initialComment: {
-                            authorId: context.auth.getAccountId(),
+                            authorId: context.actor.getAccountId(),
                             content: createCommentThread.initialCommentContent,
                         },
                     });
@@ -510,7 +510,7 @@ export class DocumentCollaborationContentManager {
      * because our durable object may have acknowledged the creation of some
      * comment threads but they haven't been persisted in the database yet.
      */
-    public getCommentThreadByIdForNode(context: RequestContext, content: Node) {
+    public getCommentThreadByIdForNode(context: ActionContext, content: Node) {
         return this._getCommentThreadById(context, visitor => {
             visitProsemirrorNode(content, visitor);
         });
@@ -524,7 +524,7 @@ export class DocumentCollaborationContentManager {
      * because our durable object may have acknowledged the creation of some
      * comment threads but they haven't been persisted in the database yet.
      */
-    public getCommentThreadByIdForSteps(context: RequestContext, steps: ReadonlyArray<Step>) {
+    public getCommentThreadByIdForSteps(context: ActionContext, steps: ReadonlyArray<Step>) {
         return this._getCommentThreadById(context, visitor => {
             for (const step of steps) {
                 visitProsemirrorStep(step, visitor);
@@ -533,7 +533,7 @@ export class DocumentCollaborationContentManager {
     }
 
     private async _getCommentThreadById(
-        context: RequestContext,
+        context: ActionContext,
         visit: (visitor: ProsemirrorVisitor) => void,
     ): Promise<
         Map<

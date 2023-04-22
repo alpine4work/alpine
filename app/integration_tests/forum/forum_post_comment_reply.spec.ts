@@ -14,23 +14,23 @@ const session1 = createTestSession(context, space);
 const session2 = createTestSession(context, space);
 
 test("can reply to a comment", async ({page, context: browserContext, isMobile}) => {
-    const channel = await createChannel(context.request(session1), {
+    const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
     });
 
-    const post = await createPost(context.request(session1), {
+    const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
     });
 
-    await createPostComment(context.request(session1), {
+    await createPostComment(context.action(session1), {
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
     });
 
-    await createPostComment(context.request(session2), {
+    await createPostComment(context.action(session2), {
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 2"),
@@ -168,18 +168,18 @@ test("clicking a reply bubble will scroll to the comment", async ({
     page,
     context: browserContext,
 }) => {
-    const channel = await createChannel(context.request(session1), {
+    const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
     });
 
-    const post = await createPost(context.request(session1), {
+    const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
     });
 
     for (let i = 0; i < 100; i++) {
-        await createPostComment(context.request(session1), {
+        await createPostComment(context.action(session1), {
             postId: post.id,
             parentCommentIndex: null,
             content: createSimpleMessageContent(
@@ -190,7 +190,7 @@ test("clicking a reply bubble will scroll to the comment", async ({
         });
     }
 
-    await createPostComment(context.request(session1), {
+    await createPostComment(context.action(session1), {
         postId: post.id,
         parentCommentIndex: 49,
         content: createSimpleMessageContent("Test post comment content 101"),

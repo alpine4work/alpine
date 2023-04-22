@@ -28,7 +28,7 @@ test("can write collaboratively in a document", async ({
 }) => {
     assert(viewport);
 
-    const document = await createDocument(context.request(session1), {
+    const document = await createDocument(context.action(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
@@ -107,7 +107,7 @@ test("can write collaboratively at the same time in a document", async ({
 }) => {
     assert(viewport);
 
-    const document = await createDocument(context.request(session1), {
+    const document = await createDocument(context.action(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });

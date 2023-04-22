@@ -1,5 +1,5 @@
+import {SessionActionContext} from "~/server/dynamo/context/action_context";
 import {ProcessContext} from "~/server/dynamo/context/process_context";
-import {RequestContext} from "~/server/dynamo/context/request_context";
 import {RoomInterface} from "~/server/dynamo/test_helpers/jest/test_messaging_implementation";
 import {TestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
 import {
@@ -30,7 +30,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span";
 
 export type TestMessagingRealtimeConnectionProcedures<Message extends MessageModel> = {
     [Key in keyof MessagingRealtimeProcedures<Message>]: (
-        context: RequestContext,
+        context: SessionActionContext,
         input: Parameters<MessagingRealtimeProcedures<Message>[Key]>[0],
         span: TracerSpan,
     ) => ReturnType<MessagingRealtimeProcedures<Message>[Key]>;
@@ -66,7 +66,7 @@ export function testMessagingRealtimeImplementation<
         deleteMessage,
     }: {
         createRoom: (
-            context: RequestContext,
+            context: SessionActionContext,
             spaceId: SpaceId,
             sessions: Array<TestSession>,
         ) => Promise<RoomInterface<RoomKey>>;
@@ -111,7 +111,7 @@ export function testMessagingRealtimeImplementation<
         references: emptyContentReferences,
     };
 
-    const createRoom = (context: RequestContext, spaceId: SpaceId) =>
+    const createRoom = (context: SessionActionContext, spaceId: SpaceId) =>
         _createRoom(context, spaceId, [session1, session2, session3]);
 
     // TODO(calebmer): I want to convert this test to using
@@ -123,21 +123,21 @@ export function testMessagingRealtimeImplementation<
 
     describe("Realtime messaging implementation", () => {
         test("will backfill messages when requested", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session2), {
+            await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content2,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content3,
@@ -157,7 +157,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection1.procedures.backfillMessages(
-                    context.request(session1),
+                    context.action(session1),
                     {
                         clientMessageCount: 0,
                         clientLastMessageChangeTime: null,
@@ -216,7 +216,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection1.procedures.backfillMessages(
-                    context.request(session1),
+                    context.action(session1),
                     {
                         clientMessageCount: 1,
                         clientLastMessageChangeTime: null,
@@ -263,7 +263,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection1.procedures.backfillMessages(
-                    context.request(session2),
+                    context.action(session2),
                     {
                         clientMessageCount: 0,
                         clientLastMessageChangeTime: null,
@@ -312,9 +312,9 @@ export function testMessagingRealtimeImplementation<
         });
 
         test("will send messages from other connections", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
@@ -354,7 +354,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection1.procedures.backfillMessages(
-                    context.request(session1),
+                    context.action(session1),
                     {
                         clientMessageCount: 1,
                         clientLastMessageChangeTime: null,
@@ -373,7 +373,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection2.procedures.backfillMessages(
-                    context.request(session2),
+                    context.action(session2),
                     {
                         clientMessageCount: 1,
                         clientLastMessageChangeTime: null,
@@ -398,7 +398,7 @@ export function testMessagingRealtimeImplementation<
             connection3Events = [];
 
             await connection2.procedures.createMessage(
-                context.request(session2),
+                context.action(session2),
                 {
                     parentMessageIndex: null,
                     content: content2,
@@ -465,7 +465,7 @@ export function testMessagingRealtimeImplementation<
             connection3Events = [];
 
             await connection2.procedures.createMessage(
-                context.request(session2),
+                context.action(session2),
                 {
                     parentMessageIndex: null,
                     content: content3,
@@ -533,7 +533,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection3.procedures.backfillMessages(
-                    context.request(session3),
+                    context.action(session3),
                     {
                         clientMessageCount: 1,
                         clientLastMessageChangeTime: null,
@@ -588,9 +588,9 @@ export function testMessagingRealtimeImplementation<
         });
 
         test("will send messages from other connections when those messages are added during backfill", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
@@ -630,7 +630,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection1.procedures.backfillMessages(
-                    context.request(session1),
+                    context.action(session1),
                     {
                         clientMessageCount: 1,
                         clientLastMessageChangeTime: null,
@@ -649,7 +649,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection2.procedures.backfillMessages(
-                    context.request(session2),
+                    context.action(session2),
                     {
                         clientMessageCount: 1,
                         clientLastMessageChangeTime: null,
@@ -672,7 +672,7 @@ export function testMessagingRealtimeImplementation<
                 );
 
             const connection3BackfillPromise = connection3.procedures.backfillMessages(
-                context.request(session3),
+                context.action(session3),
                 {
                     clientMessageCount: 1,
                     clientLastMessageChangeTime: null,
@@ -691,7 +691,7 @@ export function testMessagingRealtimeImplementation<
             connection3Events = [];
 
             await connection2.procedures.createMessage(
-                context.request(session2),
+                context.action(session2),
                 {
                     parentMessageIndex: null,
                     content: content2,
@@ -741,7 +741,7 @@ export function testMessagingRealtimeImplementation<
             connection3Events = [];
 
             await connection2.procedures.createMessage(
-                context.request(session2),
+                context.action(session2),
                 {
                     parentMessageIndex: null,
                     content: content3,
@@ -847,9 +847,9 @@ export function testMessagingRealtimeImplementation<
         });
 
         test("will send messages our connection when those messages are added during backfill", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
@@ -889,7 +889,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection1.procedures.backfillMessages(
-                    context.request(session1),
+                    context.action(session1),
                     {
                         clientMessageCount: 1,
                         clientLastMessageChangeTime: null,
@@ -908,7 +908,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection2.procedures.backfillMessages(
-                    context.request(session2),
+                    context.action(session2),
                     {
                         clientMessageCount: 1,
                         clientLastMessageChangeTime: null,
@@ -931,7 +931,7 @@ export function testMessagingRealtimeImplementation<
                 );
 
             const connection3BackfillPromise = connection3.procedures.backfillMessages(
-                context.request(session3),
+                context.action(session3),
                 {
                     clientMessageCount: 1,
                     clientLastMessageChangeTime: null,
@@ -950,7 +950,7 @@ export function testMessagingRealtimeImplementation<
             connection3Events = [];
 
             await connection3.procedures.createMessage(
-                context.request(session3),
+                context.action(session3),
                 {
                     parentMessageIndex: null,
                     content: content2,
@@ -1040,7 +1040,7 @@ export function testMessagingRealtimeImplementation<
         });
 
         test("will send messages from other connections in order", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
             let connection1Events: Array<MessagingRealtimeEvent<MessageModel<RoomKey>>> = [];
             let connection2Events: Array<MessagingRealtimeEvent<MessageModel<RoomKey>>> = [];
@@ -1076,7 +1076,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection1.procedures.backfillMessages(
-                    context.request(session1),
+                    context.action(session1),
                     {
                         clientMessageCount: 0,
                         clientLastMessageChangeTime: null,
@@ -1095,7 +1095,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection2.procedures.backfillMessages(
-                    context.request(session2),
+                    context.action(session2),
                     {
                         clientMessageCount: 0,
                         clientLastMessageChangeTime: null,
@@ -1114,7 +1114,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection3.procedures.backfillMessages(
-                    context.request(session2),
+                    context.action(session2),
                     {
                         clientMessageCount: 0,
                         clientLastMessageChangeTime: null,
@@ -1144,7 +1144,7 @@ export function testMessagingRealtimeImplementation<
                 );
 
             const connection1CreateMessagePromise = connection1.procedures.createMessage(
-                context.request(session1),
+                context.action(session1),
                 {
                     parentMessageIndex: null,
                     content: content1,
@@ -1162,7 +1162,7 @@ export function testMessagingRealtimeImplementation<
             connection3Events = [];
 
             await connection2.procedures.createMessage(
-                context.request(session2),
+                context.action(session2),
                 {
                     parentMessageIndex: null,
                     content: content2,
@@ -1171,7 +1171,7 @@ export function testMessagingRealtimeImplementation<
             );
 
             await connection3.procedures.createMessage(
-                context.request(session3),
+                context.action(session3),
                 {
                     parentMessageIndex: null,
                     content: content3,
@@ -1251,7 +1251,7 @@ export function testMessagingRealtimeImplementation<
         });
 
         test("will send messages from other connections in order even if it is wacky", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
             let connection1Events: Array<MessagingRealtimeEvent<MessageModel<RoomKey>>> = [];
             let connection2Events: Array<MessagingRealtimeEvent<MessageModel<RoomKey>>> = [];
@@ -1287,7 +1287,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection1.procedures.backfillMessages(
-                    context.request(session1),
+                    context.action(session1),
                     {
                         clientMessageCount: 0,
                         clientLastMessageChangeTime: null,
@@ -1306,7 +1306,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection2.procedures.backfillMessages(
-                    context.request(session2),
+                    context.action(session2),
                     {
                         clientMessageCount: 0,
                         clientLastMessageChangeTime: null,
@@ -1325,7 +1325,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection3.procedures.backfillMessages(
-                    context.request(session2),
+                    context.action(session2),
                     {
                         clientMessageCount: 0,
                         clientLastMessageChangeTime: null,
@@ -1355,7 +1355,7 @@ export function testMessagingRealtimeImplementation<
                 );
 
             const connection1CreateMessagePromise = connection1.procedures.createMessage(
-                context.request(session1),
+                context.action(session1),
                 {
                     parentMessageIndex: null,
                     content: content1,
@@ -1378,7 +1378,7 @@ export function testMessagingRealtimeImplementation<
                 );
 
             const connection2CreateMessagePromise = connection2.procedures.createMessage(
-                context.request(session2),
+                context.action(session2),
                 {
                     parentMessageIndex: null,
                     content: content2,
@@ -1389,7 +1389,7 @@ export function testMessagingRealtimeImplementation<
             const {unpause: unpause2} = await pause2Promise;
 
             await connection3.procedures.createMessage(
-                context.request(session3),
+                context.action(session3),
                 {
                     parentMessageIndex: null,
                     content: content3,
@@ -1479,7 +1479,7 @@ export function testMessagingRealtimeImplementation<
         });
 
         test("will send messages from other connections in order only after backfill", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
             let connection1Events: Array<MessagingRealtimeEvent<MessageModel<RoomKey>>> = [];
             let connection2Events: Array<MessagingRealtimeEvent<MessageModel<RoomKey>>> = [];
@@ -1525,7 +1525,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection1.procedures.backfillMessages(
-                    context.request(session1),
+                    context.action(session1),
                     {
                         clientMessageCount: 0,
                         clientLastMessageChangeTime: null,
@@ -1544,7 +1544,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection2.procedures.backfillMessages(
-                    context.request(session2),
+                    context.action(session2),
                     {
                         clientMessageCount: 0,
                         clientLastMessageChangeTime: null,
@@ -1563,7 +1563,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection3.procedures.backfillMessages(
-                    context.request(session2),
+                    context.action(session2),
                     {
                         clientMessageCount: 0,
                         clientLastMessageChangeTime: null,
@@ -1595,7 +1595,7 @@ export function testMessagingRealtimeImplementation<
                 );
 
             const connection1CreateMessagePromise = connection1.procedures.createMessage(
-                context.request(session1),
+                context.action(session1),
                 {
                     parentMessageIndex: null,
                     content: content1,
@@ -1615,7 +1615,7 @@ export function testMessagingRealtimeImplementation<
             connection4Messages = [];
 
             await connection2.procedures.createMessage(
-                context.request(session2),
+                context.action(session2),
                 {
                     parentMessageIndex: null,
                     content: content2,
@@ -1624,7 +1624,7 @@ export function testMessagingRealtimeImplementation<
             );
 
             await connection3.procedures.createMessage(
-                context.request(session3),
+                context.action(session3),
                 {
                     parentMessageIndex: null,
                     content: content3,
@@ -1759,7 +1759,7 @@ export function testMessagingRealtimeImplementation<
         });
 
         test("will ignore new messages if they are part of the backfill", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
             let connection1Events: Array<MessagingRealtimeEvent<MessageModel<RoomKey>>> = [];
             let connection2Events: Array<MessagingRealtimeEvent<MessageModel<RoomKey>>> = [];
@@ -1785,7 +1785,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection1.procedures.backfillMessages(
-                    context.request(session1),
+                    context.action(session1),
                     {
                         clientMessageCount: 0,
                         clientLastMessageChangeTime: null,
@@ -1813,7 +1813,7 @@ export function testMessagingRealtimeImplementation<
                 );
 
             const connection1CreateMessagePromise = connection1.procedures.createMessage(
-                context.request(session1),
+                context.action(session1),
                 {
                     parentMessageIndex: null,
                     content: content1,
@@ -1830,7 +1830,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection2.procedures.backfillMessages(
-                    context.request(session2),
+                    context.action(session2),
                     {
                         clientMessageCount: 0,
                         clientLastMessageChangeTime: null,
@@ -1895,7 +1895,7 @@ export function testMessagingRealtimeImplementation<
         });
 
         test("will ignore new messages if they are queued but part of the backfill", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
             let connection1Events: Array<MessagingRealtimeEvent<MessageModel<RoomKey>>> = [];
             let connection2Events: Array<MessagingRealtimeEvent<MessageModel<RoomKey>>> = [];
@@ -1921,7 +1921,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection1.procedures.backfillMessages(
-                    context.request(session1),
+                    context.action(session1),
                     {
                         clientMessageCount: 0,
                         clientLastMessageChangeTime: null,
@@ -1949,7 +1949,7 @@ export function testMessagingRealtimeImplementation<
                 );
 
             const connection1CreateMessagePromise = connection1.procedures.createMessage(
-                context.request(session1),
+                context.action(session1),
                 {
                     parentMessageIndex: null,
                     content: content1,
@@ -1970,7 +1970,7 @@ export function testMessagingRealtimeImplementation<
                 );
 
             const connection2BackfillPromise = connection2.procedures.backfillMessages(
-                context.request(session2),
+                context.action(session2),
                 {
                     clientMessageCount: 0,
                     clientLastMessageChangeTime: null,
@@ -2045,33 +2045,33 @@ export function testMessagingRealtimeImplementation<
         });
 
         test("will backfill changes when requested", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            const message1 = await createMessage(context.request(session1), {
+            const message1 = await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            const message2 = await createMessage(context.request(session2), {
+            const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            const message3 = await createMessage(context.request(session3), {
+            const message3 = await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            const updatedMessage3 = await updateMessageContent(context.request(session3), {
+            const updatedMessage3 = await updateMessageContent(context.action(session3), {
                 roomKey: room.key,
                 messageIndex: message3.index,
                 content: content2,
             });
 
-            const deletedMessage1 = await deleteMessage(context.request(session1), {
+            const deletedMessage1 = await deleteMessage(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message1.index,
             });
@@ -2090,7 +2090,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection1.procedures.backfillMessages(
-                    context.request(session1),
+                    context.action(session1),
                     {
                         clientMessageCount: 3,
                         clientLastMessageChangeTime: null,
@@ -2127,7 +2127,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection1.procedures.backfillMessages(
-                    context.request(session1),
+                    context.action(session1),
                     {
                         clientMessageCount: 3,
                         clientLastMessageChangeTime: updatedMessage3.contentUpdatedTime,
@@ -2158,7 +2158,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection1.procedures.backfillMessages(
-                    context.request(session2),
+                    context.action(session2),
                     {
                         clientMessageCount: 3,
                         clientLastMessageChangeTime: deletedMessage1.deletedTime,
@@ -2178,7 +2178,7 @@ export function testMessagingRealtimeImplementation<
             expect(connection1Events).toEqual([]);
             connection1Events = [];
 
-            const updatedMessage2 = await updateMessageContent(context.request(session2), {
+            const updatedMessage2 = await updateMessageContent(context.action(session2), {
                 roomKey: room.key,
                 messageIndex: message2.index,
                 content: content2,
@@ -2186,7 +2186,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection1.procedures.backfillMessages(
-                    context.request(session1),
+                    context.action(session1),
                     {
                         clientMessageCount: 3,
                         clientLastMessageChangeTime: null,
@@ -2229,7 +2229,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection1.procedures.backfillMessages(
-                    context.request(session2),
+                    context.action(session2),
                     {
                         clientMessageCount: 3,
                         clientLastMessageChangeTime: deletedMessage1.deletedTime,
@@ -2261,21 +2261,21 @@ export function testMessagingRealtimeImplementation<
         });
 
         test("will send changes from other connections", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            const message2 = await createMessage(context.request(session2), {
+            const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
@@ -2315,7 +2315,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection1.procedures.backfillMessages(
-                    context.request(session1),
+                    context.action(session1),
                     {
                         clientMessageCount: 3,
                         clientLastMessageChangeTime: null,
@@ -2334,7 +2334,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection2.procedures.backfillMessages(
-                    context.request(session2),
+                    context.action(session2),
                     {
                         clientMessageCount: 3,
                         clientLastMessageChangeTime: null,
@@ -2359,7 +2359,7 @@ export function testMessagingRealtimeImplementation<
             connection3Events = [];
 
             await connection2.procedures.updateMessageContent(
-                context.request(session2),
+                context.action(session2),
                 {
                     messageIndex: message2.index,
                     content: content2,
@@ -2405,7 +2405,7 @@ export function testMessagingRealtimeImplementation<
             connection3Events = [];
 
             await connection2.procedures.deleteMessage(
-                context.request(session2),
+                context.action(session2),
                 {
                     messageIndex: message2.index,
                 },
@@ -2448,7 +2448,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection3.procedures.backfillMessages(
-                    context.request(session3),
+                    context.action(session3),
                     {
                         clientMessageCount: 3,
                         clientLastMessageChangeTime: null,
@@ -2493,21 +2493,21 @@ export function testMessagingRealtimeImplementation<
         });
 
         test("will send changes from other connections when those changes are added during backfill", async () => {
-            const room = await createRoom(context.request(session1), space.id);
+            const room = await createRoom(context.action(session1), space.id);
 
-            await createMessage(context.request(session1), {
+            await createMessage(context.action(session1), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            const message2 = await createMessage(context.request(session2), {
+            const message2 = await createMessage(context.action(session2), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
             });
 
-            await createMessage(context.request(session3), {
+            await createMessage(context.action(session3), {
                 roomKey: room.key,
                 parentMessageIndex: null,
                 content: content1,
@@ -2547,7 +2547,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection1.procedures.backfillMessages(
-                    context.request(session1),
+                    context.action(session1),
                     {
                         clientMessageCount: 3,
                         clientLastMessageChangeTime: null,
@@ -2566,7 +2566,7 @@ export function testMessagingRealtimeImplementation<
 
             expect(
                 await connection2.procedures.backfillMessages(
-                    context.request(session2),
+                    context.action(session2),
                     {
                         clientMessageCount: 3,
                         clientLastMessageChangeTime: null,
@@ -2589,7 +2589,7 @@ export function testMessagingRealtimeImplementation<
                 );
 
             const connection3BackfillPromise = connection3.procedures.backfillMessages(
-                context.request(session3),
+                context.action(session3),
                 {
                     clientMessageCount: 3,
                     clientLastMessageChangeTime: null,
@@ -2608,7 +2608,7 @@ export function testMessagingRealtimeImplementation<
             connection3Events = [];
 
             await connection2.procedures.updateMessageContent(
-                context.request(session2),
+                context.action(session2),
                 {
                     messageIndex: message2.index,
                     content: content2,
@@ -2644,7 +2644,7 @@ export function testMessagingRealtimeImplementation<
             connection3Events = [];
 
             await connection2.procedures.deleteMessage(
-                context.request(session2),
+                context.action(session2),
                 {
                     messageIndex: message2.index,
                 },

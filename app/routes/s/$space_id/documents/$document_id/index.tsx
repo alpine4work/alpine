@@ -52,7 +52,7 @@ export async function loader({params, context, request}: LoaderArgs) {
                 try {
                     const content = emptyDocumentContent;
 
-                    const newDocument = await createDocument(await context.auth.authenticate(), {
+                    const newDocument = await createDocument(await context.actor.authenticate(), {
                         id: documentId,
                         spaceId,
                         content,
@@ -75,10 +75,10 @@ export async function loader({params, context, request}: LoaderArgs) {
                 }
             }
 
-            return getDocument(await context.auth.authenticate(), documentId);
+            return getDocument(await context.actor.authenticate(), documentId);
         })(),
         commentThreadId
-            ? getDocumentCommentThreadAndInitialComments(await context.auth.authenticate(), {
+            ? getDocumentCommentThreadAndInitialComments(await context.actor.authenticate(), {
                   documentId,
                   commentThreadId,
                   limit: getInitialLoadMessageCount(context.loader.clientInfo),

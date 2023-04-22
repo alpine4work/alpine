@@ -19,29 +19,29 @@ function getAvatarInPileByInitials(page: Page, initials: string) {
 }
 
 test("can open and close post comments in channel", async ({page, context: browserContext}) => {
-    const channel = await createChannel(context.request(session1), {
+    const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
     });
 
-    const post = await createPost(context.request(session1), {
+    const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
     });
 
-    await createPostComment(context.request(session1), {
+    await createPostComment(context.action(session1), {
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
     });
 
-    await createPostComment(context.request(session1), {
+    await createPostComment(context.action(session1), {
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 2"),
     });
 
-    await createPostComment(context.request(session1), {
+    await createPostComment(context.action(session1), {
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 3"),
@@ -71,29 +71,29 @@ test("can open and close post comments in channel", async ({page, context: brows
 });
 
 test("comments are always open at a direct post url", async ({page, context: browserContext}) => {
-    const channel = await createChannel(context.request(session1), {
+    const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
     });
 
-    const post = await createPost(context.request(session1), {
+    const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
     });
 
-    await createPostComment(context.request(session1), {
+    await createPostComment(context.action(session1), {
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
     });
 
-    await createPostComment(context.request(session1), {
+    await createPostComment(context.action(session1), {
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 2"),
     });
 
-    await createPostComment(context.request(session1), {
+    await createPostComment(context.action(session1), {
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 3"),
@@ -119,12 +119,12 @@ test("comments are always open at a direct post url", async ({page, context: bro
 });
 
 test("can comment on a post", async ({page, context: browserContext, isMobile}) => {
-    const channel = await createChannel(context.request(session1), {
+    const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
     });
 
-    await createPost(context.request(session1), {
+    await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
     });
@@ -184,12 +184,12 @@ test("can see comments appear in realtime", async ({
     browser,
     isMobile,
 }) => {
-    const channel = await createChannel(context.request(session1), {
+    const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
     });
 
-    const post = await createPost(context.request(session1), {
+    const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
     });
@@ -311,12 +311,12 @@ test("can see new comments when opening post comments", async ({
     browser,
     isMobile,
 }) => {
-    const channel = await createChannel(context.request(session1), {
+    const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
     });
 
-    const post = await createPost(context.request(session1), {
+    const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
     });

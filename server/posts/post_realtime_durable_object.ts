@@ -1,7 +1,7 @@
 import {createDurableObject} from "~/server/cloudflare/create_durable_object";
 import {WebSocketServer} from "~/server/cloudflare/web_socket_server";
+import {SessionActionContext} from "~/server/dynamo/context/action_context";
 import {ProcessContext} from "~/server/dynamo/context/process_context";
-import {SessionRequestContext} from "~/server/dynamo/context/request_context";
 import {authorizePostAccess} from "~/server/dynamo/forum_table";
 import {PostRealtimeConnection} from "~/server/posts/post_realtime_connection";
 import {PostId, SpaceId} from "~/shared/id/types/id_types";
@@ -22,15 +22,15 @@ class PostRealtimeDurableObject {
 
     public static async initialize({
         processContext,
-        initializeRequestContext,
+        initializeActionContext,
         idName,
     }: {
         processContext: ProcessContext;
-        initializeRequestContext: SessionRequestContext;
+        initializeActionContext: SessionActionContext;
         idName: string;
     }): Promise<PostRealtimeDurableObject> {
         const postId = Schema.id<PostId>().deserialize(idName);
-        const {spaceId} = await authorizePostAccess(initializeRequestContext, postId);
+        const {spaceId} = await authorizePostAccess(initializeActionContext, postId);
 
         return new PostRealtimeDurableObject({
             context: processContext,
@@ -59,13 +59,13 @@ class PostRealtimeDurableObject {
             this._context,
             PostRealtimeProtocol,
             async ({
-                connectRequestContext,
+                connectActionContext,
                 connectionId,
                 sendEvent,
                 sendEventToOthers,
                 iterateOtherConnections,
             }) => {
-                await authorizePostAccess(connectRequestContext, postId);
+                await authorizePostAccess(connectActionContext, postId);
 
                 return new PostRealtimeConnection({
                     connectionId,
@@ -79,7 +79,7 @@ class PostRealtimeDurableObject {
         );
     }
 
-    public async fetch(context: SessionRequestContext, request: Request): Promise<Response> {
+    public async fetch(context: SessionActionContext, request: Request): Promise<Response> {
         // Propagate the post id to all logs for this durable object.
         context = context.tracer.withPropagatedData({
             context: {spaceId: this._spaceId, postId: this._postId},
@@ -88,7 +88,7 @@ class PostRealtimeDurableObject {
         return this._webSocketServer.upgrade(context, request);
     }
 
-    public connectForTest(context: SessionRequestContext) {
+    public connectForTest(context: SessionActionContext) {
         return this._webSocketServer.connectForTest(context);
     }
 }

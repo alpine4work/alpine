@@ -31,7 +31,7 @@ export async function loader({request, context}: LoaderArgs) {
     const toPath = url.searchParams.get("to");
 
     // Can not access this page while signed in.
-    if (await context.auth.isAuthenticated()) {
+    if (await context.actor.isAuthenticated()) {
         if (toPath?.startsWith("/")) return redirect(toPath);
         return redirectToAuthenticatedHome(context);
     }

@@ -38,7 +38,7 @@ export function meta() {
 
 export async function loader({context}: LoaderArgs) {
     // Can not access this page while signed in.
-    if (await context.auth.isAuthenticated()) return redirectToAuthenticatedHome(context);
+    if (await context.actor.isAuthenticated()) return redirectToAuthenticatedHome(context);
 
     return json({});
 }

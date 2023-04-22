@@ -2,8 +2,8 @@ import {ChatRealtimeConnection} from "~/server/chat/chat_realtime_connection";
 import {createDurableObject} from "~/server/cloudflare/create_durable_object";
 import {WebSocketServer} from "~/server/cloudflare/web_socket_server";
 import {authorizeChatAccess} from "~/server/dynamo/chat_table";
+import {SessionActionContext} from "~/server/dynamo/context/action_context";
 import {ProcessContext} from "~/server/dynamo/context/process_context";
-import {RequestContext, SessionRequestContext} from "~/server/dynamo/context/request_context";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol";
 import {ChatId, SpaceId} from "~/shared/id/types/id_types";
 import {Schema} from "~/shared/schema/schema";
@@ -22,15 +22,15 @@ class ChatRealtimeDurableObject {
 
     public static async initialize({
         processContext,
-        initializeRequestContext,
+        initializeActionContext,
         idName,
     }: {
         processContext: ProcessContext;
-        initializeRequestContext: RequestContext;
+        initializeActionContext: SessionActionContext;
         idName: string;
     }): Promise<ChatRealtimeDurableObject> {
         const chatId = Schema.id<ChatId>().deserialize(idName);
-        const {spaceId} = await authorizeChatAccess(initializeRequestContext, chatId);
+        const {spaceId} = await authorizeChatAccess(initializeActionContext, chatId);
 
         return new ChatRealtimeDurableObject({
             context: processContext,
@@ -59,13 +59,13 @@ class ChatRealtimeDurableObject {
             this._context,
             ChatRealtimeProtocol,
             async ({
-                connectRequestContext,
+                connectActionContext,
                 connectionId,
                 sendEvent,
                 sendEventToOthers,
                 iterateOtherConnections,
             }) => {
-                await authorizeChatAccess(connectRequestContext, chatId);
+                await authorizeChatAccess(connectActionContext, chatId);
 
                 return new ChatRealtimeConnection({
                     connectionId,
@@ -79,7 +79,7 @@ class ChatRealtimeDurableObject {
         );
     }
 
-    public async fetch(context: SessionRequestContext, request: Request): Promise<Response> {
+    public async fetch(context: SessionActionContext, request: Request): Promise<Response> {
         // Propagate the chat id to all logs for this durable object.
         context = context.tracer.withPropagatedData({
             context: {spaceId: this._spaceId, chatId: this._chatId},
@@ -88,7 +88,7 @@ class ChatRealtimeDurableObject {
         return this._webSocketServer.upgrade(context, request);
     }
 
-    public connectForTest(context: SessionRequestContext) {
+    public connectForTest(context: SessionActionContext) {
         return this._webSocketServer.connectForTest(context);
     }
 }

@@ -10,7 +10,7 @@ export async function loader({request, context, span}: LoaderArgs) {
         if (request.method !== "GET") throw new InvalidArgumentError("Must use GET HTTP method");
 
         const emailAddresses = await arrayFromAsyncIterable(
-            getAllApprovedAlphaAccessRequestEmailAddresses(await context.auth.authenticate()),
+            getAllApprovedAlphaAccessRequestEmailAddresses(await context.actor.authenticate()),
         );
 
         return new Response(emailAddresses.join("\n") + "\n", {

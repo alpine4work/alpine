@@ -59,7 +59,7 @@ test("can not sign in if access has not been approved", async ({page}) => {
 
 test("can sign in after access is approved", async ({page}) => {
     await approveAlphaAccessRequest(
-        context.request(adminSession),
+        context.action(adminSession),
         await validateEmailAddress(context, emailAddress),
     );
 

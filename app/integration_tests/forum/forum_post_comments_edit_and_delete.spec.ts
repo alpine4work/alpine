@@ -18,17 +18,17 @@ function getAvatarInPileByInitials(page: Page, initials: string) {
 }
 
 test("can edit a post comment", async ({page, context: browserContext, isMobile}) => {
-    const channel = await createChannel(context.request(session1), {
+    const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
     });
 
-    const post = await createPost(context.request(session1), {
+    const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
     });
 
-    const comment = await createPostComment(context.request(session1), {
+    const comment = await createPostComment(context.action(session1), {
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
@@ -74,17 +74,17 @@ test("can edit a post comment", async ({page, context: browserContext, isMobile}
 });
 
 test("can not edit a post comment that's not yours", async ({page, context: browserContext}) => {
-    const channel = await createChannel(context.request(session1), {
+    const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
     });
 
-    const post = await createPost(context.request(session1), {
+    const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
     });
 
-    const comment = await createPostComment(context.request(session2), {
+    const comment = await createPostComment(context.action(session2), {
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
@@ -111,17 +111,17 @@ test("can see a post comment edited in realtime", async ({
     browser,
     isMobile,
 }) => {
-    const channel = await createChannel(context.request(session1), {
+    const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
     });
 
-    const post = await createPost(context.request(session1), {
+    const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
     });
 
-    const comment = await createPostComment(context.request(session2), {
+    const comment = await createPostComment(context.action(session2), {
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
@@ -165,17 +165,17 @@ test("can see a post comment edited in realtime", async ({
 });
 
 test("can delete a post comment", async ({page, context: browserContext}) => {
-    const channel = await createChannel(context.request(session1), {
+    const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
     });
 
-    const post = await createPost(context.request(session1), {
+    const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
     });
 
-    const comment = await createPostComment(context.request(session1), {
+    const comment = await createPostComment(context.action(session1), {
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
@@ -214,17 +214,17 @@ test("can delete a post comment", async ({page, context: browserContext}) => {
 });
 
 test("can not delete a post comment that's not yours", async ({page, context: browserContext}) => {
-    const channel = await createChannel(context.request(session1), {
+    const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
     });
 
-    const post = await createPost(context.request(session1), {
+    const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
     });
 
-    const comment = await createPostComment(context.request(session2), {
+    const comment = await createPostComment(context.action(session2), {
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
@@ -250,17 +250,17 @@ test("can see a post comment deleted in realtime", async ({
     context: browserContext1,
     browser,
 }) => {
-    const channel = await createChannel(context.request(session1), {
+    const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
     });
 
-    const post = await createPost(context.request(session1), {
+    const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
     });
 
-    const comment = await createPostComment(context.request(session2), {
+    const comment = await createPostComment(context.action(session2), {
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
@@ -307,17 +307,17 @@ test("will backfill an edit in realtime when comments are reopened", async ({
     browser,
     isMobile,
 }) => {
-    const channel = await createChannel(context.request(session1), {
+    const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
     });
 
-    const post = await createPost(context.request(session1), {
+    const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
     });
 
-    const comment = await createPostComment(context.request(session2), {
+    const comment = await createPostComment(context.action(session2), {
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),
@@ -368,17 +368,17 @@ test("will backfill a delete in realtime when comments are reopened", async ({
     context: browserContext1,
     browser,
 }) => {
-    const channel = await createChannel(context.request(session1), {
+    const channel = await createChannel(context.action(session1), {
         spaceId: space.id,
         name: "Test Channel",
     });
 
-    const post = await createPost(context.request(session1), {
+    const post = await createPost(context.action(session1), {
         channelId: channel.id,
         content: createSimplePostContent("Test post content 1"),
     });
 
-    const comment = await createPostComment(context.request(session2), {
+    const comment = await createPostComment(context.action(session2), {
         postId: post.id,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test post comment content 1"),

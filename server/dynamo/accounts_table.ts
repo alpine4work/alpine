@@ -1,9 +1,6 @@
 import {differenceInHours, differenceInMinutes} from "date-fns";
+import {ActionContext, MaybeSessionActionContext} from "~/server/dynamo/context/action_context";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
-import {
-    RequestContext,
-    UnauthenticatedSessionRequestContext,
-} from "~/server/dynamo/context/request_context";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
@@ -22,6 +19,7 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {generateId} from "~/shared/id/id";
 import {AccountId, ContentMentionAccountId, SessionId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
@@ -288,7 +286,7 @@ export function createAccountForAlphaTransactionEntries({
  * provided email address. Sends the password to the account's email address.
  */
 export async function regenerateOneTimePasswordSignIn(
-    context: UnauthenticatedSessionRequestContext,
+    context: MaybeSessionActionContext,
     emailAddress: EmailAddress,
 ): Promise<void> {
     const generatedTime = new Date();
@@ -674,10 +672,7 @@ export class Session {
         if (this._accountPromise === null) {
             this._accountPromise = (async () =>
                 assertExists(
-                    await dangerouslyGetAccountIfExistsWithoutAuthorization(
-                        context,
-                        this.accountId,
-                    ),
+                    await getAccountIfExistsWithoutAuthorization(context, this.accountId),
                     "Expected account referenced by session to exist",
                 ))();
         }
@@ -699,16 +694,45 @@ function createAccountModelFromItem(accountItem: AccountItem) {
  * Authorizes the account for this request has internal access. Throws a
  * `PermissionDeniedError` if not.
  */
-export async function authorizeInternalAccess(context: RequestContext) {
-    const account = await context.auth.getAccount();
+export async function authorizeInternalAccess(context: ActionContext) {
+    switch (context.actor.type) {
+        case "Session": {
+            const account = await context.actor.getAccount();
 
-    if (!account.hasInternalAccess)
-        throw new PermissionDeniedError("Account does not have internal access", {
-            displayMessage: errorDisplayMessage`Only members of our team may access internal tools.`,
-        });
+            if (!account.hasInternalAccess)
+                throw new PermissionDeniedError("Account does not have internal access", {
+                    displayMessage: errorDisplayMessage`Only members of our team may access internal tools.`,
+                });
+
+            break;
+        }
+        case "System": {
+            throw new PermissionDeniedError("System does not have internal access");
+        }
+        default:
+            throw exhaustive(context.actor);
+    }
 }
 
 const AccountContextCache = new ContextCache<`${SpaceId}:${AccountId}`, AccountModel | null>();
+
+/**
+ * Get an account without authorizing whether the current context has
+ * access or not.
+ */
+async function getAccountIfExistsWithoutAuthorization(
+    context: DynamoContext,
+    accountId: AccountId | ContentMentionAccountId,
+) {
+    const accountItem = await AccountsTable.getItemIfExists(context, {
+        partitionType: "Account",
+        sortRangeType: "Attributes",
+        accountId: accountId as AccountId,
+    });
+    if (!accountItem) return null;
+
+    return createAccountModelFromItem(accountItem);
+}
 
 /**
  * Get an account through a provided space. We can only authorize whether you
@@ -719,7 +743,7 @@ const AccountContextCache = new ContextCache<`${SpaceId}:${AccountId}`, AccountM
  * is not a member of the provided space then we also return null.
  */
 export function getAccountIfExists(
-    context: RequestContext,
+    context: ActionContext,
     spaceId: SpaceId,
     // You may call this function `ContentMentionAccountId` since it does not throw
     // when the account does not exist in the space.
@@ -731,10 +755,11 @@ export function getAccountIfExists(
 
         // If we are requesting the authenticated account then return the account model
         // from our context which may already be cached.
-        if (context.auth.getAccountId() === accountId) return context.auth.getAccount();
+        if (context.actor.type === "Session" && context.actor.getAccountId() === accountId)
+            return context.actor.getAccount();
 
         const [account, isMemberOfSpace] = await runAllPromises([
-            dangerouslyGetAccountIfExistsWithoutAuthorization(context, accountId as AccountId),
+            getAccountIfExistsWithoutAuthorization(context, accountId as AccountId),
             isAccountMemberOfSpace(context, spaceId, accountId as AccountId),
         ]);
 
@@ -756,29 +781,11 @@ export function getAccountIfExists(
  * with `ContentMentionAccountId`.
  */
 export async function getAccount(
-    context: RequestContext,
+    context: ActionContext,
     spaceId: SpaceId,
     accountId: AccountId,
 ): Promise<AccountModel> {
     const account = await getAccountIfExists(context, spaceId, accountId);
     if (!account) throw new NotFoundError("Can not find account in space");
     return account;
-}
-
-/**
- * Get an account without authorizing whether the current context has
- * access or not.
- */
-export async function dangerouslyGetAccountIfExistsWithoutAuthorization(
-    context: DynamoContext,
-    accountId: AccountId | ContentMentionAccountId,
-) {
-    const accountItem = await AccountsTable.getItemIfExists(context, {
-        partitionType: "Account",
-        sortRangeType: "Attributes",
-        accountId: accountId as AccountId,
-    });
-    if (!accountItem) return null;
-
-    return createAccountModelFromItem(accountItem);
 }

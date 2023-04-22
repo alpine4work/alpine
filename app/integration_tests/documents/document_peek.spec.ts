@@ -16,12 +16,12 @@ const space = createTestSpace(context);
 const session = createTestSession(context, space);
 
 test("clicking a link will open a peek", async ({context: browserContext, page, isMobile}) => {
-    const document2 = await createDocument(context.request(session), {
+    const document2 = await createDocument(context.action(session), {
         spaceId: space.id,
         content: createSimpleDocumentContent("Test document content 2"),
     });
 
-    const document1 = await createDocument(context.request(session), {
+    const document1 = await createDocument(context.action(session), {
         spaceId: space.id,
         content: assertDocumentContent(
             DocumentContentProsemirrorSchema.node("doc", {}, [
@@ -53,12 +53,12 @@ test("clicking a link will open a peek", async ({context: browserContext, page, 
 });
 
 test("clicking close will close a peek", async ({context: browserContext, page}) => {
-    const document2 = await createDocument(context.request(session), {
+    const document2 = await createDocument(context.action(session), {
         spaceId: space.id,
         content: createSimpleDocumentContent("Test document content 2"),
     });
 
-    const document1 = await createDocument(context.request(session), {
+    const document1 = await createDocument(context.action(session), {
         spaceId: space.id,
         content: assertDocumentContent(
             DocumentContentProsemirrorSchema.node("doc", {}, [
@@ -95,12 +95,12 @@ test("clicking close will close a peek", async ({context: browserContext, page})
 });
 
 test("clicking expand will expand a peek", async ({context: browserContext, page}) => {
-    const document2 = await createDocument(context.request(session), {
+    const document2 = await createDocument(context.action(session), {
         spaceId: space.id,
         content: createSimpleDocumentContent("Test document content 2"),
     });
 
-    const document1 = await createDocument(context.request(session), {
+    const document1 = await createDocument(context.action(session), {
         spaceId: space.id,
         content: assertDocumentContent(
             DocumentContentProsemirrorSchema.node("doc", {}, [
@@ -137,12 +137,12 @@ test("clicking expand will expand a peek", async ({context: browserContext, page
 });
 
 test("can navigate within peek", async ({context: browserContext, page}) => {
-    const document4 = await createDocument(context.request(session), {
+    const document4 = await createDocument(context.action(session), {
         spaceId: space.id,
         content: createSimpleDocumentContent("Test document content 4"),
     });
 
-    const document3 = await createDocument(context.request(session), {
+    const document3 = await createDocument(context.action(session), {
         spaceId: space.id,
         content: assertDocumentContent(
             DocumentContentProsemirrorSchema.node("doc", {}, [
@@ -161,7 +161,7 @@ test("can navigate within peek", async ({context: browserContext, page}) => {
         ),
     });
 
-    const document2 = await createDocument(context.request(session), {
+    const document2 = await createDocument(context.action(session), {
         spaceId: space.id,
         content: assertDocumentContent(
             DocumentContentProsemirrorSchema.node("doc", {}, [
@@ -180,7 +180,7 @@ test("can navigate within peek", async ({context: browserContext, page}) => {
         ),
     });
 
-    const document1 = await createDocument(context.request(session), {
+    const document1 = await createDocument(context.action(session), {
         spaceId: space.id,
         content: assertDocumentContent(
             DocumentContentProsemirrorSchema.node("doc", {}, [
@@ -244,22 +244,22 @@ test("can navigate within peek", async ({context: browserContext, page}) => {
 });
 
 test("can open multiple peeks", async ({context: browserContext, page}) => {
-    const document4 = await createDocument(context.request(session), {
+    const document4 = await createDocument(context.action(session), {
         spaceId: space.id,
         content: createSimpleDocumentContent("Test document content 4"),
     });
 
-    const document3 = await createDocument(context.request(session), {
+    const document3 = await createDocument(context.action(session), {
         spaceId: space.id,
         content: createSimpleDocumentContent("Test document content 3"),
     });
 
-    const document2 = await createDocument(context.request(session), {
+    const document2 = await createDocument(context.action(session), {
         spaceId: space.id,
         content: createSimpleDocumentContent("Test document content 2"),
     });
 
-    const document1 = await createDocument(context.request(session), {
+    const document1 = await createDocument(context.action(session), {
         spaceId: space.id,
         content: assertDocumentContent(
             DocumentContentProsemirrorSchema.node("doc", {}, [
@@ -344,22 +344,22 @@ test("can open multiple peeks", async ({context: browserContext, page}) => {
 });
 
 test("can close all peeks with a shift click", async ({context: browserContext, page}) => {
-    const document4 = await createDocument(context.request(session), {
+    const document4 = await createDocument(context.action(session), {
         spaceId: space.id,
         content: createSimpleDocumentContent("Test document content 4"),
     });
 
-    const document3 = await createDocument(context.request(session), {
+    const document3 = await createDocument(context.action(session), {
         spaceId: space.id,
         content: createSimpleDocumentContent("Test document content 3"),
     });
 
-    const document2 = await createDocument(context.request(session), {
+    const document2 = await createDocument(context.action(session), {
         spaceId: space.id,
         content: createSimpleDocumentContent("Test document content 2"),
     });
 
-    const document1 = await createDocument(context.request(session), {
+    const document1 = await createDocument(context.action(session), {
         spaceId: space.id,
         content: assertDocumentContent(
             DocumentContentProsemirrorSchema.node("doc", {}, [
@@ -432,17 +432,17 @@ test("can close all peeks with a shift click", async ({context: browserContext, 
 test("remembers peek state across page reloads", async ({context: browserContext, page}, {
     project,
 }) => {
-    const document5 = await createDocument(context.request(session), {
+    const document5 = await createDocument(context.action(session), {
         spaceId: space.id,
         content: createSimpleDocumentContent("Test document content 5"),
     });
 
-    const document4 = await createDocument(context.request(session), {
+    const document4 = await createDocument(context.action(session), {
         spaceId: space.id,
         content: createSimpleDocumentContent("Test document content 4"),
     });
 
-    const document3 = await createDocument(context.request(session), {
+    const document3 = await createDocument(context.action(session), {
         spaceId: space.id,
         content: assertDocumentContent(
             DocumentContentProsemirrorSchema.node("doc", {}, [
@@ -461,12 +461,12 @@ test("remembers peek state across page reloads", async ({context: browserContext
         ),
     });
 
-    const document2 = await createDocument(context.request(session), {
+    const document2 = await createDocument(context.action(session), {
         spaceId: space.id,
         content: createSimpleDocumentContent("Test document content 2"),
     });
 
-    const document1 = await createDocument(context.request(session), {
+    const document1 = await createDocument(context.action(session), {
         spaceId: space.id,
         content: assertDocumentContent(
             DocumentContentProsemirrorSchema.node("doc", {}, [
@@ -596,22 +596,22 @@ test("expand remembers peeks on the previous page except for the expanded peek",
     context: browserContext,
     page,
 }) => {
-    const document4 = await createDocument(context.request(session), {
+    const document4 = await createDocument(context.action(session), {
         spaceId: space.id,
         content: createSimpleDocumentContent("Test document content 4"),
     });
 
-    const document3 = await createDocument(context.request(session), {
+    const document3 = await createDocument(context.action(session), {
         spaceId: space.id,
         content: createSimpleDocumentContent("Test document content 3"),
     });
 
-    const document2 = await createDocument(context.request(session), {
+    const document2 = await createDocument(context.action(session), {
         spaceId: space.id,
         content: createSimpleDocumentContent("Test document content 2"),
     });
 
-    const document1 = await createDocument(context.request(session), {
+    const document1 = await createDocument(context.action(session), {
         spaceId: space.id,
         content: assertDocumentContent(
             DocumentContentProsemirrorSchema.node("doc", {}, [

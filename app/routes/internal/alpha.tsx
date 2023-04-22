@@ -38,7 +38,7 @@ const LoaderSchema = Schema.object({
 export async function loader({context}: LoaderArgs) {
     const [configuration, requests] = await runAllPromises([
         getAlphaConfiguration(context),
-        getUndecidedAlphaAccessRequests(await context.auth.authenticate()),
+        getUndecidedAlphaAccessRequests(await context.actor.authenticate()),
     ]);
     return jsonWithSchema(LoaderSchema, {configuration, requests});
 }

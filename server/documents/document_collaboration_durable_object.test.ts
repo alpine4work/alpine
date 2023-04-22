@@ -83,49 +83,49 @@ function waitForPersistance(
 }
 
 test("can not connect to a document that does not exist", async () => {
-    await expect(connectForTest(context.request(session1), generateId())).rejects.toThrow(
+    await expect(connectForTest(context.action(session1), generateId())).rejects.toThrow(
         NotFoundError,
     );
 });
 
 test("can not connect to a document in a different space", async () => {
-    const document = await createDocument(context.request(session1), {
+    const document = await createDocument(context.action(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await expect(connectForTest(context.request(otherSession), document.id)).rejects.toThrow(
+    await expect(connectForTest(context.action(otherSession), document.id)).rejects.toThrow(
         PermissionDeniedError,
     );
 });
 
 test("can not connect to an existing document durable object in a different space", async () => {
-    const document = await createDocument(context.request(session1), {
+    const document = await createDocument(context.action(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await connectForTest(context.request(session1), document.id);
+    await connectForTest(context.action(session1), document.id);
 
-    await expect(connectForTest(context.request(otherSession), document.id)).rejects.toThrow(
+    await expect(connectForTest(context.action(otherSession), document.id)).rejects.toThrow(
         PermissionDeniedError,
     );
 });
 
 test("can update document content", async () => {
-    const document = await createDocument(context.request(session1), {
+    const document = await createDocument(context.action(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
     const client1Id = generateId<ContentEditorClientId>();
-    const connection1 = await connectForTest(context.request(session1), document.id);
+    const connection1 = await connectForTest(context.action(session1), document.id);
 
     await connection1.procedures.backfill({
         version: 0,
     });
 
-    expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
+    expect(massageDocument(await getDocument(context.action(session1), document.id))).toEqual({
         version: 0,
         content: schema
             .node("doc", {}, [schema.node("title", {}, []), schema.node("paragraph", {}, [])])
@@ -142,7 +142,7 @@ test("can update document content", async () => {
 
     await waitForPersistance(connection1, 1);
 
-    expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
+    expect(massageDocument(await getDocument(context.action(session1), document.id))).toEqual({
         version: 1,
         content: schema
             .node("doc", {}, [
@@ -162,7 +162,7 @@ test("can update document content", async () => {
 
     await waitForPersistance(connection1, 2);
 
-    expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
+    expect(massageDocument(await getDocument(context.action(session1), document.id))).toEqual({
         version: 2,
         content: schema
             .node("doc", {}, [
@@ -182,7 +182,7 @@ test("can update document content", async () => {
 
     await waitForPersistance(connection1, 3);
 
-    expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
+    expect(massageDocument(await getDocument(context.action(session1), document.id))).toEqual({
         version: 3,
         content: schema
             .node("doc", {}, [
@@ -194,14 +194,14 @@ test("can update document content", async () => {
 });
 
 test("will optimistically update the document and then persist later", async () => {
-    const document = await createDocument(context.request(session1), {
+    const document = await createDocument(context.action(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
     const client1Id = generateId<ContentEditorClientId>();
-    const connection1 = await connectForTest(context.request(session1), document.id);
-    const connection2 = await connectForTest(context.request(session2), document.id);
+    const connection1 = await connectForTest(context.action(session1), document.id);
+    const connection2 = await connectForTest(context.action(session2), document.id);
 
     await connection1.procedures.backfill({
         version: 0,
@@ -267,7 +267,7 @@ test("will optimistically update the document and then persist later", async () 
         },
     ]);
 
-    expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
+    expect(massageDocument(await getDocument(context.action(session1), document.id))).toEqual({
         version: 0,
         content: schema
             .node("doc", {}, [schema.node("title", {}, []), schema.node("paragraph", {}, [])])
@@ -277,7 +277,7 @@ test("will optimistically update the document and then persist later", async () 
     unpause();
     await waitForPersistance(connection1, 3);
 
-    expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
+    expect(massageDocument(await getDocument(context.action(session1), document.id))).toEqual({
         version: 3,
         content: schema
             .node("doc", {}, [
@@ -300,16 +300,16 @@ test("will optimistically update the document and then persist later", async () 
 });
 
 test("will not batch updates from different accounts when persisting", async () => {
-    const document = await createDocument(context.request(session1), {
+    const document = await createDocument(context.action(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
     const client1Id = generateId<ContentEditorClientId>();
     const client3Id = generateId<ContentEditorClientId>();
-    const connection1 = await connectForTest(context.request(session1), document.id);
-    const connection2 = await connectForTest(context.request(session2), document.id);
-    const connection3 = await connectForTest(context.request(session2), document.id);
+    const connection1 = await connectForTest(context.action(session1), document.id);
+    const connection2 = await connectForTest(context.action(session2), document.id);
+    const connection3 = await connectForTest(context.action(session2), document.id);
 
     await connection1.procedures.backfill({
         version: 0,
@@ -375,7 +375,7 @@ test("will not batch updates from different accounts when persisting", async () 
         },
     ]);
 
-    expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
+    expect(massageDocument(await getDocument(context.action(session1), document.id))).toEqual({
         version: 0,
         content: schema
             .node("doc", {}, [schema.node("title", {}, []), schema.node("paragraph", {}, [])])
@@ -385,7 +385,7 @@ test("will not batch updates from different accounts when persisting", async () 
     unpause();
     await waitForPersistance(connection1, 3);
 
-    expect(massageDocument(await getDocument(context.request(session1), document.id))).toEqual({
+    expect(massageDocument(await getDocument(context.action(session1), document.id))).toEqual({
         version: 3,
         content: schema
             .node("doc", {}, [
@@ -412,12 +412,12 @@ test("will not batch updates from different accounts when persisting", async () 
 });
 
 test("will respond optimistically with a comment thread even if it has not been persisted yet", async () => {
-    const document = await createDocument(context.request(session1), {
+    const document = await createDocument(context.action(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context.request(session1), {
+    await updateDocumentContent(context.action(session1), {
         id: document.id,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
@@ -427,8 +427,8 @@ test("will respond optimistically with a comment thread even if it has not been 
     const commentThreadId = generateId<DocumentCommentThreadId>();
 
     const client1Id = generateId<ContentEditorClientId>();
-    const connection1 = await connectForTest(context.request(session1), document.id);
-    const connection2 = await connectForTest(context.request(session2), document.id);
+    const connection1 = await connectForTest(context.action(session1), document.id);
+    const connection2 = await connectForTest(context.action(session2), document.id);
 
     await connection1.procedures.backfill({
         version: 0,
@@ -501,7 +501,7 @@ test("will respond optimistically with a comment thread even if it has not been 
     ]);
 
     await expect(() =>
-        getDocumentComment(context.request(session1), {
+        getDocumentComment(context.action(session1), {
             documentId: document.id,
             commentThreadId,
             commentIndex: 0,
@@ -512,7 +512,7 @@ test("will respond optimistically with a comment thread even if it has not been 
     await waitForPersistance(connection1, 2);
 
     expect(
-        await getDocumentComment(context.request(session1), {
+        await getDocumentComment(context.action(session1), {
             documentId: document.id,
             commentThreadId,
             commentIndex: 0,
@@ -535,12 +535,12 @@ test("will respond optimistically with a comment thread even if it has not been 
 });
 
 test("will respond optimistically to backfills with a comment thread even if it has not been persisted yet", async () => {
-    const document = await createDocument(context.request(session1), {
+    const document = await createDocument(context.action(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context.request(session1), {
+    await updateDocumentContent(context.action(session1), {
         id: document.id,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
@@ -550,7 +550,7 @@ test("will respond optimistically to backfills with a comment thread even if it 
     const commentThreadId = generateId<DocumentCommentThreadId>();
 
     const client1Id = generateId<ContentEditorClientId>();
-    const connection1 = await connectForTest(context.request(session1), document.id);
+    const connection1 = await connectForTest(context.action(session1), document.id);
 
     await connection1.procedures.backfill({
         version: 0,
@@ -596,7 +596,7 @@ test("will respond optimistically to backfills with a comment thread even if it 
         },
     ]);
 
-    const connection2 = await connectForTest(context.request(session2), document.id);
+    const connection2 = await connectForTest(context.action(session2), document.id);
 
     expect(
         await connection2.procedures.backfill({
@@ -630,7 +630,7 @@ test("will respond optimistically to backfills with a comment thread even if it 
     expect(connection2.takeEvents()).toEqual([]);
 
     await expect(() =>
-        getDocumentComment(context.request(session1), {
+        getDocumentComment(context.action(session1), {
             documentId: document.id,
             commentThreadId,
             commentIndex: 0,
@@ -641,7 +641,7 @@ test("will respond optimistically to backfills with a comment thread even if it 
     await waitForPersistance(connection1, 2);
 
     expect(
-        await getDocumentComment(context.request(session1), {
+        await getDocumentComment(context.action(session1), {
             documentId: document.id,
             commentThreadId,
             commentIndex: 0,
@@ -664,12 +664,12 @@ test("will respond optimistically to backfills with a comment thread even if it 
 });
 
 test("when comment threads are added back to the document they will be loaded", async () => {
-    const document = await createDocument(context.request(session1), {
+    const document = await createDocument(context.action(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context.request(session1), {
+    await updateDocumentContent(context.action(session1), {
         id: document.id,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
@@ -678,7 +678,7 @@ test("when comment threads are added back to the document they will be loaded", 
 
     const commentThreadId = generateId<DocumentCommentThreadId>();
 
-    await updateDocumentContent(context.request(session1), {
+    await updateDocumentContent(context.action(session1), {
         id: document.id,
         version: 1,
         steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
@@ -691,14 +691,14 @@ test("when comment threads are added back to the document they will be loaded", 
         ],
     });
 
-    await createDocumentComment(context.request(session3), {
+    await createDocumentComment(context.action(session3), {
         documentId: document.id,
         commentThreadId,
         parentCommentIndex: null,
         content: createSimpleMessageContent("Test message content 2"),
     });
 
-    await updateDocumentContent(context.request(session1), {
+    await updateDocumentContent(context.action(session1), {
         id: document.id,
         version: 2,
         steps: [new RemoveMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
@@ -706,8 +706,8 @@ test("when comment threads are added back to the document they will be loaded", 
     });
 
     const client1Id = generateId<ContentEditorClientId>();
-    const connection1 = await connectForTest(context.request(session1), document.id);
-    const connection2 = await connectForTest(context.request(session2), document.id);
+    const connection1 = await connectForTest(context.action(session1), document.id);
+    const connection2 = await connectForTest(context.action(session2), document.id);
 
     await connection1.procedures.backfill({
         version: 0,
@@ -789,12 +789,12 @@ test("when comment threads are added back to the document they will be loaded", 
 });
 
 test("comment thread can be optimistic at first and then loaded from the database", async () => {
-    const document = await createDocument(context.request(session1), {
+    const document = await createDocument(context.action(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context.request(session1), {
+    await updateDocumentContent(context.action(session1), {
         id: document.id,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
@@ -804,8 +804,8 @@ test("comment thread can be optimistic at first and then loaded from the databas
     const commentThreadId = generateId<DocumentCommentThreadId>();
 
     const client1Id = generateId<ContentEditorClientId>();
-    const connection1 = await connectForTest(context.request(session1), document.id);
-    const connection2 = await connectForTest(context.request(session2), document.id);
+    const connection1 = await connectForTest(context.action(session1), document.id);
+    const connection2 = await connectForTest(context.action(session2), document.id);
 
     await connection1.procedures.backfill({
         version: 0,
@@ -830,7 +830,7 @@ test("comment thread can be optimistic at first and then loaded from the databas
 
     await waitForPersistance(connection1, 2);
 
-    await createDocumentComment(context.request(session3), {
+    await createDocumentComment(context.action(session3), {
         documentId: document.id,
         commentThreadId,
         parentCommentIndex: null,
@@ -1011,12 +1011,12 @@ test("comment thread can be optimistic at first and then loaded from the databas
 });
 
 test("can create comments in comment threads", async () => {
-    const document = await createDocument(context.request(session1), {
+    const document = await createDocument(context.action(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context.request(session1), {
+    await updateDocumentContent(context.action(session1), {
         id: document.id,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
@@ -1026,8 +1026,8 @@ test("can create comments in comment threads", async () => {
     const commentThreadId = generateId<DocumentCommentThreadId>();
 
     const client1Id = generateId<ContentEditorClientId>();
-    const connection1 = await connectForTest(context.request(session1), document.id);
-    const connection2 = await connectForTest(context.request(session2), document.id);
+    const connection1 = await connectForTest(context.action(session1), document.id);
+    const connection2 = await connectForTest(context.action(session2), document.id);
 
     await connection1.procedures.backfill({
         version: 0,
@@ -1328,12 +1328,12 @@ test("can create comments in comment threads", async () => {
 });
 
 test("if comment thread is persisting we will wait to create messages but respond to backfill requests", async () => {
-    const document = await createDocument(context.request(session1), {
+    const document = await createDocument(context.action(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context.request(session1), {
+    await updateDocumentContent(context.action(session1), {
         id: document.id,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
@@ -1343,8 +1343,8 @@ test("if comment thread is persisting we will wait to create messages but respon
     const commentThreadId = generateId<DocumentCommentThreadId>();
 
     const client1Id = generateId<ContentEditorClientId>();
-    const connection1 = await connectForTest(context.request(session1), document.id);
-    const connection2 = await connectForTest(context.request(session2), document.id);
+    const connection1 = await connectForTest(context.action(session1), document.id);
+    const connection2 = await connectForTest(context.action(session2), document.id);
 
     await connection1.procedures.backfill({
         version: 0,
@@ -1552,12 +1552,12 @@ test("if comment thread is persisting we will wait to create messages but respon
 });
 
 test("if comment thread update message hasn't been processed we will wait to respond to backfill requests", async () => {
-    const document = await createDocument(context.request(session1), {
+    const document = await createDocument(context.action(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context.request(session1), {
+    await updateDocumentContent(context.action(session1), {
         id: document.id,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
@@ -1567,8 +1567,8 @@ test("if comment thread update message hasn't been processed we will wait to res
     const commentThreadId = generateId<DocumentCommentThreadId>();
 
     const client1Id = generateId<ContentEditorClientId>();
-    const connection1 = await connectForTest(context.request(session1), document.id);
-    const connection2 = await connectForTest(context.request(session2), document.id);
+    const connection1 = await connectForTest(context.action(session1), document.id);
+    const connection2 = await connectForTest(context.action(session2), document.id);
 
     await connection1.procedures.backfill({
         version: 0,
@@ -1798,12 +1798,12 @@ test("if comment thread update message hasn't been processed we will wait to res
 });
 
 test("while comment thread is persisting we will respond to comment load requests", async () => {
-    const document = await createDocument(context.request(session1), {
+    const document = await createDocument(context.action(session1), {
         spaceId: space.id,
         content: emptyDocumentContent,
     });
 
-    await updateDocumentContent(context.request(session1), {
+    await updateDocumentContent(context.action(session1), {
         id: document.id,
         version: 0,
         steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
@@ -1813,8 +1813,8 @@ test("while comment thread is persisting we will respond to comment load request
     const commentThreadId = generateId<DocumentCommentThreadId>();
 
     const client1Id = generateId<ContentEditorClientId>();
-    const connection1 = await connectForTest(context.request(session1), document.id);
-    const connection2 = await connectForTest(context.request(session2), document.id);
+    const connection1 = await connectForTest(context.action(session1), document.id);
+    const connection2 = await connectForTest(context.action(session2), document.id);
 
     await connection1.procedures.backfill({
         version: 0,

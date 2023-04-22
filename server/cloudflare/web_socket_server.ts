@@ -1,8 +1,7 @@
 import {Session} from "~/server/dynamo/accounts_table";
-import {AuthenticatedSessionAuthContextModule} from "~/server/dynamo/context/auth_context_module";
+import {SessionActionContext} from "~/server/dynamo/context/action_context";
+import {SessionActorContextModule} from "~/server/dynamo/context/actor_context_module";
 import {ProcessContext} from "~/server/dynamo/context/process_context";
-import {RequestContext, SessionRequestContext} from "~/server/dynamo/context/request_context";
-import {EmptySystemContextModule} from "~/server/dynamo/context/system_context_module";
 import {validateTracerEventFlatDataForPropagation} from "~/server/tracer/validate_tracer_event_flat_data";
 import {webSocketExpirationTimeoutMs} from "~/shared/cloudflare/web_socket_expiration_timeout_ms";
 import {
@@ -37,7 +36,7 @@ export type WebSocketConnectionProcedures<Protocol extends WebSocketProtocolBase
 type _WebSocketConnectionProcedures<Procedures extends {[name: string]: {input: {}; output: {}}}> =
     {
         [Name in keyof Procedures]: (
-            context: RequestContext,
+            context: SessionActionContext,
             input: Procedures[Name]["input"],
             span: TracerSpan,
         ) => Promise<Procedures[Name]["output"]>;
@@ -68,7 +67,7 @@ export class WebSocketServer<
     private readonly _messageFromClientSchema: Schema<WebSocketMessageFromClient<Protocol>>;
     private readonly _messageFromServerSchema: Schema<WebSocketMessageFromServer<Protocol>>;
     private readonly _createConnection: (connection: {
-        connectRequestContext: SessionRequestContext;
+        connectActionContext: SessionActionContext;
         connectionId: WebSocketConnectionId;
         sendEvent: (context: ProcessContext, message: WebSocketProtocolEventType<Protocol>) => void;
         sendEventToOthers: (
@@ -88,7 +87,7 @@ export class WebSocketServer<
         processContext: ProcessContext,
         protocol: Protocol,
         createConnection: (connection: {
-            connectRequestContext: SessionRequestContext;
+            connectActionContext: SessionActionContext;
             connectionId: WebSocketConnectionId;
             sendEvent: (
                 context: ProcessContext,
@@ -157,7 +156,7 @@ export class WebSocketServer<
      * Upgrade an HTTP request to a WebSocket connection.
      */
     public async upgrade(
-        connectRequestContext: SessionRequestContext,
+        connectActionContext: SessionActionContext,
         request: Request,
     ): Promise<Response> {
         if (request.headers.get("Upgrade") !== "websocket")
@@ -195,13 +194,13 @@ export class WebSocketServer<
         };
 
         const connectionProcessContext = this._processContext.tracer.withPropagatedData({
-            context: {accountId: connectRequestContext.auth.getAccountId()},
+            context: {accountId: connectActionContext.actor.getAccountId()},
         });
 
         const connectionId = generateId<WebSocketConnectionId>();
 
         const actualConnection = await this._createConnection({
-            connectRequestContext,
+            connectActionContext,
             connectionId,
             sendEvent,
             sendEventToOthers,
@@ -215,8 +214,8 @@ export class WebSocketServer<
             messageFromClientSchema: this._messageFromClientSchema,
             messageFromServerSchema: this._messageFromServerSchema,
             connection: actualConnection,
-            sessionId: connectRequestContext.auth.getSessionId(),
-            sessionAccountId: connectRequestContext.auth.getAccountId(),
+            sessionId: connectActionContext.actor.getSessionId(),
+            sessionAccountId: connectActionContext.actor.getAccountId(),
         });
 
         assert(!this._connections.has(connection.id));
@@ -236,7 +235,7 @@ export class WebSocketServer<
         // @ts-expect-error: Why aren't my cloudflare types getting picked up properly?
         serverSocket.accept();
 
-        connectRequestContext.tracer.log("WebSocket connected", {
+        connectActionContext.tracer.log("WebSocket connected", {
             webSocket: {
                 connectionId: connection.id,
             },
@@ -401,7 +400,7 @@ export class WebSocketServer<
      * client/server interface which only works in a trusted environment.
      */
     public async connectForTest(
-        connectRequestContext: SessionRequestContext,
+        connectActionContext: SessionActionContext,
     ): Promise<WebSocketServerTestConnection<Protocol, Connection>> {
         assert(typeof jest !== "undefined");
 
@@ -428,13 +427,13 @@ export class WebSocketServer<
         };
 
         const connectionProcessContext = this._processContext.tracer.withPropagatedData({
-            context: {accountId: connectRequestContext.auth.getAccountId()},
+            context: {accountId: connectActionContext.actor.getAccountId()},
         });
 
         const connectionId = generateId<WebSocketConnectionId>();
 
         const actualConnection = await this._createConnection({
-            connectRequestContext,
+            connectActionContext,
             connectionId,
             sendEvent,
             sendEventToOthers,
@@ -447,8 +446,8 @@ export class WebSocketServer<
             messageFromClientSchema: this._messageFromClientSchema,
             messageFromServerSchema: this._messageFromServerSchema,
             connection: actualConnection,
-            sessionId: connectRequestContext.auth.getSessionId(),
-            sessionAccountId: connectRequestContext.auth.getAccountId(),
+            sessionId: connectActionContext.actor.getSessionId(),
+            sessionAccountId: connectActionContext.actor.getAccountId(),
         });
 
         assert(!this._connections.has(connection.id));
@@ -682,13 +681,10 @@ class WebSocketServerConnectionWrapper<
                                     try {
                                         const output = await context.with(
                                             {
-                                                system: new EmptySystemContextModule(),
                                                 cache: new CacheContextModule(),
-                                                auth: new AuthenticatedSessionAuthContextModule(
-                                                    session,
-                                                ),
+                                                actor: new SessionActorContextModule(session),
                                             },
-                                            (context: SessionRequestContext) => {
+                                            (context: SessionActionContext) => {
                                                 return this.connection.procedures[type](
                                                     context,
                                                     input,
@@ -970,11 +966,10 @@ class WebSocketServerTestConnectionWrapper<
 
                 return context.with(
                     {
-                        system: new EmptySystemContextModule(),
                         cache: new CacheContextModule(),
-                        auth: new AuthenticatedSessionAuthContextModule(session),
+                        actor: new SessionActorContextModule(session),
                     },
-                    (context: SessionRequestContext) => {
+                    (context: SessionActionContext) => {
                         // Thrown errors should be handled by the test. We do not send acknowledgement
                         // messages in test connections.
                         return this.connection.procedures[name](context, input, span);

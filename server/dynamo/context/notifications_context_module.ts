@@ -1,9 +1,10 @@
 import {Queue} from "~/server/cloudflare/types/cloudflare_queues";
-import {SystemContext} from "~/server/dynamo/context/system_context";
+import {SystemActionContext} from "~/server/dynamo/context/action_context";
 import {NotificationEvent, processNotificationEvent} from "~/server/dynamo/notifications_table";
 import {ContextModuleBase} from "~/shared/context/context_module_base";
 import {ProcessContextModule} from "~/shared/context/process_context_module";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";
+import {SpaceId} from "~/shared/id/types/id_types";
 
 /**
  * Context module available on contexts that can add to our notification
@@ -49,11 +50,11 @@ export class NotificationsContextModule extends NotificationsContextModuleBase {
 }
 
 export class TestNotificationsContextModule extends NotificationsContextModuleBase {
-    private readonly _getSystemContext: () => SystemContext;
+    private readonly _createSystemContext: (spaceId: SpaceId) => SystemActionContext;
 
-    constructor(getSystemContext: () => SystemContext) {
+    constructor(createSystemContext: (spaceId: SpaceId) => SystemActionContext) {
         super();
-        this._getSystemContext = getSystemContext;
+        this._createSystemContext = createSystemContext;
     }
 
     public override sendNotificationEvent(event: NotificationEvent) {
@@ -66,7 +67,7 @@ export class TestNotificationsContextModule extends NotificationsContextModuleBa
         // Notably we use `systemContext.process.waitUntil()` instead of
         // `this._context.process.waitUntil()`! That's because we don't want
         // notification processing to extend the lifetime of our request context.
-        const systemContext = this._getSystemContext();
+        const systemContext = this._createSystemContext(event.spaceId);
 
         systemContext.process.waitUntil(processNotificationEvent(systemContext, event));
 

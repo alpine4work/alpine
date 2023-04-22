@@ -1,16 +1,12 @@
 import murmurhash from "murmurhash";
 import {getAccount} from "~/server/dynamo/accounts_table";
-import {RequestContext} from "~/server/dynamo/context/request_context";
+import {ActionContext, SessionActionContext} from "~/server/dynamo/context/action_context";
 import {getContentReferencesForNode} from "~/server/dynamo/helpers/get_content_references";
 import {getMentionedAccountIdsInContent} from "~/server/dynamo/helpers/get_mentioned_account_ids_in_content";
 import {createMessagePayloadModel} from "~/server/dynamo/helpers/messaging/create_message_payload_model";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/dynamo/helpers/messaging/get_message_change_log_expiration_time_from_change_time";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
-import {
-    DynamoTableItemType,
-    DynamoTableSchema,
-    DynamoTableSchemaGetTypes,
-} from "~/server/dynamo/internal/dynamo_table_schema";
+import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/internal/is_dynamo_idempotent_parameter_mismatch_error";
 import {getNotificationMessageContentSnippet} from "~/server/dynamo/notifications_table";
@@ -222,7 +218,7 @@ export const sendChatMessageToAccountsBeforeCreateChatTestCheckpoint =
  * to create chats.
  */
 export async function createChatForTest(
-    context: RequestContext,
+    context: SessionActionContext,
     {
         id = generateId<ChatId>(),
         spaceId,
@@ -239,7 +235,7 @@ export async function createChatForTest(
     assert(process.env.NODE_ENV === "test");
 
     const accountIds = Array.from(
-        new Set([...otherAccountIds, context.auth.getAccountId()]),
+        new Set([...otherAccountIds, context.actor.getAccountId()]),
     ).sort();
 
     // Make sure all accounts are members of the space the chat is being
@@ -370,7 +366,7 @@ function hashMd5WithNodeModule(data: ArrayBuffer): ArrayBuffer {
  * succession and get the same result.
  */
 export function getOrCreateChatForAccounts(
-    context: RequestContext,
+    context: SessionActionContext,
     {
         spaceId,
         otherAccountIds,
@@ -403,7 +399,7 @@ export function getOrCreateChatForAccounts(
  * component's UX.
  */
 export function selectChatForAccounts(
-    context: RequestContext,
+    context: SessionActionContext,
     {
         spaceId,
         otherAccountIds,
@@ -425,7 +421,7 @@ export function selectChatForAccounts(
         // Make sure `otherAccountIds` is unique and doesn't include our
         // authenticated account.
         otherAccountIds = Array.from(new Set(otherAccountIds)).filter(
-            accountId => accountId !== context.auth.getAccountId(),
+            accountId => accountId !== context.actor.getAccountId(),
         );
 
         const sharedChatsPromise = getSharedChats(context, {
@@ -480,7 +476,7 @@ export function selectChatForAccounts(
 }
 
 function actuallyGetOrCreateChatForAccounts(
-    context: RequestContext,
+    context: SessionActionContext,
     {
         spaceId,
         otherAccountIds,
@@ -501,10 +497,10 @@ function actuallyGetOrCreateChatForAccounts(
             // Make sure `otherAccountIds` is unique and doesn't include our
             // authenticated account.
             otherAccountIds = Array.from(new Set(otherAccountIds)).filter(
-                accountId => accountId !== context.auth.getAccountId(),
+                accountId => accountId !== context.actor.getAccountId(),
             );
 
-            const allSortedAccountIds = [...otherAccountIds, context.auth.getAccountId()].sort();
+            const allSortedAccountIds = [...otherAccountIds, context.actor.getAccountId()].sort();
 
             const getChatAndAccounts = async (
                 chatId: ChatId,
@@ -555,7 +551,7 @@ function actuallyGetOrCreateChatForAccounts(
 
             const createChatForAccounts = async (chatId: ChatId) => {
                 await sendChatMessageToAccountsBeforeCreateChatTestCheckpoint.waitForTest(
-                    context.auth.getAccountId(),
+                    context.actor.getAccountId(),
                 );
 
                 try {
@@ -683,7 +679,7 @@ function actuallyGetOrCreateChatForAccounts(
  * Send a message to to the provided chat.
  */
 export function sendChatMessage(
-    context: RequestContext,
+    context: SessionActionContext,
     {
         chatId,
         parentMessageIndex,
@@ -733,7 +729,7 @@ export function sendChatMessage(
         // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
         // `Date.now()` and override the time that is returned.
         const createdTime = new Date(Date.now());
-        const authorId = context.auth.getAccountId();
+        const authorId = context.actor.getAccountId();
 
         await DynamoTableSchema.executeTransaction(context, [
             ChatTable.transactionCreateItem({
@@ -765,6 +761,7 @@ export function sendChatMessage(
         context.notifications.sendNotificationEvent({
             type: "CreateChatMessage",
             id: generateId(),
+            spaceId: chatItem.spaceId,
             chatId,
             messageIndex,
             createdTime,
@@ -785,17 +782,16 @@ export function sendChatMessage(
  * Authorize that the current account is allowed to access the chat.
  */
 export async function authorizeChatAccess(
-    context: RequestContext,
+    context: SessionActionContext,
     chatId: ChatId,
 ): Promise<{spaceId: SpaceId}> {
     const [chatItem, chatAccountItem] = await runAllPromises([
         (async () => {
-            const chatItem = await ChatTable.getItemIfExists(context, {
+            const chatItem = await ChatTable.getItem(context, {
                 partitionType: "Chat",
                 sortRangeType: "Attributes",
                 chatId,
             });
-            if (!chatItem) throw new NotFoundError("Chat not found");
 
             await authorizeSpaceAccess(context, chatItem.spaceId);
             return chatItem;
@@ -804,7 +800,7 @@ export async function authorizeChatAccess(
             partitionType: "Chat",
             sortRangeType: "Account",
             chatId,
-            accountId: context.auth.getAccountId(),
+            accountId: context.actor.getAccountId(),
         }),
     ]);
 
@@ -814,7 +810,7 @@ export async function authorizeChatAccess(
 }
 
 async function authorizeChatAccessWithItem(
-    context: RequestContext,
+    context: SessionActionContext,
     chatItem: Pick<ChatAttributesItem, "chatId" | "spaceId">,
 ) {
     const [, chatAccountItem] = await runAllPromises([
@@ -823,7 +819,7 @@ async function authorizeChatAccessWithItem(
             partitionType: "Chat",
             sortRangeType: "Account",
             chatId: chatItem.chatId,
-            accountId: context.auth.getAccountId(),
+            accountId: context.actor.getAccountId(),
         }),
     ]);
 
@@ -852,7 +848,7 @@ async function authorizeChatAccessWithItem(
  * function.
  */
 function getSharedChats(
-    context: RequestContext,
+    context: SessionActionContext,
     {
         spaceId,
         otherAccountIds,
@@ -870,7 +866,7 @@ function getSharedChats(
         // Make sure `otherAccountIds` is unique and doesn't include our
         // authenticated account.
         otherAccountIds = Array.from(new Set(otherAccountIds)).filter(
-            accountId => accountId !== context.auth.getAccountId(),
+            accountId => accountId !== context.actor.getAccountId(),
         );
 
         const chatById = new Map<
@@ -882,7 +878,7 @@ function getSharedChats(
             async () => {
                 const ourAccountChats = await arrayFromAsyncIterable(
                     AccountChatsIndex.query(context, {
-                        partitionKey: {spaceId, accountId: context.auth.getAccountId()},
+                        partitionKey: {spaceId, accountId: context.actor.getAccountId()},
                         limit: "All",
                     }),
                 );
@@ -893,7 +889,7 @@ function getSharedChats(
                         includedAccountIds: new Set<AccountId>(),
                     }));
 
-                    chat.includedAccountIds.add(context.auth.getAccountId());
+                    chat.includedAccountIds.add(context.actor.getAccountId());
                 }
             },
             async () => {
@@ -927,7 +923,7 @@ function getSharedChats(
         for (const [chatId, chat] of chatById) {
             // Only include accounts with every requested account and the
             // authenticated account.
-            if (!chat.includedAccountIds.has(context.auth.getAccountId())) continue;
+            if (!chat.includedAccountIds.has(context.actor.getAccountId())) continue;
             if (!otherAccountIds.every(accountId => chat.includedAccountIds.has(accountId)))
                 continue;
 
@@ -948,7 +944,7 @@ function getSharedChats(
  * Allow tests to call the `getSharedChats()` from a test.
  */
 export function getSharedChatsForTest(
-    context: RequestContext,
+    context: SessionActionContext,
     {
         spaceId,
         otherAccountIds,
@@ -962,9 +958,9 @@ export function getSharedChatsForTest(
 }
 
 /**
- * Get the provided chat by ID. Returning null if the chat does not exist.
+ * Get the provided chat `ChatId`. Returning null if the chat does not exist.
  */
-export async function getChat(context: RequestContext, chatId: ChatId): Promise<ChatModel> {
+export async function getChat(context: ActionContext, chatId: ChatId): Promise<ChatModel> {
     let chatItem: ChatAttributesItem | undefined;
     const accountPromises: Array<Promise<AccountModel>> = [];
 
@@ -1011,8 +1007,20 @@ export async function getChat(context: RequestContext, chatId: ChatId): Promise<
         authorizeSpaceAccess(context, chatItem.spaceId),
     ]);
 
-    if (!accounts.some(account => account.id === context.auth.getAccountId()))
-        throw new PermissionDeniedError("Account does not have access to chat");
+    switch (context.actor.type) {
+        case "Session": {
+            const sessionAccountId = context.actor.getAccountId();
+            if (!accounts.some(account => account.id === sessionAccountId))
+                throw new PermissionDeniedError("Account does not have access to chat");
+            break;
+        }
+        case "System": {
+            // All you need for system access is access to the space.
+            break;
+        }
+        default:
+            throw exhaustive(context.actor);
+    }
 
     return new ChatModel({
         id: chatItem.chatId,
@@ -1032,7 +1040,7 @@ export async function getChat(context: RequestContext, chatId: ChatId): Promise<
  * Get a single chat message comment.
  */
 export async function getChatMessage(
-    context: RequestContext,
+    context: SessionActionContext,
     {chatId, messageIndex}: {chatId: ChatId; messageIndex: number},
 ): Promise<ChatMessageModel> {
     const [{spaceId}, item] = await runAllPromises([
@@ -1049,7 +1057,7 @@ export async function getChatMessage(
 }
 
 async function createChatMessageModelFromItem(
-    context: RequestContext,
+    context: ActionContext,
     spaceId: SpaceId,
     item: ChatMessageItem,
 ): Promise<ChatMessageModel> {
@@ -1071,7 +1079,7 @@ async function createChatMessageModelFromItem(
  * Update the contents of a chat message.
  */
 export function updateChatMessageContent(
-    context: RequestContext,
+    context: SessionActionContext,
     {
         chatId,
         messageIndex,
@@ -1104,7 +1112,7 @@ export function updateChatMessageContent(
 
         await authorizeChatAccessWithItem(context, chatItem);
 
-        if (chatMessageItem.authorId !== context.auth.getAccountId())
+        if (chatMessageItem.authorId !== context.actor.getAccountId())
             throw new PermissionDeniedError("Can only update chat messages you authored");
 
         if (chatMessageItem.payload.type !== "Content")
@@ -1167,7 +1175,7 @@ export function updateChatMessageContent(
  * Delete a single chat message.
  */
 export function deleteChatMessage(
-    context: RequestContext,
+    context: SessionActionContext,
     {chatId, messageIndex}: {chatId: ChatId; messageIndex: number},
 ): Promise<{deletedTime: Date}> {
     return context.dynamo.retryTransaction(async context => {
@@ -1190,7 +1198,7 @@ export function deleteChatMessage(
 
         await authorizeChatAccessWithItem(context, chatItem);
 
-        if (chatMessageItem.authorId !== context.auth.getAccountId())
+        if (chatMessageItem.authorId !== context.actor.getAccountId())
             throw new PermissionDeniedError("Can only delete chat messages you authored");
 
         if (chatMessageItem.payload.type !== "Content")
@@ -1246,7 +1254,7 @@ export function deleteChatMessage(
  * Get our chat and initial messages that come with it efficiently at once.
  */
 export async function getChatAndInitialMessages(
-    context: RequestContext,
+    context: SessionActionContext,
     {chatId, messagesLimit}: {chatId: ChatId; messagesLimit: number},
 ): Promise<{
     chat: ChatModel;
@@ -1286,7 +1294,7 @@ export async function getChatAndInitialMessages(
  * Paginate through chat messages from start to finish.
  */
 export async function getChatMessagesFromStart(
-    context: RequestContext,
+    context: SessionActionContext,
     {
         chatId,
         limit,
@@ -1342,7 +1350,7 @@ export async function getChatMessagesFromStart(
 }
 
 async function getChatMessagesFromStartAssumingAuthorizedChat(
-    context: RequestContext,
+    context: ActionContext,
     {
         chatId,
         getSpaceId,
@@ -1433,7 +1441,7 @@ async function getChatMessagesFromStartAssumingAuthorizedChat(
  * Paginate through chat messages from finish to start.
  */
 export async function getChatMessagesFromEnd(
-    context: RequestContext,
+    context: SessionActionContext,
     {
         chatId,
         limit,
@@ -1489,7 +1497,7 @@ export async function getChatMessagesFromEnd(
 }
 
 async function getChatMessagesFromEndAssumingAuthorizedChat(
-    context: RequestContext,
+    context: ActionContext,
     {
         chatId,
         getSpaceId,
@@ -1613,7 +1621,7 @@ export type ChatMessageChangesResult =
  * your client has loaded and try loading the data again.
  */
 export async function backfillChatMessages(
-    context: RequestContext,
+    context: SessionActionContext,
     {
         chatId,
         clientMessageCount,
@@ -1692,7 +1700,7 @@ export async function backfillChatMessages(
 }
 
 async function queryChatMessageChangeLogAssumingAuthorizedPost(
-    context: RequestContext,
+    context: ActionContext,
     {
         chatItem,
         lastMessageChangeTime,

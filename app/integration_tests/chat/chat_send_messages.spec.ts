@@ -403,17 +403,17 @@ test("includes recommended group chats for autocomplete", async ({
 });
 
 test("can open chat directly by id", async ({page, context: browserContext}) => {
-    const chatId1 = await getOrCreateChatForAccounts(context.request(session1), {
+    const chatId1 = await getOrCreateChatForAccounts(context.action(session1), {
         spaceId: space.id,
         otherAccountIds: [session2.accountId],
     });
 
-    const chatId2 = await getOrCreateChatForAccounts(context.request(session1), {
+    const chatId2 = await getOrCreateChatForAccounts(context.action(session1), {
         spaceId: space.id,
         otherAccountIds: [session3.accountId],
     });
 
-    const chatId3 = await getOrCreateChatForAccounts(context.request(session1), {
+    const chatId3 = await getOrCreateChatForAccounts(context.action(session1), {
         spaceId: space.id,
         otherAccountIds: [session2.accountId, session3.accountId],
     });

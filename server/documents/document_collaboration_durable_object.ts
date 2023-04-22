@@ -2,8 +2,8 @@ import {createDurableObject} from "~/server/cloudflare/create_durable_object";
 import {WebSocketServer} from "~/server/cloudflare/web_socket_server";
 import {DocumentCollaborationConnection} from "~/server/documents/document_collaboration_connection";
 import {DocumentCollaborationContentManager} from "~/server/documents/document_collaboration_content_manager";
+import {ActionContext, SessionActionContext} from "~/server/dynamo/context/action_context";
 import {ProcessContext} from "~/server/dynamo/context/process_context";
-import {RequestContext, SessionRequestContext} from "~/server/dynamo/context/request_context";
 import {authorizeDocumentAccess, getDocument} from "~/server/dynamo/documents_table";
 import {DocumentContent} from "~/shared/content/document_content_schema";
 import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol";
@@ -27,18 +27,18 @@ class DocumentCollaborationDurableObject {
 
     public static async initialize({
         processContext,
-        initializeRequestContext,
+        initializeActionContext,
         idName,
         destroy,
     }: {
         processContext: ProcessContext;
-        initializeRequestContext: RequestContext;
+        initializeActionContext: SessionActionContext;
         idName: string;
         destroy: () => void;
     }): Promise<DocumentCollaborationDurableObject> {
         const documentId = Schema.id<DocumentId>().deserialize(idName);
 
-        const document = await getDocument(initializeRequestContext, documentId);
+        const document = await getDocument(initializeActionContext, documentId);
 
         return new DocumentCollaborationDurableObject({
             context: processContext,
@@ -86,13 +86,13 @@ class DocumentCollaborationDurableObject {
             this._context,
             DocumentCollaborationProtocol,
             async ({
-                connectRequestContext,
+                connectActionContext,
                 connectionId,
                 sendEvent,
                 sendEventToOthers,
                 iterateOtherConnections,
             }) => {
-                await authorizeDocumentAccess(connectRequestContext, id);
+                await authorizeDocumentAccess(connectActionContext, id);
 
                 return new DocumentCollaborationConnection({
                     connectionId,
@@ -106,7 +106,7 @@ class DocumentCollaborationDurableObject {
         );
     }
 
-    public fetch(context: SessionRequestContext, request: Request): Promise<Response> {
+    public fetch(context: SessionActionContext, request: Request): Promise<Response> {
         // Propagate the document id to all logs for this durable object.
         context = context.tracer.withPropagatedData({
             context: {spaceId: this.spaceId, documentId: this.id},
@@ -117,7 +117,7 @@ class DocumentCollaborationDurableObject {
         return this._webSocketServer.upgrade(context, request);
     }
 
-    public connectForTest(context: SessionRequestContext) {
+    public connectForTest(context: SessionActionContext) {
         return this._webSocketServer.connectForTest(context);
     }
 

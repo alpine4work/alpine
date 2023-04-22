@@ -1,5 +1,5 @@
 import {Step} from "prosemirror-transform";
-import {RequestContext} from "~/server/dynamo/context/request_context";
+import {ActionContext} from "~/server/dynamo/context/action_context";
 import {getDocumentContentSteps} from "~/server/dynamo/documents_table";
 import {FailedPreconditionError, InternalError, InvalidArgumentError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
@@ -56,7 +56,7 @@ export class DocumentCollaborationStepCache {
      * the database and put them in our in-memory cache for future requests.
      */
     public async getSteps(
-        context: RequestContext,
+        context: ActionContext,
         startVersion: number,
         endVersion: number,
     ): Promise<
@@ -96,7 +96,7 @@ export class DocumentCollaborationStepCache {
         return steps;
     }
 
-    private _loadOldSteps(context: RequestContext, newStartVersion: number): Promise<void> {
+    private _loadOldSteps(context: ActionContext, newStartVersion: number): Promise<void> {
         assert(newStartVersion < this._startVersion);
 
         // If we have a promise that is already loading all the steps after

@@ -40,8 +40,8 @@ export async function loader({context, params}: LoaderArgs) {
 
     const [currentAccount, space] = await runAllPromiseThunks(
         async () => {
-            const authenticatedContext = await context.auth.authenticate();
-            return authenticatedContext.auth.getAccount();
+            const authenticatedContext = await context.actor.authenticate();
+            return authenticatedContext.actor.getAccount();
         },
         async () => {
             const sessionCookie = await context.loader.getSessionCookie();

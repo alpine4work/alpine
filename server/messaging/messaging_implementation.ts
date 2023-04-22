@@ -1,4 +1,4 @@
-import {RequestContext} from "~/server/dynamo/context/request_context";
+import {SessionActionContext} from "~/server/dynamo/context/action_context";
 import {MessageContent} from "~/shared/content/message_content_schema";
 import {MessageChange} from "~/shared/messaging/message_change_schema";
 import {AccountModel} from "~/shared/models/account_model";
@@ -23,7 +23,7 @@ export type CreateMessageModelFunction<
  * Create a new message in a room.
  */
 export type CreateMessageFunction<RoomKey extends string> = (
-    context: RequestContext,
+    context: SessionActionContext,
     options: {
         roomKey: RoomKey;
         parentMessageIndex: number | null;
@@ -38,7 +38,7 @@ export type CreateMessageFunction<RoomKey extends string> = (
  * Get a message.
  */
 export type GetMessageFunction<RoomKey extends string, Message extends MessageModel<RoomKey>> = (
-    context: RequestContext,
+    context: SessionActionContext,
     options: {
         roomKey: RoomKey;
         messageIndex: number;
@@ -52,7 +52,7 @@ export type GetMessageFunction<RoomKey extends string, Message extends MessageMo
  * message was edited.
  */
 export type UpdateMessageContentFunction<RoomKey extends string> = (
-    context: RequestContext,
+    context: SessionActionContext,
     options: {
         roomKey: RoomKey;
         messageIndex: number;
@@ -66,7 +66,7 @@ export type UpdateMessageContentFunction<RoomKey extends string> = (
  * Delete a message.
  */
 export type DeleteMessageFunction<RoomKey extends string> = (
-    context: RequestContext,
+    context: SessionActionContext,
     options: {
         roomKey: RoomKey;
         messageIndex: number;
@@ -80,7 +80,7 @@ export type DeleteMessageFunction<RoomKey extends string> = (
  * starting after a message ID) and loading forwards in time.
  */
 export type GetMessagesFromStart<RoomKey extends string, Message extends MessageModel<RoomKey>> = (
-    context: RequestContext,
+    context: SessionActionContext,
     options: {
         roomKey: RoomKey;
         limit: number;
@@ -99,7 +99,7 @@ export type GetMessagesFromStart<RoomKey extends string, Message extends Message
  * starting before a message ID) and loading backwards in time.
  */
 export type GetMessagesFromEnd<RoomKey extends string, Message extends MessageModel<RoomKey>> = (
-    context: RequestContext,
+    context: SessionActionContext,
     options: {
         roomKey: RoomKey;
         limit: number;
@@ -123,7 +123,7 @@ export type BackfillMessagesFunction<
     RoomKey extends string,
     Message extends MessageModel<RoomKey>,
 > = (
-    context: RequestContext,
+    context: SessionActionContext,
     options: {
         roomKey: RoomKey;
         clientMessageCount: number;

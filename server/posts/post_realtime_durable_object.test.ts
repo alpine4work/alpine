@@ -15,41 +15,41 @@ const otherSpace = createTestSpace(context);
 const otherSession = createTestSession(context, otherSpace);
 
 test("can not connect to a post that does not exist", async () => {
-    await expect(connectForTest(context.request(session), generateId())).rejects.toThrow(
+    await expect(connectForTest(context.action(session), generateId())).rejects.toThrow(
         NotFoundError,
     );
 });
 
 test("can not connect to a post in a different space", async () => {
-    const channel = await createChannel(context.request(session), {
+    const channel = await createChannel(context.action(session), {
         spaceId: space.id,
         name: "Test",
     });
 
-    const post = await createPost(context.request(session), {
+    const post = await createPost(context.action(session), {
         channelId: channel.id,
         content: emptyPostContent,
     });
 
-    await expect(connectForTest(context.request(otherSession), post.id)).rejects.toThrow(
+    await expect(connectForTest(context.action(otherSession), post.id)).rejects.toThrow(
         PermissionDeniedError,
     );
 });
 
 test("can not connect to an existing post durable object in a different space", async () => {
-    const channel = await createChannel(context.request(session), {
+    const channel = await createChannel(context.action(session), {
         spaceId: space.id,
         name: "Test",
     });
 
-    const post = await createPost(context.request(session), {
+    const post = await createPost(context.action(session), {
         channelId: channel.id,
         content: emptyPostContent,
     });
 
-    await connectForTest(context.request(session), post.id);
+    await connectForTest(context.action(session), post.id);
 
-    await expect(connectForTest(context.request(otherSession), post.id)).rejects.toThrow(
+    await expect(connectForTest(context.action(otherSession), post.id)).rejects.toThrow(
         PermissionDeniedError,
     );
 });

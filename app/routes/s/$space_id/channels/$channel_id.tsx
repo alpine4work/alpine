@@ -25,7 +25,7 @@ const LoaderSchema = Schema.object({
 
 export async function loader({params, context: unauthenticatedContext}: LoaderArgs) {
     const channelId = Schema.id<ChannelId>().deserialize(params.channel_id ?? null);
-    const context = await unauthenticatedContext.auth.authenticate();
+    const context = await unauthenticatedContext.actor.authenticate();
 
     const [channel, channelPostsResult] = await runAllPromises([
         getChannel(context, channelId),

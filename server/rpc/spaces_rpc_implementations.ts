@@ -4,7 +4,7 @@ import * as definition from "~/shared/rpc/spaces_rpc_definitions";
 
 implementRpc(definition.expensivelyGetAllSpaceAccounts, async (context, input) => {
     const accounts = await expensivelyGetAllSpaceAccounts(
-        await context.auth.authenticate(),
+        await context.actor.authenticate(),
         input.spaceId,
     );
     return {accounts};

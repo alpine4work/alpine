@@ -43,14 +43,14 @@ async function createTestAccount() {
 test("can not request alpha access twice", async () => {
     const id = generateId();
 
-    await requestAlphaAccess(context.unauthenticatedRequest(), {
+    await requestAlphaAccess(context.unauthenticatedAction(), {
         name: "Test",
         emailAddress: await validateEmailAddress(context, `test.${id}@test.cyberworlds.dev`),
         message: "Hello, world!",
     });
 
     await expect(async () => {
-        await requestAlphaAccess(context.unauthenticatedRequest(), {
+        await requestAlphaAccess(context.unauthenticatedAction(), {
             name: "Test 2",
             emailAddress: await validateEmailAddress(context, `test.${id}@test.cyberworlds.dev`),
             message: "Hello, world!",
@@ -61,13 +61,13 @@ test("can not request alpha access twice", async () => {
 test('can request alpha twice with "+" extension email trick', async () => {
     const id = generateId();
 
-    await requestAlphaAccess(context.unauthenticatedRequest(), {
+    await requestAlphaAccess(context.unauthenticatedAction(), {
         name: "Test",
         emailAddress: await validateEmailAddress(context, `test.${id}@test.cyberworlds.dev`),
         message: "Hello, world!",
     });
 
-    await requestAlphaAccess(context.unauthenticatedRequest(), {
+    await requestAlphaAccess(context.unauthenticatedAction(), {
         name: "Test 2",
         emailAddress: await validateEmailAddress(context, `test.${id}+2@test.cyberworlds.dev`),
         message: "Hello, world!",
@@ -78,7 +78,7 @@ test("can not request alpha access for an account that already exists", async ()
     const account = await createTestAccount();
 
     await expect(async () => {
-        await requestAlphaAccess(context.unauthenticatedRequest(), {
+        await requestAlphaAccess(context.unauthenticatedAction(), {
             name: "Test",
             emailAddress: account.emailAddress,
             message: "Hello, world!",

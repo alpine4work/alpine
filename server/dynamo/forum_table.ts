@@ -1,7 +1,10 @@
 import {getAccount, getAccountIfExists} from "~/server/dynamo/accounts_table";
+import {
+    ActionContext,
+    SessionActionContext,
+    SystemActionContext,
+} from "~/server/dynamo/context/action_context";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
-import {RequestContext} from "~/server/dynamo/context/request_context";
-import {SystemContext} from "~/server/dynamo/context/system_context";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
 import {getContentReferencesForNode} from "~/server/dynamo/helpers/get_content_references";
 import {
@@ -273,7 +276,7 @@ export async function seedTestChannels(context: DynamoContext) {
  * Create a new channel.
  */
 export async function createChannel(
-    context: RequestContext,
+    context: ActionContext,
     {spaceId, name}: {spaceId: SpaceId; name: string},
 ): Promise<{
     id: ChannelId;
@@ -304,7 +307,7 @@ export async function createChannel(
  * doesn't exist and throws an error if the channel exists but you don't have
  * access to the channel.
  */
-export async function getChannel(context: RequestContext, id: ChannelId): Promise<ChannelModel> {
+export async function getChannel(context: ActionContext, id: ChannelId): Promise<ChannelModel> {
     const channelItem = await ForumTable.getItem(context, {
         partitionType: "Channel",
         sortRangeType: "Attributes",
@@ -335,7 +338,7 @@ export async function getChannel(context: RequestContext, id: ChannelId): Promis
  * don't have access to the channel.
  */
 export async function getChannelPreview(
-    context: RequestContext,
+    context: ActionContext,
     id: ChannelId,
 ): Promise<ChannelPreviewModel> {
     const channelItem = await ForumTable.getPartialItem(
@@ -365,7 +368,7 @@ export async function getChannelPreview(
  * that the current user has access to the space the channel is in.
  */
 export async function authorizeChannelAccess(
-    context: RequestContext,
+    context: ActionContext,
     id: ChannelId,
 ): Promise<ChannelPreviewModel> {
     return getChannelPreview(context, id);
@@ -375,7 +378,7 @@ export async function authorizeChannelAccess(
  * Updates the name of the channel.
  */
 export async function updateChannelName(
-    context: RequestContext,
+    context: ActionContext,
     {
         channelId,
         name,
@@ -409,7 +412,7 @@ export async function updateChannelName(
  * Updates the description of the channel.
  */
 export async function updateChannelDescription(
-    context: RequestContext,
+    context: ActionContext,
     {
         channelId,
         description,
@@ -448,7 +451,7 @@ export type ChannelPostsCursor = {
  * post will be the first in the array.
  */
 export async function getChannelPosts(
-    context: RequestContext,
+    context: ActionContext,
     {
         channelId,
         limit,
@@ -506,7 +509,7 @@ export async function getChannelPosts(
  * Create a new post by the current account in the provided channel.
  */
 export async function createPost(
-    context: RequestContext,
+    context: SessionActionContext,
     {channelId, content}: {channelId: ChannelId; content: PostContent},
 ): Promise<{
     id: PostId;
@@ -527,7 +530,7 @@ export async function createPost(
         // this slightly awkward form to let tests mock different times for post
         // creation.
         createdTime: new Date(Date.now()),
-        authorId: context.auth.getAccountId(),
+        authorId: context.actor.getAccountId(),
         content,
         contentUpdatedTime: null,
         commentsSummary: {
@@ -550,7 +553,7 @@ export async function createPost(
 /**
  * Gets the post with the provided `PostId`.
  */
-export async function getPost(context: RequestContext, id: PostId): Promise<PostModel> {
+export async function getPost(context: ActionContext, id: PostId): Promise<PostModel> {
     const postItem = await ForumTable.getItem(context, {
         partitionType: "Post",
         sortRangeType: "Attributes",
@@ -565,7 +568,7 @@ export async function getPost(context: RequestContext, id: PostId): Promise<Post
 }
 
 async function createPostModelFromItem(
-    context: RequestContext,
+    context: ActionContext,
     channelPromise: MaybePromise<ChannelPreviewModel>,
     item: PostAttributesItem,
 ): Promise<PostModel> {
@@ -613,7 +616,7 @@ async function createPostModelFromItem(
  * Get the `ChannelId` and `SpaceId` for a post.
  */
 export async function getPostChannel(
-    context: RequestContext,
+    context: ActionContext,
     postId: PostId,
 ): Promise<{spaceId: SpaceId; channelId: ChannelId}> {
     const postItem = await ForumTable.getPartialItem(
@@ -640,7 +643,7 @@ export async function getPostChannel(
  * Get accounts subscribed to notifications for the provided `PostId`.
  */
 export async function getPostNotificationSubscribers(
-    context: SystemContext,
+    context: SystemActionContext,
     id: PostId,
 ): Promise<{
     spaceId: SpaceId;
@@ -666,13 +669,11 @@ export async function getPostNotificationSubscribers(
         ),
     );
 
-    const requestContext = context.system.impersonateAccount(postItem.authorId);
-
     const accounts = await runAllPromises(
         // Use `getAccountIfExists()` since mentioned accounts may be copied from a
         // different space and don't exist in this space.
         mapIterable(accountIds, accountId =>
-            getAccountIfExists(requestContext, postItem.spaceId, accountId),
+            getAccountIfExists(context, postItem.spaceId, accountId),
         ),
     );
 
@@ -686,7 +687,7 @@ export async function getPostNotificationSubscribers(
  * Update the contents of a post if you are the post's author.
  */
 export async function updatePostContent(
-    context: RequestContext,
+    context: SessionActionContext,
     {postId, content}: {postId: PostId; content: PostContent},
 ): Promise<{contentUpdatedTime: Date}> {
     let contentUpdatedTime: Date | null = null;
@@ -702,7 +703,7 @@ export async function updatePostContent(
             if (!postItem) throw new NotFoundError("Post not found");
             await authorizeChannelAccess(context, postItem.channelId);
 
-            if (postItem.authorId !== context.auth.getAccountId())
+            if (postItem.authorId !== context.actor.getAccountId())
                 throw new PermissionDeniedError("Can only update post comments you authored");
 
             contentUpdatedTime = new Date(
@@ -736,7 +737,7 @@ export async function updatePostContent(
  * Get all the authors on a post to a certain limit.
  */
 export async function getPostCommentAuthors(
-    context: RequestContext,
+    context: ActionContext,
     {postId, limit}: {postId: PostId; limit: number},
 ): Promise<Array<AccountModel>> {
     const postItem = await ForumTable.getPartialItemIfExists(
@@ -768,7 +769,7 @@ export async function getPostCommentAuthors(
  * post is in and the space the channel is in.
  */
 export async function authorizePostAccess(
-    context: RequestContext,
+    context: ActionContext,
     id: PostId,
 ): Promise<{spaceId: SpaceId}> {
     const postItem = await ForumTable.getPartialItemIfExists(
@@ -793,7 +794,7 @@ export async function authorizePostAccess(
  * Add a new comment to a post.
  */
 export async function createPostComment(
-    context: RequestContext,
+    context: SessionActionContext,
     {
         postId,
         parentCommentIndex,
@@ -852,7 +853,7 @@ export async function createPostComment(
 
         const commentIndex = postItem.commentsSummary.nextCommentIndex;
         const createdTime = new Date();
-        const authorId = context.auth.getAccountId();
+        const authorId = context.actor.getAccountId();
 
         const newCommentCountByAuthorId = new Map(postItem.commentsSummary.commentCountByAuthorId);
         newCommentCountByAuthorId.set(authorId, (newCommentCountByAuthorId.get(authorId) ?? 0) + 1);
@@ -894,6 +895,7 @@ export async function createPostComment(
         context.notifications.sendNotificationEvent({
             type: "CreatePostComment",
             id: generateId(),
+            spaceId: postItem.spaceId,
             postId,
             commentIndex,
             createdTime,
@@ -913,7 +915,7 @@ export async function createPostComment(
  * Get a single post comment.
  */
 export async function getPostComment(
-    context: RequestContext,
+    context: ActionContext,
     {postId, commentIndex}: {postId: PostId; commentIndex: number},
 ): Promise<PostCommentModel> {
     const [{spaceId}, item] = await runAllPromises([
@@ -930,7 +932,7 @@ export async function getPostComment(
 }
 
 async function createPostCommentModelFromItem(
-    context: RequestContext,
+    context: ActionContext,
     spaceId: SpaceId,
     item: PostCommentItem,
 ): Promise<PostCommentModel> {
@@ -952,7 +954,7 @@ async function createPostCommentModelFromItem(
  * Update the content on one of your post comments.
  */
 export function updatePostCommentContent(
-    context: RequestContext,
+    context: SessionActionContext,
     {
         postId,
         commentIndex,
@@ -996,7 +998,7 @@ export function updatePostCommentContent(
 
         await authorizeChannelAccess(context, postItem.channelId);
 
-        if (commentItem.authorId !== context.auth.getAccountId())
+        if (commentItem.authorId !== context.actor.getAccountId())
             throw new PermissionDeniedError("Can only update post comments you authored");
 
         if (commentItem.payload.type !== "Content")
@@ -1066,7 +1068,7 @@ export function updatePostCommentContent(
  * Delete a single post comment.
  */
 export function deletePostComment(
-    context: RequestContext,
+    context: SessionActionContext,
     {postId, commentIndex}: {postId: PostId; commentIndex: number},
 ): Promise<{deletedTime: Date}> {
     return context.dynamo.retryTransaction(async context => {
@@ -1089,7 +1091,7 @@ export function deletePostComment(
 
         await authorizeChannelAccess(context, postItem.channelId);
 
-        if (commentItem.authorId !== context.auth.getAccountId())
+        if (commentItem.authorId !== context.actor.getAccountId())
             throw new PermissionDeniedError("Can only delete post comments you authored");
 
         if (commentItem.payload.type !== "Content")
@@ -1153,7 +1155,7 @@ export function deletePostComment(
  * one request.
  */
 export async function getPostAndInitialComments(
-    context: RequestContext,
+    context: ActionContext,
     {
         postId,
         commentLimit,
@@ -1272,7 +1274,7 @@ export async function getPostAndInitialComments(
  * Paginate through post comments from start to finish.
  */
 export async function getPostCommentsFromStart(
-    context: RequestContext,
+    context: ActionContext,
     {
         postId,
         limit,
@@ -1338,7 +1340,7 @@ export async function getPostCommentsFromStart(
 }
 
 async function getPostCommentsFromStartAssumingAuthorizedPost(
-    context: RequestContext,
+    context: ActionContext,
     {
         postId,
         getSpaceId,
@@ -1429,7 +1431,7 @@ async function getPostCommentsFromStartAssumingAuthorizedPost(
  * Paginate through post comments from finish to start.
  */
 export async function getPostCommentsFromEnd(
-    context: RequestContext,
+    context: ActionContext,
     {
         postId,
         limit,
@@ -1495,7 +1497,7 @@ export async function getPostCommentsFromEnd(
 }
 
 async function getPostCommentsFromEndAssumingAuthorizedPost(
-    context: RequestContext,
+    context: ActionContext,
     {
         postId,
         getSpaceId,
@@ -1619,7 +1621,7 @@ export type PostCommentChangesResult =
  * your client has loaded and try loading the data again.
  */
 export async function backfillPostComments(
-    context: RequestContext,
+    context: ActionContext,
     {
         postId,
         clientCommentCount,
@@ -1708,7 +1710,7 @@ export async function backfillPostComments(
 }
 
 async function queryPostCommentChangeLogAssumingAuthorizedPost(
-    context: RequestContext,
+    context: ActionContext,
     {
         postItem,
         lastCommentChangeTime,

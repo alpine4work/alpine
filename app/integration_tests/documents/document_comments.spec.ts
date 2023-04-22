@@ -26,7 +26,7 @@ test("can comment on a document and use the comment thread sidebar", async ({
 }) => {
     assert(viewport);
 
-    const document = await createDocument(context.request(session1), {
+    const document = await createDocument(context.action(session1), {
         spaceId: space.id,
         content: createSimpleDocumentContent("Hello, world!"),
     });
@@ -301,7 +301,7 @@ test("can leave multiple comments on a document and navigate between them", asyn
 }) => {
     assert(viewport);
 
-    const document = await createDocument(context.request(session1), {
+    const document = await createDocument(context.action(session1), {
         spaceId: space.id,
         content: assertDocumentContent(
             DocumentContentProsemirrorSchema.node("doc", {}, [
