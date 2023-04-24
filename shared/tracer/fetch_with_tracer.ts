@@ -5,6 +5,8 @@ import {TracerBase} from "~/shared/tracer/tracer_base";
 import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header";
 import {TracerSpan} from "~/shared/tracer/tracer_span";
 
+const globalFetch = fetch;
+
 /**
  * Same as the global [`fetch()`][1] but we create a span for the HTTP request.
  * Generally should always use this instead of the global `fetch()`.
@@ -14,7 +16,9 @@ import {TracerSpan} from "~/shared/tracer/tracer_span";
 export async function fetchWithTracer(
     tracer: TracerBase,
     url: URL | string,
-    requestInit?: RequestInit,
+    requestInit?: RequestInit & {
+        fetch?: (url: URL | string, requestInit: RequestInit) => Promise<Response>;
+    },
 ): Promise<Response> {
     return fetchWithTracerAndReturnSpan(tracer, url, requestInit).responsePromise;
 }
@@ -26,15 +30,20 @@ export async function fetchWithTracer(
 export function fetchWithTracerAndReturnSpan(
     tracer: TracerBase,
     url: URL | string,
-    requestInit?: RequestInit,
+    {
+        fetch = globalFetch,
+        ...requestInit
+    }: RequestInit & {
+        fetch?: (url: URL | string, requestInit: RequestInit) => Promise<Response>;
+    } = {},
 ): {
     span: TracerSpan;
     responsePromise: Promise<Response>;
 } {
     const requestUrl =
-        typeof url !== "string"
-            ? url
-            : new URL(url, typeof window !== "undefined" ? window.location.href : undefined);
+        typeof url === "string" && typeof window !== "undefined"
+            ? new URL(url, window.location.href)
+            : url;
 
     const requestMethod = requestInit?.method ?? "GET";
 
@@ -44,14 +53,20 @@ export function fetchWithTracerAndReturnSpan(
     addTracerPropagationContextHeader(requestHeaders, span);
 
     // eslint-disable-next-line no-global-fetch
-    const responsePromise = fetch(url, {...requestInit, headers: requestHeaders});
+    const responsePromise = fetch(url, {
+        ...requestInit,
+        headers: requestHeaders,
+    });
 
     span.addData({
         net: {
             sock: {
                 peer: {
-                    name: requestUrl.hostname,
-                    port: requestUrl.port.length > 0 ? requestUrl.port : undefined,
+                    name: typeof requestUrl !== "string" ? requestUrl.hostname : undefined,
+                    port:
+                        typeof requestUrl !== "string" && requestUrl.port.length > 0
+                            ? requestUrl.port
+                            : undefined,
                 },
             },
         },

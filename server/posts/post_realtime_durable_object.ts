@@ -1,9 +1,10 @@
 import {createDurableObject} from "~/server/cloudflare/create_durable_object";
 import {WebSocketServer} from "~/server/cloudflare/web_socket_server";
-import {SessionActionContext} from "~/server/dynamo/context/action_context";
+import {ActionContext, SessionActionContext} from "~/server/dynamo/context/action_context";
 import {ProcessContext} from "~/server/dynamo/context/process_context";
 import {authorizePostAccess} from "~/server/dynamo/forum_table";
 import {PostRealtimeConnection} from "~/server/posts/post_realtime_connection";
+import {NotFoundError} from "~/shared/error/error";
 import {PostId, SpaceId} from "~/shared/id/types/id_types";
 import {PostRealtimeProtocol} from "~/shared/posts/post_realtime_protocol";
 import {Schema} from "~/shared/schema/schema";
@@ -26,7 +27,7 @@ class PostRealtimeDurableObject {
         idName,
     }: {
         processContext: ProcessContext;
-        initializeActionContext: SessionActionContext;
+        initializeActionContext: ActionContext;
         idName: string;
     }): Promise<PostRealtimeDurableObject> {
         const postId = Schema.id<PostId>().deserialize(idName);
@@ -79,13 +80,15 @@ class PostRealtimeDurableObject {
         );
     }
 
-    public async fetch(context: SessionActionContext, request: Request): Promise<Response> {
+    public async fetch(context: ActionContext, request: Request): Promise<Response> {
         // Propagate the post id to all logs for this durable object.
         context = context.tracer.withPropagatedData({
             context: {spaceId: this._spaceId, postId: this._postId},
         });
 
-        return this._webSocketServer.upgrade(context, request);
+        const url = new URL(request.url);
+        if (url.pathname !== "/") throw new NotFoundError("Unexpected path");
+        return this._webSocketServer.upgrade(context.actor.authorizeSession(), request);
     }
 
     public connectForTest(context: SessionActionContext) {

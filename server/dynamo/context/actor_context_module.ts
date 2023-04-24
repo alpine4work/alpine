@@ -5,6 +5,7 @@ import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
 import {Context} from "~/shared/context/context";
 import {ContextModuleBase} from "~/shared/context/context_module_base";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";
+import {PermissionDeniedError} from "~/shared/error/error";
 import {Replace} from "~/shared/helpers/types/replace";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
@@ -16,6 +17,18 @@ import {AccountModel} from "~/shared/models/account_model";
  * a different actor module. That could result in a privilege escalation!
  */
 export type ActorContextModule = SessionActorContextModule | SystemActorContextModule;
+
+interface ActorContextModuleBase extends ContextModuleBase {
+    /**
+     * Throws a `PermissionDeniedError` error if we are not a session actor.
+     * Otherwise returns a context with the correct type for the `actor` module.
+     *
+     * System actors can do a lot but they can't do things like establish a persistent realtime durable object connection.
+     */
+    authorizeSession<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
+    ): Context<Replace<Modules, {actor: SessionActorContextModule}>>;
+}
 
 /**
  * We don't know who is interacting with our system. They get no privileges and
@@ -48,11 +61,9 @@ export class MaybeSessionActorContextModule<
     Modules extends {
         tracer: TracerContextModule;
         dynamo: DynamoContextModule;
-        actor: MaybeSessionActorContextModule;
     } = {
         tracer: TracerContextModule;
         dynamo: DynamoContextModule;
-        actor: MaybeSessionActorContextModule;
     },
 > extends UnidentifiedActorContextModule<Modules> {
     private readonly _createSession: (context: DynamoContext) => Promise<Session | null>;
@@ -99,11 +110,13 @@ export class MaybeSessionActorContextModule<
  * successfully passed an authentication challenge (e.g. enters a one time
  * password provided over email) to prove they are some account.
  */
-export class SessionActorContextModule extends MaybeSessionActorContextModule<{
-    tracer: TracerContextModule;
-    dynamo: DynamoContextModule;
-    actor: SessionActorContextModule;
-}> {
+export class SessionActorContextModule
+    extends MaybeSessionActorContextModule<{
+        tracer: TracerContextModule;
+        dynamo: DynamoContextModule;
+    }>
+    implements ActorContextModuleBase
+{
     public readonly type = "Session";
 
     private readonly _session: Session;
@@ -127,6 +140,12 @@ export class SessionActorContextModule extends MaybeSessionActorContextModule<{
         this: MaybeSessionActorContextModule<Modules> & SessionActorContextModule,
     ): Promise<Context<Replace<Modules, {actor: SessionActorContextModule}>>> {
         return this._context as any;
+    }
+
+    public authorizeSession<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
+    ): Context<Replace<Modules, {actor: SessionActorContextModule}>> {
+        return (this as any)._context;
     }
 
     /**
@@ -162,7 +181,7 @@ export class SessionActorContextModule extends MaybeSessionActorContextModule<{
  * System contexts only have access to one space at a time to limit the power
  * of the system context and prevent accidental issues.
  */
-export class SystemActorContextModule extends ContextModuleBase {
+export class SystemActorContextModule extends ContextModuleBase implements ActorContextModuleBase {
     public readonly type = "System";
 
     private readonly _spaceId: SpaceId;
@@ -174,5 +193,11 @@ export class SystemActorContextModule extends ContextModuleBase {
 
     public getSpaceId(): SpaceId {
         return this._spaceId;
+    }
+
+    public authorizeSession<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
+    ): Context<Replace<Modules, {actor: SessionActorContextModule}>> {
+        throw new PermissionDeniedError("System actor is not a session actor");
     }
 }

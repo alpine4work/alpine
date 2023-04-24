@@ -40,6 +40,7 @@ import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
+import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
@@ -2894,6 +2895,12 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             ).push(indexConfig);
         }
 
+        getOrSetDefaultMapValue(
+            allConstructedDynamoTableSchemaIndexNames,
+            this._name,
+            () => new Set(),
+        ).add(`Index${indexConfig.indexNumber}`);
+
         return indexConfig;
     }
 
@@ -3204,12 +3211,25 @@ const allConstructedDynamoTableSchemas = new Map<
     DynamoTableSchema<DynamoTableSchemaTypes.Types<DynamoTableSchemaTypes.ConfigBase>>
 >();
 
+const allConstructedDynamoTableSchemaIndexNames = new Map<string, Set<string>>();
+
 /**
  * Is the provided name the name of a `DynamoTableSchema` that has been
  * constructed?
  */
 export function isConstructedDynamoTableSchemaName(name: string): boolean {
     return allConstructedDynamoTableSchemas.has(name);
+}
+
+/**
+ * Is the provided name the name of a `DynamoTableSchema`'s index that has been
+ * constructed?
+ */
+export function isConstructedDynamoTableSchemaIndexName(
+    tableName: string,
+    indexName: string,
+): boolean {
+    return allConstructedDynamoTableSchemaIndexNames.get(tableName)?.has(indexName) ?? false;
 }
 
 /**
@@ -3223,6 +3243,30 @@ export function getAllConstructedDynamoTableSchemas(): Array<
     return Array.from(allConstructedDynamoTableSchemas)
         .sort(([name1], [name2]) => defaultCompareStrings(name1, name2))
         .map(([, schema]) => schema);
+}
+
+/**
+ * Get all indexes for `DynamoTableSchema`s that have been constructed so far.
+ *
+ * They will be sorted by name so the order is deterministic.
+ *
+ * This returns the names of indexes as they exist in the database, not as they
+ * exist in code. Remember that multiple indexes may overload the same physical
+ * index in the database.
+ */
+export function getAllConstructedDynamoTableSchemaIndexNames(): Array<{
+    tableName: string;
+    indexName: string;
+}> {
+    return Array.from(
+        flatMapIterable(allConstructedDynamoTableSchemaIndexNames, ([tableName, indexNames]) =>
+            mapIterable(indexNames, indexName => ({tableName, indexName})),
+        ),
+    ).sort(
+        (names1, names2) =>
+            defaultCompareStrings(names1.tableName, names2.tableName) ||
+            defaultCompareStrings(names1.indexName, names2.indexName),
+    );
 }
 
 let dynamoTableSchemaInitializationCallbacks: Array<() => void> | null = [];

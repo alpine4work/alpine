@@ -6,15 +6,19 @@ import {
 } from "~/server/cloudflare/web_socket_server";
 import {Session} from "~/server/dynamo/accounts_table";
 import {
-    MaybeSessionActionContextModules,
+    ActionContext,
+    ActionContextModules,
     SessionActionContext,
 } from "~/server/dynamo/context/action_context";
 import {
-    MaybeSessionActorContextModule,
+    ActorContextModule,
+    SessionActorContextModule,
+    SystemActorContextModule,
     UnidentifiedActorContextModule,
 } from "~/server/dynamo/context/actor_context_module";
+import {unauthenticatedSessionError} from "~/server/dynamo/context/helpers/unauthenticated_session_error";
 import {NotificationsContextModule} from "~/server/dynamo/context/notifications_context_module";
-import {ProcessContext, ProcessContextModules} from "~/server/dynamo/context/process_context";
+import {ProcessContext, ProcessContextModulesBase} from "~/server/dynamo/context/process_context";
 import {Queue} from "~/server/helpers/types/cloudflare_queues";
 import {createServerTracer} from "~/server/tracer/server_tracer";
 import {traceFetchResponse} from "~/server/tracer/trace_fetch_response";
@@ -27,14 +31,14 @@ import {
     FailedPreconditionError,
     InternalError,
     InvalidArgumentError,
-    NotFoundError,
     UnimplementedError,
 } from "~/shared/error/error";
 import {isSystemError} from "~/shared/error/is_system_error_code";
 import {assert} from "~/shared/helpers/control/assert";
+import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
-import {AccountId, SessionId} from "~/shared/id/types/id_types";
+import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema";
 import {DurableObjectServiceName, TracerRoot} from "~/shared/tracer/tracer_root";
 
@@ -63,7 +67,7 @@ export type DurableObjectEnv = {
  */
 export function createDurableObject<
     DurableObject extends {
-        fetch(context: SessionActionContext, request: Request): MaybePromise<Response>;
+        fetch(context: ActionContext, request: Request): MaybePromise<Response>;
         connectForTest?(
             context: SessionActionContext,
         ): Promise<
@@ -77,7 +81,7 @@ export function createDurableObject<
     serviceName: DurableObjectServiceName;
     initialize: (options: {
         processContext: ProcessContext;
-        initializeActionContext: SessionActionContext;
+        initializeActionContext: ActionContext;
         idName: string;
         destroy: () => void;
     }) => Promise<DurableObject>;
@@ -97,7 +101,8 @@ export function createDurableObject<
         private readonly _state: DurableObjectState;
         private readonly _sessionCookieSecret: string;
         private readonly _tracer: TracerRoot;
-        private readonly _context: ProcessContext;
+        private readonly _processContextModulesBase: ProcessContextModulesBase;
+        private readonly _processContext: ProcessContext;
         private _object: {
             readonly idName: string;
             readonly promise: Promise<DurableObject>;
@@ -120,7 +125,7 @@ export function createDurableObject<
 
             const awsContextModules = createAwsContextModulesFromEnv(env);
 
-            this._context = Context.new({
+            this._processContextModulesBase = {
                 ...awsContextModules,
                 process: new ProcessContextModule({
                     waitUntil: promise =>
@@ -140,6 +145,10 @@ export function createDurableObject<
                 }),
                 tracer: new TracerContextModule(this._tracer),
                 notifications: new NotificationsContextModule(env),
+            };
+
+            this._processContext = Context.new({
+                ...this._processContextModulesBase,
                 actor: new UnidentifiedActorContextModule(),
             });
         }
@@ -149,52 +158,59 @@ export function createDurableObject<
 
             return traceFetchResponse(this._tracer, request, url, async (span, request) => {
                 try {
-                    const response = await this._context.with<
-                        Omit<
-                            MaybeSessionActionContextModules,
-                            Exclude<keyof ProcessContextModules, "tracer" | "actor">
-                        >,
-                        Response
-                    >(
+                    const authorizationHeader = request.headers.get("authorization");
+                    if (!authorizationHeader) throw unauthenticatedSessionError();
+                    const authorizationHeaderMatch = authorizationHeader.match(/^bearer (.+)$/i);
+
+                    if (!authorizationHeaderMatch) {
+                        throw new InvalidArgumentError(
+                            'Expected "Authorization" header to have "Bearer" authentication scheme',
+                        );
+                    }
+
+                    const authenticationToken = authorizationHeaderMatch[1] ?? "";
+
+                    const verifiedAuthenticationToken = await this._verifyAuthenticationToken(
+                        authenticationToken,
+                    );
+
+                    let actor: ActorContextModule;
+                    switch (verifiedAuthenticationToken.type) {
+                        case "Session": {
+                            const session = await Session.getIfExists(
+                                this._processContext.clone({tracer: new TracerContextModule(span)}),
+                                verifiedAuthenticationToken.sessionId,
+                                verifiedAuthenticationToken.sessionAccountId ?? null,
+                            );
+                            if (!session) {
+                                throw new InternalError(
+                                    'Could not find session from "Authorization" header',
+                                );
+                            }
+
+                            actor = new SessionActorContextModule(session);
+                            break;
+                        }
+                        case "System": {
+                            actor = new SystemActorContextModule(
+                                verifiedAuthenticationToken.spaceId,
+                            );
+                            break;
+                        }
+                        default:
+                            throw exhaustive(verifiedAuthenticationToken);
+                    }
+
+                    const response = await Context.with<ActionContextModules, Response>(
                         {
+                            ...this._processContextModulesBase,
                             // Replace the tracer context module with one that uses our span for
                             // this request.
                             tracer: new TracerContextModule(span),
                             cache: new CacheContextModule(),
-
-                            actor: new MaybeSessionActorContextModule(async context => {
-                                const authorizationHeader = request.headers.get("authorization");
-                                if (!authorizationHeader) return null;
-                                const authorizationHeaderMatch =
-                                    authorizationHeader.match(/^bearer (.+)$/i);
-
-                                if (!authorizationHeaderMatch)
-                                    throw new InvalidArgumentError(
-                                        'Expected "Authorization" header to have "Bearer" authentication scheme',
-                                    );
-
-                                const authenticationToken = authorizationHeaderMatch[1] ?? "";
-
-                                const {sessionId, sessionAccountId} =
-                                    await this._verifyAuthenticationToken(authenticationToken);
-
-                                const session = await Session.getIfExists(
-                                    context,
-                                    sessionId,
-                                    sessionAccountId ?? null,
-                                );
-                                if (!session)
-                                    throw new NotFoundError(
-                                        'Could not find session from "Authorization" header',
-                                    );
-
-                                return session;
-                            }),
+                            actor,
                         },
-                        async _actionContext => {
-                            const actionContext: SessionActionContext =
-                                await _actionContext.actor.authenticate();
-
+                        async actionContext => {
                             const idName = request.headers.get("cyberworlds-id-name");
                             if (idName === null)
                                 throw new InvalidArgumentError(
@@ -205,7 +221,7 @@ export function createDurableObject<
                                 this._object = {
                                     idName,
                                     promise: initialize({
-                                        processContext: this._context,
+                                        processContext: this._processContext,
                                         initializeActionContext: actionContext,
                                         idName,
                                         destroy: () => (this._object = null),
@@ -298,7 +314,14 @@ export function createDurableObject<
     };
 }
 
-const DurableObjectAuthenticationTokenSchema = Schema.object({
-    sessionId: Schema.id<SessionId>(),
-    sessionAccountId: Schema.id<AccountId>().optional(),
+const DurableObjectAuthenticationTokenSchema = Schema.union({
+    Session: Schema.object({
+        type: Schema.value("Session"),
+        sessionId: Schema.id<SessionId>(),
+        sessionAccountId: Schema.id<AccountId>().optional(),
+    }),
+    System: Schema.object({
+        type: Schema.value("System"),
+        spaceId: Schema.id<SpaceId>(),
+    }),
 });

@@ -239,7 +239,7 @@ export class TracerSpan extends TracerBase {
      * processing from many spans. You may use the link function to express a
      * causal relationship between these spans.
      */
-    public link(span: Omit<TracerSpan, "finish">) {
+    public link({traceId, spanId}: {traceId: TraceId; spanId: TraceSpanId}) {
         const time = this._tracer.getTime();
 
         // Link this span with another using the Honeycomb link event format:
@@ -250,8 +250,8 @@ export class TracerSpan extends TracerBase {
                 parentId: this.spanId,
                 traceId: this.traceId,
                 link: {
-                    spanId: span.spanId,
-                    traceId: span.traceId,
+                    traceId,
+                    spanId,
                 },
             },
         };

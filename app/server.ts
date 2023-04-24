@@ -6,12 +6,20 @@ import {defaultClientInfo, defaultMobileClientInfo} from "~/client/remix/client_
 import {createAwsContextModulesFromEnv} from "~/server/aws/create_aws_context_modules_from_env";
 import {fetchFromDurableObjectStub} from "~/server/cloudflare/fetch_from_durable_object_stub";
 import {Session} from "~/server/dynamo/accounts_table";
-import {MaybeSessionActorContextModule} from "~/server/dynamo/context/actor_context_module";
-import {NotificationsContextModule} from "~/server/dynamo/context/notifications_context_module";
+import {SystemActionContextModules} from "~/server/dynamo/context/action_context";
+import {
+    MaybeSessionActorContextModule,
+    SystemActorContextModule,
+} from "~/server/dynamo/context/actor_context_module";
+import {
+    NotificationsContextModule,
+    NotificationsQueueMessageSchema,
+} from "~/server/dynamo/context/notifications_context_module";
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
+import {processNotificationEvent} from "~/server/dynamo/notifications_table";
 import {seedDynamo} from "~/server/dynamo/seed_dynamo";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base";
-import {Queue} from "~/server/helpers/types/cloudflare_queues";
+import {MessageBatch, Queue} from "~/server/helpers/types/cloudflare_queues";
 import {
     LoaderContext,
     LoaderContextModule,
@@ -25,8 +33,10 @@ import {CacheContextModule} from "~/shared/context/cache_context_module";
 import {Context} from "~/shared/context/context";
 import {ProcessContextModule} from "~/shared/context/process_context_module";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";
-import {InternalError, UnimplementedError} from "~/shared/error/error";
+import {InternalError} from "~/shared/error/error";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {serializeDateString} from "~/shared/helpers/date/date_string";
 import {ClientInfoSchema} from "~/shared/remix/client_info";
 import {Schema} from "~/shared/schema/schema";
 
@@ -357,9 +367,74 @@ async function handleFetch(
     });
 }
 
-async function handleQueue() {
-    // NOCOMMIT: Implement this
-    throw new UnimplementedError("TODO");
+function handleQueue(batch: MessageBatch, env: AppWorkerEnv, executionContext: ExecutionContext) {
+    const resources = getSharedResources(env);
+
+    // Create a new tracer for every queue execution because we need a Honeycomb
+    // client and the Honeycomb client needs `executionContext.waitUntil()` which
+    // is request scoped. Tracers are cheap to construct so this is fine.
+    const tracer = createServerTracer({
+        serviceName: "AppQueue",
+        env,
+        waitUntil: promise => executionContext.waitUntil(promise),
+    });
+
+    return runAllPromises(
+        batch.messages.map(message => {
+            const promise = tracer.withSpan("Process queue message", async span => {
+                span.addData({
+                    queue: {
+                        name: batch.queue,
+                        messageId: message.id,
+                        messageTime: serializeDateString(message.timestamp),
+                    },
+                });
+
+                if (batch.queue !== "NotificationsQueue")
+                    throw new InternalError("Unrecognized queue name");
+
+                const {event, tracerContext} = NotificationsQueueMessageSchema.deserialize(
+                    message.body,
+                );
+
+                span.link({
+                    traceId: tracerContext.traceId,
+                    spanId: tracerContext.parentId,
+                });
+
+                const waitPromises: Array<Promise<void>> = [];
+
+                // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
+                await Context.with<SystemActionContextModules, void>(
+                    {
+                        ...resources.awsContextModules,
+                        process: new ProcessContextModule({
+                            // Instead of using `executionContext.waitUntil()`, we want to directly wait
+                            // for all relevant promises to finish in this span.
+                            waitUntil: promise => waitPromises.push(promise),
+                        }),
+                        tracer: new TracerContextModule(span),
+                        cache: new CacheContextModule(),
+                        notifications: new NotificationsContextModule(env),
+                        actor: new SystemActorContextModule(event.spaceId),
+                    },
+                    context => processNotificationEvent(context, event),
+                );
+
+                // Acknowledge the message once it's done processing.
+                //
+                // TODO(calebmer): I don't think `ack()` is implemented on our version
+                // of Miniflare? Remove this when upgrading.
+                if (message.ack) message.ack();
+
+                await runAllPromises(waitPromises);
+            });
+
+            return promise.catch(() => {
+                // Ignore errors. They are reported as a part of the above trace...
+            });
+        }),
+    );
 }
 
 export default {fetch: handleFetch, queue: handleQueue};

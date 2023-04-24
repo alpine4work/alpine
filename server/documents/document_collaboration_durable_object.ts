@@ -2,7 +2,7 @@ import {createDurableObject} from "~/server/cloudflare/create_durable_object";
 import {WebSocketServer} from "~/server/cloudflare/web_socket_server";
 import {DocumentCollaborationConnection} from "~/server/documents/document_collaboration_connection";
 import {DocumentCollaborationContentManager} from "~/server/documents/document_collaboration_content_manager";
-import {SessionActionContext} from "~/server/dynamo/context/action_context";
+import {ActionContext, SessionActionContext} from "~/server/dynamo/context/action_context";
 import {ProcessContext} from "~/server/dynamo/context/process_context";
 import {authorizeDocumentAccess, getDocument} from "~/server/dynamo/documents_table";
 import {DocumentContent} from "~/shared/content/document_content_schema";
@@ -32,7 +32,7 @@ class DocumentCollaborationDurableObject {
         destroy,
     }: {
         processContext: ProcessContext;
-        initializeActionContext: SessionActionContext;
+        initializeActionContext: ActionContext;
         idName: string;
         destroy: () => void;
     }): Promise<DocumentCollaborationDurableObject> {
@@ -108,7 +108,7 @@ class DocumentCollaborationDurableObject {
         );
     }
 
-    public fetch(context: SessionActionContext, request: Request): Promise<Response> {
+    public fetch(context: ActionContext, request: Request): Promise<Response> {
         // Propagate the document id to all logs for this durable object.
         context = context.tracer.withPropagatedData({
             context: {spaceId: this.spaceId, documentId: this.id},
@@ -116,7 +116,7 @@ class DocumentCollaborationDurableObject {
 
         const url = new URL(request.url);
         if (url.pathname !== "/") throw new NotFoundError("Unexpected path");
-        return this._webSocketServer.upgrade(context, request);
+        return this._webSocketServer.upgrade(context.actor.authorizeSession(), request);
     }
 
     public connectForTest(context: SessionActionContext) {

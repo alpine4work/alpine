@@ -45,6 +45,7 @@ export async function fetchFromDurableObjectStub({
     // request with whatever `sessionId` they have access to! Using a signed JWT
     // prevents that.
     const authenticationToken = await new SignJWT({
+        type: "Session",
         sessionId: sessionCookie.sessionId,
         sessionAccountId: sessionCookie.sessionAccountId,
     })

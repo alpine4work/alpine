@@ -1,9 +1,17 @@
-import {getAllDynamoTableSchemas} from "~/server/dynamo/get_all_dynamo_table_schemas";
+import {
+    getAllDynamoTableSchemaIndexNames,
+    getAllDynamoTableSchemas,
+} from "~/server/dynamo/get_all_dynamo_table_schemas";
+import {DateString, isDateString} from "~/shared/helpers/date/date_string";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object";
 import {IdentifierStringSchema} from "~/shared/schema/identifier_string_schema";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
-import {Schema, SchemaWithOnlyDeserialization} from "~/shared/schema/schema";
+import {
+    Schema,
+    SchemaDeserializationError,
+    SchemaWithOnlyDeserialization,
+} from "~/shared/schema/schema";
 import {
     TracerEventFlatData,
     convertCamelCaseToSnakeCase,
@@ -27,6 +35,14 @@ type TracerEventDataSchemaBase = {
         | SchemaWithOnlyDeserialization<boolean>
         | TracerEventDataSchemaBase;
 };
+
+const DateStringSchema = Schema.string.transform<DateString>({
+    serialize: string => string,
+    deserialize: string => {
+        if (!isDateString(string)) throw new SchemaDeserializationError("Expected date string");
+        return string;
+    },
+});
 
 /**
  * Schemas for all the properties in `TracerEventFullData`. This is in `server`
@@ -141,6 +157,15 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
                     },
                 ]),
             ),
+            ...Object.fromEntries(
+                getAllDynamoTableSchemaIndexNames().map(({tableName, indexName}) => [
+                    `${tableName}_${indexName}`,
+                    {
+                        readCapacityUnits: Schema.float,
+                        writeCapacityUnits: Schema.float,
+                    },
+                ]),
+            ),
             totalReadCapacityUnits: Schema.float,
             totalWriteCapacityUnits: Schema.float,
         },
@@ -190,6 +215,11 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
             spaceId: Schema.id(),
             accountId: Schema.id(),
         },
+    },
+    queue: {
+        name: Schema.string,
+        messageId: Schema.string,
+        messageTime: DateStringSchema,
     },
 };
 

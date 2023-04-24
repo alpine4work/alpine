@@ -13,6 +13,7 @@ ts_project(
     deps = [
         "//server/cloudflare",
         "//server/dynamo",
+        "//shared/accounts",
         "//shared/error",
         "//shared/helpers",
         "//shared/id",

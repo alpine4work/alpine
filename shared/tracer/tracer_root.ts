@@ -22,6 +22,7 @@ export type TracerServiceName =
     | "Test"
     | "AppClient"
     | "AppServer"
+    | "AppQueue"
     | DurableObjectServiceName;
 
 /**

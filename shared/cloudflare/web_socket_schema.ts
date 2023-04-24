@@ -5,9 +5,9 @@ import {
 } from "~/shared/cloudflare/web_socket_protocol";
 import {ErrorSchema} from "~/shared/error/error_schema";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
-import {TraceId, TraceSpanId, WebSocketProcedureRequestId} from "~/shared/id/types/id_types";
+import {WebSocketProcedureRequestId} from "~/shared/id/types/id_types";
 import {Schema} from "~/shared/schema/schema";
-import {TracerEventFlatData} from "~/shared/tracer/helpers/build_tracer_event_flat_data";
+import {TracerPropagationContextSchema} from "~/shared/tracer/tracer_propagation_context_schema";
 import {TracerSpanPropagationContext} from "~/shared/tracer/tracer_span";
 
 /**
@@ -35,12 +35,6 @@ type WebSocketProcedureRequestInput<Procedures extends {[name: string]: {input: 
     {
         [Name in keyof Procedures & string]: {readonly type: Name} & Procedures[Name]["input"];
     }[keyof Procedures & string];
-
-const TracerPropagationContextSchema = Schema.object({
-    traceId: Schema.id<TraceId>(),
-    parentId: Schema.id<TraceSpanId>(),
-    data: Schema.unknown as Schema<any> as Schema<TracerEventFlatData>,
-});
 
 export function createWebSocketMessageFromClientSchema<Protocol extends WebSocketProtocolBase>(
     protocol: Protocol,

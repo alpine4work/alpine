@@ -1,12 +1,37 @@
+import {SignJWT} from "jose";
 import {SystemActionContext} from "~/server/dynamo/context/action_context";
-import {NotificationEvent, processNotificationEvent} from "~/server/dynamo/notifications_table";
+import {
+    NotificationEvent,
+    NotificationEventSchema,
+    processNotificationEvent,
+} from "~/server/dynamo/notifications_table";
 import {Queue} from "~/server/helpers/types/cloudflare_queues";
 import {ContextModuleBase} from "~/shared/context/context_module_base";
 import {ProcessContextModule} from "~/shared/context/process_context_module";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";
-import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types";
+import {
+    DynamoGeneralRealtimeEvent,
+    createDynamoGeneralRealtimeEventSchema,
+} from "~/shared/dynamo/dynamo_general_realtime_types";
+import {InternalError} from "~/shared/error/error";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
-import {SpaceId} from "~/shared/id/types/id_types";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
+import {isId} from "~/shared/id/id";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types";
+import {InboxItemModelSchema} from "~/shared/models/inbox_model";
+import {Schema, SchemaType} from "~/shared/schema/schema";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer";
+import {TracerPropagationContextSchema} from "~/shared/tracer/tracer_propagation_context_schema";
+
+export const NotificationsQueueMessageSchema = Schema.object({
+    event: NotificationEventSchema,
+    tracerContext: TracerPropagationContextSchema,
+});
+
+export const MyAccountInboxRealtimeEventTransactionSchema = Schema.array(
+    createDynamoGeneralRealtimeEventSchema(InboxItemModelSchema),
+);
 
 /**
  * Context module available on contexts that can add to our notification
@@ -36,14 +61,22 @@ export abstract class NotificationsContextModuleBase extends ContextModuleBase<{
 export class NotificationsContextModule extends NotificationsContextModuleBase {
     private readonly _notificationQueue: Queue;
     private readonly _myAccountDurableObjectNamespace: DurableObjectNamespace;
+    private readonly _sessionCookieSecret: string;
 
     constructor(env: {
         NotificationsQueue: Queue;
         MyAccountDurableObjectNamespace: DurableObjectNamespace;
+        SESSION_COOKIE_SECRET?: string;
     }) {
         super();
         this._notificationQueue = env.NotificationsQueue;
         this._myAccountDurableObjectNamespace = env.MyAccountDurableObjectNamespace;
+
+        const sessionCookieSecret = env.SESSION_COOKIE_SECRET;
+        if (!sessionCookieSecret)
+            throw new InternalError("Missing `SESSION_COOKIE_SECRET` environment variable");
+
+        this._sessionCookieSecret = sessionCookieSecret;
     }
 
     public override sendNotificationEvent(event: NotificationEvent) {
@@ -56,18 +89,99 @@ export class NotificationsContextModule extends NotificationsContextModuleBase {
                     },
                 });
 
-                return this._notificationQueue.send({
-                    event,
-                    tracerContext: span.getPropagationContext(),
-                });
+                return this._notificationQueue.send(
+                    NotificationsQueueMessageSchema.serialize({
+                        event,
+                        tracerContext: span.getPropagationContext(),
+                    }),
+                );
             }),
         );
     }
 
     public override async sendInboxRealtimeEventTransaction(
-        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
+        eventTransaction: ReadonlyArray<
+            DynamoGeneralRealtimeEvent<SchemaType<typeof InboxItemModelSchema>>
+        >,
     ) {
-        // NOCOMMIT
+        // Split up event transactions by unique `SpaceId` and `AccountId`
+        // combinations. By splitting a transaction it may not be applied atomically.
+        // We split by `AccountId` since events need to go to different durable
+        // objects.
+        //
+        // Having a transaction across two accounts or two spaces isn't theoretically
+        // impossible but would be weird and doesn't currently happen in practice.
+        const eventTransactionBySpaceIdAndAccountId = new Map<
+            `${SpaceId}:${AccountId}`,
+            Array<DynamoGeneralRealtimeEvent<SchemaType<typeof InboxItemModelSchema>>>
+        >();
+
+        for (const event of eventTransaction) {
+            getOrSetDefaultMapValue(
+                eventTransactionBySpaceIdAndAccountId,
+                `${event.model.spaceId}:${event.model.accountId}`,
+                () => [],
+            ).push(event);
+        }
+
+        await runAllPromises(
+            Array.from(
+                eventTransactionBySpaceIdAndAccountId,
+                async ([spaceIdAndAccountId, eventTransaction]) => {
+                    const [spaceId, accountId] = spaceIdAndAccountId.split(":");
+                    assert(spaceId && isId<SpaceId>(spaceId));
+                    assert(accountId && isId<AccountId>(accountId));
+
+                    const durableObjectId =
+                        this._myAccountDurableObjectNamespace.idFromName(accountId);
+                    const durableObjectStub =
+                        this._myAccountDurableObjectNamespace.get(durableObjectId);
+
+                    // Create a short-lived JWT for authenticating as a system actor when
+                    // executing the durable object.
+                    //
+                    // We use a JWT to ensure that it's our app worker sending the token. If
+                    // an attacker got access to the Durable Object URL then they could use
+                    // `type: "System"` with any arbitrary `SpaceId`! Using a signed JWT
+                    // prevents that.
+                    const authenticationToken = await new SignJWT({
+                        type: "System",
+                        spaceId,
+                    })
+                        .setProtectedHeader({alg: "HS256"})
+                        .setIssuedAt()
+                        .setExpirationTime("2m")
+                        .sign(new TextEncoder().encode(this._sessionCookieSecret));
+
+                    await fetchWithTracer(
+                        this._context.tracer.getTracer(),
+                        "/inbox-realtime-event-transaction",
+                        {
+                            fetch: (url, requestInit) =>
+                                durableObjectStub.fetch(
+                                    (typeof url === "string"
+                                        ? // NOTE(calebmer): Dummy domain owned by Cloudflare. We seem to get an error
+                                          // when just passing in a path? Maybe this is a Miniflare only bug.
+                                          new URL(url, "https://workers.dev")
+                                        : url) as any,
+                                    requestInit,
+                                ),
+                            method: "POST",
+                            headers: {
+                                authorization: `bearer ${authenticationToken}`,
+                                "cyberworlds-id-name": accountId,
+                                "content-type": "application/json",
+                            },
+                            body: JSON.stringify(
+                                MyAccountInboxRealtimeEventTransactionSchema.serialize(
+                                    eventTransaction,
+                                ),
+                            ),
+                        },
+                    );
+                },
+            ),
+        );
     }
 }
 

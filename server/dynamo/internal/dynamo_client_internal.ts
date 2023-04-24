@@ -3,7 +3,10 @@
 import type * as types from "@aws-sdk/client-dynamodb";
 import {AwsClient} from "aws4fetch";
 import {classifyDynamoError} from "~/server/dynamo/internal/classify_dynamo_error";
-import {isConstructedDynamoTableSchemaName} from "~/server/dynamo/internal/dynamo_table_schema";
+import {
+    isConstructedDynamoTableSchemaIndexName,
+    isConstructedDynamoTableSchemaName,
+} from "~/server/dynamo/internal/dynamo_table_schema";
 import {assert} from "~/shared/helpers/control/assert";
 import {generateId} from "~/shared/id/id";
 import {TraceId, TraceSpanId} from "~/shared/id/types/id_types";
@@ -88,7 +91,7 @@ export class DynamoClientInternal {
     public GetItem(tracer: TracerBase, input: types.GetItemInput): Promise<types.GetItemOutput> {
         return tracer.withSpan("DynamoDB GetItem", async span => {
             // We need to set `ReturnConsumedCapacity` for tracing.
-            assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "TOTAL");
+            assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
 
             span.addData({
                 dynamodb: {
@@ -101,7 +104,7 @@ export class DynamoClientInternal {
             const output = await this._execute<types.GetItemInput, types.GetItemOutput>(
                 span,
                 "GetItem",
-                {...input, ReturnConsumedCapacity: "TOTAL"},
+                {...input, ReturnConsumedCapacity: "INDEXES"},
             );
 
             span.addData({
@@ -129,7 +132,7 @@ export class DynamoClientInternal {
     ): Promise<types.BatchGetItemOutput> {
         return tracer.withSpan("DynamoDB BatchGetItem", async span => {
             // We need to set `ReturnConsumedCapacity` for tracing.
-            assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "TOTAL");
+            assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
 
             const tableNames = [];
             let anyConsistentRead = false;
@@ -168,7 +171,7 @@ export class DynamoClientInternal {
             const output = await this._execute<types.BatchGetItemInput, types.BatchGetItemOutput>(
                 span,
                 "BatchGetItem",
-                {...input, ReturnConsumedCapacity: "TOTAL"},
+                {...input, ReturnConsumedCapacity: "INDEXES"},
             );
 
             span.addData({
@@ -192,7 +195,7 @@ export class DynamoClientInternal {
     public PutItem(tracer: TracerBase, input: types.PutItemInput): Promise<types.PutItemOutput> {
         return tracer.withSpan("DynamoDB PutItem", async span => {
             // We need to set `ReturnConsumedCapacity` for tracing.
-            assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "TOTAL");
+            assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
 
             span.addData({
                 dynamodb: {
@@ -205,7 +208,7 @@ export class DynamoClientInternal {
             const output = await this._execute<types.PutItemInput, types.PutItemOutput>(
                 span,
                 "PutItem",
-                {...input, ReturnConsumedCapacity: "TOTAL"},
+                {...input, ReturnConsumedCapacity: "INDEXES"},
             );
 
             span.addData({
@@ -232,7 +235,7 @@ export class DynamoClientInternal {
     ): Promise<types.DeleteItemOutput> {
         return tracer.withSpan("DynamoDB DeleteItem", async span => {
             // We need to set `ReturnConsumedCapacity` for tracing.
-            assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "TOTAL");
+            assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
 
             span.addData({
                 dynamodb: {
@@ -245,7 +248,7 @@ export class DynamoClientInternal {
             const output = await this._execute<types.DeleteItemInput, types.DeleteItemOutput>(
                 span,
                 "DeleteItem",
-                {...input, ReturnConsumedCapacity: "TOTAL"},
+                {...input, ReturnConsumedCapacity: "INDEXES"},
             );
 
             span.addData({
@@ -273,7 +276,7 @@ export class DynamoClientInternal {
     ): Promise<types.BatchWriteItemOutput> {
         return tracer.withSpan("DynamoDB BatchWriteItem", async span => {
             // We need to set `ReturnConsumedCapacity` for tracing.
-            assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "TOTAL");
+            assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
 
             const tableNames = [];
             let batchSize = 0;
@@ -309,7 +312,7 @@ export class DynamoClientInternal {
             const output = await this._execute<
                 types.BatchWriteItemInput,
                 types.BatchWriteItemOutput
-            >(span, "BatchWriteItem", {...input, ReturnConsumedCapacity: "TOTAL"});
+            >(span, "BatchWriteItem", {...input, ReturnConsumedCapacity: "INDEXES"});
 
             span.addData({
                 dynamodb: {
@@ -335,7 +338,7 @@ export class DynamoClientInternal {
     ): Promise<types.TransactWriteItemsOutput> {
         return tracer.withSpan("DynamoDB TransactWriteItems", async span => {
             // We need to set `ReturnConsumedCapacity` for tracing.
-            assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "TOTAL");
+            assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
 
             const tableNames = new Set<string>();
             const transactItemsSummary = [];
@@ -411,7 +414,7 @@ export class DynamoClientInternal {
                 // this would be handled for us. See:
                 // https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html#transaction-best-practices
                 ClientRequestToken: input.ClientRequestToken ?? generateId(),
-                ReturnConsumedCapacity: "TOTAL",
+                ReturnConsumedCapacity: "INDEXES",
             });
 
             span.addData({
@@ -438,7 +441,7 @@ export class DynamoClientInternal {
     ): Promise<types.TransactGetItemsOutput> {
         return tracer.withSpan("DynamoDB TransactGetItems", async span => {
             // We need to set `ReturnConsumedCapacity` for tracing.
-            assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "TOTAL");
+            assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
 
             const tableNames = new Set<string>();
             let size = 0;
@@ -461,7 +464,7 @@ export class DynamoClientInternal {
             const output = await this._execute<
                 types.TransactGetItemsInput,
                 types.TransactGetItemsOutput
-            >(span, "TransactGetItems", {...input, ReturnConsumedCapacity: "TOTAL"});
+            >(span, "TransactGetItems", {...input, ReturnConsumedCapacity: "INDEXES"});
 
             span.addData({
                 dynamodb: {
@@ -484,7 +487,7 @@ export class DynamoClientInternal {
     public Query(tracer: TracerBase, input: types.QueryInput): Promise<types.QueryOutput> {
         return tracer.withSpan("DynamoDB Query", async span => {
             // We need to set `ReturnConsumedCapacity` for tracing.
-            assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "TOTAL");
+            assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
 
             span.addData({
                 dynamodb: {
@@ -504,7 +507,7 @@ export class DynamoClientInternal {
 
             const output = await this._execute<types.QueryInput, types.QueryOutput>(span, "Query", {
                 ...input,
-                ReturnConsumedCapacity: "TOTAL",
+                ReturnConsumedCapacity: "INDEXES",
             });
 
             span.addData({
@@ -531,7 +534,7 @@ export class DynamoClientInternal {
     public Scan(tracer: TracerBase, input: types.ScanInput): Promise<types.ScanOutput> {
         return tracer.withSpan("DynamoDB Scan", async span => {
             // We need to set `ReturnConsumedCapacity` for tracing.
-            assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "TOTAL");
+            assert(!input.ReturnConsumedCapacity || input.ReturnConsumedCapacity === "INDEXES");
 
             span.addData({
                 dynamodb: {
@@ -549,7 +552,7 @@ export class DynamoClientInternal {
 
             const output = await this._execute<types.ScanInput, types.ScanOutput>(span, "Scan", {
                 ...input,
-                ReturnConsumedCapacity: "TOTAL",
+                ReturnConsumedCapacity: "INDEXES",
             });
 
             span.addData({
@@ -690,7 +693,44 @@ function getConsumedCapacityTracerEventData(
     let totalReadCapacityUnits = 0;
     let totalWriteCapacityUnits = 0;
 
-    const add = (consumedCapacity: types.ConsumedCapacity) => {
+    const add = (consumedCapacity: types.ConsumedCapacity, key: string | null) => {
+        if (key === null) {
+            // If our event data schema does not support consumed capacity for this table
+            // name then don't return any consumed capacity info.
+            if (
+                !consumedCapacity.TableName ||
+                !isConstructedDynamoTableSchemaName(consumedCapacity.TableName)
+            ) {
+                return;
+            }
+
+            if (consumedCapacity.Table) {
+                add(consumedCapacity.Table, consumedCapacity.TableName);
+
+                if (consumedCapacity.GlobalSecondaryIndexes) {
+                    for (const [indexName, indexConsumedCapacity] of Object.entries(
+                        consumedCapacity.GlobalSecondaryIndexes,
+                    )) {
+                        // If this is an unrecognized index name then bail out. Don't add its
+                        // consumed capacities.
+                        if (
+                            !isConstructedDynamoTableSchemaIndexName(
+                                consumedCapacity.TableName,
+                                indexName,
+                            )
+                        ) {
+                            continue;
+                        }
+
+                        add(indexConsumedCapacity, `${consumedCapacity.TableName}_${indexName}`);
+                    }
+                }
+                return;
+            }
+
+            key = consumedCapacity.TableName;
+        }
+
         // DynamoDB appears to use `CapacityUnits` to mean something different
         // depending on the action. So we depend on the action giving us a hint on how
         // to interpret an unqualified `CapacityUnits`.
@@ -706,16 +746,7 @@ function getConsumedCapacityTracerEventData(
         totalReadCapacityUnits += readCapacityUnits;
         totalWriteCapacityUnits += writeCapacityUnits;
 
-        // If our event data schema does not support consumed capacity for this table
-        // name then don't return any consumed capacity info.
-        if (
-            !consumedCapacity.TableName ||
-            !isConstructedDynamoTableSchemaName(consumedCapacity.TableName)
-        ) {
-            return;
-        }
-
-        consumedCapacityEventData[consumedCapacity.TableName] = {
+        consumedCapacityEventData[key] = {
             readCapacityUnits,
             writeCapacityUnits,
         };
@@ -725,10 +756,10 @@ function getConsumedCapacityTracerEventData(
         if (consumedCapacities.length === 0) return undefined;
 
         for (const consumedCapacity of consumedCapacities) {
-            add(consumedCapacity);
+            add(consumedCapacity, null);
         }
     } else {
-        add(consumedCapacities);
+        add(consumedCapacities, null);
     }
 
     consumedCapacityEventData.totalReadCapacityUnits = totalReadCapacityUnits;

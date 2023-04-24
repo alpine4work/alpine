@@ -48,7 +48,7 @@ import {
     InboxModel,
     InboxPostCommentsEntryModel,
 } from "~/shared/models/inbox_model";
-import {Schema} from "~/shared/schema/schema";
+import {Schema, SchemaType} from "~/shared/schema/schema";
 
 /**
  * The initial generation of a new inbox.
@@ -253,6 +253,8 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
             Attributes: {
                 async build(context, item) {
                     return new InboxModel({
+                        spaceId: item.spaceId,
+                        accountId: item.accountId,
                         loudNotificationCount: item.loudNotificationCount,
                     });
                 },
@@ -269,6 +271,8 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                     ]);
 
                     return new InboxChatEntryModel({
+                        spaceId: item.spaceId,
+                        accountId: item.accountId,
                         chatId: item.chatId,
                         loudNotificationCount: item.loudNotificationCount,
                         latestMessage: {
@@ -291,6 +295,8 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                     ]);
 
                     return new InboxPostCommentsEntryModel({
+                        spaceId: item.spaceId,
+                        accountId: item.accountId,
                         postId: item.postId,
                         loudNotificationCount: item.loudNotificationCount,
                         latestComment: {
@@ -675,34 +681,45 @@ async function unarchiveInboxEntryItemKey(
     });
 }
 
+export type NotificationCreateChatMessageEvent = SchemaType<
+    typeof NotificationCreateChatMessageEventSchema
+>;
+
+const NotificationCreateChatMessageEventSchema = Schema.object({
+    type: Schema.value("CreateChatMessage"),
+    id: Schema.id<NotificationEventId>(),
+    spaceId: Schema.id<SpaceId>(),
+    chatId: Schema.id<ChatId>(),
+    messageIndex: Schema.integer,
+    createdTime: Schema.date,
+    authorId: Schema.id<AccountId>(),
+    mentionedAccountIds: Schema.set(Schema.id<ContentMentionAccountId>()),
+    contentSnippet: MessageContentSchema,
+});
+
+export type NotificationCreatePostCommentEvent = SchemaType<
+    typeof NotificationCreatePostCommentEventSchema
+>;
+
+const NotificationCreatePostCommentEventSchema = Schema.object({
+    type: Schema.value("CreatePostComment"),
+    id: Schema.id<NotificationEventId>(),
+    spaceId: Schema.id<SpaceId>(),
+    postId: Schema.id<PostId>(),
+    commentIndex: Schema.integer,
+    createdTime: Schema.date,
+    authorId: Schema.id<AccountId>(),
+    mentionedAccountIds: Schema.set(Schema.id<ContentMentionAccountId>()),
+    contentSnippet: MessageContentSchema,
+});
+
 // TODO(calebmer): Add message and comment update events in case they add a mention.
-export type NotificationEvent =
-    | NotificationCreateChatMessageEvent
-    | NotificationCreatePostCommentEvent;
+export type NotificationEvent = SchemaType<typeof NotificationEventSchema>;
 
-export type NotificationCreateChatMessageEvent = {
-    readonly type: "CreateChatMessage";
-    readonly id: NotificationEventId;
-    readonly spaceId: SpaceId;
-    readonly chatId: ChatId;
-    readonly messageIndex: number;
-    readonly createdTime: Date;
-    readonly authorId: AccountId;
-    readonly mentionedAccountIds: ReadonlySet<ContentMentionAccountId>;
-    readonly contentSnippet: MessageContent;
-};
-
-export type NotificationCreatePostCommentEvent = {
-    readonly type: "CreatePostComment";
-    readonly id: NotificationEventId;
-    readonly spaceId: SpaceId;
-    readonly postId: PostId;
-    readonly commentIndex: number;
-    readonly createdTime: Date;
-    readonly authorId: AccountId;
-    readonly mentionedAccountIds: ReadonlySet<ContentMentionAccountId>;
-    readonly contentSnippet: MessageContent;
-};
+export const NotificationEventSchema = Schema.union({
+    CreateChatMessage: NotificationCreateChatMessageEventSchema,
+    CreatePostComment: NotificationCreatePostCommentEventSchema,
+});
 
 /**
  * Get the content snippet for `MessageContent` for a notification event.

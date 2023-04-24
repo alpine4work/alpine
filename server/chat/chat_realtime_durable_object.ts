@@ -2,9 +2,10 @@ import {ChatRealtimeConnection} from "~/server/chat/chat_realtime_connection";
 import {createDurableObject} from "~/server/cloudflare/create_durable_object";
 import {WebSocketServer} from "~/server/cloudflare/web_socket_server";
 import {authorizeChatAccess} from "~/server/dynamo/chat_table";
-import {SessionActionContext} from "~/server/dynamo/context/action_context";
+import {ActionContext, SessionActionContext} from "~/server/dynamo/context/action_context";
 import {ProcessContext} from "~/server/dynamo/context/process_context";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol";
+import {NotFoundError} from "~/shared/error/error";
 import {ChatId, SpaceId} from "~/shared/id/types/id_types";
 import {Schema} from "~/shared/schema/schema";
 
@@ -26,11 +27,14 @@ class ChatRealtimeDurableObject {
         idName,
     }: {
         processContext: ProcessContext;
-        initializeActionContext: SessionActionContext;
+        initializeActionContext: ActionContext;
         idName: string;
     }): Promise<ChatRealtimeDurableObject> {
         const chatId = Schema.id<ChatId>().deserialize(idName);
-        const {spaceId} = await authorizeChatAccess(initializeActionContext, chatId);
+        const {spaceId} = await authorizeChatAccess(
+            initializeActionContext.actor.authorizeSession(),
+            chatId,
+        );
 
         return new ChatRealtimeDurableObject({
             processContext,
@@ -79,13 +83,15 @@ class ChatRealtimeDurableObject {
         );
     }
 
-    public async fetch(context: SessionActionContext, request: Request): Promise<Response> {
+    public async fetch(context: ActionContext, request: Request): Promise<Response> {
         // Propagate the chat id to all logs for this durable object.
         context = context.tracer.withPropagatedData({
             context: {spaceId: this._spaceId, chatId: this._chatId},
         });
 
-        return this._webSocketServer.upgrade(context, request);
+        const url = new URL(request.url);
+        if (url.pathname !== "/") throw new NotFoundError("Unexpected path");
+        return this._webSocketServer.upgrade(context.actor.authorizeSession(), request);
     }
 
     public connectForTest(context: SessionActionContext) {

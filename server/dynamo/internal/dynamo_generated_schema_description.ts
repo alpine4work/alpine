@@ -3235,6 +3235,18 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                                                                         "Inbox": {
                                                                             "type": "Object",
                                                                             "propertySchemaByKey": {
+                                                                                "spaceId": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Id"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "accountId": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Id"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
                                                                                 "loudNotificationCount": {
                                                                                     "valueSchema": {
                                                                                         "type": "Integer"
@@ -3246,6 +3258,18 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                                                                         "InboxChatEntry": {
                                                                             "type": "Object",
                                                                             "propertySchemaByKey": {
+                                                                                "spaceId": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Id"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "accountId": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Id"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
                                                                                 "chatId": {
                                                                                     "valueSchema": {
                                                                                         "type": "Id"
@@ -3347,6 +3371,18 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                                                                         "InboxPostCommentsEntry": {
                                                                             "type": "Object",
                                                                             "propertySchemaByKey": {
+                                                                                "spaceId": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Id"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "accountId": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Id"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
                                                                                 "postId": {
                                                                                     "valueSchema": {
                                                                                         "type": "Id"

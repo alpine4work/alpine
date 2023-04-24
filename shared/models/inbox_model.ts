@@ -1,4 +1,4 @@
-import {ChatId, PostId} from "~/shared/id/types/id_types";
+import {AccountId, ChatId, PostId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
 import {createModelUnionSchema} from "~/shared/models/helpers/create_model_union_schema";
 import {MessageContentWithReferencesSchema} from "~/shared/models/message_model";
@@ -7,6 +7,8 @@ import {Schema, SchemaType} from "~/shared/schema/schema";
 
 export class InboxModel extends Model(
     Schema.object({
+        spaceId: Schema.id<SpaceId>(),
+        accountId: Schema.id<AccountId>(),
         loudNotificationCount: Schema.integer.min(0),
     }),
 ) {}
@@ -32,6 +34,8 @@ export type InboxEntryModel = InboxChatEntryModel | InboxPostCommentsEntryModel;
 
 export class InboxChatEntryModel extends Model(
     Schema.object({
+        spaceId: Schema.id<SpaceId>(),
+        accountId: Schema.id<AccountId>(),
         chatId: Schema.id<ChatId>(),
         loudNotificationCount: Schema.integer.min(0),
         latestMessage: Schema.object({
@@ -50,6 +54,8 @@ export class InboxChatEntryModel extends Model(
 
 export class InboxPostCommentsEntryModel extends Model(
     Schema.object({
+        spaceId: Schema.id<SpaceId>(),
+        accountId: Schema.id<AccountId>(),
         postId: Schema.id<PostId>(),
         loudNotificationCount: Schema.integer.min(0),
         latestComment: Schema.object({
