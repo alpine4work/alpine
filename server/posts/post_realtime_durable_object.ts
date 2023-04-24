@@ -9,9 +9,9 @@ import {PostRealtimeProtocol} from "~/shared/posts/post_realtime_protocol";
 import {Schema} from "~/shared/schema/schema";
 
 class PostRealtimeDurableObject {
-    public static serviceName = "PostRealtimeService" as const;
+    public static readonly serviceName = "PostRealtimeService";
 
-    private readonly _context: ProcessContext;
+    private readonly _processContext: ProcessContext;
     private readonly _spaceId: SpaceId;
     private readonly _postId: PostId;
 
@@ -33,30 +33,30 @@ class PostRealtimeDurableObject {
         const {spaceId} = await authorizePostAccess(initializeActionContext, postId);
 
         return new PostRealtimeDurableObject({
-            context: processContext,
+            processContext,
             postId,
             spaceId,
         });
     }
 
     private constructor({
-        context,
+        processContext,
         spaceId,
         postId,
     }: {
-        context: ProcessContext;
+        processContext: ProcessContext;
         spaceId: SpaceId;
         postId: PostId;
     }) {
         // Propagate the post id to all logs for this durable object.
-        context = context.tracer.withPropagatedData({context: {spaceId, postId}});
+        processContext = processContext.tracer.withPropagatedData({context: {spaceId, postId}});
 
-        this._context = context;
+        this._processContext = processContext;
         this._spaceId = spaceId;
         this._postId = postId;
 
         this._webSocketServer = new WebSocketServer(
-            this._context,
+            this._processContext,
             PostRealtimeProtocol,
             async ({
                 connectActionContext,

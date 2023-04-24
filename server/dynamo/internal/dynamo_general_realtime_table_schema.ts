@@ -1,3 +1,4 @@
+import {addDays} from "date-fns";
 import {ActionContext} from "~/server/dynamo/context/action_context";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
 import {DynamoReadConsistency} from "~/server/dynamo/internal/dynamo_client";
@@ -16,8 +17,10 @@ import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItemResult,
     DynamoGeneralRealtimeQueryResult,
+    createDynamoGeneralRealtimeEventSchema,
 } from "~/shared/dynamo/dynamo_general_realtime_types";
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings";
+import {UnimplementedError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
@@ -26,6 +29,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
 import {ObjectFromEntries} from "~/shared/helpers/types/object_from_entries";
+import {Schema, SchemaWithoutValidation} from "~/shared/schema/schema";
 
 export type DynamoGeneralRealtimeTableSchemaGetTypes<
     Schema extends DynamoGeneralRealtimeTableSchema<any, any>,
@@ -67,6 +71,43 @@ type DynamoGeneralRealtimeTableSchemaModelMapType<
         [Key2 in keyof ModelsConfig[Key1]]: Awaited<ReturnType<ModelsConfig[Key1][Key2]["build"]>>;
     };
 };
+
+type DynamoGeneralRealtimeTableSchemaModelType<
+    ModelsConfig extends {
+        [partitionType: string]: {[sortRangeType: string]: {build: () => Promise<any>}};
+    },
+> = {
+    [Key1 in keyof ModelsConfig]: {
+        [Key2 in keyof ModelsConfig[Key1]]: Awaited<ReturnType<ModelsConfig[Key1][Key2]["build"]>>;
+    }[keyof ModelsConfig[Key1]];
+}[keyof ModelsConfig];
+
+const privateRealtimePartitionName = "Realtime" as const;
+
+function createPrivateRealtimePartitionConfig(modelSchema: Schema<any>) {
+    return {
+        name: privateRealtimePartitionName,
+        partitionKeyAttributes: {
+            realtimeKey: DynamoKeyAttributeSchema.labelString,
+        },
+        sortRanges: [
+            {
+                name: "EventTransactions",
+                sortKeyAttributes: {
+                    eventTime: DynamoKeyAttributeSchema.date,
+                },
+                withExpirationTime: "Required",
+                attributes: Schema.object({
+                    events: Schema.array(createDynamoGeneralRealtimeEventSchema(modelSchema)),
+                }),
+            },
+        ],
+    } as const satisfies DynamoTableSchemaTypes.Partition.ConfigBase;
+}
+
+type DynamoGeneralRealtimeInternalEvent<Item> =
+    | {type: "CreateItem"; item: Item}
+    | {type: "UpdateItem"; item: Item};
 
 /**
  * Abstraction on top of `DynamoTableSchema` for creating DynamoDB tables where
@@ -158,6 +199,10 @@ export class DynamoGeneralRealtimeTableSchema<
     private readonly _models: DynamoGeneralRealtimeTableSchemaPartitionModelConfigType<
         DynamoTableSchemaTypes.ConfigBase["partitions"]
     >;
+    private readonly _sendEventTransactionCallback: (
+        context: ActionContext,
+        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<ModelMap[string][string]>>,
+    ) => Promise<void>;
 
     private readonly _serializeOpaqueCursorByIndexNameByItemType = new Map<
         string,
@@ -167,25 +212,92 @@ export class DynamoGeneralRealtimeTableSchema<
     public static new<
         const PartitionsConfig extends ReadonlyArray<DynamoTableSchemaTypes.Partition.ConfigBase>,
         const ModelsConfig extends DynamoGeneralRealtimeTableSchemaPartitionModelConfigType<PartitionsConfig>,
-    >(config: {
+    >({
+        name,
+        partitions,
+        models,
+        modelSchema,
+        sendEventTransaction,
+    }: {
         name: string;
         partitions: PartitionsConfig;
+
+        /**
+         * Every partition in a realtime DynamoDB table needs a model. A model is the
+         * object we share with the client. It removes any internal server information
+         * and may load related data from different tables.
+         *
+         * We create a model whenever you update data and broadcast the model to any
+         * realtime subscribers.
+         */
         models: ModelsConfig;
+
+        /**
+         * A schema that can serialize/deserialize every model object.
+         */
+        // NOTE(calebmer, 2023-04-24): For whatever reason, TypeScript doesn't seem to
+        // like the full `Schema` type here but works just fine with an interface that
+        // has a limited set of methods. I think it has something to do with
+        // variance. Shrug.
+        modelSchema: SchemaWithoutValidation<
+            DynamoGeneralRealtimeTableSchemaModelType<ModelsConfig>
+        >;
+
+        /**
+         * Whenever data within the realtime DynamoDB table is updated we call this
+         * broadcast function. It is your responsibility to make realtime events make
+         * it to connected clients. This abstraction does not do realtime event
+         * delivery for you.
+         *
+         * It's important that you make sure only authorized clients can subscribe to
+         * realtime event streams! Otherwise they may get access to data they're not
+         * allowed to see.
+         */
+        sendEventTransaction: (
+            context: ActionContext,
+            eventTransaction: ReadonlyArray<
+                DynamoGeneralRealtimeEvent<DynamoGeneralRealtimeTableSchemaModelType<ModelsConfig>>
+            >,
+        ) => Promise<void>;
     }): DynamoGeneralRealtimeTableSchema<
         DynamoTableSchemaTypes.Types<{name: string; partitions: PartitionsConfig}>,
         DynamoGeneralRealtimeTableSchemaModelMapType<ModelsConfig>
     > {
-        return new DynamoGeneralRealtimeTableSchema(DynamoTableSchema.new(config), config.models);
+        assert(modelSchema instanceof Schema);
+
+        return new DynamoGeneralRealtimeTableSchema({
+            table: DynamoTableSchema.new({
+                name,
+                // Add a private partition for storing realtime information but don't include
+                // it in the types. Users of this abstraction should not be able to access the
+                // realtime partition so we don't include it in the types.
+                partitions: [
+                    ...partitions,
+                    createPrivateRealtimePartitionConfig(modelSchema),
+                ] as any as PartitionsConfig,
+            }),
+            models,
+            sendEventTransaction,
+        });
     }
 
-    private constructor(
-        table: DynamoTableSchema<Types>,
+    private constructor({
+        table,
+        models,
+        sendEventTransaction,
+    }: {
+        table: DynamoTableSchema<Types>;
         models: DynamoGeneralRealtimeTableSchemaPartitionModelConfigType<
             DynamoTableSchemaTypes.ConfigBase["partitions"]
-        >,
-    ) {
+        >;
+        sendEventTransaction: (
+            context: ActionContext,
+            eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<ModelMap[string][string]>>,
+        ) => Promise<void>;
+    }) {
         this._table = table;
         this._models = models;
+        this._sendEventTransactionCallback = sendEventTransaction;
     }
 
     private _buildModel<Item extends Types["Item"]>(
@@ -198,25 +310,68 @@ export class DynamoGeneralRealtimeTableSchema<
         ) as Promise<ModelMap[Item["partitionType"]][Item["sortRangeType"]]>;
     }
 
-    private _getCursorByIndexName(item: Types["Item"]): ReadonlyMap<string, DynamoIndexCursor> {
-        const cursorByIndexName = new Map<string, DynamoIndexCursor>();
-
-        const itemType = `${item.partitionType}#${item.sortRangeType}`;
-        for (const [
-            indexName,
-            serializeOpaqueCursor,
-        ] of this._serializeOpaqueCursorByIndexNameByItemType.get(itemType) ?? []) {
-            cursorByIndexName.set(indexName, serializeOpaqueCursor(item));
-        }
-
-        return cursorByIndexName;
-    }
-
-    private async _broadcastEventTransaction<Model>(
+    private async _sendEventTransaction(
         context: ActionContext,
-        event: ReadonlyArray<DynamoGeneralRealtimeEvent<Model>>,
+        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeInternalEvent<Types["Item"]>>,
     ): Promise<void> {
-        // NOCOMMIT: Implement!
+        const realtimeKeys = new Set<string>();
+
+        const actualEventTransaction: ReadonlyArray<
+            DynamoGeneralRealtimeEvent<ModelMap[string][string]>
+        > = await runAllPromises(
+            eventTransaction.map(async event => {
+                // Add the realtime event transaction to every partition affected by the
+                // transaction. That way we can search to find the transaction later using any
+                // partition key implicated in the transaction.
+                //
+                // We use an opaque partition key to avoid conflicting characters in this
+                // realtime item's partition key.
+                realtimeKeys.add(this._table.serializeOpaqueItemPartitionKey(event.item));
+
+                const cursorByIndexName = new Map<string, DynamoIndexCursor>();
+
+                const itemType = `${event.item.partitionType}#${event.item.sortRangeType}`;
+                for (const [
+                    indexName,
+                    serializeOpaqueCursor,
+                ] of this._serializeOpaqueCursorByIndexNameByItemType.get(itemType) ?? []) {
+                    cursorByIndexName.set(indexName, serializeOpaqueCursor(event.item));
+                }
+
+                return {
+                    type: event.type,
+                    key: this._table.serializeOpaqueItemKey(event.item),
+                    version: event.item.updateLockVersion ?? 0,
+                    model: await this._buildModel(context, event.item),
+                    cursorByIndexName,
+                };
+            }),
+        );
+
+        const eventTime = new Date();
+
+        // Expire events after a week. If we are trying to backfill data from longer
+        // ago then we'll need a full refresh.
+        const expirationTime = addDays(eventTime, 7);
+
+        await runAllPromises([
+            this._sendEventTransactionCallback(context, actualEventTransaction),
+
+            // Add the event transaction to every affected partition key. When backfilling,
+            // we only query events from partitions we care about. If a transaction
+            // affected two partitions then it needs to be present in both to show up in a
+            // backfill query.
+            ...mapIterable(realtimeKeys, realtimeKey =>
+                this._table.createOrReplaceItem(context, {
+                    partitionType: privateRealtimePartitionName,
+                    sortRangeType: "EventTransactions",
+                    realtimeKey,
+                    eventTime,
+                    expirationTime,
+                    events: actualEventTransaction,
+                }),
+            ),
+        ]);
     }
 
     /**
@@ -230,35 +385,17 @@ export class DynamoGeneralRealtimeTableSchema<
     public async createItem<Item extends Types["Item"]>(
         context: ActionContext,
         item: Item,
-    ): Promise<
-        DynamoGeneralRealtimeItemResult<ModelMap[Item["partitionType"]][Item["sortRangeType"]]>
-    > {
-        // We backfill realtime updates to `readTime` so it should be before the data
-        // is saved to the database to avoid missing realtime updates.
-        const readTime = new Date();
+    ): Promise<void> {
+        assert(
+            item.partitionType !== privateRealtimePartitionName,
+            "Can't access private realtime partition",
+        );
 
         await this._table.createItem(context, item);
 
-        const key = this._table.serializeOpaqueItemKey(item);
-        const model = await this._buildModel(context, item);
-        const version = item.updateLockVersion ?? 0;
-
-        await this._broadcastEventTransaction(context, [
-            {
-                type: "CreateItem",
-                key,
-                version,
-                model,
-                cursorByIndexName: this._getCursorByIndexName(item),
-            },
-        ]);
-
-        return {
-            readTime,
-            key,
-            version,
-            model,
-        };
+        context.process.waitUntil(
+            this._sendEventTransaction(context, [{type: "CreateItem", item}]),
+        );
     }
 
     /**
@@ -284,12 +421,11 @@ export class DynamoGeneralRealtimeTableSchema<
         update: (
             item: MergeObjectIntersection<Types["Item"] & Key> | null,
         ) => MaybePromise<MergeObjectIntersection<Types["Item"] & Key>>,
-    ): Promise<
-        DynamoGeneralRealtimeItemResult<ModelMap[Key["partitionType"]][Key["sortRangeType"]]>
-    > {
-        // We backfill realtime updates to `readTime` so it should be before the data
-        // is saved to the database to avoid missing realtime updates.
-        const readTime = new Date();
+    ): Promise<void> {
+        assert(
+            itemKey.partitionType !== privateRealtimePartitionName,
+            "Can't access private realtime partition",
+        );
 
         const newItem = await this._table.updateItem(context, itemKey, async item => {
             const newItem = await update(item);
@@ -298,26 +434,9 @@ export class DynamoGeneralRealtimeTableSchema<
         });
         assert(newItem, "Deleting items is currently unsupported with a realtime schema");
 
-        const key = this._table.serializeOpaqueItemKey(itemKey);
-        const version: number = newItem.updateLockVersion ?? 0;
-        const model = await this._buildModel(context, newItem);
-
-        await this._broadcastEventTransaction(context, [
-            {
-                type: "UpdateItem",
-                key,
-                version,
-                model,
-                cursorByIndexName: this._getCursorByIndexName(newItem),
-            },
-        ]);
-
-        return {
-            readTime,
-            version,
-            key,
-            model,
-        };
+        context.process.waitUntil(
+            this._sendEventTransaction(context, [{type: "UpdateItem", item: newItem}]),
+        );
     }
 
     /**
@@ -335,35 +454,17 @@ export class DynamoGeneralRealtimeTableSchema<
     public async directlyUpdateItem<Item extends Types["Item"]>(
         context: ActionContext,
         item: Item,
-    ): Promise<
-        DynamoGeneralRealtimeItemResult<ModelMap[Item["partitionType"]][Item["sortRangeType"]]>
-    > {
-        // We backfill realtime updates to `readTime` so it should be before the data
-        // is saved to the database to avoid missing realtime updates.
-        const readTime = new Date();
+    ): Promise<void> {
+        assert(
+            item.partitionType !== privateRealtimePartitionName,
+            "Can't access private realtime partition",
+        );
 
         await this._table.directlyUpdateItem(context, item);
 
-        const key = this._table.serializeOpaqueItemKey(item);
-        const version: number = item.updateLockVersion ?? 0;
-        const model = await this._buildModel(context, item);
-
-        await this._broadcastEventTransaction(context, [
-            {
-                type: "UpdateItem",
-                key,
-                version,
-                model,
-                cursorByIndexName: this._getCursorByIndexName(item),
-            },
-        ]);
-
-        return {
-            readTime,
-            version,
-            key,
-            model,
-        };
+        context.process.waitUntil(
+            this._sendEventTransaction(context, [{type: "UpdateItem", item}]),
+        );
     }
 
     /**
@@ -380,44 +481,32 @@ export class DynamoGeneralRealtimeTableSchema<
         entries: ReadonlyArray<DynamoTransactionEntry | DynamoGeneralRealtimeTransactionEntry>,
         options?: {clientRequestToken?: string},
     ): Promise<void> {
-        const getEvents: Array<
-            (context: ActionContext) => Promise<{
-                schema: DynamoGeneralRealtimeTableSchema<any, any>;
-                event: DynamoGeneralRealtimeEvent<unknown>;
-            }>
-        > = [];
-
-        await DynamoTableSchema.executeTransaction(
-            context,
-            entries.map(entry => {
-                if (entry instanceof DynamoTransactionEntry) return entry;
-                const {entry: actualEntry, getEvent} = entry._get(privateSymbol);
-                getEvents.push(getEvent);
-                return actualEntry;
-            }),
-            options,
-        );
-
         const eventsBySchema = new Map<
             DynamoGeneralRealtimeTableSchema<
                 DynamoTableSchemaTypesBase,
                 {[partitionType: string]: {[sortRangeType: string]: any}}
             >,
-            Array<DynamoGeneralRealtimeEvent<unknown>>
+            Array<DynamoGeneralRealtimeInternalEvent<any>>
         >();
 
-        await runAllPromises(
-            getEvents.map(async getEvent => {
-                const {schema, event} = await getEvent(context);
+        await DynamoTableSchema.executeTransaction(
+            context,
+            entries.map(entry => {
+                if (entry instanceof DynamoTransactionEntry) return entry;
+                const {entry: actualEntry, schema, event} = entry._get(privateSymbol);
                 getOrSetDefaultMapValue(eventsBySchema, schema, () => []).push(event);
+                return actualEntry;
             }),
+            options,
         );
 
-        await runAllPromises(
-            mapIterable(eventsBySchema, async ([schema, events]) => {
-                await schema._broadcastEventTransaction(context, events);
-            }),
-        );
+        context.process.waitUntil(async () => {
+            await runAllPromises(
+                mapIterable(eventsBySchema, ([schema, events]) =>
+                    schema._sendEventTransaction(context, events),
+                ),
+            );
+        });
     }
 
     /**
@@ -432,25 +521,16 @@ export class DynamoGeneralRealtimeTableSchema<
     public transactionCreateItem<Item extends Types["Item"]>(
         item: Item,
     ): DynamoGeneralRealtimeTransactionEntry {
+        assert(
+            item.partitionType !== privateRealtimePartitionName,
+            "Can't access private realtime partition",
+        );
+
         return DynamoGeneralRealtimeTransactionEntry._new(
             privateSymbol,
             this._table.transactionCreateItem(item),
-            async context => {
-                const key = this._table.serializeOpaqueItemKey(item);
-                const version: number = item.updateLockVersion ?? 0;
-                const model = await this._buildModel(context, item);
-
-                return {
-                    schema: this,
-                    event: {
-                        type: "CreateItem",
-                        key,
-                        version,
-                        model,
-                        cursorByIndexName: this._getCursorByIndexName(item),
-                    },
-                };
-            },
+            this,
+            {type: "CreateItem", item},
         );
     }
 
@@ -466,25 +546,16 @@ export class DynamoGeneralRealtimeTableSchema<
     public transactionDirectlyUpdateItem<Item extends Types["Item"]>(
         item: Item,
     ): DynamoGeneralRealtimeTransactionEntry {
+        assert(
+            item.partitionType !== privateRealtimePartitionName,
+            "Can't access private realtime partition",
+        );
+
         return DynamoGeneralRealtimeTransactionEntry._new(
             privateSymbol,
             this._table.transactionDirectlyUpdateItem(item),
-            async context => {
-                const key = this._table.serializeOpaqueItemKey(item);
-                const version: number = item.updateLockVersion ?? 0;
-                const model = await this._buildModel(context, item);
-
-                return {
-                    schema: this,
-                    event: {
-                        type: "UpdateItem",
-                        key,
-                        version,
-                        model,
-                        cursorByIndexName: this._getCursorByIndexName(item),
-                    },
-                };
-            },
+            this,
+            {type: "UpdateItem", item},
         );
     }
 
@@ -493,10 +564,15 @@ export class DynamoGeneralRealtimeTableSchema<
      * the item. If this condition fails then the entire transaction fails.
      */
     public transactionConditionCheck<Key extends Types["ItemKey"]>(
-        key: Key,
+        itemKey: Key,
         condition?: DynamoCondition<Types["Item"] & Key>,
     ): DynamoTransactionEntry {
-        return this._table.transactionConditionCheck(key, condition);
+        assert(
+            itemKey.partitionType !== privateRealtimePartitionName,
+            "Can't access private realtime partition",
+        );
+
+        return this._table.transactionConditionCheck(itemKey, condition);
     }
 
     /**
@@ -504,9 +580,14 @@ export class DynamoGeneralRealtimeTableSchema<
      * condition fails then the entire transaction fails.
      */
     public transactionDoesNotExistConditionCheck<Key extends Types["ItemKey"]>(
-        key: Key,
+        itemKey: Key,
     ): DynamoTransactionEntry {
-        return this._table.transactionDoesNotExistConditionCheck(key);
+        assert(
+            itemKey.partitionType !== privateRealtimePartitionName,
+            "Can't access private realtime partition",
+        );
+
+        return this._table.transactionDoesNotExistConditionCheck(itemKey);
     }
 
     /**
@@ -514,10 +595,15 @@ export class DynamoGeneralRealtimeTableSchema<
      */
     public getItemIfExists<Key extends Types["ItemKey"]>(
         context: ActionContext,
-        key: Key,
+        itemKey: Key,
         options?: {consistency?: DynamoReadConsistency},
     ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null> {
-        return this._table.getItemIfExists(context, key, options);
+        assert(
+            itemKey.partitionType !== privateRealtimePartitionName,
+            "Can't access private realtime partition",
+        );
+
+        return this._table.getItemIfExists(context, itemKey, options);
     }
 
     /**
@@ -525,10 +611,15 @@ export class DynamoGeneralRealtimeTableSchema<
      */
     public getItem<Key extends Types["ItemKey"]>(
         context: ActionContext,
-        key: Key,
+        itemKey: Key,
         options?: {consistency?: DynamoReadConsistency},
     ): Promise<MergeObjectIntersection<Types["Item"] & Key>> {
-        return this._table.getItem(context, key, options);
+        assert(
+            itemKey.partitionType !== privateRealtimePartitionName,
+            "Can't access private realtime partition",
+        );
+
+        return this._table.getItem(context, itemKey, options);
     }
 
     /**
@@ -543,6 +634,11 @@ export class DynamoGeneralRealtimeTableSchema<
     ): Promise<DynamoGeneralRealtimeItemResult<
         ModelMap[Key["partitionType"]][Key["sortRangeType"]]
     > | null> {
+        assert(
+            itemKey.partitionType !== privateRealtimePartitionName,
+            "Can't access private realtime partition",
+        );
+
         // We backfill realtime updates to `readTime` so it should be before the data
         // is read from the database to avoid missing realtime updates.
         const readTime = new Date();
@@ -574,6 +670,11 @@ export class DynamoGeneralRealtimeTableSchema<
     ): Promise<
         DynamoGeneralRealtimeItemResult<ModelMap[Key["partitionType"]][Key["sortRangeType"]]>
     > {
+        assert(
+            itemKey.partitionType !== privateRealtimePartitionName,
+            "Can't access private realtime partition",
+        );
+
         // We backfill realtime updates to `readTime` so it should be before the data
         // is read from the database to avoid missing realtime updates.
         const readTime = new Date();
@@ -629,6 +730,11 @@ export class DynamoGeneralRealtimeTableSchema<
             ModelMap[PartitionKey["partitionType"]][Types["QueryKeyMap"][PartitionKey["partitionType"]][StartSortKey["sortRangeType"]][EndSortKey["sortRangeType"]]]
         >
     > {
+        assert(
+            partitionKey.partitionType !== privateRealtimePartitionName,
+            "Can't access private realtime partition",
+        );
+
         // We backfill realtime updates to `readTime` so it should be before the data
         // is read from the database to avoid missing realtime updates.
         const readTime = new Date();
@@ -717,12 +823,50 @@ export class DynamoGeneralRealtimeTableSchema<
         DynamoTableSchemaIndexKeyAttributesType<PartitionKeyAttributesConfig>,
         DynamoTableSchemaIndexKeyAttributesType<SortKeyAttributesConfig>
     > {
+        assert(
+            config.itemTypes.every(
+                itemType => itemType.partitionType !== privateRealtimePartitionName,
+            ),
+            "Can't access private realtime partition",
+        );
+
         const Index = this._table.addExpensiveFullIndex({
             ...config,
             // For realtime tables, always include the primary key in the index sort key so
             // that index keys are unique and we can correctly sort items in user-land.
             includePrimaryKeyInSortKey: true,
         });
+
+        const canReusePrimaryPartitionKeyForPrivateRealtimePartitionKey =
+            new Set(config.itemTypes.map(itemType => itemType.partitionType)).size === 1;
+
+        // NOTE(calebmer, 2023-04-24): This is a temporary limitation. It shouldn't be
+        // hard to remove this limitation but we don't have any test cases for it so I
+        // don't want to write untested code. We should implement support for
+        // cross-partition indexes when it comes up.
+        //
+        // The reason we have this limitation is that currently we save realtime events
+        // to the database using the same partition key as the affected items in the
+        // event transaction. This way when we look for realtime updates to a
+        // `getModel()` or `query()` call we only need to search realtime events with a
+        // matching partition key.
+        //
+        // If we want to find realtime events for an index `query()` call then we need
+        // to search the database for events related to the index's partition key. So
+        // in addition to inserting realtime event transactions with the primary
+        // partition key of all affected items we also need to insert realtime event
+        // transactions with the index partition key of all affected indexes. If the
+        // index partition key happens to be the same as a partition primary key of
+        // some partition in the underlying table, then great! We don't need to double
+        // our realtime event storage for the index. This optimization is the only case
+        // we've implemented right now. To remove this limitation we need to implement
+        // writing realtime events to the database with the index's partition key when
+        // the index partition key differs from a primary partition key in the table.
+        if (!canReusePrimaryPartitionKeyForPrivateRealtimePartitionKey) {
+            throw new UnimplementedError(
+                "Indexes that span across multiple partitions have not yet been implemented for DynamoDB realtime tables",
+            );
+        }
 
         for (const {partitionType, sortRangeType} of config.itemTypes) {
             const itemType = `${partitionType}#${sortRangeType}`;
@@ -731,10 +875,9 @@ export class DynamoGeneralRealtimeTableSchema<
                 itemType,
                 () => new Map(),
             );
+
             assert(!serializeOpaqueCursorByIndexName.has(config.name));
-            serializeOpaqueCursorByIndexName.set(config.name, item =>
-                Index.serializeOpaqueCursor(item),
-            );
+            serializeOpaqueCursorByIndexName.set(config.name, Index.serializeOpaqueCursor);
         }
 
         return {
@@ -865,35 +1008,30 @@ const privateSymbol = Symbol("private");
  */
 export class DynamoGeneralRealtimeTransactionEntry {
     private readonly _entry: DynamoTransactionEntry;
-    private readonly _getEvent: (context: ActionContext) => Promise<{
-        schema: DynamoGeneralRealtimeTableSchema<any, any>;
-        event: DynamoGeneralRealtimeEvent<unknown>;
-    }>;
+    private readonly _schema: DynamoGeneralRealtimeTableSchema<any, any>;
+    private readonly _event: DynamoGeneralRealtimeInternalEvent<unknown>;
 
     private constructor(
         entry: DynamoTransactionEntry,
-        getEvent: (context: ActionContext) => Promise<{
-            schema: DynamoGeneralRealtimeTableSchema<any, any>;
-            event: DynamoGeneralRealtimeEvent<unknown>;
-        }>,
+        schema: DynamoGeneralRealtimeTableSchema<any, any>,
+        event: DynamoGeneralRealtimeInternalEvent<unknown>,
     ) {
         this._entry = entry;
-        this._getEvent = getEvent;
+        this._schema = schema;
+        this._event = event;
     }
 
     public static _new(
         symbol: typeof privateSymbol,
         entry: DynamoTransactionEntry,
-        getEvent: (context: ActionContext) => Promise<{
-            schema: DynamoGeneralRealtimeTableSchema<any, any>;
-            event: DynamoGeneralRealtimeEvent<unknown>;
-        }>,
+        schema: DynamoGeneralRealtimeTableSchema<any, any>,
+        event: DynamoGeneralRealtimeInternalEvent<unknown>,
     ): DynamoGeneralRealtimeTransactionEntry {
         // `privateSymbol` is only accessible in this module so this assert makes sure
         // we don't call this method from outside of this module.
         assert(symbol === privateSymbol);
 
-        return new DynamoGeneralRealtimeTransactionEntry(entry, getEvent);
+        return new DynamoGeneralRealtimeTransactionEntry(entry, schema, event);
     }
 
     public _get(symbol: typeof privateSymbol) {
@@ -903,7 +1041,8 @@ export class DynamoGeneralRealtimeTransactionEntry {
 
         return {
             entry: this._entry,
-            getEvent: this._getEvent,
+            schema: this._schema,
+            event: this._event,
         };
     }
 }

@@ -34,6 +34,7 @@ type AppWorkerEnv = {
     DocumentCollaborationDurableObjectNamespace: DurableObjectNamespace;
     PostRealtimeDurableObjectNamespace: DurableObjectNamespace;
     ChatRealtimeDurableObjectNamespace: DurableObjectNamespace;
+    MyAccountDurableObjectNamespace: DurableObjectNamespace;
     NotificationsQueue: Queue;
     DEV_SERVER_PORT?: string;
     DYNAMO_LOCAL_PORT?: string;
@@ -270,7 +271,20 @@ async function handleFetch(
                 {
                     ...resources.awsContextModules,
                     process: new ProcessContextModule({
-                        waitUntil: promise => executionContext.waitUntil(promise),
+                        waitUntil: promise =>
+                            executionContext.waitUntil(
+                                // Don't crash the process when there's an uncaught promise exception in
+                                // `waitUntil()` but definitely log it.
+                                promise.catch(error => {
+                                    // eslint-disable-next-line no-console
+                                    if (process.env.NODE_ENV !== "production") console.error(error);
+
+                                    tracer.logUncaughtException(
+                                        "Uncaught exception in `waitUntil()`",
+                                        error,
+                                    );
+                                }),
+                            ),
                     }),
                     tracer: new TracerContextModule(span),
                     rpc: new LocalRpcContextModule(),
@@ -353,3 +367,4 @@ export default {fetch: handleFetch, queue: handleQueue};
 export {DocumentCollaborationDurableObject} from "~/server/documents/document_collaboration_durable_object";
 export {PostRealtimeDurableObject} from "~/server/posts/post_realtime_durable_object";
 export {ChatRealtimeDurableObject} from "~/server/chat/chat_realtime_durable_object";
+export {MyAccountDurableObject} from "~/server/accounts/my_account_durable_object";

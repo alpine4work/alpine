@@ -51,6 +51,7 @@ export function createLocalServer({
             DocumentCollaborationDurableObjectNamespace: "DocumentCollaborationDurableObject",
             PostRealtimeDurableObjectNamespace: "PostRealtimeDurableObject",
             ChatRealtimeDurableObjectNamespace: "ChatRealtimeDurableObject",
+            MyAccountDurableObjectNamespace: "MyAccountDurableObject",
         },
         queueBindings: [{name: "NotificationsQueue", queueName: "NotificationsQueue"}],
         queueConsumers: [

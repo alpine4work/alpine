@@ -96,6 +96,15 @@ export interface SchemaWithOnlyDeserialization<Value> {
     deserialize(serializedValue: SchemaSerializedValue): Value;
 }
 
+/**
+ * `Schema` but you can't validate.
+ *
+ * Useful if you want a simpler schema type when TypeScript is being annoying.
+ */
+export interface SchemaWithoutValidation<Value>
+    extends SchemaWithOnlySerialization<Value>,
+        SchemaWithOnlyDeserialization<Value> {}
+
 type SchemaDescriptionRecursionState =
     | {type: "Entered"}
     | {type: "Circular"; stubDescription: any}

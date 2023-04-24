@@ -640,7 +640,9 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         }
     }
 
-    private _serializePartitionKey(key: Types["PartitionKey"]): string {
+    private _serializePartitionKey(
+        key: Types["PartitionKey"] | Types["ItemKey"] | Types["Item"],
+    ): string {
         assert(this._initializationState.isInitialized, "Schema has not finished initializing");
         const partitionConfig = this._partitionConfigByName.get(key.partitionType);
         const partitionDescription =
@@ -785,8 +787,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * with clients.
      *
      * Remember this data is not secured in any way! If you share this with a
-     * client then the client should be able to see all data in the item's index
-     * key AND primary key.
+     * client then the client should be able to see all data in the item's
+     * primary key
      */
     public serializeOpaqueItemKey(key: Types["ItemKey"] | Types["Item"]): DynamoItemKey {
         const {partitionKey, sortKey} = this._serializeItemKey(key);
@@ -811,6 +813,20 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         } catch (error) {
             throw InvalidArgumentError.from(error, "Invalid opaque item key");
         }
+    }
+
+    /**
+     * Serialize just the partition key part of the item key into an opaque string
+     * that can be conveniently shared with clients.
+     *
+     * Remember this data is not secured in any way! If you share this with a
+     * client then the client should be able to see all data in the item's
+     * primary key.
+     */
+    public serializeOpaqueItemPartitionKey(
+        key: Types["PartitionKey"] | Types["ItemKey"] | Types["Item"],
+    ): string {
+        return btoa(this._serializePartitionKey(key));
     }
 
     /**
@@ -2760,6 +2776,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             "Can not add indexes after schema has finished initializing",
         );
 
+        assert(
+            !this._partitionConfigByName.has(name),
+            "Index should not have the same name as a partition",
+        );
+
         for (const indexDescription of this._initializationState.indexDescriptions) {
             for (const indexOverloadName of Object.keys(indexDescription.overloadByName)) {
                 assert(name !== indexOverloadName, "Index names must be unique within a table");
@@ -3323,6 +3344,9 @@ export interface DynamoTableSchemaIndex<QueryItem, ItemKey, IndexPartitionKey, I
      * key AND primary key.
      */
     serializeOpaqueCursor(
+        // Allow method to be dereferenced without binding `this`.
+        // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
+        this: void,
         itemKey:
             | MergeObjectIntersection<ItemKey & IndexPartitionKey & IndexSortKey>
             | MergeObjectIntersection<QueryItem & IndexPartitionKey & IndexSortKey>,

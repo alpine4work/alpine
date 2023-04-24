@@ -9,9 +9,9 @@ import {ChatId, SpaceId} from "~/shared/id/types/id_types";
 import {Schema} from "~/shared/schema/schema";
 
 class ChatRealtimeDurableObject {
-    public static serviceName = "ChatRealtimeService" as const;
+    public static readonly serviceName = "ChatRealtimeService";
 
-    private readonly _context: ProcessContext;
+    private readonly _processContext: ProcessContext;
     private readonly _spaceId: SpaceId;
     private readonly _chatId: ChatId;
 
@@ -33,30 +33,30 @@ class ChatRealtimeDurableObject {
         const {spaceId} = await authorizeChatAccess(initializeActionContext, chatId);
 
         return new ChatRealtimeDurableObject({
-            context: processContext,
+            processContext,
             chatId,
             spaceId,
         });
     }
 
     private constructor({
-        context,
+        processContext,
         spaceId,
         chatId,
     }: {
-        context: ProcessContext;
+        processContext: ProcessContext;
         spaceId: SpaceId;
         chatId: ChatId;
     }) {
         // Propagate the chat id to all logs for this durable object.
-        context = context.tracer.withPropagatedData({context: {spaceId, chatId}});
+        processContext = processContext.tracer.withPropagatedData({context: {spaceId, chatId}});
 
-        this._context = context;
+        this._processContext = processContext;
         this._spaceId = spaceId;
         this._chatId = chatId;
 
         this._webSocketServer = new WebSocketServer(
-            this._context,
+            this._processContext,
             ChatRealtimeProtocol,
             async ({
                 connectActionContext,

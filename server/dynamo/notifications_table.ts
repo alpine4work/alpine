@@ -44,6 +44,7 @@ import {
     InboxChatEntryModel,
     InboxEntryKey,
     InboxEntryModel,
+    InboxItemModelSchema,
     InboxModel,
     InboxPostCommentsEntryModel,
 } from "~/shared/models/inbox_model";
@@ -246,6 +247,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
             ],
         },
     ],
+    modelSchema: InboxItemModelSchema,
     models: {
         Inbox: {
             Attributes: {
@@ -301,6 +303,8 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
             },
         },
     },
+    sendEventTransaction: (context, eventTransaction) =>
+        context.notifications.sendInboxRealtimeEventTransaction(eventTransaction),
 });
 
 const inboxEntryItemTypes = [

@@ -4,6 +4,8 @@ import {Queue} from "~/server/helpers/types/cloudflare_queues";
 import {ContextModuleBase} from "~/shared/context/context_module_base";
 import {ProcessContextModule} from "~/shared/context/process_context_module";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";
+import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types";
+import {assert} from "~/shared/helpers/control/assert";
 import {SpaceId} from "~/shared/id/types/id_types";
 
 /**
@@ -20,14 +22,28 @@ export abstract class NotificationsContextModuleBase extends ContextModuleBase<{
      * not block request processing.
      */
     public abstract sendNotificationEvent(event: NotificationEvent): void;
+
+    /**
+     * Sends an event transaction from the inbox DynamoDB table to "my account"
+     * durable objects which users connect to for seeing realtime changes to their
+     * notification count.
+     */
+    public abstract sendInboxRealtimeEventTransaction(
+        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
+    ): Promise<void>;
 }
 
 export class NotificationsContextModule extends NotificationsContextModuleBase {
     private readonly _notificationQueue: Queue;
+    private readonly _myAccountDurableObjectNamespace: DurableObjectNamespace;
 
-    constructor(env: {NotificationsQueue: Queue}) {
+    constructor(env: {
+        NotificationsQueue: Queue;
+        MyAccountDurableObjectNamespace: DurableObjectNamespace;
+    }) {
         super();
         this._notificationQueue = env.NotificationsQueue;
+        this._myAccountDurableObjectNamespace = env.MyAccountDurableObjectNamespace;
     }
 
     public override sendNotificationEvent(event: NotificationEvent) {
@@ -47,12 +63,21 @@ export class NotificationsContextModule extends NotificationsContextModuleBase {
             }),
         );
     }
+
+    public override async sendInboxRealtimeEventTransaction(
+        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
+    ) {
+        // NOCOMMIT
+    }
 }
 
 export class TestNotificationsContextModule extends NotificationsContextModuleBase {
     private readonly _createSystemContext: (spaceId: SpaceId) => SystemActionContext;
 
     constructor(createSystemContext: (spaceId: SpaceId) => SystemActionContext) {
+        // Can only use this context module in unit tests.
+        assert(typeof jest !== "undefined");
+
         super();
         this._createSystemContext = createSystemContext;
     }
@@ -78,5 +103,9 @@ export class TestNotificationsContextModule extends NotificationsContextModuleBa
         if (Math.random() < 0.01) {
             systemContext.process.waitUntil(processNotificationEvent(systemContext, event));
         }
+    }
+
+    public override async sendInboxRealtimeEventTransaction() {
+        // Ignore realtime events in tests...
     }
 }

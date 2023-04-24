@@ -42,6 +42,7 @@ import {DurableObjectServiceName, TracerRoot} from "~/shared/tracer/tracer_root"
  * Environment object provided to a Durable Object.
  */
 export type DurableObjectEnv = {
+    MyAccountDurableObjectNamespace: DurableObjectNamespace;
     NotificationsQueue: Queue;
     DYNAMO_LOCAL_PORT?: string;
     SESSION_COOKIE_SECRET?: string;
@@ -122,7 +123,20 @@ export function createDurableObject<
             this._context = Context.new({
                 ...awsContextModules,
                 process: new ProcessContextModule({
-                    waitUntil: promise => this._state.waitUntil(promise),
+                    waitUntil: promise =>
+                        this._state.waitUntil(
+                            // Don't crash the process when there's an uncaught promise exception in
+                            // `waitUntil()` but definitely log it.
+                            promise.catch(error => {
+                                // eslint-disable-next-line no-console
+                                if (process.env.NODE_ENV !== "production") console.error(error);
+
+                                this._tracer.logUncaughtException(
+                                    "Uncaught exception in `waitUntil()`",
+                                    error,
+                                );
+                            }),
+                        ),
                 }),
                 tracer: new TracerContextModule(this._tracer),
                 notifications: new NotificationsContextModule(env),

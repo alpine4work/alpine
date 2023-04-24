@@ -12,9 +12,9 @@ import {DocumentId, SpaceId} from "~/shared/id/types/id_types";
 import {Schema} from "~/shared/schema/schema";
 
 class DocumentCollaborationDurableObject {
-    public static serviceName = "DocumentCollaborationService" as const;
+    public static readonly serviceName = "DocumentCollaborationService";
 
-    private readonly _context: ProcessContext;
+    private readonly _processContext: ProcessContext;
     public readonly spaceId: SpaceId;
     public readonly id: DocumentId;
     private readonly _contentManager: DocumentCollaborationContentManager;
@@ -41,7 +41,7 @@ class DocumentCollaborationDurableObject {
         const document = await getDocument(initializeActionContext, documentId);
 
         return new DocumentCollaborationDurableObject({
-            context: processContext,
+            processContext,
             spaceId: document.spaceId,
             id: document.id,
             initialVersion: document.version,
@@ -51,14 +51,14 @@ class DocumentCollaborationDurableObject {
     }
 
     private constructor({
-        context,
+        processContext,
         spaceId,
         id,
         initialVersion,
         initialContent,
         destroy,
     }: {
-        context: ProcessContext;
+        processContext: ProcessContext;
         spaceId: SpaceId;
         id: DocumentId;
         initialVersion: number;
@@ -66,9 +66,11 @@ class DocumentCollaborationDurableObject {
         destroy: () => void;
     }) {
         // Propagate the document id to all logs for this durable object.
-        context = context.tracer.withPropagatedData({context: {spaceId, documentId: id}});
+        processContext = processContext.tracer.withPropagatedData({
+            context: {spaceId, documentId: id},
+        });
 
-        this._context = context;
+        this._processContext = processContext;
         this.spaceId = spaceId;
         this.id = id;
         this._contentManager = new DocumentCollaborationContentManager({
@@ -83,7 +85,7 @@ class DocumentCollaborationDurableObject {
         this._destroyCallback = destroy;
 
         this._webSocketServer = new WebSocketServer(
-            this._context,
+            this._processContext,
             DocumentCollaborationProtocol,
             async ({
                 connectActionContext,

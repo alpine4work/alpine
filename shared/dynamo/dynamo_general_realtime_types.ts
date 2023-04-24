@@ -4,7 +4,7 @@ import {
     DynamoItemKey,
     DynamoItemKeySchema,
 } from "~/shared/dynamo/dynamo_opaque_strings";
-import {Schema} from "~/shared/schema/schema";
+import {ObjectSchema, Schema} from "~/shared/schema/schema";
 
 /**
  * The result of reading an individual item from a realtime DynamoDB table.
@@ -201,6 +201,15 @@ export type DynamoGeneralRealtimeEvent<Model> =
     | DynamoGeneralRealtimeCreateItemEvent<Model>
     | DynamoGeneralRealtimeUpdateItemEvent<Model>;
 
+export function createDynamoGeneralRealtimeEventSchema<Model>(
+    ModelSchema: Schema<Model>,
+): Schema<DynamoGeneralRealtimeEvent<Model>> {
+    return Schema.union({
+        CreateItem: createDynamoGeneralRealtimeCreateItemEventSchema(ModelSchema),
+        UpdateItem: createDynamoGeneralRealtimeUpdateItemEventSchema(ModelSchema),
+    });
+}
+
 /**
  * Event for when a new item is created.
  */
@@ -212,9 +221,9 @@ export type DynamoGeneralRealtimeCreateItemEvent<Model> = {
     readonly cursorByIndexName: ReadonlyMap<string, DynamoIndexCursor>;
 };
 
-export function createDynamoGeneralRealtimeCreateItemEventSchema<Model>(
+function createDynamoGeneralRealtimeCreateItemEventSchema<Model>(
     _ModelSchema: Schema<Model>,
-): Schema<DynamoGeneralRealtimeCreateItemEvent<Model>> {
+): ObjectSchema<DynamoGeneralRealtimeCreateItemEvent<Model>> {
     // `Optionalize<T>` does not like generics so use any instead.
     const ModelSchema: Schema<any> = _ModelSchema;
 
@@ -238,9 +247,9 @@ export type DynamoGeneralRealtimeUpdateItemEvent<Model> = {
     readonly cursorByIndexName: ReadonlyMap<string, DynamoIndexCursor>;
 };
 
-export function createDynamoGeneralRealtimeUpdateItemEventSchema<Model>(
+function createDynamoGeneralRealtimeUpdateItemEventSchema<Model>(
     _ModelSchema: Schema<Model>,
-): Schema<DynamoGeneralRealtimeUpdateItemEvent<Model>> {
+): ObjectSchema<DynamoGeneralRealtimeUpdateItemEvent<Model>> {
     // `Optionalize<T>` does not like generics so use any instead.
     const ModelSchema: Schema<any> = _ModelSchema;
 

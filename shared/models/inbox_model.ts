@@ -1,5 +1,6 @@
 import {ChatId, PostId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
+import {createModelUnionSchema} from "~/shared/models/helpers/create_model_union_schema";
 import {MessageContentWithReferencesSchema} from "~/shared/models/message_model";
 import {Model} from "~/shared/models/model";
 import {Schema, SchemaType} from "~/shared/schema/schema";
@@ -64,3 +65,9 @@ export class InboxPostCommentsEntryModel extends Model(
         return {type: "PostComments", postId: this.postId};
     }
 }
+
+export const InboxItemModelSchema = createModelUnionSchema({
+    Inbox: InboxModel,
+    InboxChatEntry: InboxChatEntryModel,
+    InboxPostCommentsEntry: InboxPostCommentsEntryModel,
+});

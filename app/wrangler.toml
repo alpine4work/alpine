@@ -38,6 +38,10 @@ class_name = "PostRealtimeDurableObject"
 name = "ChatRealtimeDurableObjectNamespace"
 class_name = "ChatRealtimeDurableObject"
 
+[[durable_objects.bindings]]
+name = "MyAccountDirableObjectNamespace"
+class_name = "MyAccountDirableObject"
+
 [[migrations]]
 tag = "v1"
 new_classes = ["DocumentCollaborationDurableObject"]
@@ -49,3 +53,7 @@ new_classes = ["PostRealtimeDurableObject"]
 [[migrations]]
 tag = "v3"
 new_classes = ["ChatRealtimeDurableObject"]
+
+[[migrations]]
+tag = "v4"
+new_classes = ["MyAccountDirableObject"]

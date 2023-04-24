@@ -47,6 +47,7 @@ ts_project(
         "//client/rpc",
         "//client/tracer",
         "//client/virtualized",
+        "//server/accounts",
         "//server/aws",
         "//server/chat",
         "//server/cloudflare",
