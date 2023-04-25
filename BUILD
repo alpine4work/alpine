@@ -23,27 +23,27 @@ ts_config(
     deps = ["tsconfig.json"],
 )
 
+ROOT_LINT_AND_FORMAT_EXTENSIONS = [
+    "js",
+    "jsx",
+    "ts",
+    "tsx",
+    "mjs",
+    "json",
+    "md",
+    "yaml",
+]
+
+ROOT_LINT_AND_FORMAT_FOLDERS = [
+    ".vscode",
+    ".github",
+]
+
 ts_lint_and_format_test(
     name = "root",
     srcs = glob(
-        [
-            "**/*.js",
-            "**/*.jsx",
-            "**/*.ts",
-            "**/*.tsx",
-            "**/*.mjs",
-            "**/*.json",
-            "**/*.md",
-        ],
-        exclude = [
-            "node_modules/**/*",
-            "bazel-*/**/*",
-            "public/**/*",
-            "functions/**/*",
-            ".cache/**/*",
-            ".local/**/*",
-            "external/**/*",
-        ],
+        ["*.{}".format(extension) for extension in ROOT_LINT_AND_FORMAT_EXTENSIONS] +
+        ["{}/**/*.{}".format(folder, extension) for extension in ROOT_LINT_AND_FORMAT_EXTENSIONS for folder in ROOT_LINT_AND_FORMAT_FOLDERS],
     ),
 )
 
