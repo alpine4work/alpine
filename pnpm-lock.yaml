@@ -13,75 +13,78 @@ patchedDependencies:
   prosemirror-view@1.27.2:
     hash: jcawbabvrnkvntr42xpvsf5n7y
     path: admin/patches/prosemirror-view@1.27.2.patch
-  esbuild-jest@0.5.0:
-    hash: ngae2o7jbonwtjb5i3flctr4hq
-    path: admin/patches/esbuild-jest@0.5.0.patch
   '@types/react@18.0.15':
     hash: x4axwesafhl3flpnwlimhsgpk4
     path: admin/patches/@types__react@18.0.15.patch
   outdent@0.8.0:
     hash: ybnbpvk42g5zpvi2kytcsdr4wu
     path: admin/patches/outdent@0.8.0.patch
+  esbuild-jest@0.5.0:
+    hash: ngae2o7jbonwtjb5i3flctr4hq
+    path: admin/patches/esbuild-jest@0.5.0.patch
   browserify-zlib@0.1.4:
     hash: lhhf4zowvg4ngxldsy5aala7hu
     path: admin/patches/browserify-zlib@0.1.4.patch
-  '@vanilla-extract/sprinkles@1.5.0':
-    hash: njeywewejjkyja35mwody6s2pu
-    path: admin/patches/@vanilla-extract__sprinkles@1.5.0.patch
-  '@miniflare/http-server@2.13.0':
-    hash: 6x6w46dlwznsuawn4plb2tsdfq
-    path: admin/patches/@miniflare__http-server@2.13.0.patch
   media-query-parser@2.0.2:
     hash: saj64dz6s226nfs27aiqrqatfi
     path: admin/patches/media-query-parser@2.0.2.patch
   '@vanilla-extract/integration@5.0.1':
     hash: 47jehzj4xj72gvnvadwkoykrme
     path: admin/patches/@vanilla-extract__integration@5.0.1.patch
-  '@remix-run/server-runtime@1.7.5':
-    hash: czxhikmhicrxddslnvwyip3rii
-    path: admin/patches/@remix-run__server-runtime@1.7.5.patch
   '@remix-run/dev@1.7.5':
     hash: 4olztkg4l7wnk6vzdbfg2xh6pa
     path: admin/patches/@remix-run__dev@1.7.5.patch
-  wrangler@2.17.0:
-    hash: rbcyymi3kuwvrdxbb2ba2zyvcm
-    path: admin/patches/wrangler@2.17.0.patch
+  '@vanilla-extract/sprinkles@1.5.0':
+    hash: njeywewejjkyja35mwody6s2pu
+    path: admin/patches/@vanilla-extract__sprinkles@1.5.0.patch
+  '@miniflare/http-server@2.13.0':
+    hash: 6x6w46dlwznsuawn4plb2tsdfq
+    path: admin/patches/@miniflare__http-server@2.13.0.patch
   '@remix-run/react@1.7.5':
     hash: suik3nh5tlyggrhmxridifksty
     path: admin/patches/@remix-run__react@1.7.5.patch
+  '@remix-run/server-runtime@1.7.5':
+    hash: czxhikmhicrxddslnvwyip3rii
+    path: admin/patches/@remix-run__server-runtime@1.7.5.patch
   clean-css@4.2.4:
     hash: n3d2r36xwr47tsyk4dqv5u5mbq
     path: admin/patches/clean-css@4.2.4.patch
-  '@react-aria/interactions@3.12.0':
-    hash: 2s5t4derzlr6pbwch3ibe7ygq4
-    path: admin/patches/@react-aria__interactions@3.12.0.patch
   uglify-js@3.17.4:
     hash: bqi7bgi4a6wcjt6ky5jy76rsrm
     path: admin/patches/uglify-js@3.17.4.patch
-  '@types/functional-red-black-tree@1.0.1':
-    hash: zlhx626gqk2by4uqhm5vucpqwy
-    path: admin/patches/@types__functional-red-black-tree@1.0.1.patch
+  wrangler@2.17.0:
+    hash: rbcyymi3kuwvrdxbb2ba2zyvcm
+    path: admin/patches/wrangler@2.17.0.patch
   mjml-parser-xml@4.13.0:
     hash: rdjh57cizesp5jd5a5v3n76apa
     path: admin/patches/mjml-parser-xml@4.13.0.patch
-  '@react-aria/selection@3.11.0':
-    hash: efw4sigcsm4ik2szgtkptekf2y
-    path: admin/patches/@react-aria__selection@3.11.0.patch
-  '@react-aria/ssr@3.3.0':
-    hash: stsdfpy5crzid2ixw2fh72n3cm
-    path: admin/patches/@react-aria__ssr@3.3.0.patch
-  react-router@6.3.0:
-    hash: 422wocmxisgbpbzt6il5lmbhd4
-    path: admin/patches/react-router@6.3.0.patch
-  history@5.3.0:
-    hash: 3tktwzl76qc3alrennhuishjra
-    path: admin/patches/history@5.3.0.patch
-  swr@2.1.0:
-    hash: fjssuecdvmfeujlug2i3x2lofe
-    path: admin/patches/swr@2.1.0.patch
+  '@types/functional-red-black-tree@1.0.1':
+    hash: zlhx626gqk2by4uqhm5vucpqwy
+    path: admin/patches/@types__functional-red-black-tree@1.0.1.patch
   '@playwright/test@1.31.1':
     hash: 645z6zzf2yttz7gk24haek5rhi
     path: admin/patches/@playwright__test@1.31.1.patch
+  history@5.3.0:
+    hash: 3tktwzl76qc3alrennhuishjra
+    path: admin/patches/history@5.3.0.patch
+  react-router@6.3.0:
+    hash: 422wocmxisgbpbzt6il5lmbhd4
+    path: admin/patches/react-router@6.3.0.patch
+  '@react-aria/ssr@3.3.0':
+    hash: stsdfpy5crzid2ixw2fh72n3cm
+    path: admin/patches/@react-aria__ssr@3.3.0.patch
+  '@react-aria/selection@3.11.0':
+    hash: efw4sigcsm4ik2szgtkptekf2y
+    path: admin/patches/@react-aria__selection@3.11.0.patch
+  swr@2.1.0:
+    hash: fjssuecdvmfeujlug2i3x2lofe
+    path: admin/patches/swr@2.1.0.patch
+  '@react-aria/interactions@3.12.0':
+    hash: 2s5t4derzlr6pbwch3ibe7ygq4
+    path: admin/patches/@react-aria__interactions@3.12.0.patch
+  '@miniflare/queues@2.13.0':
+    hash: sjifuztox2uqhemppgko3mhkgy
+    path: admin/patches/@miniflare__queues@2.13.0.patch
   phosphor-react@1.4.1:
     hash: rehavg4vjut6avpq34cx6ugszq
     path: admin/patches/phosphor-react@1.4.1.patch
@@ -98,6 +101,7 @@ specifiers:
   '@dnd-kit/modifiers': ^6.0.1
   '@juggle/resize-observer': ^3.4.0
   '@miniflare/http-server': 2.13.0
+  '@miniflare/queues': 2.13.0
   '@miniflare/web-sockets': 2.13.0
   '@playwright/test': ^1.31.1
   '@popperjs/core': ^2.11.6
@@ -254,6 +258,7 @@ dependencies:
   '@dnd-kit/modifiers': 6.0.1_52scne4zmdeyjh2otzkgz2xfvu
   '@juggle/resize-observer': 3.4.0
   '@miniflare/http-server': 2.13.0_6x6w46dlwznsuawn4plb2tsdfq
+  '@miniflare/queues': 2.13.0_sjifuztox2uqhemppgko3mhkgy
   '@miniflare/web-sockets': 2.13.0
   '@playwright/test': 1.31.1_645z6zzf2yttz7gk24haek5rhi
   '@popperjs/core': 2.11.6
@@ -4777,7 +4782,7 @@ packages:
     engines: {node: '>=16.13'}
     dependencies:
       '@iarna/toml': 2.2.5
-      '@miniflare/queues': 2.13.0
+      '@miniflare/queues': 2.13.0_sjifuztox2uqhemppgko3mhkgy
       '@miniflare/shared': 2.13.0
       '@miniflare/watcher': 2.13.0
       busboy: 1.6.0
@@ -4841,12 +4846,13 @@ packages:
       '@miniflare/shared': 2.13.0
     dev: false
 
-  /@miniflare/queues/2.13.0:
+  /@miniflare/queues/2.13.0_sjifuztox2uqhemppgko3mhkgy:
     resolution: {integrity: sha512-Gf/a6M1mJL03iOvNqh3JNahcBfvEMPHnO28n0gkCoyYWGvddIr9lwCdFIa0qwNJsC1fIDRxhPg8PZ5cQLBMwRA==}
     engines: {node: '>=16.7'}
     dependencies:
       '@miniflare/shared': 2.13.0
     dev: false
+    patched: true
 
   /@miniflare/r2/2.13.0:
     resolution: {integrity: sha512-/5k6GHOYMNV/oBtilV9HDXBkJUrx8oXVigG5vxbnzEGRXyVRmR+Glzu7mFT8JiE94XiEbXHk9Qvu1S5Dej3wBw==}
@@ -12354,7 +12360,7 @@ packages:
       '@miniflare/html-rewriter': 2.13.0
       '@miniflare/http-server': 2.13.0_6x6w46dlwznsuawn4plb2tsdfq
       '@miniflare/kv': 2.13.0
-      '@miniflare/queues': 2.13.0
+      '@miniflare/queues': 2.13.0_sjifuztox2uqhemppgko3mhkgy
       '@miniflare/r2': 2.13.0
       '@miniflare/runner-vm': 2.13.0
       '@miniflare/scheduler': 2.13.0

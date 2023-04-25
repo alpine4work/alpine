@@ -14,6 +14,7 @@
         "@dnd-kit/modifiers": "^6.0.1",
         "@juggle/resize-observer": "^3.4.0",
         "@miniflare/http-server": "2.13.0",
+        "@miniflare/queues": "2.13.0",
         "@miniflare/web-sockets": "2.13.0",
         "@playwright/test": "^1.31.1",
         "@popperjs/core": "^2.11.6",
@@ -189,7 +190,8 @@
             "@react-aria/ssr@3.3.0": "admin/patches/@react-aria__ssr@3.3.0.patch",
             "@react-aria/selection@3.11.0": "admin/patches/@react-aria__selection@3.11.0.patch",
             "swr@2.1.0": "admin/patches/swr@2.1.0.patch",
-            "phosphor-react@1.4.1": "admin/patches/phosphor-react@1.4.1.patch"
+            "phosphor-react@1.4.1": "admin/patches/phosphor-react@1.4.1.patch",
+            "@miniflare/queues@2.13.0": "admin/patches/@miniflare__queues@2.13.0.patch"
         },
         "allowedDeprecatedVersions": {
             "@types/keyv": "4.2.0",
