@@ -83,8 +83,6 @@ class MyAccountDurableObject {
                 );
 
                 // Forward the event transaction to all our connected clients...
-                //
-                // NOCOMMIT: Tests!
                 this._webSocketServer.sendEventToAll(context, {
                     type: "InboxRealtimeEventTransaction",
                     eventTransaction,
