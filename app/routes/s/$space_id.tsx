@@ -47,7 +47,7 @@ export async function loader({context, params}: LoaderArgs) {
             const authenticatedContext = await context.actor.authenticate();
             return runAllPromises([
                 authenticatedContext.actor.getAccount(),
-                getInbox(authenticatedContext, spaceId),
+                getInbox(authenticatedContext, {spaceId}),
             ]);
         },
         async () => {

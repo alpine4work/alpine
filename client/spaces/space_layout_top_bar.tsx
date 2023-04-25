@@ -1,7 +1,8 @@
 import {Bell, MagnifyingGlass} from "phosphor-react";
-import {useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {useWebSocket} from "~/client/cloudflare/use_web_socket";
+import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {IconButton} from "~/client/design/icon_button";
@@ -18,6 +19,7 @@ import {UnimplementedError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {InboxModel} from "~/shared/models/inbox_model";
 import {SpaceModel} from "~/shared/models/space_model";
+import {getInboxWithStrongReadConsistency} from "~/shared/rpc/accounts_rpc_definitions";
 import {backgroundColorVar} from "~/shared/styles/styles";
 
 // TODO(calebmer): Keyboard shortcuts for everything in top bar
@@ -137,20 +139,57 @@ function SpaceLayoutTopBarNotificationsButton({
 }: {
     initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
 }) {
+    const context = useAppContext();
     const showToast = useShowToast();
-    const {currentAccount} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
 
     const [inbox, setInbox] = useState(initialInbox);
 
-    useWebSocket(MyAccountProtocol, `/durable-objects/my-account/${currentAccount.id}`, event => {
-        for (const _event of event.eventTransaction) {
-            const event = _event;
+    // TODO(calebmer): Abstract this!
+    const {isConnected} = useWebSocket(
+        MyAccountProtocol,
+        `/durable-objects/my-account/${currentAccount.id}`,
+        event => {
+            for (const _event of event.eventTransaction) {
+                const event = _event;
 
-            if (event.item.key === inbox.key && event.item.version > inbox.version) {
-                setInbox(event.item);
+                if (event.item.key === inbox.key && event.item.version > inbox.version) {
+                    setInbox(event.item);
+                }
             }
+        },
+    );
+
+    // Whenever we connect to realtime, load the inbox item again with a strong
+    // read consistency. This way if there were updates to the item between when it
+    // was loaded from the server and we connected via realtime we won't miss them
+    // because we weren't connected to realtime during that time.
+    //
+    // NOCOMMIT: Test that we can go offline then back online and the inbox count
+    // updates.
+    const wasConnectedRef = useRef(isConnected);
+    useEffect(() => {
+        if (!isConnected) {
+            wasConnectedRef.current = false;
+            return;
         }
-    });
+
+        if (wasConnectedRef.current) return;
+        wasConnectedRef.current = true;
+
+        getInboxWithStrongReadConsistency(context, {spaceId: space.id}).then(
+            ({inbox: newInbox}) => {
+                setInbox(inbox => {
+                    if (inbox.key !== newInbox.key || inbox.version >= newInbox.version)
+                        return inbox;
+                    return newInbox;
+                });
+            },
+            error => {
+                context.tracer.getRoot().logUncaughtException("Couldn't backfill inbox", error);
+            },
+        );
+    }, [context, isConnected, space.id]);
 
     return (
         <Box position="relative" zIndex="0">

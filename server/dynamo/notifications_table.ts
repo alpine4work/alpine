@@ -459,10 +459,12 @@ const unarchivedInboxEntryGenerationIncrement = 1;
 /**
  * Get the session account's inbox in the provided space.
  */
-export function getInbox(
+export async function getInbox(
     context: SessionActionContext,
-    spaceId: SpaceId,
+    {spaceId}: {spaceId: SpaceId},
 ): Promise<DynamoGeneralRealtimeItem<InboxModel>> {
+    await authorizeSpaceAccess(context, spaceId);
+
     return context.dynamo.retryTransaction(async context => {
         const inbox = await InboxTable.getRealtimeItemIfExists(context, {
             partitionType: "Inbox",

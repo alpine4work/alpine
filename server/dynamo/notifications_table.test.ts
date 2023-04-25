@@ -3,6 +3,7 @@ import {getOrCreateChatForAccounts, sendChatMessage} from "~/server/dynamo/chat_
 import {createChannel, createPost, createPostComment} from "~/server/dynamo/forum_table";
 import {
     archiveInboxEntry,
+    getInbox,
     getInboxEntries,
     notificationEventAfterProcessingTestCheckpoint,
     notificationEventBeforeProcessingTestCheckpoint,
@@ -24,7 +25,11 @@ import {generateId} from "~/shared/id/id";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
 import {emptyContentReferences} from "~/shared/models/content_references";
-import {InboxChatEntryModel, InboxPostCommentsEntryModel} from "~/shared/models/inbox_model";
+import {
+    InboxChatEntryModel,
+    InboxModel,
+    InboxPostCommentsEntryModel,
+} from "~/shared/models/inbox_model";
 
 const context = createTestContext();
 
@@ -3588,6 +3593,514 @@ describe("Post comments", () => {
                 },
             }),
         ]);
+    });
+
+    test("can not get inbox in a space you don't have access to", async () => {
+        const scenario = await createScenario();
+
+        await expect(
+            getInbox(context.action(scenario.session1), {spaceId: scenario.otherSpace.id}),
+        ).rejects.toThrow(PermissionDeniedError);
+    });
+
+    test("gets an inbox model even in a fresh space", async () => {
+        const scenario = await createScenario();
+
+        expect(
+            (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
+    });
+
+    test("getting an inbox returns the current loud notification count", async () => {
+        const scenario = await createScenario();
+
+        expect(
+            (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
+
+        expect(
+            (await getInbox(context.action(scenario.session2), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
+
+        expect(
+            (await getInbox(context.action(scenario.session3), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
+
+        const channel = await createChannel(context.action(scenario.session1), {
+            spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const post1 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+
+        const post2 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+
+        const post3 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
+
+        expect(
+            (await getInbox(context.action(scenario.session2), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
+
+        expect(
+            (await getInbox(context.action(scenario.session3), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
+
+        await createPostComment(context.action(scenario.session2), {
+            postId: post1.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("comment1"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
+
+        expect(
+            (await getInbox(context.action(scenario.session2), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
+
+        expect(
+            (await getInbox(context.action(scenario.session3), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
+
+        await createPostComment(context.action(scenario.session3), {
+            postId: post1.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("comment2"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
+
+        expect(
+            (await getInbox(context.action(scenario.session2), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
+
+        expect(
+            (await getInbox(context.action(scenario.session3), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
+
+        await createPostComment(context.action(scenario.session2), {
+            postId: post1.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("comment3"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
+
+        expect(
+            (await getInbox(context.action(scenario.session2), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
+
+        expect(
+            (await getInbox(context.action(scenario.session3), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
+
+        await createPostComment(context.action(scenario.session1), {
+            postId: post2.id,
+            parentCommentIndex: null,
+            content: scenario.mentionAccount2MessageContent,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
+
+        expect(
+            (await getInbox(context.action(scenario.session2), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 1,
+            }),
+        );
+
+        expect(
+            (await getInbox(context.action(scenario.session3), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
+
+        await createPostComment(context.action(scenario.session1), {
+            postId: post3.id,
+            parentCommentIndex: null,
+            content: scenario.mentionAccount2MessageContent,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
+
+        expect(
+            (await getInbox(context.action(scenario.session2), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 2,
+            }),
+        );
+
+        expect(
+            (await getInbox(context.action(scenario.session3), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
+
+        await archiveInboxEntry(context.action(scenario.session3), {
+            spaceId: scenario.space.id,
+            key: {type: "PostComments", postId: post1.id},
+        });
+
+        expect(
+            (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
+
+        expect(
+            (await getInbox(context.action(scenario.session2), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 2,
+            }),
+        );
+
+        expect(
+            (await getInbox(context.action(scenario.session3), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
+
+        await archiveInboxEntry(context.action(scenario.session2), {
+            spaceId: scenario.space.id,
+            key: {type: "PostComments", postId: post2.id},
+        });
+
+        expect(
+            (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
+
+        expect(
+            (await getInbox(context.action(scenario.session2), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 1,
+            }),
+        );
+
+        expect(
+            (await getInbox(context.action(scenario.session3), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
+
+        await archiveInboxEntry(context.action(scenario.session2), {
+            spaceId: scenario.space.id,
+            key: {type: "PostComments", postId: post1.id},
+        });
+
+        expect(
+            (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
+
+        expect(
+            (await getInbox(context.action(scenario.session2), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 1,
+            }),
+        );
+
+        expect(
+            (await getInbox(context.action(scenario.session3), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
+
+        await unarchiveInboxEntry(context.action(scenario.session3), {
+            spaceId: scenario.space.id,
+            key: {type: "PostComments", postId: post1.id},
+        });
+
+        expect(
+            (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
+
+        expect(
+            (await getInbox(context.action(scenario.session2), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 1,
+            }),
+        );
+
+        expect(
+            (await getInbox(context.action(scenario.session3), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
+
+        await unarchiveInboxEntry(context.action(scenario.session2), {
+            spaceId: scenario.space.id,
+            key: {type: "PostComments", postId: post2.id},
+        });
+
+        expect(
+            (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
+
+        expect(
+            (await getInbox(context.action(scenario.session2), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 1,
+            }),
+        );
+
+        expect(
+            (await getInbox(context.action(scenario.session3), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
+
+        await unarchiveInboxEntry(context.action(scenario.session2), {
+            spaceId: scenario.space.id,
+            key: {type: "PostComments", postId: post1.id},
+        });
+
+        expect(
+            (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
+
+        expect(
+            (await getInbox(context.action(scenario.session2), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 1,
+            }),
+        );
+
+        expect(
+            (await getInbox(context.action(scenario.session3), {spaceId: scenario.space.id})).model,
+        ).toEqual(
+            new InboxModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+            }),
+        );
     });
 });
 
