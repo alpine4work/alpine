@@ -343,6 +343,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -385,6 +387,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -405,6 +409,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -440,6 +446,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -460,6 +468,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -480,6 +490,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -543,6 +555,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -575,6 +589,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 postId: post.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -608,6 +624,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -640,6 +658,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 postId: post.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -673,6 +693,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post.id,
                 loudNotificationCount: 2,
                 latestComment: {
@@ -698,6 +720,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -723,6 +747,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 postId: post.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -791,6 +817,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -838,6 +866,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -858,6 +888,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -893,6 +925,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -918,6 +952,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -996,6 +1032,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.sharedSession.account.id,
                 postId: post.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -1036,6 +1074,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.sharedSession.account.id,
                 postId: post.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -1061,6 +1101,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.otherSpace.id,
+                accountId: scenario.sharedSession.account.id,
                 postId: otherPost.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -1132,6 +1174,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 postId: post.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -1172,6 +1216,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 postId: post.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -1263,6 +1309,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -1283,6 +1331,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -1306,6 +1356,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -1326,6 +1378,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 postId: post.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -1387,6 +1441,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -1415,6 +1471,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post2.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -1432,6 +1490,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -1460,6 +1520,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post2.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -1477,6 +1539,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post3.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -1489,6 +1553,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -1517,6 +1583,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post2.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -1534,6 +1602,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post3.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -1546,6 +1616,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -1574,6 +1646,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post2.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -1586,6 +1660,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post3.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -1598,6 +1674,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -1626,6 +1704,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post3.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -1643,6 +1723,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post2.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -1655,6 +1737,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -1683,6 +1767,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post3.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -1700,6 +1786,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post2.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -1712,6 +1800,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -1740,6 +1830,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post2.id,
                 loudNotificationCount: 2,
                 latestComment: {
@@ -1757,6 +1849,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post3.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -1774,6 +1868,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -1848,6 +1944,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -1876,6 +1974,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post2.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -1893,6 +1993,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -1921,6 +2023,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post2.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -1938,6 +2042,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post3.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -1950,6 +2056,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -1972,6 +2080,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post2.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -1989,6 +2099,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post3.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2001,6 +2113,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2029,6 +2143,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post4.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2041,6 +2157,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post2.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -2058,6 +2176,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post3.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2070,6 +2190,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2098,6 +2220,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post4.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2110,6 +2234,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post2.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -2122,6 +2248,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post3.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2134,6 +2262,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2162,6 +2292,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post4.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2174,6 +2306,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post2.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -2186,6 +2320,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post3.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2198,6 +2334,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2226,6 +2364,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post3.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -2243,6 +2383,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post4.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2255,6 +2397,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post2.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -2267,6 +2411,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2341,6 +2487,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2361,6 +2509,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 postId: post2.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -2378,6 +2528,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2398,6 +2550,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2423,6 +2577,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2443,6 +2599,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 postId: post2.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -2460,6 +2618,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2492,6 +2652,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2512,6 +2674,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2544,6 +2708,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2643,6 +2809,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2663,6 +2831,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 postId: post3.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -2680,6 +2850,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 postId: post2.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -2697,6 +2869,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2717,6 +2891,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2752,6 +2928,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2772,6 +2950,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 postId: post3.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -2809,6 +2989,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2829,6 +3011,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 postId: post3.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -2854,6 +3038,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2879,6 +3065,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2899,6 +3087,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 postId: post2.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2916,6 +3106,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 postId: post3.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -2941,6 +3133,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2966,6 +3160,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2986,6 +3182,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -2998,6 +3196,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 postId: post2.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -3015,6 +3215,8 @@ describe("Post comments", () => {
                 },
             }),
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 postId: post3.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -3040,6 +3242,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 postId: post1.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -3121,6 +3325,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -3161,6 +3367,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -3212,6 +3420,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post.id,
                 loudNotificationCount: 1,
                 latestComment: {
@@ -3257,6 +3467,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -3308,6 +3520,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -3360,6 +3574,8 @@ describe("Post comments", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 postId: post.id,
                 loudNotificationCount: 0,
                 latestComment: {
@@ -3420,6 +3636,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -3447,6 +3665,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -3475,6 +3695,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -3495,6 +3717,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -3515,6 +3739,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -3543,6 +3769,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -3563,6 +3791,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -3583,6 +3813,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -3641,6 +3873,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -3668,6 +3902,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -3696,6 +3932,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -3728,6 +3966,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 chatId,
                 loudNotificationCount: 2,
                 latestMessage: {
@@ -3761,6 +4001,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId,
                 loudNotificationCount: 2,
                 latestMessage: {
@@ -3793,6 +4035,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 chatId,
                 loudNotificationCount: 2,
                 latestMessage: {
@@ -3826,6 +4070,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId,
                 loudNotificationCount: 3,
                 latestMessage: {
@@ -3851,6 +4097,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -3876,6 +4124,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 chatId,
                 loudNotificationCount: 2,
                 latestMessage: {
@@ -3946,6 +4196,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -3966,6 +4218,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -3994,6 +4248,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4019,6 +4275,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4044,6 +4302,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4077,6 +4337,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4097,6 +4359,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4117,6 +4381,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4145,6 +4411,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4170,6 +4438,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4195,6 +4465,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4259,6 +4531,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.sharedSession.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4294,6 +4568,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.sharedSession.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4314,6 +4590,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.otherSpace.id,
+                accountId: scenario.sharedSession.account.id,
                 chatId: otherChatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4378,6 +4656,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4418,6 +4698,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4458,6 +4740,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4544,6 +4828,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4564,6 +4850,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4587,6 +4875,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4607,6 +4897,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 chatId,
                 loudNotificationCount: 2,
                 latestMessage: {
@@ -4663,6 +4955,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4691,6 +4985,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4708,6 +5004,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4736,6 +5034,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat3Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4748,6 +5048,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4765,6 +5067,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4793,6 +5097,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat3Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4805,6 +5111,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4822,6 +5130,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4850,6 +5160,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat3Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4862,6 +5174,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4874,6 +5188,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4902,6 +5218,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 2,
                 latestMessage: {
@@ -4919,6 +5237,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat3Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4931,6 +5251,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4959,6 +5281,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 2,
                 latestMessage: {
@@ -4976,6 +5300,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat3Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -4988,6 +5314,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5016,6 +5344,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat2Id,
                 loudNotificationCount: 2,
                 latestMessage: {
@@ -5033,6 +5363,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 2,
                 latestMessage: {
@@ -5050,6 +5382,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat3Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5119,6 +5453,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5147,6 +5483,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5164,6 +5502,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5192,6 +5532,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat3Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5204,6 +5546,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5221,6 +5565,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5243,6 +5589,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat3Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5255,6 +5603,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5272,6 +5622,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5300,6 +5652,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat4Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5312,6 +5666,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat3Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5324,6 +5680,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5341,6 +5699,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5369,6 +5729,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat4Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5381,6 +5743,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat3Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5393,6 +5757,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5405,6 +5771,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5433,6 +5801,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat4Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5445,6 +5815,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat3Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5457,6 +5829,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5469,6 +5843,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5497,6 +5873,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat3Id,
                 loudNotificationCount: 2,
                 latestMessage: {
@@ -5514,6 +5892,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat4Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5526,6 +5906,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5538,6 +5920,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5596,6 +5980,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5624,6 +6010,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5644,6 +6032,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5672,6 +6062,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5692,6 +6084,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5730,6 +6124,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5750,6 +6146,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 chatId,
                 loudNotificationCount: 2,
                 latestMessage: {
@@ -5823,6 +6221,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5843,6 +6243,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5860,6 +6262,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5880,6 +6284,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5897,6 +6303,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5922,6 +6330,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5942,6 +6352,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5959,6 +6371,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -5979,6 +6393,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -6009,6 +6425,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -6029,6 +6447,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -6049,6 +6469,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -6079,6 +6501,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -6106,6 +6530,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -6195,6 +6621,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -6215,6 +6643,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 chatId: chat3Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -6232,6 +6662,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -6249,6 +6681,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -6269,6 +6703,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -6286,6 +6722,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -6321,6 +6759,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -6341,6 +6781,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 chatId: chat3Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -6366,6 +6808,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -6396,6 +6840,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -6416,6 +6862,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 chatId: chat3Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -6441,6 +6889,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 0,
                 latestMessage: {
@@ -6453,6 +6903,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -6483,6 +6935,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -6503,6 +6957,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 chatId: chat2Id,
                 loudNotificationCount: 0,
                 latestMessage: {
@@ -6520,6 +6976,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 chatId: chat3Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -6545,6 +7003,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 0,
                 latestMessage: {
@@ -6557,6 +7017,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -6587,6 +7049,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -6607,6 +7071,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 0,
                 latestMessage: {
@@ -6619,6 +7085,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 chatId: chat2Id,
                 loudNotificationCount: 0,
                 latestMessage: {
@@ -6636,6 +7104,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
                 chatId: chat3Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -6661,6 +7131,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 chatId: chat1Id,
                 loudNotificationCount: 0,
                 latestMessage: {
@@ -6673,6 +7145,8 @@ describe("Chat", () => {
                 },
             }),
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
                 chatId: chat2Id,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -6724,6 +7198,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -6764,6 +7240,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -6810,6 +7288,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId,
                 loudNotificationCount: 1,
                 latestMessage: {
@@ -6862,6 +7342,8 @@ describe("Chat", () => {
             }).then(({entries}) => entries),
         ).toEqual([
             new InboxChatEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
                 chatId,
                 loudNotificationCount: 0,
                 latestMessage: {

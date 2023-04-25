@@ -1,4 +1,4 @@
-import {DateString} from "~/shared/helpers/date/date_string";
+import type {DateString} from "~/shared/helpers/date/date_string";
 import {
     AccountId,
     ChannelId,
