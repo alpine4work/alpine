@@ -1,5 +1,7 @@
 import {Bell, MagnifyingGlass} from "phosphor-react";
+import {useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
+import {useWebSocket} from "~/client/cloudflare/use_web_socket";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {IconButton} from "~/client/design/icon_button";
@@ -9,8 +11,9 @@ import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {useNavigate} from "~/client/remix/use_navigate";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {SpaceLayoutTopBarCreateButton} from "~/client/spaces/space_layout_top_bar_create_button";
+import {MyAccountProtocol} from "~/shared/accounts/my_account_protocol";
 import {spacing} from "~/shared/design/spacing";
-import {DynamoGeneralRealtimeItemResult} from "~/shared/dynamo/dynamo_general_realtime_types";
+import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types";
 import {UnimplementedError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {InboxModel} from "~/shared/models/inbox_model";
@@ -21,10 +24,10 @@ import {backgroundColorVar} from "~/shared/styles/styles";
 
 export function SpaceLayoutTopBar({
     space,
-    initialInboxResult,
+    initialInbox,
 }: {
     space: SpaceModel;
-    initialInboxResult: DynamoGeneralRealtimeItemResult<InboxModel>;
+    initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
 }) {
     const showToast = useShowToast();
     const navigate = useNavigate();
@@ -120,7 +123,7 @@ export function SpaceLayoutTopBar({
                 paddingX="2"
             >
                 <SpaceLayoutTopBarCreateButton />
-                <SpaceLayoutTopBarNotificationsButton initialInboxResult={initialInboxResult} />
+                <SpaceLayoutTopBarNotificationsButton initialInbox={initialInbox} />
                 <Box paddingLeft="1">
                     <SpaceLayoutTopBarAccountButton />
                 </Box>
@@ -130,13 +133,24 @@ export function SpaceLayoutTopBar({
 }
 
 function SpaceLayoutTopBarNotificationsButton({
-    initialInboxResult,
+    initialInbox,
 }: {
-    initialInboxResult: DynamoGeneralRealtimeItemResult<InboxModel>;
+    initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
 }) {
     const showToast = useShowToast();
+    const {currentAccount} = useSpaceContext();
 
-    const loudNotificationCount = initialInboxResult.model.loudNotificationCount;
+    const [inbox, setInbox] = useState(initialInbox);
+
+    useWebSocket(MyAccountProtocol, `/durable-objects/my-account/${currentAccount.id}`, event => {
+        for (const _event of event.eventTransaction) {
+            const event = _event;
+
+            if (event.item.key === inbox.key && event.item.version > inbox.version) {
+                setInbox(event.item);
+            }
+        }
+    });
 
     return (
         <Box position="relative" zIndex="0">
@@ -161,7 +175,7 @@ function SpaceLayoutTopBarNotificationsButton({
                 }}
             >
                 <Bell />
-                {loudNotificationCount > 0 && (
+                {inbox.model.loudNotificationCount > 0 && (
                     // We use a bright red design for loud notifications. We know this can be
                     // distracting...but that's the point of a loud notification. Someone is
                     // specifically trying to get your attention.
@@ -192,7 +206,9 @@ function SpaceLayoutTopBarNotificationsButton({
                             color="grey-0-const"
                             backgroundColor="red-50-const"
                         >
-                            {loudNotificationCount > 99 ? "99+" : loudNotificationCount}
+                            {inbox.model.loudNotificationCount > 99
+                                ? "99+"
+                                : inbox.model.loudNotificationCount}
                         </Box>
                     </Box>
                 )}

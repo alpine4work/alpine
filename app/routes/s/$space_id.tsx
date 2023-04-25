@@ -11,7 +11,7 @@ import {getInbox} from "~/server/dynamo/notifications_table";
 import {getSpaceWithOptimisticSessionAccountId} from "~/server/dynamo/spaces_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
-import {createDynamoGeneralRealtimeItemResultSchema} from "~/shared/dynamo/dynamo_general_realtime_types";
+import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
@@ -23,7 +23,7 @@ import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 export const LoaderSchema = Schema.object({
     space: SpaceModel.schema(),
     currentAccount: AccountModel.schema(),
-    inboxResult: createDynamoGeneralRealtimeItemResultSchema(InboxModel.schema()),
+    inbox: createDynamoGeneralRealtimeItemSchema(InboxModel.schema()),
 });
 
 export function links(): Array<LinkDescriptor> {
@@ -42,7 +42,7 @@ export const unstable_shouldReload: ShouldReloadFunction = ({url, prevUrl}) =>
 export async function loader({context, params}: LoaderArgs) {
     const spaceId = Schema.id<SpaceId>().deserialize(params.space_id ?? null);
 
-    const [[currentAccount, inboxResult], space] = await runAllPromiseThunks(
+    const [[currentAccount, inbox], space] = await runAllPromiseThunks(
         async () => {
             const authenticatedContext = await context.actor.authenticate();
             return runAllPromises([
@@ -72,7 +72,7 @@ export async function loader({context, params}: LoaderArgs) {
         {
             space,
             currentAccount,
-            inboxResult,
+            inbox,
         },
         {propagateEventData},
     );
@@ -86,7 +86,7 @@ export async function loader({context, params}: LoaderArgs) {
  * (e.g. virtualized lists).
  */
 export default function SpaceLayout() {
-    const {space, currentAccount, inboxResult} = useLoaderDataWithSchema(LoaderSchema);
+    const {space, currentAccount, inbox} = useLoaderDataWithSchema(LoaderSchema);
 
     useEffect(() => {
         attachDevConsoleForAccountInProduction(currentAccount);
@@ -108,7 +108,7 @@ export default function SpaceLayout() {
                 zIndex="0"
             >
                 <PeekStackContextProvider>
-                    <SpaceLayoutTopBar space={space} initialInboxResult={inboxResult} />
+                    <SpaceLayoutTopBar space={space} initialInbox={inbox} />
                     <Outlet />
                 </PeekStackContextProvider>
             </Box>

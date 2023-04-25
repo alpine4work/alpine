@@ -18,8 +18,6 @@ class MyAccountDurableObject {
     private readonly _accountId: AccountId;
 
     private readonly _webSocketServer: WebSocketServer<
-        // NOCOMMIT
-        // @ts-expect-error
         typeof MyAccountProtocol,
         MyAccountConnection
     >;
@@ -56,16 +54,12 @@ class MyAccountDurableObject {
         this._processContext = processContext;
         this._accountId = accountId;
 
-        // NOCOMMIT
-        // @ts-expect-error
         this._webSocketServer = new WebSocketServer(
             this._processContext,
-            // NOCOMMIT
-            // @ts-expect-error
             MyAccountProtocol,
-            async ({connectActionContext}) => {
+            async ({connectActionContext, sendEvent}) => {
                 await authorizeMyAccountAccess(connectActionContext, this._accountId);
-                return new MyAccountConnection();
+                return new MyAccountConnection({sendEvent});
             },
         );
     }
@@ -84,9 +78,17 @@ class MyAccountDurableObject {
             case "/inbox-realtime-event-transaction": {
                 await authorizeMyAccountAccess(context, this._accountId);
 
-                MyAccountInboxRealtimeEventTransactionSchema.deserialize(await request.json());
+                const eventTransaction = MyAccountInboxRealtimeEventTransactionSchema.deserialize(
+                    await request.json(),
+                );
 
-                // NOCOMMIT
+                // Forward the event transaction to all our connected clients...
+                //
+                // NOCOMMIT: Tests!
+                this._webSocketServer.sendEventToAll(context, {
+                    type: "InboxRealtimeEventTransaction",
+                    eventTransaction,
+                });
 
                 return new Response();
             }

@@ -119,7 +119,7 @@ export class NotificationsContextModule extends NotificationsContextModuleBase {
         for (const event of eventTransaction) {
             getOrSetDefaultMapValue(
                 eventTransactionBySpaceIdAndAccountId,
-                `${event.model.spaceId}:${event.model.accountId}`,
+                `${event.item.model.spaceId}:${event.item.model.accountId}`,
                 () => [],
             ).push(event);
         }

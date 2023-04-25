@@ -23,7 +23,7 @@ import {
     MessageContentSchema,
     assertMessageContent,
 } from "~/shared/content/message_content_schema";
-import {DynamoGeneralRealtimeItemResult} from "~/shared/dynamo/dynamo_general_realtime_types";
+import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types";
 import {CancelledError, NotFoundError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
@@ -462,18 +462,18 @@ const unarchivedInboxEntryGenerationIncrement = 1;
 export function getInbox(
     context: SessionActionContext,
     spaceId: SpaceId,
-): Promise<DynamoGeneralRealtimeItemResult<InboxModel>> {
+): Promise<DynamoGeneralRealtimeItem<InboxModel>> {
     return context.dynamo.retryTransaction(async context => {
-        const modelResult = await InboxTable.getModelIfExists(context, {
+        const inbox = await InboxTable.getRealtimeItemIfExists(context, {
             partitionType: "Inbox",
             sortRangeType: "Attributes",
             spaceId,
             accountId: context.actor.getAccountId(),
         });
-        if (modelResult) return modelResult;
+        if (inbox) return inbox;
 
         // If the inbox item doesn't exist yet, let's create one.
-        const {getModel} = await InboxTable.createItem(context, {
+        const {getRealtimeItem} = await InboxTable.createItem(context, {
             partitionType: "Inbox",
             sortRangeType: "Attributes",
             spaceId,
@@ -481,7 +481,7 @@ export function getInbox(
             generation: initialInboxGeneration,
             loudNotificationCount: 0,
         });
-        return getModel();
+        return getRealtimeItem();
     });
 }
 
@@ -502,7 +502,7 @@ export async function getInboxEntries(
 }> {
     await authorizeSpaceAccess(context, spaceId);
 
-    const entries = await InboxEntriesIndex.query(context, {
+    const entries = await InboxEntriesIndex.realtimeQuery(context, {
         partitionKey: {
             spaceId,
             accountId: context.actor.getAccountId(),

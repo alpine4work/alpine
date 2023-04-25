@@ -15,7 +15,7 @@ import {ObjectSchema, Schema} from "~/shared/schema/schema";
  * access to a "model" which is a nicely formatted object for use on
  * the client.
  */
-export type DynamoGeneralRealtimeItemResult<Model> = {
+export type DynamoGeneralRealtimeItem<Model> = {
     /**
      * When did the read for this data start? When we connect to realtime on the
      * client we should load all changes between the `readTime` and the current
@@ -44,9 +44,9 @@ export type DynamoGeneralRealtimeItemResult<Model> = {
     readonly model: Model;
 };
 
-export function createDynamoGeneralRealtimeItemResultSchema<Model>(
+export function createDynamoGeneralRealtimeItemSchema<Model>(
     _ModelSchema: Schema<Model>,
-): Schema<DynamoGeneralRealtimeItemResult<Model>> {
+): Schema<DynamoGeneralRealtimeItem<Model>> {
     // `Optionalize<T>` does not like generics so use any instead.
     const ModelSchema: Schema<any> = _ModelSchema;
 
@@ -64,7 +64,7 @@ export function createDynamoGeneralRealtimeItemResultSchema<Model>(
  * Differs from `DynamoGeneralRealtimeIndexQueryResult` in that the item key
  * determines the ordering of items instead of the cursor.
  */
-export type DynamoGeneralRealtimeQueryResult<Model> = {
+export type DynamoGeneralRealtimeQuery<Model> = {
     /**
      * When did the read for this data start? When we connect to realtime on the
      * client we should load all changes between the `readTime` and the current
@@ -95,9 +95,9 @@ export type DynamoGeneralRealtimeQueryResult<Model> = {
     readonly hasMoreItems: boolean;
 };
 
-export function createDynamoGeneralRealtimeQueryResultSchema<Model>(
+export function createDynamoGeneralRealtimeQuerySchema<Model>(
     _ModelSchema: Schema<Model>,
-): Schema<DynamoGeneralRealtimeQueryResult<Model>> {
+): Schema<DynamoGeneralRealtimeQuery<Model>> {
     // `Optionalize<T>` does not like generics so use any instead.
     const ModelSchema: Schema<any> = _ModelSchema;
 
@@ -125,7 +125,7 @@ export function createDynamoGeneralRealtimeQueryResultSchema<Model>(
  * Queries can be run in descending order. In this case the order of `items` is
  * reversed from how they are stored is in the base index.
  */
-export type DynamoGeneralRealtimeIndexQueryResult<Model> = {
+export type DynamoGeneralRealtimeIndexQuery<Model> = {
     /**
      * When did the read for this data start? When we connect to realtime on the
      * client we should load all changes between the `readTime` and the current
@@ -169,9 +169,9 @@ export type DynamoGeneralRealtimeIndexQueryResult<Model> = {
     readonly hasMoreItems: boolean;
 };
 
-export function createDynamoGeneralRealtimeIndexQueryResultSchema<Model>(
+export function createDynamoGeneralRealtimeIndexQuerySchema<Model>(
     _ModelSchema: Schema<Model>,
-): Schema<DynamoGeneralRealtimeIndexQueryResult<Model>> {
+): Schema<DynamoGeneralRealtimeIndexQuery<Model>> {
     // `Optionalize<T>` does not like generics so use any instead.
     const ModelSchema: Schema<any> = _ModelSchema;
 
@@ -215,9 +215,7 @@ export function createDynamoGeneralRealtimeEventSchema<Model>(
  */
 export type DynamoGeneralRealtimeCreateItemEvent<Model> = {
     readonly type: "CreateItem";
-    readonly key: DynamoItemKey;
-    readonly version: number;
-    readonly model: Model;
+    readonly item: DynamoGeneralRealtimeItem<Model>;
     readonly cursorByIndexName: ReadonlyMap<string, DynamoIndexCursor>;
 };
 
@@ -229,9 +227,7 @@ function createDynamoGeneralRealtimeCreateItemEventSchema<Model>(
 
     return Schema.object({
         type: Schema.value("CreateItem"),
-        key: DynamoItemKeySchema,
-        version: Schema.integer.min(0),
-        model: ModelSchema,
+        item: createDynamoGeneralRealtimeItemSchema(ModelSchema),
         cursorByIndexName: Schema.map(Schema.string, DynamoIndexCursorSchema),
     });
 }
@@ -241,9 +237,7 @@ function createDynamoGeneralRealtimeCreateItemEventSchema<Model>(
  */
 export type DynamoGeneralRealtimeUpdateItemEvent<Model> = {
     readonly type: "UpdateItem";
-    readonly key: DynamoItemKey;
-    readonly version: number;
-    readonly model: Model;
+    readonly item: DynamoGeneralRealtimeItem<Model>;
     readonly cursorByIndexName: ReadonlyMap<string, DynamoIndexCursor>;
 };
 
@@ -255,9 +249,7 @@ function createDynamoGeneralRealtimeUpdateItemEventSchema<Model>(
 
     return Schema.object({
         type: Schema.value("UpdateItem"),
-        key: DynamoItemKeySchema,
-        version: Schema.integer.min(0),
-        model: ModelSchema,
+        item: createDynamoGeneralRealtimeItemSchema(ModelSchema),
         cursorByIndexName: Schema.map(Schema.string, DynamoIndexCursorSchema),
     });
 }

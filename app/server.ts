@@ -241,6 +241,20 @@ async function handleFetch(
                         span,
                     });
                 }
+                case "my-account": {
+                    const accountId = Schema.id().deserialize(path[1] ?? null);
+                    const pathname = `/${path.slice(2).join("/")}`;
+
+                    return fetchFromDurableObjectStub({
+                        durableObjectNamespace: env.MyAccountDurableObjectNamespace,
+                        sessionCookieSecret: resources.sessionCookieSecret,
+                        sessionCookieStorage: resources.sessionCookieStorage,
+                        request,
+                        pathname,
+                        idName: accountId,
+                        span,
+                    });
+                }
                 default:
                     return new Response("Durable object not found", {status: 404});
             }
@@ -430,8 +444,14 @@ function handleQueue(batch: MessageBatch, env: AppWorkerEnv, executionContext: E
                 await runAllPromises(waitPromises);
             });
 
-            return promise.catch(() => {
+            return promise.catch(error => {
                 // Ignore errors. They are reported as a part of the above trace...
+                //
+                // Unless we are in development, then it is very useful to see errors in
+                // the console.
+                //
+                // eslint-disable-next-line no-console
+                if (process.env.NODE_ENV !== "production") console.error(error);
             });
         }),
     );

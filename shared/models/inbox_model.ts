@@ -72,6 +72,8 @@ export class InboxPostCommentsEntryModel extends Model(
     }
 }
 
+export type InboxItemModel = SchemaType<typeof InboxItemModelSchema>;
+
 export const InboxItemModelSchema = createModelUnionSchema({
     Inbox: InboxModel,
     InboxChatEntry: InboxChatEntryModel,
