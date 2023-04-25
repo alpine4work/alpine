@@ -52,18 +52,19 @@ jobs:
 
     test_playwright:
         name: Test Playwright
-        runs-on: ubuntu-latest
+
+        # Run Playwright tests on MacOS. Browser testing is terribly inconsistent.
+        # Since we develop on MacOS, running MacOS in CI helps remove one big
+        # inconsistency variable.
+        #
+        # This does mean Playwright tests don't need to sniff the operating system to
+        # choose between "cmd" and "ctrl" for keyboard shortcuts like "cmd-c" so tests
+        # may end up being a little less resilient by not running on two OSs.
+        runs-on: macos-latest
 
         steps:
             - name: Checkout repo
               uses: actions/checkout@v3
-
-            # Unfortunate that Bazel can't install these since they're global dependencies.
-            - name: Install Playwright dependencies
-              run:
-                  sudo apt-get update && sudo apt-get install libvpx7 libevent-2.1-7 libopus0
-                  libwoff1 libharfbuzz-icu0 libgstreamer-plugins-base1.0-0 libgstreamer-gl1.0-0
-                  libhyphen0 libmanette-0.2-0 libgles2 gstreamer1.0-libav
 
             - name: Get date
               id: date
@@ -90,7 +91,7 @@ jobs:
             # speed up CI.
             - name: Test Playwright
               run: |
-                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --test_tag_filters=playwright --flaky_test_attempts=3
+                  admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc test //... --test_tag_filters=playwright --flaky_test_attempts=3 --jobs=1
 
             # Currently `actions/upload-artifact` doesn't work with symlinked directories.
             # A PR to fix this has been merged but hasn't been released. So read the actual path and
