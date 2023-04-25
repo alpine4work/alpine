@@ -93,7 +93,7 @@ export function SpaceLayoutTopBar({
                         justifyContent="center"
                         alignItems="center"
                         padding="1"
-                        gap="1"
+                        gap="1.5"
                         color="grey-50"
                         cursor="text"
                         onClick={() => {
@@ -109,7 +109,7 @@ export function SpaceLayoutTopBar({
                             });
                         }}
                     >
-                        <MagnifyingGlass size={spacing["4"]} />
+                        <MagnifyingGlass size={spacing["3"]} />
                         <Box fontStyle="truncate">Search {space.name}…</Box>
                     </Box>
                 </Box>
