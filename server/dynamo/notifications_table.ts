@@ -23,6 +23,7 @@ import {
     MessageContentSchema,
     assertMessageContent,
 } from "~/shared/content/message_content_schema";
+import {DynamoGeneralRealtimeItemResult} from "~/shared/dynamo/dynamo_general_realtime_types";
 import {CancelledError, NotFoundError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
@@ -454,6 +455,35 @@ const loudNotificationInboxGenerationIncrement = 1;
  * so the entry goes at the top.
  */
 const unarchivedInboxEntryGenerationIncrement = 1;
+
+/**
+ * Get the session account's inbox in the provided space.
+ */
+export function getInbox(
+    context: SessionActionContext,
+    spaceId: SpaceId,
+): Promise<DynamoGeneralRealtimeItemResult<InboxModel>> {
+    return context.dynamo.retryTransaction(async context => {
+        const modelResult = await InboxTable.getModelIfExists(context, {
+            partitionType: "Inbox",
+            sortRangeType: "Attributes",
+            spaceId,
+            accountId: context.actor.getAccountId(),
+        });
+        if (modelResult) return modelResult;
+
+        // If the inbox item doesn't exist yet, let's create one.
+        const {getModel} = await InboxTable.createItem(context, {
+            partitionType: "Inbox",
+            sortRangeType: "Attributes",
+            spaceId,
+            accountId: context.actor.getAccountId(),
+            generation: initialInboxGeneration,
+            loudNotificationCount: 0,
+        });
+        return getModel();
+    });
+}
 
 /**
  * Get the entries for the current account's inbox.
@@ -950,44 +980,51 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             (!isArchived && oldInboxEntryItem.isArchived) ||
             loudNotificationCountDifference > 0;
 
-        await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
-            InboxTable.transactionDirectlyUpdateItem({
-                ...inboxItem,
-                partitionType: "Inbox",
-                sortRangeType: "Attributes",
-                spaceId: itemKey.spaceId,
-                accountId: itemKey.accountId,
-                generation: inboxGeneration,
-                loudNotificationCount:
-                    (inboxItem?.loudNotificationCount ?? 0) + loudNotificationCountDifference,
-            }),
-            InboxTable.transactionDirectlyUpdateItem({
-                ...newInboxEntryItemPartial2,
-                isArchived,
+        const newInboxEntryItem: InboxEntryItem = {
+            ...newInboxEntryItemPartial2,
+            isArchived,
 
-                generation: shouldMoveToTop
-                    ? // Move our entry to the higher generation of:
-                      //
-                      // - The entry's current generation
-                      // - The inbox's current generation plus an increment if this is a loud
-                      //   notification since loud notifications should appear on top
-                      //
-                      // If our entry moves to a higher generation (usually due to a loud
-                      // notification) then it should stay at that generation.
-                      Math.max(
-                          ...(oldInboxEntryItem ? [oldInboxEntryItem.generation] : []),
-                          inboxGeneration +
-                              (loudNotificationCountDifference > 0
-                                  ? loudNotificationInboxGenerationIncrement
-                                  : 0),
-                      )
-                    : oldInboxEntryItem.generation,
+            generation: shouldMoveToTop
+                ? // Move our entry to the higher generation of:
+                  //
+                  // - The entry's current generation
+                  // - The inbox's current generation plus an increment if this is a loud
+                  //   notification since loud notifications should appear on top
+                  //
+                  // If our entry moves to a higher generation (usually due to a loud
+                  // notification) then it should stay at that generation.
+                  Math.max(
+                      ...(oldInboxEntryItem ? [oldInboxEntryItem.generation] : []),
+                      inboxGeneration +
+                          (loudNotificationCountDifference > 0
+                              ? loudNotificationInboxGenerationIncrement
+                              : 0),
+                  )
+                : oldInboxEntryItem.generation,
 
-                enteredTime: shouldMoveToTop
-                    ? getInboxEntryLatestUpdateTime(newInboxEntryItemPartial2)
-                    : oldInboxEntryItem.enteredTime,
-            }),
-        ]);
+            enteredTime: shouldMoveToTop
+                ? getInboxEntryLatestUpdateTime(newInboxEntryItemPartial2)
+                : oldInboxEntryItem.enteredTime,
+        };
+
+        // Optimization: If the inbox item isn't changing don't run a transaction.
+        if (inboxItem && loudNotificationCountDifference === 0) {
+            await InboxTable.directlyUpdateItem(context, newInboxEntryItem);
+        } else {
+            await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
+                InboxTable.transactionDirectlyUpdateItem({
+                    ...inboxItem,
+                    partitionType: "Inbox",
+                    sortRangeType: "Attributes",
+                    spaceId: itemKey.spaceId,
+                    accountId: itemKey.accountId,
+                    generation: inboxGeneration,
+                    loudNotificationCount:
+                        (inboxItem?.loudNotificationCount ?? 0) + loudNotificationCountDifference,
+                }),
+                InboxTable.transactionDirectlyUpdateItem(newInboxEntryItem),
+            ]);
+        }
     });
 }
 

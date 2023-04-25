@@ -112,6 +112,14 @@ function IconButton(
          * still be programmatically focusable.
          */
         disableKeyboardFocus?: boolean;
+
+        /**
+         * Disable the `overflow="hidden"` style.
+         */
+        // NOTE(calebmer): Don't remember why I added `overflow="hidden"` in the first
+        // place. At least this prop makes it explicit that the component expects
+        // no overflow.
+        disableOverflowHidden?: boolean;
     },
     foreignRef: Ref<HTMLButtonElement>,
 ) {
@@ -129,6 +137,7 @@ function IconButton(
         tooltipOffset = defaultTooltipOffset,
         tooltipContentOverride,
         disableKeyboardFocus = false,
+        disableOverflowHidden = false,
     } = props;
     const localRef = useRef<HTMLButtonElement>(null);
     const showToast = useShowToast();
@@ -314,7 +323,7 @@ function IconButton(
                         justifyContent: "center",
                         alignItems: "center",
                         borderRadius: "full",
-                        overflow: "hidden",
+                        overflow: !disableOverflowHidden ? "hidden" : undefined,
                         // You may notice our button doesn't have a pointer cursor. See:
                         // https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
                         cursor: "default",

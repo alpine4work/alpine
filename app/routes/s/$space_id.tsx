@@ -7,12 +7,15 @@ import {PeekStackContextProvider} from "~/client/peek/peek_stack";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {SpaceContextProvider} from "~/client/spaces/space_context";
 import {SpaceLayoutTopBar} from "~/client/spaces/space_layout_top_bar";
+import {getInbox} from "~/server/dynamo/notifications_table";
 import {getSpaceWithOptimisticSessionAccountId} from "~/server/dynamo/spaces_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
-import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises";
+import {createDynamoGeneralRealtimeItemResultSchema} from "~/shared/dynamo/dynamo_general_realtime_types";
+import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
+import {InboxModel} from "~/shared/models/inbox_model";
 import {SpaceModel} from "~/shared/models/space_model";
 import {Schema} from "~/shared/schema/schema";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
@@ -20,6 +23,7 @@ import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 export const LoaderSchema = Schema.object({
     space: SpaceModel.schema(),
     currentAccount: AccountModel.schema(),
+    inboxResult: createDynamoGeneralRealtimeItemResultSchema(InboxModel.schema()),
 });
 
 export function links(): Array<LinkDescriptor> {
@@ -38,10 +42,13 @@ export const unstable_shouldReload: ShouldReloadFunction = ({url, prevUrl}) =>
 export async function loader({context, params}: LoaderArgs) {
     const spaceId = Schema.id<SpaceId>().deserialize(params.space_id ?? null);
 
-    const [currentAccount, space] = await runAllPromiseThunks(
+    const [[currentAccount, inboxResult], space] = await runAllPromiseThunks(
         async () => {
             const authenticatedContext = await context.actor.authenticate();
-            return authenticatedContext.actor.getAccount();
+            return runAllPromises([
+                authenticatedContext.actor.getAccount(),
+                getInbox(authenticatedContext, spaceId),
+            ]);
         },
         async () => {
             const sessionCookie = await context.loader.getSessionCookie();
@@ -60,7 +67,15 @@ export async function loader({context, params}: LoaderArgs) {
         },
     };
 
-    return jsonWithSchema(LoaderSchema, {space, currentAccount}, {propagateEventData});
+    return jsonWithSchema(
+        LoaderSchema,
+        {
+            space,
+            currentAccount,
+            inboxResult,
+        },
+        {propagateEventData},
+    );
 }
 
 /**
@@ -71,7 +86,7 @@ export async function loader({context, params}: LoaderArgs) {
  * (e.g. virtualized lists).
  */
 export default function SpaceLayout() {
-    const {space, currentAccount} = useLoaderDataWithSchema(LoaderSchema);
+    const {space, currentAccount, inboxResult} = useLoaderDataWithSchema(LoaderSchema);
 
     useEffect(() => {
         attachDevConsoleForAccountInProduction(currentAccount);
@@ -93,7 +108,7 @@ export default function SpaceLayout() {
                 zIndex="0"
             >
                 <PeekStackContextProvider>
-                    <SpaceLayoutTopBar space={space} />
+                    <SpaceLayoutTopBar space={space} initialInboxResult={inboxResult} />
                     <Outlet />
                 </PeekStackContextProvider>
             </Box>

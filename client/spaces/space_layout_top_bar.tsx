@@ -10,13 +10,22 @@ import {useNavigate} from "~/client/remix/use_navigate";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {SpaceLayoutTopBarCreateButton} from "~/client/spaces/space_layout_top_bar_create_button";
 import {spacing} from "~/shared/design/spacing";
+import {DynamoGeneralRealtimeItemResult} from "~/shared/dynamo/dynamo_general_realtime_types";
 import {UnimplementedError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
+import {InboxModel} from "~/shared/models/inbox_model";
 import {SpaceModel} from "~/shared/models/space_model";
+import {backgroundColorVar} from "~/shared/styles/styles";
 
 // TODO(calebmer): Keyboard shortcuts for everything in top bar
 
-export function SpaceLayoutTopBar({space}: {space: SpaceModel}) {
+export function SpaceLayoutTopBar({
+    space,
+    initialInboxResult,
+}: {
+    space: SpaceModel;
+    initialInboxResult: DynamoGeneralRealtimeItemResult<InboxModel>;
+}) {
     const showToast = useShowToast();
     const navigate = useNavigate();
     const isMobile = useIsMobile();
@@ -111,7 +120,7 @@ export function SpaceLayoutTopBar({space}: {space: SpaceModel}) {
                 paddingX="2"
             >
                 <SpaceLayoutTopBarCreateButton />
-                <SpaceLayoutTopBarNotificationsButton />
+                <SpaceLayoutTopBarNotificationsButton initialInboxResult={initialInboxResult} />
                 <Box paddingLeft="1">
                     <SpaceLayoutTopBarAccountButton />
                 </Box>
@@ -120,26 +129,75 @@ export function SpaceLayoutTopBar({space}: {space: SpaceModel}) {
     );
 }
 
-function SpaceLayoutTopBarNotificationsButton() {
+function SpaceLayoutTopBarNotificationsButton({
+    initialInboxResult,
+}: {
+    initialInboxResult: DynamoGeneralRealtimeItemResult<InboxModel>;
+}) {
     const showToast = useShowToast();
 
+    const loudNotificationCount = initialInboxResult.model.loudNotificationCount;
+
     return (
-        <IconButton
-            size="md"
-            description="Notifications"
-            tooltipPlacement="bottom"
-            onPress={() => {
-                showToast({
-                    type: "Error",
-                    title: "Can not open notifications",
-                    error: new UnimplementedError("Notifications have not been implemented yet", {
-                        displayMessage: errorDisplayMessage`Notifications have not been implemented yet. Implementation is planned to start April 3, 2023.`,
-                    }),
-                });
-            }}
-        >
-            <Bell />
-        </IconButton>
+        <Box position="relative" zIndex="0">
+            <IconButton
+                size="md"
+                description="Notifications"
+                tooltipPlacement="bottom"
+                // The notification count renders outside the bounds of the icon button. Don't
+                // clip it!
+                disableOverflowHidden={true}
+                onPress={() => {
+                    showToast({
+                        type: "Error",
+                        title: "Can not open notifications",
+                        error: new UnimplementedError(
+                            "Notifications have not been implemented yet",
+                            {
+                                displayMessage: errorDisplayMessage`Notifications have not been implemented yet. Implementation is planned to start April 3, 2023.`,
+                            },
+                        ),
+                    });
+                }}
+            >
+                <Bell />
+                {loudNotificationCount > 0 && (
+                    // We use a bright red design for loud notifications. We know this can be
+                    // distracting...but that's the point of a loud notification. Someone is
+                    // specifically trying to get your attention.
+                    <Box
+                        zIndex="30"
+                        position="absolute"
+                        pointerEvents="none"
+                        borderRadius="full"
+                        style={{
+                            lineHeight: 1,
+                            fontSize: "0.5rem",
+                            top: "-0.0625rem",
+                            // Use `right` and `transform` to center the number around a point inset within
+                            // the button.
+                            right: "0.5rem",
+                            transform: "translateX(50%)",
+                            boxShadow: `0 0 0 1px ${backgroundColorVar}`,
+                        }}
+                    >
+                        <Box
+                            minWidth="3"
+                            height="3"
+                            paddingX="0.5"
+                            display="flex"
+                            justifyContent="center"
+                            alignItems="center"
+                            borderRadius="full"
+                            color="grey-0-const"
+                            backgroundColor="red-50-const"
+                        >
+                            {loudNotificationCount > 99 ? "99+" : loudNotificationCount}
+                        </Box>
+                    </Box>
+                )}
+            </IconButton>
+        </Box>
     );
 }
 
