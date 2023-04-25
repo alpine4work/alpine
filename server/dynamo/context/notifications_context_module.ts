@@ -189,8 +189,8 @@ export class TestNotificationsContextModule extends NotificationsContextModuleBa
     private readonly _createSystemContext: (spaceId: SpaceId) => SystemActionContext;
 
     constructor(createSystemContext: (spaceId: SpaceId) => SystemActionContext) {
-        // Can only use this context module in unit tests.
-        assert(typeof jest !== "undefined");
+        // Can only use this context module in tests.
+        assert(process.env.NODE_ENV === "test");
 
         super();
         this._createSystemContext = createSystemContext;

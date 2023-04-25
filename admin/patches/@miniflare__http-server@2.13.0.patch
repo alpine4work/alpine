@@ -15,7 +15,7 @@ index 5a5a36c395a13803be6a1d8ece221ae2bfd24265..4060708c9a56005370756ae0229111f2
 +
  export { }
 diff --git a/dist/src/index.js b/dist/src/index.js
-index 08378e7404d3de090a884c878b0ed1dd93795b81..a60db82ad83b06f488ad2fac7544787c83fda63f 100644
+index 137ea81ea6dd3bb809380bfccf69f4e8e918f6ff..5a1f9fe0b6f921f3cba59a01f6a67b927e657bc0 100644
 --- a/dist/src/index.js
 +++ b/dist/src/index.js
 @@ -39,7 +39,10 @@ __export(exports, {
@@ -26,11 +26,11 @@ index 08378e7404d3de090a884c878b0ed1dd93795b81..a60db82ad83b06f488ad2fac7544787c
 +  startServer: () => startServer,
 +  // NOTE(calebmer): We manually connect the HTTP and WebSocket servers so we
 +  // need this function.
-+  writeResponse: () => writeResponse,
++  writeResponse: () => writeResponse
  });
  var import_assert = __toModule(require("assert"));
  var import_http = __toModule(require("http"));
-@@ -681,6 +684,9 @@ async function startServer(mf, options) {
+@@ -667,6 +670,9 @@ async function startServer(mf, options) {
    createRequestListener,
    createServer,
    getAccessibleHosts,
@@ -38,6 +38,6 @@ index 08378e7404d3de090a884c878b0ed1dd93795b81..a60db82ad83b06f488ad2fac7544787c
 +  startServer,
 +  // NOTE(calebmer): We manually connect the HTTP and WebSocket servers so we
 +  // need this function.
-+  writeResponse,
++  writeResponse
  });
  //# sourceMappingURL=index.js.map
