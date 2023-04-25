@@ -57,9 +57,9 @@ class MyAccountDurableObject {
         this._webSocketServer = new WebSocketServer(
             this._processContext,
             MyAccountProtocol,
-            async ({connectActionContext, sendEvent}) => {
+            async ({connectActionContext}) => {
                 await authorizeMyAccountAccess(connectActionContext, this._accountId);
-                return new MyAccountConnection({sendEvent});
+                return new MyAccountConnection();
             },
         );
     }
