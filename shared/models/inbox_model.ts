@@ -1,5 +1,6 @@
 import {AccountId, ChatId, PostId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
+import {ChannelPreviewModel} from "~/shared/models/channel_model";
 import {createModelUnionSchema} from "~/shared/models/helpers/create_model_union_schema";
 import {MessageContentWithReferencesSchema} from "~/shared/models/message_model";
 import {Model} from "~/shared/models/model";
@@ -30,8 +31,6 @@ export const InboxEntryKeySchema = Schema.union({
     PostComments: InboxPostCommentsEntryKeySchema,
 });
 
-export type InboxEntryModel = InboxChatEntryModel | InboxPostCommentsEntryModel;
-
 export class InboxChatEntryModel extends Model(
     Schema.object({
         spaceId: Schema.id<SpaceId>(),
@@ -57,12 +56,15 @@ export class InboxPostCommentsEntryModel extends Model(
         spaceId: Schema.id<SpaceId>(),
         accountId: Schema.id<AccountId>(),
         postId: Schema.id<PostId>(),
+        postAuthor: AccountModel.schema(),
+        channel: ChannelPreviewModel.schema(),
         loudNotificationCount: Schema.integer.min(0),
         latestComment: Schema.object({
             author: AccountModel.schema(),
             createdTime: Schema.date,
             contentSnippet: MessageContentWithReferencesSchema,
         }),
+        otherCommentAuthor: AccountModel.schema().nullable(),
     }),
 ) {
     public readonly type = "PostComments" as const;
@@ -71,6 +73,13 @@ export class InboxPostCommentsEntryModel extends Model(
         return {type: "PostComments", postId: this.postId};
     }
 }
+
+export type InboxEntryModel = SchemaType<typeof InboxEntryModelSchema>;
+
+export const InboxEntryModelSchema = createModelUnionSchema({
+    InboxChatEntry: InboxChatEntryModel,
+    InboxPostCommentsEntry: InboxPostCommentsEntryModel,
+});
 
 export type InboxItemModel = SchemaType<typeof InboxItemModelSchema>;
 

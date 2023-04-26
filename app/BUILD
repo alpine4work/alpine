@@ -41,6 +41,7 @@ ts_project(
         "//client/documents",
         "//client/forum",
         "//client/helpers",
+        "//client/inbox",
         "//client/messaging",
         "//client/peek",
         "//client/remix",

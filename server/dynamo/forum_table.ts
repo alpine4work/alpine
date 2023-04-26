@@ -24,6 +24,7 @@ import {
     emptyMessageContent,
 } from "~/shared/content/message_content_schema";
 import {PostContent, PostContentSchema} from "~/shared/content/post_content_schema";
+import {ContextCache} from "~/shared/context/cache_context_module";
 import {
     DataLossError,
     FailedPreconditionError,
@@ -332,34 +333,38 @@ export async function getChannel(context: ActionContext, id: ChannelId): Promise
     });
 }
 
+const ChannelPreviewCache = new ContextCache<ChannelId, ChannelPreviewModel>();
+
 /**
  * Gets a preview channel object with the provided ID. Returns null if the
  * channel doesn't exist and throws an error if the channel exists but you
  * don't have access to the channel.
  */
-export async function getChannelPreview(
+export function getChannelPreview(
     context: ActionContext,
     id: ChannelId,
 ): Promise<ChannelPreviewModel> {
-    const channelItem = await ForumTable.getPartialItem(
-        context,
-        {
-            partitionType: "Channel",
-            sortRangeType: "Attributes",
-            channelId: id,
-        },
-        {
-            attributes: ["spaceId", "createdTime", "name"],
-        },
-    );
+    return ChannelPreviewCache.get(context, id, async () => {
+        const channelItem = await ForumTable.getPartialItem(
+            context,
+            {
+                partitionType: "Channel",
+                sortRangeType: "Attributes",
+                channelId: id,
+            },
+            {
+                attributes: ["spaceId", "createdTime", "name"],
+            },
+        );
 
-    await authorizeSpaceAccess(context, channelItem.spaceId);
+        await authorizeSpaceAccess(context, channelItem.spaceId);
 
-    return new ChannelPreviewModel({
-        id: channelItem.channelId,
-        spaceId: channelItem.spaceId,
-        createdTime: channelItem.createdTime,
-        name: channelItem.name,
+        return new ChannelPreviewModel({
+            id: channelItem.channelId,
+            spaceId: channelItem.spaceId,
+            createdTime: channelItem.createdTime,
+            name: channelItem.name,
+        });
     });
 }
 
@@ -613,12 +618,9 @@ async function createPostModelFromItem(
 }
 
 /**
- * Get the `ChannelId` and `SpaceId` for a post.
+ * Get the `ChannelPreviewModel` for a post.
  */
-export async function getPostChannel(
-    context: ActionContext,
-    postId: PostId,
-): Promise<{spaceId: SpaceId; channelId: ChannelId}> {
+export async function getPostAuthorAndChannelPreview(context: ActionContext, postId: PostId) {
     const postItem = await ForumTable.getPartialItem(
         context,
         {
@@ -627,16 +629,16 @@ export async function getPostChannel(
             postId,
         },
         {
-            attributes: ["channelId"],
+            attributes: ["spaceId", "authorId", "channelId"],
         },
     );
 
-    const {spaceId} = await authorizeChannelAccess(context, postItem.channelId);
+    const [author, channel] = await runAllPromises([
+        getAccount(context, postItem.spaceId, postItem.authorId),
+        getChannelPreview(context, postItem.channelId),
+    ]);
 
-    return {
-        spaceId,
-        channelId: postItem.channelId,
-    };
+    return {author, channel};
 }
 
 /**

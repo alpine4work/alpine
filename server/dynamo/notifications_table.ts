@@ -6,7 +6,10 @@ import {
     SessionActionContext,
     SystemActionContext,
 } from "~/server/dynamo/context/action_context";
-import {getPostNotificationSubscribers} from "~/server/dynamo/forum_table";
+import {
+    getPostAuthorAndChannelPreview,
+    getPostNotificationSubscribers,
+} from "~/server/dynamo/forum_table";
 import {getContentReferencesForNode} from "~/server/dynamo/helpers/get_content_references";
 import {
     DynamoGeneralRealtimeTableSchema,
@@ -246,6 +249,14 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             createdTime: Schema.date,
                             contentSnippet: MessageContentSchema,
                         }),
+
+                        /**
+                         * A second commenting account which we'll show on the inbox entry to imply a
+                         * conversation between multiple users. We compute this as the account which
+                         * commented before `latestComment`. Will never be the same account as the
+                         * `latestComment`'s author.
+                         */
+                        otherCommentAuthorId: Schema.id<AccountId>().nullable().default(null),
                     }),
                 },
             ],
@@ -289,25 +300,40 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
             },
             PostCommentsEntry: {
                 async build(context, item) {
-                    const [author, references] = await runAllPromises([
+                    const [
+                        {channel, author: postAuthor},
+                        latestCommentAuthor,
+                        latestCommentReferences,
+                        otherCommentAuthor,
+                    ] = await runAllPromises([
+                        getPostAuthorAndChannelPreview(context, item.postId),
                         getAccount(context, item.spaceId, item.latestComment.authorId),
                         getContentReferencesForNode(
                             context,
                             item.spaceId,
                             item.latestComment.contentSnippet,
                         ),
+                        item.otherCommentAuthorId
+                            ? getAccount(context, item.spaceId, item.otherCommentAuthorId)
+                            : null,
                     ]);
 
                     return new InboxPostCommentsEntryModel({
                         spaceId: item.spaceId,
                         accountId: item.accountId,
                         postId: item.postId,
+                        channel,
+                        postAuthor,
                         loudNotificationCount: item.loudNotificationCount,
                         latestComment: {
-                            author,
+                            author: latestCommentAuthor,
                             createdTime: item.latestComment.createdTime,
-                            contentSnippet: {doc: item.latestComment.contentSnippet, references},
+                            contentSnippet: {
+                                doc: item.latestComment.contentSnippet,
+                                references: latestCommentReferences,
+                            },
                         },
+                        otherCommentAuthor,
                     });
                 },
             },
@@ -758,7 +784,7 @@ export const NotificationEventSchema = Schema.union({
  */
 export function getNotificationMessageContentSnippet(content: MessageContent): MessageContent {
     return assertMessageContent(
-        getContentSnippet(content.resolve(0), {linesAbove: 0, linesBelow: 3}),
+        getContentSnippet(content.resolve(0), {linesAbove: 0, linesBelow: 1}),
     );
 }
 
@@ -1167,6 +1193,18 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
                                   createdTime: event.createdTime,
                                   contentSnippet: event.contentSnippet,
                               },
+
+                    // If the commenter for this event is different from the last comment then move
+                    // the last comment's author into the `otherCommentAuthorId` slot.
+                    //
+                    // But not if the last comment was from inbox's account! We want to keep our
+                    // inbox's face out of the inbox entry.
+                    otherCommentAuthorId:
+                        item &&
+                        item.latestComment.authorId !== event.authorId &&
+                        item.latestComment.authorId !== account.id
+                            ? item.latestComment.authorId
+                            : item?.otherCommentAuthorId ?? null,
                 };
             },
         );
