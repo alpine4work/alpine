@@ -569,7 +569,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                     roomKey: room.key,
                     messageIndex: message.index,
                 }),
-            ).rejects.toThrow(new PermissionDeniedError("Account does not have access to space"));
+            ).rejects.toThrow(PermissionDeniedError);
         });
 
         if (createPrivateRoom !== "Unimplemented") {

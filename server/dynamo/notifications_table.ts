@@ -1,6 +1,6 @@
 import {addMinutes, differenceInMinutes} from "date-fns";
 import {getAccount} from "~/server/dynamo/accounts_table";
-import {getChat} from "~/server/dynamo/chat_table";
+import {authorizeChatAccessForAccount, getChat} from "~/server/dynamo/chat_table";
 import {
     ActionContext,
     SessionActionContext,
@@ -276,12 +276,17 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
             },
             ChatEntry: {
                 async build(context, item) {
-                    const [author, references] = await runAllPromises([
+                    const [author, references, {chatAccountCount}] = await runAllPromises([
                         getAccount(context, item.spaceId, item.latestMessage.authorId),
                         getContentReferencesForNode(
                             context,
                             item.spaceId,
                             item.latestMessage.contentSnippet,
+                        ),
+                        authorizeChatAccessForAccount(
+                            context,
+                            item.chatId,
+                            item.latestMessage.authorId,
                         ),
                     ]);
 
@@ -289,6 +294,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         spaceId: item.spaceId,
                         accountId: item.accountId,
                         chatId: item.chatId,
+                        chatAccountCount,
                         loudNotificationCount: item.loudNotificationCount,
                         latestMessage: {
                             author,

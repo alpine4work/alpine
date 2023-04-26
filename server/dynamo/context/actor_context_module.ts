@@ -23,11 +23,20 @@ interface ActorContextModuleBase extends ContextModuleBase {
      * Throws a `PermissionDeniedError` error if we are not a session actor.
      * Otherwise returns a context with the correct type for the `actor` module.
      *
-     * System actors can do a lot but they can't do things like establish a persistent realtime durable object connection.
+     * System actors can do a lot but they can't do things like establish a
+     * persistent realtime durable object connection.
      */
     authorizeSession<Modules extends {actor: ActorContextModuleBase}>(
         this: ContextModuleBase<Modules> & ActorContextModuleBase,
     ): Context<Replace<Modules, {actor: SessionActorContextModule}>>;
+
+    /**
+     * Throws a `PermissionDeniedError` error if we are not a system actor.
+     * Otherwise returns a context with the correct type for the `actor` module.
+     */
+    authorizeSystem<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
+    ): Context<Replace<Modules, {actor: SystemActorContextModule}>>;
 }
 
 /**
@@ -148,6 +157,12 @@ export class SessionActorContextModule
         return (this as any)._context;
     }
 
+    public authorizeSystem<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
+    ): Context<Replace<Modules, {actor: SystemActorContextModule}>> {
+        throw new PermissionDeniedError("Session actor is not a system actor");
+    }
+
     /**
      * Get the `SessionId` we authenticated with.
      */
@@ -199,5 +214,11 @@ export class SystemActorContextModule extends ContextModuleBase implements Actor
         this: ContextModuleBase<Modules> & ActorContextModuleBase,
     ): Context<Replace<Modules, {actor: SessionActorContextModule}>> {
         throw new PermissionDeniedError("System actor is not a session actor");
+    }
+
+    public authorizeSystem<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
+    ): Context<Replace<Modules, {actor: SystemActorContextModule}>> {
+        return (this as any)._context;
     }
 }

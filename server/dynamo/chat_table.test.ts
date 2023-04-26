@@ -1,5 +1,6 @@
 import {SessionItem, getAccountsTableForTest} from "~/server/dynamo/accounts_table";
 import {
+    authorizeChatAccessForAccount,
     backfillChatMessages,
     createChatForTest,
     deleteChatMessage,
@@ -3542,6 +3543,242 @@ test("can not get chat you don't have access to", async () => {
     await expect(getChat(context.systemAction(scenario.spaceB.id), message.chatId)).rejects.toThrow(
         PermissionDeniedError,
     );
+});
+
+test("correctly authorizes which accounts are in the chat", async () => {
+    const scenario = await createScenario();
+
+    const message = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
+        spaceId: scenario.spaceA.id,
+        otherAccountIds: [scenario.sessionA2.accountId, scenario.sessionX2.accountId],
+        parentMessageIndex: null,
+        content: content1,
+    });
+
+    await expect(
+        authorizeChatAccessForAccount(
+            context.action(scenario.sessionA1),
+            message.chatId,
+            scenario.sessionA1.accountId,
+        ),
+    ).resolves.toBeTruthy();
+
+    await expect(
+        authorizeChatAccessForAccount(
+            context.action(scenario.sessionA1),
+            message.chatId,
+            scenario.sessionA2.accountId,
+        ),
+    ).resolves.toBeTruthy();
+
+    await expect(
+        authorizeChatAccessForAccount(
+            context.action(scenario.sessionA1),
+            message.chatId,
+            scenario.sessionA3.accountId,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        authorizeChatAccessForAccount(
+            context.action(scenario.sessionA1),
+            message.chatId,
+            scenario.sessionX2.accountId,
+        ),
+    ).resolves.toBeTruthy();
+
+    await expect(
+        authorizeChatAccessForAccount(
+            context.action(scenario.sessionA1),
+            message.chatId,
+            scenario.sessionX3.accountId,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        authorizeChatAccessForAccount(
+            context.action(scenario.sessionA1),
+            message.chatId,
+            scenario.sessionB1.accountId,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+});
+
+test("can not authorize which accounts are in the chat if session does not have access to chat", async () => {
+    const scenario = await createScenario();
+
+    const message = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
+        spaceId: scenario.spaceA.id,
+        otherAccountIds: [scenario.sessionA2.accountId, scenario.sessionX2.accountId],
+        parentMessageIndex: null,
+        content: content1,
+    });
+
+    await expect(
+        authorizeChatAccessForAccount(
+            context.action(scenario.sessionA3),
+            message.chatId,
+            scenario.sessionA1.accountId,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        authorizeChatAccessForAccount(
+            context.action(scenario.sessionA3),
+            message.chatId,
+            scenario.sessionA2.accountId,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        authorizeChatAccessForAccount(
+            context.action(scenario.sessionA3),
+            message.chatId,
+            scenario.sessionA3.accountId,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        authorizeChatAccessForAccount(
+            context.action(scenario.sessionA3),
+            message.chatId,
+            scenario.sessionX2.accountId,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        authorizeChatAccessForAccount(
+            context.action(scenario.sessionA3),
+            message.chatId,
+            scenario.sessionX3.accountId,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        authorizeChatAccessForAccount(
+            context.action(scenario.sessionA3),
+            message.chatId,
+            scenario.sessionB1.accountId,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+});
+
+test("correctly authorizes which accounts are in the chat as system", async () => {
+    const scenario = await createScenario();
+
+    const message = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
+        spaceId: scenario.spaceA.id,
+        otherAccountIds: [scenario.sessionA2.accountId, scenario.sessionX2.accountId],
+        parentMessageIndex: null,
+        content: content1,
+    });
+
+    await expect(
+        authorizeChatAccessForAccount(
+            context.systemAction(scenario.spaceA.id),
+            message.chatId,
+            scenario.sessionA1.accountId,
+        ),
+    ).resolves.toBeTruthy();
+
+    await expect(
+        authorizeChatAccessForAccount(
+            context.systemAction(scenario.spaceA.id),
+            message.chatId,
+            scenario.sessionA2.accountId,
+        ),
+    ).resolves.toBeTruthy();
+
+    await expect(
+        authorizeChatAccessForAccount(
+            context.systemAction(scenario.spaceA.id),
+            message.chatId,
+            scenario.sessionA3.accountId,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        authorizeChatAccessForAccount(
+            context.systemAction(scenario.spaceA.id),
+            message.chatId,
+            scenario.sessionX2.accountId,
+        ),
+    ).resolves.toBeTruthy();
+
+    await expect(
+        authorizeChatAccessForAccount(
+            context.systemAction(scenario.spaceA.id),
+            message.chatId,
+            scenario.sessionX3.accountId,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        authorizeChatAccessForAccount(
+            context.systemAction(scenario.spaceA.id),
+            message.chatId,
+            scenario.sessionB1.accountId,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+});
+
+test("can not authorize which accounts are in the chat if system context does not have access to chat", async () => {
+    const scenario = await createScenario();
+
+    const message = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
+        spaceId: scenario.spaceA.id,
+        otherAccountIds: [scenario.sessionA2.accountId, scenario.sessionX2.accountId],
+        parentMessageIndex: null,
+        content: content1,
+    });
+
+    await expect(
+        authorizeChatAccessForAccount(
+            context.systemAction(scenario.spaceB.id),
+            message.chatId,
+            scenario.sessionA1.accountId,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        authorizeChatAccessForAccount(
+            context.systemAction(scenario.spaceB.id),
+            message.chatId,
+            scenario.sessionA2.accountId,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        authorizeChatAccessForAccount(
+            context.systemAction(scenario.spaceB.id),
+            message.chatId,
+            scenario.sessionA3.accountId,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        authorizeChatAccessForAccount(
+            context.systemAction(scenario.spaceB.id),
+            message.chatId,
+            scenario.sessionX2.accountId,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        authorizeChatAccessForAccount(
+            context.systemAction(scenario.spaceB.id),
+            message.chatId,
+            scenario.sessionX3.accountId,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        authorizeChatAccessForAccount(
+            context.systemAction(scenario.spaceB.id),
+            message.chatId,
+            scenario.sessionB1.accountId,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
 });
 
 testMessagingImplementation<ChatId>(context, {

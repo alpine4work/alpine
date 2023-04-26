@@ -4,6 +4,7 @@ import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
 import {ContentView} from "~/client/content/content_view";
 import {Box} from "~/client/design/box";
+import {PrettyNumber} from "~/client/design/pretty_number";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {LoudNotificationBadge} from "~/client/spaces/loud_notification_badge";
@@ -34,9 +35,26 @@ function InboxChatEntryView({entry}: {entry: InboxChatEntryModel}) {
     return (
         <InboxEntryViewBase
             firstAccount={entry.latestMessage.author}
+            // NOCOMMIT: Add second account here
+            // NOCOMMIT: If we have a second account, use it instead of saying "1 other"
             secondAccount={null}
             loudNotificationCount={entry.loudNotificationCount}
-        ></InboxEntryViewBase>
+        >
+            <Box>
+                <Box display="inline" fontStyle="semi-bold">
+                    <AccountShortName account={entry.latestMessage.author} />
+                </Box>{" "}
+                sent you
+                {entry.chatAccountCount > 2 ? (
+                    <>
+                        {" "}
+                        and <PrettyNumber number={entry.chatAccountCount - 2} label="other" />
+                    </>
+                ) : null}{" "}
+                a chat message
+            </Box>
+            <InboxEntryLatestMessagePreview latestMessage={entry.latestMessage} />
+        </InboxEntryViewBase>
     );
 }
 

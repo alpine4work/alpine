@@ -36,6 +36,7 @@ export class InboxChatEntryModel extends Model(
         spaceId: Schema.id<SpaceId>(),
         accountId: Schema.id<AccountId>(),
         chatId: Schema.id<ChatId>(),
+        chatAccountCount: Schema.integer,
         loudNotificationCount: Schema.integer.min(0),
         latestMessage: Schema.object({
             author: AccountModel.schema(),

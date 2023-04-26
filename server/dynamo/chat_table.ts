@@ -784,32 +784,74 @@ export function sendChatMessage(
 /**
  * Authorize that the current account is allowed to access the chat.
  */
-export async function authorizeChatAccess(
-    context: SessionActionContext,
+export function authorizeChatAccess(context: SessionActionContext, chatId: ChatId) {
+    return authorizeChatAccessForAccount(context, chatId, context.actor.getAccountId());
+}
+
+/**
+ * Authorizes that the provided account has access to the chat.
+ *
+ * If this is a session context, we also check that our session's account has
+ * access to the chat.
+ *
+ * Returns some data related to the chat that exists on the item's we
+ * query for.
+ */
+export async function authorizeChatAccessForAccount(
+    context: ActionContext,
     chatId: ChatId,
-): Promise<{spaceId: SpaceId}> {
-    const [chatItem, chatAccountItem] = await runAllPromises([
+    accountId: AccountId,
+): Promise<{spaceId: SpaceId; chatAccountCount: number}> {
+    const [chatAccountItem] = await runAllPromises([
         (async () => {
-            const chatItem = await ChatTable.getItem(context, {
+            const chatAccountItem = await ChatTable.getItemIfExists(context, {
                 partitionType: "Chat",
-                sortRangeType: "Attributes",
+                sortRangeType: "Account",
                 chatId,
+                accountId,
             });
 
-            await authorizeSpaceAccess(context, chatItem.spaceId);
-            return chatItem;
+            if (!chatAccountItem) {
+                throw new PermissionDeniedError("Account does not have access to chat");
+            }
+
+            await authorizeSpaceAccess(context, chatAccountItem.spaceId);
+            return chatAccountItem;
         })(),
-        ChatTable.getItemIfExists(context, {
-            partitionType: "Chat",
-            sortRangeType: "Account",
-            chatId,
-            accountId: context.actor.getAccountId(),
-        }),
+        (async () => {
+            switch (context.actor.type) {
+                case "Session": {
+                    // We already are already loading our chat account item above.
+                    if (context.actor.getAccountId() === accountId) return;
+
+                    const chatAccountItem = await ChatTable.getItemIfExists(context, {
+                        partitionType: "Chat",
+                        sortRangeType: "Account",
+                        chatId,
+                        accountId: context.actor.getAccountId(),
+                    });
+
+                    if (!chatAccountItem) {
+                        throw new PermissionDeniedError(
+                            "Session account does not have access to chat",
+                        );
+                    }
+                    break;
+                }
+                case "System": {
+                    // If we have access to the space, we have access to the chat...
+                    break;
+                }
+                default:
+                    throw exhaustive(context.actor);
+            }
+        })(),
     ]);
 
-    if (!chatAccountItem) throw new PermissionDeniedError("Account does not have access to chat");
-
-    return {spaceId: chatItem.spaceId};
+    return {
+        spaceId: chatAccountItem.spaceId,
+        chatAccountCount: chatAccountItem.chatAccountCount,
+    };
 }
 
 async function authorizeChatAccessWithItem(
