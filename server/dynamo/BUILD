@@ -19,6 +19,7 @@ ts_project(
         "//:node_modules/@aws-sdk/client-dynamodb",
         "//:node_modules/@types/json-stable-stringify",
         "//:node_modules/aws4fetch",
+        "//:node_modules/byte-base64",
         "//:node_modules/date-fns",
         "//:node_modules/jose",
         "//:node_modules/json-stable-stringify",

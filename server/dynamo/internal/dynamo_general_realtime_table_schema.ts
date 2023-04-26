@@ -997,7 +997,7 @@ export class DynamoGeneralRealtimeTableSchema<
                         isEndSortKeyExclusive,
                         afterItemKey:
                             typeof afterCursor === "string"
-                                ? Index.deserializeOpaqueCursor(afterCursor)
+                                ? Index.deserializeOpaqueCursor(partitionKey, afterCursor)
                                 : undefined,
                         // Fetch one extra item so we can accurately say whether there are more items
                         // at the beginning or end of the query.

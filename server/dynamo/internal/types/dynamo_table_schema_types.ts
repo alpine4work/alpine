@@ -159,6 +159,7 @@ export namespace DynamoTableSchemaTypes {
         };
 
         export type Description = {
+            readonly id: number;
             readonly partitionKeyAttributeByKey: {
                 readonly [key: string]: DynamoKeyAttributeSchemaDescription;
             };
@@ -417,6 +418,7 @@ export namespace DynamoTableSchemaTypes {
         };
 
         export type Description = {
+            readonly id: number;
             readonly orderKey: OrderKey;
             readonly sortKeyAttributeByKey: {
                 readonly [key: string]: DynamoKeyAttributeSchemaDescription;

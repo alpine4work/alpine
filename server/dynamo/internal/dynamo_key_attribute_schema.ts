@@ -1,6 +1,8 @@
 import {DynamoEmailAddressSchema} from "~/server/dynamo/internal/dynamo_email_address_schema";
 import {EmailAddress} from "~/server/emails/email_address";
 import {assert} from "~/shared/helpers/control/assert";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
 import {
     DateString,
     deserializeDateString,
@@ -11,6 +13,7 @@ import {
     maxIsoLexicographicallySortableDate,
     minIsoLexicographicallySortableDate,
 } from "~/shared/helpers/date/max_date";
+import {clamp} from "~/shared/helpers/number/clamp";
 import {
     ElenFloat,
     decodeElenFloatIfPossible,
@@ -21,8 +24,15 @@ import {
     decodeElenIntegerIfPossible,
     encodeElenInteger,
 } from "~/shared/helpers/number/elen_integer";
-import {OrderKey, isOrderKey, maxOrderKey, minOrderKey} from "~/shared/helpers/sort/order_key";
-import {Id, getMaxId, getMinId, isId} from "~/shared/id/id";
+import {
+    OrderKey,
+    isOrderKey,
+    maxOrderKey,
+    minOrderKey,
+    orderKeyDigits,
+} from "~/shared/helpers/sort/order_key";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
+import {Id, decodeIdInto, encodeId, getMaxId, getMinId, isId} from "~/shared/id/id";
 import {
     LabelStringSchema,
     maxLabelString,
@@ -157,6 +167,10 @@ export type DynamoKeyAttributeSchemaDescription =
           readonly schema: DynamoKeyAttributeSchemaDescription;
       };
 
+const orderKeyDigitIndexByChar = new Map<string, number>(
+    orderKeyDigits.split("").map((char, index) => [char, index]),
+);
+
 /**
  * An attribute of a DynamoDB key.
  *
@@ -179,13 +193,21 @@ export class DynamoKeyAttributeSchema<Value> {
 
     private static _id = new DynamoKeyAttributeSchema<Id>({
         description: {type: "Id"},
+
+        minValue: getMinId(),
+        maxValue: getMaxId(),
+
         serialize: value => value,
         deserialize: keyAttribute => {
             assert(isId(keyAttribute));
             return keyAttribute;
         },
-        minValue: getMinId(),
-        maxValue: getMaxId(),
+
+        binary: {
+            getByteCount: () => 16, // 128 bits / 8
+            serializeBytes: (value, bytes, byteOffset) => decodeIdInto(value, bytes, byteOffset),
+            deserializeBytes: (bytes, byteOffset) => encodeId(bytes, byteOffset),
+        },
     });
 
     /**
@@ -195,13 +217,46 @@ export class DynamoKeyAttributeSchema<Value> {
      */
     public static date = new DynamoKeyAttributeSchema<Date>({
         description: {type: "Date"},
+
+        minValue: minIsoLexicographicallySortableDate,
+        maxValue: maxIsoLexicographicallySortableDate,
+
         serialize: serializeDateString,
         deserialize: keyAttribute => {
             assert(isDateString(keyAttribute));
             return deserializeDateString(keyAttribute);
         },
-        minValue: minIsoLexicographicallySortableDate,
-        maxValue: maxIsoLexicographicallySortableDate,
+
+        binary: {
+            getByteCount: () => 8,
+            serializeBytes: (value, bytes, byteOffset) => {
+                const view = new DataView(bytes.buffer);
+                view.setBigInt64(
+                    byteOffset,
+                    // We use a bigint since safe JavaScript integers can go up to 2^53.
+                    BigInt(value.getTime()),
+                    // It is important that we store in big endian format so that when comparing
+                    // bytes without knowledge of the type we get the correct order.
+                    false,
+                );
+
+                // Flip the first bit so the negative sign is 0 instead of 1 putting negative
+                // numbers first.
+                bytes[byteOffset] ^= 0b10000000;
+            },
+            deserializeBytes: (bytes, byteOffset) => {
+                // Clone the bytes before manipulating them so we don't mess up the bytes we
+                // are deserializing from...
+                const clonedBuffer = new ArrayBuffer(8);
+                const clonedBytes = new Uint8Array(clonedBuffer);
+                clonedBytes.set(bytes.slice(byteOffset, byteOffset + 8));
+                clonedBytes[0] ^= 0b10000000;
+
+                const view = new DataView(clonedBytes.buffer);
+                const bigintValue = view.getBigInt64(0, false);
+                return new Date(Number(bigintValue));
+            },
+        },
     });
 
     /**
@@ -212,10 +267,22 @@ export class DynamoKeyAttributeSchema<Value> {
      */
     public static boolean = new DynamoKeyAttributeSchema<boolean>({
         description: {type: "Boolean"},
-        serialize: value => (value ? "true" : "false") as DynamoKeyAttribute,
-        deserialize: value => value === "true",
+
         minValue: false,
         maxValue: true,
+
+        serialize: value => (value ? "true" : "false") as DynamoKeyAttribute,
+        deserialize: value => value === "true",
+
+        binary: {
+            getByteCount: () => 1,
+            serializeBytes: (value, bytes, byteOffset) => {
+                bytes[byteOffset] = value ? 1 : 0;
+            },
+            deserializeBytes: (bytes, byteOffset) => {
+                return bytes[byteOffset] !== 0;
+            },
+        },
     });
 
     /**
@@ -226,25 +293,73 @@ export class DynamoKeyAttributeSchema<Value> {
      */
     public static booleanReversed = new DynamoKeyAttributeSchema<boolean>({
         description: {type: "BooleanReversed"},
-        serialize: value => (value ? "0-true" : "1-false") as DynamoKeyAttribute,
-        deserialize: value => value === "0-true",
+
         minValue: true,
         maxValue: false,
+
+        serialize: value => (value ? "0-true" : "1-false") as DynamoKeyAttribute,
+        deserialize: value => value === "0-true",
+
+        binary: {
+            getByteCount: () => 1,
+            serializeBytes: (value, bytes, byteOffset) => {
+                bytes[byteOffset] = value ? 0 : 1;
+            },
+            deserializeBytes: (bytes, byteOffset) => {
+                return bytes[byteOffset] === 0;
+            },
+        },
     });
 
     /**
-     * Integers are serialized to an `ElenInteger`.
+     * Integers are serialized to an `ElenInteger`. Only supports [safe
+     * JavaScript integers][1].
+     *
+     * [1]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/isSafeInteger
      */
     public static integer = new DynamoKeyAttributeSchema<number>({
         description: {type: "Integer"},
+
+        minValue: Number.MIN_SAFE_INTEGER,
+        maxValue: Number.MAX_SAFE_INTEGER,
+
         serialize: encodeElenInteger,
         deserialize: keyAttribute => {
             const value = decodeElenIntegerIfPossible(keyAttribute);
             assert(value !== null);
             return value;
         },
-        minValue: Number.MIN_SAFE_INTEGER,
-        maxValue: Number.MAX_SAFE_INTEGER,
+
+        binary: {
+            getByteCount: () => 8,
+            serializeBytes: (value, bytes, byteOffset) => {
+                const view = new DataView(bytes.buffer);
+                view.setBigInt64(
+                    byteOffset,
+                    // We use a bigint since safe JavaScript integers can go up to 2^53.
+                    BigInt(value),
+                    // It is important that we store in big endian format so that when comparing
+                    // bytes without knowledge of the type we get the correct order.
+                    false,
+                );
+
+                // Flip the first bit so the negative sign is 0 instead of 1 putting negative
+                // numbers first.
+                bytes[byteOffset] ^= 0b10000000;
+            },
+            deserializeBytes: (bytes, byteOffset) => {
+                // Clone the bytes before manipulating them so we don't mess up the bytes we
+                // are deserializing from...
+                const clonedBuffer = new ArrayBuffer(8);
+                const clonedBytes = new Uint8Array(clonedBuffer);
+                clonedBytes.set(bytes.slice(byteOffset, byteOffset + 8));
+                clonedBytes[0] ^= 0b10000000;
+
+                const view = new DataView(clonedBytes.buffer);
+                const bigintValue = view.getBigInt64(0, false);
+                return Number(bigintValue);
+            },
+        },
     });
 
     /**
@@ -255,16 +370,27 @@ export class DynamoKeyAttributeSchema<Value> {
      */
     public static float = new DynamoKeyAttributeSchema<number>({
         description: {type: "Float"},
+
+        // In the elen encoding of floats, `-NaN` is smaller than `-Infinity` and
+        // `+NaN` is larger than `+Infinity`.
+        minValue: -NaN,
+        maxValue: NaN,
+
         serialize: encodeElenFloat,
         deserialize: keyAttribute => {
             const value = decodeElenFloatIfPossible(keyAttribute);
             assert(value !== null);
             return value;
         },
-        // In the elen encoding of floats, `-NaN` is smaller than `-Infinity` and
-        // `+NaN` is larger than `+Infinity`.
-        minValue: -NaN,
-        maxValue: NaN,
+
+        // Order preserving binary float encodings are challenging to get right. We
+        // also need an encoding that matches our elen encoding that puts NaNs
+        // before/after Infinity.
+        //
+        // See this blog post on the FoundationDB order preserving encoding for a good
+        // encoding example:
+        // https://activesphere.com/blog/2018/08/17/order-preserving-serialization
+        binary: null,
     });
 
     /**
@@ -272,13 +398,54 @@ export class DynamoKeyAttributeSchema<Value> {
      */
     public static orderKey = new DynamoKeyAttributeSchema<OrderKey>({
         description: {type: "OrderKey"},
+
+        minValue: minOrderKey,
+        maxValue: maxOrderKey,
+
         serialize: value => value,
         deserialize: keyAttribute => {
             assert(isOrderKey(keyAttribute));
             return keyAttribute;
         },
-        minValue: minOrderKey,
-        maxValue: maxOrderKey,
+
+        binary: {
+            getByteCount: orderKey => orderKey.length + 1,
+
+            serializeBytes: (orderKey, bytes, byteOffset) => {
+                let byteIndex = byteOffset;
+
+                for (let i = 0; i < orderKey.length; i++) {
+                    const char = orderKey[i]!;
+                    bytes[byteIndex++] =
+                        assertExists(
+                            orderKeyDigitIndexByChar.get(char),
+                            "Unrecognized order key character",
+                        ) + 1;
+                }
+
+                // Null byte terminates the order key.
+                bytes[byteIndex++] = 0;
+            },
+
+            deserializeBytes: (bytes, byteOffset) => {
+                let orderKey = "";
+                let byteIndex = byteOffset;
+
+                while (true) {
+                    const byte = assertExists(
+                        bytes[byteIndex++],
+                        "Unexpected end of order key bytes",
+                    );
+                    if (byte === 0) break;
+                    orderKey += assertExists(
+                        orderKeyDigits[byte - 1],
+                        "Unrecognized order key digit",
+                    );
+                }
+
+                return orderKey as OrderKey;
+            },
+        },
     });
 
     /**
@@ -286,6 +453,10 @@ export class DynamoKeyAttributeSchema<Value> {
      */
     public static labelString = new DynamoKeyAttributeSchema<string>({
         description: {type: "LabelString"},
+
+        minValue: minLabelString,
+        maxValue: maxLabelString,
+
         serialize: value => {
             const serializedString = LabelStringSchema.serialize(value);
             assert(typeof serializedString === "string");
@@ -293,8 +464,20 @@ export class DynamoKeyAttributeSchema<Value> {
         },
         deserialize: keyAttribute =>
             LabelStringSchema.deserialize(deserializeStringDynamoKeyAttribute(keyAttribute)),
-        minValue: minLabelString,
-        maxValue: maxLabelString,
+
+        // Order preserving binary string encodings are challenging to get right. We
+        // can't encode the length at the beginning of the string since longer strings
+        // may sort before shorter strings.
+        //
+        // A possible encoding could be "include the byte 0x01 before every code unit
+        // and terminate the string with 0x00" but that's not efficient.
+        //
+        // Ignoring the problem for now and throwing an unimplemented error...
+        //
+        // See this blog post on the FoundationDB order preserving encoding for a good
+        // encoding example:
+        // https://activesphere.com/blog/2018/08/17/order-preserving-serialization
+        binary: null,
     });
 
     /**
@@ -306,6 +489,10 @@ export class DynamoKeyAttributeSchema<Value> {
      */
     public static emailAddressString = new DynamoKeyAttributeSchema<EmailAddress>({
         description: {type: "EmailAddress"},
+
+        minValue: minLabelString as EmailAddress,
+        maxValue: maxLabelString as EmailAddress,
+
         serialize: value => {
             const serializedString = DynamoEmailAddressSchema.serialize(value);
             assert(typeof serializedString === "string");
@@ -313,8 +500,20 @@ export class DynamoKeyAttributeSchema<Value> {
         },
         deserialize: keyAttribute =>
             DynamoEmailAddressSchema.deserialize(deserializeStringDynamoKeyAttribute(keyAttribute)),
-        minValue: minLabelString as EmailAddress,
-        maxValue: maxLabelString as EmailAddress,
+
+        // Order preserving binary string encodings are challenging to get right. We
+        // can't encode the length at the beginning of the string since longer strings
+        // may sort before shorter strings.
+        //
+        // A possible encoding could be "include the byte 0x01 before every code unit
+        // and terminate the string with 0x00" but that's not efficient.
+        //
+        // Ignoring the problem for now and throwing an unimplemented error...
+        //
+        // See this blog post on the FoundationDB order preserving encoding for a good
+        // encoding example:
+        // https://activesphere.com/blog/2018/08/17/order-preserving-serialization
+        binary: null,
     });
 
     /**
@@ -322,17 +521,6 @@ export class DynamoKeyAttributeSchema<Value> {
      * purposes.
      */
     public readonly description: DynamoKeyAttributeSchemaDescription;
-
-    /**
-     * Serializes the attribute value into a DynamoDB key attribute.
-     */
-    public readonly serialize: (value: Value) => DynamoKeyAttribute;
-
-    /**
-     * Deserializes the DynamoDB key attribute into our attribute value. Throws if
-     * the DynamoDB key attribute is incorrectly formatted.
-     */
-    public readonly deserialize: (keyAttribute: DynamoKeyAttribute) => Value;
 
     /**
      * The smallest value serializable by this schema. Useful for creating
@@ -346,39 +534,231 @@ export class DynamoKeyAttributeSchema<Value> {
      */
     public readonly maxValue: Value;
 
+    /**
+     * Serializes the attribute value into a DynamoDB key attribute.
+     */
+    public readonly serialize: (value: Value) => DynamoKeyAttribute;
+
+    /**
+     * Deserializes the DynamoDB key attribute into our attribute value. Throws if
+     * the DynamoDB key attribute is incorrectly formatted.
+     */
+    public readonly deserialize: (keyAttribute: DynamoKeyAttribute) => Value;
+
+    /**
+     * Binary encoding for key values that preserves key order. Not all of our key
+     * types support a binary format at the moment so this will be null if binary
+     * encoding is unsupported.
+     */
+    public readonly binary: {
+        readonly getByteCount: (value: Value) => number;
+        readonly serializeBytes: (value: Value, bytes: Uint8Array, byteOffset: number) => void;
+        readonly deserializeBytes: (bytes: Uint8Array, byteOffset: number) => Value;
+    } | null;
+
     private constructor({
         description,
-        serialize,
-        deserialize,
         minValue,
         maxValue,
+        serialize,
+        deserialize,
+        binary,
     }: {
         description: DynamoKeyAttributeSchemaDescription;
-        serialize: (value: Value) => DynamoKeyAttribute;
-        deserialize: (keyAttribute: DynamoKeyAttribute) => Value;
         minValue: Value;
         maxValue: Value;
+        serialize: (value: Value) => DynamoKeyAttribute;
+        deserialize: (keyAttribute: DynamoKeyAttribute) => Value;
+        binary: {
+            getByteCount: (value: Value) => number;
+            serializeBytes: (value: Value, bytes: Uint8Array, byteOffset: number) => void;
+            deserializeBytes: (bytes: Uint8Array, byteOffset: number) => Value;
+        } | null;
     }) {
         this.description = description;
-        this.serialize = serialize;
-        this.deserialize = deserialize;
         this.minValue = minValue;
         this.maxValue = maxValue;
+        this.serialize = serialize;
+        this.deserialize = deserialize;
+        this.binary = binary;
 
         // In development and test environments, make sure our value is within the min
-        // max value bounds. In production we don't check to avoid extra overhead in a
-        // hot code path.
+        // and max value bounds. In production we don't check to avoid extra overhead
+        // in a hot code path.
+        //
+        // Also make sure the sort order of serialized values is consistent across
+        // string serialization and binary serialization. Make sure that string and
+        // binary deserialization can also deserialize to the same value we serialized.
         if (process.env.NODE_ENV !== "production") {
-            const serializedMinValue = serialize(minValue);
-            const serializedMaxValue = serialize(maxValue);
-            assert(serializedMinValue <= serializedMaxValue);
+            const serializedStringMinValue = serialize(minValue);
+            const serializedStringMaxValue = serialize(maxValue);
+            assert(
+                serializedStringMinValue <= serializedStringMaxValue,
+                "Key minimum value is not smaller than key maximum value when serialized to a string",
+            );
+
+            let serializedBinaryMinValue: Uint8Array | null = null;
+            let serializedBinaryMaxValue: Uint8Array | null = null;
+            if (binary) {
+                serializedBinaryMinValue = new Uint8Array(binary.getByteCount(minValue));
+                serializedBinaryMaxValue = new Uint8Array(binary.getByteCount(maxValue));
+                binary.serializeBytes(minValue, serializedBinaryMinValue, 0);
+                binary.serializeBytes(maxValue, serializedBinaryMaxValue, 0);
+                assert(
+                    compareBytes(serializedBinaryMinValue, serializedBinaryMaxValue) !== 1,
+                    "Key minimum value is not smaller than key maximum value when serialized to binary",
+                );
+            }
+
+            const maxTestValueCount = 25;
+            const testValues: Array<{
+                value: Value;
+                serializedStringValue: string;
+                serializedBinaryValue: Uint8Array | null;
+            }> = [];
+            let nextTestValueIndex = 0;
+
+            const runValueTests = (value: Value) => {
+                const serializedStringValue = serialize(value);
+
+                // Test that when serializing to a string we can deserialize the value back to
+                // the exact same value and that the string falls within our minimum and
+                // maximum values.
+                {
+                    assert(
+                        serializedStringValue === serialize(deserialize(serializedStringValue)),
+                        "Could not deserialize to same value when serializing to a string",
+                    );
+
+                    assert(
+                        serializedStringValue >= serializedStringMinValue,
+                        "Serialized key value is smaller than minimum key value when serialized to a string",
+                    );
+
+                    assert(
+                        serializedStringValue <= serializedStringMaxValue,
+                        "Serialized key value is larger than maximum key value when serialized to a string",
+                    );
+                }
+
+                let serializedBinaryValue: Uint8Array | null = null;
+
+                // Test that when serializing to binary we can deserialize the value back to
+                // the exact same value and that the string falls within our minimum and
+                // maximum values.
+                if (binary) {
+                    serializedBinaryValue = new Uint8Array(binary.getByteCount(value));
+                    binary.serializeBytes(value, serializedBinaryValue, 0);
+
+                    const value2 = binary.deserializeBytes(serializedBinaryValue, 0);
+                    const serializedBinaryValue2 = new Uint8Array(binary.getByteCount(value2));
+                    binary.serializeBytes(value2, serializedBinaryValue2, 0);
+
+                    assert(
+                        compareBytes(serializedBinaryValue, serializedBinaryValue2) === 0,
+                        "Could not deserialize to same value when serializing to binary",
+                    );
+
+                    assert(
+                        compareBytes(
+                            serializedBinaryValue,
+                            assertExists(serializedBinaryMinValue),
+                        ) !== -1,
+                        "Serialized key value is smaller than minimum key value when serialized to binary",
+                    );
+
+                    assert(
+                        compareBytes(
+                            serializedBinaryValue,
+                            assertExists(serializedBinaryMaxValue),
+                        ) !== 1,
+                        "Serialized key value is larger than maximum key value when serialized to binary",
+                    );
+                }
+
+                // Ignore min/max values since we've already our values orders relative
+                // to them.
+                if (
+                    serializedStringValue === serializedStringMinValue ||
+                    serializedStringValue === serializedStringMaxValue
+                ) {
+                    assert(nextTestValueIndex <= testValues.length);
+
+                    if (nextTestValueIndex < testValues.length) {
+                        testValues[nextTestValueIndex] = {
+                            value,
+                            serializedStringValue,
+                            serializedBinaryValue,
+                        };
+                    } else {
+                        testValues.push({
+                            value,
+                            serializedStringValue,
+                            serializedBinaryValue,
+                        });
+                    }
+
+                    nextTestValueIndex++;
+
+                    // We don't want to collect more than `maxTestValueCount` for testing. Reset the
+                    // index back to zero once we've collected our max.
+                    if (nextTestValueIndex === maxTestValueCount) nextTestValueIndex = 0;
+                }
+
+                // Test that values serialized to a string and values serialized to binary
+                // have the same sort order.
+                if (binary) {
+                    const sortedSerializedStringValues = new Map(
+                        Array.from(testValues)
+                            .sort((a, b) =>
+                                defaultCompareStrings(
+                                    a.serializedStringValue,
+                                    b.serializedStringValue,
+                                ),
+                            )
+                            .map(({value}, index) => [value, index]),
+                    );
+
+                    const sortedSerializedBinaryValues = new Map(
+                        Array.from(testValues)
+                            .sort((a, b) =>
+                                compareBytes(
+                                    assertExists(a.serializedBinaryValue),
+                                    assertExists(b.serializedBinaryValue),
+                                ),
+                            )
+                            .map(({value}, index) => [value, index]),
+                    );
+
+                    assert(
+                        isDeepEqual(sortedSerializedStringValues, sortedSerializedBinaryValues),
+                        "Sort order when serializing key values to string is different from sort order when serializing key values to binary",
+                    );
+                }
+
+                return {serializedStringValue, serializedBinaryValue};
+            };
 
             this.serialize = value => {
-                const serializedValue = serialize(value);
-                assert(serializedValue >= serializedMinValue);
-                assert(serializedValue <= serializedMaxValue);
-                return serializedValue;
+                // Test that string serialization and binary serialization produce consistent
+                // sort orders. It is very bad if they do not!
+                //
+                // Conveniently, this function also serializes our value to a string.
+                return runValueTests(value).serializedStringValue;
             };
+
+            if (binary) {
+                this.binary = {
+                    ...binary,
+                    serializeBytes: (value, bytes, byteOffset) => {
+                        binary.serializeBytes(value, bytes, byteOffset);
+
+                        // Test that string serialization and binary serialization produce consistent
+                        // sort orders. It is very bad if they do not!
+                        runValueTests(value);
+                    },
+                };
+            }
         }
     }
 
@@ -389,8 +769,14 @@ export class DynamoKeyAttributeSchema<Value> {
      * byte order from the input string.
      */
     public reverse(): DynamoKeyAttributeSchema<Value> {
+        const {binary} = this;
+
         return new DynamoKeyAttributeSchema<Value>({
             description: {type: "Reverse", schema: this.description},
+
+            minValue: this.maxValue,
+            maxValue: this.minValue,
+
             serialize: value => {
                 const keyAttribute = this.serialize(value);
                 return serializeReversedDynamoKeyAttribute(keyAttribute);
@@ -399,8 +785,37 @@ export class DynamoKeyAttributeSchema<Value> {
                 const keyAttribute = deserializeReversedDynamoKeyAttribute(reversedKeyAttribute);
                 return this.deserialize(keyAttribute);
             },
-            minValue: this.maxValue,
-            maxValue: this.minValue,
+
+            binary: binary
+                ? {
+                      getByteCount: value => binary.getByteCount(value),
+                      serializeBytes: (value, bytes, byteOffset) => {
+                          binary.serializeBytes(value, bytes, byteOffset);
+
+                          const byteCount = binary.getByteCount(value);
+                          for (
+                              let byteIndex = byteOffset;
+                              byteIndex < byteOffset + byteCount;
+                              byteIndex++
+                          ) {
+                              bytes[byteIndex] = ~bytes[byteIndex]!;
+                          }
+                      },
+                      deserializeBytes: (bytes, byteOffset) => {
+                          // Clone bytes before deserializing them so we don't change what's in the
+                          // source buffer we're parsing from.
+                          const clonedBuffer = new ArrayBuffer(bytes.byteLength - byteOffset);
+                          const clonedBytes = new Uint8Array(clonedBuffer);
+                          clonedBytes.set(bytes.slice(byteOffset));
+
+                          for (let i = 0; i < clonedBytes.length; i++) {
+                              clonedBytes[i] = ~clonedBytes[i]!;
+                          }
+
+                          return binary.deserializeBytes(clonedBytes, 0);
+                      },
+                  }
+                : null,
         });
     }
 
@@ -420,8 +835,17 @@ export class DynamoKeyAttributeSchema<Value> {
         const nullPrefix = nullsOrder === "First" ? "0" : "1";
         const nonNullPrefix = nullsOrder === "First" ? "1" : "0";
 
+        const nullBytePrefix = nullsOrder === "First" ? 0 : 1;
+        const nonNullBytePrefix = nullsOrder === "First" ? 1 : 0;
+
+        const {binary} = this;
+
         return new DynamoKeyAttributeSchema<Value | null>({
             description: {type: "Nullable", nullsOrder, schema: this.description},
+
+            minValue: nullsOrder === "First" ? null : this.minValue,
+            maxValue: nullsOrder === "First" ? this.maxValue : null,
+
             serialize: value => {
                 if (value === null) return nullPrefix as DynamoKeyAttribute;
                 const keyAttribute = this.serialize(value);
@@ -433,8 +857,30 @@ export class DynamoKeyAttributeSchema<Value> {
                 const keyAttribute = nullableKeyAttribute.slice(2) as DynamoKeyAttribute;
                 return this.deserialize(keyAttribute);
             },
-            minValue: nullsOrder === "First" ? null : this.minValue,
-            maxValue: nullsOrder === "First" ? this.maxValue : null,
+
+            binary: binary
+                ? {
+                      getByteCount: value => {
+                          if (value === null) return 1;
+                          return binary.getByteCount(value) + 1;
+                      },
+                      serializeBytes: (value, bytes, byteOffset) => {
+                          if (value === null) {
+                              bytes[byteOffset] = nullBytePrefix;
+                          } else {
+                              bytes[byteOffset] = nonNullBytePrefix;
+                              binary.serializeBytes(value, bytes, byteOffset + 1);
+                          }
+                      },
+                      deserializeBytes: (bytes, byteOffset) => {
+                          if (bytes[byteOffset] === nullBytePrefix) {
+                              return null;
+                          } else {
+                              return binary.deserializeBytes(bytes, byteOffset + 1);
+                          }
+                      },
+                  }
+                : null,
         });
     }
 }
@@ -570,4 +1016,17 @@ export function deserializeReversedDynamoKeyAttribute(
     }
 
     return chars.join("") as DynamoKeyAttribute;
+}
+
+function compareBytes(bytes1: Uint8Array, bytes2: Uint8Array): number {
+    for (let i = 0; i < Math.min(bytes1.length, bytes2.length); i++) {
+        const byte1 = bytes1[i]!;
+        const byte2 = bytes2[i]!;
+        const order = byte1 - byte2;
+        if (order !== 0) return clamp(-1, order, 1);
+    }
+
+    if (bytes1.length < bytes2.length) return -1;
+    if (bytes1.length > bytes2.length) return 1;
+    return 0;
 }

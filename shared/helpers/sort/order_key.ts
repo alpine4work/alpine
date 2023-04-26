@@ -27,7 +27,7 @@ import {assert} from "~/shared/helpers/control/assert";
  */
 export type OrderKey = string & {readonly _OrderKey: never};
 
-const orderKeyDigits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+export const orderKeyDigits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 let orderKeyDigitsSet: Set<string>;
 
 /**

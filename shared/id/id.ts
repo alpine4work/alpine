@@ -96,15 +96,15 @@ export function generateId<Value extends Id>(): Value {
 /**
  * Encodes 128 bits (16 bytes) into an `Id`.
  */
-export function encodeId(bytes: Uint8Array): Id {
-    assert(bytes.length >= 16);
+export function encodeId(bytes: Uint8Array, byteOffset: number = 0): Id {
+    assert(bytes.length - byteOffset >= 16);
 
     let bits = 0;
     let value = 0;
     let id = "";
 
-    for (let i = 0; i < bytes.length; i++) {
-        value = (value << 8) | bytes[i]!;
+    for (let byteIndex = byteOffset; byteIndex < byteOffset + 16; byteIndex++) {
+        value = (value << 8) | bytes[byteIndex]!;
         bits += 8;
 
         while (bits >= 5) {
@@ -133,8 +133,8 @@ export function decodeId(id: Id): Uint8Array {
  * Decodes an `Id` into 128 bytes (16 bytes) by mutating an existing typed
  * array. Useful if you want to decode an `Id` into an existing buffer.
  */
-export function decodeIdInto(id: Id, bytes: Uint8Array): void {
-    assert(bytes.length >= 16);
+export function decodeIdInto(id: Id, bytes: Uint8Array, byteOffset: number = 0): void {
+    assert(bytes.length - byteOffset >= 16);
 
     // Lazily initialize the alphabet reverse map.
     if (!alphabetReverseMap) {
@@ -145,7 +145,7 @@ export function decodeIdInto(id: Id, bytes: Uint8Array): void {
     }
 
     let idIndex = 0;
-    let byteIndex = 0;
+    let byteIndex = byteOffset;
 
     const iterations = (idLength >> 3) << 3;
     while (idIndex < iterations) {

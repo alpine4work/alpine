@@ -1,4 +1,5 @@
 import {AttributeValue} from "@aws-sdk/client-dynamodb";
+import {base64ToBytes, bytesToBase64} from "byte-base64";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
 import {
@@ -33,6 +34,7 @@ import {
     InternalError,
     InvalidArgumentError,
     NotFoundError,
+    UnimplementedError,
 } from "~/shared/error/error";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
@@ -46,6 +48,7 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
+import {pickObject} from "~/shared/helpers/object/pick_object";
 import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order_key";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier";
@@ -190,15 +193,18 @@ type DynamoTableSchemaInitializationState =
            * compatibility error should go away.
            */
           readonly writeCompatibilityError: Error | null;
-      };
 
-/**
- * Our opaque strings are multiple DynamoDB keys combined together. Our
- * separator character needs to be less than all other characters in a key so
- * they sort correctly and can be split back apart.
- */
-const dynamoOpaqueStringSeparator = " ";
-assert(dynamoOpaqueStringSeparator.charCodeAt(0) < dynamoKeySeparator.charCodeAt(0));
+          /**
+           * Names for a partition and its sort ranges by their integer ID.
+           */
+          readonly partitionNamesById: Map<
+              number,
+              {
+                  readonly partitionName: string;
+                  readonly sortRangeNameById: Map<number, string>;
+              }
+          >;
+      };
 
 export type DynamoTableSchemaTypesBase = Replace<
     DynamoTableSchemaTypes.Types<DynamoTableSchemaTypes.ConfigBase>,
@@ -461,12 +467,35 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     this._initializationState.indexDescriptions,
                 );
 
+            const partitionNamesById = new Map<
+                number,
+                {partitionName: string; sortRangeNameById: Map<number, string>}
+            >();
+
+            for (const [partitionName, partitionDescription] of Object.entries(
+                description.partitionByType,
+            )) {
+                const sortRangeNameById = new Map<number, string>();
+
+                for (const [sortRangeName, sortRangeDescription] of Object.entries(
+                    partitionDescription.sortRangeByType,
+                )) {
+                    sortRangeNameById.set(sortRangeDescription.id, sortRangeName);
+                }
+
+                partitionNamesById.set(partitionDescription.id, {
+                    partitionName,
+                    sortRangeNameById,
+                });
+            }
+
             this._initializationState = {
                 isInitialized: true,
                 indexConfigsByItemType: this._initializationState.indexConfigsByItemType,
                 description: description,
                 readCompatibilityError: readCompatibilityError,
                 writeCompatibilityError: writeCompatibilityError,
+                partitionNamesById,
             };
         });
     }
@@ -789,27 +818,165 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      *
      * Remember this data is not secured in any way! If you share this with a
      * client then the client should be able to see all data in the item's
-     * primary key
+     * primary key.
      */
     public serializeOpaqueItemKey(key: Types["ItemKey"] | Types["Item"]): DynamoItemKey {
-        const {partitionKey, sortKey} = this._serializeItemKey(key);
-        return btoa([partitionKey, sortKey].join(dynamoOpaqueStringSeparator)) as DynamoItemKey;
+        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
+        const partitionConfig = this._partitionConfigByName.get(key.partitionType);
+        const partitionDescription =
+            this._initializationState.description.partitionByType[key.partitionType];
+        assert(partitionConfig && partitionDescription, "Invalid partition");
+        const sortRangeConfig = partitionConfig.sortRangeByName.get(key.sortRangeType);
+        const sortRangeDescription = partitionDescription.sortRangeByType[key.sortRangeType];
+        assert(sortRangeConfig && sortRangeDescription, "Invalid sort range");
+
+        let totalByteCount = 0;
+
+        totalByteCount++;
+        for (const [attributeKey, attributeSchema] of Object.entries(
+            partitionConfig.partitionKeyAttributes,
+        )) {
+            if (!attributeSchema.binary) {
+                throw new UnimplementedError(
+                    quote`Can't use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
+                );
+            }
+            totalByteCount += attributeSchema.binary.getByteCount(key[attributeKey]);
+        }
+
+        totalByteCount += DynamoKeyAttributeSchema.orderKey.binary!.getByteCount(
+            sortRangeDescription.orderKey,
+        );
+        totalByteCount++;
+        for (const [attributeKey, attributeSchema] of Object.entries(
+            sortRangeConfig.sortKeyAttributes,
+        )) {
+            if (!attributeSchema.binary) {
+                throw new UnimplementedError(
+                    quote`Can't use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
+                );
+            }
+            totalByteCount += attributeSchema.binary.getByteCount(key[attributeKey]);
+        }
+
+        const bytes = new Uint8Array(totalByteCount);
+        let byteIndex = 0;
+
+        bytes[byteIndex++] = partitionDescription.id;
+        for (const [attributeKey, attributeSchema] of Object.entries(
+            partitionConfig.partitionKeyAttributes,
+        )) {
+            const attributeValue = key[attributeKey];
+            attributeSchema.binary!.serializeBytes(attributeValue, bytes, byteIndex);
+            byteIndex += attributeSchema.binary!.getByteCount(attributeValue);
+        }
+
+        DynamoKeyAttributeSchema.orderKey.binary!.serializeBytes(
+            sortRangeDescription.orderKey,
+            bytes,
+            byteIndex,
+        );
+        byteIndex += DynamoKeyAttributeSchema.orderKey.binary!.getByteCount(
+            sortRangeDescription.orderKey,
+        );
+
+        bytes[byteIndex++] = sortRangeDescription.id;
+
+        for (const [attributeKey, attributeSchema] of Object.entries(
+            sortRangeConfig.sortKeyAttributes,
+        )) {
+            const attributeValue = key[attributeKey];
+            attributeSchema.binary!.serializeBytes(attributeValue, bytes, byteIndex);
+            byteIndex += attributeSchema.binary!.getByteCount(attributeValue);
+        }
+
+        const opaqueString = bytesToBase64(bytes) as DynamoItemKey;
+
+        // In development and test environments, make sure we can deserialize our
+        // opaque keys.
+        if (process.env.NODE_ENV !== "production") {
+            const deserializedKey = this.deserializeOpaqueItemKey(opaqueString);
+            assert(
+                isDeepEqual(pickObject(key, Object.keys(deserializedKey)), deserializedKey),
+                "Couldn't deserialize opaque item key",
+            );
+        }
+
+        return opaqueString;
     }
 
     /**
      * Deserialize the item key from our opaque string format that is shared with
      * clients.
      */
-    public deserializeOpaqueItemKey(key: DynamoItemKey): Types["ItemKey"] {
-        const parts = atob(key).split(dynamoOpaqueStringSeparator);
-        if (parts.length !== 2)
-            throw new InvalidArgumentError("Invalid opaque item key: Wrong number of parts");
-
-        const partitionKey = parts[0]!;
-        const sortKey = parts[1]!;
+    public deserializeOpaqueItemKey(opaqueString: DynamoItemKey): Types["ItemKey"] {
+        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
 
         try {
-            const {key} = this._deserializeItemKey(partitionKey, sortKey);
+            const bytes = base64ToBytes(opaqueString);
+
+            const key: any = {};
+            let bytesIndex = 0;
+
+            const partitionNames = this._initializationState.partitionNamesById.get(
+                bytes[bytesIndex++]!,
+            );
+            assert(partitionNames, "Invalid partition key");
+
+            const partitionConfig = this._partitionConfigByName.get(partitionNames.partitionName);
+            const partitionDescription =
+                this._initializationState.description.partitionByType[partitionNames.partitionName];
+            assert(partitionConfig && partitionDescription, "Invalid partition key");
+
+            key.partitionType = partitionNames.partitionName;
+
+            for (const [attributeKey, attributeSchema] of Object.entries(
+                partitionConfig.partitionKeyAttributes,
+            )) {
+                if (!attributeSchema.binary) {
+                    throw new UnimplementedError(
+                        quote`Can't use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
+                    );
+                }
+
+                const value = attributeSchema.binary.deserializeBytes(bytes, bytesIndex);
+                bytesIndex += attributeSchema.binary.getByteCount(value);
+
+                key[attributeKey] = value;
+            }
+
+            const orderKey = DynamoKeyAttributeSchema.orderKey.binary!.deserializeBytes(
+                bytes,
+                bytesIndex,
+            );
+            bytesIndex += DynamoKeyAttributeSchema.orderKey.binary!.getByteCount(orderKey);
+
+            const sortRangeName = partitionNames.sortRangeNameById.get(bytes[bytesIndex++]!);
+            assert(sortRangeName, "Invalid sort key");
+
+            const sortRangeConfig = partitionConfig.sortRangeByName.get(sortRangeName);
+            const sortRangeDescription = partitionDescription.sortRangeByType[sortRangeName];
+            assert(sortRangeConfig && sortRangeDescription, "Invalid sort key");
+
+            assert(orderKey === sortRangeDescription.orderKey, "Invalid sort key");
+
+            key.sortRangeType = sortRangeName;
+
+            for (const [attributeKey, attributeSchema] of Object.entries(
+                sortRangeConfig.sortKeyAttributes,
+            )) {
+                if (!attributeSchema.binary) {
+                    throw new UnimplementedError(
+                        quote`Can't use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
+                    );
+                }
+
+                const value = attributeSchema.binary.deserializeBytes(bytes, bytesIndex);
+                bytesIndex += attributeSchema.binary.getByteCount(value);
+
+                key[attributeKey] = value;
+            }
+
             return key;
         } catch (error) {
             throw InvalidArgumentError.from(error, "Invalid opaque item key");
@@ -827,7 +994,39 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     public serializeOpaqueItemPartitionKey(
         key: Types["PartitionKey"] | Types["ItemKey"] | Types["Item"],
     ): string {
-        return btoa(this._serializePartitionKey(key));
+        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
+        const partitionConfig = this._partitionConfigByName.get(key.partitionType);
+        const partitionDescription =
+            this._initializationState.description.partitionByType[key.partitionType];
+        assert(partitionConfig && partitionDescription, "Invalid partition");
+
+        let totalByteCount = 0;
+
+        totalByteCount++;
+        for (const [attributeKey, attributeSchema] of Object.entries(
+            partitionConfig.partitionKeyAttributes,
+        )) {
+            if (!attributeSchema.binary) {
+                throw new UnimplementedError(
+                    quote`Can't use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
+                );
+            }
+            totalByteCount += attributeSchema.binary.getByteCount(key[attributeKey]);
+        }
+
+        const bytes = new Uint8Array(totalByteCount);
+        let bytesIndex = 0;
+
+        bytes[bytesIndex++] = partitionDescription.id;
+        for (const [attributeKey, attributeSchema] of Object.entries(
+            partitionConfig.partitionKeyAttributes,
+        )) {
+            const attributeValue = key[attributeKey];
+            attributeSchema.binary!.serializeBytes(attributeValue, bytes, bytesIndex);
+            bytesIndex += attributeSchema.binary!.getByteCount(attributeValue);
+        }
+
+        return bytesToBase64(bytes) as DynamoItemKey;
     }
 
     /**
@@ -2465,8 +2664,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
             serializeOpaqueCursor: itemKey =>
                 this._serializeOpaqueIndexCursor(indexConfig, itemKey),
-            deserializeOpaqueCursor: cursor =>
-                this._deserializeOpaqueIndexCursor(indexConfig, cursor),
+            deserializeOpaqueCursor: (partitionKey, cursor) =>
+                this._deserializeOpaqueIndexCursor(indexConfig, partitionKey, cursor),
 
             async *query(
                 context,
@@ -2623,8 +2822,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
             serializeOpaqueCursor: itemKey =>
                 this._serializeOpaqueIndexCursor(indexConfig, itemKey),
-            deserializeOpaqueCursor: cursor =>
-                this._deserializeOpaqueIndexCursor(indexConfig, cursor),
+            deserializeOpaqueCursor: (partitionKey, cursor) =>
+                this._deserializeOpaqueIndexCursor(indexConfig, partitionKey, cursor),
 
             async *query(
                 context,
@@ -3028,6 +3227,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 }
             }
 
+            sortKeyEntries.push(sortRangeDescription.orderKey);
             sortKeyEntries.push(item.sortRangeType);
             for (const [attributeKey, attributeSchema] of Object.entries(
                 sortRangeConfig.sortKeyAttributes,
@@ -3080,126 +3280,280 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         return key;
     }
 
+    // NOTE(calebmer): We don't include the index partition key in the cursor! Only
+    // the sort key. We use cursors for:
+    //
+    // 1. Let clients resume pagination from a specific item. A cursor is better to
+    //    use than the index sort key alone since it uniquely identifies an item in
+    //    the list.
+    //
+    // 2. When `includePrimaryKeyInSortKey` is enabled you can use cursors to sort
+    //    items relative to each other on the client.
+    //
+    // Both these use cases do not need a partition key. For 1 we should provide
+    // the partition key alongside the cursor anyway and for 2 the partition key
+    // does not contribute to order.
     private _serializeOpaqueIndexCursor(
         indexConfig: DynamoTableSchemaIndexInternalConfig,
         item: {[key: string]: unknown},
     ): DynamoIndexCursor {
-        const indexPartitionKey = this._serializeIndexPartitionKey(indexConfig, item);
-        const indexSortKey = this._serializeItemIndexSortKey(indexConfig, item);
+        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
+        assert(typeof item.partitionType === "string");
+        assert(typeof item.sortRangeType === "string");
+        const partitionConfig = this._partitionConfigByName.get(item.partitionType);
+        const partitionDescription =
+            this._initializationState.description.partitionByType[item.partitionType];
+        assert(partitionConfig && partitionDescription, "Invalid partition");
+        const sortRangeConfig = partitionConfig.sortRangeByName.get(item.sortRangeType);
+        const sortRangeDescription = partitionDescription.sortRangeByType[item.sortRangeType];
+        assert(sortRangeConfig && sortRangeDescription, "Invalid sort range");
 
-        // The primary key is already included in the index key so we don't need to
-        // include it in the cursor.
-        if (indexConfig.includePrimaryKeyInSortKey) {
-            return btoa(
-                [indexPartitionKey, indexSortKey].join(dynamoOpaqueStringSeparator),
-            ) as DynamoIndexCursor;
+        let totalByteCount = 0;
+
+        for (const [attributeKey, attributeSchema] of Object.entries(
+            indexConfig.sortKeyAttributes,
+        )) {
+            if (!attributeSchema.binary) {
+                throw new UnimplementedError(
+                    quote`Can't use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
+                );
+            }
+            const attributeValue = item[attributeKey];
+            totalByteCount += attributeSchema.binary.getByteCount(attributeValue);
         }
 
-        const {partitionKey, sortKey} = this._serializeItemKey(item);
+        totalByteCount += 1;
+        for (const [attributeKey, attributeSchema] of Object.entries(
+            partitionConfig.partitionKeyAttributes,
+        )) {
+            // We need the primary key to be included in our cursor to correctly resume
+            // pagination from the right place. But only include attributes from our
+            // primary key that are not already included in the index key attributes to
+            // avoid duplicating data.
+            if (
+                !hasOwnProperty(indexConfig.partitionKeyAttributes, attributeKey) &&
+                !hasOwnProperty(indexConfig.sortKeyAttributes, attributeKey)
+            ) {
+                if (!attributeSchema.binary) {
+                    throw new UnimplementedError(
+                        quote`Can't use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
+                    );
+                }
+                totalByteCount += attributeSchema.binary.getByteCount(item[attributeKey]);
+            }
+        }
 
-        return btoa(
-            [indexPartitionKey, indexSortKey, partitionKey, sortKey].join(
-                dynamoOpaqueStringSeparator,
-            ),
-        ) as DynamoIndexCursor;
+        totalByteCount += DynamoKeyAttributeSchema.orderKey.binary!.getByteCount(
+            sortRangeDescription.orderKey,
+        );
+        totalByteCount += 1;
+        for (const [attributeKey, attributeSchema] of Object.entries(
+            sortRangeConfig.sortKeyAttributes,
+        )) {
+            // We need the primary key to be included in our cursor to correctly resume
+            // pagination from the right place. But only include attributes from our
+            // primary key that are not already included in the index key attributes to
+            // avoid duplicating data.
+            if (
+                !hasOwnProperty(indexConfig.partitionKeyAttributes, attributeKey) &&
+                !hasOwnProperty(indexConfig.sortKeyAttributes, attributeKey)
+            ) {
+                if (!attributeSchema.binary) {
+                    throw new UnimplementedError(
+                        quote`Can't use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
+                    );
+                }
+                totalByteCount += attributeSchema.binary.getByteCount(item[attributeKey]);
+            }
+        }
+
+        const bytes = new Uint8Array(totalByteCount);
+        let byteIndex = 0;
+
+        for (const [attributeKey, attributeSchema] of Object.entries(
+            indexConfig.sortKeyAttributes,
+        )) {
+            const attributeValue = item[attributeKey];
+            attributeSchema.binary!.serializeBytes(attributeValue, bytes, byteIndex);
+            byteIndex += attributeSchema.binary!.getByteCount(attributeValue);
+        }
+
+        bytes[byteIndex++] = partitionDescription.id;
+        for (const [attributeKey, attributeSchema] of Object.entries(
+            partitionConfig.partitionKeyAttributes,
+        )) {
+            // We need the primary key to be included in our cursor to correctly resume
+            // pagination from the right place. But only include attributes from our
+            // primary key that are not already included in the index key attributes to
+            // avoid duplicating data.
+            if (
+                !hasOwnProperty(indexConfig.partitionKeyAttributes, attributeKey) &&
+                !hasOwnProperty(indexConfig.sortKeyAttributes, attributeKey)
+            ) {
+                const attributeValue = item[attributeKey];
+                attributeSchema.binary!.serializeBytes(attributeValue, bytes, byteIndex);
+                byteIndex += attributeSchema.binary!.getByteCount(attributeValue);
+            }
+        }
+
+        DynamoKeyAttributeSchema.orderKey.binary!.serializeBytes(
+            sortRangeDescription.orderKey,
+            bytes,
+            byteIndex,
+        );
+        byteIndex += DynamoKeyAttributeSchema.orderKey.binary!.getByteCount(
+            sortRangeDescription.orderKey,
+        );
+
+        bytes[byteIndex++] = sortRangeDescription.id;
+
+        for (const [attributeKey, attributeSchema] of Object.entries(
+            sortRangeConfig.sortKeyAttributes,
+        )) {
+            // We need the primary key to be included in our cursor to correctly resume
+            // pagination from the right place. But only include attributes from our
+            // primary key that are not already included in the index key attributes to
+            // avoid duplicating data.
+            if (
+                !hasOwnProperty(indexConfig.partitionKeyAttributes, attributeKey) &&
+                !hasOwnProperty(indexConfig.sortKeyAttributes, attributeKey)
+            ) {
+                const attributeValue = item[attributeKey];
+                attributeSchema.binary!.serializeBytes(attributeValue, bytes, byteIndex);
+                byteIndex += attributeSchema.binary!.getByteCount(attributeValue);
+            }
+        }
+
+        const opaqueString = bytesToBase64(bytes) as DynamoIndexCursor;
+
+        // In development and test environments, make sure we can deserialize our
+        // opaque keys.
+        if (process.env.NODE_ENV !== "production") {
+            const deserializedKey = this._deserializeOpaqueIndexCursor(
+                indexConfig,
+                item,
+                opaqueString,
+            );
+            assert(
+                isDeepEqual(pickObject(item, Object.keys(deserializedKey)), deserializedKey),
+                "Couldn't deserialize opaque index cursor",
+            );
+        }
+
+        return opaqueString;
     }
 
     private _deserializeOpaqueIndexCursor(
         indexConfig: DynamoTableSchemaIndexInternalConfig,
-        key: DynamoIndexCursor,
+        partitionKey: {[key: string]: any},
+        opaqueString: DynamoIndexCursor,
     ) {
-        const parts = atob(key).split(dynamoOpaqueStringSeparator);
-
-        // If the primary key is not included in the index sort key then cursors are
-        // simple. It's our four keys that we can deserialize directly.
-        if (!indexConfig.includePrimaryKeyInSortKey) {
-            if (parts.length !== 4) {
-                throw new InvalidArgumentError(
-                    "Invalid opaque index cursor: Wrong number of parts",
-                );
-            }
-
-            const indexPartitionKey = parts[0]!;
-            const indexSortKey = parts[1]!;
-            const partitionKey = parts[2]!;
-            const sortKey = parts[3]!;
-
-            try {
-                return {
-                    ...this._deserializeItemKey(partitionKey, sortKey),
-                    ...this._deserializeIndexKey(indexConfig, indexPartitionKey, indexSortKey),
-                };
-            } catch (error) {
-                throw InvalidArgumentError.from(error, "Invalid opaque index cursor");
-            }
-        }
-
-        // Otherwise, the primary key is included in the index sort key. This means all
-        // primary key attributes that don't appear in the index are appended to the
-        // end of the index sort key so we need to deserialize from there.
-
-        if (parts.length !== 2) {
-            throw new InvalidArgumentError("Invalid opaque index cursor: Wrong number of parts");
-        }
-
-        const indexPartitionKey = parts[0]!;
-        const indexSortKey = parts[1]!;
+        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
 
         try {
-            const deserializedKey = this._deserializeIndexKey(
-                indexConfig,
-                indexPartitionKey,
-                indexSortKey,
+            const bytes = base64ToBytes(opaqueString);
+
+            const key: any = {};
+            let bytesIndex = 0;
+
+            // Copy index partition key attributes to the key object we're deserializing.
+            for (const attributeKey of Object.keys(indexConfig.partitionKeyAttributes)) {
+                key[attributeKey] = partitionKey[attributeKey];
+            }
+
+            for (const [attributeKey, attributeSchema] of Object.entries(
+                indexConfig.sortKeyAttributes,
+            )) {
+                if (!attributeSchema.binary) {
+                    throw new UnimplementedError(
+                        quote`Can't use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
+                    );
+                }
+
+                const value = attributeSchema.binary.deserializeBytes(bytes, bytesIndex);
+                bytesIndex += attributeSchema.binary.getByteCount(value);
+
+                key[attributeKey] = value;
+            }
+
+            const partitionNames = this._initializationState.partitionNamesById.get(
+                bytes[bytesIndex++]!,
             );
+            assert(partitionNames, "Invalid partition key");
 
-            const sortKeyEntries = indexSortKey.split(dynamoKeySeparator);
-            let sortKeyEntryIndex = Object.keys(indexConfig.sortKeyAttributes).length;
+            const partitionConfig = this._partitionConfigByName.get(partitionNames.partitionName);
+            const partitionDescription =
+                this._initializationState.description.partitionByType[partitionNames.partitionName];
+            assert(partitionConfig && partitionDescription, "Invalid partition key");
 
-            const partitionType = sortKeyEntries[sortKeyEntryIndex++];
-            assert(typeof partitionType === "string", "Invalid index sort key");
-            deserializedKey.partitionType = partitionType;
-            const partitionConfig = this._partitionConfigByName.get(partitionType);
-            assert(partitionConfig, "Invalid partition key");
+            key.partitionType = partitionNames.partitionName;
 
             for (const [attributeKey, attributeSchema] of Object.entries(
                 partitionConfig.partitionKeyAttributes,
             )) {
+                // We need the primary key to be included in our cursor to correctly resume
+                // pagination from the right place. But only include attributes from our
+                // primary key that are not already included in the index key attributes to
+                // avoid duplicating data.
                 if (
                     !hasOwnProperty(indexConfig.partitionKeyAttributes, attributeKey) &&
                     !hasOwnProperty(indexConfig.sortKeyAttributes, attributeKey)
                 ) {
-                    const sortKeyEntry = sortKeyEntries[sortKeyEntryIndex++];
-                    assert(sortKeyEntry !== undefined, "Invalid index sort key");
+                    if (!attributeSchema.binary) {
+                        throw new UnimplementedError(
+                            quote`Can't use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
+                        );
+                    }
 
-                    deserializedKey[attributeKey] = attributeSchema.deserialize(
-                        sortKeyEntry as DynamoKeyAttribute,
-                    );
+                    const value = attributeSchema.binary.deserializeBytes(bytes, bytesIndex);
+                    bytesIndex += attributeSchema.binary.getByteCount(value);
+
+                    key[attributeKey] = value;
                 }
             }
 
-            const sortRangeType = sortKeyEntries[sortKeyEntryIndex++];
-            assert(typeof sortRangeType === "string", "Invalid index sort key");
-            deserializedKey.sortRangeType = sortRangeType;
-            const sortRangeConfig = partitionConfig.sortRangeByName.get(sortRangeType);
-            assert(sortRangeConfig, "Invalid sort key");
+            const orderKey = DynamoKeyAttributeSchema.orderKey.binary!.deserializeBytes(
+                bytes,
+                bytesIndex,
+            );
+            bytesIndex += DynamoKeyAttributeSchema.orderKey.binary!.getByteCount(orderKey);
+
+            const sortRangeName = partitionNames.sortRangeNameById.get(bytes[bytesIndex++]!);
+            assert(sortRangeName, "Invalid sort key");
+
+            const sortRangeConfig = partitionConfig.sortRangeByName.get(sortRangeName);
+            const sortRangeDescription = partitionDescription.sortRangeByType[sortRangeName];
+            assert(sortRangeConfig && sortRangeDescription, "Invalid sort key");
+
+            assert(orderKey === sortRangeDescription.orderKey, "Invalid sort key");
+
+            key.sortRangeType = sortRangeName;
 
             for (const [attributeKey, attributeSchema] of Object.entries(
                 sortRangeConfig.sortKeyAttributes,
             )) {
+                // We need the primary key to be included in our cursor to correctly resume
+                // pagination from the right place. But only include attributes from our
+                // primary key that are not already included in the index key attributes to
+                // avoid duplicating data.
                 if (
                     !hasOwnProperty(indexConfig.partitionKeyAttributes, attributeKey) &&
                     !hasOwnProperty(indexConfig.sortKeyAttributes, attributeKey)
                 ) {
-                    const sortKeyEntry = sortKeyEntries[sortKeyEntryIndex++];
-                    assert(sortKeyEntry !== undefined, "Invalid index sort key");
+                    if (!attributeSchema.binary) {
+                        throw new UnimplementedError(
+                            quote`Can't use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
+                        );
+                    }
 
-                    deserializedKey[attributeKey] = attributeSchema.deserialize(
-                        sortKeyEntry as DynamoKeyAttribute,
-                    );
+                    const value = attributeSchema.binary.deserializeBytes(bytes, bytesIndex);
+                    bytesIndex += attributeSchema.binary.getByteCount(value);
+
+                    key[attributeKey] = value;
                 }
             }
 
-            return deserializedKey;
+            return key;
         } catch (error) {
             throw InvalidArgumentError.from(error, "Invalid opaque index cursor");
         }
@@ -3401,6 +3755,7 @@ export interface DynamoTableSchemaIndex<QueryItem, ItemKey, IndexPartitionKey, I
      * clients.
      */
     deserializeOpaqueCursor(
+        partitionKey: IndexPartitionKey,
         cursor: DynamoIndexCursor,
     ): MergeObjectIntersection<ItemKey & IndexPartitionKey & IndexSortKey>;
 }
@@ -3445,10 +3800,15 @@ function getAndCheckDynamoTableSchemaDescriptions(
             ? dynamoGeneratedSchemaDescription.get().tableByName[config.name] ?? null
             : null;
 
+    const partitionIds = new Set();
+
     const description: DynamoTableSchemaTypes.Description = {
         name: config.name,
         partitionByType: Object.fromEntries(
             config.partitions.map(partitionConfig => {
+                const lastPartitionDescription =
+                    lastDescription?.partitionByType[partitionConfig.name];
+
                 // Iterate through all our sort ranges, in order, finding contiguous subsets of
                 // the list which do not have an `OrderKey` in the last description. For these
                 // sort ranges generate new `OrderKey`s for our new description.
@@ -3458,9 +3818,7 @@ function getAndCheckDynamoTableSchemaDescriptions(
 
                 for (const sortRangeConfig of partitionConfig.sortRanges) {
                     const existingSortRangeOrderKey =
-                        lastDescription?.partitionByType[partitionConfig.name]?.sortRangeByType[
-                            sortRangeConfig.name
-                        ]?.orderKey;
+                        lastPartitionDescription?.sortRangeByType[sortRangeConfig.name]?.orderKey;
 
                     if (!existingSortRangeOrderKey) {
                         sortRangeTypesWithoutExistingOrderKey.push(sortRangeConfig.name);
@@ -3516,15 +3874,74 @@ function getAndCheckDynamoTableSchemaDescriptions(
                     );
                 }
 
+                // Assign our partition an ID if one was not already assigned. IDs are used in
+                // binary encodings related to the table.
+                let partitionId;
+                if (lastPartitionDescription && typeof lastPartitionDescription.id === "number") {
+                    partitionId = lastPartitionDescription.id;
+                } else {
+                    partitionId = 0;
+                    while (partitionIds.has(partitionId)) {
+                        partitionId++;
+                    }
+                }
+
+                assert(!partitionIds.has(partitionId), "Found duplicate partition ID in table");
+
+                // Partition IDs should be a valid uint8 so we can write it into a byte.
+                assert(
+                    Number.isInteger(partitionId) && partitionId >= 0 && partitionId <= 2 ** 8 - 1,
+                    "Invalid partition ID",
+                );
+
+                partitionIds.add(partitionId);
+
+                const sortRangeIds = new Set();
+
                 const partitionDescription: DynamoTableSchemaTypes.Partition.Description = {
+                    id: partitionId,
                     partitionKeyAttributeByKey: mapObjectValues(
                         partitionConfig.partitionKeyAttributes,
                         keyAttribute => keyAttribute.description,
                     ),
                     sortRangeByType: Object.fromEntries(
                         partitionConfig.sortRanges.map(sortRangeConfig => {
+                            const lastSortRangeDescription =
+                                lastPartitionDescription?.sortRangeByType[sortRangeConfig.name];
+
+                            // Assign our sort range an ID if one was not already assigned. IDs are used in
+                            // binary encodings related to the partition.
+                            let sortRangeId;
+                            if (
+                                lastSortRangeDescription &&
+                                typeof lastSortRangeDescription.id === "number"
+                            ) {
+                                sortRangeId = lastSortRangeDescription.id;
+                            } else {
+                                sortRangeId = 0;
+                                while (sortRangeIds.has(sortRangeId)) {
+                                    sortRangeId++;
+                                }
+                            }
+
+                            assert(
+                                !sortRangeIds.has(sortRangeId),
+                                "Found duplicate sort range ID in partition",
+                            );
+
+                            // Partition IDs should be a valid uint8 so we can write it into a byte.
+                            assert(
+                                Number.isInteger(sortRangeId) &&
+                                    sortRangeId >= 0 &&
+                                    sortRangeId <= 2 ** 8 - 1,
+                                "Invalid sort range ID",
+                            );
+
+                            sortRangeIds.add(sortRangeId);
+
                             const sortRangeDescription: DynamoTableSchemaTypes.SortRange.Description =
                                 {
+                                    id: sortRangeId,
                                     orderKey: sortRangeOrderKeyByType.get(sortRangeConfig.name)!,
                                     sortKeyAttributeByKey: mapObjectValues(
                                         sortRangeConfig.sortKeyAttributes,

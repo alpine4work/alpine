@@ -15,6 +15,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
             "name": "Accounts",
             "partitionByType": {
                 "Account": {
+                    "id": 0,
                     "partitionKeyAttributeByKey": {
                         "accountId": {
                             "type": "Id"
@@ -22,6 +23,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                     },
                     "sortRangeByType": {
                         "Attributes": {
+                            "id": 0,
                             "orderKey": "a0",
                             "sortKeyAttributeByKey": {},
                             "attributesSchema": {
@@ -57,6 +59,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                     }
                 },
                 "AccountEmailAddress": {
+                    "id": 1,
                     "partitionKeyAttributeByKey": {
                         "emailAddress": {
                             "type": "EmailAddress"
@@ -64,6 +67,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                     },
                     "sortRangeByType": {
                         "Attributes": {
+                            "id": 0,
                             "orderKey": "a0",
                             "sortKeyAttributeByKey": {},
                             "attributesSchema": {
@@ -128,6 +132,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                     }
                 },
                 "Session": {
+                    "id": 2,
                     "partitionKeyAttributeByKey": {
                         "sessionId": {
                             "type": "Id"
@@ -135,6 +140,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                     },
                     "sortRangeByType": {
                         "Attributes": {
+                            "id": 0,
                             "orderKey": "a0",
                             "sortKeyAttributeByKey": {},
                             "attributesSchema": {
@@ -188,9 +194,11 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
             "name": "AlphaAccess",
             "partitionByType": {
                 "AlphaConfiguration": {
+                    "id": 0,
                     "partitionKeyAttributeByKey": {},
                     "sortRangeByType": {
                         "Configuration": {
+                            "id": 0,
                             "orderKey": "a0",
                             "sortKeyAttributeByKey": {},
                             "attributesSchema": {
@@ -220,9 +228,11 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                     }
                 },
                 "AlphaAccessRequests": {
+                    "id": 1,
                     "partitionKeyAttributeByKey": {},
                     "sortRangeByType": {
                         "Request": {
+                            "id": 0,
                             "orderKey": "a0",
                             "sortKeyAttributeByKey": {
                                 "emailAddress": {
@@ -322,6 +332,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
             "name": "Chat",
             "partitionByType": {
                 "Chat": {
+                    "id": 0,
                     "partitionKeyAttributeByKey": {
                         "chatId": {
                             "type": "Id"
@@ -329,6 +340,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                     },
                     "sortRangeByType": {
                         "Attributes": {
+                            "id": 0,
                             "orderKey": "a0",
                             "sortKeyAttributeByKey": {},
                             "attributesSchema": {
@@ -385,6 +397,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                             }
                         },
                         "Account": {
+                            "id": 1,
                             "orderKey": "a1",
                             "sortKeyAttributeByKey": {
                                 "accountId": {
@@ -422,6 +435,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                             }
                         },
                         "Messages": {
+                            "id": 2,
                             "orderKey": "a2",
                             "sortKeyAttributeByKey": {
                                 "messageIndex": {
@@ -848,6 +862,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                             }
                         },
                         "MessageChangeLog": {
+                            "id": 3,
                             "orderKey": "a3",
                             "sortKeyAttributeByKey": {
                                 "changeTime": {
@@ -957,6 +972,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
             "name": "Documents",
             "partitionByType": {
                 "Document": {
+                    "id": 0,
                     "partitionKeyAttributeByKey": {
                         "documentId": {
                             "type": "Id"
@@ -964,6 +980,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                     },
                     "sortRangeByType": {
                         "Attributes": {
+                            "id": 0,
                             "orderKey": "a0",
                             "sortKeyAttributeByKey": {},
                             "attributesSchema": {
@@ -1012,6 +1029,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                             }
                         },
                         "StepTransactionsAfterSnapshot": {
+                            "id": 1,
                             "orderKey": "a1",
                             "sortKeyAttributeByKey": {
                                 "startVersion": {
@@ -2012,6 +2030,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                             }
                         },
                         "Snapshot": {
+                            "id": 2,
                             "orderKey": "a2",
                             "sortKeyAttributeByKey": {},
                             "attributesSchema": {
@@ -2040,6 +2059,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                             }
                         },
                         "ReferencedCommentThread": {
+                            "id": 3,
                             "orderKey": "a2G",
                             "sortKeyAttributeByKey": {
                                 "commentThreadId": {
@@ -2113,6 +2133,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                             }
                         },
                         "ArchivedCommentThread": {
+                            "id": 4,
                             "orderKey": "a2V",
                             "sortKeyAttributeByKey": {
                                 "commentThreadId": {
@@ -2145,6 +2166,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                             }
                         },
                         "StepTransactionsBeforeSnapshot": {
+                            "id": 5,
                             "orderKey": "a3",
                             "sortKeyAttributeByKey": {
                                 "startVersion": {
@@ -2198,6 +2220,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                     }
                 },
                 "DocumentCommentThread": {
+                    "id": 1,
                     "partitionKeyAttributeByKey": {
                         "documentId": {
                             "type": "Id"
@@ -2208,6 +2231,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                     },
                     "sortRangeByType": {
                         "Comments": {
+                            "id": 0,
                             "orderKey": "a0",
                             "sortKeyAttributeByKey": {
                                 "commentIndex": {
@@ -2246,6 +2270,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                             }
                         },
                         "CommentChangeLog": {
+                            "id": 1,
                             "orderKey": "a1",
                             "sortKeyAttributeByKey": {
                                 "changeTime": {
@@ -2325,6 +2350,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
             "name": "Forum",
             "partitionByType": {
                 "Channel": {
+                    "id": 0,
                     "partitionKeyAttributeByKey": {
                         "channelId": {
                             "type": "Id"
@@ -2332,6 +2358,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                     },
                     "sortRangeByType": {
                         "Attributes": {
+                            "id": 0,
                             "orderKey": "a0",
                             "sortKeyAttributeByKey": {},
                             "attributesSchema": {
@@ -2374,6 +2401,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                     }
                 },
                 "Post": {
+                    "id": 1,
                     "partitionKeyAttributeByKey": {
                         "postId": {
                             "type": "Id"
@@ -2381,6 +2409,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                     },
                     "sortRangeByType": {
                         "Attributes": {
+                            "id": 0,
                             "orderKey": "a0",
                             "sortKeyAttributeByKey": {},
                             "attributesSchema": {
@@ -2847,6 +2876,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                             }
                         },
                         "Comments": {
+                            "id": 1,
                             "orderKey": "a1",
                             "sortKeyAttributeByKey": {
                                 "commentIndex": {
@@ -2885,6 +2915,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                             }
                         },
                         "CommentChangeLog": {
+                            "id": 2,
                             "orderKey": "a2",
                             "sortKeyAttributeByKey": {
                                 "changeTime": {
@@ -2991,6 +3022,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
             "name": "Inbox",
             "partitionByType": {
                 "Inbox": {
+                    "id": 0,
                     "partitionKeyAttributeByKey": {
                         "spaceId": {
                             "type": "Id"
@@ -3001,6 +3033,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                     },
                     "sortRangeByType": {
                         "Attributes": {
+                            "id": 0,
                             "orderKey": "a0",
                             "sortKeyAttributeByKey": {},
                             "attributesSchema": {
@@ -3028,6 +3061,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                             }
                         },
                         "ChatEntry": {
+                            "id": 1,
                             "orderKey": "a1",
                             "sortKeyAttributeByKey": {
                                 "chatId": {
@@ -3104,6 +3138,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                             }
                         },
                         "PostCommentsEntry": {
+                            "id": 2,
                             "orderKey": "a2",
                             "sortKeyAttributeByKey": {
                                 "postId": {
@@ -3182,6 +3217,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                     }
                 },
                 "Realtime": {
+                    "id": 1,
                     "partitionKeyAttributeByKey": {
                         "realtimeKey": {
                             "type": "LabelString"
@@ -3189,6 +3225,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                     },
                     "sortRangeByType": {
                         "EventTransactions": {
+                            "id": 0,
                             "orderKey": "a0",
                             "sortKeyAttributeByKey": {
                                 "eventTime": {
@@ -3587,6 +3624,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
             "name": "Notifications",
             "partitionByType": {
                 "NotificationEvent": {
+                    "id": 0,
                     "partitionKeyAttributeByKey": {
                         "eventId": {
                             "type": "Id"
@@ -3594,6 +3632,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                     },
                     "sortRangeByType": {
                         "Receipt": {
+                            "id": 0,
                             "orderKey": "a0",
                             "sortKeyAttributeByKey": {},
                             "attributesSchema": {
@@ -3623,6 +3662,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
             "name": "Spaces",
             "partitionByType": {
                 "Space": {
+                    "id": 0,
                     "partitionKeyAttributeByKey": {
                         "spaceId": {
                             "type": "Id"
@@ -3630,6 +3670,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                     },
                     "sortRangeByType": {
                         "Attributes": {
+                            "id": 0,
                             "orderKey": "a0",
                             "sortKeyAttributeByKey": {},
                             "attributesSchema": {
@@ -3663,6 +3704,7 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                             }
                         },
                         "Account": {
+                            "id": 1,
                             "orderKey": "a1",
                             "sortKeyAttributeByKey": {
                                 "accountId": {

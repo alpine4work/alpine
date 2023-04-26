@@ -8,6 +8,7 @@ ts_project(
         ":all_rpc_definitions",
         "//shared/context",
         "//shared/documents",
+        "//shared/dynamo",
         "//shared/error",
         "//shared/helpers",
         "//shared/models",
