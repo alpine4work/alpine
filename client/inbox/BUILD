@@ -8,6 +8,7 @@ ts_project(
     ],
     deps = [
         "//:node_modules/@types/react",
+        "//:node_modules/date-fns",
         "//:node_modules/react",
         "//client/context",
         "//client/design",

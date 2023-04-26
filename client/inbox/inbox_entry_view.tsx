@@ -1,8 +1,10 @@
-import {ReactNode} from "react";
+import {isToday} from "date-fns";
+import {ReactNode, useMemo} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
 import {ContentView} from "~/client/content/content_view";
 import {Box} from "~/client/design/box";
+import {useClientInfo} from "~/client/remix/client_info_context";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {LoudNotificationBadge} from "~/client/spaces/loud_notification_badge";
 import {useSpaceContext} from "~/client/spaces/space_context";
@@ -14,6 +16,7 @@ import {
     InboxEntryModel,
     InboxPostCommentsEntryModel,
 } from "~/shared/models/inbox_model";
+import {MessageContentWithReferences} from "~/shared/models/message_model";
 import {backgroundColorVar, contentSchemaStyles, fontSizesByPlatform} from "~/shared/styles/styles";
 
 export function InboxEntryView({entry}: {entry: InboxEntryModel}) {
@@ -37,7 +40,6 @@ function InboxChatEntryView({entry}: {entry: InboxChatEntryModel}) {
     );
 }
 
-// NOCOMMIT: Timestamp!
 function InboxPostCommentsEntryView({entry}: {entry: InboxPostCommentsEntryModel}) {
     const {currentAccount} = useSpaceContext();
 
@@ -51,11 +53,6 @@ function InboxPostCommentsEntryView({entry}: {entry: InboxPostCommentsEntryModel
         : entry.latestComment.author.id !== firstAccount.id
         ? entry.latestComment.author
         : null;
-
-    const isMobile = useIsMobile();
-    const latestCommentScale =
-        fontSizesByPlatform["50"][isMobile ? "mobile" : "desktop"].fontSize /
-        fontSizesByPlatform["100"][isMobile ? "mobile" : "desktop"].fontSize;
 
     return (
         <InboxEntryViewBase
@@ -80,44 +77,7 @@ function InboxPostCommentsEntryView({entry}: {entry: InboxPostCommentsEntryModel
                 </Box>{" "}
                 has new comments
             </Box>
-            <Box
-                style={{
-                    height: `${
-                        parseRemLengthNumber(contentSchemaStyles.paragraphFontSize.lineHeight) *
-                        latestCommentScale
-                    }rem`,
-                }}
-            >
-                <Box
-                    display="flex"
-                    pointerEvents="none"
-                    style={{
-                        width: `${100 * (1 / latestCommentScale)}%`,
-                        transformOrigin: "center left",
-                        transform: `scale(${latestCommentScale})`,
-                        // This color is selected to be close to `grey-50`. Ideally we'd use that color
-                        // instead of opacity so when the background color changes the colors of the
-                        // message stay the same. But we want the arbitrary content in our message
-                        // content to also mix with the white background.
-                        opacity: 0.575,
-                    }}
-                >
-                    <Box
-                        flexShrink="0"
-                        style={contentSchemaStyles.paragraphFontSize}
-                        marginRight="-1"
-                    >
-                        <AccountShortName account={entry.latestComment.author} />:
-                    </Box>
-                    <Box flexGrow="1" overflow="hidden">
-                        <ContentView
-                            content={entry.latestComment.contentSnippet}
-                            isInert={true}
-                            isTruncated={true}
-                        />
-                    </Box>
-                </Box>
-            </Box>
+            <InboxEntryLatestMessagePreview latestMessage={entry.latestComment} />
         </InboxEntryViewBase>
     );
 }
@@ -172,8 +132,86 @@ function InboxEntryViewBase({
                         )}
                     </Box>
                 </Box>
-                <Box paddingY="2" flexGrow="1" fontSize="75" overflow="hidden">
+                <Box paddingY="3" flexGrow="1" fontSize="75" overflow="hidden">
                     {children}
+                </Box>
+            </Box>
+        </Box>
+    );
+}
+
+function InboxEntryLatestMessagePreview({
+    latestMessage,
+}: {
+    latestMessage: {
+        author: AccountModel;
+        createdTime: Date;
+        contentSnippet: MessageContentWithReferences;
+    };
+}) {
+    const {timeZone} = useClientInfo();
+
+    const isMobile = useIsMobile();
+    const contentViewScale =
+        fontSizesByPlatform["50"][isMobile ? "mobile" : "desktop"].fontSize /
+        fontSizesByPlatform["100"][isMobile ? "mobile" : "desktop"].fontSize;
+
+    return (
+        <Box
+            style={{
+                height: `${
+                    parseRemLengthNumber(contentSchemaStyles.paragraphFontSize.lineHeight) *
+                    contentViewScale
+                }rem`,
+            }}
+        >
+            <Box
+                display="flex"
+                pointerEvents="none"
+                style={{
+                    width: `${100 * (1 / contentViewScale)}%`,
+                    transformOrigin: "center left",
+                    transform: `scale(${contentViewScale})`,
+                    // This color is selected to be close to `grey-50`. Ideally we'd use that color
+                    // instead of opacity so when the background color changes the colors of the
+                    // message stay the same. But we want the arbitrary content in our message
+                    // content to also mix with the white background.
+                    opacity: 0.575,
+                }}
+            >
+                <Box flexShrink="0" style={contentSchemaStyles.paragraphFontSize} marginRight="-1">
+                    <AccountShortName account={latestMessage.author} />:
+                </Box>
+                <Box flexGrow="1" overflow="hidden">
+                    <ContentView
+                        content={latestMessage.contentSnippet}
+                        isInert={true}
+                        isTruncated={true}
+                    />
+                </Box>
+                <Box flexShrink="0" style={contentSchemaStyles.paragraphFontSize} marginLeft="0.5">
+                    {useMemo(() => {
+                        if (isToday(latestMessage.createdTime)) {
+                            const formatter = new Intl.DateTimeFormat("en-US", {
+                                timeZone,
+                                calendar: "iso8601",
+                                hour: "numeric",
+                                minute: "2-digit",
+                                hour12: true,
+                            });
+
+                            return formatter.format(latestMessage.createdTime);
+                        } else {
+                            const formatter = new Intl.DateTimeFormat("en-US", {
+                                timeZone,
+                                calendar: "iso8601",
+                                month: "short",
+                                day: "numeric",
+                            });
+
+                            return formatter.format(latestMessage.createdTime);
+                        }
+                    }, [latestMessage.createdTime, timeZone])}
                 </Box>
             </Box>
         </Box>
