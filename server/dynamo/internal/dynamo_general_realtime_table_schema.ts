@@ -1,4 +1,3 @@
-import {addDays} from "date-fns";
 import {ActionContext} from "~/server/dynamo/context/action_context";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
 import {DynamoReadConsistency} from "~/server/dynamo/internal/dynamo_client";
@@ -17,7 +16,6 @@ import {
     DynamoGeneralRealtimeIndexQuery,
     DynamoGeneralRealtimeItem,
     DynamoGeneralRealtimeQuery,
-    createDynamoGeneralRealtimeEventSchema,
 } from "~/shared/dynamo/dynamo_general_realtime_types";
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings";
 import {UnimplementedError} from "~/shared/error/error";
@@ -82,28 +80,9 @@ type DynamoGeneralRealtimeTableSchemaModelType<
     }[keyof ModelsConfig[Key1]];
 }[keyof ModelsConfig];
 
+// NOCOMMIT: This partition name isn't doing anything right now but we want to
+// record events in here.
 const privateRealtimePartitionName = "Realtime" as const;
-
-function createPrivateRealtimePartitionConfig(modelSchema: Schema<any>) {
-    return {
-        name: privateRealtimePartitionName,
-        partitionKeyAttributes: {
-            realtimeKey: DynamoKeyAttributeSchema.labelString,
-        },
-        sortRanges: [
-            {
-                name: "EventTransactions",
-                sortKeyAttributes: {
-                    eventTime: DynamoKeyAttributeSchema.date,
-                },
-                withExpirationTime: "Required",
-                attributes: Schema.object({
-                    events: Schema.array(createDynamoGeneralRealtimeEventSchema(modelSchema)),
-                }),
-            },
-        ],
-    } as const satisfies DynamoTableSchemaTypes.Partition.ConfigBase;
-}
 
 type DynamoGeneralRealtimeInternalEvent<Item, Model> =
     | {
@@ -280,13 +259,7 @@ export class DynamoGeneralRealtimeTableSchema<
         return new DynamoGeneralRealtimeTableSchema({
             table: DynamoTableSchema.new({
                 name,
-                // Add a private partition for storing realtime information but don't include
-                // it in the types. Users of this abstraction should not be able to access the
-                // realtime partition so we don't include it in the types.
-                partitions: [
-                    ...partitions,
-                    createPrivateRealtimePartitionConfig(modelSchema),
-                ] as any as PartitionsConfig,
+                partitions,
             }),
             models,
             sendEventTransaction,
@@ -360,30 +333,10 @@ export class DynamoGeneralRealtimeTableSchema<
             }),
         );
 
-        const eventTime = new Date();
-
-        // Expire events after a week. If we are trying to backfill data from longer
-        // ago then we'll need a full refresh.
-        const expirationTime = addDays(eventTime, 7);
-
-        await runAllPromises([
-            this._sendEventTransactionCallback(context, actualEventTransaction),
-
-            // Add the event transaction to every affected partition key. When backfilling,
-            // we only query events from partitions we care about. If a transaction
-            // affected two partitions then it needs to be present in both to show up in a
-            // backfill query.
-            ...mapIterable(realtimeKeys, realtimeKey =>
-                this._table.createOrReplaceItem(context, {
-                    partitionType: privateRealtimePartitionName,
-                    sortRangeType: "EventTransactions",
-                    realtimeKey,
-                    eventTime,
-                    expirationTime,
-                    events: actualEventTransaction,
-                }),
-            ),
-        ]);
+        // NOCOMMIT: Add back inserting items into realtime partition. Do we need to
+        // insert the full item? I think we could do less? Having the model in the
+        // table schema is annoying.
+        await this._sendEventTransactionCallback(context, actualEventTransaction);
     }
 
     /**
