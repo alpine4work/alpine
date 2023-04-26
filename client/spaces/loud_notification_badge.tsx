@@ -1,0 +1,57 @@
+import {Box} from "~/client/design/box";
+import {RemLength, Spacing, spacing} from "~/shared/design/spacing";
+import {backgroundColorVar} from "~/shared/styles/styles";
+
+export function LoudNotificationBadge({
+    top,
+    right,
+    loudNotificationCount,
+}: {
+    top: Spacing | `-${Spacing}` | RemLength;
+    right: Spacing | `-${Spacing}` | RemLength;
+    loudNotificationCount: number;
+}) {
+    return (
+        // We use a bright red design for loud notifications. We know this can be
+        // distracting...but that's the point of a loud notification. Someone is
+        // specifically trying to get your attention.
+        <Box
+            zIndex="30"
+            position="absolute"
+            pointerEvents="none"
+            borderRadius="full"
+            style={{
+                lineHeight: 1,
+                fontSize: "0.5rem",
+                boxShadow: `0 0 0 1px ${backgroundColorVar}`,
+                // Use `right` and `translateX` to center the number around a point inset within
+                // the positioning context.
+                top: top.endsWith("rem")
+                    ? top
+                    : top.startsWith("-")
+                    ? `-${spacing[top.slice(1) as Spacing]}`
+                    : spacing[top as Spacing],
+                right: right.endsWith("rem")
+                    ? right
+                    : right.startsWith("-")
+                    ? `-${spacing[right.slice(1) as Spacing]}`
+                    : spacing[right as Spacing],
+                transform: "translateX(50%)",
+            }}
+        >
+            <Box
+                minWidth="3"
+                height="3"
+                paddingX="0.5"
+                display="flex"
+                justifyContent="center"
+                alignItems="center"
+                borderRadius="full"
+                color="grey-0-const"
+                backgroundColor="red-50-const"
+            >
+                {loudNotificationCount > 99 ? "99+" : loudNotificationCount}
+            </Box>
+        </Box>
+    );
+}

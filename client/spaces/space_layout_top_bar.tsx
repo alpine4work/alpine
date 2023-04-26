@@ -11,6 +11,7 @@ import {useShowToast} from "~/client/design/toast";
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {useNavigate} from "~/client/remix/use_navigate";
+import {LoudNotificationBadge} from "~/client/spaces/loud_notification_badge";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {SpaceLayoutTopBarCreateButton} from "~/client/spaces/space_layout_top_bar_create_button";
 import {MyAccountProtocol} from "~/shared/accounts/my_account_protocol";
@@ -21,7 +22,6 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {InboxModel} from "~/shared/models/inbox_model";
 import {SpaceModel} from "~/shared/models/space_model";
 import {getInboxWithStrongReadConsistency} from "~/shared/rpc/accounts_rpc_definitions";
-import {backgroundColorVar} from "~/shared/styles/styles";
 
 // TODO(calebmer): Keyboard shortcuts for everything in top bar
 
@@ -187,41 +187,11 @@ function SpaceLayoutTopBarNotificationsButton({
             >
                 <Bell />
                 {inbox.model.loudNotificationCount > 0 && (
-                    // We use a bright red design for loud notifications. We know this can be
-                    // distracting...but that's the point of a loud notification. Someone is
-                    // specifically trying to get your attention.
-                    <Box
-                        zIndex="30"
-                        position="absolute"
-                        pointerEvents="none"
-                        borderRadius="full"
-                        style={{
-                            lineHeight: 1,
-                            fontSize: "0.5rem",
-                            top: "-0.0625rem",
-                            // Use `right` and `transform` to center the number around a point inset within
-                            // the button.
-                            right: "0.5rem",
-                            transform: "translateX(50%)",
-                            boxShadow: `0 0 0 1px ${backgroundColorVar}`,
-                        }}
-                    >
-                        <Box
-                            minWidth="3"
-                            height="3"
-                            paddingX="0.5"
-                            display="flex"
-                            justifyContent="center"
-                            alignItems="center"
-                            borderRadius="full"
-                            color="grey-0-const"
-                            backgroundColor="red-50-const"
-                        >
-                            {inbox.model.loudNotificationCount > 99
-                                ? "99+"
-                                : inbox.model.loudNotificationCount}
-                        </Box>
-                    </Box>
+                    <LoudNotificationBadge
+                        top="-0.0625rem"
+                        right="0.5rem"
+                        loudNotificationCount={inbox.model.loudNotificationCount}
+                    />
                 )}
             </IconButton>
         </Box>

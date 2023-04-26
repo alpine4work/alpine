@@ -1,8 +1,10 @@
+import {ReactNode} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
 import {ContentView} from "~/client/content/content_view";
 import {Box} from "~/client/design/box";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
+import {LoudNotificationBadge} from "~/client/spaces/loud_notification_badge";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {parseRemLengthNumber} from "~/shared/design/spacing";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
@@ -26,9 +28,16 @@ export function InboxEntryView({entry}: {entry: InboxEntryModel}) {
 }
 
 function InboxChatEntryView({entry}: {entry: InboxChatEntryModel}) {
-    return <Box></Box>;
+    return (
+        <InboxEntryViewBase
+            firstAccount={entry.latestMessage.author}
+            secondAccount={null}
+            loudNotificationCount={entry.loudNotificationCount}
+        ></InboxEntryViewBase>
+    );
 }
 
+// NOCOMMIT: Timestamp!
 function InboxPostCommentsEntryView({entry}: {entry: InboxPostCommentsEntryModel}) {
     const {currentAccount} = useSpaceContext();
 
@@ -37,14 +46,93 @@ function InboxPostCommentsEntryView({entry}: {entry: InboxPostCommentsEntryModel
             ? entry.postAuthor
             : entry.otherCommentAuthor ?? entry.latestComment.author;
 
-    const secondAccount: AccountModel | null =
-        entry.latestComment.author.id !== firstAccount.id ? entry.latestComment.author : null;
+    const secondAccount: AccountModel | null = false
+        ? null
+        : entry.latestComment.author.id !== firstAccount.id
+        ? entry.latestComment.author
+        : null;
 
     const isMobile = useIsMobile();
     const latestCommentScale =
         fontSizesByPlatform["50"][isMobile ? "mobile" : "desktop"].fontSize /
         fontSizesByPlatform["100"][isMobile ? "mobile" : "desktop"].fontSize;
 
+    return (
+        <InboxEntryViewBase
+            firstAccount={firstAccount}
+            secondAccount={secondAccount}
+            loudNotificationCount={entry.loudNotificationCount}
+        >
+            <Box>
+                {currentAccount.id === entry.postAuthor.id ? (
+                    "Your"
+                ) : (
+                    <>
+                        <Box display="inline" fontStyle="semi-bold">
+                            <AccountShortName account={entry.postAuthor} />
+                        </Box>
+                        ’s
+                    </>
+                )}{" "}
+                post in{" "}
+                <Box display="inline" fontStyle="semi-bold">
+                    {entry.channel.name}
+                </Box>{" "}
+                has new comments
+            </Box>
+            <Box
+                style={{
+                    height: `${
+                        parseRemLengthNumber(contentSchemaStyles.paragraphFontSize.lineHeight) *
+                        latestCommentScale
+                    }rem`,
+                }}
+            >
+                <Box
+                    display="flex"
+                    pointerEvents="none"
+                    style={{
+                        width: `${100 * (1 / latestCommentScale)}%`,
+                        transformOrigin: "center left",
+                        transform: `scale(${latestCommentScale})`,
+                        // This color is selected to be close to `grey-50`. Ideally we'd use that color
+                        // instead of opacity so when the background color changes the colors of the
+                        // message stay the same. But we want the arbitrary content in our message
+                        // content to also mix with the white background.
+                        opacity: 0.575,
+                    }}
+                >
+                    <Box
+                        flexShrink="0"
+                        style={contentSchemaStyles.paragraphFontSize}
+                        marginRight="-1"
+                    >
+                        <AccountShortName account={entry.latestComment.author} />:
+                    </Box>
+                    <Box flexGrow="1" overflow="hidden">
+                        <ContentView
+                            content={entry.latestComment.contentSnippet}
+                            isInert={true}
+                            isTruncated={true}
+                        />
+                    </Box>
+                </Box>
+            </Box>
+        </InboxEntryViewBase>
+    );
+}
+
+function InboxEntryViewBase({
+    firstAccount,
+    secondAccount,
+    loudNotificationCount,
+    children,
+}: {
+    firstAccount: AccountModel;
+    secondAccount: AccountModel | null;
+    loudNotificationCount: number;
+    children?: ReactNode;
+}) {
     return (
         <Box paddingX="3">
             <Box display="flex" alignItems="center" borderBottom="grey-5" gap="3">
@@ -75,65 +163,17 @@ function InboxPostCommentsEntryView({entry}: {entry: InboxPostCommentsEntryModel
                                 </Box>
                             </>
                         )}
+                        {loudNotificationCount > 0 && (
+                            <LoudNotificationBadge
+                                top="1"
+                                right="1"
+                                loudNotificationCount={loudNotificationCount}
+                            />
+                        )}
                     </Box>
                 </Box>
-                <Box paddingY="2" flexGrow="1" overflow="hidden">
-                    <Box fontSize="75">
-                        {currentAccount.id === entry.postAuthor.id ? (
-                            "Your"
-                        ) : (
-                            <>
-                                <Box display="inline" fontStyle="semi-bold">
-                                    <AccountShortName account={entry.postAuthor} />
-                                </Box>
-                                ’s
-                            </>
-                        )}{" "}
-                        post in{" "}
-                        <Box display="inline" fontStyle="semi-bold">
-                            {entry.channel.name}
-                        </Box>{" "}
-                        has new comments
-                    </Box>
-                    <Box
-                        style={{
-                            height: `${
-                                parseRemLengthNumber(
-                                    contentSchemaStyles.paragraphFontSize.lineHeight,
-                                ) * latestCommentScale
-                            }rem`,
-                        }}
-                    >
-                        <Box
-                            display="flex"
-                            pointerEvents="none"
-                            style={{
-                                width: `${100 * (1 / latestCommentScale)}%`,
-                                transformOrigin: "center left",
-                                transform: `scale(${latestCommentScale})`,
-                                // This color is selected to be close to `grey-50`. Ideally we'd use that color
-                                // instead of opacity so when the background color changes the colors of the
-                                // message stay the same. But we want the arbitrary content in our message
-                                // content to also mix with the white background.
-                                opacity: 0.575,
-                            }}
-                        >
-                            <Box
-                                flexShrink="0"
-                                style={contentSchemaStyles.paragraphFontSize}
-                                marginRight="-1"
-                            >
-                                <AccountShortName account={entry.latestComment.author} />:
-                            </Box>
-                            <Box flexGrow="1" overflow="hidden">
-                                <ContentView
-                                    content={entry.latestComment.contentSnippet}
-                                    isInert={true}
-                                    isTruncated={true}
-                                />
-                            </Box>
-                        </Box>
-                    </Box>
+                <Box paddingY="2" flexGrow="1" fontSize="75" overflow="hidden">
+                    {children}
                 </Box>
             </Box>
         </Box>

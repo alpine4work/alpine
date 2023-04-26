@@ -445,6 +445,9 @@ export function selectChatForAccounts(
             (async () => {
                 const sharedChats = await sharedChatsPromise;
 
+                // Don't suggest chats if we are selecting the chat with ourself.
+                if (otherAccountIds.length === 0) return [];
+
                 // Limit the number of chats we return since we need to load the full chat
                 // object. We sort shared chats by some heuristics to put more relevant chats
                 // first but the heuristics don't consider user activity. Ideally we would also
