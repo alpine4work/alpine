@@ -19,6 +19,7 @@ import {
 } from "~/shared/content/message_content_schema";
 import {emptyPostContent} from "~/shared/content/post_content_schema";
 import {ProcessContextModule} from "~/shared/context/process_context_module";
+import {DynamoGeneralRealtimeIndexQuery} from "~/shared/dynamo/dynamo_general_realtime_types";
 import {PermissionDeniedError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {generateId} from "~/shared/id/id";
@@ -27,6 +28,7 @@ import {AccountModel} from "~/shared/models/account_model";
 import {emptyContentReferences} from "~/shared/models/content_references";
 import {
     InboxChatEntryModel,
+    InboxEntryModel,
     InboxModel,
     InboxPostCommentsEntryModel,
 } from "~/shared/models/inbox_model";
@@ -298,6 +300,12 @@ async function createScenario() {
     };
 }
 
+function massageInboxEntriesQuery(
+    entriesQuery: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
+): Array<InboxEntryModel> {
+    return entriesQuery.items.map(({model}) => model);
+}
+
 describe("Post comments", () => {
     test("commenting creates an inbox entry for all subscribers", async () => {
         const scenario = await createScenario();
@@ -316,21 +324,21 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         expect(
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         expect(
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         const comment1 = await createPostComment(context.action(scenario.session2), {
@@ -345,7 +353,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -367,14 +375,14 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         expect(
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         const comment2 = await createPostComment(context.action(scenario.session3), {
@@ -389,7 +397,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -411,7 +419,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -433,7 +441,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         const comment3 = await createPostComment(context.action(scenario.session1), {
@@ -448,7 +456,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -470,7 +478,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -492,7 +500,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -528,21 +536,21 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         expect(
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         expect(
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         const comment1 = await createPostComment(context.action(scenario.session2), {
@@ -557,7 +565,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -584,14 +592,14 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         expect(
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -626,7 +634,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -653,14 +661,14 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         expect(
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -695,7 +703,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -722,7 +730,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -749,7 +757,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -790,21 +798,21 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         expect(
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         expect(
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         const comment1 = await createPostComment(context.action(scenario.session2), {
@@ -819,7 +827,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -846,14 +854,14 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         expect(
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         const comment2 = await createPostComment(context.action(scenario.session1), {
@@ -868,7 +876,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -890,7 +898,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -912,7 +920,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         const comment3 = await createPostComment(context.action(scenario.session2), {
@@ -927,7 +935,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -954,7 +962,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -981,7 +989,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
     });
 
@@ -1012,14 +1020,14 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         expect(
             await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         const comment1 = await createPostComment(context.action(scenario.session2), {
@@ -1034,7 +1042,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -1061,7 +1069,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         const comment2 = await createPostComment(context.action(scenario.otherSession), {
@@ -1076,7 +1084,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -1103,7 +1111,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.otherSpace.id,
@@ -1154,14 +1162,14 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         await expect(
             getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).rejects.toThrow(PermissionDeniedError);
 
         const comment1 = await createPostComment(context.action(scenario.session2), {
@@ -1176,7 +1184,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -1203,7 +1211,7 @@ describe("Post comments", () => {
             getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).rejects.toThrow(PermissionDeniedError);
 
         await createPostComment(context.action(scenario.otherSession), {
@@ -1218,7 +1226,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -1245,7 +1253,7 @@ describe("Post comments", () => {
             getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).rejects.toThrow(PermissionDeniedError);
     });
 
@@ -1266,14 +1274,14 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         expect(
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         await createPostComment(context.action(scenario.session1), {
@@ -1311,7 +1319,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -1333,7 +1341,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -1358,7 +1366,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -1380,7 +1388,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -1428,7 +1436,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         const comment1 = await createPostComment(context.action(scenario.session2), {
@@ -1443,7 +1451,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -1473,7 +1481,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -1522,7 +1530,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -1585,7 +1593,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -1648,7 +1656,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -1706,7 +1714,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -1769,7 +1777,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -1832,7 +1840,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -1931,7 +1939,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         const comment1 = await createPostComment(context.action(scenario.session2), {
@@ -1946,7 +1954,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -1976,7 +1984,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -2025,7 +2033,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -2082,7 +2090,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -2145,7 +2153,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -2222,7 +2230,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -2294,7 +2302,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -2366,7 +2374,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -2456,7 +2464,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         await createPostComment(context.action(scenario.session2), {
@@ -2489,7 +2497,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -2511,7 +2519,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -2552,7 +2560,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -2579,7 +2587,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -2601,7 +2609,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -2642,7 +2650,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         await archiveInboxEntry(context.action(scenario.session2), {
@@ -2654,7 +2662,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -2676,7 +2684,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -2698,7 +2706,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         await archiveInboxEntry(context.action(scenario.session2), {
@@ -2710,7 +2718,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -2732,14 +2740,14 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         expect(
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
     });
 
@@ -2772,7 +2780,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         await createPostComment(context.action(scenario.session2), {
@@ -2811,7 +2819,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -2833,7 +2841,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -2893,7 +2901,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -2930,7 +2938,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -2952,7 +2960,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -2979,7 +2987,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         await unarchiveInboxEntry(context.action(scenario.session3), {
@@ -2991,7 +2999,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -3013,7 +3021,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -3040,7 +3048,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -3067,7 +3075,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -3089,7 +3097,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -3135,7 +3143,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -3162,7 +3170,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -3184,7 +3192,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -3244,7 +3252,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -3312,7 +3320,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         const comment1 = await createPostComment(context.action(scenario.session2), {
@@ -3327,7 +3335,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -3354,7 +3362,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         const comment2 = await createPostComment(context.action(scenario.session2), {
@@ -3369,7 +3377,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -3407,7 +3415,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         const comment1 = await createPostComment(context.action(scenario.session2), {
@@ -3422,7 +3430,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -3454,7 +3462,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         const comment2 = await createPostComment(context.action(scenario.session2), {
@@ -3469,7 +3477,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -3507,7 +3515,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         const comment1 = await createPostComment(context.action(scenario.session2), {
@@ -3522,7 +3530,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -3549,7 +3557,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         const comment2 = await createPostComment(context.action(scenario.session1), {
@@ -3564,7 +3572,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         await unarchiveInboxEntry(context.action(scenario.session1), {
@@ -3576,7 +3584,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
@@ -4117,21 +4125,21 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         expect(
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         expect(
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         const message1 = await sendChatMessage(context.action(scenario.session2), {
@@ -4146,7 +4154,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -4168,14 +4176,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         expect(
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -4205,7 +4213,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -4227,7 +4235,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -4249,7 +4257,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -4279,7 +4287,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -4301,7 +4309,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -4323,7 +4331,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -4354,21 +4362,21 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         expect(
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         expect(
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         const message1 = await sendChatMessage(context.action(scenario.session2), {
@@ -4383,7 +4391,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -4405,14 +4413,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         expect(
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -4442,7 +4450,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -4469,14 +4477,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         expect(
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -4511,7 +4519,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -4538,14 +4546,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         expect(
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -4580,7 +4588,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -4607,7 +4615,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -4634,7 +4642,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -4670,21 +4678,21 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         expect(
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         expect(
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         const message1 = await sendChatMessage(context.action(scenario.session1), {
@@ -4699,14 +4707,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         expect(
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -4728,7 +4736,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -4758,7 +4766,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -4785,7 +4793,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -4812,7 +4820,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -4847,7 +4855,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -4869,7 +4877,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -4891,7 +4899,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -4921,7 +4929,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -4948,7 +4956,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -4975,7 +4983,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -5019,14 +5027,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         expect(
             await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         const message1 = await sendChatMessage(context.action(scenario.session1), {
@@ -5041,7 +5049,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -5063,7 +5071,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         const message2 = await sendChatMessage(context.action(scenario.otherSession), {
@@ -5078,7 +5086,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -5100,7 +5108,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.otherSpace.id,
@@ -5144,14 +5152,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         await expect(
             getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).rejects.toThrow(PermissionDeniedError);
 
         const message1 = await sendChatMessage(context.action(scenario.session2), {
@@ -5166,7 +5174,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -5193,7 +5201,7 @@ describe("Chat", () => {
             getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).rejects.toThrow(PermissionDeniedError);
 
         await sendChatMessage(context.action(scenario.session2), {
@@ -5208,7 +5216,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -5235,7 +5243,7 @@ describe("Chat", () => {
             getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).rejects.toThrow(PermissionDeniedError);
 
         await sendChatMessage(context.action(scenario.otherSession), {
@@ -5250,7 +5258,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -5277,7 +5285,7 @@ describe("Chat", () => {
             getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).rejects.toThrow(PermissionDeniedError);
     });
 
@@ -5293,14 +5301,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         expect(
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         await sendChatMessage(context.action(scenario.session1), {
@@ -5338,7 +5346,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -5360,7 +5368,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -5385,7 +5393,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -5407,7 +5415,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -5450,7 +5458,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         const message1 = await sendChatMessage(context.action(scenario.session2), {
@@ -5465,7 +5473,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -5495,7 +5503,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -5544,7 +5552,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -5607,7 +5615,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -5670,7 +5678,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -5728,7 +5736,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -5791,7 +5799,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -5854,7 +5862,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -5948,7 +5956,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         const message1 = await sendChatMessage(context.action(scenario.session2), {
@@ -5963,7 +5971,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -5993,7 +6001,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -6042,7 +6050,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -6099,7 +6107,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -6162,7 +6170,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -6239,7 +6247,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -6311,7 +6319,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -6383,7 +6391,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -6461,14 +6469,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         expect(
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         const message1 = await sendChatMessage(context.action(scenario.session1), {
@@ -6483,14 +6491,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         expect(
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -6520,7 +6528,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -6542,7 +6550,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -6572,7 +6580,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -6594,7 +6602,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -6634,7 +6642,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -6656,7 +6664,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -6698,7 +6706,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         await sendChatMessage(context.action(scenario.session2), {
@@ -6731,7 +6739,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -6753,7 +6761,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -6794,7 +6802,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -6840,7 +6848,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -6862,7 +6870,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -6903,7 +6911,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -6935,7 +6943,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -6957,7 +6965,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -6979,7 +6987,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -7011,7 +7019,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -7033,14 +7041,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         expect(
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -7092,7 +7100,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         await sendChatMessage(context.action(scenario.session2), {
@@ -7131,7 +7139,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -7153,7 +7161,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -7213,7 +7221,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -7269,7 +7277,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -7291,7 +7299,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -7318,7 +7326,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -7350,7 +7358,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -7372,7 +7380,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -7399,7 +7407,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -7445,7 +7453,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -7467,7 +7475,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -7513,7 +7521,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -7559,7 +7567,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -7581,7 +7589,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -7641,7 +7649,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -7693,7 +7701,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         const message1 = await sendChatMessage(context.action(scenario.session2), {
@@ -7708,7 +7716,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -7735,7 +7743,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         const message2 = await sendChatMessage(context.action(scenario.session2), {
@@ -7750,7 +7758,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -7783,7 +7791,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         const message1 = await sendChatMessage(context.action(scenario.session2), {
@@ -7798,7 +7806,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
@@ -7825,7 +7833,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         const message2 = await sendChatMessage(context.action(scenario.session1), {
@@ -7840,7 +7848,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
         await unarchiveInboxEntry(context.action(scenario.session1), {
@@ -7852,7 +7860,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
-            }).then(({entries}) => entries),
+            }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,

@@ -23,7 +23,10 @@ import {
     MessageContentSchema,
     assertMessageContent,
 } from "~/shared/content/message_content_schema";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types";
+import {
+    DynamoGeneralRealtimeIndexQuery,
+    DynamoGeneralRealtimeItem,
+} from "~/shared/dynamo/dynamo_general_realtime_types";
 import {CancelledError, NotFoundError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
@@ -499,12 +502,10 @@ export async function getInboxEntries(
         spaceId: SpaceId;
         limit: number;
     },
-): Promise<{
-    entries: ReadonlyArray<InboxEntryModel>;
-}> {
+): Promise<DynamoGeneralRealtimeIndexQuery<InboxEntryModel>> {
     await authorizeSpaceAccess(context, spaceId);
 
-    const entries = await InboxEntriesIndex.realtimeQuery(context, {
+    const entriesQuery = await InboxEntriesIndex.realtimeQuery(context, {
         partitionKey: {
             spaceId,
             accountId: context.actor.getAccountId(),
@@ -517,8 +518,7 @@ export async function getInboxEntries(
         limit,
     });
 
-    // NOCOMMIT: Return all the realtime stuffs
-    return {entries: entries.items.map(item => item.model)};
+    return entriesQuery;
 }
 
 /**

@@ -23,6 +23,8 @@ export type DynamoGeneralRealtimeItem<Model> = {
      * practice we read from `readTime - 10min` to the current time to handle clock
      * skew and eventually consistent reads.
      */
+    // NOCOMMIT: Remove this? We only need it on the queries I think. Explain in
+    // documentation that to backfill updates to an item we re-read it.
     readonly readTime: Date;
 
     /**
