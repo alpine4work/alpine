@@ -18,7 +18,12 @@ import {
     InboxPostCommentsEntryModel,
 } from "~/shared/models/inbox_model";
 import {MessageContentWithReferences} from "~/shared/models/message_model";
-import {backgroundColorVar, contentSchemaStyles, fontSizesByPlatform} from "~/shared/styles/styles";
+import {
+    backgroundColorVar,
+    contentSchemaStyles,
+    fontSizesByPlatform,
+    sprinkles,
+} from "~/shared/styles/styles";
 
 export function InboxEntryView({entry}: {entry: InboxEntryModel}) {
     switch (entry.type) {
@@ -30,6 +35,10 @@ export function InboxEntryView({entry}: {entry: InboxEntryModel}) {
             throw exhaustive(entry);
     }
 }
+
+const boldClassName = sprinkles({
+    fontStyle: "bold",
+});
 
 function InboxChatEntryView({entry}: {entry: InboxChatEntryModel}) {
     const firstAccount = entry.otherChatAccount ?? entry.latestMessage.author;
@@ -44,17 +53,17 @@ function InboxChatEntryView({entry}: {entry: InboxChatEntryModel}) {
             loudNotificationCount={entry.loudNotificationCount}
         >
             <Box>
-                <Box display="inline" fontStyle="semi-bold">
+                <span className={boldClassName}>
                     <AccountShortName account={entry.latestMessage.author} />
-                </Box>{" "}
+                </span>{" "}
                 sent you
                 {entry.chatAccountCount === 3 && entry.otherChatAccount ? (
                     <>
                         {" "}
                         and{" "}
-                        <Box display="inline" fontStyle="semi-bold">
+                        <span className={boldClassName}>
                             <AccountShortName account={entry.otherChatAccount} />
-                        </Box>
+                        </span>
                     </>
                 ) : entry.chatAccountCount > 2 ? (
                     <>
@@ -94,17 +103,13 @@ function InboxPostCommentsEntryView({entry}: {entry: InboxPostCommentsEntryModel
                     "Your"
                 ) : (
                     <>
-                        <Box display="inline" fontStyle="semi-bold">
+                        <span className={boldClassName}>
                             <AccountShortName account={entry.postAuthor} />
-                        </Box>
+                        </span>
                         ’s
                     </>
                 )}{" "}
-                post in{" "}
-                <Box display="inline" fontStyle="semi-bold">
-                    {entry.channel.name}
-                </Box>{" "}
-                has new comments
+                post in <span className={boldClassName}>{entry.channel.name}</span> has new comments
             </Box>
             <InboxEntryLatestMessagePreview latestMessage={entry.latestComment} />
         </InboxEntryViewBase>
@@ -123,8 +128,8 @@ function InboxEntryViewBase({
     children?: ReactNode;
 }) {
     return (
-        <Box paddingX="3">
-            <Box display="flex" alignItems="center" borderBottom="grey-5" gap="3">
+        <Box paddingX="4">
+            <Box display="flex" alignItems="center" borderBottom="grey-5" gap="4">
                 <Box flexShrink="0" paddingY="3">
                     <Box
                         position="relative"
