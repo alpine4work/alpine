@@ -32,12 +32,15 @@ export function InboxEntryView({entry}: {entry: InboxEntryModel}) {
 }
 
 function InboxChatEntryView({entry}: {entry: InboxChatEntryModel}) {
+    const firstAccount = entry.otherChatAccount ?? entry.latestMessage.author;
+
+    const secondAccount =
+        entry.latestMessage.author.id !== firstAccount.id ? entry.latestMessage.author : null;
+
     return (
         <InboxEntryViewBase
-            firstAccount={entry.latestMessage.author}
-            // NOCOMMIT: Add second account here
-            // NOCOMMIT: If we have a second account, use it instead of saying "1 other"
-            secondAccount={null}
+            firstAccount={firstAccount}
+            secondAccount={secondAccount}
             loudNotificationCount={entry.loudNotificationCount}
         >
             <Box>
@@ -45,7 +48,15 @@ function InboxChatEntryView({entry}: {entry: InboxChatEntryModel}) {
                     <AccountShortName account={entry.latestMessage.author} />
                 </Box>{" "}
                 sent you
-                {entry.chatAccountCount > 2 ? (
+                {entry.chatAccountCount === 3 && entry.otherChatAccount ? (
+                    <>
+                        {" "}
+                        and{" "}
+                        <Box display="inline" fontStyle="semi-bold">
+                            <AccountShortName account={entry.otherChatAccount} />
+                        </Box>
+                    </>
+                ) : entry.chatAccountCount > 2 ? (
                     <>
                         {" "}
                         and <PrettyNumber number={entry.chatAccountCount - 2} label="other" />

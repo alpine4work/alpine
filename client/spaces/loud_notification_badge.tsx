@@ -23,7 +23,13 @@ export function LoudNotificationBadge({
             style={{
                 lineHeight: 1,
                 fontSize: "0.5rem",
-                boxShadow: `0 0 0 1px ${backgroundColorVar}`,
+                // On high pixel density displays we want 1.3px should to round up to 1.5px and
+                // on low pixel density displays we want 1.3px to round down to 1px.
+                //
+                // That extra width is helpful when rendering this on top of a solid object
+                // like an avatar. We don't want 2px since an avatar pile will use that for
+                // occluding other avatars.
+                boxShadow: `0 0 0 1.3px ${backgroundColorVar}`,
                 // Use `right` and `translateX` to center the number around a point inset within
                 // the positioning context.
                 top: top.endsWith("rem")

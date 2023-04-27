@@ -34,6 +34,7 @@ import {CancelledError, NotFoundError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {randomInteger} from "~/shared/helpers/number/random_integer";
 import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
@@ -47,6 +48,7 @@ import {
 } from "~/shared/id/types/id_types";
 import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/messaging/messaging_shared_styles";
 import {AccountModel} from "~/shared/models/account_model";
+import {ChatModel} from "~/shared/models/chat_model";
 import {
     InboxChatEntryModel,
     InboxEntryKey,
@@ -222,6 +224,16 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             createdTime: Schema.date,
                             contentSnippet: MessageContentSchema,
                         }),
+
+                        /**
+                         * Another account in the chat. May or may not have sent a message to the
+                         * chat. If the chat has three members this will always be the member that's
+                         * not the owner of the inbox or the `lastMessage` author.
+                         *
+                         * If the chat has more than three members this will usually be the member who
+                         * left a message before `latestMessage` or someone who was picked arbitrarily.
+                         */
+                        otherAccountId: Schema.id<AccountId>().nullable().default(null),
                     }),
                 },
                 {
@@ -276,19 +288,23 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
             },
             ChatEntry: {
                 async build(context, item) {
-                    const [author, references, {chatAccountCount}] = await runAllPromises([
-                        getAccount(context, item.spaceId, item.latestMessage.authorId),
-                        getContentReferencesForNode(
-                            context,
-                            item.spaceId,
-                            item.latestMessage.contentSnippet,
-                        ),
-                        authorizeChatAccessForAccount(
-                            context,
-                            item.chatId,
-                            item.latestMessage.authorId,
-                        ),
-                    ]);
+                    const [author, references, {chatAccountCount}, otherChatAccount] =
+                        await runAllPromises([
+                            getAccount(context, item.spaceId, item.latestMessage.authorId),
+                            getContentReferencesForNode(
+                                context,
+                                item.spaceId,
+                                item.latestMessage.contentSnippet,
+                            ),
+                            authorizeChatAccessForAccount(
+                                context,
+                                item.chatId,
+                                item.latestMessage.authorId,
+                            ),
+                            item.otherAccountId
+                                ? getAccount(context, item.spaceId, item.otherAccountId)
+                                : null,
+                        ]);
 
                     return new InboxChatEntryModel({
                         spaceId: item.spaceId,
@@ -301,6 +317,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             createdTime: item.latestMessage.createdTime,
                             contentSnippet: {doc: item.latestMessage.contentSnippet, references},
                         },
+                        otherChatAccount,
                     });
                 },
             },
@@ -1077,27 +1094,27 @@ function getInboxEntryLatestUpdateTime(
 
 const processNotificationCreateChatMessageEvent = createNotificationEventProcessor<
     NotificationCreateChatMessageEvent,
-    {spaceId: SpaceId}
+    ChatModel
 >({
     getSubscribers: async (context, event) => {
         const chat = await getChat(context, event.chatId);
         return {
-            info: {spaceId: chat.spaceId},
+            info: chat,
             accounts: chat.accounts,
         };
     },
-    updateInboxEntry: async (context, event, {info: {spaceId}, account}) => {
+    updateInboxEntry: async (context, event, {info: chat, account}) => {
         await updateInboxEntry(
             context,
             event,
             {
                 partitionType: "Inbox",
                 sortRangeType: "ChatEntry",
-                spaceId,
+                spaceId: chat.spaceId,
                 accountId: account.id,
                 chatId: event.chatId,
             },
-            item => {
+            oldItem => {
                 // We increment the loud notification count if:
                 //
                 // - This account was mentioned in the message
@@ -1124,30 +1141,76 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
                 const shouldIncrementLoudNotificationCount =
                     account.id !== event.authorId &&
                     (event.mentionedAccountIds.has(account.id) ||
-                        item?.isArchived ||
-                        !item?.latestMessage ||
+                        oldItem?.isArchived ||
+                        !oldItem?.latestMessage ||
                         // Events might arrive out-of-order but if events 10min+ apart are arriving
                         // out-of-order we have a bigger problem so we don't worry about the
                         // out-of-order case when subtracting timestamps here.
-                        differenceInMinutes(event.createdTime, item.latestMessage.createdTime) >=
+                        differenceInMinutes(event.createdTime, oldItem.latestMessage.createdTime) >=
                             minMessageViewTimestampDividerElapsedMinutes);
+
+                let latestMessage: {
+                    index: number;
+                    authorId: AccountId;
+                    createdTime: Date;
+                    contentSnippet: MessageContent;
+                };
+                let otherAccountId: AccountId | null;
+
+                // Our events may arrive out-of-order. If we have an earlier message index then
+                // what's in the entry's latest message then don't bother updating the latest
+                // message.
+                if (oldItem && oldItem.latestMessage.index > event.messageIndex) {
+                    latestMessage = oldItem.latestMessage;
+                    otherAccountId = oldItem.otherAccountId;
+                } else {
+                    latestMessage = {
+                        index: event.messageIndex,
+                        authorId: event.authorId,
+                        createdTime: event.createdTime,
+                        contentSnippet: event.contentSnippet,
+                    };
+
+                    if (!oldItem) {
+                        // If we are creating this inbox entry fresh, pick a random account in the chat
+                        // that's not our inbox's account and that's not the message author as
+                        // `otherAccountId`.
+                        //
+                        // Randomly picking an account is probably not the ideal heuristic but gives
+                        // the user some diversity in other accounts they see as opposed to, say,
+                        // always picking the user with the first name alphabetically.
+                        const latestMessageAuthorId = latestMessage.authorId;
+                        const eligibleOtherAccounts = chat.accounts.filter(
+                            chatAccount =>
+                                chatAccount.id !== latestMessageAuthorId &&
+                                chatAccount.id !== account.id,
+                        );
+
+                        otherAccountId =
+                            eligibleOtherAccounts.length > 0
+                                ? eligibleOtherAccounts[
+                                      randomInteger(0, eligibleOtherAccounts.length)
+                                  ]!.id
+                                : null;
+                    } else {
+                        // If the `latestMessage`'s author changed then move the old `latestMessage`
+                        // author into `otherAccountId`. But not if the old `latestMessage` had our
+                        // inbox's account as the author.
+                        otherAccountId =
+                            oldItem.latestMessage.authorId !== latestMessage.authorId &&
+                            oldItem.latestMessage.authorId !== account.id
+                                ? oldItem.latestMessage.authorId
+                                : oldItem.otherAccountId;
+                    }
+                }
 
                 return {
                     loudNotificationCount:
-                        (item?.loudNotificationCount ?? 0) +
+                        (oldItem?.loudNotificationCount ?? 0) +
                         (shouldIncrementLoudNotificationCount ? 1 : 0),
 
-                    // Events may arrive out-of-order so double check that the message index in
-                    // the event is actually the latest message.
-                    latestMessage:
-                        item && item.latestMessage.index > event.messageIndex
-                            ? item.latestMessage
-                            : {
-                                  index: event.messageIndex,
-                                  authorId: event.authorId,
-                                  createdTime: event.createdTime,
-                                  contentSnippet: event.contentSnippet,
-                              },
+                    latestMessage,
+                    otherAccountId,
                 };
             },
         );
@@ -1176,41 +1239,56 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
                 accountId: account.id,
                 postId: event.postId,
             },
-            item => {
+            oldItem => {
                 // We increment the loud notification count only if someone is explicitly
                 // trying to get your attention by mentioning your account. Otherwise, we
                 // expect users will respond to new post comments in their own time.
                 const shouldIncrementLoudNotificationCount =
                     account.id !== event.authorId && event.mentionedAccountIds.has(account.id);
 
+                let latestComment: {
+                    index: number;
+                    authorId: AccountId;
+                    createdTime: Date;
+                    contentSnippet: MessageContent;
+                };
+                let otherCommentAuthorId: AccountId | null;
+
+                // Our events may arrive out-of-order. If we have an earlier message index then
+                // what's in the entry's latest message then don't bother updating the latest
+                // message.
+                if (oldItem && oldItem.latestComment.index > event.commentIndex) {
+                    latestComment = oldItem.latestComment;
+                    otherCommentAuthorId = oldItem.otherCommentAuthorId;
+                } else {
+                    latestComment = {
+                        index: event.commentIndex,
+                        authorId: event.authorId,
+                        createdTime: event.createdTime,
+                        contentSnippet: event.contentSnippet,
+                    };
+
+                    if (!oldItem) {
+                        otherCommentAuthorId = null;
+                    } else {
+                        // If the `latestComment`'s author changed then move the old `latestComment`
+                        // author into `otherCommentAuthorId`. But not if the old `latestComment`
+                        // had our inbox's account as the author.
+                        otherCommentAuthorId =
+                            oldItem.latestComment.authorId !== latestComment.authorId &&
+                            oldItem.latestComment.authorId !== account.id
+                                ? oldItem.latestComment.authorId
+                                : oldItem.otherCommentAuthorId;
+                    }
+                }
+
                 return {
                     loudNotificationCount:
-                        (item?.loudNotificationCount ?? 0) +
+                        (oldItem?.loudNotificationCount ?? 0) +
                         (shouldIncrementLoudNotificationCount ? 1 : 0),
 
-                    // Events may arrive out-of-order so double check that the comment index in
-                    // the event is actually the latest comment.
-                    latestComment:
-                        item && item.latestComment.index > event.commentIndex
-                            ? item.latestComment
-                            : {
-                                  index: event.commentIndex,
-                                  authorId: event.authorId,
-                                  createdTime: event.createdTime,
-                                  contentSnippet: event.contentSnippet,
-                              },
-
-                    // If the commenter for this event is different from the last comment then move
-                    // the last comment's author into the `otherCommentAuthorId` slot.
-                    //
-                    // But not if the last comment was from inbox's account! We want to keep our
-                    // inbox's face out of the inbox entry.
-                    otherCommentAuthorId:
-                        item &&
-                        item.latestComment.authorId !== event.authorId &&
-                        item.latestComment.authorId !== account.id
-                            ? item.latestComment.authorId
-                            : item?.otherCommentAuthorId ?? null,
+                    latestComment,
+                    otherCommentAuthorId,
                 };
             },
         );

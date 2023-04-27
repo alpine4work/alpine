@@ -43,6 +43,7 @@ export class InboxChatEntryModel extends Model(
             createdTime: Schema.date,
             contentSnippet: MessageContentWithReferencesSchema,
         }),
+        otherChatAccount: AccountModel.schema().nullable(),
     }),
 ) {
     public readonly type = "Chat" as const;
