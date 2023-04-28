@@ -4,7 +4,6 @@ ts_project(
     name = "schema",
     visibility = ["//visibility:public"],
     deps = [
-        "//:node_modules/byte-base64",
         "//:node_modules/date-fns",
         "//:node_modules/murmurhash",
         "//shared/error:error_core",

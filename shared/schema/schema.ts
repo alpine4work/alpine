@@ -1,9 +1,9 @@
-import {base64ToBytes, bytesToBase64} from "byte-base64";
 import isValidDate from "date-fns/isValid";
 import parseISO from "date-fns/parseISO";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type";
+import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64";
 import {assert} from "~/shared/helpers/control/assert";
 import {cast} from "~/shared/helpers/control/cast";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
@@ -367,7 +367,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
                 throw new SchemaDeserializationError("Expected a `Uint8Array` or base64 string");
 
             try {
-                return base64ToBytes(value);
+                return decodeBase64(value);
             } catch {
                 throw new SchemaDeserializationError("Unable to parse base64 string");
             }
@@ -794,7 +794,7 @@ export class JsonStringifiableUint8Array extends Uint8Array {
     }
 
     public toJSON(): string {
-        return bytesToBase64(this);
+        return encodeBase64(this);
     }
 }
 

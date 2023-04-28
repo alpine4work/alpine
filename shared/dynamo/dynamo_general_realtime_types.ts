@@ -15,18 +15,8 @@ import {ObjectSchema, Schema} from "~/shared/schema/schema";
  * access to a "model" which is a nicely formatted object for use on
  * the client.
  */
+// NOCOMMIT: Explain why we don't need `readTime` here.
 export type DynamoGeneralRealtimeItem<Model> = {
-    /**
-     * When did the read for this data start? When we connect to realtime on the
-     * client we should load all changes between the `readTime` and the current
-     * time in case the item updated while we were disconnected from realtime. In
-     * practice we read from `readTime - 10min` to the current time to handle clock
-     * skew and eventually consistent reads.
-     */
-    // NOCOMMIT: Remove this? We only need it on the queries I think. Explain in
-    // documentation that to backfill updates to an item we re-read it.
-    readonly readTime: Date;
-
     /**
      * Unique identifier for the item within the DynamoDB table the item came from.
      */
@@ -53,66 +43,9 @@ export function createDynamoGeneralRealtimeItemSchema<Model>(
     const ModelSchema: Schema<any> = _ModelSchema;
 
     return Schema.object({
-        readTime: Schema.date,
         key: DynamoItemKeySchema,
         version: Schema.integer.min(0),
         model: ModelSchema,
-    });
-}
-
-/**
- * The result of a query for a range of items on a realtime DynamoDB table.
- *
- * Differs from `DynamoGeneralRealtimeIndexQueryResult` in that the item key
- * determines the ordering of items instead of the cursor.
- */
-export type DynamoGeneralRealtimeQuery<Model> = {
-    /**
-     * When did the read for this data start? When we connect to realtime on the
-     * client we should load all changes between the `readTime` and the current
-     * time in case the item updated while we were disconnected from realtime. In
-     * practice we read from `readTime - 10min` to the current time to handle clock
-     * skew and eventually consistent reads.
-     */
-    readonly readTime: Date;
-
-    /**
-     * The items returned by this query in order.
-     *
-     * You can run a query in descending mode. In that case items will be in
-     * reverse order from how they're actually stored.
-     */
-    readonly items: ReadonlyArray<{
-        readonly key: DynamoItemKey;
-        readonly version: number;
-        readonly model: Model;
-    }>;
-
-    /**
-     * Are there more items in this query? When you execute a query you provide
-     * optional bounds and a limit. If we reach the limit but there are still more
-     * items then we set this to true. It means the client should load another page
-     * of data when needed.
-     */
-    readonly hasMoreItems: boolean;
-};
-
-export function createDynamoGeneralRealtimeQuerySchema<Model>(
-    _ModelSchema: Schema<Model>,
-): Schema<DynamoGeneralRealtimeQuery<Model>> {
-    // `Optionalize<T>` does not like generics so use any instead.
-    const ModelSchema: Schema<any> = _ModelSchema;
-
-    return Schema.object({
-        readTime: Schema.date,
-        items: Schema.array(
-            Schema.object({
-                key: DynamoItemKeySchema,
-                version: Schema.integer.min(0),
-                model: ModelSchema,
-            }),
-        ),
-        hasMoreItems: Schema.boolean,
     });
 }
 
@@ -127,7 +60,7 @@ export function createDynamoGeneralRealtimeQuerySchema<Model>(
  * Queries can be run in descending order. In this case the order of `items` is
  * reversed from how they are stored is in the base index.
  */
-export type DynamoGeneralRealtimeIndexQuery<Model> = {
+export type DynamoGeneralRealtimeIndexQueryResult<Model> = {
     /**
      * When did the read for this data start? When we connect to realtime on the
      * client we should load all changes between the `readTime` and the current
@@ -145,6 +78,39 @@ export type DynamoGeneralRealtimeIndexQuery<Model> = {
     readonly indexName: string;
 
     /**
+     * The upper bound of items we should expect in this query.
+     *
+     * Not a full `DynamoIndexCursor` but you can compare orders between this
+     * bound string and `DynamoIndexCursor`s.
+     */
+    readonly startCursorBound: string | null;
+
+    /**
+     * The lower bound of items we should expect in this query.
+     *
+     * Not a full `DynamoIndexCursor` but you can compare orders between this
+     * bound string and `DynamoIndexCursor`s.
+     */
+    readonly endCursorBound: string | null;
+
+    /**
+     * Information about this page of query results. Includes the direction we were
+     * paginating in (`FromStart` or `FromEnd`), whether there's a next page, and
+     * the cursor we started querying the page from.
+     */
+    readonly pageInfo:
+        | {
+              readonly type: "FromStart";
+              readonly afterCursor: DynamoIndexCursor | null;
+              readonly hasNextPage: boolean;
+          }
+        | {
+              readonly type: "FromEnd";
+              readonly beforeCursor: DynamoIndexCursor | null;
+              readonly hasPreviousPage: boolean;
+          };
+
+    /**
      * The items returned by this query in order.
      *
      * You can run a query in descending mode. In that case items will be in
@@ -155,31 +121,36 @@ export type DynamoGeneralRealtimeIndexQuery<Model> = {
      * updated) you can take the item's cursor and figure out where the item now
      * lives in this list.
      */
-    readonly items: ReadonlyArray<{
-        readonly cursor: DynamoIndexCursor;
-        readonly key: DynamoItemKey;
-        readonly version: number;
-        readonly model: Model;
-    }>;
-
-    /**
-     * Are there more items in this query? When you execute a query you provide
-     * optional bounds and a limit. If we reach the limit but there are still more
-     * items then we set this to true. It means the client should load another page
-     * of data when needed.
-     */
-    readonly hasMoreItems: boolean;
+    readonly items: ReadonlyArray<
+        {
+            readonly cursor: DynamoIndexCursor;
+        } & DynamoGeneralRealtimeItem<Model>
+    >;
 };
 
 export function createDynamoGeneralRealtimeIndexQuerySchema<Model>(
     _ModelSchema: Schema<Model>,
-): Schema<DynamoGeneralRealtimeIndexQuery<Model>> {
+): Schema<DynamoGeneralRealtimeIndexQueryResult<Model>> {
     // `Optionalize<T>` does not like generics so use any instead.
     const ModelSchema: Schema<any> = _ModelSchema;
 
     return Schema.object({
         readTime: Schema.date,
         indexName: Schema.string,
+        startCursorBound: Schema.string.nullable(),
+        endCursorBound: Schema.string.nullable(),
+        pageInfo: Schema.union({
+            FromStart: Schema.object({
+                type: Schema.value("FromStart"),
+                afterCursor: DynamoIndexCursorSchema.nullable(),
+                hasNextPage: Schema.boolean,
+            }),
+            FromEnd: Schema.object({
+                type: Schema.value("FromEnd"),
+                beforeCursor: DynamoIndexCursorSchema.nullable(),
+                hasPreviousPage: Schema.boolean,
+            }),
+        }),
         items: Schema.array(
             Schema.object({
                 cursor: DynamoIndexCursorSchema,
@@ -188,7 +159,6 @@ export function createDynamoGeneralRealtimeIndexQuerySchema<Model>(
                 model: ModelSchema,
             }),
         ),
-        hasMoreItems: Schema.boolean,
     });
 }
 

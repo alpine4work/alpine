@@ -71,7 +71,6 @@
         "axe-core": "4.4.3",
         "bcrypt": "^5.1.0",
         "browserify-zlib": "0.1.4",
-        "byte-base64": "^1.1.0",
         "chalk": "4",
         "change-case": "^4.1.2",
         "classnames": "^2.3.2",

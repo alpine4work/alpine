@@ -20,10 +20,13 @@ import {
 import {MessageContentWithReferences} from "~/shared/models/message_model";
 import {
     backgroundColorVar,
+    colorSchemeVars,
     contentSchemaStyles,
     fontSizesByPlatform,
     sprinkles,
 } from "~/shared/styles/styles";
+
+export const inboxEntryViewMinHeight = "4rem";
 
 export function InboxEntryView({entry}: {entry: InboxEntryModel}) {
     switch (entry.type) {
@@ -128,8 +131,18 @@ function InboxEntryViewBase({
     children?: ReactNode;
 }) {
     return (
-        <Box paddingX="4">
-            <Box display="flex" alignItems="center" borderBottom="grey-5" gap="4">
+        <Box paddingX="4" style={{minHeight: inboxEntryViewMinHeight}}>
+            <Box
+                display="flex"
+                alignItems="center"
+                gap="3"
+                style={{
+                    // Draw border with a `box-shadow` instead of `border` so it doesn't contribute
+                    // 1px to layout. Layout needs to be precise since this is rendered in a
+                    // virtualized list.
+                    boxShadow: `0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
+                }}
+            >
                 <Box flexShrink="0" paddingY="3">
                     <Box
                         position="relative"
@@ -140,7 +153,7 @@ function InboxEntryViewBase({
                         justifyContent="center"
                     >
                         {!secondAccount ? (
-                            <AccountAvatar account={firstAccount} size="8" />
+                            <AccountAvatar account={firstAccount} size="9" />
                         ) : (
                             <>
                                 <Box position="absolute" top="0" left="0">
@@ -159,7 +172,7 @@ function InboxEntryViewBase({
                         )}
                         {loudNotificationCount > 0 && (
                             <LoudNotificationBadge
-                                top="1"
+                                top="0"
                                 right="1"
                                 loudNotificationCount={loudNotificationCount}
                             />

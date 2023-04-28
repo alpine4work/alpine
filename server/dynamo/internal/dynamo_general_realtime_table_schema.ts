@@ -13,9 +13,8 @@ import {
 import {DynamoTableSchemaTypes} from "~/server/dynamo/internal/types/dynamo_table_schema_types";
 import {
     DynamoGeneralRealtimeEvent,
-    DynamoGeneralRealtimeIndexQuery,
+    DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,
-    DynamoGeneralRealtimeQuery,
 } from "~/shared/dynamo/dynamo_general_realtime_types";
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings";
 import {UnimplementedError} from "~/shared/error/error";
@@ -689,15 +688,10 @@ export class DynamoGeneralRealtimeTableSchema<
             "Can't access private realtime partition",
         );
 
-        // We backfill realtime updates to `readTime` so it should be before the data
-        // is read from the database to avoid missing realtime updates.
-        const readTime = new Date();
-
         const item = await this._table.getItemIfExists(context, itemKey, options);
         if (!item) return null;
 
         return {
-            readTime,
             key: this._table.serializeOpaqueItemKey(item),
             version: item.updateLockVersion ?? 0,
             model: await this._buildModel(context, item),
@@ -719,14 +713,9 @@ export class DynamoGeneralRealtimeTableSchema<
             "Can't access private realtime partition",
         );
 
-        // We backfill realtime updates to `readTime` so it should be before the data
-        // is read from the database to avoid missing realtime updates.
-        const readTime = new Date();
-
         const item = await this._table.getItem(context, itemKey, options);
 
         return {
-            readTime,
             key: this._table.serializeOpaqueItemKey(item),
             version: item.updateLockVersion ?? 0,
             model: await this._buildModel(context, item),
@@ -738,87 +727,16 @@ export class DynamoGeneralRealtimeTableSchema<
      * collocates related data. Also returns all the auxillary information
      * necessary for a client to keep a query up-to-date in realtime.
      */
-    public async realtimeQuery<
-        const PartitionKey extends Types["PartitionKey"],
-        const StartSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
-        const EndSortKey extends Types["SortKeyMap"][PartitionKey["partitionType"]],
-    >(
-        context: ActionContext,
-        {
-            partitionKey,
-            startSortKey,
-            endSortKey,
-            isStartSortKeyExclusive,
-            isEndSortKeyExclusive,
-            limit,
-            descending,
-            consistency = context.dynamo.defaultReadConsistency,
-        }: {
-            partitionKey: PartitionKey;
-            startSortKey?: StartSortKey | undefined;
-            endSortKey?: EndSortKey | undefined;
-            isStartSortKeyExclusive?: boolean;
-            isEndSortKeyExclusive?: boolean;
-            // Required to specify a limit or the `All` string. So if you intentionally
-            // want everything you have to say so.
-            limit: number | "All";
-            descending?: boolean;
-            consistency?: DynamoReadConsistency;
-        },
-    ): Promise<
-        DynamoGeneralRealtimeQuery<
-            ModelMap[PartitionKey["partitionType"]][Types["QueryKeyMap"][PartitionKey["partitionType"]][StartSortKey["sortRangeType"]][EndSortKey["sortRangeType"]]]
-        >
-    > {
-        assert(
-            partitionKey.partitionType !== privateRealtimePartitionName,
-            "Can't access private realtime partition",
-        );
-
-        // We backfill realtime updates to `readTime` so it should be before the data
-        // is read from the database to avoid missing realtime updates.
-        const readTime = new Date();
-
-        const items = await parallelMapAsyncIterableToArray(
-            this._table.query(context, {
-                partitionKey,
-                startSortKey,
-                endSortKey,
-                isStartSortKeyExclusive,
-                isEndSortKeyExclusive,
-                // Fetch one extra item so we can accurately say whether there are more items
-                // at the beginning or end of the query.
-                limit: typeof limit === "number" ? limit + 1 : limit,
-                descending,
-                consistency,
-            }),
-            async (item, index) => {
-                // Don't build the model for an over-fetched item we use to determine if there
-                // are more items in the query.
-                if (typeof limit === "number" && index >= limit) return null;
-
-                return {
-                    key: this._table.serializeOpaqueItemKey(item),
-                    version: item.updateLockVersion ?? 0,
-                    model: await this._buildModel(context, item),
-                };
-            },
-        );
-
-        const hasMoreItems = typeof limit === "number" && items.length > limit;
-
-        // Remove any items we over-fetched to determine if there were items after the
-        // limit. (Should just be one.)
-        while (typeof limit === "number" && items.length > limit) {
-            items.pop();
-        }
-
-        return {
-            readTime,
-            // We should have removed all null items past our limit above.
-            items: items as ReadonlyArray<NonNullable<(typeof items)[number]>>,
-            hasMoreItems,
-        };
+    public async realtimeQuery(context: ActionContext, options: {}): Promise<never> {
+        // TODO(calebmer): Leaving `realtimeQuery()` unimplemented for now since we
+        // don't have any callers! We have callers for `realtimeQuery()` on indexes.
+        // Once we have a caller of the main `realtimeQuery()` implement this method
+        // based on the index version.
+        //
+        // This is admittedly a little backwards. This method is way more important for
+        // this abstraction than `realtimeQuery()` on an index (indexes are expensive!)
+        // but without a test case I don't want to write potentially incorrect code.
+        throw new UnimplementedError("Implement realtime query method");
     }
 
     /**
@@ -928,18 +846,20 @@ export class DynamoGeneralRealtimeTableSchema<
                     endSortKey,
                     isStartSortKeyExclusive,
                     isEndSortKeyExclusive,
-                    afterCursor,
+                    paginate = {type: "FromStart"},
                     limit,
-                    descending,
                 },
             ): Promise<
-                DynamoGeneralRealtimeIndexQuery<
+                DynamoGeneralRealtimeIndexQueryResult<
                     ModelMap[ItemTypes["partitionType"]][ItemTypes["sortRangeType"]]
                 >
             > => {
                 // We backfill realtime updates to `readTime` so it should be before the data
                 // is read from the database to avoid missing realtime updates.
                 const readTime = new Date();
+
+                const cursor =
+                    paginate.type === "FromStart" ? paginate.afterCursor : paginate.beforeCursor;
 
                 const items = await parallelMapAsyncIterableToArray(
                     Index.query(context, {
@@ -948,14 +868,14 @@ export class DynamoGeneralRealtimeTableSchema<
                         endSortKey,
                         isStartSortKeyExclusive,
                         isEndSortKeyExclusive,
+                        descending: paginate.type === "FromEnd",
                         afterItemKey:
-                            typeof afterCursor === "string"
-                                ? Index.deserializeOpaqueCursor(partitionKey, afterCursor)
+                            typeof cursor === "string"
+                                ? Index.deserializeOpaqueCursor(partitionKey, cursor)
                                 : undefined,
                         // Fetch one extra item so we can accurately say whether there are more items
                         // at the beginning or end of the query.
                         limit: typeof limit === "number" ? limit + 1 : limit,
-                        descending,
                     }),
                     async (item, index) => {
                         // Don't build the model for an over-fetched item we use to determine if there
@@ -971,6 +891,20 @@ export class DynamoGeneralRealtimeTableSchema<
                     },
                 );
 
+                const startCursorBound = startSortKey
+                    ? Index.serializeOpaqueCursorBound(
+                          startSortKey,
+                          isStartSortKeyExclusive ? "StartExclusive" : "StartInclusive",
+                      )
+                    : null;
+
+                const endCursorBound = endSortKey
+                    ? Index.serializeOpaqueCursorBound(
+                          endSortKey,
+                          isEndSortKeyExclusive ? "EndExclusive" : "EndInclusive",
+                      )
+                    : null;
+
                 const hasMoreItems = typeof limit === "number" && items.length > limit;
 
                 // Remove any items we over-fetched to determine if there were items after the
@@ -979,12 +913,51 @@ export class DynamoGeneralRealtimeTableSchema<
                     items.pop();
                 }
 
+                // When paginating from the end, we queried items in descending order. Reverse
+                // them to get them back to the proper order.
+                if (paginate.type === "FromEnd") {
+                    items.reverse();
+                }
+
+                // We should have removed all null items past our limit above.
+                const finalItems = items as ReadonlyArray<NonNullable<(typeof items)[number]>>;
+
+                // If we are not in a development or test environment, verify that cursors
+                // strings are orderable. This would create overhead in production.
+                if (process.env.NODE_ENV !== "production") {
+                    let lastCursor: DynamoIndexCursor | null = null;
+
+                    for (const item of finalItems) {
+                        if (lastCursor === null) {
+                            lastCursor = item.cursor;
+                        } else {
+                            assert(
+                                lastCursor < item.cursor,
+                                "Expected cursors to be lexicographically orderable",
+                            );
+                            lastCursor = item.cursor;
+                        }
+                    }
+                }
+
                 return {
                     readTime,
                     indexName: config.name,
-                    // We should have removed all null items past our limit above.
-                    items: items as ReadonlyArray<NonNullable<(typeof items)[number]>>,
-                    hasMoreItems,
+                    startCursorBound,
+                    endCursorBound,
+                    pageInfo:
+                        paginate.type === "FromStart"
+                            ? {
+                                  type: "FromStart",
+                                  afterCursor: paginate.afterCursor ?? null,
+                                  hasNextPage: hasMoreItems,
+                              }
+                            : {
+                                  type: "FromEnd",
+                                  beforeCursor: paginate.beforeCursor ?? null,
+                                  hasPreviousPage: hasMoreItems,
+                              },
+                    items: finalItems,
                 };
             },
         };
@@ -1014,18 +987,20 @@ export interface DynamoGeneralRealtimeTableSchemaIndex<Model, IndexPartitionKey,
             endSortKey?: IndexSortKey;
             isStartSortKeyExclusive?: boolean;
             isEndSortKeyExclusive?: boolean;
-            /**
-             * Our query will return all values after this cursor. Behaves the same as
-             * `startSortKey` but is more precise since an index can contain multiple items
-             * with the same sort key.
-             */
-            afterCursor?: DynamoIndexCursor;
+            paginate?:
+                | {
+                      type: "FromStart";
+                      afterCursor?: DynamoIndexCursor | null;
+                  }
+                | {
+                      type: "FromEnd";
+                      beforeCursor?: DynamoIndexCursor | null;
+                  };
             // Required to specify a limit or the `All` string. So if you intentionally
             // want everything you have to say so.
             limit: number | "All";
-            descending?: boolean;
         },
-    ): Promise<DynamoGeneralRealtimeIndexQuery<Model>>;
+    ): Promise<DynamoGeneralRealtimeIndexQueryResult<Model>>;
 }
 
 // Do not export this symbol! It lets us have methods that are private within

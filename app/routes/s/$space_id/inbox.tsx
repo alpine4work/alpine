@@ -1,6 +1,8 @@
-import {Box} from "~/client/design/box";
-import {InboxEntryView} from "~/client/inbox/inbox_entry_view";
+import {inboxEntryViewMinHeight} from "~/client/inbox/inbox_entry_view";
+import {InboxView} from "~/client/inbox/inbox_view";
+import {createMetaFunction} from "~/client/remix/create_meta_function";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
+import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view";
 import {getInboxEntries} from "~/server/dynamo/notifications_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
@@ -10,38 +12,29 @@ import {InboxEntryModelSchema} from "~/shared/models/inbox_model";
 import {Schema} from "~/shared/schema/schema";
 
 const LoaderSchema = Schema.object({
-    inboxEntriesQuery: createDynamoGeneralRealtimeIndexQuerySchema(InboxEntryModelSchema),
+    inboxEntriesResult: createDynamoGeneralRealtimeIndexQuerySchema(InboxEntryModelSchema),
 });
+
+export const meta = createMetaFunction(LoaderSchema, ({}) => ({
+    title: "Inbox",
+}));
 
 export async function loader({params, context}: LoaderArgs) {
     const spaceId = Schema.id<SpaceId>().deserialize(params.space_id ?? null);
 
-    const inboxEntriesQuery = await getInboxEntries(await context.actor.authenticate(), {
+    const inboxEntriesResult = await getInboxEntries(await context.actor.authenticate(), {
         spaceId,
-        // NOCOMMIT: Proper limit!
-        limit: 100,
+        limit: getInitialVirtualizedScrollViewRenderedItemCount(
+            context.loader.clientInfo,
+            inboxEntryViewMinHeight,
+        ),
     });
 
-    return jsonWithSchema(LoaderSchema, {inboxEntriesQuery});
+    return jsonWithSchema(LoaderSchema, {inboxEntriesResult});
 }
 
 export default function InboxRoute() {
-    const {inboxEntriesQuery} = useLoaderDataWithSchema(LoaderSchema);
+    const {inboxEntriesResult} = useLoaderDataWithSchema(LoaderSchema);
 
-    return (
-        <Box flexGrow="1" overflow="hidden" display="flex">
-            <Box
-                flexShrink="0"
-                overflow="hidden"
-                width="96"
-                backgroundColor="grey-0"
-                borderRight="grey-10"
-            >
-                {inboxEntriesQuery.items.map(item => (
-                    <InboxEntryView key={item.key} entry={item.model} />
-                ))}
-            </Box>
-            <Box flexGrow="1" overflow="hidden"></Box>
-        </Box>
-    );
+    return <InboxView initialEntriesResult={inboxEntriesResult} />;
 }

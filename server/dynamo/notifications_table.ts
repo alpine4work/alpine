@@ -27,9 +27,10 @@ import {
     assertMessageContent,
 } from "~/shared/content/message_content_schema";
 import {
-    DynamoGeneralRealtimeIndexQuery,
+    DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,
 } from "~/shared/dynamo/dynamo_general_realtime_types";
+import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings";
 import {CancelledError, NotFoundError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
@@ -448,6 +449,15 @@ const InboxEntriesIndex = InboxTable.addExpensiveFullIndex({
     },
 });
 
+/**
+ * We are not allowed to export our DynamoDB tables so instead export a
+ * function that can only be used in test environments.
+ */
+export function getInboxEntriesIndexForTest() {
+    assert(process.env.NODE_ENV === "test");
+    return InboxEntriesIndex;
+}
+
 const NotificationsTable = DynamoTableSchema.new({
     name: "Notifications",
     partitions: [
@@ -547,11 +557,13 @@ export async function getInboxEntries(
     {
         spaceId,
         limit,
+        afterCursor,
     }: {
         spaceId: SpaceId;
         limit: number;
+        afterCursor: DynamoIndexCursor | null;
     },
-): Promise<DynamoGeneralRealtimeIndexQuery<InboxEntryModel>> {
+): Promise<DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>> {
     await authorizeSpaceAccess(context, spaceId);
 
     const entriesQuery = await InboxEntriesIndex.realtimeQuery(context, {
@@ -565,6 +577,7 @@ export async function getInboxEntries(
             enteredTime: InboxEntriesIndex.sortKeyAttributes.enteredTime.maxValue,
         },
         limit,
+        paginate: {type: "FromStart", afterCursor},
     });
 
     return entriesQuery;

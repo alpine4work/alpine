@@ -1,5 +1,4 @@
 import {AttributeValue} from "@aws-sdk/client-dynamodb";
-import {base64ToBytes, bytesToBase64} from "byte-base64";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
 import {
@@ -39,6 +38,7 @@ import {
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
+import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
@@ -890,7 +890,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             byteIndex += attributeSchema.binary!.getByteCount(attributeValue);
         }
 
-        const opaqueString = bytesToBase64(bytes) as DynamoItemKey;
+        const opaqueString = encodeBase64(
+            bytes,
+            "Rfc4648UrlWithOrderPreservation",
+        ) as DynamoItemKey;
 
         // In development and test environments, make sure we can deserialize our
         // opaque keys.
@@ -913,7 +916,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         assert(this._initializationState.isInitialized, "Schema has not finished initializing");
 
         try {
-            const bytes = base64ToBytes(opaqueString);
+            const bytes = decodeBase64(opaqueString, "Rfc4648UrlWithOrderPreservation");
 
             const key: any = {};
             let bytesIndex = 0;
@@ -1026,7 +1029,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             bytesIndex += attributeSchema.binary!.getByteCount(attributeValue);
         }
 
-        return bytesToBase64(bytes) as DynamoItemKey;
+        return encodeBase64(bytes, "Rfc4648UrlWithOrderPreservation") as DynamoItemKey;
     }
 
     /**
@@ -2666,6 +2669,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 this._serializeOpaqueIndexCursor(indexConfig, itemKey),
             deserializeOpaqueCursor: (partitionKey, cursor) =>
                 this._deserializeOpaqueIndexCursor(indexConfig, partitionKey, cursor),
+            serializeOpaqueCursorBound: (itemKey, boundType) =>
+                this._serializeOpaqueIndexCursorBound(indexConfig, itemKey, boundType),
 
             async *query(
                 context,
@@ -2824,6 +2829,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 this._serializeOpaqueIndexCursor(indexConfig, itemKey),
             deserializeOpaqueCursor: (partitionKey, cursor) =>
                 this._deserializeOpaqueIndexCursor(indexConfig, partitionKey, cursor),
+            serializeOpaqueCursorBound: (itemKey, boundType) =>
+                this._serializeOpaqueIndexCursorBound(indexConfig, itemKey, boundType),
 
             async *query(
                 context,
@@ -3145,9 +3152,6 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         // To figure out the return for each of these cases we need to think about how
         // the key will be used as a bounds check in the presence of a longer key that
         // includes the primary key.
-        //
-        // TODO(calebmer): Write tests for this! I think it works but have never
-        // actually run this code to see if it works...
         switch (boundType) {
             // `"${key}#${partitionType}" < "${key}~"` is true. We correctly exclude items
             // before `key`.
@@ -3162,18 +3166,18 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             case "StartInclusive": {
                 return key;
             }
-            // `"${key}~" > "${key}#${partitionType}"` is true. We correctly exclude items
+            // `"${key}" > "${key}#${partitionType}"` is true. We correctly include items
+            // that start with `key`.
+            case "EndExclusive": {
+                return key;
+            }
+            // `"${key}#${partitionType}" < "${key}~"` is true. We correctly exclude items
             // that start with `key`.
             //
             // This works since `~` is larger than `#`. `~` should not conflict with key
             // attribute values since it is compared against the `#` separator character.
-            case "EndExclusive": {
-                return key + "~";
-            }
-            // `"${key}#${partitionType}" < "${key}"` is true. We correctly include items
-            // that start with `key`.
             case "EndInclusive": {
-                return key;
+                return key + "~";
             }
             default:
                 throw exhaustive(boundType);
@@ -3322,6 +3326,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             totalByteCount += attributeSchema.binary.getByteCount(attributeValue);
         }
 
+        // We insert a byte for sorting relative to a bounds cursor which only includes
+        // sort key attributes.
+        totalByteCount += 1;
+
         totalByteCount += 1;
         for (const [attributeKey, attributeSchema] of Object.entries(
             partitionConfig.partitionKeyAttributes,
@@ -3378,6 +3386,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             byteIndex += attributeSchema.binary!.getByteCount(attributeValue);
         }
 
+        // We insert a byte for sorting relative to a bounds cursor which only includes
+        // sort key attributes.
+        bytes[byteIndex++] = 1;
+
         bytes[byteIndex++] = partitionDescription.id;
         for (const [attributeKey, attributeSchema] of Object.entries(
             partitionConfig.partitionKeyAttributes,
@@ -3424,7 +3436,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             }
         }
 
-        const opaqueString = bytesToBase64(bytes) as DynamoIndexCursor;
+        const opaqueString = encodeBase64(
+            bytes,
+            "Rfc4648UrlWithOrderPreservation",
+        ) as DynamoIndexCursor;
 
         // In development and test environments, make sure we can deserialize our
         // opaque keys.
@@ -3451,7 +3466,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         assert(this._initializationState.isInitialized, "Schema has not finished initializing");
 
         try {
-            const bytes = base64ToBytes(opaqueString);
+            const bytes = decodeBase64(opaqueString, "Rfc4648UrlWithOrderPreservation");
 
             const key: any = {};
             let bytesIndex = 0;
@@ -3475,6 +3490,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
                 key[attributeKey] = value;
             }
+
+            assert(bytes[bytesIndex++]! === 1, "Expected byte after index attributes");
 
             const partitionNames = this._initializationState.partitionNamesById.get(
                 bytes[bytesIndex++]!,
@@ -3557,6 +3574,65 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         } catch (error) {
             throw InvalidArgumentError.from(error, "Invalid opaque index cursor");
         }
+    }
+
+    private _serializeOpaqueIndexCursorBound(
+        indexConfig: DynamoTableSchemaIndexInternalConfig,
+        item: {[key: string]: unknown},
+        boundType: "StartExclusive" | "StartInclusive" | "EndExclusive" | "EndInclusive",
+    ): string {
+        let totalByteCount = 0;
+
+        for (const [attributeKey, attributeSchema] of Object.entries(
+            indexConfig.sortKeyAttributes,
+        )) {
+            if (!attributeSchema.binary) {
+                throw new UnimplementedError(
+                    quote`Can't use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
+                );
+            }
+            const attributeValue = item[attributeKey];
+            totalByteCount += attributeSchema.binary.getByteCount(attributeValue);
+        }
+
+        totalByteCount += 1;
+
+        const bytes = new Uint8Array(totalByteCount);
+        let byteIndex = 0;
+
+        for (const [attributeKey, attributeSchema] of Object.entries(
+            indexConfig.sortKeyAttributes,
+        )) {
+            const attributeValue = item[attributeKey];
+            attributeSchema.binary!.serializeBytes(attributeValue, bytes, byteIndex);
+            byteIndex += attributeSchema.binary!.getByteCount(attributeValue);
+        }
+
+        // An opaque cursor includes a byte with value 1 in this spot. So we can
+        // include 0 or 2 depending on whether we want to sort above or below cursors
+        // with the same index sort key.
+        switch (boundType) {
+            case "StartExclusive": {
+                bytes[byteIndex++] = 2;
+                break;
+            }
+            case "StartInclusive": {
+                bytes[byteIndex++] = 0;
+                break;
+            }
+            case "EndExclusive": {
+                bytes[byteIndex++] = 0;
+                break;
+            }
+            case "EndInclusive": {
+                bytes[byteIndex++] = 2;
+                break;
+            }
+            default:
+                throw exhaustive(boundType);
+        }
+
+        return encodeBase64(bytes, "Rfc4648UrlWithOrderPreservation");
     }
 }
 
@@ -3758,6 +3834,19 @@ export interface DynamoTableSchemaIndex<QueryItem, ItemKey, IndexPartitionKey, I
         partitionKey: IndexPartitionKey,
         cursor: DynamoIndexCursor,
     ): MergeObjectIntersection<ItemKey & IndexPartitionKey & IndexSortKey>;
+
+    /**
+     * Serializes a string with just the index sort key you can compare to a cursor
+     * generated by `serializeOpaqueCursor()`.
+     *
+     * You can use with `startSortKey` or `endSortKey` if you'd like to share those
+     * bounds with a client with a string that has the right relative order
+     * compared to cursors.
+     */
+    serializeOpaqueCursorBound(
+        itemKey: IndexSortKey,
+        boundType: "StartExclusive" | "StartInclusive" | "EndExclusive" | "EndInclusive",
+    ): string;
 }
 
 /**

@@ -643,6 +643,39 @@ export class DynamoGeneralRealtimeIndexQuery<Model> {
             };
         }
     }
+
+    /**
+     * Is the loading indicator visible in the provided range of items?
+     */
+    public isLoadingIndicatorVisible(range: {startIndex: number; endIndex: number}): boolean {
+        if (!this._loadedPageInfo) return false;
+
+        let index;
+
+        switch (this._loadedPageInfo.type) {
+            case "FromStart":
+                index = this.getItemCount() - 1;
+                break;
+            case "FromEnd":
+                index = 0;
+                break;
+
+            default:
+                throw exhaustive(this._loadedPageInfo);
+        }
+
+        return range.startIndex <= index && index <= range.endIndex;
+    }
+
+    public getNextPageCursorIfExists(): DynamoIndexCursor | null {
+        if (this._loadedPageInfo?.type !== "FromStart") return null;
+        return this._loadedPageInfo.endCursor;
+    }
+
+    public getPreviousPageCursorIfExists(): DynamoIndexCursor | null {
+        if (this._loadedPageInfo?.type !== "FromEnd") return null;
+        return this._loadedPageInfo.startCursor;
+    }
 }
 
 function* iterateTreeEntries<Key, Value>(tree: Tree<Key, Value>): IterableIterator<[Key, Value]> {

@@ -5,6 +5,7 @@ import {
     archiveInboxEntry,
     getInbox,
     getInboxEntries,
+    getInboxEntriesIndexForTest,
     notificationEventAfterProcessingTestCheckpoint,
     notificationEventBeforeProcessingTestCheckpoint,
     observeInbox,
@@ -19,12 +20,13 @@ import {
 } from "~/shared/content/message_content_schema";
 import {emptyPostContent} from "~/shared/content/post_content_schema";
 import {ProcessContextModule} from "~/shared/context/process_context_module";
-import {DynamoGeneralRealtimeIndexQuery} from "~/shared/dynamo/dynamo_general_realtime_types";
+import {DynamoGeneralRealtimeIndexQueryResult} from "~/shared/dynamo/dynamo_general_realtime_types";
 import {PermissionDeniedError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {generateId} from "~/shared/id/id";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
+import {ChannelPreviewModel} from "~/shared/models/channel_model";
 import {emptyContentReferences} from "~/shared/models/content_references";
 import {
     InboxChatEntryModel,
@@ -301,7 +303,7 @@ async function createScenario() {
 }
 
 function massageInboxEntriesQuery(
-    entriesQuery: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
+    entriesQuery: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>,
 ): Array<InboxEntryModel> {
     return entriesQuery.items.map(({model}) => model);
 }
@@ -4109,6 +4111,698 @@ describe("Post comments", () => {
                 loudNotificationCount: 0,
             }),
         );
+    });
+
+    test.only("start sort key and end sort key work properly in inclusive/exclusive mode", async () => {
+        const scenario = await createScenario();
+
+        const _channel = await createChannel(context.action(scenario.session1), {
+            spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const channel = new ChannelPreviewModel({
+            id: _channel.id,
+            spaceId: scenario.space.id,
+            createdTime: _channel.createdTime,
+            name: "Test",
+        });
+
+        const post1 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+
+        const post2 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+
+        const post3 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+
+        const post4 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+
+        const post5 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+
+        const post6 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+
+        const comment1 = await createPostComment(context.action(scenario.session2), {
+            postId: post1.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("comment1"),
+        });
+
+        const comment2 = await createPostComment(context.action(scenario.session2), {
+            postId: post2.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("comment2"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        await archiveInboxEntry(context.action(scenario.session1), {
+            spaceId: scenario.space.id,
+            key: {type: "PostComments", postId: post1.id},
+        });
+
+        await archiveInboxEntry(context.action(scenario.session1), {
+            spaceId: scenario.space.id,
+            key: {type: "PostComments", postId: post2.id},
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const comment3 = await createPostComment(context.action(scenario.session2), {
+            postId: post3.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("comment3"),
+        });
+
+        const comment4 = await createPostComment(context.action(scenario.session2), {
+            postId: post4.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("comment4"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        await observeInbox(context.action(scenario.session1), {spaceId: scenario.space.id});
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const comment5 = await createPostComment(context.action(scenario.session2), {
+            postId: post5.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("comment5"),
+        });
+
+        const comment6 = await createPostComment(context.action(scenario.session2), {
+            postId: post6.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("comment6"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const InboxEntriesIndex = getInboxEntriesIndexForTest();
+
+        expect(
+            await InboxEntriesIndex.realtimeQuery(context.action(scenario.session1), {
+                partitionKey: {
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session1.account.id,
+                },
+                limit: "All",
+            }),
+        ).toEqual({
+            readTime: expect.any(Date),
+            indexName: "InboxEntries",
+            items: [
+                {
+                    cursor: expect.any(String),
+                    key: expect.any(String),
+                    version: 1,
+                    model: new InboxPostCommentsEntryModel({
+                        spaceId: scenario.space.id,
+                        accountId: scenario.session1.account.id,
+                        channel,
+                        postId: post6.id,
+                        postAuthor: scenario.session1.account,
+                        loudNotificationCount: 0,
+                        latestComment: {
+                            createdTime: comment6.createdTime,
+                            author: scenario.session2.account,
+                            contentSnippet: {
+                                doc: createSimpleMessageContent("comment6"),
+                                references: emptyContentReferences,
+                            },
+                        },
+                        otherCommentAuthor: null,
+                    }),
+                },
+                {
+                    cursor: expect.any(String),
+                    key: expect.any(String),
+                    version: 1,
+                    model: new InboxPostCommentsEntryModel({
+                        spaceId: scenario.space.id,
+                        accountId: scenario.session1.account.id,
+                        channel,
+                        postId: post5.id,
+                        postAuthor: scenario.session1.account,
+                        loudNotificationCount: 0,
+                        latestComment: {
+                            createdTime: comment5.createdTime,
+                            author: scenario.session2.account,
+                            contentSnippet: {
+                                doc: createSimpleMessageContent("comment5"),
+                                references: emptyContentReferences,
+                            },
+                        },
+                        otherCommentAuthor: null,
+                    }),
+                },
+                {
+                    cursor: expect.any(String),
+                    key: expect.any(String),
+                    version: 1,
+                    model: new InboxPostCommentsEntryModel({
+                        spaceId: scenario.space.id,
+                        accountId: scenario.session1.account.id,
+                        channel,
+                        postId: post4.id,
+                        postAuthor: scenario.session1.account,
+                        loudNotificationCount: 0,
+                        latestComment: {
+                            createdTime: comment4.createdTime,
+                            author: scenario.session2.account,
+                            contentSnippet: {
+                                doc: createSimpleMessageContent("comment4"),
+                                references: emptyContentReferences,
+                            },
+                        },
+                        otherCommentAuthor: null,
+                    }),
+                },
+                {
+                    cursor: expect.any(String),
+                    key: expect.any(String),
+                    version: 1,
+                    model: new InboxPostCommentsEntryModel({
+                        spaceId: scenario.space.id,
+                        accountId: scenario.session1.account.id,
+                        channel,
+                        postId: post3.id,
+                        postAuthor: scenario.session1.account,
+                        loudNotificationCount: 0,
+                        latestComment: {
+                            createdTime: comment3.createdTime,
+                            author: scenario.session2.account,
+                            contentSnippet: {
+                                doc: createSimpleMessageContent("comment3"),
+                                references: emptyContentReferences,
+                            },
+                        },
+                        otherCommentAuthor: null,
+                    }),
+                },
+                {
+                    cursor: expect.any(String),
+                    key: expect.any(String),
+                    version: 2,
+                    model: new InboxPostCommentsEntryModel({
+                        spaceId: scenario.space.id,
+                        accountId: scenario.session1.account.id,
+                        channel,
+                        postId: post2.id,
+                        postAuthor: scenario.session1.account,
+                        loudNotificationCount: 0,
+                        latestComment: {
+                            createdTime: comment2.createdTime,
+                            author: scenario.session2.account,
+                            contentSnippet: {
+                                doc: createSimpleMessageContent("comment2"),
+                                references: emptyContentReferences,
+                            },
+                        },
+                        otherCommentAuthor: null,
+                    }),
+                },
+                {
+                    cursor: expect.any(String),
+                    key: expect.any(String),
+                    version: 2,
+                    model: new InboxPostCommentsEntryModel({
+                        spaceId: scenario.space.id,
+                        accountId: scenario.session1.account.id,
+                        channel,
+                        postId: post1.id,
+                        postAuthor: scenario.session1.account,
+                        loudNotificationCount: 0,
+                        latestComment: {
+                            createdTime: comment1.createdTime,
+                            author: scenario.session2.account,
+                            contentSnippet: {
+                                doc: createSimpleMessageContent("comment1"),
+                                references: emptyContentReferences,
+                            },
+                        },
+                        otherCommentAuthor: null,
+                    }),
+                },
+            ],
+            hasMoreItems: false,
+        });
+
+        expect(
+            await InboxEntriesIndex.realtimeQuery(context.action(scenario.session1), {
+                partitionKey: {
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session1.account.id,
+                },
+                startSortKey: {
+                    isArchived: false,
+                    generation: 0,
+                    enteredTime: comment4.createdTime,
+                },
+                limit: "All",
+            }),
+        ).toEqual({
+            readTime: expect.any(Date),
+            indexName: "InboxEntries",
+            items: [
+                {
+                    cursor: expect.any(String),
+                    key: expect.any(String),
+                    version: 1,
+                    model: new InboxPostCommentsEntryModel({
+                        spaceId: scenario.space.id,
+                        accountId: scenario.session1.account.id,
+                        channel,
+                        postId: post4.id,
+                        postAuthor: scenario.session1.account,
+                        loudNotificationCount: 0,
+                        latestComment: {
+                            createdTime: comment4.createdTime,
+                            author: scenario.session2.account,
+                            contentSnippet: {
+                                doc: createSimpleMessageContent("comment4"),
+                                references: emptyContentReferences,
+                            },
+                        },
+                        otherCommentAuthor: null,
+                    }),
+                },
+                {
+                    cursor: expect.any(String),
+                    key: expect.any(String),
+                    version: 1,
+                    model: new InboxPostCommentsEntryModel({
+                        spaceId: scenario.space.id,
+                        accountId: scenario.session1.account.id,
+                        channel,
+                        postId: post3.id,
+                        postAuthor: scenario.session1.account,
+                        loudNotificationCount: 0,
+                        latestComment: {
+                            createdTime: comment3.createdTime,
+                            author: scenario.session2.account,
+                            contentSnippet: {
+                                doc: createSimpleMessageContent("comment3"),
+                                references: emptyContentReferences,
+                            },
+                        },
+                        otherCommentAuthor: null,
+                    }),
+                },
+                {
+                    cursor: expect.any(String),
+                    key: expect.any(String),
+                    version: 2,
+                    model: new InboxPostCommentsEntryModel({
+                        spaceId: scenario.space.id,
+                        accountId: scenario.session1.account.id,
+                        channel,
+                        postId: post2.id,
+                        postAuthor: scenario.session1.account,
+                        loudNotificationCount: 0,
+                        latestComment: {
+                            createdTime: comment2.createdTime,
+                            author: scenario.session2.account,
+                            contentSnippet: {
+                                doc: createSimpleMessageContent("comment2"),
+                                references: emptyContentReferences,
+                            },
+                        },
+                        otherCommentAuthor: null,
+                    }),
+                },
+                {
+                    cursor: expect.any(String),
+                    key: expect.any(String),
+                    version: 2,
+                    model: new InboxPostCommentsEntryModel({
+                        spaceId: scenario.space.id,
+                        accountId: scenario.session1.account.id,
+                        channel,
+                        postId: post1.id,
+                        postAuthor: scenario.session1.account,
+                        loudNotificationCount: 0,
+                        latestComment: {
+                            createdTime: comment1.createdTime,
+                            author: scenario.session2.account,
+                            contentSnippet: {
+                                doc: createSimpleMessageContent("comment1"),
+                                references: emptyContentReferences,
+                            },
+                        },
+                        otherCommentAuthor: null,
+                    }),
+                },
+            ],
+            hasMoreItems: false,
+        });
+
+        expect(
+            await InboxEntriesIndex.realtimeQuery(context.action(scenario.session1), {
+                partitionKey: {
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session1.account.id,
+                },
+                startSortKey: {
+                    isArchived: false,
+                    generation: 0,
+                    enteredTime: comment4.createdTime,
+                },
+                isStartSortKeyExclusive: true,
+                limit: "All",
+            }),
+        ).toEqual({
+            readTime: expect.any(Date),
+            indexName: "InboxEntries",
+            items: [
+                {
+                    cursor: expect.any(String),
+                    key: expect.any(String),
+                    version: 1,
+                    model: new InboxPostCommentsEntryModel({
+                        spaceId: scenario.space.id,
+                        accountId: scenario.session1.account.id,
+                        channel,
+                        postId: post3.id,
+                        postAuthor: scenario.session1.account,
+                        loudNotificationCount: 0,
+                        latestComment: {
+                            createdTime: comment3.createdTime,
+                            author: scenario.session2.account,
+                            contentSnippet: {
+                                doc: createSimpleMessageContent("comment3"),
+                                references: emptyContentReferences,
+                            },
+                        },
+                        otherCommentAuthor: null,
+                    }),
+                },
+                {
+                    cursor: expect.any(String),
+                    key: expect.any(String),
+                    version: 2,
+                    model: new InboxPostCommentsEntryModel({
+                        spaceId: scenario.space.id,
+                        accountId: scenario.session1.account.id,
+                        channel,
+                        postId: post2.id,
+                        postAuthor: scenario.session1.account,
+                        loudNotificationCount: 0,
+                        latestComment: {
+                            createdTime: comment2.createdTime,
+                            author: scenario.session2.account,
+                            contentSnippet: {
+                                doc: createSimpleMessageContent("comment2"),
+                                references: emptyContentReferences,
+                            },
+                        },
+                        otherCommentAuthor: null,
+                    }),
+                },
+                {
+                    cursor: expect.any(String),
+                    key: expect.any(String),
+                    version: 2,
+                    model: new InboxPostCommentsEntryModel({
+                        spaceId: scenario.space.id,
+                        accountId: scenario.session1.account.id,
+                        channel,
+                        postId: post1.id,
+                        postAuthor: scenario.session1.account,
+                        loudNotificationCount: 0,
+                        latestComment: {
+                            createdTime: comment1.createdTime,
+                            author: scenario.session2.account,
+                            contentSnippet: {
+                                doc: createSimpleMessageContent("comment1"),
+                                references: emptyContentReferences,
+                            },
+                        },
+                        otherCommentAuthor: null,
+                    }),
+                },
+            ],
+            hasMoreItems: false,
+        });
+
+        expect(
+            await InboxEntriesIndex.realtimeQuery(context.action(scenario.session1), {
+                partitionKey: {
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session1.account.id,
+                },
+                endSortKey: {
+                    isArchived: true,
+                    generation: 0,
+                    enteredTime: comment2.createdTime,
+                },
+                limit: "All",
+            }),
+        ).toEqual({
+            readTime: expect.any(Date),
+            indexName: "InboxEntries",
+            items: [
+                {
+                    cursor: expect.any(String),
+                    key: expect.any(String),
+                    version: 1,
+                    model: new InboxPostCommentsEntryModel({
+                        spaceId: scenario.space.id,
+                        accountId: scenario.session1.account.id,
+                        channel,
+                        postId: post6.id,
+                        postAuthor: scenario.session1.account,
+                        loudNotificationCount: 0,
+                        latestComment: {
+                            createdTime: comment6.createdTime,
+                            author: scenario.session2.account,
+                            contentSnippet: {
+                                doc: createSimpleMessageContent("comment6"),
+                                references: emptyContentReferences,
+                            },
+                        },
+                        otherCommentAuthor: null,
+                    }),
+                },
+                {
+                    cursor: expect.any(String),
+                    key: expect.any(String),
+                    version: 1,
+                    model: new InboxPostCommentsEntryModel({
+                        spaceId: scenario.space.id,
+                        accountId: scenario.session1.account.id,
+                        channel,
+                        postId: post5.id,
+                        postAuthor: scenario.session1.account,
+                        loudNotificationCount: 0,
+                        latestComment: {
+                            createdTime: comment5.createdTime,
+                            author: scenario.session2.account,
+                            contentSnippet: {
+                                doc: createSimpleMessageContent("comment5"),
+                                references: emptyContentReferences,
+                            },
+                        },
+                        otherCommentAuthor: null,
+                    }),
+                },
+                {
+                    cursor: expect.any(String),
+                    key: expect.any(String),
+                    version: 1,
+                    model: new InboxPostCommentsEntryModel({
+                        spaceId: scenario.space.id,
+                        accountId: scenario.session1.account.id,
+                        channel,
+                        postId: post4.id,
+                        postAuthor: scenario.session1.account,
+                        loudNotificationCount: 0,
+                        latestComment: {
+                            createdTime: comment4.createdTime,
+                            author: scenario.session2.account,
+                            contentSnippet: {
+                                doc: createSimpleMessageContent("comment4"),
+                                references: emptyContentReferences,
+                            },
+                        },
+                        otherCommentAuthor: null,
+                    }),
+                },
+                {
+                    cursor: expect.any(String),
+                    key: expect.any(String),
+                    version: 1,
+                    model: new InboxPostCommentsEntryModel({
+                        spaceId: scenario.space.id,
+                        accountId: scenario.session1.account.id,
+                        channel,
+                        postId: post3.id,
+                        postAuthor: scenario.session1.account,
+                        loudNotificationCount: 0,
+                        latestComment: {
+                            createdTime: comment3.createdTime,
+                            author: scenario.session2.account,
+                            contentSnippet: {
+                                doc: createSimpleMessageContent("comment3"),
+                                references: emptyContentReferences,
+                            },
+                        },
+                        otherCommentAuthor: null,
+                    }),
+                },
+                {
+                    cursor: expect.any(String),
+                    key: expect.any(String),
+                    version: 2,
+                    model: new InboxPostCommentsEntryModel({
+                        spaceId: scenario.space.id,
+                        accountId: scenario.session1.account.id,
+                        channel,
+                        postId: post2.id,
+                        postAuthor: scenario.session1.account,
+                        loudNotificationCount: 0,
+                        latestComment: {
+                            createdTime: comment2.createdTime,
+                            author: scenario.session2.account,
+                            contentSnippet: {
+                                doc: createSimpleMessageContent("comment2"),
+                                references: emptyContentReferences,
+                            },
+                        },
+                        otherCommentAuthor: null,
+                    }),
+                },
+            ],
+            hasMoreItems: false,
+        });
+
+        expect(
+            await InboxEntriesIndex.realtimeQuery(context.action(scenario.session1), {
+                partitionKey: {
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session1.account.id,
+                },
+                endSortKey: {
+                    isArchived: true,
+                    generation: 0,
+                    enteredTime: comment2.createdTime,
+                },
+                isEndSortKeyExclusive: true,
+                limit: "All",
+            }),
+        ).toEqual({
+            readTime: expect.any(Date),
+            indexName: "InboxEntries",
+            items: [
+                {
+                    cursor: expect.any(String),
+                    key: expect.any(String),
+                    version: 1,
+                    model: new InboxPostCommentsEntryModel({
+                        spaceId: scenario.space.id,
+                        accountId: scenario.session1.account.id,
+                        channel,
+                        postId: post6.id,
+                        postAuthor: scenario.session1.account,
+                        loudNotificationCount: 0,
+                        latestComment: {
+                            createdTime: comment6.createdTime,
+                            author: scenario.session2.account,
+                            contentSnippet: {
+                                doc: createSimpleMessageContent("comment6"),
+                                references: emptyContentReferences,
+                            },
+                        },
+                        otherCommentAuthor: null,
+                    }),
+                },
+                {
+                    cursor: expect.any(String),
+                    key: expect.any(String),
+                    version: 1,
+                    model: new InboxPostCommentsEntryModel({
+                        spaceId: scenario.space.id,
+                        accountId: scenario.session1.account.id,
+                        channel,
+                        postId: post5.id,
+                        postAuthor: scenario.session1.account,
+                        loudNotificationCount: 0,
+                        latestComment: {
+                            createdTime: comment5.createdTime,
+                            author: scenario.session2.account,
+                            contentSnippet: {
+                                doc: createSimpleMessageContent("comment5"),
+                                references: emptyContentReferences,
+                            },
+                        },
+                        otherCommentAuthor: null,
+                    }),
+                },
+                {
+                    cursor: expect.any(String),
+                    key: expect.any(String),
+                    version: 1,
+                    model: new InboxPostCommentsEntryModel({
+                        spaceId: scenario.space.id,
+                        accountId: scenario.session1.account.id,
+                        channel,
+                        postId: post4.id,
+                        postAuthor: scenario.session1.account,
+                        loudNotificationCount: 0,
+                        latestComment: {
+                            createdTime: comment4.createdTime,
+                            author: scenario.session2.account,
+                            contentSnippet: {
+                                doc: createSimpleMessageContent("comment4"),
+                                references: emptyContentReferences,
+                            },
+                        },
+                        otherCommentAuthor: null,
+                    }),
+                },
+                {
+                    cursor: expect.any(String),
+                    key: expect.any(String),
+                    version: 1,
+                    model: new InboxPostCommentsEntryModel({
+                        spaceId: scenario.space.id,
+                        accountId: scenario.session1.account.id,
+                        channel,
+                        postId: post3.id,
+                        postAuthor: scenario.session1.account,
+                        loudNotificationCount: 0,
+                        latestComment: {
+                            createdTime: comment3.createdTime,
+                            author: scenario.session2.account,
+                            contentSnippet: {
+                                doc: createSimpleMessageContent("comment3"),
+                                references: emptyContentReferences,
+                            },
+                        },
+                        otherCommentAuthor: null,
+                    }),
+                },
+            ],
+            hasMoreItems: false,
+        });
     });
 });
 
