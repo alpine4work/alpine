@@ -392,7 +392,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model> {
      * query. Will correctly handle events received out-of-order.
      */
     public handleEventTransaction(
-        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<Model>>,
+        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
     ): DynamoGeneralRealtimeIndexQuery<Model> {
         return this._putItems(
             filterMapArray(eventTransaction, event => {
@@ -402,7 +402,12 @@ export class DynamoGeneralRealtimeIndexQuery<Model> {
                 // the index.
                 if (cursor === undefined) return null;
 
-                return {cursor, item: event.item};
+                return {
+                    cursor,
+                    // Items outside of our index will not have the `Model` type. We assume the
+                    // server implementation is correct and the types will all work out.
+                    item: event.item as DynamoGeneralRealtimeItem<Model>,
+                };
             }),
         );
     }

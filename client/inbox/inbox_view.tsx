@@ -6,7 +6,7 @@ import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {InboxEntryView, inboxEntryViewMinHeight} from "~/client/inbox/inbox_entry_view";
-import {useSpaceContext} from "~/client/spaces/space_context";
+import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
@@ -30,6 +30,18 @@ export function InboxView({
     const [query, setQuery] = useState(() =>
         DynamoGeneralRealtimeIndexQuery.new(initialEntriesResult),
     );
+
+    const {isConnected, subscribeToEvents} = useMyAccountWebSocket();
+
+    // Subscribe to realtime events that may change what's in the inbox.
+    useEffect(() => {
+        return subscribeToEvents(event =>
+            setQuery(query => query.handleEventTransaction(event.eventTransaction)),
+        );
+    }, [subscribeToEvents]);
+
+    // NOCOMMIT: Read updates when connected...
+    useEffect(() => {}, []);
 
     const isLoadingRef = useRef(false);
     const [errorState, setErrorState] = useState<

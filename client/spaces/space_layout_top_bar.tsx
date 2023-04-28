@@ -12,7 +12,7 @@ import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_r
 import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {useNavigate} from "~/client/remix/use_navigate";
 import {LoudNotificationBadge} from "~/client/spaces/loud_notification_badge";
-import {useSpaceContext} from "~/client/spaces/space_context";
+import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context";
 import {SpaceLayoutTopBarCreateButton} from "~/client/spaces/space_layout_top_bar_create_button";
 import {MyAccountProtocol} from "~/shared/accounts/my_account_protocol";
 import {spacing} from "~/shared/design/spacing";
@@ -142,12 +142,9 @@ function SpaceLayoutTopBarNotificationsButton({
 }) {
     const context = useAppContext();
     const showToast = useShowToast();
-    const {space, currentAccount} = useSpaceContext();
+    const {space} = useSpaceContext();
 
-    const {isConnected, subscribeToEvents} = useWebSocket(
-        MyAccountProtocol,
-        `/durable-objects/my-account/${currentAccount.id}`,
-    );
+    const {isConnected, subscribeToEvents} = useMyAccountWebSocket();
 
     // NOCOMMIT: Test that we can go offline then back online and the inbox count
     // updates.

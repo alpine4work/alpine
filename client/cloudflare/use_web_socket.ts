@@ -41,7 +41,7 @@ export function useWebSocket<Protocol extends WebSocketProtocolBase>(
     isConnected: boolean;
     procedures: MemoObject<WebSocketClientProcedures<WebSocketProtocolProceduresType<Protocol>>>;
     subscribeToEvents: Memo<
-        (subscriber: (message: WebSocketProtocolEventType<Protocol>) => void) => () => void
+        (subscriber: (event: WebSocketProtocolEventType<Protocol>) => void) => () => void
     >;
     toggleShouldConnect: () => void;
 } {
