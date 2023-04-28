@@ -169,59 +169,63 @@ export function createDynamoGeneralRealtimeIndexQuerySchema<Model>(
  * numbers for items so that you can apply the events in the correct order no
  * matter the order in which they arrive.
  */
-export type DynamoGeneralRealtimeEvent<Model> =
-    | DynamoGeneralRealtimeCreateItemEvent<Model>
-    | DynamoGeneralRealtimeUpdateItemEvent<Model>;
+// TODO(calebmer): This should eventually get a delete event.
+export type DynamoGeneralRealtimeEvent<Model> = DynamoGeneralRealtimePutItemEvent<Model>;
 
 export function createDynamoGeneralRealtimeEventSchema<Model>(
     ModelSchema: Schema<Model>,
 ): Schema<DynamoGeneralRealtimeEvent<Model>> {
     return Schema.union({
-        CreateItem: createDynamoGeneralRealtimeCreateItemEventSchema(ModelSchema),
-        UpdateItem: createDynamoGeneralRealtimeUpdateItemEventSchema(ModelSchema),
+        PutItem: createDynamoGeneralRealtimePutItemEventSchema(ModelSchema),
     });
 }
 
 /**
- * Event for when a new item is created.
+ * Event for when a new item is created or updated.
  */
-export type DynamoGeneralRealtimeCreateItemEvent<Model> = {
-    readonly type: "CreateItem";
+export type DynamoGeneralRealtimePutItemEvent<Model> = {
+    readonly type: "PutItem";
+    readonly readTime: Date;
     readonly item: DynamoGeneralRealtimeItem<Model>;
     readonly cursorByIndexName: ReadonlyMap<string, DynamoIndexCursor>;
 };
 
-function createDynamoGeneralRealtimeCreateItemEventSchema<Model>(
+function createDynamoGeneralRealtimePutItemEventSchema<Model>(
     _ModelSchema: Schema<Model>,
-): ObjectSchema<DynamoGeneralRealtimeCreateItemEvent<Model>> {
+): ObjectSchema<DynamoGeneralRealtimePutItemEvent<Model>> {
     // `Optionalize<T>` does not like generics so use any instead.
     const ModelSchema: Schema<any> = _ModelSchema;
 
     return Schema.object({
-        type: Schema.value("CreateItem"),
+        type: Schema.value("PutItem"),
+        readTime: Schema.date,
         item: createDynamoGeneralRealtimeItemSchema(ModelSchema),
         cursorByIndexName: Schema.map(Schema.string, DynamoIndexCursorSchema),
     });
 }
 
-/**
- * Event for when an item is updated.
- */
-export type DynamoGeneralRealtimeUpdateItemEvent<Model> = {
-    readonly type: "UpdateItem";
-    readonly item: DynamoGeneralRealtimeItem<Model>;
-    readonly cursorByIndexName: ReadonlyMap<string, DynamoIndexCursor>;
-};
+export type DynamoGeneralRealtimeBackfillResult<Model> =
+    | {
+          readonly type: "Unavailable";
+      }
+    | {
+          readonly type: "Available";
+          readonly eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<Model>>;
+      };
 
-function createDynamoGeneralRealtimeUpdateItemEventSchema<Model>(
+export function createDynamoGeneralRealtimeBackfillResultSchema<Model>(
     _ModelSchema: Schema<Model>,
-): ObjectSchema<DynamoGeneralRealtimeUpdateItemEvent<Model>> {
+): Schema<DynamoGeneralRealtimeBackfillResult<Model>> {
     // `Optionalize<T>` does not like generics so use any instead.
     const ModelSchema: Schema<any> = _ModelSchema;
 
-    return Schema.object({
-        type: Schema.value("UpdateItem"),
-        item: createDynamoGeneralRealtimeItemSchema(ModelSchema),
-        cursorByIndexName: Schema.map(Schema.string, DynamoIndexCursorSchema),
+    return Schema.union({
+        Unavailable: Schema.object({
+            type: Schema.value("Unavailable"),
+        }),
+        Available: Schema.object({
+            type: Schema.value("Available"),
+            eventTransaction: Schema.array(createDynamoGeneralRealtimeEventSchema(ModelSchema)),
+        }),
     });
 }

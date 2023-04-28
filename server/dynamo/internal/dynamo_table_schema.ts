@@ -40,6 +40,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64";
 import {assert} from "~/shared/helpers/control/assert";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable";
@@ -517,6 +518,14 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             throw this._initializationState.readCompatibilityError;
 
         return this._initializationState.description;
+    }
+
+    /**
+     * Return the partition key attributes for a given partition. Throws an error
+     * if the partition doesn't exist.
+     */
+    public getPartitionKeyAttributes(partitionType: string) {
+        return assertExists(this._partitionConfigByName.get(partitionType)).partitionKeyAttributes;
     }
 
     private _ensureTablePromise: Promise<void> | null = null;

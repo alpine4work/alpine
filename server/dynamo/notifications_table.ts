@@ -566,7 +566,7 @@ export async function getInboxEntries(
 ): Promise<DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>> {
     await authorizeSpaceAccess(context, spaceId);
 
-    const entriesQuery = await InboxEntriesIndex.realtimeQuery(context, {
+    return InboxEntriesIndex.realtimeQuery(context, {
         partitionKey: {
             spaceId,
             accountId: context.actor.getAccountId(),
@@ -579,8 +579,26 @@ export async function getInboxEntries(
         limit,
         paginate: {type: "FromStart", afterCursor},
     });
+}
 
-    return entriesQuery;
+/**
+ * Backfill any inbox entry updates between now and `readTime`. Use when you
+ * connect to realtime after reading data to make sure you haven't missed
+ * any updates.
+ */
+export async function backfillInboxEntries(
+    context: SessionActionContext,
+    {spaceId, readTime}: {spaceId: SpaceId; readTime: Date},
+) {
+    await authorizeSpaceAccess(context, spaceId);
+
+    return InboxEntriesIndex.backfillRealtimeQuery(context, {
+        partitionKey: {
+            spaceId,
+            accountId: context.actor.getAccountId(),
+        },
+        readTime,
+    });
 }
 
 /**

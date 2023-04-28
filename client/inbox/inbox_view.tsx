@@ -6,17 +6,19 @@ import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {InboxEntryView, inboxEntryViewMinHeight} from "~/client/inbox/inbox_entry_view";
+import {getClientInfoWithoutListening} from "~/client/remix/client_info_context";
 import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
+    getInitialVirtualizedScrollViewRenderedItemCount,
 } from "~/client/virtualized/virtualized_scroll_view";
 import {convertRemLengthToPx, spacing} from "~/shared/design/spacing";
 import {DynamoGeneralRealtimeIndexQueryResult} from "~/shared/dynamo/dynamo_general_realtime_types";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {InboxEntryModel} from "~/shared/models/inbox_model";
-import {getInboxEntries} from "~/shared/rpc/notifications_rpc_definitions";
+import {backfillInboxEntries, getInboxEntries} from "~/shared/rpc/notifications_rpc_definitions";
 import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles";
 
 export function InboxView({
@@ -40,8 +42,62 @@ export function InboxView({
         );
     }, [subscribeToEvents]);
 
-    // NOCOMMIT: Read updates when connected...
-    useEffect(() => {}, []);
+    // Whenever we connect, we need to backfill changes from when we initially read
+    // inbox entries until now. That way if any realtime events happened during
+    // that time we can incorporate them into our state instead of completely
+    // missing them.
+    //
+    // NOCOMMIT: Testing that disconnecting and reconnecting will get any events
+    // missed while disconnected
+    const wasConnectedRef = useRef(false);
+    useEffect(() => {
+        if (!isConnected) {
+            wasConnectedRef.current = false;
+            return;
+        }
+
+        if (wasConnectedRef.current) return;
+        wasConnectedRef.current = true;
+
+        backfillInboxEntries(context, {
+            spaceId: space.id,
+            // NOCOMMIT: Real time!
+            readTime: new Date(),
+        }).then(
+            ({backfillEntriesResult}) => {
+                switch (backfillEntriesResult.type) {
+                    case "Available": {
+                        setQuery(query =>
+                            query.handleEventTransaction(backfillEntriesResult.eventTransaction),
+                        );
+                        break;
+                    }
+                    case "Unavailable": {
+                        // If a backfill is unavailable then fully reload our inbox entries to catch us
+                        // up to the latest data.
+                        //
+                        // NOCOMMIT: We need to backfill from this read! How?
+                        getInboxEntries(context, {
+                            spaceId: space.id,
+                            limit: getInitialVirtualizedScrollViewRenderedItemCount(
+                                getClientInfoWithoutListening(),
+                                inboxEntryViewMinHeight,
+                            ),
+                            afterCursor: null,
+                        }).then(
+                            ({entriesResult}) =>
+                                setQuery(DynamoGeneralRealtimeIndexQuery.new(entriesResult)),
+                            error => setErrorState({hasError: true, error}),
+                        );
+                        break;
+                    }
+                    default:
+                        throw exhaustive(backfillEntriesResult);
+                }
+            },
+            error => setErrorState({hasError: true, error}),
+        );
+    }, [context, isConnected, space.id]);
 
     const isLoadingRef = useRef(false);
     const [errorState, setErrorState] = useState<

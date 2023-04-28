@@ -1,3 +1,4 @@
+import {addDays, subDays, subMinutes} from "date-fns";
 import {ActionContext} from "~/server/dynamo/context/action_context";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
 import {DynamoReadConsistency} from "~/server/dynamo/internal/dynamo_client";
@@ -12,17 +13,25 @@ import {
 } from "~/server/dynamo/internal/dynamo_table_schema";
 import {DynamoTableSchemaTypes} from "~/server/dynamo/internal/types/dynamo_table_schema_types";
 import {
+    DynamoGeneralRealtimeBackfillResult,
     DynamoGeneralRealtimeEvent,
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,
 } from "~/shared/dynamo/dynamo_general_realtime_types";
-import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings";
+import {
+    DynamoIndexCursor,
+    DynamoItemKey,
+    DynamoItemKeySchema,
+} from "~/shared/dynamo/dynamo_opaque_strings";
 import {UnimplementedError} from "~/shared/error/error";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
 import {ObjectFromEntries} from "~/shared/helpers/types/object_from_entries";
@@ -79,25 +88,58 @@ type DynamoGeneralRealtimeTableSchemaModelType<
     }[keyof ModelsConfig[Key1]];
 }[keyof ModelsConfig];
 
-// NOCOMMIT: This partition name isn't doing anything right now but we want to
-// record events in here.
-const privateRealtimePartitionName = "Realtime" as const;
+type DynamoGeneralRealtimePrivatePartitionItem = DynamoTableSchemaTypes.Partition.ItemTypes<
+    [typeof dynamoGeneralRealtimePrivatePartitionConfig]
+>;
 
-type DynamoGeneralRealtimeInternalEvent<Item, Model> =
-    | {
-          readonly type: "CreateItem";
-          readonly item: Item;
-          readonly getRealtimeItem: (
-              context: ActionContext,
-          ) => Promise<DynamoGeneralRealtimeItem<Model>>;
-      }
-    | {
-          readonly type: "UpdateItem";
-          readonly item: Item;
-          readonly getRealtimeItem: (
-              context: ActionContext,
-          ) => Promise<DynamoGeneralRealtimeItem<Model>>;
-      };
+type DynamoGeneralRealtimePrivatePartitionEvent =
+    DynamoGeneralRealtimePrivatePartitionItem["eventTransaction"][number];
+
+const dynamoGeneralRealtimePrivatePartitionName = "Realtime" as const;
+
+const dynamoGeneralRealtimePrivatePartitionConfig = {
+    name: dynamoGeneralRealtimePrivatePartitionName,
+    partitionKeyAttributes: {
+        realtimeKey: DynamoKeyAttributeSchema.labelString,
+    },
+    sortRanges: [
+        {
+            name: "Events",
+            sortKeyAttributes: {
+                eventTime: DynamoKeyAttributeSchema.date,
+            },
+            withExpirationTime: "Required",
+            attributes: Schema.object({
+                eventTransaction: Schema.array(
+                    Schema.union({
+                        PutItem: Schema.object({
+                            type: Schema.value("PutItem"),
+                            key: DynamoItemKeySchema,
+                            version: Schema.integer,
+                        }),
+                    }),
+                ),
+            }),
+        },
+    ],
+} as const satisfies DynamoTableSchemaTypes.Partition.ConfigBase;
+
+/**
+ * How many days does it take for events stored in our private realtime
+ * partition to expire?
+ *
+ * We set to a week. That way if a client goes offline for the weekend then
+ * comes back online we will be able to backfill.
+ */
+const dynamoGeneralRealtimePrivatePartitionEventExpirationDays = 7;
+
+type DynamoGeneralRealtimeInternalEvent<Item, Model> = {
+    readonly type: "PutItem";
+    readonly item: Item;
+    readonly key: DynamoItemKey;
+    readonly version: number;
+    readonly getModel: (context: ActionContext) => Promise<Model>;
+};
 
 /**
  * Abstraction on top of `DynamoTableSchema` for creating DynamoDB tables where
@@ -181,6 +223,15 @@ type DynamoGeneralRealtimeInternalEvent<Item, Model> =
 // version should be set to `updateLockVersion + 2` so the new version is past
 // the gravestone version. In this design, clients can still use a version to
 // order create/delete events.
+//
+// TODO(calebmer, 2022-04-28): Ok, there's a lot more than `deleteItem()` I'm
+// leaving unimplemented for now since I don't have a test case. There are TODO
+// comments throughout this class but here's a list in one place:
+//
+// - `deleteItem()`
+// - `realtimeQuery()` (realtime queries on indexes are supported)
+// - `addExpensiveFullIndex()` with items in different partitions
+// - Certain `DynamoKeyAttributeSchema`s which don't support binary encoding
 export class DynamoGeneralRealtimeTableSchema<
     Types extends DynamoTableSchemaTypesBase,
     ModelMap extends {[partitionType: string]: {[sortRangeType: string]: any}},
@@ -258,7 +309,13 @@ export class DynamoGeneralRealtimeTableSchema<
         return new DynamoGeneralRealtimeTableSchema({
             table: DynamoTableSchema.new({
                 name,
-                partitions,
+                // Add a private partition for storing realtime information but don't include
+                // it in the types. Users of this abstraction should not be able to access the
+                // realtime partition so we don't include it in the types.
+                partitions: [
+                    ...partitions,
+                    dynamoGeneralRealtimePrivatePartitionConfig,
+                ] as any as PartitionsConfig,
             }),
             models,
             sendEventTransaction,
@@ -294,47 +351,95 @@ export class DynamoGeneralRealtimeTableSchema<
         ) as Promise<ModelMap[Item["partitionType"]][Item["sortRangeType"]]>;
     }
 
+    private _getCursorByIndexName(item: Types["Item"]) {
+        const cursorByIndexName = new Map<string, DynamoIndexCursor>();
+
+        const itemType = `${item.partitionType}#${item.sortRangeType}`;
+        for (const [
+            indexName,
+            serializeOpaqueCursor,
+        ] of this._serializeOpaqueCursorByIndexNameByItemType.get(itemType) ?? []) {
+            cursorByIndexName.set(indexName, serializeOpaqueCursor(item));
+        }
+
+        return cursorByIndexName;
+    }
+
     private async _sendEventTransaction(
         context: ActionContext,
+        readTime: Date,
         eventTransaction: ReadonlyArray<
             DynamoGeneralRealtimeInternalEvent<Types["Item"], ModelMap[string][string]>
         >,
     ): Promise<void> {
-        const realtimeKeys = new Set<string>();
-
-        const actualEventTransaction: ReadonlyArray<
-            DynamoGeneralRealtimeEvent<ModelMap[string][string]>
-        > = await runAllPromises(
-            eventTransaction.map(async event => {
-                // Add the realtime event transaction to every partition affected by the
-                // transaction. That way we can search to find the transaction later using any
-                // partition key implicated in the transaction.
-                //
-                // We use an opaque partition key to avoid conflicting characters in this
-                // realtime item's partition key.
-                realtimeKeys.add(this._table.serializeOpaqueItemPartitionKey(event.item));
-
-                const cursorByIndexName = new Map<string, DynamoIndexCursor>();
-
-                const itemType = `${event.item.partitionType}#${event.item.sortRangeType}`;
-                for (const [
-                    indexName,
-                    serializeOpaqueCursor,
-                ] of this._serializeOpaqueCursorByIndexNameByItemType.get(itemType) ?? []) {
-                    cursorByIndexName.set(indexName, serializeOpaqueCursor(event.item));
-                }
-
-                return {
+        const [actualEventTransaction] = await runAllPromises([
+            runAllPromises(
+                eventTransaction.map(async event => ({
                     type: event.type,
-                    item: await event.getRealtimeItem(context),
-                    cursorByIndexName,
-                };
-            }),
-        );
+                    readTime,
+                    item: {
+                        key: event.key,
+                        version: event.version,
+                        model: await event.getModel(context),
+                    },
+                    cursorByIndexName: this._getCursorByIndexName(event.item),
+                })),
+            ),
+            (async () => {
+                const realtimeKeys = new Set<string>();
 
-        // NOCOMMIT: Add back inserting items into realtime partition. Do we need to
-        // insert the full item? I think we could do less? Having the model in the
-        // table schema is annoying.
+                const dynamoEventTransaction = eventTransaction.map(
+                    (event): DynamoGeneralRealtimePrivatePartitionEvent => {
+                        // Add the realtime event transaction to every partition affected by the
+                        // transaction. That way we can search to find the transaction later using any
+                        // partition key implicated in the transaction.
+                        //
+                        // We use an opaque partition key to avoid conflicting characters in this
+                        // realtime item's partition key.
+                        realtimeKeys.add(this._table.serializeOpaqueItemPartitionKey(event.item));
+
+                        return {
+                            type: "PutItem",
+                            key: event.key,
+                            version: event.version,
+                        };
+                    },
+                );
+
+                const eventTime = new Date();
+
+                // Expire events after a couple days. If we are trying to backfill data from
+                // longer ago then we'll need a full refresh.
+                const expirationTime = addDays(
+                    eventTime,
+                    dynamoGeneralRealtimePrivatePartitionEventExpirationDays,
+                );
+
+                // Add the event transaction to every affected realtime key. When backfilling,
+                // we only query events from realtime keys we care about. If a transaction
+                // affected two realtime keys then it needs to be present in both to show up in a
+                // backfill query.
+                await runAllPromises(
+                    mapIterable(realtimeKeys, realtimeKey => {
+                        const item: DynamoGeneralRealtimePrivatePartitionItem = {
+                            partitionType: dynamoGeneralRealtimePrivatePartitionName,
+                            sortRangeType: "Events",
+                            realtimeKey,
+                            eventTime,
+                            expirationTime,
+                            eventTransaction: dynamoEventTransaction,
+                        };
+                        return this._table.createOrReplaceItem(context, item);
+                    }),
+                );
+            })(),
+        ]);
+
+        // Wait to send our events to clients until we've confirmed our events have
+        // been written to DynamoDB.
+        //
+        // That way a strong consistency read of events in DynamoDB will give you all
+        // events sent before the start of the read.
         await this._sendEventTransactionCallback(context, actualEventTransaction);
     }
 
@@ -355,30 +460,32 @@ export class DynamoGeneralRealtimeTableSchema<
         >;
     }> {
         assert(
-            item.partitionType !== privateRealtimePartitionName,
+            item.partitionType !== dynamoGeneralRealtimePrivatePartitionName,
             "Can't access private realtime partition",
         );
 
         // We backfill realtime updates to `readTime` so it should be before the data
         // is written from the database to avoid missing realtime updates.
+        //
+        // Consider an update that happens after this write but before clients receive
+        // an event for this write. If we measure `readTime` time when the client
+        // receives the event and we try backfilling to `readTime` we will miss
+        // the write.
         const readTime = new Date();
 
         await this._table.createItem(context, item);
 
-        const realtimeItemPromise = (async () => ({
-            readTime,
-            key: this._table.serializeOpaqueItemKey(item),
-            version: item.updateLockVersion ?? 0,
-            model: await this._buildModel(context, item),
-        }))();
+        const key = this._table.serializeOpaqueItemKey(item);
+        const version = item.updateLockVersion ?? 0;
+        const modelPromise = this._buildModel(context, item);
 
         context.process.waitUntil(
-            this._sendEventTransaction(context, [
-                {type: "CreateItem", item, getRealtimeItem: () => realtimeItemPromise},
+            this._sendEventTransaction(context, readTime, [
+                {type: "PutItem", item, key, version, getModel: () => modelPromise},
             ]),
         );
 
-        return {getRealtimeItem: () => realtimeItemPromise};
+        return {getRealtimeItem: async () => ({key, version, model: await modelPromise})};
     }
 
     /**
@@ -410,12 +517,17 @@ export class DynamoGeneralRealtimeTableSchema<
         >;
     }> {
         assert(
-            itemKey.partitionType !== privateRealtimePartitionName,
+            itemKey.partitionType !== dynamoGeneralRealtimePrivatePartitionName,
             "Can't access private realtime partition",
         );
 
         // We backfill realtime updates to `readTime` so it should be before the data
         // is written from the database to avoid missing realtime updates.
+        //
+        // Consider an update that happens after this write but before clients receive
+        // an event for this write. If we measure `readTime` time when the client
+        // receives the event and we try backfilling to `readTime` we will miss
+        // the write.
         const readTime = new Date();
 
         const item = await this._table.updateItem(context, itemKey, async item => {
@@ -425,20 +537,17 @@ export class DynamoGeneralRealtimeTableSchema<
         });
         assert(item, "Deleting items is currently unsupported with a realtime schema");
 
-        const realtimeItemPromise = (async () => ({
-            readTime,
-            key: this._table.serializeOpaqueItemKey(item),
-            version: item.updateLockVersion ?? 0,
-            model: await this._buildModel(context, item),
-        }))();
+        const key = this._table.serializeOpaqueItemKey(item);
+        const version = item.updateLockVersion ?? 0;
+        const modelPromise = this._buildModel(context, item);
 
         context.process.waitUntil(
-            this._sendEventTransaction(context, [
-                {type: "UpdateItem", item, getRealtimeItem: () => realtimeItemPromise},
+            this._sendEventTransaction(context, readTime, [
+                {type: "PutItem", item, key, version, getModel: () => modelPromise},
             ]),
         );
 
-        return {getRealtimeItem: () => realtimeItemPromise};
+        return {getRealtimeItem: async () => ({key, version, model: await modelPromise})};
     }
 
     /**
@@ -462,31 +571,33 @@ export class DynamoGeneralRealtimeTableSchema<
         >;
     }> {
         assert(
-            item.partitionType !== privateRealtimePartitionName,
+            item.partitionType !== dynamoGeneralRealtimePrivatePartitionName,
             "Can't access private realtime partition",
         );
 
         // We backfill realtime updates to `readTime` so it should be before the data
         // is written from the database to avoid missing realtime updates.
+        //
+        // Consider an update that happens after this write but before clients receive
+        // an event for this write. If we measure `readTime` time when the client
+        // receives the event and we try backfilling to `readTime` we will miss
+        // the write.
         const readTime = new Date();
 
         await this._table.directlyUpdateItem(context, item);
 
-        const realtimeItemPromise = (async () => ({
-            readTime,
-            key: this._table.serializeOpaqueItemKey(item),
-            // Directly updating increments the item lock version we were provided.
-            version: (item.updateLockVersion ?? 0) + 1,
-            model: await this._buildModel(context, item),
-        }))();
+        const key = this._table.serializeOpaqueItemKey(item);
+        // Directly updating increments the item lock version we were provided.
+        const version = (item.updateLockVersion ?? 0) + 1;
+        const modelPromise = this._buildModel(context, item);
 
         context.process.waitUntil(
-            this._sendEventTransaction(context, [
-                {type: "UpdateItem", item, getRealtimeItem: () => realtimeItemPromise},
+            this._sendEventTransaction(context, readTime, [
+                {type: "PutItem", item, key, version, getModel: () => modelPromise},
             ]),
         );
 
-        return {getRealtimeItem: () => realtimeItemPromise};
+        return {getRealtimeItem: async () => ({key, version, model: await modelPromise})};
     }
 
     /**
@@ -511,6 +622,15 @@ export class DynamoGeneralRealtimeTableSchema<
             Array<DynamoGeneralRealtimeInternalEvent<any, any>>
         >();
 
+        // We backfill realtime updates to `readTime` so it should be before the data
+        // is written from the database to avoid missing realtime updates.
+        //
+        // Consider an update that happens after this write but before clients receive
+        // an event for this write. If we measure `readTime` time when the client
+        // receives the event and we try backfilling to `readTime` we will miss
+        // the write.
+        const readTime = new Date();
+
         await DynamoTableSchema.executeTransaction(
             context,
             entries.map(entry => {
@@ -525,7 +645,7 @@ export class DynamoGeneralRealtimeTableSchema<
         context.process.waitUntil(async () => {
             await runAllPromises(
                 mapIterable(eventsBySchema, ([schema, events]) =>
-                    schema._sendEventTransaction(context, events),
+                    schema._sendEventTransaction(context, readTime, events),
                 ),
             );
         });
@@ -544,27 +664,20 @@ export class DynamoGeneralRealtimeTableSchema<
         item: Item,
     ): DynamoGeneralRealtimeTransactionEntry {
         assert(
-            item.partitionType !== privateRealtimePartitionName,
+            item.partitionType !== dynamoGeneralRealtimePrivatePartitionName,
             "Can't access private realtime partition",
         );
-
-        // We backfill realtime updates to `readTime` so it should be before the data
-        // is written from the database to avoid missing realtime updates.
-        const readTime = new Date();
 
         return DynamoGeneralRealtimeTransactionEntry._new(
             privateSymbol,
             this._table.transactionCreateItem(item),
             this,
             {
-                type: "CreateItem",
+                type: "PutItem",
                 item,
-                getRealtimeItem: async context => ({
-                    readTime,
-                    key: this._table.serializeOpaqueItemKey(item),
-                    version: item.updateLockVersion ?? 0,
-                    model: await this._buildModel(context, item),
-                }),
+                key: this._table.serializeOpaqueItemKey(item),
+                version: item.updateLockVersion ?? 0,
+                getModel: context => this._buildModel(context, item),
             },
         );
     }
@@ -582,28 +695,21 @@ export class DynamoGeneralRealtimeTableSchema<
         item: Item,
     ): DynamoGeneralRealtimeTransactionEntry {
         assert(
-            item.partitionType !== privateRealtimePartitionName,
+            item.partitionType !== dynamoGeneralRealtimePrivatePartitionName,
             "Can't access private realtime partition",
         );
-
-        // We backfill realtime updates to `readTime` so it should be before the data
-        // is written from the database to avoid missing realtime updates.
-        const readTime = new Date();
 
         return DynamoGeneralRealtimeTransactionEntry._new(
             privateSymbol,
             this._table.transactionDirectlyUpdateItem(item),
             this,
             {
-                type: "UpdateItem",
+                type: "PutItem",
                 item,
-                getRealtimeItem: async context => ({
-                    readTime,
-                    key: this._table.serializeOpaqueItemKey(item),
-                    // Directly updating increments the item lock version we were provided.
-                    version: (item.updateLockVersion ?? 0) + 1,
-                    model: await this._buildModel(context, item),
-                }),
+                key: this._table.serializeOpaqueItemKey(item),
+                // Directly updating increments the item lock version we were provided.
+                version: (item.updateLockVersion ?? 0) + 1,
+                getModel: context => this._buildModel(context, item),
             },
         );
     }
@@ -617,7 +723,7 @@ export class DynamoGeneralRealtimeTableSchema<
         condition?: DynamoCondition<Types["Item"] & Key>,
     ): DynamoTransactionEntry {
         assert(
-            itemKey.partitionType !== privateRealtimePartitionName,
+            itemKey.partitionType !== dynamoGeneralRealtimePrivatePartitionName,
             "Can't access private realtime partition",
         );
 
@@ -632,7 +738,7 @@ export class DynamoGeneralRealtimeTableSchema<
         itemKey: Key,
     ): DynamoTransactionEntry {
         assert(
-            itemKey.partitionType !== privateRealtimePartitionName,
+            itemKey.partitionType !== dynamoGeneralRealtimePrivatePartitionName,
             "Can't access private realtime partition",
         );
 
@@ -648,7 +754,7 @@ export class DynamoGeneralRealtimeTableSchema<
         options?: {consistency?: DynamoReadConsistency},
     ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null> {
         assert(
-            itemKey.partitionType !== privateRealtimePartitionName,
+            itemKey.partitionType !== dynamoGeneralRealtimePrivatePartitionName,
             "Can't access private realtime partition",
         );
 
@@ -664,7 +770,7 @@ export class DynamoGeneralRealtimeTableSchema<
         options?: {consistency?: DynamoReadConsistency},
     ): Promise<MergeObjectIntersection<Types["Item"] & Key>> {
         assert(
-            itemKey.partitionType !== privateRealtimePartitionName,
+            itemKey.partitionType !== dynamoGeneralRealtimePrivatePartitionName,
             "Can't access private realtime partition",
         );
 
@@ -684,7 +790,7 @@ export class DynamoGeneralRealtimeTableSchema<
         ModelMap[Key["partitionType"]][Key["sortRangeType"]]
     > | null> {
         assert(
-            itemKey.partitionType !== privateRealtimePartitionName,
+            itemKey.partitionType !== dynamoGeneralRealtimePrivatePartitionName,
             "Can't access private realtime partition",
         );
 
@@ -709,7 +815,7 @@ export class DynamoGeneralRealtimeTableSchema<
         options?: {consistency?: DynamoReadConsistency},
     ): Promise<DynamoGeneralRealtimeItem<ModelMap[Key["partitionType"]][Key["sortRangeType"]]>> {
         assert(
-            itemKey.partitionType !== privateRealtimePartitionName,
+            itemKey.partitionType !== dynamoGeneralRealtimePrivatePartitionName,
             "Can't access private realtime partition",
         );
 
@@ -779,7 +885,7 @@ export class DynamoGeneralRealtimeTableSchema<
     > {
         assert(
             config.itemTypes.every(
-                itemType => itemType.partitionType !== privateRealtimePartitionName,
+                itemType => itemType.partitionType !== dynamoGeneralRealtimePrivatePartitionName,
             ),
             "Can't access private realtime partition",
         );
@@ -791,8 +897,37 @@ export class DynamoGeneralRealtimeTableSchema<
             includePrimaryKeyInSortKey: true,
         });
 
-        const canReusePrimaryPartitionKeyForPrivateRealtimePartitionKey =
-            new Set(config.itemTypes.map(itemType => itemType.partitionType)).size === 1;
+        const partitionTypes = new Set(config.itemTypes.map(itemType => itemType.partitionType));
+
+        // If there is only partition type, we call it the index's "exclusive"
+        // partition type.
+        const exclusivePartitionType =
+            partitionTypes.size === 1 ? Array.from(partitionTypes)[0]! : null;
+
+        // We can reuse the primary partition key as our index's realtime key
+        // and reduce the write capacity units we need when:
+        //
+        // - The index only serves data from a single partition
+        // - The index's partition key matches that partition's partition key
+        //
+        // This means we can get the partition key from our index partition key plus
+        // adding `partitionType: exclusivePartitionType`.
+        const canReusePrimaryPartitionKeyForRealtimeKey =
+            exclusivePartitionType &&
+            isDeepEqual(
+                Object.entries(
+                    mapObjectValues(
+                        this._table.getPartitionKeyAttributes(exclusivePartitionType),
+                        attribute => attribute.description,
+                    ),
+                ),
+                Object.entries(
+                    mapObjectValues(
+                        Index.partitionKeyAttributes,
+                        attribute => attribute.description,
+                    ),
+                ),
+            );
 
         // NOTE(calebmer, 2023-04-24): This is a temporary limitation. It shouldn't be
         // hard to remove this limitation but we don't have any test cases for it so I
@@ -816,7 +951,7 @@ export class DynamoGeneralRealtimeTableSchema<
         // we've implemented right now. To remove this limitation we need to implement
         // writing realtime events to the database with the index's partition key when
         // the index partition key differs from a primary partition key in the table.
-        if (!canReusePrimaryPartitionKeyForPrivateRealtimePartitionKey) {
+        if (!canReusePrimaryPartitionKeyForRealtimeKey) {
             throw new UnimplementedError(
                 "Indexes that span across multiple partitions have not yet been implemented for DynamoDB realtime tables",
             );
@@ -960,7 +1095,169 @@ export class DynamoGeneralRealtimeTableSchema<
                     items: finalItems,
                 };
             },
+
+            backfillRealtimeQuery: (context, {partitionKey, readTime}) => {
+                if (!canReusePrimaryPartitionKeyForRealtimeKey) {
+                    throw new UnimplementedError(
+                        "Indexes that span across multiple partitions have not yet been implemented for DynamoDB realtime tables",
+                    );
+                }
+
+                return this._backfillRealtimeQuery(context, {
+                    indexName: config.name,
+                    realtimeKey: this._table.serializeOpaqueItemPartitionKey({
+                        partitionType: exclusivePartitionType,
+                        ...partitionKey,
+                    }),
+                    readTime,
+                });
+            },
         };
+    }
+
+    private async _backfillRealtimeQuery(
+        context: ActionContext,
+        {
+            indexName,
+            realtimeKey,
+            readTime,
+        }: {
+            indexName: string;
+            realtimeKey: string;
+            readTime: Date;
+        },
+    ): Promise<DynamoGeneralRealtimeBackfillResult<any>> {
+        // `readTime` may be for an eventually consistent read. Eventually consistent
+        // reads may contain stale data. So here we backfill events that happened a
+        // short window before our `readTime` in case the read returned stale data.
+        //
+        // [DynamoDB says][1] reads are usually consistent "within one second or less".
+        // So three minutes should be a sufficient window for backfilling realtime
+        // events before the read time.
+        //
+        // [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadConsistency.html
+        readTime = subMinutes(readTime, 3);
+
+        // We have deleted events before this time to reduce our storage needs. That
+        // means we can't backfill reads that ocurred before this time.
+        const expiredEventsTime = subDays(
+            new Date(),
+            // Subtract one day to deal with clock skew between our process and DynamoDB.
+            // So for a day there will be events that are not eligible for expiration yet
+            // but also won't be used for backfilling.
+            dynamoGeneralRealtimePrivatePartitionEventExpirationDays - 1,
+        );
+
+        // If our read happened before the expiration time, we may be missing some
+        // events that happened between the read and now. The client should fully
+        // reload their query in response.
+        if (readTime.getTime() < expiredEventsTime.getTime()) return {type: "Unavailable"};
+
+        // We backfill realtime updates to `newReadTime` so it should be before the
+        // data is read from the database to avoid missing realtime updates.
+        const newReadTime = new Date();
+
+        // We send only one event per item key in our backfill. The client does not
+        // need to see the update history for an item. Only the latest value...
+        const backfillItemByKey = new Map<
+            DynamoItemKey,
+            {version: number; itemPromise: Promise<Types["Item"]>}
+        >();
+
+        for await (const _item of this._table.query<any, any, any>(
+            // Use a strong read consistency when backfilling events!
+            context.dynamo.setDefaultReadConsistency("Strong"),
+            {
+                partitionKey: {
+                    partitionType: "Realtime",
+                    realtimeKey,
+                },
+                endSortKey: {
+                    sortRangeType: "Events",
+                    eventTime: readTime,
+                },
+                limit: "All",
+            },
+        )) {
+            const item: DynamoGeneralRealtimePrivatePartitionItem = _item as any;
+
+            for (const event of item.eventTransaction) {
+                const itemKey = this._table.deserializeOpaqueItemKey(event.key);
+
+                // Ignore items that are not a part of our index. This could happen for one of
+                // the following reasons:
+                //
+                // - Our index's realtime key is the same as the table's primary partition key
+                // - An update to an item not in the index happened in the same transaction as
+                //   an item in the index
+                if (
+                    !this._serializeOpaqueCursorByIndexNameByItemType
+                        .get(`${itemKey.partitionType}#${itemKey.sortRangeType}`)
+                        ?.has(indexName)
+                ) {
+                    continue;
+                }
+
+                const backfillItem = getOrSetDefaultMapValue(backfillItemByKey, event.key, () => ({
+                    version: event.version,
+                    itemPromise: this.getItem(
+                        // We can use an eventual read consistency here since we have a strongly
+                        // consistent read of the version number. If the read item is stale and does
+                        // not match the version number we will retry the read.
+                        context.dynamo.setDefaultReadConsistency("Eventual"),
+                        itemKey,
+                    ),
+                }));
+
+                // Expect the highest version number when backfilling.
+                backfillItem.version = Math.max(backfillItem.version, event.version);
+            }
+        }
+
+        // Collapse all updates into a single transaction. That way events that were
+        // together in a transaction will still be applied atomically and the client
+        // doesn't care about non-atomic events being treated as atomic.
+        const eventTransaction = await runAllPromises(
+            Array.from(backfillItemByKey, ([key, backfillItem]) => {
+                let hasAlreadyAttempted = false;
+
+                return retryWithExponentialBackoff(
+                    async (retry): Promise<DynamoGeneralRealtimeEvent<unknown>> => {
+                        const isFirstAttempt = !hasAlreadyAttempted;
+                        hasAlreadyAttempted = true;
+
+                        const item: Types["Item"] = isFirstAttempt
+                            ? await backfillItem.itemPromise
+                            : await this.getItem(
+                                  // We use an eventual read consistency here since we have a strongly consistent
+                                  // read of the version number. If this item read does not match our version
+                                  // number we will retry until it does.
+                                  context.dynamo.setDefaultReadConsistency("Eventual"),
+                                  this._table.deserializeOpaqueItemKey(key),
+                              );
+
+                        const version = item.updateLockVersion ?? 0;
+
+                        // We read a stale item! We use an eventual consistent read for `itemPromise`.
+                        // Try again until we get a version that matches our strong backfill read...
+                        if (version < backfillItem.version) retry();
+
+                        return {
+                            type: "PutItem",
+                            readTime: newReadTime,
+                            item: {
+                                key,
+                                version,
+                                model: await this._buildModel(context, item),
+                            },
+                            cursorByIndexName: this._getCursorByIndexName(item),
+                        };
+                    },
+                );
+            }),
+        );
+
+        return {type: "Available", eventTransaction};
     }
 }
 
@@ -1001,6 +1298,15 @@ export interface DynamoGeneralRealtimeTableSchemaIndex<Model, IndexPartitionKey,
             limit: number | "All";
         },
     ): Promise<DynamoGeneralRealtimeIndexQueryResult<Model>>;
+
+    /**
+     * Backfill any updates that happened since the query was read and now. Useful
+     * when you connect to realtime after dispatching your query.
+     */
+    backfillRealtimeQuery(
+        context: ActionContext,
+        options: {partitionKey: IndexPartitionKey; readTime: Date},
+    ): Promise<DynamoGeneralRealtimeBackfillResult<Model>>;
 }
 
 // Do not export this symbol! It lets us have methods that are private within

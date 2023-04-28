@@ -1,5 +1,6 @@
 import {Memo, ReactNode, createContext, useContext, useMemo} from "react";
 import {useWebSocket} from "~/client/cloudflare/use_web_socket";
+import {useDevConsoleTool} from "~/client/dev/dev_console";
 import {MyAccountEvent, MyAccountProtocol} from "~/shared/accounts/my_account_protocol";
 import {InternalError} from "~/shared/error/error";
 import {AccountModel} from "~/shared/models/account_model";
@@ -49,10 +50,12 @@ export function SpaceContextProvider({
     currentAccount: AccountModel;
     children?: ReactNode;
 }) {
-    const {isConnected, subscribeToEvents} = useWebSocket(
+    const {isConnected, subscribeToEvents, toggleShouldConnect} = useWebSocket(
         MyAccountProtocol,
         `/durable-objects/my-account/${currentAccount.id}`,
     );
+
+    useDevConsoleTool("myAccount", () => ({toggleShouldConnect}));
 
     return (
         <SpaceContext.Provider

@@ -20,6 +20,12 @@ export class DynamoContextModule<Modules extends {} = {}> extends ContextModuleB
      * Using `Eventual` consistency is much faster but it might give you slightly
      * out of date data.
      */
+    // TODO(calebmer): I'm starting to suspect default read consistency may be a
+    // bad design? Any function may make so many reads and make more reads in the
+    // future, setting default read consistency sets like controlling an
+    // implementation detail too high up.
+    //
+    // Get rid of it and set read consistency on individual reads.
     public readonly defaultReadConsistency: DynamoReadConsistency;
 
     /**

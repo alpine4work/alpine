@@ -3128,6 +3128,15 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                                         },
                                         "optional": false
                                     },
+                                    "otherAccountId": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Id"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "updateLockVersion": {
                                         "valueSchema": {
                                             "type": "Integer"
@@ -3205,6 +3214,15 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                                         },
                                         "optional": false
                                     },
+                                    "otherCommentAuthorId": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Id"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "updateLockVersion": {
                                         "valueSchema": {
                                             "type": "Integer"
@@ -3216,6 +3234,78 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                         }
                     }
                 },
+                "Realtime": {
+                    "id": 1,
+                    "partitionKeyAttributeByKey": {
+                        "realtimeKey": {
+                            "type": "LabelString"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "Events": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {
+                                "eventTime": {
+                                    "type": "Date"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "eventTransaction": {
+                                        "valueSchema": {
+                                            "type": "Array",
+                                            "itemSchema": {
+                                                "type": "Union",
+                                                "typeKey": "type",
+                                                "variantSchemaByTypeValue": {
+                                                    "PutItem": {
+                                                        "type": "Object",
+                                                        "propertySchemaByKey": {
+                                                            "type": {
+                                                                "valueSchema": {
+                                                                    "type": "Value",
+                                                                    "value": "PutItem"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "key": {
+                                                                "valueSchema": {
+                                                                    "type": "String"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "version": {
+                                                                "valueSchema": {
+                                                                    "type": "Integer"
+                                                                },
+                                                                "optional": false
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    },
+                                    "expirationTime": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             },
             "indexes": [
                 {

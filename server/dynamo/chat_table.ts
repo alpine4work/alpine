@@ -1,3 +1,4 @@
+import {subDays} from "date-fns";
 import murmurhash from "murmurhash";
 import {getAccount} from "~/server/dynamo/accounts_table";
 import {ActionContext, SessionActionContext} from "~/server/dynamo/context/action_context";
@@ -1771,7 +1772,7 @@ async function queryChatMessageChangeLogAssumingAuthorizedPost(
     // disagrees with DynamoDB's time-to-live clock (clock skew). If our clock is
     // ahead and we believe an item exists that DynamoDB has in fact deleted that
     // would be sad. One day feels like sufficient clock skew buffer.
-    if (lastMessageChangeExpirationTime.getTime() - 1000 * 60 * 60 * 24 < Date.now())
+    if (subDays(lastMessageChangeExpirationTime, 1).getTime() < Date.now())
         return {type: "Unavailable"};
 
     const changes = await parallelMapAsyncIterableToArray(
