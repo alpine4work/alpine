@@ -242,6 +242,7 @@ export class DynamoGeneralRealtimeTableSchema<
     >;
     private readonly _sendEventTransactionCallback: (
         context: ActionContext,
+        readTime: Date,
         eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<ModelMap[string][string]>>,
     ) => Promise<void>;
 
@@ -296,6 +297,7 @@ export class DynamoGeneralRealtimeTableSchema<
          */
         sendEventTransaction: (
             context: ActionContext,
+            readTime: Date,
             eventTransaction: ReadonlyArray<
                 DynamoGeneralRealtimeEvent<DynamoGeneralRealtimeTableSchemaModelType<ModelsConfig>>
             >,
@@ -333,6 +335,7 @@ export class DynamoGeneralRealtimeTableSchema<
         >;
         sendEventTransaction: (
             context: ActionContext,
+            readTime: Date,
             eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<ModelMap[string][string]>>,
         ) => Promise<void>;
     }) {
@@ -376,7 +379,6 @@ export class DynamoGeneralRealtimeTableSchema<
             runAllPromises(
                 eventTransaction.map(async event => ({
                     type: event.type,
-                    readTime,
                     item: {
                         key: event.key,
                         version: event.version,
@@ -440,7 +442,7 @@ export class DynamoGeneralRealtimeTableSchema<
         //
         // That way a strong consistency read of events in DynamoDB will give you all
         // events sent before the start of the read.
-        await this._sendEventTransactionCallback(context, actualEventTransaction);
+        await this._sendEventTransactionCallback(context, readTime, actualEventTransaction);
     }
 
     /**
@@ -1244,7 +1246,6 @@ export class DynamoGeneralRealtimeTableSchema<
 
                         return {
                             type: "PutItem",
-                            readTime: newReadTime,
                             item: {
                                 key,
                                 version,
@@ -1257,7 +1258,7 @@ export class DynamoGeneralRealtimeTableSchema<
             }),
         );
 
-        return {type: "Available", eventTransaction};
+        return {type: "Available", readTime: newReadTime, eventTransaction};
     }
 }
 

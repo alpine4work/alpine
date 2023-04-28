@@ -363,8 +363,8 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
             },
         },
     },
-    sendEventTransaction: (context, eventTransaction) =>
-        context.notifications.sendInboxRealtimeEventTransaction(eventTransaction),
+    sendEventTransaction: (context, readTime, eventTransaction) =>
+        context.notifications.sendInboxRealtimeEventTransaction(readTime, eventTransaction),
 });
 
 const inboxEntryItemTypes = [

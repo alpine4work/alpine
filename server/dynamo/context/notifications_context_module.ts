@@ -29,9 +29,10 @@ export const NotificationsQueueMessageSchema = Schema.object({
     tracerContext: TracerPropagationContextSchema,
 });
 
-export const MyAccountInboxRealtimeEventTransactionSchema = Schema.array(
-    createDynamoGeneralRealtimeEventSchema(InboxItemModelSchema),
-);
+export const MyAccountInboxRealtimeEventTransactionSchema = Schema.object({
+    readTime: Schema.date,
+    eventTransaction: Schema.array(createDynamoGeneralRealtimeEventSchema(InboxItemModelSchema)),
+});
 
 /**
  * Context module available on contexts that can add to our notification
@@ -54,6 +55,7 @@ export abstract class NotificationsContextModuleBase extends ContextModuleBase<{
      * notification count.
      */
     public abstract sendInboxRealtimeEventTransaction(
+        readTime: Date,
         eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
     ): Promise<void>;
 }
@@ -100,6 +102,7 @@ export class NotificationsContextModule extends NotificationsContextModuleBase {
     }
 
     public override async sendInboxRealtimeEventTransaction(
+        readTime: Date,
         eventTransaction: ReadonlyArray<
             DynamoGeneralRealtimeEvent<SchemaType<typeof InboxItemModelSchema>>
         >,
@@ -173,9 +176,10 @@ export class NotificationsContextModule extends NotificationsContextModuleBase {
                                 "content-type": "application/json",
                             },
                             body: JSON.stringify(
-                                MyAccountInboxRealtimeEventTransactionSchema.serialize(
+                                MyAccountInboxRealtimeEventTransactionSchema.serialize({
+                                    readTime,
                                     eventTransaction,
-                                ),
+                                }),
                             ),
                         },
                     );

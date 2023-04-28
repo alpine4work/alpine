@@ -65,6 +65,23 @@ export class DynamoGeneralRealtimeIndexQuery<Model> {
     private readonly _endCursorBound: string | null;
 
     /**
+     * Approximate point in time at which the query is up-to-date. When we connect
+     * to realtime we will ask for changes to the query between this time and the
+     * current time. This should catch us up on any realtime changes we missed
+     * while not connected to realtime.
+     *
+     * We say this is an approximate time since whenever we load new data or see a
+     * new realtime event we will increase this value to the latest time. However,
+     * realtime events may arrive out-of-order. So we may not have seen an event
+     * before our `readTime`.
+     *
+     * The server doesn't trust `readTime` and gives us events in a short window
+     * earlier than `readTime` to accommodate for race conditions or stale
+     * eventually consistent reads.
+     */
+    private readonly _readTime: Date;
+
+    /**
      * All items we currently know about in our query in order.
      *
      * Items are ordered by cursor so we use a binary tree to maintain that order
@@ -137,6 +154,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model> {
         indexName,
         startCursorBound,
         endCursorBound,
+        readTime,
         itemByCursor,
         itemVisibilityByKey,
         loadedPageInfo,
@@ -144,6 +162,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model> {
         indexName: string;
         startCursorBound: string | null;
         endCursorBound: string | null;
+        readTime: Date;
         itemByCursor: Tree<
             DynamoIndexCursor,
             DynamoGeneralRealtimeItem<Model> & {cursor?: undefined}
@@ -186,9 +205,14 @@ export class DynamoGeneralRealtimeIndexQuery<Model> {
         this._indexName = indexName;
         this._startCursorBound = startCursorBound;
         this._endCursorBound = endCursorBound;
+        this._readTime = readTime;
         this._itemByCursor = itemByCursor;
         this._itemVisibilityByKey = itemVisibilityByKey;
         this._loadedPageInfo = loadedPageInfo;
+    }
+
+    public getReadTime() {
+        return this._readTime;
     }
 
     /**
@@ -277,6 +301,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model> {
             indexName: result.indexName,
             startCursorBound: result.startCursorBound,
             endCursorBound: result.endCursorBound,
+            readTime: result.readTime,
             itemByCursor,
             itemVisibilityByKey,
             loadedPageInfo,
@@ -305,6 +330,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model> {
         }
 
         query = query._putItems(
+            result.readTime,
             result.items.map(item => ({
                 cursor: item.cursor,
                 item: omitObject(item, ["cursor"]),
@@ -381,6 +407,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model> {
             indexName: query._indexName,
             startCursorBound: query._startCursorBound,
             endCursorBound: query._endCursorBound,
+            readTime: query._readTime,
             itemByCursor: query._itemByCursor,
             itemVisibilityByKey: query._itemVisibilityByKey,
             loadedPageInfo,
@@ -392,9 +419,11 @@ export class DynamoGeneralRealtimeIndexQuery<Model> {
      * query. Will correctly handle events received out-of-order.
      */
     public handleEventTransaction(
+        readTime: Date,
         eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
     ): DynamoGeneralRealtimeIndexQuery<Model> {
         return this._putItems(
+            readTime,
             filterMapArray(eventTransaction, event => {
                 const cursor = event.cursorByIndexName.get(this._indexName);
 
@@ -413,6 +442,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model> {
     }
 
     private _putItems(
+        readTime: Date,
         items: Iterable<{
             cursor: DynamoIndexCursor;
             item: DynamoGeneralRealtimeItem<Model> & {cursor?: undefined};
@@ -489,7 +519,8 @@ export class DynamoGeneralRealtimeIndexQuery<Model> {
         // Optimization: If nothing changed, don't create a new instance.
         if (
             itemByCursor === this._itemByCursor &&
-            itemVisibilityByKey === this._itemVisibilityByKey
+            itemVisibilityByKey === this._itemVisibilityByKey &&
+            readTime <= this._readTime
         ) {
             return this;
         }
@@ -498,6 +529,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model> {
             indexName: this._indexName,
             startCursorBound: this._startCursorBound,
             endCursorBound: this._endCursorBound,
+            readTime: readTime > this._readTime ? readTime : this._readTime,
             itemByCursor,
             itemVisibilityByKey,
             loadedPageInfo: this._loadedPageInfo,

@@ -38,7 +38,7 @@ export function InboxView({
     // Subscribe to realtime events that may change what's in the inbox.
     useEffect(() => {
         return subscribeToEvents(event =>
-            setQuery(query => query.handleEventTransaction(event.eventTransaction)),
+            setQuery(query => query.handleEventTransaction(event.readTime, event.eventTransaction)),
         );
     }, [subscribeToEvents]);
 
@@ -61,22 +61,22 @@ export function InboxView({
 
         backfillInboxEntries(context, {
             spaceId: space.id,
-            // NOCOMMIT: Real time!
-            readTime: new Date(),
+            readTime: query.getReadTime(),
         }).then(
             ({backfillEntriesResult}) => {
                 switch (backfillEntriesResult.type) {
                     case "Available": {
                         setQuery(query =>
-                            query.handleEventTransaction(backfillEntriesResult.eventTransaction),
+                            query.handleEventTransaction(
+                                backfillEntriesResult.readTime,
+                                backfillEntriesResult.eventTransaction,
+                            ),
                         );
                         break;
                     }
                     case "Unavailable": {
                         // If a backfill is unavailable then fully reload our inbox entries to catch us
                         // up to the latest data.
-                        //
-                        // NOCOMMIT: We need to backfill from this read! How?
                         getInboxEntries(context, {
                             spaceId: space.id,
                             limit: getInitialVirtualizedScrollViewRenderedItemCount(
@@ -85,8 +85,17 @@ export function InboxView({
                             ),
                             afterCursor: null,
                         }).then(
-                            ({entriesResult}) =>
-                                setQuery(DynamoGeneralRealtimeIndexQuery.new(entriesResult)),
+                            ({entriesResult}) => {
+                                // Bit of a hack. Set this to false so that when the effect re-runs because we
+                                // got a new query we send a new backfill request with the `readTime` of our
+                                // reset query.
+                                //
+                                // By resetting the query we lose realtime event history. So it's kinda like we
+                                // were disconnected from realtime up until this point.
+                                wasConnectedRef.current = false;
+
+                                setQuery(DynamoGeneralRealtimeIndexQuery.new(entriesResult));
+                            },
                             error => setErrorState({hasError: true, error}),
                         );
                         break;
@@ -97,7 +106,7 @@ export function InboxView({
             },
             error => setErrorState({hasError: true, error}),
         );
-    }, [context, isConnected, space.id]);
+    }, [context, isConnected, query, space.id]);
 
     const isLoadingRef = useRef(false);
     const [errorState, setErrorState] = useState<

@@ -15,7 +15,6 @@ import {ObjectSchema, Schema} from "~/shared/schema/schema";
  * access to a "model" which is a nicely formatted object for use on
  * the client.
  */
-// NOCOMMIT: Explain why we don't need `readTime` here.
 export type DynamoGeneralRealtimeItem<Model> = {
     /**
      * Unique identifier for the item within the DynamoDB table the item came from.
@@ -185,7 +184,6 @@ export function createDynamoGeneralRealtimeEventSchema<Model>(
  */
 export type DynamoGeneralRealtimePutItemEvent<Model> = {
     readonly type: "PutItem";
-    readonly readTime: Date;
     readonly item: DynamoGeneralRealtimeItem<Model>;
     readonly cursorByIndexName: ReadonlyMap<string, DynamoIndexCursor>;
 };
@@ -198,7 +196,6 @@ function createDynamoGeneralRealtimePutItemEventSchema<Model>(
 
     return Schema.object({
         type: Schema.value("PutItem"),
-        readTime: Schema.date,
         item: createDynamoGeneralRealtimeItemSchema(ModelSchema),
         cursorByIndexName: Schema.map(Schema.string, DynamoIndexCursorSchema),
     });
@@ -210,6 +207,7 @@ export type DynamoGeneralRealtimeBackfillResult<Model> =
       }
     | {
           readonly type: "Available";
+          readonly readTime: Date;
           readonly eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<Model>>;
       };
 
@@ -225,6 +223,7 @@ export function createDynamoGeneralRealtimeBackfillResultSchema<Model>(
         }),
         Available: Schema.object({
             type: Schema.value("Available"),
+            readTime: Schema.date,
             eventTransaction: Schema.array(createDynamoGeneralRealtimeEventSchema(ModelSchema)),
         }),
     });
