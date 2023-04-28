@@ -1,5 +1,5 @@
 diff --git a/index.d.ts b/index.d.ts
-index 1fd8dbcc2d80518bb4f26d33d560fb73483e0def..d72cbbd23bcecd0b6e1c722e2b0c4e7c8acb13b4 100755
+index 1fd8dbcc2d80518bb4f26d33d560fb73483e0def..0e7c50d421b8a0b882bc440afc53e52d527c6be6 100755
 --- a/index.d.ts
 +++ b/index.d.ts
 @@ -7,7 +7,8 @@ declare namespace createRBTree {
@@ -12,7 +12,18 @@ index 1fd8dbcc2d80518bb4f26d33d560fb73483e0def..d72cbbd23bcecd0b6e1c722e2b0c4e7c
  
          /** A sorted array of all keys in the tree. */
          readonly keys: K[];
-@@ -161,6 +162,10 @@ declare namespace createRBTree {
+@@ -107,7 +108,9 @@ declare namespace createRBTree {
+          * @param key The key of the item to look up.
+          * @returns The value of the first node associated with `key`.
+          */
+-        get: (key: K) => V | void;
++        // NOTE(calebmer): `void` has weird semantics. It's kinda like `unknown`.
++        // What's meant here is `undefined`.
++        get: (key: K) => V | undefined;
+     }
+ 
+     /** Iterates through the nodes in a red-black tree. */
+@@ -161,6 +164,10 @@ declare namespace createRBTree {
  
          /** If true, then the iterator is not at the beginning of the sequence. */
          readonly hasPrev: boolean;
@@ -23,7 +34,7 @@ index 1fd8dbcc2d80518bb4f26d33d560fb73483e0def..d72cbbd23bcecd0b6e1c722e2b0c4e7c
      }
  
      /** Represents a node in a red-black tree. */
-@@ -172,10 +177,12 @@ declare namespace createRBTree {
+@@ -172,10 +179,16 @@ declare namespace createRBTree {
          value: V;
  
          /** The left subtree of the node. */
@@ -35,6 +46,10 @@ index 1fd8dbcc2d80518bb4f26d33d560fb73483e0def..d72cbbd23bcecd0b6e1c722e2b0c4e7c
 -        right: Tree<K, V>;
 +        // NOTE(calebmer): Fix incorrect type in type definition.
 +        right: Node<K, V> | null;
++
++        /** The number of entries in this node and it's subtrees. */
++        // NOTE(calebmer): Expose private property for advanced use cases.
++        readonly _count: number;
      }
  }
  
