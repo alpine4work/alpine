@@ -17,7 +17,7 @@ import {IconButton} from "~/client/design/icon_button";
 import {ModalDialog} from "~/client/design/modal_dialog";
 import {OverlayRef} from "~/client/design/overlay";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
-import {isElementOwnedBy} from "~/client/helpers/is_element_owned_by";
+import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useSpaceContext} from "~/client/spaces/space_context";

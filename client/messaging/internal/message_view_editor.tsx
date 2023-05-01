@@ -7,7 +7,7 @@ import {FocusRing} from "~/client/design/focus_ring";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_press";
 import {IconButton} from "~/client/design/icon_button";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
-import {isElementOwnedBy} from "~/client/helpers/is_element_owned_by";
+import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {MessageEditing} from "~/client/messaging/message_editing";
 import {

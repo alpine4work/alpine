@@ -555,37 +555,17 @@ export class DynamoGeneralRealtimeIndexQuery<Model> {
                 const iterator = this._itemByCursor.find(this._loadedPageInfo.endCursor);
                 assert(iterator.node);
 
-                let endIndex = 1 + (iterator.node.left?._count ?? 0);
-                for (let i = iterator._stack.length - 2; i >= 0; i--) {
-                    const parentNode = iterator._stack[i]!;
-
-                    if (parentNode.key < iterator.node.key) {
-                        endIndex += 1;
-                        endIndex += parentNode.left?._count ?? 0;
-                    }
-                }
-
                 return {
                     startIndex: 0,
-                    endIndex,
+                    endIndex: this._getIteratorIndex(iterator) + 1,
                 };
             }
             case "FromEnd": {
                 const iterator = this._itemByCursor.find(this._loadedPageInfo.startCursor);
                 assert(iterator.node);
 
-                let startIndex = iterator.node.left?._count ?? 0;
-                for (let i = iterator._stack.length - 2; i >= 0; i--) {
-                    const parentNode = iterator._stack[i]!;
-
-                    if (parentNode.key < iterator.node.key) {
-                        startIndex += 1;
-                        startIndex += parentNode.left?._count ?? 0;
-                    }
-                }
-
                 return {
-                    startIndex,
+                    startIndex: this._getIteratorIndex(iterator),
                     endIndex: this._itemByCursor.root!._count,
                 };
             }
@@ -594,18 +574,42 @@ export class DynamoGeneralRealtimeIndexQuery<Model> {
         }
     });
 
+    private _getIteratorIndex(
+        iterator: TreeIterator<DynamoIndexCursor, DynamoGeneralRealtimeItem<Model>>,
+    ): number {
+        assert(iterator.node);
+
+        let index = iterator.node.left?._count ?? 0;
+        for (let i = iterator._stack.length - 2; i >= 0; i--) {
+            const parentNode = iterator._stack[i]!;
+
+            if (parentNode.key < iterator.node.key) {
+                index += 1;
+                index += parentNode.left?._count ?? 0;
+            }
+        }
+
+        return index;
+    }
+
     /**
      * Get the number of items rendered by our query. So may include one item for a
      * loading indicator at the top or bottom of the query if we haven't loaded all
      * our data yet.
      */
-    public getItemCount() {
+    public getItemCount(): number {
+        return this.getItemCountWithoutLoadingIndicator() + (this._loadedPageInfo ? 1 : 0);
+    }
+
+    /**
+     * Get the number of items rendered by our query. Not including the loading
+     * indicator item we render when we don't have a full list.
+     */
+    public getItemCountWithoutLoadingIndicator(): number {
         const loadedPageItemSlice = this._loadedPageItemSlice.get();
-        return (
-            (loadedPageItemSlice
-                ? loadedPageItemSlice.endIndex - loadedPageItemSlice.startIndex
-                : this._itemByCursor.length) + (this._loadedPageInfo ? 1 : 0)
-        );
+        return loadedPageItemSlice
+            ? loadedPageItemSlice.endIndex - loadedPageItemSlice.startIndex
+            : this._itemByCursor.length;
     }
 
     // Optimization: If you are calling `getItem()` in sequence
@@ -691,24 +695,76 @@ export class DynamoGeneralRealtimeIndexQuery<Model> {
         const iterator = this._itemByCursor.find(itemVisibility.cursor);
         assert(iterator.node);
 
-        let index = iterator.node.left?._count ?? 0;
-        for (let i = iterator._stack.length - 2; i >= 0; i--) {
-            const parentNode = iterator._stack[i]!;
-
-            if (parentNode.key < iterator.node.key) {
-                index += 1;
-                index += parentNode.left?._count ?? 0;
-            }
-        }
-
+        const index = this._getIteratorIndex(iterator);
         const loadedPageItemSlice = this._loadedPageItemSlice.get();
 
+        // Make sure the item is in our loaded items range.
         if (
             loadedPageItemSlice &&
             (index < loadedPageItemSlice.startIndex || loadedPageItemSlice.endIndex < index)
         ) {
             return null;
         }
+
+        return iterator.node.value;
+    }
+
+    /**
+     * Get the item after the item with the provided key if it exists. Might return
+     * null if the item key is not in the query or there is no item after this item
+     * key in the query.
+     */
+    public getItemAfterKeyIfExists(key: DynamoItemKey): DynamoGeneralRealtimeItem<Model> | null {
+        const itemVisibility = this._itemVisibilityByKey.get(key);
+        if (!itemVisibility?.isVisible) return null;
+
+        const iterator = this._itemByCursor.find(itemVisibility.cursor);
+        assert(iterator.node);
+
+        const index = this._getIteratorIndex(iterator);
+        const loadedPageItemSlice = this._loadedPageItemSlice.get();
+
+        // Make sure our current item and the next item (`index + 1`) are in our loaded
+        // items range.
+        if (
+            loadedPageItemSlice &&
+            (index < loadedPageItemSlice.startIndex || loadedPageItemSlice.endIndex < index + 1)
+        ) {
+            return null;
+        }
+
+        iterator.next();
+        if (!iterator.node) return null;
+
+        return iterator.node.value;
+    }
+
+    /**
+     * Get the item before the item with the provided key if it exists. Might
+     * return null if the item key is not in the query or there is no item before
+     * this item key in the query.
+     */
+    public getItemBeforeKeyIfExists(key: DynamoItemKey): DynamoGeneralRealtimeItem<Model> | null {
+        const itemVisibility = this._itemVisibilityByKey.get(key);
+        if (!itemVisibility?.isVisible) return null;
+
+        const iterator = this._itemByCursor.find(itemVisibility.cursor);
+        assert(iterator.node);
+
+        const index = this._getIteratorIndex(iterator);
+        const loadedPageItemSlice = this._loadedPageItemSlice.get();
+
+        // Make sure our current item and the next item (`index - 1`) are in our loaded
+        // items range.
+        if (
+            loadedPageItemSlice &&
+            (index - 1 < loadedPageItemSlice.startIndex || loadedPageItemSlice.endIndex < index)
+        ) {
+            return null;
+        }
+
+        iterator.prev();
+        if (!iterator.node) return null;
 
         return iterator.node.value;
     }

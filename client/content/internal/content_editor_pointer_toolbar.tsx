@@ -37,7 +37,7 @@ import {Overlay, OverlayRef} from "~/client/design/overlay";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
 import {Tooltip, TooltipRef, TooltipState} from "~/client/design/tooltip";
 import {isMac} from "~/client/helpers/browser/is_mac";
-import {isElementOwnedBy} from "~/client/helpers/is_element_owned_by";
+import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema";

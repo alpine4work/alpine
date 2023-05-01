@@ -1,5 +1,5 @@
 import {RefCallback, useCallback, useEffect, useRef} from "react";
-import {isElementOwnedBy} from "~/client/helpers/is_element_owned_by";
+import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 
 /**

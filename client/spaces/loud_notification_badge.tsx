@@ -55,6 +55,11 @@ export function LoudNotificationBadge({
                 borderRadius="full"
                 color="grey-0-const"
                 backgroundColor="red-50-const"
+                // The loud notification badge is mostly intended as a visual cue. We should
+                // figure out the right way to announce loud notifications for screen reader
+                // users. Reading out a number with no context doesn't make sense? (Number
+                // with a red badge is a clear visual cue.)
+                aria-hidden={true}
             >
                 {loudNotificationCount > 99 ? "99+" : loudNotificationCount}
             </Box>

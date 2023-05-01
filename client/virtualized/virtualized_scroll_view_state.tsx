@@ -1934,6 +1934,18 @@ export class VirtualizedScrollViewState {
     }
 
     /**
+     * Get the index of an item with the provided key. Returns null if an item
+     * with the provided key does not exist.
+     */
+    public getIndexByKeyIfExists(key: Key): number | null {
+        const iterator1 = this._orderKeyByItemKey.find(key);
+        if (!iterator1.node) return null;
+        const iterator2 = this._entryByOrderKey.find(iterator1.node.value);
+        assert(iterator2.node?.value.type === "Item", "Item entry not found for order key");
+        return this._getPreviousItemCount(iterator2);
+    }
+
+    /**
      * Get the position of an item with the provided key. Returns null if an item
      * with the provided key does not exist.
      */

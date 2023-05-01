@@ -195,6 +195,11 @@ export type VirtualizedScrollViewRef = {
     scrollToIndex(index: number): void;
 
     /**
+     * Scroll so the provided item key is visible.
+     */
+    scrollToKeyIfExists(key: Key): void;
+
+    /**
      * Look at what the rendered range will be after calling `scrollToIndex()`.
      * This does not actually scroll the view but rather lets you peek into the
      * future for preloading data at a given index.
@@ -1093,11 +1098,8 @@ function VirtualizedScrollView(
 
     useImperativeHandle(
         ref,
-        (): VirtualizedScrollViewRef => ({
-            getHeight: () => assertExists(scrollRef.current).clientHeight,
-            getContentHeight: () => assertExists(scrollRef.current).scrollHeight,
-            getRenderedRange: () => renderedRangeRef.current,
-            scrollToIndex: index => {
+        (): VirtualizedScrollViewRef => {
+            const scrollToIndex = (index: number) => {
                 // Scheduled in a microtask so that if there is a pending immediate React state
                 // update it can be applied before we perform the scroll.
                 //
@@ -1193,38 +1195,51 @@ function VirtualizedScrollView(
                     // listeners see the new scroll anchor.
                     scrollElement.scrollTop = scrollOffset;
                 });
-            },
-            peekRenderedRangeAfterScrollToIndex: index => {
-                const state = stateRef.current.state;
-                const scrollElement = assertExists(scrollRef.current);
+            };
 
-                const {scrollOffset} = getVirtualizedScrollViewOffsetForScrollToIndex({
-                    state,
-                    index,
-                    scrollOffset: scrollElement.scrollTop,
-                });
+            return {
+                getHeight: () => assertExists(scrollRef.current).clientHeight,
+                getContentHeight: () => assertExists(scrollRef.current).scrollHeight,
+                getRenderedRange: () => renderedRangeRef.current,
+                scrollToIndex,
+                scrollToKeyIfExists: key => {
+                    const state = stateRef.current.state;
+                    const index = state.getIndexByKeyIfExists(key);
+                    if (index === null) return;
+                    scrollToIndex(index);
+                },
+                peekRenderedRangeAfterScrollToIndex: index => {
+                    const state = stateRef.current.state;
+                    const scrollElement = assertExists(scrollRef.current);
 
-                const peekState = state.updateRenderedRange({
-                    scrollOffset,
-                    itemCount: stateRef.current.itemCount,
-                    getItem: stateRef.current.getItemWithoutRender,
-                });
+                    const {scrollOffset} = getVirtualizedScrollViewOffsetForScrollToIndex({
+                        state,
+                        index,
+                        scrollOffset: scrollElement.scrollTop,
+                    });
 
-                return peekState.getRenderedRange();
-            },
-            getScrollOffset: () => {
-                const scrollElement = assertExists(scrollRef.current);
-                return scrollElement.scrollTop;
-            },
-            setScrollOffset: (scrollOffset: number) => {
-                const scrollElement = assertExists(scrollRef.current);
-                scrollElement.scrollTop = scrollOffset;
-            },
-            getPositionByKeyIfExists: key => {
-                const state = stateRef.current.state;
-                return state.getPositionByKeyIfExists(key);
-            },
-        }),
+                    const peekState = state.updateRenderedRange({
+                        scrollOffset,
+                        itemCount: stateRef.current.itemCount,
+                        getItem: stateRef.current.getItemWithoutRender,
+                    });
+
+                    return peekState.getRenderedRange();
+                },
+                getScrollOffset: () => {
+                    const scrollElement = assertExists(scrollRef.current);
+                    return scrollElement.scrollTop;
+                },
+                setScrollOffset: (scrollOffset: number) => {
+                    const scrollElement = assertExists(scrollRef.current);
+                    scrollElement.scrollTop = scrollOffset;
+                },
+                getPositionByKeyIfExists: key => {
+                    const state = stateRef.current.state;
+                    return state.getPositionByKeyIfExists(key);
+                },
+            };
+        },
         [],
     );
 

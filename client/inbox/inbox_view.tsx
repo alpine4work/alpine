@@ -4,10 +4,14 @@ import {SpinnerGap} from "phosphor-react";
 import {MutableRefObject, useCallback, useContext, useEffect, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
+import {FocusRing} from "~/client/design/focus_ring";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {delayFullPageTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query";
+import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element";
+import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {usePromise} from "~/client/helpers/use_promise";
 import {InboxEntryView, inboxEntryViewMinHeight} from "~/client/inbox/inbox_entry_view";
 import {loadInitialPeekData} from "~/client/peek/load_initial_peek_data";
@@ -296,77 +300,170 @@ export function InboxView({
         };
     }, [peekState]);
 
-    const selectedEntryItemKey = (peekState.transitionPeek ?? peekState.activePeek)?.key;
+    const selectedEntryKey = (peekState.transitionPeek ?? peekState.activePeek)?.key;
+
+    // When a new entry is selected, make sure it is visible in our scroll window. Scroll to
+    // it if it is not visible.
+    const lastSelectedEntryKeyRef = useRef(selectedEntryKey);
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (lastSelectedEntryKeyRef.current === selectedEntryKey) return;
+        lastSelectedEntryKeyRef.current = selectedEntryKey;
+
+        if (selectedEntryKey) {
+            assertExists(entriesViewRef.current).scrollToKeyIfExists(
+                `LoadedItem:${selectedEntryKey}`,
+            );
+        }
+    }, [selectedEntryKey]);
+
+    // We use this to help assistive technologies understand our list
+    // virtualization. If we haven't loaded all items we set the size to -1 which
+    // indicates the size is unknown.
+    // https://w3c.github.io/aria/#aria-setsize
+    const ariaSetsize =
+        query.getItemCountWithoutLoadingIndicator() === query.getItemCount()
+            ? query.getItemCount()
+            : -1;
 
     return (
-        <Box flexGrow="1" overflow="hidden" display="flex">
-            <Box
-                flexShrink="0"
-                overflow="hidden"
-                width="96"
-                backgroundColor="grey-0"
-                borderRight="grey-10"
-            >
-                <VirtualizedScrollView
-                    ref={entriesViewRef}
-                    bufferedItemHeight={inboxEntryViewMinHeight}
-                    onRenderedRangeChange={tryLoadingMore}
-                    itemCount={query.getItemCount()}
-                    renderItem={useCallback(
-                        index => {
-                            const item = query.getItem(index);
-                            switch (item.type) {
-                                case "LoadedItem": {
-                                    return {
-                                        key: `LoadedItem:${item.item.key}`,
-                                        minHeight: inboxEntryViewMinHeight,
-                                        node: (
-                                            <InboxEntryView
-                                                entry={item.item.model}
-                                                isSelected={selectedEntryItemKey === item.item.key}
-                                                onPress={() => selectEntry(item.item)}
-                                            />
-                                        ),
-                                    };
-                                }
-                                case "LoadingIndicator": {
-                                    return {
-                                        key: "LoadingIndicator",
-                                        minHeight: inboxEntryViewMinHeight,
-                                        node: (
-                                            <Box
-                                                display="flex"
-                                                justifyContent="center"
-                                                alignItems="center"
-                                                style={{height: inboxEntryViewMinHeight}}
-                                            >
-                                                <SpinnerGap
-                                                    className={spinAnimationClassName}
-                                                    color={colorSchemeVars["grey-60"]}
-                                                    size={spacing["4"]}
-                                                />
-                                            </Box>
-                                        ),
-                                    };
-                                }
-                                default:
-                                    throw exhaustive(item);
+        <GlobalKeyDownEvent
+            onGlobalKeyDown={event => {
+                switch (event.key) {
+                    case "ArrowUp": {
+                        // If focus is within a text input element then arrow key presses are for
+                        // text editing.
+                        if (isTextInputElement(document.activeElement)) break;
+
+                        event.stopPropagation();
+                        event.preventDefault();
+
+                        // If an item is already selected, select the previous item. Otherwise select
+                        // the first item.
+                        if (selectedEntryKey) {
+                            const previousEntry = query.getItemBeforeKeyIfExists(selectedEntryKey);
+                            if (previousEntry) {
+                                selectEntry(previousEntry);
                             }
-                        },
-                        [query, selectEntry, selectedEntryItemKey],
+                        } else if (query.getItemCount() > 0) {
+                            const item = query.getItem(0);
+                            if (item.type === "LoadedItem") {
+                                selectEntry(item.item);
+                            }
+                        }
+                        break;
+                    }
+                    case "ArrowDown": {
+                        // If focus is within a text input element then arrow key presses are for
+                        // text editing.
+                        if (isTextInputElement(document.activeElement)) break;
+
+                        event.stopPropagation();
+                        event.preventDefault();
+
+                        // If an item is already selected, select the next item. Otherwise select
+                        // the first item.
+                        if (selectedEntryKey) {
+                            const nextEntry = query.getItemAfterKeyIfExists(selectedEntryKey);
+                            if (nextEntry) {
+                                selectEntry(nextEntry);
+                            }
+                        } else if (query.getItemCount() > 0) {
+                            const item = query.getItem(0);
+                            if (item.type === "LoadedItem") {
+                                selectEntry(item.item);
+                            }
+                        }
+                        break;
+                    }
+                }
+            }}
+        >
+            <Box flexGrow="1" overflow="hidden" display="flex">
+                <FocusRing offset="inset">
+                    <Box
+                        // Our notification inbox implements the `listbox` ARIA role. So the inbox
+                        // receives focus and you use arrow keys to navigate through notifications.
+                        // https://www.w3.org/WAI/ARIA/apg/patterns/listbox
+                        //
+                        // The arrow key keyboard handlers are attached globally with
+                        // `<GlobalKeyDownEvent>` so the user doesn't need the listbox focused to
+                        // move between items. (This is nice for sighted users who like
+                        // keyboard shortcuts.)
+                        role="listbox"
+                        tabIndex={0}
+                        aria-label="Inbox"
+                        flexShrink="0"
+                        overflow="hidden"
+                        width="96"
+                        backgroundColor="grey-0"
+                        borderRight="grey-10"
+                    >
+                        <VirtualizedScrollView
+                            ref={entriesViewRef}
+                            bufferedItemHeight={inboxEntryViewMinHeight}
+                            onRenderedRangeChange={tryLoadingMore}
+                            itemCount={query.getItemCount()}
+                            renderItem={useCallback(
+                                index => {
+                                    const item = query.getItem(index);
+                                    switch (item.type) {
+                                        case "LoadedItem": {
+                                            return {
+                                                key: `LoadedItem:${item.item.key}`,
+                                                minHeight: inboxEntryViewMinHeight,
+                                                node: (
+                                                    <InboxEntryView
+                                                        entry={item.item.model}
+                                                        isSelected={
+                                                            selectedEntryKey === item.item.key
+                                                        }
+                                                        onPress={() => selectEntry(item.item)}
+                                                        aria-posinset={index}
+                                                        aria-setsize={ariaSetsize}
+                                                    />
+                                                ),
+                                            };
+                                        }
+                                        case "LoadingIndicator": {
+                                            return {
+                                                key: "LoadingIndicator",
+                                                minHeight: inboxEntryViewMinHeight,
+                                                node: (
+                                                    <Box
+                                                        display="flex"
+                                                        justifyContent="center"
+                                                        alignItems="center"
+                                                        style={{height: inboxEntryViewMinHeight}}
+                                                    >
+                                                        <SpinnerGap
+                                                            className={spinAnimationClassName}
+                                                            color={colorSchemeVars["grey-60"]}
+                                                            size={spacing["4"]}
+                                                        />
+                                                    </Box>
+                                                ),
+                                            };
+                                        }
+                                        default:
+                                            throw exhaustive(item);
+                                    }
+                                },
+                                [ariaSetsize, query, selectEntry, selectedEntryKey],
+                            )}
+                        />
+                    </Box>
+                </FocusRing>
+                <Box flexGrow="1" overflow="hidden">
+                    {peekState.activePeek && (
+                        <InboxViewPeekContent
+                            // Fully remount whenever the peek changes...
+                            key={peekState.activePeek.key}
+                            peek={peekState.activePeek}
+                        />
                     )}
-                />
+                </Box>
             </Box>
-            <Box flexGrow="1" overflow="hidden">
-                {peekState.activePeek && (
-                    <InboxViewPeekContent
-                        // Fully remount whenever the peek changes...
-                        key={peekState.activePeek.key}
-                        peek={peekState.activePeek}
-                    />
-                )}
-            </Box>
-        </Box>
+        </GlobalKeyDownEvent>
     );
 }
 

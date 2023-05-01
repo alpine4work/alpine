@@ -1,6 +1,5 @@
 import {isToday} from "date-fns";
 import {ReactNode, useMemo} from "react";
-import {usePress} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
 import {ContentView} from "~/client/content/content_view";
@@ -33,20 +32,38 @@ export function InboxEntryView({
     entry,
     isSelected,
     onPress,
+    "aria-setsize": ariaSetsize,
+    "aria-posinset": ariaPosinset,
 }: {
     entry: InboxEntryModel;
     isSelected: boolean;
     onPress: () => void;
+    // Because entries are virtualized, we need to set these properties so screen
+    // readers can correctly announce what position the user is in no matter
+    // what's in the DOM.
+    // https://w3c.github.io/aria/#aria-setsize
+    "aria-setsize": number;
+    "aria-posinset": number;
 }) {
     switch (entry.type) {
         case "Chat":
-            return <InboxChatEntryView entry={entry} isSelected={isSelected} onPress={onPress} />;
+            return (
+                <InboxChatEntryView
+                    entry={entry}
+                    isSelected={isSelected}
+                    onPress={onPress}
+                    aria-setsize={ariaSetsize}
+                    aria-posinset={ariaPosinset}
+                />
+            );
         case "PostComments":
             return (
                 <InboxPostCommentsEntryView
                     entry={entry}
                     isSelected={isSelected}
                     onPress={onPress}
+                    aria-setsize={ariaSetsize}
+                    aria-posinset={ariaPosinset}
                 />
             );
         default:
@@ -62,10 +79,14 @@ function InboxChatEntryView({
     entry,
     isSelected,
     onPress,
+    "aria-setsize": ariaSetsize,
+    "aria-posinset": ariaPosinset,
 }: {
     entry: InboxChatEntryModel;
     isSelected: boolean;
     onPress: () => void;
+    "aria-setsize": number;
+    "aria-posinset": number;
 }) {
     const firstAccount = entry.otherChatAccount ?? entry.latestMessage.author;
 
@@ -79,6 +100,8 @@ function InboxChatEntryView({
             loudNotificationCount={entry.loudNotificationCount}
             isSelected={isSelected}
             onPress={onPress}
+            aria-setsize={ariaSetsize}
+            aria-posinset={ariaPosinset}
         >
             <Box>
                 <span className={boldClassName}>
@@ -110,10 +133,14 @@ function InboxPostCommentsEntryView({
     entry,
     isSelected,
     onPress,
+    "aria-setsize": ariaSetsize,
+    "aria-posinset": ariaPosinset,
 }: {
     entry: InboxPostCommentsEntryModel;
     isSelected: boolean;
     onPress: () => void;
+    "aria-setsize": number;
+    "aria-posinset": number;
 }) {
     const {currentAccount} = useSpaceContext();
 
@@ -135,6 +162,8 @@ function InboxPostCommentsEntryView({
             loudNotificationCount={entry.loudNotificationCount}
             isSelected={isSelected}
             onPress={onPress}
+            aria-setsize={ariaSetsize}
+            aria-posinset={ariaPosinset}
         >
             <Box>
                 {currentAccount.id === entry.postAuthor.id ? (
@@ -160,6 +189,8 @@ function InboxEntryViewBase({
     loudNotificationCount,
     isSelected,
     onPress,
+    "aria-setsize": ariaSetsize,
+    "aria-posinset": ariaPosinset,
     children,
 }: {
     firstAccount: AccountModel;
@@ -167,15 +198,22 @@ function InboxEntryViewBase({
     loudNotificationCount: number;
     isSelected: boolean;
     onPress: () => void;
+    // Because entries are virtualized, we need to set these properties so screen
+    // readers can correctly announce what position the user is in no matter
+    // what's in the DOM.
+    // https://w3c.github.io/aria/#aria-setsize
+    "aria-setsize": number;
+    "aria-posinset": number;
     children?: ReactNode;
 }) {
-    const {pressProps} = usePress({
-        onPress,
-    });
-
     return (
         <Box
-            {...pressProps}
+            // Our inbox implements the ARIA `listbox` role.
+            // https://www.w3.org/WAI/ARIA/apg/patterns/listbox
+            role="option"
+            aria-selected={isSelected}
+            aria-setsize={ariaSetsize}
+            aria-posinset={ariaPosinset}
             paddingX="4"
             backgroundColor={isSelected ? "grey-5" : undefined}
             style={{
@@ -185,6 +223,10 @@ function InboxEntryViewBase({
                 // virtualized list.
                 boxShadow: isSelected ? `0 1px 0 0 ${colorSchemeVars["grey-5"]}` : undefined,
             }}
+            // NOTE(calebmer): Not using `usePress()` here because that hook does something
+            // weird with `event.preventDefault()` that causes the listbox to not be
+            // focused after a click.
+            onClick={onPress}
         >
             <Box
                 display="flex"
@@ -259,6 +301,9 @@ function InboxEntryLatestMessagePreview({
 
     return (
         <Box
+            // Do not read the message preview for screen reader users. It will likely be
+            // confusing as the text cuts off eventually.
+            aria-hidden={true}
             style={{
                 height: `${
                     parseRemLengthNumber(contentSchemaStyles.paragraphFontSize.lineHeight) *
