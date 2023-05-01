@@ -28,6 +28,7 @@ export async function loader({params, context}: LoaderArgs) {
             context.loader.clientInfo,
             inboxEntryViewMinHeight,
         ),
+        afterCursor: null,
     });
 
     return jsonWithSchema(LoaderSchema, {inboxEntriesResult});

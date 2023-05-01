@@ -351,9 +351,9 @@ test("items update after receiving a realtime event", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEventTransaction(new Date(), [
         {
-            type: "UpdateItem",
+            type: "PutItem",
             item: {
                 key: testItemKey("item2"),
                 version: 1,
@@ -390,9 +390,9 @@ test("items update after receiving a realtime event", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEventTransaction(new Date(), [
         {
-            type: "UpdateItem",
+            type: "PutItem",
             item: {
                 key: testItemKey("item0"),
                 version: 1,
@@ -429,9 +429,9 @@ test("items update after receiving a realtime event", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEventTransaction(new Date(), [
         {
-            type: "UpdateItem",
+            type: "PutItem",
             item: {
                 key: testItemKey("item0"),
                 version: 2,
@@ -529,9 +529,9 @@ test("items update after receiving a realtime event out-of-order", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEventTransaction(new Date(), [
         {
-            type: "UpdateItem",
+            type: "PutItem",
             item: {
                 key: testItemKey("item2"),
                 version: 1,
@@ -568,9 +568,9 @@ test("items update after receiving a realtime event out-of-order", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEventTransaction(new Date(), [
         {
-            type: "UpdateItem",
+            type: "PutItem",
             item: {
                 key: testItemKey("item0"),
                 version: 2,
@@ -607,9 +607,9 @@ test("items update after receiving a realtime event out-of-order", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEventTransaction(new Date(), [
         {
-            type: "UpdateItem",
+            type: "PutItem",
             item: {
                 key: testItemKey("item0"),
                 version: 1,
@@ -707,9 +707,9 @@ test("items move after receiving a realtime event", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEventTransaction(new Date(), [
         {
-            type: "UpdateItem",
+            type: "PutItem",
             item: {
                 key: testItemKey("item2"),
                 version: 1,
@@ -746,9 +746,9 @@ test("items move after receiving a realtime event", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEventTransaction(new Date(), [
         {
-            type: "UpdateItem",
+            type: "PutItem",
             item: {
                 key: testItemKey("item0"),
                 version: 1,
@@ -846,9 +846,9 @@ test("items move after receiving a realtime event out-of-order", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEventTransaction(new Date(), [
         {
-            type: "UpdateItem",
+            type: "PutItem",
             item: {
                 key: testItemKey("item0"),
                 version: 1,
@@ -885,9 +885,9 @@ test("items move after receiving a realtime event out-of-order", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEventTransaction(new Date(), [
         {
-            type: "UpdateItem",
+            type: "PutItem",
             item: {
                 key: testItemKey("item0"),
                 version: 4,
@@ -924,9 +924,9 @@ test("items move after receiving a realtime event out-of-order", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEventTransaction(new Date(), [
         {
-            type: "UpdateItem",
+            type: "PutItem",
             item: {
                 key: testItemKey("item0"),
                 version: 3,
@@ -1024,9 +1024,9 @@ test("items move out of bounds after receiving a realtime event", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEventTransaction(new Date(), [
         {
-            type: "UpdateItem",
+            type: "PutItem",
             item: {
                 key: testItemKey("item2"),
                 version: 1,
@@ -1055,9 +1055,9 @@ test("items move out of bounds after receiving a realtime event", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEventTransaction(new Date(), [
         {
-            type: "UpdateItem",
+            type: "PutItem",
             item: {
                 key: testItemKey("item0"),
                 version: 1,
@@ -1139,9 +1139,9 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEventTransaction(new Date(), [
         {
-            type: "UpdateItem",
+            type: "PutItem",
             item: {
                 key: testItemKey("item2"),
                 version: 2,
@@ -1170,9 +1170,9 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEventTransaction(new Date(), [
         {
-            type: "UpdateItem",
+            type: "PutItem",
             item: {
                 key: testItemKey("item0"),
                 version: 2,
@@ -1193,9 +1193,9 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEventTransaction(new Date(), [
         {
-            type: "UpdateItem",
+            type: "PutItem",
             item: {
                 key: testItemKey("item0"),
                 version: 1,
@@ -1216,9 +1216,9 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEventTransaction(new Date(), [
         {
-            type: "UpdateItem",
+            type: "PutItem",
             item: {
                 key: testItemKey("item2"),
                 version: 1,
@@ -1300,9 +1300,9 @@ test("item created within the query", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEventTransaction(new Date(), [
         {
-            type: "CreateItem",
+            type: "PutItem",
             item: {
                 key: testItemKey("item4"),
                 version: 0,
@@ -1408,9 +1408,9 @@ test("item created then moved out of bounds within the query", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEventTransaction(new Date(), [
         {
-            type: "CreateItem",
+            type: "PutItem",
             item: {
                 key: testItemKey("item4"),
                 version: 0,
@@ -1455,9 +1455,9 @@ test("item created then moved out of bounds within the query", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEventTransaction(new Date(), [
         {
-            type: "UpdateItem",
+            type: "PutItem",
             item: {
                 key: testItemKey("item4"),
                 version: 1,
@@ -1555,9 +1555,9 @@ test("item created then moved out of bounds within the query received out-of-ord
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEventTransaction(new Date(), [
         {
-            type: "UpdateItem",
+            type: "PutItem",
             item: {
                 key: testItemKey("item4"),
                 version: 1,
@@ -1594,9 +1594,9 @@ test("item created then moved out of bounds within the query received out-of-ord
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEventTransaction(new Date(), [
         {
-            type: "CreateItem",
+            type: "PutItem",
             item: {
                 key: testItemKey("item4"),
                 version: 0,
@@ -1694,9 +1694,9 @@ test("item moving in and out of bounds", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEventTransaction(new Date(), [
         {
-            type: "UpdateItem",
+            type: "PutItem",
             item: {
                 key: testItemKey("item1"),
                 version: 1,
@@ -1725,9 +1725,9 @@ test("item moving in and out of bounds", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEventTransaction(new Date(), [
         {
-            type: "UpdateItem",
+            type: "PutItem",
             item: {
                 key: testItemKey("item1"),
                 version: 2,
@@ -1764,9 +1764,9 @@ test("item moving in and out of bounds", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEventTransaction(new Date(), [
         {
-            type: "UpdateItem",
+            type: "PutItem",
             item: {
                 key: testItemKey("item1"),
                 version: 3,
@@ -1856,9 +1856,9 @@ test("item moving in and out of bounds received out-of-order", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEventTransaction(new Date(), [
         {
-            type: "UpdateItem",
+            type: "PutItem",
             item: {
                 key: testItemKey("item1"),
                 version: 1,
@@ -1887,9 +1887,9 @@ test("item moving in and out of bounds received out-of-order", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEventTransaction(new Date(), [
         {
-            type: "UpdateItem",
+            type: "PutItem",
             item: {
                 key: testItemKey("item1"),
                 version: 3,
@@ -1918,9 +1918,9 @@ test("item moving in and out of bounds received out-of-order", () => {
         },
     ]);
 
-    query = query.handleEventTransaction([
+    query = query.handleEventTransaction(new Date(), [
         {
-            type: "UpdateItem",
+            type: "PutItem",
             item: {
                 key: testItemKey("item1"),
                 version: 2,

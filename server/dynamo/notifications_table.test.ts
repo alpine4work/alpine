@@ -312,8 +312,15 @@ describe("Post comments", () => {
     test("commenting creates an inbox entry for all subscribers", async () => {
         const scenario = await createScenario();
 
-        const channel = await createChannel(context.action(scenario.session1), {
+        const _channel = await createChannel(context.action(scenario.session1), {
             spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const channel = new ChannelPreviewModel({
+            id: _channel.id,
+            spaceId: scenario.space.id,
+            createdTime: _channel.createdTime,
             name: "Test",
         });
 
@@ -326,6 +333,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -333,6 +341,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -340,6 +349,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -355,12 +365,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -370,6 +383,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -377,6 +391,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -384,6 +399,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -399,12 +415,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment2.createdTime,
@@ -414,6 +433,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: scenario.session2.account,
             }),
         ]);
 
@@ -421,12 +441,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment2.createdTime,
@@ -436,6 +459,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -443,6 +467,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -458,12 +483,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -473,6 +501,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: scenario.session3.account,
             }),
         ]);
 
@@ -480,12 +509,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -495,6 +527,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: scenario.session3.account,
             }),
         ]);
 
@@ -502,12 +535,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -517,6 +553,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
     });
@@ -524,8 +561,15 @@ describe("Post comments", () => {
     test("mentioning someone in a creates a loud notification for them whether or not they are a subscriber", async () => {
         const scenario = await createScenario();
 
-        const channel = await createChannel(context.action(scenario.session1), {
+        const _channel = await createChannel(context.action(scenario.session1), {
             spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const channel = new ChannelPreviewModel({
+            id: _channel.id,
+            spaceId: scenario.space.id,
+            createdTime: _channel.createdTime,
             name: "Test",
         });
 
@@ -538,6 +582,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -545,6 +590,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -552,6 +598,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -567,12 +614,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -587,6 +637,7 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -594,6 +645,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -601,12 +653,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -621,6 +676,7 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -636,12 +692,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment2.createdTime,
@@ -656,6 +715,7 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -663,6 +723,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -670,12 +731,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment2.createdTime,
@@ -690,6 +754,7 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -705,12 +770,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 2,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -725,6 +793,7 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: scenario.session2.account,
             }),
         ]);
 
@@ -732,12 +801,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -752,6 +824,7 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -759,12 +832,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -779,6 +855,7 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: scenario.session2.account,
             }),
         ]);
     });
@@ -786,8 +863,15 @@ describe("Post comments", () => {
     test("mentioning yourself does not create a loud notification for yourself", async () => {
         const scenario = await createScenario();
 
-        const channel = await createChannel(context.action(scenario.session1), {
+        const _channel = await createChannel(context.action(scenario.session1), {
             spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const channel = new ChannelPreviewModel({
+            id: _channel.id,
+            spaceId: scenario.space.id,
+            createdTime: _channel.createdTime,
             name: "Test",
         });
 
@@ -800,6 +884,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -807,6 +892,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -814,6 +900,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -829,12 +916,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -849,6 +939,7 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -856,6 +947,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -863,6 +955,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -878,12 +971,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment2.createdTime,
@@ -893,6 +989,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: scenario.session2.account,
             }),
         ]);
 
@@ -900,12 +997,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment2.createdTime,
@@ -915,6 +1015,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -922,6 +1023,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -937,12 +1039,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -957,6 +1062,7 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: scenario.session2.account,
             }),
         ]);
 
@@ -964,12 +1070,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -984,6 +1093,7 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: scenario.session1.account,
             }),
         ]);
 
@@ -991,6 +1101,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
     });
@@ -998,8 +1109,15 @@ describe("Post comments", () => {
     test("accounts have separate inboxes for each space", async () => {
         const scenario = await createScenario();
 
-        const channel = await createChannel(context.action(scenario.session1), {
+        const _channel = await createChannel(context.action(scenario.session1), {
             spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const channel = new ChannelPreviewModel({
+            id: _channel.id,
+            spaceId: scenario.space.id,
+            createdTime: _channel.createdTime,
             name: "Test",
         });
 
@@ -1008,8 +1126,15 @@ describe("Post comments", () => {
             content: emptyPostContent,
         });
 
-        const otherChannel = await createChannel(context.action(scenario.otherSession), {
+        const _otherChannel = await createChannel(context.action(scenario.otherSession), {
             spaceId: scenario.otherSpace.id,
+            name: "Test",
+        });
+
+        const otherChannel = new ChannelPreviewModel({
+            id: _otherChannel.id,
+            spaceId: scenario.otherSpace.id,
+            createdTime: _otherChannel.createdTime,
             name: "Test",
         });
 
@@ -1022,6 +1147,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -1029,6 +1155,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -1044,12 +1171,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.sharedSession.account.id,
                 postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -1064,6 +1194,7 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -1071,6 +1202,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -1086,12 +1218,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.sharedSession.account.id,
                 postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -1106,6 +1241,7 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -1113,12 +1249,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.otherSpace.id,
                 accountId: scenario.sharedSession.account.id,
                 postId: otherPost.id,
+                postAuthor: scenario.otherSession.account,
+                channel: otherChannel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment2.createdTime,
@@ -1133,6 +1272,7 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
     });
@@ -1140,8 +1280,15 @@ describe("Post comments", () => {
     test("account can not see mention in a different space", async () => {
         const scenario = await createScenario();
 
-        const channel = await createChannel(context.action(scenario.session1), {
+        const _channel = await createChannel(context.action(scenario.session1), {
             spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const channel = new ChannelPreviewModel({
+            id: _channel.id,
+            spaceId: scenario.space.id,
+            createdTime: _channel.createdTime,
             name: "Test",
         });
 
@@ -1164,6 +1311,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -1171,6 +1319,7 @@ describe("Post comments", () => {
             getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).rejects.toThrow(PermissionDeniedError);
 
@@ -1186,12 +1335,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -1206,6 +1358,7 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -1213,6 +1366,7 @@ describe("Post comments", () => {
             getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).rejects.toThrow(PermissionDeniedError);
 
@@ -1228,12 +1382,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -1248,6 +1405,7 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -1255,6 +1413,7 @@ describe("Post comments", () => {
             getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).rejects.toThrow(PermissionDeniedError);
     });
@@ -1262,8 +1421,15 @@ describe("Post comments", () => {
     test("comment notification events processed out of order result in the same latest comment", async () => {
         const scenario = await createScenario();
 
-        const channel = await createChannel(context.action(scenario.session2), {
+        const _channel = await createChannel(context.action(scenario.session2), {
             spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const channel = new ChannelPreviewModel({
+            id: _channel.id,
+            spaceId: scenario.space.id,
+            createdTime: _channel.createdTime,
             name: "Test",
         });
 
@@ -1276,6 +1442,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -1283,6 +1450,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -1321,12 +1489,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post.id,
+                postAuthor: scenario.session2.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -1336,6 +1507,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -1343,12 +1515,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 postId: post.id,
+                postAuthor: scenario.session2.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -1358,6 +1533,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: scenario.session1.account,
             }),
         ]);
 
@@ -1368,12 +1544,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post.id,
+                postAuthor: scenario.session2.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -1383,6 +1562,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -1390,12 +1570,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 postId: post.id,
+                postAuthor: scenario.session2.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -1405,6 +1588,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: scenario.session1.account,
             }),
         ]);
     });
@@ -1412,8 +1596,15 @@ describe("Post comments", () => {
     test("loud notifications are always at the top of the inbox", async () => {
         const scenario = await createScenario();
 
-        const channel = await createChannel(context.action(scenario.session1), {
+        const _channel = await createChannel(context.action(scenario.session1), {
             spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const channel = new ChannelPreviewModel({
+            id: _channel.id,
+            spaceId: scenario.space.id,
+            createdTime: _channel.createdTime,
             name: "Test",
         });
 
@@ -1438,6 +1629,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -1453,12 +1645,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -1468,6 +1663,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -1483,12 +1679,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post2.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment2.createdTime,
@@ -1503,11 +1702,14 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -1517,6 +1719,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -1532,12 +1735,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post2.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment2.createdTime,
@@ -1552,11 +1758,14 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post3.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -1566,11 +1775,14 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -1580,6 +1792,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -1595,12 +1808,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post2.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment2.createdTime,
@@ -1615,11 +1831,14 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post3.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -1629,11 +1848,14 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment4.createdTime,
@@ -1643,6 +1865,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -1658,12 +1881,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post2.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment5.createdTime,
@@ -1673,11 +1899,14 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post3.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -1687,11 +1916,14 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment4.createdTime,
@@ -1701,6 +1933,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -1716,12 +1949,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post3.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment6.createdTime,
@@ -1736,11 +1972,14 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post2.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment5.createdTime,
@@ -1750,11 +1989,14 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment4.createdTime,
@@ -1764,6 +2006,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -1779,12 +2022,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post3.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment6.createdTime,
@@ -1799,11 +2045,14 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post2.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment7.createdTime,
@@ -1813,11 +2062,14 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment4.createdTime,
@@ -1827,6 +2079,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -1842,12 +2095,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post2.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 2,
                 latestComment: {
                     createdTime: comment8.createdTime,
@@ -1862,11 +2118,14 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post3.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment6.createdTime,
@@ -1881,11 +2140,14 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment4.createdTime,
@@ -1895,6 +2157,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
     });
@@ -1910,8 +2173,15 @@ describe("Post comments", () => {
     test("observing an inbox freezes loud notifications in place", async () => {
         const scenario = await createScenario();
 
-        const channel = await createChannel(context.action(scenario.session1), {
+        const _channel = await createChannel(context.action(scenario.session1), {
             spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const channel = new ChannelPreviewModel({
+            id: _channel.id,
+            spaceId: scenario.space.id,
+            createdTime: _channel.createdTime,
             name: "Test",
         });
 
@@ -1941,6 +2211,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -1956,12 +2227,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -1971,6 +2245,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -1986,12 +2261,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post2.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment2.createdTime,
@@ -2006,11 +2284,14 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -2020,6 +2301,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -2035,12 +2317,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post2.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment2.createdTime,
@@ -2055,11 +2340,14 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post3.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -2069,11 +2357,14 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -2083,6 +2374,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -2092,12 +2384,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post2.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment2.createdTime,
@@ -2112,11 +2407,14 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post3.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -2126,11 +2424,14 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -2140,6 +2441,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -2155,12 +2457,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post4.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment4.createdTime,
@@ -2170,11 +2475,14 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post2.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment2.createdTime,
@@ -2189,11 +2497,14 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post3.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -2203,11 +2514,14 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -2217,6 +2531,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -2232,12 +2547,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post4.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment4.createdTime,
@@ -2247,11 +2565,14 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post2.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment5.createdTime,
@@ -2261,11 +2582,14 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post3.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -2275,11 +2599,14 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -2289,6 +2616,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -2304,12 +2632,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post4.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment4.createdTime,
@@ -2319,11 +2650,14 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post2.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment5.createdTime,
@@ -2333,11 +2667,14 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post3.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment6.createdTime,
@@ -2347,11 +2684,14 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -2361,6 +2701,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -2376,12 +2717,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post3.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment7.createdTime,
@@ -2396,11 +2740,14 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post4.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment4.createdTime,
@@ -2410,11 +2757,14 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post2.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment5.createdTime,
@@ -2424,11 +2774,14 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -2438,6 +2791,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
     });
@@ -2445,8 +2799,15 @@ describe("Post comments", () => {
     test("can archive inbox entries", async () => {
         const scenario = await createScenario();
 
-        const channel = await createChannel(context.action(scenario.session1), {
+        const _channel = await createChannel(context.action(scenario.session1), {
             spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const channel = new ChannelPreviewModel({
+            id: _channel.id,
+            spaceId: scenario.space.id,
+            createdTime: _channel.createdTime,
             name: "Test",
         });
 
@@ -2466,6 +2827,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -2499,12 +2861,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -2514,6 +2879,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: scenario.session3.account,
             }),
         ]);
 
@@ -2521,12 +2887,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 postId: post2.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment4.createdTime,
@@ -2541,11 +2910,14 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -2555,6 +2927,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: scenario.session3.account,
             }),
         ]);
 
@@ -2562,12 +2935,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -2577,6 +2953,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -2589,12 +2966,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -2604,6 +2984,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: scenario.session3.account,
             }),
         ]);
 
@@ -2611,12 +2992,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 postId: post2.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment4.createdTime,
@@ -2631,11 +3015,14 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -2645,6 +3032,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: scenario.session3.account,
             }),
         ]);
 
@@ -2652,6 +3040,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -2664,12 +3053,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -2679,6 +3071,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: scenario.session3.account,
             }),
         ]);
 
@@ -2686,12 +3079,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -2701,6 +3097,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: scenario.session3.account,
             }),
         ]);
 
@@ -2708,6 +3105,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -2720,12 +3118,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -2735,6 +3136,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: scenario.session3.account,
             }),
         ]);
 
@@ -2742,6 +3144,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -2749,6 +3152,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
     });
@@ -2756,8 +3160,15 @@ describe("Post comments", () => {
     test("can unarchive inbox entries", async () => {
         const scenario = await createScenario();
 
-        const channel = await createChannel(context.action(scenario.session1), {
+        const _channel = await createChannel(context.action(scenario.session1), {
             spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const channel = new ChannelPreviewModel({
+            id: _channel.id,
+            spaceId: scenario.space.id,
+            createdTime: _channel.createdTime,
             name: "Test",
         });
 
@@ -2782,6 +3193,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -2821,12 +3233,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -2836,6 +3251,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: scenario.session3.account,
             }),
         ]);
 
@@ -2843,12 +3259,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 postId: post3.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment5.createdTime,
@@ -2863,11 +3282,14 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 postId: post2.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment4.createdTime,
@@ -2882,11 +3304,14 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -2896,6 +3321,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: scenario.session3.account,
             }),
         ]);
 
@@ -2903,12 +3329,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -2918,6 +3347,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -2940,12 +3370,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -2955,6 +3388,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: scenario.session3.account,
             }),
         ]);
 
@@ -2962,12 +3396,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 postId: post3.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment5.createdTime,
@@ -2982,6 +3419,7 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -2989,6 +3427,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -3001,12 +3440,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -3016,6 +3458,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: scenario.session3.account,
             }),
         ]);
 
@@ -3023,12 +3466,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 postId: post3.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment5.createdTime,
@@ -3043,6 +3489,7 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -3050,12 +3497,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -3065,6 +3515,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -3077,12 +3528,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -3092,6 +3546,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: scenario.session3.account,
             }),
         ]);
 
@@ -3099,12 +3554,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 postId: post2.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment4.createdTime,
@@ -3119,11 +3577,14 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 postId: post3.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment5.createdTime,
@@ -3138,6 +3599,7 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -3145,12 +3607,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -3160,6 +3625,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -3172,12 +3638,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -3187,6 +3656,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: scenario.session3.account,
             }),
         ]);
 
@@ -3194,12 +3664,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -3209,11 +3682,14 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: scenario.session3.account,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 postId: post2.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment4.createdTime,
@@ -3228,11 +3704,14 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 postId: post3.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment5.createdTime,
@@ -3247,6 +3726,7 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -3254,12 +3734,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment3.createdTime,
@@ -3269,6 +3752,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
     });
@@ -3276,8 +3760,15 @@ describe("Post comments", () => {
     test("can not archive or unarchive inbox entries in a space you don't have access to", async () => {
         const scenario = await createScenario();
 
-        const channel = await createChannel(context.action(scenario.session1), {
+        const _channel = await createChannel(context.action(scenario.session1), {
             spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const channel = new ChannelPreviewModel({
+            id: _channel.id,
+            spaceId: scenario.space.id,
+            createdTime: _channel.createdTime,
             name: "Test",
         });
 
@@ -3306,8 +3797,15 @@ describe("Post comments", () => {
     test("notification on an archived entry revives it", async () => {
         const scenario = await createScenario();
 
-        const channel = await createChannel(context.action(scenario.session1), {
+        const _channel = await createChannel(context.action(scenario.session1), {
             spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const channel = new ChannelPreviewModel({
+            id: _channel.id,
+            spaceId: scenario.space.id,
+            createdTime: _channel.createdTime,
             name: "Test",
         });
 
@@ -3322,6 +3820,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -3337,12 +3836,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -3352,6 +3854,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -3364,6 +3867,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -3379,12 +3883,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment2.createdTime,
@@ -3394,6 +3901,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
     });
@@ -3401,8 +3909,15 @@ describe("Post comments", () => {
     test("notification on an archived entry revives it clearing old loud notification count", async () => {
         const scenario = await createScenario();
 
-        const channel = await createChannel(context.action(scenario.session1), {
+        const _channel = await createChannel(context.action(scenario.session1), {
             spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const channel = new ChannelPreviewModel({
+            id: _channel.id,
+            spaceId: scenario.space.id,
+            createdTime: _channel.createdTime,
             name: "Test",
         });
 
@@ -3417,6 +3932,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -3432,12 +3948,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 1,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -3452,6 +3971,7 @@ describe("Post comments", () => {
                         },
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -3464,6 +3984,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -3479,12 +4000,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment2.createdTime,
@@ -3494,6 +4018,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
     });
@@ -3501,8 +4026,15 @@ describe("Post comments", () => {
     test("notification on an archived entry from own account does not revive it", async () => {
         const scenario = await createScenario();
 
-        const channel = await createChannel(context.action(scenario.session1), {
+        const _channel = await createChannel(context.action(scenario.session1), {
             spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const channel = new ChannelPreviewModel({
+            id: _channel.id,
+            spaceId: scenario.space.id,
+            createdTime: _channel.createdTime,
             name: "Test",
         });
 
@@ -3517,6 +4049,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -3532,12 +4065,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment1.createdTime,
@@ -3547,6 +4083,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: null,
             }),
         ]);
 
@@ -3559,6 +4096,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -3574,6 +4112,7 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -3586,12 +4125,15 @@ describe("Post comments", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxPostCommentsEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
                 loudNotificationCount: 0,
                 latestComment: {
                     createdTime: comment2.createdTime,
@@ -3601,6 +4143,7 @@ describe("Post comments", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherCommentAuthor: scenario.session2.account,
             }),
         ]);
     });
@@ -3660,8 +4203,15 @@ describe("Post comments", () => {
             }),
         );
 
-        const channel = await createChannel(context.action(scenario.session1), {
+        const _channel = await createChannel(context.action(scenario.session1), {
             spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const channel = new ChannelPreviewModel({
+            id: _channel.id,
+            spaceId: scenario.space.id,
+            createdTime: _channel.createdTime,
             name: "Test",
         });
 
@@ -4113,7 +4663,7 @@ describe("Post comments", () => {
         );
     });
 
-    test.only("start sort key and end sort key work properly in inclusive/exclusive mode", async () => {
+    test("start sort key and end sort key work properly in inclusive/exclusive mode", async () => {
         const scenario = await createScenario();
 
         const _channel = await createChannel(context.action(scenario.session1), {
@@ -4229,6 +4779,13 @@ describe("Post comments", () => {
         ).toEqual({
             readTime: expect.any(Date),
             indexName: "InboxEntries",
+            startCursorBound: null,
+            endCursorBound: null,
+            pageInfo: {
+                type: "FromStart",
+                afterCursor: null,
+                hasNextPage: false,
+            },
             items: [
                 {
                     cursor: expect.any(String),
@@ -4363,7 +4920,6 @@ describe("Post comments", () => {
                     }),
                 },
             ],
-            hasMoreItems: false,
         });
 
         expect(
@@ -4382,6 +4938,13 @@ describe("Post comments", () => {
         ).toEqual({
             readTime: expect.any(Date),
             indexName: "InboxEntries",
+            startCursorBound: expect.any(String),
+            endCursorBound: null,
+            pageInfo: {
+                type: "FromStart",
+                afterCursor: null,
+                hasNextPage: false,
+            },
             items: [
                 {
                     cursor: expect.any(String),
@@ -4472,7 +5035,6 @@ describe("Post comments", () => {
                     }),
                 },
             ],
-            hasMoreItems: false,
         });
 
         expect(
@@ -4492,6 +5054,13 @@ describe("Post comments", () => {
         ).toEqual({
             readTime: expect.any(Date),
             indexName: "InboxEntries",
+            startCursorBound: expect.any(String),
+            endCursorBound: null,
+            pageInfo: {
+                type: "FromStart",
+                afterCursor: null,
+                hasNextPage: false,
+            },
             items: [
                 {
                     cursor: expect.any(String),
@@ -4560,7 +5129,6 @@ describe("Post comments", () => {
                     }),
                 },
             ],
-            hasMoreItems: false,
         });
 
         expect(
@@ -4579,6 +5147,13 @@ describe("Post comments", () => {
         ).toEqual({
             readTime: expect.any(Date),
             indexName: "InboxEntries",
+            startCursorBound: null,
+            endCursorBound: expect.any(String),
+            pageInfo: {
+                type: "FromStart",
+                afterCursor: null,
+                hasNextPage: false,
+            },
             items: [
                 {
                     cursor: expect.any(String),
@@ -4691,7 +5266,6 @@ describe("Post comments", () => {
                     }),
                 },
             ],
-            hasMoreItems: false,
         });
 
         expect(
@@ -4711,6 +5285,13 @@ describe("Post comments", () => {
         ).toEqual({
             readTime: expect.any(Date),
             indexName: "InboxEntries",
+            startCursorBound: null,
+            endCursorBound: expect.any(String),
+            pageInfo: {
+                type: "FromStart",
+                afterCursor: null,
+                hasNextPage: false,
+            },
             items: [
                 {
                     cursor: expect.any(String),
@@ -4801,7 +5382,6 @@ describe("Post comments", () => {
                     }),
                 },
             ],
-            hasMoreItems: false,
         });
     });
 });
@@ -4819,6 +5399,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -4826,6 +5407,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -4833,6 +5415,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -4848,12 +5431,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -4863,6 +5448,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
         ]);
 
@@ -4870,6 +5456,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -4877,12 +5464,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 chatId,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -4892,6 +5481,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session1.account,
             }),
         ]);
 
@@ -4907,12 +5497,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -4922,6 +5514,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session2.account,
             }),
         ]);
 
@@ -4929,12 +5522,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 chatId,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -4944,6 +5539,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session1.account,
             }),
         ]);
 
@@ -4951,12 +5547,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 chatId,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -4966,6 +5564,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session2.account,
             }),
         ]);
 
@@ -4981,12 +5580,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -4996,6 +5597,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
         ]);
 
@@ -5003,12 +5605,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 chatId,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -5018,6 +5622,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
         ]);
 
@@ -5025,12 +5630,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 chatId,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -5040,6 +5647,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session2.account,
             }),
         ]);
     });
@@ -5056,6 +5664,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -5063,6 +5672,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -5070,6 +5680,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -5085,12 +5696,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -5100,6 +5713,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
         ]);
 
@@ -5107,6 +5721,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -5114,12 +5729,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 chatId,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -5129,6 +5746,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session1.account,
             }),
         ]);
 
@@ -5144,12 +5762,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -5164,6 +5784,7 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
         ]);
 
@@ -5171,6 +5792,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -5178,12 +5800,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 chatId,
+                chatAccountCount: 3,
                 loudNotificationCount: 2,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -5198,6 +5822,7 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: scenario.session1.account,
             }),
         ]);
 
@@ -5213,12 +5838,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId,
+                chatAccountCount: 3,
                 loudNotificationCount: 2,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -5233,6 +5860,7 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
         ]);
 
@@ -5240,6 +5868,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -5247,12 +5876,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 chatId,
+                chatAccountCount: 3,
                 loudNotificationCount: 2,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -5267,6 +5898,7 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: scenario.session1.account,
             }),
         ]);
 
@@ -5282,12 +5914,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId,
+                chatAccountCount: 3,
                 loudNotificationCount: 3,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -5302,6 +5936,7 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: scenario.session2.account,
             }),
         ]);
 
@@ -5309,12 +5944,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 chatId,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -5329,6 +5966,7 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: scenario.session1.account,
             }),
         ]);
 
@@ -5336,12 +5974,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 chatId,
+                chatAccountCount: 3,
                 loudNotificationCount: 2,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -5356,6 +5996,7 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: scenario.session2.account,
             }),
         ]);
     });
@@ -5372,6 +6013,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -5379,6 +6021,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -5386,6 +6029,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -5401,6 +6045,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -5408,12 +6053,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 chatId,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -5423,6 +6070,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
         ]);
 
@@ -5430,12 +6078,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 chatId,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -5445,6 +6095,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session2.account,
             }),
         ]);
 
@@ -5460,12 +6111,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -5480,6 +6133,7 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
         ]);
 
@@ -5487,12 +6141,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 chatId,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -5507,6 +6163,7 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: scenario.session1.account,
             }),
         ]);
 
@@ -5514,12 +6171,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 chatId,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -5534,6 +6193,7 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: scenario.session1.account,
             }),
         ]);
 
@@ -5549,12 +6209,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -5564,6 +6226,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session2.account,
             }),
         ]);
 
@@ -5571,12 +6234,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 chatId,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -5586,6 +6251,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session1.account,
             }),
         ]);
 
@@ -5593,12 +6259,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 chatId,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -5608,6 +6276,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session2.account,
             }),
         ]);
 
@@ -5623,12 +6292,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -5643,6 +6314,7 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: scenario.session2.account,
             }),
         ]);
 
@@ -5650,12 +6322,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 chatId,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -5670,6 +6344,7 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: scenario.session1.account,
             }),
         ]);
 
@@ -5677,12 +6352,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 chatId,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -5697,6 +6374,7 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: scenario.session1.account,
             }),
         ]);
     });
@@ -5721,6 +6399,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -5728,6 +6407,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -5743,12 +6423,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.sharedSession.account.id,
                 chatId,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -5758,6 +6440,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: null,
             }),
         ]);
 
@@ -5765,6 +6448,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -5780,12 +6464,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.sharedSession.account.id,
                 chatId,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -5795,6 +6481,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: null,
             }),
         ]);
 
@@ -5802,12 +6489,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.sharedSession), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.otherSpace.id,
                 accountId: scenario.sharedSession.account.id,
                 chatId: otherChatId,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -5817,6 +6506,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: null,
             }),
         ]);
     });
@@ -5846,6 +6536,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -5853,6 +6544,7 @@ describe("Chat", () => {
             getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).rejects.toThrow(PermissionDeniedError);
 
@@ -5868,12 +6560,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -5888,6 +6582,7 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: scenario.session1.account,
             }),
         ]);
 
@@ -5895,6 +6590,7 @@ describe("Chat", () => {
             getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).rejects.toThrow(PermissionDeniedError);
 
@@ -5910,12 +6606,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -5930,6 +6628,7 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: scenario.session1.account,
             }),
         ]);
 
@@ -5937,6 +6636,7 @@ describe("Chat", () => {
             getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).rejects.toThrow(PermissionDeniedError);
 
@@ -5952,12 +6652,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -5972,6 +6674,7 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: scenario.session1.account,
             }),
         ]);
 
@@ -5979,6 +6682,7 @@ describe("Chat", () => {
             getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.otherSpace.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).rejects.toThrow(PermissionDeniedError);
     });
@@ -5995,6 +6699,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -6002,6 +6707,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -6040,12 +6746,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -6055,6 +6763,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: null,
             }),
         ]);
 
@@ -6062,12 +6771,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 chatId,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -6077,6 +6788,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session1.account,
             }),
         ]);
 
@@ -6087,12 +6799,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -6102,6 +6816,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: null,
             }),
         ]);
 
@@ -6109,12 +6824,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 chatId,
+                chatAccountCount: 2,
                 loudNotificationCount: 2,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -6124,6 +6841,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session1.account,
             }),
         ]);
     });
@@ -6152,6 +6870,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -6167,12 +6886,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -6182,6 +6903,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: null,
             }),
         ]);
 
@@ -6197,12 +6919,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat2Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -6217,11 +6941,13 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: null,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -6231,6 +6957,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: null,
             }),
         ]);
 
@@ -6246,12 +6973,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat3Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -6261,11 +6990,13 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat2Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -6280,11 +7011,13 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: null,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -6294,6 +7027,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: null,
             }),
         ]);
 
@@ -6309,12 +7043,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat3Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -6324,11 +7060,13 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat2Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -6343,11 +7081,13 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: null,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -6357,6 +7097,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: null,
             }),
         ]);
 
@@ -6372,12 +7113,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat3Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -6387,11 +7130,13 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat2Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message5.createdTime,
@@ -6401,11 +7146,13 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: null,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -6415,6 +7162,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: null,
             }),
         ]);
 
@@ -6430,12 +7178,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 2,
                 latestMessage: {
                     createdTime: message6.createdTime,
@@ -6450,11 +7200,13 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: null,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat3Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -6464,11 +7216,13 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat2Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message5.createdTime,
@@ -6478,6 +7232,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: null,
             }),
         ]);
 
@@ -6493,12 +7248,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 2,
                 latestMessage: {
                     createdTime: message6.createdTime,
@@ -6513,11 +7270,13 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: null,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat3Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -6527,11 +7286,13 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat2Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message7.createdTime,
@@ -6541,6 +7302,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: null,
             }),
         ]);
 
@@ -6556,12 +7318,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat2Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 2,
                 latestMessage: {
                     createdTime: message8.createdTime,
@@ -6576,11 +7340,13 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: null,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 2,
                 latestMessage: {
                     createdTime: message6.createdTime,
@@ -6595,11 +7361,13 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: null,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat3Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -6609,6 +7377,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
         ]);
     });
@@ -6650,6 +7419,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -6665,12 +7435,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -6680,6 +7452,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: null,
             }),
         ]);
 
@@ -6695,12 +7468,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat2Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -6715,11 +7490,13 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: null,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -6729,6 +7506,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: null,
             }),
         ]);
 
@@ -6744,12 +7522,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat3Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -6759,11 +7539,13 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat2Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -6778,11 +7560,13 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: null,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -6792,6 +7576,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: null,
             }),
         ]);
 
@@ -6801,12 +7586,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat3Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -6816,11 +7603,13 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat2Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -6835,11 +7624,13 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: null,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -6849,6 +7640,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: null,
             }),
         ]);
 
@@ -6864,12 +7656,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat4Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -6879,11 +7673,13 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.sharedSession.account,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat3Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -6893,11 +7689,13 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat2Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -6912,11 +7710,13 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: null,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -6926,6 +7726,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: null,
             }),
         ]);
 
@@ -6941,12 +7742,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat4Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -6956,11 +7759,13 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.sharedSession.account,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat3Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -6970,11 +7775,13 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat2Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message5.createdTime,
@@ -6984,11 +7791,13 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: null,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -6998,6 +7807,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: null,
             }),
         ]);
 
@@ -7013,12 +7823,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat4Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -7028,11 +7840,13 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.sharedSession.account,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat3Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message6.createdTime,
@@ -7042,11 +7856,13 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat2Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message5.createdTime,
@@ -7056,11 +7872,13 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: null,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -7070,6 +7888,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: null,
             }),
         ]);
 
@@ -7085,12 +7904,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat3Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 2,
                 latestMessage: {
                     createdTime: message8.createdTime,
@@ -7105,11 +7926,13 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat4Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -7119,11 +7942,13 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.sharedSession.account,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat2Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message5.createdTime,
@@ -7133,11 +7958,13 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: null,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -7147,6 +7974,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: null,
             }),
         ]);
     });
@@ -7163,6 +7991,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -7170,6 +7999,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -7185,6 +8015,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -7192,12 +8023,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 chatId,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -7207,6 +8040,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: null,
             }),
         ]);
 
@@ -7222,12 +8056,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -7237,6 +8073,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: null,
             }),
         ]);
 
@@ -7244,12 +8081,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 chatId,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -7259,6 +8098,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session1.account,
             }),
         ]);
 
@@ -7274,12 +8114,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -7289,6 +8131,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session2.account,
             }),
         ]);
 
@@ -7296,12 +8139,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 chatId,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -7311,6 +8156,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session1.account,
             }),
         ]);
 
@@ -7336,12 +8182,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -7351,6 +8199,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session2.account,
             }),
         ]);
 
@@ -7358,12 +8207,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 chatId,
+                chatAccountCount: 2,
                 loudNotificationCount: 2,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -7373,6 +8224,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session1.account,
             }),
         ]);
     });
@@ -7400,6 +8252,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -7433,12 +8286,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -7448,6 +8303,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
         ]);
 
@@ -7455,12 +8311,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 chatId: chat2Id,
+                chatAccountCount: 4,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -7475,11 +8333,13 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: expect.any(AccountModel),
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -7489,6 +8349,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
         ]);
 
@@ -7496,12 +8357,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 chatId: chat2Id,
+                chatAccountCount: 4,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -7516,11 +8379,13 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: expect.any(AccountModel),
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -7530,6 +8395,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session2.account,
             }),
         ]);
 
@@ -7542,12 +8408,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -7557,6 +8425,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
         ]);
 
@@ -7564,12 +8433,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 chatId: chat2Id,
+                chatAccountCount: 4,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -7584,11 +8455,13 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: expect.any(AccountModel),
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -7598,6 +8471,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
         ]);
 
@@ -7605,12 +8479,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 chatId: chat2Id,
+                chatAccountCount: 4,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -7625,6 +8501,7 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: expect.any(AccountModel),
             }),
         ]);
 
@@ -7637,12 +8514,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -7652,6 +8531,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
         ]);
 
@@ -7659,12 +8539,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -7674,6 +8556,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
         ]);
 
@@ -7681,12 +8564,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 chatId: chat2Id,
+                chatAccountCount: 4,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -7701,6 +8586,7 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: expect.any(AccountModel),
             }),
         ]);
 
@@ -7713,12 +8599,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -7728,6 +8616,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
         ]);
 
@@ -7735,6 +8624,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -7742,12 +8632,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 chatId: chat2Id,
+                chatAccountCount: 4,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -7762,6 +8654,7 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: expect.any(AccountModel),
             }),
         ]);
     });
@@ -7794,6 +8687,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -7833,12 +8727,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -7848,6 +8744,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
         ]);
 
@@ -7855,12 +8752,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 chatId: chat3Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message5.createdTime,
@@ -7875,11 +8774,13 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: null,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 chatId: chat2Id,
+                chatAccountCount: 4,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -7894,11 +8795,13 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: expect.any(AccountModel),
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -7908,6 +8811,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
         ]);
 
@@ -7915,12 +8819,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 chatId: chat2Id,
+                chatAccountCount: 4,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -7935,11 +8841,13 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: expect.any(AccountModel),
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -7949,6 +8857,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session2.account,
             }),
         ]);
 
@@ -7971,12 +8880,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -7986,6 +8897,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
         ]);
 
@@ -7993,12 +8905,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 chatId: chat3Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message5.createdTime,
@@ -8013,6 +8927,7 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: null,
             }),
         ]);
 
@@ -8020,12 +8935,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 chatId: chat2Id,
+                chatAccountCount: 4,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -8040,6 +8957,7 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: expect.any(AccountModel),
             }),
         ]);
 
@@ -8052,12 +8970,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -8067,6 +8987,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
         ]);
 
@@ -8074,12 +8995,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 chatId: chat3Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message5.createdTime,
@@ -8094,6 +9017,7 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: null,
             }),
         ]);
 
@@ -8101,12 +9025,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 0,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -8116,11 +9042,13 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session2.account,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 chatId: chat2Id,
+                chatAccountCount: 4,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -8135,6 +9063,7 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: expect.any(AccountModel),
             }),
         ]);
 
@@ -8147,12 +9076,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -8162,6 +9093,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
         ]);
 
@@ -8169,12 +9101,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 chatId: chat2Id,
+                chatAccountCount: 4,
                 loudNotificationCount: 0,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -8189,11 +9123,13 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: expect.any(AccountModel),
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 chatId: chat3Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message5.createdTime,
@@ -8208,6 +9144,7 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: null,
             }),
         ]);
 
@@ -8215,12 +9152,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 0,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -8230,11 +9169,13 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session2.account,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 chatId: chat2Id,
+                chatAccountCount: 4,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -8249,6 +9190,7 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: expect.any(AccountModel),
             }),
         ]);
 
@@ -8261,12 +9203,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -8276,6 +9220,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
         ]);
 
@@ -8283,12 +9228,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session2), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 0,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -8298,11 +9245,13 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session3.account,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 chatId: chat2Id,
+                chatAccountCount: 4,
                 loudNotificationCount: 0,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -8317,11 +9266,13 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: expect.any(AccountModel),
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 chatId: chat3Id,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message5.createdTime,
@@ -8336,6 +9287,7 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: null,
             }),
         ]);
 
@@ -8343,12 +9295,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session3), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 chatId: chat1Id,
+                chatAccountCount: 3,
                 loudNotificationCount: 0,
                 latestMessage: {
                     createdTime: message3.createdTime,
@@ -8358,11 +9312,13 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session2.account,
             }),
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 chatId: chat2Id,
+                chatAccountCount: 4,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message4.createdTime,
@@ -8377,6 +9333,7 @@ describe("Chat", () => {
                         },
                     },
                 },
+                otherChatAccount: expect.any(AccountModel),
             }),
         ]);
     });
@@ -8395,6 +9352,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -8410,12 +9368,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -8425,6 +9385,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: null,
             }),
         ]);
 
@@ -8437,6 +9398,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -8452,12 +9414,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -8467,6 +9431,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: null,
             }),
         ]);
     });
@@ -8485,6 +9450,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -8500,12 +9466,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId,
+                chatAccountCount: 2,
                 loudNotificationCount: 1,
                 latestMessage: {
                     createdTime: message1.createdTime,
@@ -8515,6 +9483,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: null,
             }),
         ]);
 
@@ -8527,6 +9496,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -8542,6 +9512,7 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
 
@@ -8554,12 +9525,14 @@ describe("Chat", () => {
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
                 limit: 100,
+                afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([
             new InboxChatEntryModel({
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 chatId,
+                chatAccountCount: 2,
                 loudNotificationCount: 0,
                 latestMessage: {
                     createdTime: message2.createdTime,
@@ -8569,6 +9542,7 @@ describe("Chat", () => {
                         references: emptyContentReferences,
                     },
                 },
+                otherChatAccount: scenario.session2.account,
             }),
         ]);
     });

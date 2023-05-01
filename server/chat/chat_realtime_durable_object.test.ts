@@ -3,7 +3,7 @@ import {getOrCreateChatForAccounts} from "~/server/dynamo/chat_table";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
 import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error";
+import {PermissionDeniedError} from "~/shared/error/error";
 import {generateId} from "~/shared/id/id";
 
 const context = createTestContext();
@@ -17,7 +17,7 @@ const otherSession = createTestSession(context, otherSpace);
 
 test("can not connect to a chat that does not exist", async () => {
     await expect(connectForTest(context.action(session1), generateId())).rejects.toThrow(
-        NotFoundError,
+        PermissionDeniedError,
     );
 });
 

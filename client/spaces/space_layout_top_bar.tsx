@@ -1,7 +1,6 @@
 import {Bell, MagnifyingGlass} from "phosphor-react";
 import {useCallback} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
-import {useWebSocket} from "~/client/cloudflare/use_web_socket";
 import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
@@ -14,7 +13,6 @@ import {useNavigate} from "~/client/remix/use_navigate";
 import {LoudNotificationBadge} from "~/client/spaces/loud_notification_badge";
 import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context";
 import {SpaceLayoutTopBarCreateButton} from "~/client/spaces/space_layout_top_bar_create_button";
-import {MyAccountProtocol} from "~/shared/accounts/my_account_protocol";
 import {spacing} from "~/shared/design/spacing";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types";
 import {UnimplementedError} from "~/shared/error/error";

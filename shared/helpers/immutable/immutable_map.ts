@@ -72,7 +72,7 @@ export class ImmutableMap<Key extends string | number, Value> implements Readonl
      * Completes in O(log(n)) time.
      */
     public get(key: Key): Value | undefined {
-        return this._tree.get(key) as Value | undefined;
+        return this._tree.get(key);
     }
 
     /**
