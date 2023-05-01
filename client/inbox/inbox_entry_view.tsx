@@ -29,12 +29,26 @@ import {
 
 export const inboxEntryViewMinHeight = "4rem";
 
-export function InboxEntryView({entry, onPress}: {entry: InboxEntryModel; onPress: () => void}) {
+export function InboxEntryView({
+    entry,
+    isSelected,
+    onPress,
+}: {
+    entry: InboxEntryModel;
+    isSelected: boolean;
+    onPress: () => void;
+}) {
     switch (entry.type) {
         case "Chat":
-            return <InboxChatEntryView entry={entry} onPress={onPress} />;
+            return <InboxChatEntryView entry={entry} isSelected={isSelected} onPress={onPress} />;
         case "PostComments":
-            return <InboxPostCommentsEntryView entry={entry} onPress={onPress} />;
+            return (
+                <InboxPostCommentsEntryView
+                    entry={entry}
+                    isSelected={isSelected}
+                    onPress={onPress}
+                />
+            );
         default:
             throw exhaustive(entry);
     }
@@ -44,7 +58,15 @@ const boldClassName = sprinkles({
     fontStyle: "bold",
 });
 
-function InboxChatEntryView({entry, onPress}: {entry: InboxChatEntryModel; onPress: () => void}) {
+function InboxChatEntryView({
+    entry,
+    isSelected,
+    onPress,
+}: {
+    entry: InboxChatEntryModel;
+    isSelected: boolean;
+    onPress: () => void;
+}) {
     const firstAccount = entry.otherChatAccount ?? entry.latestMessage.author;
 
     const secondAccount =
@@ -55,6 +77,7 @@ function InboxChatEntryView({entry, onPress}: {entry: InboxChatEntryModel; onPre
             firstAccount={firstAccount}
             secondAccount={secondAccount}
             loudNotificationCount={entry.loudNotificationCount}
+            isSelected={isSelected}
             onPress={onPress}
         >
             <Box>
@@ -85,9 +108,11 @@ function InboxChatEntryView({entry, onPress}: {entry: InboxChatEntryModel; onPre
 
 function InboxPostCommentsEntryView({
     entry,
+    isSelected,
     onPress,
 }: {
     entry: InboxPostCommentsEntryModel;
+    isSelected: boolean;
     onPress: () => void;
 }) {
     const {currentAccount} = useSpaceContext();
@@ -108,6 +133,7 @@ function InboxPostCommentsEntryView({
             firstAccount={firstAccount}
             secondAccount={secondAccount}
             loudNotificationCount={entry.loudNotificationCount}
+            isSelected={isSelected}
             onPress={onPress}
         >
             <Box>
@@ -132,12 +158,14 @@ function InboxEntryViewBase({
     firstAccount,
     secondAccount,
     loudNotificationCount,
+    isSelected,
     onPress,
     children,
 }: {
     firstAccount: AccountModel;
     secondAccount: AccountModel | null;
     loudNotificationCount: number;
+    isSelected: boolean;
     onPress: () => void;
     children?: ReactNode;
 }) {
@@ -146,7 +174,18 @@ function InboxEntryViewBase({
     });
 
     return (
-        <Box {...pressProps} paddingX="4" style={{minHeight: inboxEntryViewMinHeight}}>
+        <Box
+            {...pressProps}
+            paddingX="4"
+            backgroundColor={isSelected ? "grey-5" : undefined}
+            style={{
+                minHeight: inboxEntryViewMinHeight,
+                // Draw border with a `box-shadow` instead of `border` so it doesn't contribute
+                // 1px to layout. Layout needs to be precise since this is rendered in a
+                // virtualized list.
+                boxShadow: isSelected ? `0 1px 0 0 ${colorSchemeVars["grey-5"]}` : undefined,
+            }}
+        >
             <Box
                 display="flex"
                 alignItems="center"

@@ -5,7 +5,7 @@ import {MutableRefObject, useCallback, useContext, useEffect, useRef, useState} 
 import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
+import {delayFullPageTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {usePromise} from "~/client/helpers/use_promise";
@@ -285,13 +285,18 @@ export function InboxView({
         // - Our data promise resolves
         // - Our loading indicator delay finishes
         peekState.transitionPeek.loaderDataRefPromise.then(acceptTransition, acceptTransition);
-        const timeout = createTimeout(acceptTransition, delayLoadingIndicatorLimitMs);
+        const timeout = createTimeout(
+            acceptTransition,
+            delayFullPageTransitionLoadingIndicatorLimitMs,
+        );
 
         return () => {
             isCancelled = true;
             timeout.clear();
         };
     }, [peekState]);
+
+    const selectedEntryItemKey = (peekState.transitionPeek ?? peekState.activePeek)?.key;
 
     return (
         <Box flexGrow="1" overflow="hidden" display="flex">
@@ -318,6 +323,7 @@ export function InboxView({
                                         node: (
                                             <InboxEntryView
                                                 entry={item.item.model}
+                                                isSelected={selectedEntryItemKey === item.item.key}
                                                 onPress={() => selectEntry(item.item)}
                                             />
                                         ),
@@ -347,7 +353,7 @@ export function InboxView({
                                     throw exhaustive(item);
                             }
                         },
-                        [query, selectEntry],
+                        [query, selectEntry, selectedEntryItemKey],
                     )}
                 />
             </Box>

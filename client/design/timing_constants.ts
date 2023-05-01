@@ -23,3 +23,15 @@ export const perceivedAsInstantLimitMs = 100;
  * [2]: https://web.dev/rail/
  */
 export const delayLoadingIndicatorLimitMs = 500;
+
+/**
+ * Delay showing the user a loading indicator for this long when the loading
+ * indicator will clear all other content on the page. If the action completes
+ * in less time then we don't flash a loading indicator and the action feels
+ * instant.
+ *
+ * We use a longer delay for full page transitions vs
+ * `delayLoadingIndicatorLimitMs` for responding to, say, a button press since
+ * full page transitions are more disruptive.
+ */
+export const delayFullPageTransitionLoadingIndicatorLimitMs = 1000;

@@ -7,7 +7,10 @@ import {Box} from "~/client/design/box";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px";
 import {IconButton} from "~/client/design/icon_button";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
+import {
+    delayFullPageTransitionLoadingIndicatorLimitMs,
+    delayLoadingIndicatorLimitMs,
+} from "~/client/design/timing_constants";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
 import {
     DocumentCommentThreadListView,
@@ -465,7 +468,10 @@ function DocumentContentEditorStateful({
         // - Our data promise resolves
         // - Our loading indicator delay finishes
         transition.dataPromise.then(acceptTransition, acceptTransition);
-        const timeout = createTimeout(acceptTransition, delayLoadingIndicatorLimitMs);
+        const timeout = createTimeout(
+            acceptTransition,
+            delayFullPageTransitionLoadingIndicatorLimitMs,
+        );
 
         return () => {
             isCancelled = true;
