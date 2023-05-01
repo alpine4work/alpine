@@ -10,6 +10,7 @@ ts_project(
         "//:node_modules/@types/react",
         "//:node_modules/date-fns",
         "//:node_modules/react",
+        "//:node_modules/react-aria",
         "//client/content",
         "//client/context",
         "//client/design",

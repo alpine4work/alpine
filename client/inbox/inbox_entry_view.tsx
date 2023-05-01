@@ -1,5 +1,6 @@
 import {isToday} from "date-fns";
 import {ReactNode, useMemo} from "react";
+import {usePress} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
 import {ContentView} from "~/client/content/content_view";
@@ -28,12 +29,12 @@ import {
 
 export const inboxEntryViewMinHeight = "4rem";
 
-export function InboxEntryView({entry}: {entry: InboxEntryModel}) {
+export function InboxEntryView({entry, onPress}: {entry: InboxEntryModel; onPress: () => void}) {
     switch (entry.type) {
         case "Chat":
-            return <InboxChatEntryView entry={entry} />;
+            return <InboxChatEntryView entry={entry} onPress={onPress} />;
         case "PostComments":
-            return <InboxPostCommentsEntryView entry={entry} />;
+            return <InboxPostCommentsEntryView entry={entry} onPress={onPress} />;
         default:
             throw exhaustive(entry);
     }
@@ -43,7 +44,7 @@ const boldClassName = sprinkles({
     fontStyle: "bold",
 });
 
-function InboxChatEntryView({entry}: {entry: InboxChatEntryModel}) {
+function InboxChatEntryView({entry, onPress}: {entry: InboxChatEntryModel; onPress: () => void}) {
     const firstAccount = entry.otherChatAccount ?? entry.latestMessage.author;
 
     const secondAccount =
@@ -54,6 +55,7 @@ function InboxChatEntryView({entry}: {entry: InboxChatEntryModel}) {
             firstAccount={firstAccount}
             secondAccount={secondAccount}
             loudNotificationCount={entry.loudNotificationCount}
+            onPress={onPress}
         >
             <Box>
                 <span className={boldClassName}>
@@ -81,7 +83,13 @@ function InboxChatEntryView({entry}: {entry: InboxChatEntryModel}) {
     );
 }
 
-function InboxPostCommentsEntryView({entry}: {entry: InboxPostCommentsEntryModel}) {
+function InboxPostCommentsEntryView({
+    entry,
+    onPress,
+}: {
+    entry: InboxPostCommentsEntryModel;
+    onPress: () => void;
+}) {
     const {currentAccount} = useSpaceContext();
 
     const firstAccount: AccountModel =
@@ -100,6 +108,7 @@ function InboxPostCommentsEntryView({entry}: {entry: InboxPostCommentsEntryModel
             firstAccount={firstAccount}
             secondAccount={secondAccount}
             loudNotificationCount={entry.loudNotificationCount}
+            onPress={onPress}
         >
             <Box>
                 {currentAccount.id === entry.postAuthor.id ? (
@@ -123,15 +132,21 @@ function InboxEntryViewBase({
     firstAccount,
     secondAccount,
     loudNotificationCount,
+    onPress,
     children,
 }: {
     firstAccount: AccountModel;
     secondAccount: AccountModel | null;
     loudNotificationCount: number;
+    onPress: () => void;
     children?: ReactNode;
 }) {
+    const {pressProps} = usePress({
+        onPress,
+    });
+
     return (
-        <Box paddingX="4" style={{minHeight: inboxEntryViewMinHeight}}>
+        <Box {...pressProps} paddingX="4" style={{minHeight: inboxEntryViewMinHeight}}>
             <Box
                 display="flex"
                 alignItems="center"

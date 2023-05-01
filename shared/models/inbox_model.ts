@@ -1,3 +1,4 @@
+import {To} from "history";
 import {AccountId, ChatId, PostId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
 import {ChannelPreviewModel} from "~/shared/models/channel_model";
@@ -31,48 +32,68 @@ export const InboxEntryKeySchema = Schema.union({
     PostComments: InboxPostCommentsEntryKeySchema,
 });
 
-export class InboxChatEntryModel extends Model(
-    Schema.object({
-        spaceId: Schema.id<SpaceId>(),
-        accountId: Schema.id<AccountId>(),
-        chatId: Schema.id<ChatId>(),
-        chatAccountCount: Schema.integer,
-        loudNotificationCount: Schema.integer.min(0),
-        latestMessage: Schema.object({
-            author: AccountModel.schema(),
-            createdTime: Schema.date,
-            contentSnippet: MessageContentWithReferencesSchema,
+interface InboxEntryModelInterface {
+    readonly type: string;
+    getKey(): InboxEntryKey;
+    getPath(): To;
+}
+
+export class InboxChatEntryModel
+    extends Model(
+        Schema.object({
+            spaceId: Schema.id<SpaceId>(),
+            accountId: Schema.id<AccountId>(),
+            chatId: Schema.id<ChatId>(),
+            chatAccountCount: Schema.integer,
+            loudNotificationCount: Schema.integer.min(0),
+            latestMessage: Schema.object({
+                author: AccountModel.schema(),
+                createdTime: Schema.date,
+                contentSnippet: MessageContentWithReferencesSchema,
+            }),
+            otherChatAccount: AccountModel.schema().nullable(),
         }),
-        otherChatAccount: AccountModel.schema().nullable(),
-    }),
-) {
+    )
+    implements InboxEntryModelInterface
+{
     public readonly type = "Chat" as const;
 
     public getKey(): InboxEntryKey {
         return {type: "Chat", chatId: this.chatId};
     }
+
+    public getPath(): To {
+        return `/s/${this.spaceId}/chat/${this.chatId}`;
+    }
 }
 
-export class InboxPostCommentsEntryModel extends Model(
-    Schema.object({
-        spaceId: Schema.id<SpaceId>(),
-        accountId: Schema.id<AccountId>(),
-        postId: Schema.id<PostId>(),
-        postAuthor: AccountModel.schema(),
-        channel: ChannelPreviewModel.schema(),
-        loudNotificationCount: Schema.integer.min(0),
-        latestComment: Schema.object({
-            author: AccountModel.schema(),
-            createdTime: Schema.date,
-            contentSnippet: MessageContentWithReferencesSchema,
+export class InboxPostCommentsEntryModel
+    extends Model(
+        Schema.object({
+            spaceId: Schema.id<SpaceId>(),
+            accountId: Schema.id<AccountId>(),
+            postId: Schema.id<PostId>(),
+            postAuthor: AccountModel.schema(),
+            channel: ChannelPreviewModel.schema(),
+            loudNotificationCount: Schema.integer.min(0),
+            latestComment: Schema.object({
+                author: AccountModel.schema(),
+                createdTime: Schema.date,
+                contentSnippet: MessageContentWithReferencesSchema,
+            }),
+            otherCommentAuthor: AccountModel.schema().nullable(),
         }),
-        otherCommentAuthor: AccountModel.schema().nullable(),
-    }),
-) {
+    )
+    implements InboxEntryModelInterface
+{
     public readonly type = "PostComments" as const;
 
     public getKey(): InboxEntryKey {
         return {type: "PostComments", postId: this.postId};
+    }
+
+    public getPath(): To {
+        return `/s/${this.spaceId}/posts/${this.postId}`;
     }
 }
 

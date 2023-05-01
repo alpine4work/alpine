@@ -1,11 +1,18 @@
+import {RemixEntryContext} from "@remix-run/react";
+import {MemoryHistory, createMemoryHistory} from "history";
 import {SpinnerGap} from "phosphor-react";
-import {useCallback, useEffect, useRef, useState} from "react";
+import {MutableRefObject, useCallback, useContext, useEffect, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
+import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
+import {usePromise} from "~/client/helpers/use_promise";
 import {InboxEntryView, inboxEntryViewMinHeight} from "~/client/inbox/inbox_entry_view";
+import {loadInitialPeekData} from "~/client/peek/load_initial_peek_data";
+import {convertSpacePathToPeekPath} from "~/client/peek/peek_path_helpers";
+import {PeekRemixEmbed} from "~/client/peek/peek_remix_embed";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context";
 import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context";
 import {
@@ -14,18 +21,43 @@ import {
     getInitialVirtualizedScrollViewRenderedItemCount,
 } from "~/client/virtualized/virtualized_scroll_view";
 import {convertRemLengthToPx, spacing} from "~/shared/design/spacing";
-import {DynamoGeneralRealtimeIndexQueryResult} from "~/shared/dynamo/dynamo_general_realtime_types";
+import {
+    DynamoGeneralRealtimeIndexQueryResult,
+    DynamoGeneralRealtimeItem,
+} from "~/shared/dynamo/dynamo_general_realtime_types";
+import {DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings";
+import {InternalError} from "~/shared/error/error";
+import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate";
+import {createTimeout} from "~/shared/helpers/async/timeout";
+import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {generateId} from "~/shared/id/id";
+import {PeekId} from "~/shared/id/types/id_types";
 import {InboxEntryModel} from "~/shared/models/inbox_model";
 import {backfillInboxEntries, getInboxEntries} from "~/shared/rpc/notifications_rpc_definitions";
 import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles";
+
+type InboxViewPeek = {
+    readonly id: PeekId;
+    readonly key: DynamoItemKey;
+    readonly history: MemoryHistory;
+    readonly loaderDataRefPromise: PromiseImmediate<MutableRefObject<{[key: string]: unknown}>>;
+};
+
+type InboxViewPeekState = {
+    readonly activePeek: InboxViewPeek | null;
+    readonly transitionPeek: InboxViewPeek | null;
+};
 
 export function InboxView({
     initialEntriesResult,
 }: {
     initialEntriesResult: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>;
 }) {
+    const remixEntryContext = useContext(RemixEntryContext);
+    assert(remixEntryContext, "Expected Remix entry context");
+
     const entriesViewRef = useRef<VirtualizedScrollViewRef>(null);
     const context = useAppContext();
     const {space} = useSpaceContext();
@@ -192,6 +224,75 @@ export function InboxView({
         tryLoadingMore(view.getRenderedRange());
     }, [query, tryLoadingMore]);
 
+    const [peekState, setPeekState] = useState<InboxViewPeekState>({
+        activePeek: null,
+        transitionPeek: null,
+    });
+
+    const selectEntry = useEvent((entry: DynamoGeneralRealtimeItem<InboxEntryModel>) => {
+        // Don't select the same entry twice in a row since that would cause two
+        // data fetches.
+        if ((peekState.transitionPeek ?? peekState.activePeek)?.key === entry.key) {
+            return;
+        }
+
+        const abortController = new AbortController();
+
+        const spacePath = entry.model.getPath();
+        const peekPath = convertSpacePathToPeekPath(spacePath);
+        if (!peekPath) throw new InternalError("Can only render peek for a space route");
+
+        const loaderDataRefPromise = (async () => {
+            const {loaderData} = await loadInitialPeekData(
+                remixEntryContext.clientRoutes,
+                spacePath,
+                abortController.signal,
+            );
+            return {current: loaderData};
+        })();
+
+        setPeekState({
+            activePeek: peekState.activePeek,
+            transitionPeek: {
+                id: generateId(),
+                key: entry.key,
+                history: createMemoryHistory({initialEntries: [peekPath]}),
+                loaderDataRefPromise: PromiseImmediate.resolve(loaderDataRefPromise),
+            },
+        });
+    });
+
+    useEffect(() => {
+        if (!peekState.transitionPeek) return;
+
+        let isCancelled = false;
+        let isAccepted = false;
+
+        const acceptTransition = () => {
+            if (isCancelled) return;
+
+            if (isAccepted) return;
+            isAccepted = true;
+
+            setPeekState({
+                activePeek: peekState.transitionPeek,
+                transitionPeek: null,
+            });
+        };
+
+        // Accept the transition with whatever comes first:
+        //
+        // - Our data promise resolves
+        // - Our loading indicator delay finishes
+        peekState.transitionPeek.loaderDataRefPromise.then(acceptTransition, acceptTransition);
+        const timeout = createTimeout(acceptTransition, delayLoadingIndicatorLimitMs);
+
+        return () => {
+            isCancelled = true;
+            timeout.clear();
+        };
+    }, [peekState]);
+
     return (
         <Box flexGrow="1" overflow="hidden" display="flex">
             <Box
@@ -214,7 +315,12 @@ export function InboxView({
                                     return {
                                         key: `LoadedItem:${item.item.key}`,
                                         minHeight: inboxEntryViewMinHeight,
-                                        node: <InboxEntryView entry={item.item.model} />,
+                                        node: (
+                                            <InboxEntryView
+                                                entry={item.item.model}
+                                                onPress={() => selectEntry(item.item)}
+                                            />
+                                        ),
                                     };
                                 }
                                 case "LoadingIndicator": {
@@ -241,11 +347,37 @@ export function InboxView({
                                     throw exhaustive(item);
                             }
                         },
-                        [query],
+                        [query, selectEntry],
                     )}
                 />
             </Box>
-            <Box flexGrow="1" overflow="hidden"></Box>
+            <Box flexGrow="1" overflow="hidden">
+                {peekState.activePeek && <InboxViewPeekContent peek={peekState.activePeek} />}
+            </Box>
+        </Box>
+    );
+}
+
+function InboxViewPeekContent({peek}: {peek: InboxViewPeek}) {
+    const loaderDataRefResult = usePromise(peek.loaderDataRefPromise);
+
+    return (
+        <Box width="full" height="full" overflow="hidden" display="flex" flexDirection="column">
+            {!loaderDataRefResult.isPending ? (
+                <PeekRemixEmbed
+                    peekId={peek.id}
+                    loaderDataRef={loaderDataRefResult.value}
+                    history={peek.history}
+                />
+            ) : (
+                <Box flexGrow="1" display="flex" justifyContent="center" alignItems="center">
+                    <SpinnerGap
+                        className={spinAnimationClassName}
+                        color={colorSchemeVars["grey-70"]}
+                        size={spacing["6"]}
+                    />
+                </Box>
+            )}
         </Box>
     );
 }

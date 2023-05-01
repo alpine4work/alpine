@@ -1,3 +1,4 @@
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {inboxEntryViewMinHeight} from "~/client/inbox/inbox_entry_view";
 import {InboxView} from "~/client/inbox/inbox_view";
 import {createMetaFunction} from "~/client/remix/create_meta_function";

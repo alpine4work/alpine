@@ -2,7 +2,7 @@ import {Outlet} from "@remix-run/react";
 import {RemixEntryContext} from "@remix-run/react";
 import {useContext, useMemo} from "react";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context";
-import {usePeekContext} from "~/client/peek/peek_stack";
+import {usePeekContext} from "~/client/peek/peek_remix_embed";
 import {TracerContextModule} from "~/shared/context/tracer_context_module";
 import {InvalidArgumentError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";

@@ -3,7 +3,15 @@ import {SyntheticListenerMap} from "@dnd-kit/core/dist/hooks/utilities";
 import {PressEvent} from "@react-types/shared";
 import {useTransition} from "@remix-run/react";
 import {ClientRoute, RemixEntryContext, matchClientRoutes} from "@remix-run/react";
-import {Action, Location, MemoryHistory, To, createMemoryHistory, parsePath} from "history";
+import {
+    Action,
+    Location,
+    MemoryHistory,
+    To,
+    createMemoryHistory,
+    createPath,
+    parsePath,
+} from "history";
 import {animate, spring} from "motion";
 import {
     ArrowLeft,
@@ -37,6 +45,7 @@ import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {IconButton} from "~/client/design/icon_button";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
+import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event";
 import {
     GlobalKeyDownEvent,
     GlobalKeyDownManualContextProvider,
@@ -45,14 +54,14 @@ import {
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {usePromise} from "~/client/helpers/use_promise";
-import {loadInitialPeekData} from "~/client/peek/internal/load_initial_peek_data";
+import {loadInitialPeekData} from "~/client/peek/load_initial_peek_data";
 import {
     convertPeekPathToSpacePath,
     convertSpacePathToPeekPath,
-} from "~/client/peek/internal/peek_path_helpers";
-import {PeekRemixEmbed} from "~/client/peek/internal/peek_remix_embed";
+} from "~/client/peek/peek_path_helpers";
+import {PeekRemixEmbed} from "~/client/peek/peek_remix_embed";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
-import {NavigationEventContextProvider} from "~/client/remix/use_navigate";
+import {NavigationEventContextProvider, useNavigate} from "~/client/remix/use_navigate";
 import {
     addRemLengths,
     convertRemLengthToPx,
@@ -1035,18 +1044,7 @@ function getPeekOverlayAnimationStyles(index: number) {
     return {transform, opacity};
 }
 
-export type PeekContext = {readonly id: PeekId};
-
-const PeekContext = createContext<PeekContext | null>(null);
 const PeekIsAnimatingOpenContext = createContext<boolean>(false);
-
-/**
- * Get the context of the peek we are rendering in if we are rendering in
- * a peek. If we are not rendering in a peek then this will return null.
- */
-export function usePeekContext(): PeekContext | null {
-    return useContext(PeekContext);
-}
 
 /**
  * Is the peek we are in animating open?
@@ -1087,7 +1085,7 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
 ) {
     const contentRef = useRef<HTMLDivElement>(null);
     const closeButtonRef = useRef<HTMLButtonElement>(null);
-    const onExpandPressRef = useRef<((event: PressEvent) => Promise<void>) | null>(null);
+    const navigate = useNavigate();
 
     useImperativeHandle(
         ref,
@@ -1194,151 +1192,161 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
     }, [entry.history]);
 
     return (
-        <PeekContext.Provider value={useMemo(() => ({id: entry.id}), [entry.id])}>
-            <PeekIsAnimatingOpenContext.Provider value={isAnimatingOpen}>
-                <GlobalKeyDownEvent
-                    onGlobalKeyDown={event => {
-                        if (event.key === "Escape" && state.stack.length > 0) {
-                            if (event.shiftKey) {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                dispatch({type: "PopAll"});
-                            } else {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                dispatch({type: "Pop"});
-                            }
+        <PeekIsAnimatingOpenContext.Provider value={isAnimatingOpen}>
+            <GlobalKeyDownEvent
+                onGlobalKeyDown={event => {
+                    if (event.key === "Escape" && state.stack.length > 0) {
+                        if (event.shiftKey) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            dispatch({type: "PopAll"});
+                        } else {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            dispatch({type: "Pop"});
+                        }
+                    }
+                }}
+            >
+                <Box
+                    ref={contentRef}
+                    width="full"
+                    height="full"
+                    overflow="hidden"
+                    display="flex"
+                    flexDirection="column"
+                    position="relative"
+                    zIndex="0"
+                    onKeyDown={event => {
+                        // If the user presses escape while dragging that will cancel `@dnd-kit/core`'s
+                        // dragging logic and shouldn't close the peek.
+                        if (event.key === "Escape" && isDragging) {
+                            event.stopPropagation();
                         }
                     }}
                 >
                     <Box
-                        ref={contentRef}
-                        width="full"
-                        height="full"
-                        overflow="hidden"
+                        flexShrink="0"
+                        height="8"
+                        borderBottom="grey-10"
                         display="flex"
-                        flexDirection="column"
-                        position="relative"
-                        zIndex="0"
-                        onKeyDown={event => {
-                            // If the user presses escape while dragging that will cancel `@dnd-kit/core`'s
-                            // dragging logic and shouldn't close the peek.
-                            if (event.key === "Escape" && isDragging) {
-                                event.stopPropagation();
-                            }
-                        }}
+                        alignItems="center"
                     >
+                        <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
+                            <IconButton
+                                size="xs"
+                                description="Back"
+                                tooltipPlacement="top"
+                                isDisabled={!(historyPosition.index > 0)}
+                                onPress={() => entry.history.go(-1)}
+                            >
+                                <ArrowLeft />
+                            </IconButton>
+                            <IconButton
+                                size="xs"
+                                description="Forwards"
+                                tooltipPlacement="top"
+                                isDisabled={
+                                    !(historyPosition.index < historyPosition.entriesLength - 1)
+                                }
+                                onPress={() => entry.history.go(1)}
+                            >
+                                <ArrowRight />
+                            </IconButton>
+                        </Box>
                         <Box
-                            flexShrink="0"
-                            height="8"
-                            borderBottom="grey-10"
+                            flexGrow="1"
+                            height="full"
+                            // As a convenience, allow dragging to start by clicking anywhere on the peek overlay header. This
+                            // is not accessible the only accessible way to drag is the drag handle.
+                            onPointerDown={draggableListeners?.onPointerDown as any}
+                        />
+                        <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
+                            <FocusRing>
+                                <button
+                                    className={sprinkles({
+                                        width: "4",
+                                        height: "4",
+                                        padding: "0.5",
+                                        borderRadius: "full",
+                                        cursor: "grab",
+                                        backgroundColor: isKeyboardDragging ? "grey-10" : undefined,
+                                    })}
+                                    {...draggableAttributes}
+                                    {...draggableListeners}
+                                >
+                                    <DotsSixVertical size={spacing["3"]} />
+                                </button>
+                            </FocusRing>
+                            <IconButton
+                                size="xs"
+                                description="Expand"
+                                tooltipPlacement="top"
+                                pressErrorTitle="Couldn’t expand"
+                                onPress={async event => {
+                                    expandingIdRef.current = entry.id;
+                                    try {
+                                        const spacePath = convertPeekPathToSpacePath(
+                                            entry.history.location,
+                                        );
+                                        if (!spacePath)
+                                            throw new InternalError("Can only expand peek routes");
+
+                                        if (isOpenLinkInSeparateTabPointerEvent(event)) {
+                                            window.open(
+                                                createPath(spacePath),
+                                                "_blank",
+                                                // Important security measure. See:
+                                                // https://mathiasbynens.github.io/rel-noopener
+                                                "noopener noreferrer",
+                                            );
+                                        } else {
+                                            await navigate(spacePath);
+                                        }
+                                    } finally {
+                                        expandingIdRef.current = null;
+                                    }
+                                }}
+                            >
+                                <ArrowsOutSimple />
+                            </IconButton>
+                            <IconButton
+                                ref={closeButtonRef}
+                                size="xs"
+                                description="Close"
+                                tooltipPlacement="top"
+                                tooltipContentOverride={
+                                    state.stack.length > 1 ? "Double-click to close all" : undefined
+                                }
+                                onPress={handlePressClose}
+                            >
+                                <X />
+                            </IconButton>
+                        </Box>
+                    </Box>
+                    {!loaderDataRefResult.isPending ? (
+                        <PeekRemixEmbed
+                            peekId={entry.id}
+                            loaderDataRef={loaderDataRefResult.value}
+                            history={entry.history}
+                        />
+                    ) : (
+                        <Box
+                            flexGrow="1"
                             display="flex"
+                            justifyContent="center"
                             alignItems="center"
                         >
-                            <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
-                                <IconButton
-                                    size="xs"
-                                    description="Back"
-                                    tooltipPlacement="top"
-                                    isDisabled={!(historyPosition.index > 0)}
-                                    onPress={() => entry.history.go(-1)}
-                                >
-                                    <ArrowLeft />
-                                </IconButton>
-                                <IconButton
-                                    size="xs"
-                                    description="Forwards"
-                                    tooltipPlacement="top"
-                                    isDisabled={
-                                        !(historyPosition.index < historyPosition.entriesLength - 1)
-                                    }
-                                    onPress={() => entry.history.go(1)}
-                                >
-                                    <ArrowRight />
-                                </IconButton>
-                            </Box>
-                            <Box
-                                flexGrow="1"
-                                height="full"
-                                // As a convenience, allow dragging to start by clicking anywhere on the peek overlay header. This
-                                // is not accessible the only accessible way to drag is the drag handle.
-                                onPointerDown={draggableListeners?.onPointerDown as any}
+                            <SpinnerGap
+                                className={spinAnimationClassName}
+                                color={colorSchemeVars["grey-70"]}
+                                size={spacing["6"]}
                             />
-                            <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
-                                <FocusRing>
-                                    <button
-                                        className={sprinkles({
-                                            width: "4",
-                                            height: "4",
-                                            padding: "0.5",
-                                            borderRadius: "full",
-                                            cursor: "grab",
-                                            backgroundColor: isKeyboardDragging
-                                                ? "grey-10"
-                                                : undefined,
-                                        })}
-                                        {...draggableAttributes}
-                                        {...draggableListeners}
-                                    >
-                                        <DotsSixVertical size={spacing["3"]} />
-                                    </button>
-                                </FocusRing>
-                                <IconButton
-                                    size="xs"
-                                    description="Expand"
-                                    tooltipPlacement="top"
-                                    pressErrorTitle="Couldn’t expand"
-                                    onPress={async event => {
-                                        expandingIdRef.current = entry.id;
-                                        try {
-                                            await onExpandPressRef.current?.(event);
-                                        } finally {
-                                            expandingIdRef.current = null;
-                                        }
-                                    }}
-                                >
-                                    <ArrowsOutSimple />
-                                </IconButton>
-                                <IconButton
-                                    ref={closeButtonRef}
-                                    size="xs"
-                                    description="Close"
-                                    tooltipPlacement="top"
-                                    tooltipContentOverride={
-                                        state.stack.length > 1
-                                            ? "Double-click to close all"
-                                            : undefined
-                                    }
-                                    onPress={handlePressClose}
-                                >
-                                    <X />
-                                </IconButton>
-                            </Box>
                         </Box>
-                        {!loaderDataRefResult.isPending ? (
-                            <PeekRemixEmbed
-                                loaderDataRef={loaderDataRefResult.value}
-                                history={entry.history}
-                                onExpandPressRef={onExpandPressRef}
-                            />
-                        ) : (
-                            <Box
-                                flexGrow="1"
-                                display="flex"
-                                justifyContent="center"
-                                alignItems="center"
-                            >
-                                <SpinnerGap
-                                    className={spinAnimationClassName}
-                                    color={colorSchemeVars["grey-70"]}
-                                    size={spacing["6"]}
-                                />
-                            </Box>
-                        )}
-                    </Box>
-                </GlobalKeyDownEvent>
-            </PeekIsAnimatingOpenContext.Provider>
-        </PeekContext.Provider>
+                    )}
+                </Box>
+            </GlobalKeyDownEvent>
+        </PeekIsAnimatingOpenContext.Provider>
     );
 });
 

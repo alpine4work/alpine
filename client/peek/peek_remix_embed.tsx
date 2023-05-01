@@ -1,40 +1,46 @@
-import {PressEvent} from "@react-types/shared";
 import {
     AppState,
     RemixEntryContext,
     createTransitionManager,
     matchClientRoutes,
 } from "@remix-run/react";
-import {MemoryHistory, createPath} from "history";
+import {MemoryHistory} from "history";
 import {
     Context,
     MutableRefObject,
-    Ref,
+    createContext,
     useCallback,
     useContext,
     useEffect,
-    useImperativeHandle,
     useMemo,
     useState,
 } from "react";
 import {Navigator, UNSAFE_RouteContext as RouteContext} from "react-router";
 import {Router, useRoutes} from "react-router-dom";
-import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {
-    convertPeekPathToSpacePath,
-    convertSpacePathToPeekPath,
-    isPeekPath,
-} from "~/client/peek/internal/peek_path_helpers";
+import {convertSpacePathToPeekPath, isPeekPath} from "~/client/peek/peek_path_helpers";
 import {useNavigate} from "~/client/remix/use_navigate";
 import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title";
 import {InternalError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {PeekId} from "~/shared/id/types/id_types";
 
 type RemixEntryContextType = typeof RemixEntryContext extends Context<infer ContextType>
     ? NonNullable<ContextType>
     : never;
+
+export type PeekContext = {readonly id: PeekId};
+
+const PeekContext = createContext<PeekContext | null>(null);
+
+/**
+ * Get the context of the peek we are rendering in if we are rendering in
+ * a peek. If we are not rendering in a peek then this will return null.
+ */
+export function usePeekContext(): PeekContext | null {
+    return useContext(PeekContext);
+}
 
 /**
  * Embeds an instance of Remix with in-memory navigation that only renders
@@ -42,13 +48,13 @@ type RemixEntryContextType = typeof RemixEntryContext extends Context<infer Cont
  * `<iframe>`s since the embed can still talk to the larger app.
  */
 export function PeekRemixEmbed({
+    peekId,
     loaderDataRef,
     history,
-    onExpandPressRef,
 }: {
+    peekId: PeekId;
     loaderDataRef: MutableRefObject<{[key: string]: unknown}>;
     history: MemoryHistory;
-    onExpandPressRef: Ref<((event: PressEvent) => Promise<void>) | null>;
 }) {
     const remixEntryContext = useContext(RemixEntryContext);
     assert(remixEntryContext, "Expected Remix entry context");
@@ -146,9 +152,9 @@ export function PeekRemixEmbed({
         });
     }, [historyState.action, historyState.location, transitionManager]);
 
-    // TODO(calebmer): I'll admit I don't fully understand what this is doing.
-    // Something with error boundaries? Do we care about supporting error
-    // boundaries here? Code here is from:
+    // TODO(calebmer): I'll admit I don't fully understand what this `AppState`
+    // variable is doing. Something with error boundaries? Do we care about
+    // supporting error boundaries here? Code here is from:
     // https://github.com/remix-run/remix/blob/32337757eba981e5d9705e40ad084d9d5c2d2bf2/packages/remix-react/components.tsx#L131-L139
     const embedAppState: AppState = useMemo(
         () => ({
@@ -234,70 +240,53 @@ export function PeekRemixEmbed({
         };
     }, [history, navigate, remixEntryContext.clientRoutes]);
 
-    useImperativeHandle(
-        onExpandPressRef,
-        () => async event => {
-            const spacePath = convertPeekPathToSpacePath(historyState.location);
-            if (!spacePath) throw new InternalError("Can only expand peek routes");
-
-            if (isOpenLinkInSeparateTabPointerEvent(event)) {
-                window.open(
-                    createPath(spacePath),
-                    "_blank",
-                    // Important security measure. See:
-                    // https://mathiasbynens.github.io/rel-noopener
-                    "noopener noreferrer",
-                );
-            } else {
-                await navigate(spacePath);
-            }
-        },
-        [historyState.location, navigate],
-    );
-
     return (
-        // Ignore title updates in a Remix embed. We currently don't render the title
-        // of a Remix embed though may in the future when allowing the user to navigate
-        // through embeds.
-        <UpdateMetaTitleContextProvider onUpdateMetaTitle={useCallback(() => {}, [])}>
-            <RemixEntryContext.Provider value={embedRemixEntryContent}>
-                <RouteContext.Provider
-                    // The `<Router>` component does not reset this context but it needs to be reset
-                    // or else when we try to render nested routes they think they are within the
-                    // context of our parent router. Initial value can be found here:
-                    // https://github.com/remix-run/react-router/blob/230d9e5539c410c0c747db8670ec5de1d51558ae/packages/react-router/lib/context.ts#L143-L146
-                    //
-                    // See our comment below on how rendering nested `<Router>`s is not officially
-                    // supported.
-                    value={useMemo(
-                        () => ({
-                            outlet: null,
-                            matches: [],
-                        }),
-                        [],
-                    )}
-                >
-                    <Router
-                        navigationType={historyState.action}
-                        location={transitionState.location}
-                        navigator={navigator}
-                        // React Router has an assertion which bans you from rendering a `<Router>`
-                        // inside of another `<Router>`. Likely to avoid developers making silly
-                        // mistakes.
+        <PeekContext.Provider value={useMemo(() => ({id: peekId}), [peekId])}>
+            <UpdateMetaTitleContextProvider
+                // Ignore title updates in a Remix embed. We currently don't render the title
+                // of a Remix embed though may in the future when allowing the user to navigate
+                // through embeds.
+                onUpdateMetaTitle={useCallback(() => {}, [])}
+            >
+                <RemixEntryContext.Provider value={embedRemixEntryContent}>
+                    <RouteContext.Provider
+                        // The `<Router>` component does not reset this context but it needs to be reset
+                        // or else when we try to render nested routes they think they are within the
+                        // context of our parent router. Initial value can be found here:
+                        // https://github.com/remix-run/react-router/blob/230d9e5539c410c0c747db8670ec5de1d51558ae/packages/react-router/lib/context.ts#L143-L146
                         //
-                        // However, we have a real use case! We want to render a `<Router>` powered by
-                        // in-memory history within our Remix `<Router>` powered by browser history.
-                        //
-                        // So we patch `react-router` to add this prop here that turns off the
-                        // assertion. Nested `<Router>`s are therefore not officially supported so we
-                        // take all responsibility for making sure it works well.
-                        dangerouslyAllowNesting={true}
+                        // See our comment below on how rendering nested `<Router>`s is not officially
+                        // supported.
+                        value={useMemo(
+                            () => ({
+                                outlet: null,
+                                matches: [],
+                            }),
+                            [],
+                        )}
                     >
-                        <PeekRemixEmbedRoutes />
-                    </Router>
-                </RouteContext.Provider>
-            </RemixEntryContext.Provider>
-        </UpdateMetaTitleContextProvider>
+                        <Router
+                            navigationType={historyState.action}
+                            location={transitionState.location}
+                            navigator={navigator}
+                            // React Router has an assertion which bans you from rendering a `<Router>`
+                            // inside of another `<Router>`. Likely to avoid developers making silly
+                            // mistakes.
+                            //
+                            // However, we have a real use case! We want to render a `<Router>` powered by
+                            // in-memory history within our Remix `<Router>` powered by browser history.
+                            //
+                            // So we patch `react-router` to add this prop here that turns off the
+                            // assertion. Nested `<Router>`s are therefore not officially supported so we
+                            // take all responsibility for making sure it works well.
+                            dangerouslyAllowNesting={true}
+                        >
+                            <PeekRemixEmbedRoutes />
+                        </Router>
+                    </RouteContext.Provider>
+                </RemixEntryContext.Provider>
+            </UpdateMetaTitleContextProvider>
+        </PeekContext.Provider>
     );
 }
 
@@ -330,7 +319,7 @@ function PeekRemixEmbedRoutes() {
                 },
             ];
         } catch (error) {
-            throw InternalError.from(error, "Could not find `/internal` Remix client route");
+            throw InternalError.from(error, "Could not find peek Remix client route");
         }
     }, [remixEntryContext.clientRoutes]);
 

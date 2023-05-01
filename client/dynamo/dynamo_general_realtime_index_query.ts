@@ -682,6 +682,38 @@ export class DynamoGeneralRealtimeIndexQuery<Model> {
     }
 
     /**
+     * Get an item by its key if it exists in the query and is loaded.
+     */
+    public getItemByKeyIfExists(key: DynamoItemKey): DynamoGeneralRealtimeItem<Model> | null {
+        const itemVisibility = this._itemVisibilityByKey.get(key);
+        if (!itemVisibility?.isVisible) return null;
+
+        const iterator = this._itemByCursor.find(itemVisibility.cursor);
+        assert(iterator.node);
+
+        let index = iterator.node.left?._count ?? 0;
+        for (let i = iterator._stack.length - 2; i >= 0; i--) {
+            const parentNode = iterator._stack[i]!;
+
+            if (parentNode.key < iterator.node.key) {
+                index += 1;
+                index += parentNode.left?._count ?? 0;
+            }
+        }
+
+        const loadedPageItemSlice = this._loadedPageItemSlice.get();
+
+        if (
+            loadedPageItemSlice &&
+            (index < loadedPageItemSlice.startIndex || loadedPageItemSlice.endIndex < index)
+        ) {
+            return null;
+        }
+
+        return iterator.node.value;
+    }
+
+    /**
      * Is the loading indicator visible in the provided range of items?
      */
     public isLoadingIndicatorVisible(range: {startIndex: number; endIndex: number}): boolean {
