@@ -1,8 +1,8 @@
 diff --git a/dist/data.js b/dist/data.js
-index 8ba58ebade2ae9c4c430a45a030bb4612f691c4b..fc46e0270b726391d99c650e4da2841671f6b38a 100644
+index 8ba58ebade2ae9c4c430a45a030bb4612f691c4b..8b8400ee7885955d62a638698ed1f3e390cb7e9e 100644
 --- a/dist/data.js
 +++ b/dist/data.js
-@@ -14,7 +14,7 @@ Object.defineProperty(exports, '__esModule', { value: true });
+@@ -14,12 +14,13 @@ Object.defineProperty(exports, '__esModule', { value: true });
  
  var responses = require('./responses.js');
  
@@ -11,7 +11,14 @@ index 8ba58ebade2ae9c4c430a45a030bb4612f691c4b..fc46e0270b726391d99c650e4da28416
    loadContext,
    routeId,
    action,
-@@ -29,13 +29,26 @@ async function callRouteAction({
+   params,
+-  request
++  request,
++  routes
+ }) {
+   if (!action) {
+     let response = new Response(null, {
+@@ -29,13 +30,29 @@ async function callRouteAction({
      return response;
    }
  
@@ -36,10 +43,13 @@ index 8ba58ebade2ae9c4c430a45a030bb4612f691c4b..fc46e0270b726391d99c650e4da28416
 -      params
 +      params,
 +      span,
++      // NOTE(calebmer): Pass the server routes array to our code. That way we
++      // can use it to match routes for a peek within a loader.
++      serverRoutes: routes,
      });
    } catch (error) {
      if (!responses.isResponse(error)) {
-@@ -54,14 +67,27 @@ async function callRouteAction({
+@@ -54,14 +71,28 @@ async function callRouteAction({
    }
  
    return responses.isResponse(result) ? result : responses.json(result);
@@ -51,7 +61,9 @@ index 8ba58ebade2ae9c4c430a45a030bb4612f691c4b..fc46e0270b726391d99c650e4da28416
    routeId,
    loader,
    params,
-   request
+-  request
++  request,
++  routes
  }) {
 +  // NOTE(calebmer): Add spans around Remix loader functions at the framework
 +  // level. This lets us see when a loader has an error. It also lets us see
@@ -68,17 +80,20 @@ index 8ba58ebade2ae9c4c430a45a030bb4612f691c4b..fc46e0270b726391d99c650e4da28416
    if (!loader) {
      throw new Error(`You made a ${request.method} request to ${request.url} but did not provide ` + `a default component or \`loader\` for route "${routeId}", ` + `so there is no way to handle the request.`);
    }
-@@ -72,7 +98,8 @@ async function callRouteLoader({
+@@ -72,7 +103,11 @@ async function callRouteLoader({
      result = await loader({
        request: stripDataParam(stripIndexParam(request)),
        context: loadContext,
 -      params
 +      params,
 +      span,
++      // NOTE(calebmer): Pass the server routes array to our code. That way we
++      // can use it to match routes for a peek within a loader.
++      serverRoutes: routes,
      });
    } catch (error) {
      if (!responses.isResponse(error)) {
-@@ -91,6 +118,7 @@ async function callRouteLoader({
+@@ -91,6 +126,7 @@ async function callRouteLoader({
    }
  
    return responses.isResponse(result) ? result : responses.json(result);
@@ -86,7 +101,7 @@ index 8ba58ebade2ae9c4c430a45a030bb4612f691c4b..fc46e0270b726391d99c650e4da28416
  }
  
  function stripIndexParam(request) {
-@@ -122,7 +150,10 @@ function extractData(response) {
+@@ -122,7 +158,10 @@ function extractData(response) {
    let contentType = response.headers.get("Content-Type");
  
    if (contentType && /\bapplication\/json\b/.test(contentType)) {
@@ -117,10 +132,10 @@ index 9f314a69b1007f6b44f5c7731462bd87cb616ea0..477fee449e9b6d6f99b5056cf496b87a
      message: error.message,
      stack: error.stack
 diff --git a/dist/esm/data.js b/dist/esm/data.js
-index 0f1eaa5905ded564ea90b9bd756276e6557f24bb..32516685284d5233b8c6d9339048a1e7416127c0 100644
+index 0f1eaa5905ded564ea90b9bd756276e6557f24bb..8787784906aeaf668cc23f811991da743745bd33 100644
 --- a/dist/esm/data.js
 +++ b/dist/esm/data.js
-@@ -10,7 +10,7 @@
+@@ -10,12 +10,13 @@
   */
  import { isResponse, isRedirectResponse, json } from './responses.js';
  
@@ -129,7 +144,14 @@ index 0f1eaa5905ded564ea90b9bd756276e6557f24bb..32516685284d5233b8c6d9339048a1e7
    loadContext,
    routeId,
    action,
-@@ -25,13 +25,26 @@ async function callRouteAction({
+   params,
+-  request
++  request,
++  routes
+ }) {
+   if (!action) {
+     let response = new Response(null, {
+@@ -25,13 +26,29 @@ async function callRouteAction({
      return response;
    }
  
@@ -154,10 +176,13 @@ index 0f1eaa5905ded564ea90b9bd756276e6557f24bb..32516685284d5233b8c6d9339048a1e7
 -      params
 +      params,
 +      span,
++      // NOTE(calebmer): Pass the server routes array to our code. That way we
++      // can use it to match routes for a peek within a loader.
++      serverRoutes: routes,
      });
    } catch (error) {
      if (!isResponse(error)) {
-@@ -50,14 +63,27 @@ async function callRouteAction({
+@@ -50,14 +67,28 @@ async function callRouteAction({
    }
  
    return isResponse(result) ? result : json(result);
@@ -169,7 +194,9 @@ index 0f1eaa5905ded564ea90b9bd756276e6557f24bb..32516685284d5233b8c6d9339048a1e7
    routeId,
    loader,
    params,
-   request
+-  request
++  request,
++  routes
  }) {
 +  // NOTE(calebmer): Add spans around Remix loader functions at the framework
 +  // level. This lets us see when a loader has an error. It also lets us see
@@ -186,17 +213,20 @@ index 0f1eaa5905ded564ea90b9bd756276e6557f24bb..32516685284d5233b8c6d9339048a1e7
    if (!loader) {
      throw new Error(`You made a ${request.method} request to ${request.url} but did not provide ` + `a default component or \`loader\` for route "${routeId}", ` + `so there is no way to handle the request.`);
    }
-@@ -68,7 +94,8 @@ async function callRouteLoader({
+@@ -68,7 +99,11 @@ async function callRouteLoader({
      result = await loader({
        request: stripDataParam(stripIndexParam(request)),
        context: loadContext,
 -      params
 +      params,
 +      span,
++      // NOTE(calebmer): Pass the server routes array to our code. That way we
++      // can use it to match routes for a peek within a loader.
++      serverRoutes: routes,
      });
    } catch (error) {
      if (!isResponse(error)) {
-@@ -87,6 +114,7 @@ async function callRouteLoader({
+@@ -87,6 +122,7 @@ async function callRouteLoader({
    }
  
    return isResponse(result) ? result : json(result);
@@ -204,7 +234,7 @@ index 0f1eaa5905ded564ea90b9bd756276e6557f24bb..32516685284d5233b8c6d9339048a1e7
  }
  
  function stripIndexParam(request) {
-@@ -118,7 +146,10 @@ function extractData(response) {
+@@ -118,7 +154,10 @@ function extractData(response) {
    let contentType = response.headers.get("Content-Type");
  
    if (contentType && /\bapplication\/json\b/.test(contentType)) {
@@ -234,6 +264,20 @@ index b0ec193a9e880a8094431641aaac9a0b81d7ba20..2f22d61f0902d5ae511d94a1e52885ee
    return {
      message: error.message,
      stack: error.stack
+diff --git a/dist/esm/index.js b/dist/esm/index.js
+index 3f4c3f5cf71792a832fcb93db00726ea513fb11b..a3fc09a827c09784bddb2dad535d057eaa22cae4 100644
+--- a/dist/esm/index.js
++++ b/dist/esm/index.js
+@@ -17,3 +17,9 @@ export { createCookieSessionStorageFactory } from './sessions/cookieStorage.js';
+ export { createMemorySessionStorageFactory } from './sessions/memoryStorage.js';
+ export { createMemoryUploadHandler as unstable_createMemoryUploadHandler } from './upload/memoryUploadHandler.js';
+ export { MaxPartSizeExceededError } from './upload/errors.js';
++
++// NOTE(calebmer): Export some extra Remix internals that we use. By exporting
++// these internals we make it harder to upgrade Remix and take responsibility
++// for correct usage of this dependency's internals.
++export { matchServerRoutes } from './routeMatching.js';
++export { callRouteLoader, extractData } from './data.js';
 diff --git a/dist/esm/responses.js b/dist/esm/responses.js
 index 8b7d9946ae80f161654f8db93d0ccdd4721edc07..3d3e29b5d4c6f3aad3f595405db0ae8fc7070eaa 100644
 --- a/dist/esm/responses.js
@@ -256,10 +300,54 @@ index 8b7d9946ae80f161654f8db93d0ccdd4721edc07..3d3e29b5d4c6f3aad3f595405db0ae8f
  
  /**
 diff --git a/dist/esm/server.js b/dist/esm/server.js
-index 026576dd4e92f4be414d957a01084f29a243b43d..1c37e495d095a72f1836aa4a9d72d66f31081fdd 100644
+index 026576dd4e92f4be414d957a01084f29a243b43d..631e840e6e2dfeb91180f854fb8b7a349165eb8b 100644
 --- a/dist/esm/server.js
 +++ b/dist/esm/server.js
-@@ -163,7 +163,9 @@ async function handleDataRequest({
+@@ -37,6 +37,7 @@ const createRequestHandler = (build, mode) => {
+         request,
+         loadContext,
+         matches: matches,
++        routes,
+         serverMode
+       });
+       let routeId = url.searchParams.get("_data");
+@@ -60,6 +61,7 @@ const createRequestHandler = (build, mode) => {
+         request,
+         loadContext,
+         matches,
++        routes,
+         serverMode
+       });
+ 
+@@ -91,6 +93,7 @@ async function handleDataRequest({
+   loadContext,
+   matches,
+   request,
++  routes,
+   serverMode
+ }) {
+   if (!isValidRequestMethod(request)) {
+@@ -114,7 +117,8 @@ async function handleDataRequest({
+         action: match.route.module.action,
+         routeId: match.route.id,
+         params: match.params,
+-        request: request
++        request: request,
++        routes
+       });
+     } else {
+       let routeId = url.searchParams.get("_data");
+@@ -135,7 +139,8 @@ async function handleDataRequest({
+         loader: match.route.module.loader,
+         routeId: match.route.id,
+         params: match.params,
+-        request
++        request,
++        routes
+       });
+     }
+ 
+@@ -163,7 +168,9 @@ async function handleDataRequest({
        console.error(error);
      }
  
@@ -270,7 +358,27 @@ index 026576dd4e92f4be414d957a01084f29a243b43d..1c37e495d095a72f1836aa4a9d72d66f
        return errorBoundaryError(error, 500);
      }
  
-@@ -410,7 +412,8 @@ async function handleDocumentRequest({
+@@ -221,7 +228,8 @@ async function handleDocumentRequest({
+         action: actionMatch.route.module.action,
+         routeId: actionMatch.route.id,
+         params: actionMatch.params,
+-        request: request
++        request: request,
++        routes
+       });
+ 
+       if (isRedirectResponse(actionResponse)) {
+@@ -279,7 +287,8 @@ async function handleDocumentRequest({
+     loader: match.route.module.loader,
+     routeId: match.route.id,
+     params: match.params,
+-    request: loaderRequest
++    request: loaderRequest,
++    routes
+   }) : Promise.resolve(undefined))); // Store the state of the action. We will use this to determine later
+   // what catch or error boundary should be rendered under cases where
+   // actions don't throw but loaders do, actions throw and parent loaders
+@@ -410,7 +419,8 @@ async function handleDocumentRequest({
    let handleDocumentRequest = build.entry.module.default;
  
    try {
@@ -280,7 +388,7 @@ index 026576dd4e92f4be414d957a01084f29a243b43d..1c37e495d095a72f1836aa4a9d72d66f
    } catch (error) {
      responseStatusCode = 500; // Go again, this time with the componentDidCatch emulation. As it rendered
      // last time we mutated `componentDidCatch.routeId` for the last rendered
-@@ -424,7 +427,8 @@ async function handleDocumentRequest({
+@@ -424,7 +434,8 @@ async function handleDocumentRequest({
      entryContext.serverHandoffString = createServerHandoffString(serverHandoff);
  
      try {
@@ -290,6 +398,73 @@ index 026576dd4e92f4be414d957a01084f29a243b43d..1c37e495d095a72f1836aa4a9d72d66f
      } catch (error) {
        return returnLastResortErrorResponse(error, serverMode);
      }
+@@ -435,6 +446,7 @@ async function handleResourceRequest({
+   loadContext,
+   matches,
+   request,
++  routes,
+   serverMode
+ }) {
+   let match = matches.slice(-1)[0];
+@@ -446,7 +458,8 @@ async function handleResourceRequest({
+         action: match.route.module.action,
+         routeId: match.route.id,
+         params: match.params,
+-        request
++        request,
++        routes
+       });
+     } else {
+       return await callRouteLoader({
+@@ -454,7 +467,8 @@ async function handleResourceRequest({
+         loader: match.route.module.loader,
+         routeId: match.route.id,
+         params: match.params,
+-        request
++        request,
++        routes
+       });
+     }
+   } catch (error) {
+diff --git a/dist/index.d.ts b/dist/index.d.ts
+index e27f339330c1d4dbc2f6961dfb622427f50898bd..9eea5593257a588eb053dc37b165356b4d4a1afb 100644
+--- a/dist/index.d.ts
++++ b/dist/index.d.ts
+@@ -9,3 +9,10 @@ export { createMemoryUploadHandler as unstable_createMemoryUploadHandler } from
+ export { MaxPartSizeExceededError } from "./upload/errors";
+ export type { CreateCookieFunction, CreateCookieSessionStorageFunction, CreateMemorySessionStorageFunction, CreateRequestHandlerFunction, CreateSessionFunction, CreateSessionStorageFunction, IsCookieFunction, IsSessionFunction, JsonFunction, RedirectFunction, } from "./interface";
+ export type { ActionArgs, ActionFunction, AppData, AppLoadContext, Cookie, CookieOptions, CookieParseOptions, CookieSerializeOptions, CookieSignatureOptions, DataFunctionArgs, EntryContext, ErrorBoundaryComponent, HandleDataRequestFunction, HandleDocumentRequestFunction, HeadersFunction, HtmlLinkDescriptor, HtmlMetaDescriptor, LinkDescriptor, LinksFunction, LoaderArgs, LoaderFunction, MemoryUploadHandlerFilterArgs, MemoryUploadHandlerOptions, MetaDescriptor, MetaFunction, PageLinkDescriptor, RequestHandler, RouteComponent, RouteHandle, SerializeFrom, ServerBuild, ServerEntryModule, Session, SessionData, SessionIdStorageStrategy, SessionStorage, SignFunction, TypedResponse, UnsignFunction, UploadHandlerPart, UploadHandler, } from "./reexport";
++
++// NOTE(calebmer): Export some extra Remix internals that we use. By exporting
++// these internals we make it harder to upgrade Remix and take responsibility
++// for correct usage of this dependency's internals.
++export { matchServerRoutes } from "./routeMatching";
++export { callRouteLoader, extractData } from "./data";
++export type { ServerRoute } from "./routes";
+diff --git a/dist/index.js b/dist/index.js
+index b25062642328ce3fafd6352dc41c76f000814273..42d40d7a69d1117453c713fa8ff890ac6c79d05f 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -21,6 +21,8 @@ var cookieStorage = require('./sessions/cookieStorage.js');
+ var memoryStorage = require('./sessions/memoryStorage.js');
+ var memoryUploadHandler = require('./upload/memoryUploadHandler.js');
+ var errors = require('./upload/errors.js');
++var routeMatching = require('./routeMatching.js');
++var data = require('./data.js');
+ 
+ 
+ 
+@@ -38,3 +40,10 @@ exports.createCookieSessionStorageFactory = cookieStorage.createCookieSessionSto
+ exports.createMemorySessionStorageFactory = memoryStorage.createMemorySessionStorageFactory;
+ exports.unstable_createMemoryUploadHandler = memoryUploadHandler.createMemoryUploadHandler;
+ exports.MaxPartSizeExceededError = errors.MaxPartSizeExceededError;
++
++// NOTE(calebmer): Export some extra Remix internals that we use. By exporting
++// these internals we make it harder to upgrade Remix and take responsibility
++// for correct usage of this dependency's internals.
++exports.matchServerRoutes = routeMatching.matchServerRoutes;
++exports.callRouteLoader = data.callRouteLoader;
++exports.extractData = data.extractData;
 diff --git a/dist/responses.js b/dist/responses.js
 index 2d72257c81c4a8ca1903aa3d69a32d8b8db19811..7303da657003331c8b0e5b3e3fb4ea3808267f8f 100644
 --- a/dist/responses.js
@@ -312,10 +487,54 @@ index 2d72257c81c4a8ca1903aa3d69a32d8b8db19811..7303da657003331c8b0e5b3e3fb4ea38
  
  /**
 diff --git a/dist/server.js b/dist/server.js
-index 5ac23044d85bf98b9a9daf8d6109a903c2790645..2657c37de01802c19e9e93c5c5db49eec93899a3 100644
+index 5ac23044d85bf98b9a9daf8d6109a903c2790645..348c51bc6843e5464ab1af7ffef7f7773a7fef5b 100644
 --- a/dist/server.js
 +++ b/dist/server.js
-@@ -167,7 +167,9 @@ async function handleDataRequest({
+@@ -41,6 +41,7 @@ const createRequestHandler = (build, mode$1) => {
+         request,
+         loadContext,
+         matches: matches,
++        routes: routes$1,
+         serverMode
+       });
+       let routeId = url.searchParams.get("_data");
+@@ -64,6 +65,7 @@ const createRequestHandler = (build, mode$1) => {
+         request,
+         loadContext,
+         matches,
++        routes: routes$1,
+         serverMode
+       });
+ 
+@@ -95,6 +97,7 @@ async function handleDataRequest({
+   loadContext,
+   matches,
+   request,
++  routes,
+   serverMode
+ }) {
+   if (!isValidRequestMethod(request)) {
+@@ -118,7 +121,8 @@ async function handleDataRequest({
+         action: match.route.module.action,
+         routeId: match.route.id,
+         params: match.params,
+-        request: request
++        request: request,
++        routes
+       });
+     } else {
+       let routeId = url.searchParams.get("_data");
+@@ -139,7 +143,8 @@ async function handleDataRequest({
+         loader: match.route.module.loader,
+         routeId: match.route.id,
+         params: match.params,
+-        request
++        request,
++        routes
+       });
+     }
+ 
+@@ -167,7 +172,9 @@ async function handleDataRequest({
        console.error(error);
      }
  
@@ -326,7 +545,27 @@ index 5ac23044d85bf98b9a9daf8d6109a903c2790645..2657c37de01802c19e9e93c5c5db49ee
        return errorBoundaryError(error, 500);
      }
  
-@@ -414,7 +416,8 @@ async function handleDocumentRequest({
+@@ -225,7 +232,8 @@ async function handleDocumentRequest({
+         action: actionMatch.route.module.action,
+         routeId: actionMatch.route.id,
+         params: actionMatch.params,
+-        request: request
++        request: request,
++        routes
+       });
+ 
+       if (responses.isRedirectResponse(actionResponse)) {
+@@ -283,7 +291,8 @@ async function handleDocumentRequest({
+     loader: match.route.module.loader,
+     routeId: match.route.id,
+     params: match.params,
+-    request: loaderRequest
++    request: loaderRequest,
++    routes
+   }) : Promise.resolve(undefined))); // Store the state of the action. We will use this to determine later
+   // what catch or error boundary should be rendered under cases where
+   // actions don't throw but loaders do, actions throw and parent loaders
+@@ -414,7 +423,8 @@ async function handleDocumentRequest({
    let handleDocumentRequest = build.entry.module.default;
  
    try {
@@ -336,7 +575,7 @@ index 5ac23044d85bf98b9a9daf8d6109a903c2790645..2657c37de01802c19e9e93c5c5db49ee
    } catch (error) {
      responseStatusCode = 500; // Go again, this time with the componentDidCatch emulation. As it rendered
      // last time we mutated `componentDidCatch.routeId` for the last rendered
-@@ -428,7 +431,8 @@ async function handleDocumentRequest({
+@@ -428,7 +438,8 @@ async function handleDocumentRequest({
      entryContext.serverHandoffString = serverHandoff.createServerHandoffString(serverHandoff$1);
  
      try {
@@ -346,3 +585,31 @@ index 5ac23044d85bf98b9a9daf8d6109a903c2790645..2657c37de01802c19e9e93c5c5db49ee
      } catch (error) {
        return returnLastResortErrorResponse(error, serverMode);
      }
+@@ -439,6 +450,7 @@ async function handleResourceRequest({
+   loadContext,
+   matches,
+   request,
++  routes,
+   serverMode
+ }) {
+   let match = matches.slice(-1)[0];
+@@ -450,7 +462,8 @@ async function handleResourceRequest({
+         action: match.route.module.action,
+         routeId: match.route.id,
+         params: match.params,
+-        request
++        request,
++        routes
+       });
+     } else {
+       return await data.callRouteLoader({
+@@ -458,7 +471,8 @@ async function handleResourceRequest({
+         loader: match.route.module.loader,
+         routeId: match.route.id,
+         params: match.params,
+-        request
++        request,
++        routes
+       });
+     }
+   } catch (error) {

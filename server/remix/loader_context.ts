@@ -1,7 +1,8 @@
-import type {MaybeSessionActionContextModules} from "~/server/dynamo/context/action_context";
+import {ServerRoute} from "@remix-run/server-runtime";
+import {MaybeSessionActionContextModules} from "~/server/dynamo/context/action_context";
 import {SessionCookie} from "~/server/remix/session_cookie";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module";
-import type {Context} from "~/shared/context/context";
+import {Context} from "~/shared/context/context";
 import {ContextModuleBase} from "~/shared/context/context_module_base";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
 import {ClientInfo} from "~/shared/remix/client_info";
@@ -22,6 +23,8 @@ export interface LoaderArgs {
     params: {readonly [key: string]: string | undefined};
     // This is added by a patch to `@remix-run/server-runtime`.
     span: TracerSpan;
+    // This is added by a patch to `@remix-run/server-runtime`.
+    serverRoutes: Array<ServerRoute>;
 }
 
 /**

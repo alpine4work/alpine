@@ -54,7 +54,7 @@ import {
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {usePromise} from "~/client/helpers/use_promise";
-import {loadInitialPeekData} from "~/client/peek/load_initial_peek_data";
+import {loadInitialPeekDataForClient} from "~/client/peek/load_initial_peek_data_for_client";
 import {
     convertPeekPathToSpacePath,
     convertSpacePathToPeekPath,
@@ -269,7 +269,7 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
     const push = useEvent(async (to: To, {focus = false}: {focus?: boolean} = {}) => {
         const abortController = new AbortController();
 
-        const {path, loaderData} = await loadInitialPeekData(
+        const {path, loaderData} = await loadInitialPeekDataForClient(
             remixEntryContext.clientRoutes,
             to,
             abortController.signal,
@@ -1433,7 +1433,7 @@ function restorePeekStack(
                                 "Expected restored peek stack to only have peek routes",
                             );
 
-                        const {loaderData} = await loadInitialPeekData(
+                        const {loaderData} = await loadInitialPeekDataForClient(
                             routes,
                             spacePath,
                             abortController.signal,

@@ -34,7 +34,15 @@ export default function PeekLayout() {
         const routeData = Object.values(remixEntryContext.routeData);
 
         const tracer = context.tracer.getTracer();
-        assert(tracer instanceof TracerRoot, "Expected tracer in app context to be root tracer");
+
+        // While server-side rendering we will have a tracer that's part of a span.
+        // Ignore this tracer and don't move propagated data around. On the client, we
+        // always expect a root tracer.
+        assert(
+            typeof window === "undefined" || tracer instanceof TracerRoot,
+            "Expected tracer in app context to be root tracer",
+        );
+        if (!(tracer instanceof TracerRoot)) return context;
 
         const replacePropagatedEventData: {[key: string]: unknown} = tracer.propagatedEventData
             ? {...tracer.propagatedEventData}

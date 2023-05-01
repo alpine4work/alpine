@@ -33,6 +33,7 @@ ts_project(
         "//:node_modules/cookie",
         "//:node_modules/mjml-react",
         "//:node_modules/react",
+        "//:node_modules/react-router",
         "//client/blob_factory",
         "//client/chat",
         "//client/context",

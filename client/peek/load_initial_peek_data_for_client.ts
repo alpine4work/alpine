@@ -4,7 +4,10 @@ import {convertSpacePathToPeekPath} from "~/client/peek/peek_path_helpers";
 import {InternalError, NotFoundError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 
-export async function loadInitialPeekData(
+/**
+ * We have a server version of this too: `loadInitialPeekDataForServer()`.
+ */
+export async function loadInitialPeekDataForClient(
     routes: Array<ClientRoute>,
     to: To,
     signal: AbortSignal,

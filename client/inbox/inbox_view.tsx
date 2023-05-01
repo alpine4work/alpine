@@ -1,5 +1,5 @@
 import {RemixEntryContext} from "@remix-run/react";
-import {MemoryHistory, createMemoryHistory} from "history";
+import {MemoryHistory, createMemoryHistory, createPath} from "history";
 import {SpinnerGap} from "phosphor-react";
 import {MutableRefObject, useCallback, useContext, useEffect, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context";
@@ -14,8 +14,11 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {usePromise} from "~/client/helpers/use_promise";
 import {InboxEntryView, inboxEntryViewMinHeight} from "~/client/inbox/inbox_entry_view";
-import {loadInitialPeekData} from "~/client/peek/load_initial_peek_data";
-import {convertSpacePathToPeekPath} from "~/client/peek/peek_path_helpers";
+import {loadInitialPeekDataForClient} from "~/client/peek/load_initial_peek_data_for_client";
+import {
+    convertPeekPathToSpacePath,
+    convertSpacePathToPeekPath,
+} from "~/client/peek/peek_path_helpers";
 import {PeekRemixEmbed} from "~/client/peek/peek_remix_embed";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context";
 import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context";
@@ -42,9 +45,10 @@ import {InboxEntryModel} from "~/shared/models/inbox_model";
 import {backfillInboxEntries, getInboxEntries} from "~/shared/rpc/notifications_rpc_definitions";
 import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles";
 
-type InboxViewPeek = {
+export type InboxViewPeek = {
     readonly id: PeekId;
-    readonly key: DynamoItemKey;
+    readonly key: DynamoItemKey | null;
+    readonly initialPath: string;
     readonly history: MemoryHistory;
     readonly loaderDataRefPromise: PromiseImmediate<MutableRefObject<{[key: string]: unknown}>>;
 };
@@ -56,8 +60,12 @@ type InboxViewPeekState = {
 
 export function InboxView({
     initialEntriesResult,
+    initialPeekData,
+    onPeekChange,
 }: {
     initialEntriesResult: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>;
+    initialPeekData: {path: string; loaderData: unknown} | null;
+    onPeekChange: (peek: InboxViewPeek | null) => void;
 }) {
     const remixEntryContext = useContext(RemixEntryContext);
     assert(remixEntryContext, "Expected Remix entry context");
@@ -228,10 +236,76 @@ export function InboxView({
         tryLoadingMore(view.getRenderedRange());
     }, [query, tryLoadingMore]);
 
-    const [peekState, setPeekState] = useState<InboxViewPeekState>({
-        activePeek: null,
-        transitionPeek: null,
+    // Takes the initial path we get when server-side rendering and returns the key
+    // for the first item in our query that has a matching path.
+    //
+    // The item that rendered the path in the previous session may be offscreen. So
+    // we will only know the corresponding key when it's lazy loaded.
+    const findItemKeyForPathIfExists = useCallback(
+        (initialPath: string): DynamoItemKey | null => {
+            const itemCount = query.getItemCount();
+            for (let i = 0; i < itemCount; i++) {
+                const item = query.getItem(i);
+                if (item.type === "LoadedItem") {
+                    const path = item.item.model.getPath();
+                    const pathString = typeof path !== "string" ? createPath(path) : path;
+                    if (pathString === initialPath) {
+                        return item.item.key;
+                    }
+                }
+            }
+            return null;
+        },
+        [query],
+    );
+
+    const [peekState, setPeekState] = useState<InboxViewPeekState>(() => {
+        if (!initialPeekData) {
+            return {
+                activePeek: null,
+                transitionPeek: null,
+            };
+        }
+
+        const initialPath = createPath(
+            assertExists(convertPeekPathToSpacePath(initialPeekData.path)),
+        );
+
+        return {
+            activePeek: {
+                id: generateId(),
+                key: findItemKeyForPathIfExists(initialPath),
+                initialPath,
+                history: createMemoryHistory({initialEntries: [initialPeekData.path]}),
+                loaderDataRefPromise: PromiseImmediate.resolve({
+                    current: initialPeekData.loaderData as {[key: string]: unknown},
+                }),
+            },
+            transitionPeek: null,
+        };
     });
+
+    // If we don't know the item key for our peek, try searching the query whenever
+    // we load new data to see if an item was loaded that matches our peek's path.
+    //
+    // This will happen when we server-side render a peek who's item is not
+    // included in the initial set of inbox entries.
+    useEffect(() => {
+        if (peekState.activePeek && !peekState.activePeek.key) {
+            setPeekState(peekState => {
+                if (!peekState.activePeek || peekState.activePeek.key) {
+                    return peekState;
+                }
+                return {
+                    ...peekState,
+                    activePeek: {
+                        ...peekState.activePeek,
+                        key: findItemKeyForPathIfExists(peekState.activePeek.initialPath),
+                    },
+                };
+            });
+        }
+    }, [findItemKeyForPathIfExists, peekState.activePeek]);
 
     const selectEntry = useEvent((entry: DynamoGeneralRealtimeItem<InboxEntryModel>) => {
         // Don't select the same entry twice in a row since that would cause two
@@ -247,7 +321,7 @@ export function InboxView({
         if (!peekPath) throw new InternalError("Can only render peek for a space route");
 
         const loaderDataRefPromise = (async () => {
-            const {loaderData} = await loadInitialPeekData(
+            const {loaderData} = await loadInitialPeekDataForClient(
                 remixEntryContext.clientRoutes,
                 spacePath,
                 abortController.signal,
@@ -260,6 +334,7 @@ export function InboxView({
             transitionPeek: {
                 id: generateId(),
                 key: entry.key,
+                initialPath: typeof spacePath !== "string" ? createPath(spacePath) : spacePath,
                 history: createMemoryHistory({initialEntries: [peekPath]}),
                 loaderDataRefPromise: PromiseImmediate.resolve(loaderDataRefPromise),
             },
@@ -300,21 +375,26 @@ export function InboxView({
         };
     }, [peekState]);
 
-    const selectedEntryKey = (peekState.transitionPeek ?? peekState.activePeek)?.key;
+    const selectedPeek = peekState.transitionPeek ?? peekState.activePeek;
+    const selectedEntryKey = selectedPeek?.key;
 
-    // When a new entry is selected, make sure it is visible in our scroll window. Scroll to
-    // it if it is not visible.
     const lastSelectedEntryKeyRef = useRef(selectedEntryKey);
     useLayoutEffectWithoutServerSideWarning(() => {
-        if (lastSelectedEntryKeyRef.current === selectedEntryKey) return;
-        lastSelectedEntryKeyRef.current = selectedEntryKey;
+        const entriesView = assertExists(entriesViewRef.current);
 
-        if (selectedEntryKey) {
-            assertExists(entriesViewRef.current).scrollToKeyIfExists(
-                `LoadedItem:${selectedEntryKey}`,
-            );
+        if (lastSelectedEntryKeyRef.current === selectedPeek?.key) return;
+        lastSelectedEntryKeyRef.current = selectedPeek?.key;
+
+        if (!selectedPeek) {
+            onPeekChange(null);
+        } else {
+            // When a new entry is selected, make sure it is visible in our scroll window. Scroll to
+            // it if it is not visible.
+            if (selectedPeek.key) entriesView.scrollToKeyIfExists(`LoadedItem:${selectedPeek.key}`);
+
+            onPeekChange(selectedPeek);
         }
-    }, [selectedEntryKey]);
+    }, [onPeekChange, selectedEntryKey, selectedPeek]);
 
     // We use this to help assistive technologies understand our list
     // virtualization. If we haven't loaded all items we set the size to -1 which
