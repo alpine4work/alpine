@@ -1327,6 +1327,7 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
                     {!loaderDataRefResult.isPending ? (
                         <PeekRemixEmbed
                             peekId={entry.id}
+                            withMobileLayout={true}
                             loaderDataRef={loaderDataRefResult.value}
                             history={entry.history}
                         />

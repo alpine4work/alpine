@@ -30,7 +30,10 @@ type RemixEntryContextType = typeof RemixEntryContext extends Context<infer Cont
     ? NonNullable<ContextType>
     : never;
 
-export type PeekContext = {readonly id: PeekId};
+export type PeekContext = {
+    readonly id: PeekId;
+    readonly withMobileLayout: boolean;
+};
 
 const PeekContext = createContext<PeekContext | null>(null);
 
@@ -49,10 +52,12 @@ export function usePeekContext(): PeekContext | null {
  */
 export function PeekRemixEmbed({
     peekId,
+    withMobileLayout,
     loaderDataRef,
     history,
 }: {
     peekId: PeekId;
+    withMobileLayout: boolean;
     loaderDataRef: MutableRefObject<{[key: string]: unknown}>;
     history: MemoryHistory;
 }) {
@@ -241,7 +246,9 @@ export function PeekRemixEmbed({
     }, [history, navigate, remixEntryContext.clientRoutes]);
 
     return (
-        <PeekContext.Provider value={useMemo(() => ({id: peekId}), [peekId])}>
+        <PeekContext.Provider
+            value={useMemo(() => ({id: peekId, withMobileLayout}), [peekId, withMobileLayout])}
+        >
             <UpdateMetaTitleContextProvider
                 // Ignore title updates in a Remix embed. We currently don't render the title
                 // of a Remix embed though may in the future when allowing the user to navigate

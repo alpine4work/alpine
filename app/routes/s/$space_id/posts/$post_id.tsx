@@ -57,7 +57,7 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {post}}) => ({
     }${metaTitlePostfix}`,
 }));
 
-export default function PostRoute({isPeek}: {isPeek?: boolean}) {
+export default function PostRoute({withMobileLayout}: {withMobileLayout?: boolean}) {
     const [searchParams] = useSearchParams();
     const {post, initialPostComments, initialOtherReferencedPostComments} =
         useLoaderDataWithSchema(LoaderSchema);
@@ -74,7 +74,7 @@ export default function PostRoute({isPeek}: {isPeek?: boolean}) {
                 initialPostComments={initialPostComments}
                 initialOtherReferencedPostComments={initialOtherReferencedPostComments}
                 initialScrollToPostCommentIndex={postCommentIndex}
-                withMobileLayout={isPeek}
+                withMobileLayout={withMobileLayout}
             />
         </Box>
     );

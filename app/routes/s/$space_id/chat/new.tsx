@@ -81,7 +81,7 @@ export async function loader({request, context: _context, params}: LoaderArgs) {
     );
 }
 
-export default function NewChatRoute({isPeek}: {isPeek?: boolean}) {
+export default function NewChatRoute({withMobileLayout}: {withMobileLayout?: boolean}) {
     const loaderData = useLoaderDataWithSchema(LoaderSchema);
 
     const location = useLocation();
@@ -135,7 +135,7 @@ export default function NewChatRoute({isPeek}: {isPeek?: boolean}) {
             flexGrow="1"
             width="full"
             overflow="hidden"
-            padding={!isPeek ? {desktop: "4"} : undefined}
+            padding={!withMobileLayout ? {desktop: "4"} : undefined}
             display="flex"
             justifyContent="center"
         >
@@ -144,7 +144,7 @@ export default function NewChatRoute({isPeek}: {isPeek?: boolean}) {
                 width="full"
                 height="full"
                 backgroundColor="grey-0"
-                borderRadius={!isPeek ? {desktop: "md"} : undefined}
+                borderRadius={!withMobileLayout ? {desktop: "md"} : undefined}
                 boxShadow="elevation-5"
                 display="flex"
                 flexDirection="column"

@@ -68,7 +68,7 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {chat}, getParentsD
     };
 });
 
-export default function ChatRoute({isPeek}: {isPeek?: boolean}) {
+export default function ChatRoute({withMobileLayout}: {withMobileLayout?: boolean}) {
     const [searchParams] = useSearchParams();
     const {chat, initialMessages, initialOtherReferencedMessages} =
         useLoaderDataWithSchema(LoaderSchema);
@@ -81,7 +81,7 @@ export default function ChatRoute({isPeek}: {isPeek?: boolean}) {
             flexGrow="1"
             width="full"
             overflow="hidden"
-            padding={!isPeek ? {desktop: "4"} : undefined}
+            padding={!withMobileLayout ? {desktop: "4"} : undefined}
             display="flex"
             justifyContent="center"
         >
@@ -90,7 +90,7 @@ export default function ChatRoute({isPeek}: {isPeek?: boolean}) {
                 width="full"
                 height="full"
                 backgroundColor="grey-0"
-                borderRadius={!isPeek ? {desktop: "md"} : undefined}
+                borderRadius={!withMobileLayout ? {desktop: "md"} : undefined}
                 boxShadow="elevation-5"
             >
                 <ChatView

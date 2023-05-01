@@ -358,7 +358,13 @@ export function InboxView({
                 />
             </Box>
             <Box flexGrow="1" overflow="hidden">
-                {peekState.activePeek && <InboxViewPeekContent peek={peekState.activePeek} />}
+                {peekState.activePeek && (
+                    <InboxViewPeekContent
+                        // Fully remount whenever the peek changes...
+                        key={peekState.activePeek.key}
+                        peek={peekState.activePeek}
+                    />
+                )}
             </Box>
         </Box>
     );
@@ -372,6 +378,7 @@ function InboxViewPeekContent({peek}: {peek: InboxViewPeek}) {
             {!loaderDataRefResult.isPending ? (
                 <PeekRemixEmbed
                     peekId={peek.id}
+                    withMobileLayout={false}
                     loaderDataRef={loaderDataRefResult.value}
                     history={peek.history}
                 />
