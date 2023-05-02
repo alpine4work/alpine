@@ -29,7 +29,13 @@ export function getVirtualizationWindowHeight(viewHeight: number): number {
     // proportionally, a larger virtualized window. 1080px tall views get half a
     // view's worth of content on the top and bottom whereas a smaller 855px screen
     // will get a full view's worth of content on the top and bottom.
-    return viewHeight + viewHeight * clamp(0.5, -4 * Math.log(viewHeight / 1080) + 0.5, 2) * 2;
+    //
+    // We don't allow more than a full view's worth of content on the top
+    // and bottom.
+    return Math.min(
+        viewHeight * 3,
+        viewHeight + viewHeight * clamp(0.5, -4 * Math.log(viewHeight / 1080) + 0.5, 2) * 2,
+    );
 }
 
 /**
@@ -233,17 +239,17 @@ export class VirtualizedScrollViewState {
      * empty space in the view on initial render.
      */
     public static initializeFromTop({
-        screenHeight,
+        initialViewHeight,
         bufferedItemHeight,
         itemCount,
         getItem,
     }: {
-        screenHeight: number;
+        initialViewHeight: number;
         bufferedItemHeight: number;
         itemCount: number;
         getItem: (index: number) => {key: Key; minHeight: number};
     }): VirtualizedScrollViewState {
-        const maxRenderedHeight = getVirtualizationWindowHeight(screenHeight);
+        const maxRenderedHeight = getVirtualizationWindowHeight(initialViewHeight);
         let renderedHeight = 0;
         const renderedItems: Array<{key: Key; minHeight: number}> = [];
 
@@ -285,7 +291,7 @@ export class VirtualizedScrollViewState {
         }
 
         return new VirtualizedScrollViewState({
-            viewHeight: screenHeight,
+            viewHeight: initialViewHeight,
             bufferedItemHeight,
             entryByOrderKey,
             orderKeyByItemKey,
@@ -310,17 +316,17 @@ export class VirtualizedScrollViewState {
      * empty space in the view on initial render.
      */
     public static initializeFromBottom({
-        screenHeight,
+        initialViewHeight,
         bufferedItemHeight,
         itemCount,
         getItem,
     }: {
-        screenHeight: number;
+        initialViewHeight: number;
         bufferedItemHeight: number;
         itemCount: number;
         getItem: (index: number) => {key: Key; minHeight: number};
     }): VirtualizedScrollViewState {
-        const maxRenderedHeight = getVirtualizationWindowHeight(screenHeight);
+        const maxRenderedHeight = getVirtualizationWindowHeight(initialViewHeight);
         let renderedHeight = 0;
         const renderedItems: Array<{key: Key; minHeight: number}> = [];
 
@@ -366,7 +372,7 @@ export class VirtualizedScrollViewState {
         }
 
         return new VirtualizedScrollViewState({
-            viewHeight: screenHeight,
+            viewHeight: initialViewHeight,
             bufferedItemHeight,
             entryByOrderKey,
             orderKeyByItemKey,

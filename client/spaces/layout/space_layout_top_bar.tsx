@@ -1,25 +1,21 @@
-import {Bell, MagnifyingGlass} from "phosphor-react";
-import {useCallback} from "react";
+import {MagnifyingGlass} from "phosphor-react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
-import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {IconButton} from "~/client/design/icon_button";
 import {MenuButton} from "~/client/design/menu_button";
 import {useShowToast} from "~/client/design/toast";
-import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {useNavigate} from "~/client/remix/use_navigate";
-import {LoudNotificationBadge} from "~/client/spaces/loud_notification_badge";
-import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context";
-import {SpaceLayoutTopBarCreateButton} from "~/client/spaces/space_layout_top_bar_create_button";
+import {SpaceLayoutTopBarCreateButton} from "~/client/spaces/layout/internal/space_layout_top_bar_create_button";
+import {SpaceLayoutTopBarNotificationsButton} from "~/client/spaces/layout/internal/space_layout_top_bar_notifications_button";
+import {useSpaceContext} from "~/client/spaces/space_context";
 import {spacing} from "~/shared/design/spacing";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types";
 import {UnimplementedError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {InboxModel} from "~/shared/models/inbox_model";
 import {SpaceModel} from "~/shared/models/space_model";
-import {getInboxWithStrongReadConsistency} from "~/shared/rpc/accounts_rpc_definitions";
 
 // TODO(calebmer): Keyboard shortcuts for everything in top bar
 
@@ -129,66 +125,6 @@ export function SpaceLayoutTopBar({
                     <SpaceLayoutTopBarAccountButton />
                 </Box>
             </Box>
-        </Box>
-    );
-}
-
-function SpaceLayoutTopBarNotificationsButton({
-    initialInbox,
-}: {
-    initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
-}) {
-    const context = useAppContext();
-    const showToast = useShowToast();
-    const {space} = useSpaceContext();
-
-    const {isConnected, subscribeToEvents} = useMyAccountWebSocket();
-
-    // NOCOMMIT: Test that we can go offline then back online and the inbox count
-    // updates.
-    const inbox = useDynamoGeneralRealtimeItem(initialInbox, {
-        isConnected,
-        subscribeToEvents: useCallback(
-            subscriber => subscribeToEvents(event => subscriber(event.eventTransaction)),
-            [subscribeToEvents],
-        ),
-        reloadItemWithStrongReadConsistency: useCallback(async () => {
-            const {inbox} = await getInboxWithStrongReadConsistency(context, {spaceId: space.id});
-            return inbox;
-        }, [context, space.id]),
-    });
-
-    return (
-        <Box position="relative" zIndex="0">
-            <IconButton
-                size="md"
-                description="Notifications"
-                tooltipPlacement="bottom"
-                // The notification count renders outside the bounds of the icon button. Don't
-                // clip it!
-                disableOverflowHidden={true}
-                onPress={() => {
-                    showToast({
-                        type: "Error",
-                        title: "Can not open notifications",
-                        error: new UnimplementedError(
-                            "Notifications have not been implemented yet",
-                            {
-                                displayMessage: errorDisplayMessage`Notifications have not been implemented yet. Implementation is planned to start April 3, 2023.`,
-                            },
-                        ),
-                    });
-                }}
-            >
-                <Bell />
-                {inbox.model.loudNotificationCount > 0 && (
-                    <LoudNotificationBadge
-                        top="-0.0625rem"
-                        right="0.5rem"
-                        loudNotificationCount={inbox.model.loudNotificationCount}
-                    />
-                )}
-            </IconButton>
         </Box>
     );
 }

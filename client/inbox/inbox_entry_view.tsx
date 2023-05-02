@@ -5,11 +5,11 @@ import {AccountShortName} from "~/client/accounts/account_short_name";
 import {ContentView} from "~/client/content/content_view";
 import {Box} from "~/client/design/box";
 import {PrettyNumber} from "~/client/design/pretty_number";
+import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
-import {LoudNotificationBadge} from "~/client/spaces/loud_notification_badge";
 import {useSpaceContext} from "~/client/spaces/space_context";
-import {parseRemLengthNumber} from "~/shared/design/spacing";
+import {Spacing, parseRemLengthNumber} from "~/shared/design/spacing";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {AccountModel} from "~/shared/models/account_model";
 import {
@@ -27,6 +27,8 @@ import {
 } from "~/shared/styles/styles";
 
 export const inboxEntryViewMinHeight = "4rem";
+
+export const inboxEntryWidth: Spacing = "96";
 
 export function InboxEntryView({
     entry,

@@ -36,7 +36,7 @@ test("can render an empty list", () => {
     });
 
     const state = VirtualizedScrollViewState.initializeFromTop({
-        screenHeight: 100,
+        initialViewHeight: 100,
         bufferedItemHeight: 10,
         itemCount,
         getItem,
@@ -66,7 +66,7 @@ test("can scroll from top", () => {
     });
 
     let state = VirtualizedScrollViewState.initializeFromTop({
-        screenHeight: 100,
+        initialViewHeight: 100,
         bufferedItemHeight: 10,
         itemCount,
         getItem,
@@ -403,7 +403,7 @@ test("can scroll from end", () => {
     });
 
     let state = VirtualizedScrollViewState.initializeFromBottom({
-        screenHeight: 100,
+        initialViewHeight: 100,
         bufferedItemHeight: 10,
         itemCount,
         getItem,
@@ -742,7 +742,7 @@ test("can change the view height", () => {
     });
 
     let state = VirtualizedScrollViewState.initializeFromTop({
-        screenHeight: 100,
+        initialViewHeight: 100,
         bufferedItemHeight: 10,
         itemCount,
         getItem,
@@ -1003,7 +1003,7 @@ test("can change the buffered item height", () => {
     });
 
     let state = VirtualizedScrollViewState.initializeFromBottom({
-        screenHeight: 100,
+        initialViewHeight: 100,
         bufferedItemHeight: 10,
         itemCount,
         getItem,
@@ -1348,7 +1348,7 @@ test("can change item heights", () => {
     });
 
     let state = VirtualizedScrollViewState.initializeFromTop({
-        screenHeight: 100,
+        initialViewHeight: 100,
         bufferedItemHeight: 10,
         itemCount,
         getItem,
@@ -1758,7 +1758,7 @@ test("can move items between renders", () => {
     const getItem = (index: number) => items[index]!;
 
     let state = VirtualizedScrollViewState.initializeFromTop({
-        screenHeight: 1000,
+        initialViewHeight: 1000,
         bufferedItemHeight: 10,
         itemCount,
         getItem,
@@ -1950,7 +1950,7 @@ test("can scroll entire list from top", () => {
     });
 
     let state = VirtualizedScrollViewState.initializeFromTop({
-        screenHeight: 100,
+        initialViewHeight: 100,
         bufferedItemHeight: 10,
         itemCount,
         getItem,
@@ -2037,7 +2037,7 @@ test("can scroll entire list from end", () => {
     });
 
     let state = VirtualizedScrollViewState.initializeFromBottom({
-        screenHeight: 100,
+        initialViewHeight: 100,
         bufferedItemHeight: 10,
         itemCount,
         getItem,
@@ -2124,7 +2124,7 @@ test("can add item count", () => {
     });
 
     let state = VirtualizedScrollViewState.initializeFromTop({
-        screenHeight: 100,
+        initialViewHeight: 100,
         bufferedItemHeight: 10,
         itemCount,
         getItem,
@@ -2216,7 +2216,7 @@ test("can remove item count", () => {
     });
 
     let state = VirtualizedScrollViewState.initializeFromTop({
-        screenHeight: 100,
+        initialViewHeight: 100,
         bufferedItemHeight: 10,
         itemCount,
         getItem,
@@ -2308,7 +2308,7 @@ test("can remove all buffered item count", () => {
     });
 
     let state = VirtualizedScrollViewState.initializeFromTop({
-        screenHeight: 100,
+        initialViewHeight: 100,
         bufferedItemHeight: 10,
         itemCount,
         getItem,
@@ -2400,7 +2400,7 @@ test("can remove some items while removing item count", () => {
     });
 
     let state = VirtualizedScrollViewState.initializeFromTop({
-        screenHeight: 100,
+        initialViewHeight: 100,
         bufferedItemHeight: 10,
         itemCount,
         getItem,
@@ -2487,7 +2487,7 @@ test("can remove every visible item while removing item count", () => {
     });
 
     let state = VirtualizedScrollViewState.initializeFromTop({
-        screenHeight: 100,
+        initialViewHeight: 100,
         bufferedItemHeight: 10,
         itemCount,
         getItem,
@@ -2558,7 +2558,7 @@ test("can jump to arbitrary positions in list when rendering starts at the top",
     });
 
     let state = VirtualizedScrollViewState.initializeFromTop({
-        screenHeight: 100,
+        initialViewHeight: 100,
         bufferedItemHeight: 10,
         itemCount,
         getItem,
@@ -2683,7 +2683,7 @@ test("can jump to arbitrary positions in list when rendering starts at the end",
     });
 
     let state = VirtualizedScrollViewState.initializeFromBottom({
-        screenHeight: 100,
+        initialViewHeight: 100,
         bufferedItemHeight: 10,
         itemCount,
         getItem,
@@ -2828,7 +2828,7 @@ test("can render additional items", () => {
     };
 
     let state = VirtualizedScrollViewState.initializeFromTop({
-        screenHeight: 100,
+        initialViewHeight: 100,
         bufferedItemHeight: 5,
         itemCount,
         getItem,
@@ -3017,7 +3017,7 @@ test("can expand and collapse an item", () => {
     };
 
     let state = VirtualizedScrollViewState.initializeFromTop({
-        screenHeight: 100,
+        initialViewHeight: 100,
         bufferedItemHeight: 10,
         itemCount: getItemCount(),
         getItem,
@@ -3249,7 +3249,7 @@ test("an item maintains its height when expanding and collapsing another item", 
     };
 
     let state = VirtualizedScrollViewState.initializeFromTop({
-        screenHeight: 100,
+        initialViewHeight: 100,
         bufferedItemHeight: 10,
         itemCount: getItemCount(),
         getItem,

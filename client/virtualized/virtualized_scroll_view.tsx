@@ -341,6 +341,7 @@ function VirtualizedScrollView(
         renderItem: _renderItem,
         bufferedItemHeight: _bufferedItemHeight,
         initialScrollOffset = "top",
+        initialViewHeight,
         onRenderedRangeChange: _onRenderedRangeChange,
         onScroll,
         extraChildren,
@@ -371,6 +372,17 @@ function VirtualizedScrollView(
          * the buffered height.
          */
         bufferedItemHeight: number | RemLength;
+
+        /**
+         * On initial render of the scroll view we use this height to determine how
+         * many items to render before we know the real scroll view height.
+         *
+         * If you underestimate the height then the component will immediately need to
+         * re-render. Overestimating is generally better.
+         *
+         * By default we use the screen height which is the maximum height of any view.
+         */
+        initialViewHeight?: number | RemLength;
 
         /**
          * On initial render where are we scrolled? Top of the scroll view or bottom?
@@ -454,7 +466,10 @@ function VirtualizedScrollView(
         if (initialScrollOffset === "top") {
             return {
                 state: VirtualizedScrollViewState.initializeFromTop({
-                    screenHeight,
+                    initialViewHeight:
+                        typeof initialViewHeight === "string"
+                            ? convertRemLengthToPx(initialViewHeight, remPx)
+                            : initialViewHeight ?? screenHeight,
                     bufferedItemHeight,
                     itemCount,
                     getItem: getItemWithoutRender,
@@ -466,7 +481,10 @@ function VirtualizedScrollView(
         } else {
             return {
                 state: VirtualizedScrollViewState.initializeFromBottom({
-                    screenHeight,
+                    initialViewHeight:
+                        typeof initialViewHeight === "string"
+                            ? convertRemLengthToPx(initialViewHeight, remPx)
+                            : initialViewHeight ?? screenHeight,
                     bufferedItemHeight,
                     itemCount,
                     getItem: getItemWithoutRender,

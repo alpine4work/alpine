@@ -47,6 +47,8 @@ ts_project(
         "//client/peek",
         "//client/remix",
         "//client/rpc",
+        "//client/spaces",
+        "//client/spaces/layout",
         "//client/tracer",
         "//client/virtualized",
         "//server/accounts",

@@ -1,25 +1,29 @@
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
-    name = "spaces",
+    name = "layout",
     visibility = [
         "//app:__subpackages__",
         "//client:__subpackages__",
     ],
     deps = [
         "//:node_modules/@types/react",
-        "//:node_modules/@types/scheduler",
+        "//:node_modules/phosphor-react",
         "//:node_modules/react",
-        "//:node_modules/scheduler",
         "//client/accounts",
-        "//client/cloudflare",
         "//client/context",
         "//client/design",
-        "//client/dev",
-        "//client/rpc",
+        "//client/dynamo",
+        "//client/inbox",
+        "//client/remix",
+        "//client/spaces",
+        "//shared/design",
+        "//shared/dynamo",
         "//shared/error",
         "//shared/helpers",
+        "//shared/id",
         "//shared/models",
         "//shared/rpc",
+        "//shared/styles",
     ],
 )
