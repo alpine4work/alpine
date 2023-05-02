@@ -10,6 +10,7 @@ import {useShowToast} from "~/client/design/toast";
 import {tooltipDelayMs} from "~/client/design/tooltip";
 import {defaultTooltipOffset} from "~/client/design/tooltip";
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {usePromise} from "~/client/helpers/use_promise";
 import {
     InboxEntryView,
@@ -301,6 +302,11 @@ export function SpaceLayoutTopBarNotificationsButton({
         });
     }, []);
 
+    const isButtonHoveredRef = useRef(isButtonHovered);
+    useLayoutEffectWithoutServerSideWarning(() => {
+        isButtonHoveredRef.current = isButtonHovered;
+    }, [isButtonHovered]);
+
     return (
         <Box position="relative" zIndex="0">
             <Overlay
@@ -352,8 +358,23 @@ export function SpaceLayoutTopBarNotificationsButton({
                     pressErrorTitle="Couldn’t open notifications"
                     onPress={async () => {
                         try {
+                            // Do not let the overlay open up if it is already closed.
+                            // This will happen if we are in a `WaitingForTooltipDelay`
+                            // animation state.
+                            //
+                            // We want the overlay to stay open while we wait to
+                            // navigate, though.
+                            if (!isOverlayVisible) setShouldDisableOverlay(true);
+
                             await navigate(`/s/${space.id}/inbox`);
-                            if (isButtonHovered) setShouldDisableOverlay(true);
+
+                            // If the overlay is open, then disable it after we successfully navigate to
+                            // the inbox. The user will need to move their mouse off the notification
+                            // button and back on to see it again.
+                            //
+                            // We need to use a ref of this state since our async function will have
+                            // captured a stale value.
+                            if (isButtonHoveredRef.current) setShouldDisableOverlay(true);
                         } catch (error) {
                             setShouldDisableOverlay(false);
                             throw error;

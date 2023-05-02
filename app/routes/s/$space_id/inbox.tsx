@@ -1,7 +1,6 @@
 import {RemixEntryContext, ShouldReloadFunction} from "@remix-run/react";
 import {createPath} from "history";
 import {useContext} from "react";
-import {loadInitialPeekDataForServer} from "~/app/helpers/load_initial_peek_data_for_server";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {inboxEntryViewMinHeight} from "~/client/inbox/inbox_entry_view";
 import {InboxView} from "~/client/inbox/inbox_view";
@@ -10,6 +9,7 @@ import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schem
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view";
 import {getInboxEntries} from "~/server/dynamo/notifications_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
+import {loadInitialPeekDataForServer} from "~/server/remix/load_initial_peek_data_for_server";
 import {LoaderArgs} from "~/server/remix/loader_context";
 import {createDynamoGeneralRealtimeIndexQuerySchema} from "~/shared/dynamo/dynamo_general_realtime_types";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
@@ -18,7 +18,9 @@ import {assert} from "~/shared/helpers/control/assert";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable";
 import {SpaceId} from "~/shared/id/types/id_types";
 import {InboxEntryModelSchema} from "~/shared/models/inbox_model";
-import {Schema} from "~/shared/schema/schema";
+import {Schema, SchemaType} from "~/shared/schema/schema";
+
+export type LoaderData = SchemaType<typeof LoaderSchema>;
 
 const LoaderSchema = Schema.object({
     entriesResult: createDynamoGeneralRealtimeIndexQuerySchema(InboxEntryModelSchema),
@@ -128,6 +130,10 @@ export default function InboxRoute() {
                 // load before beginning React hydration.
                 //
                 // https://github.com/remix-run/remix/blob/32337757eba981e5d9705e40ad084d9d5c2d2bf2/packages/remix-react/components.tsx#L804
+                //
+                // IMPORTANT: This only works on server-side rendering! For client-side
+                // navigation we patch the client-side loader function. See the
+                // `patchRemixEntryContext()` function.
                 <>
                     {Array.from(
                         new Set(

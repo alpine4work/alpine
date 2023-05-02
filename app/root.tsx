@@ -1,5 +1,6 @@
 import {LinkDescriptor} from "@remix-run/cloudflare";
 import {
+    ClientRoute,
     Links,
     LiveReload,
     Meta,
@@ -7,12 +8,16 @@ import {
     Scripts,
     ScrollRestoration,
     ThrownResponse,
+    loadRouteModuleWithBlockingLinks,
+    matchClientRoutes,
     useCatch,
 } from "@remix-run/react";
 import {RemixEntryContext} from "@remix-run/react";
 import {IconContext} from "phosphor-react";
 import prosemirrorStylesHref from "prosemirror-view/style/prosemirror.css";
+import {Context} from "react";
 import {useCallback, useContext, useEffect, useMemo} from "react";
+import type {LoaderData as InboxLoaderData} from "~/app/routes/s/$space_id/inbox";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer";
@@ -37,7 +42,9 @@ import {spacing} from "~/shared/design/spacing";
 import {NotFoundError, UnknownError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
 import {ErrorSchema} from "~/shared/error/error_schema";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
 import {quote} from "~/shared/helpers/string/quote";
@@ -82,6 +89,10 @@ export function loader({context}: LoaderArgs) {
 export default function Root({error}: {error?: unknown}) {
     const remixEntryContext = useContext(RemixEntryContext);
     assert(remixEntryContext, "Expected Remix entry context");
+
+    // Monkey patch the Remix entry context. In a `useMemo()` so it only happens if
+    // the context object changes.
+    useMemo(() => patchRemixEntryContext(remixEntryContext), [remixEntryContext]);
 
     let context = useAppContext();
 
@@ -249,3 +260,53 @@ function RootErrorRenderer({error: _error, title}: {error: unknown; title?: stri
 // HTML. (Which appears to cause CSS to flash off.)
 export const ErrorBoundary = Root;
 export const CatchBoundary = Root;
+
+const wasPatchedSymbol = Symbol("wasPatched");
+
+function patchRemixEntryContext(
+    context: typeof RemixEntryContext extends Context<infer T> ? NonNullable<T> : never,
+) {
+    const routeMatches = matchClientRoutes(
+        context.clientRoutes,
+        // A URL that will match the inbox route object. The string we put in the place
+        // of `$space_id` shouldn't matter.
+        "/s/$space_id/inbox",
+    );
+
+    const inboxRoute: ClientRoute & {[wasPatchedSymbol]?: boolean} = assertExists(
+        routeMatches?.find(match => match.route.id === "routes/s/$space_id/inbox")?.route,
+        "Couldn't find inbox client route",
+    );
+
+    // Only patch the loader once...
+    if (!inboxRoute[wasPatchedSymbol]) {
+        inboxRoute[wasPatchedSymbol] = true;
+
+        const originalLoader = assertExists(inboxRoute.loader, "Inbox route should have a loader");
+        inboxRoute.loader = async options => {
+            const data: InboxLoaderData = await originalLoader(options);
+
+            // Load any extra modules we need for opening the inbox.
+            //
+            // This will create a request waterfall, unfortunately. If `selected` is in
+            // search params we should be able to load route modules in parallel with the
+            // original loader. Should implement that someday?
+            //
+            // IMPORTANT: This only works for client-side navigation! For server-side
+            // rendering we need to inject scripts into the page to load these route
+            // modules. This happens in the `<InboxRoute>` component.
+            if (data.peekData) {
+                await runAllPromises(
+                    data.peekData.loadExtraRouteIds.map(routeId =>
+                        loadRouteModuleWithBlockingLinks(
+                            context.manifest.routes[routeId]!,
+                            context.routeModules,
+                        ),
+                    ),
+                );
+            }
+
+            return data;
+        };
+    }
+}

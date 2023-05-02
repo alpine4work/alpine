@@ -71,10 +71,10 @@ index 69473f0d789453847a9880071387d8f96e0dabb1..da230284a1da41d1d939a7eeae79228c
      error.stack = data.stack;
      return error;
 diff --git a/dist/esm/index.js b/dist/esm/index.js
-index 2e11fbc1fa3278bbdf1317f7c2a9533669b4de63..02cb4fd85475d56730a0eee36046af27e1c569bc 100644
+index 2e11fbc1fa3278bbdf1317f7c2a9533669b4de63..0bc59b7abd6f6f6196e5a455c78a96293af88941 100644
 --- a/dist/esm/index.js
 +++ b/dist/esm/index.js
-@@ -14,3 +14,10 @@ export { Form, Link, Links, LiveReload, Meta, NavLink, PrefetchPageLinks, Script
+@@ -14,3 +14,11 @@ export { Form, Link, Links, LiveReload, Meta, NavLink, PrefetchPageLinks, Script
  export { useCatch } from './errorBoundaries.js';
  export { ScrollRestoration } from './scroll-restoration.js';
  export { RemixServer } from './server.js';
@@ -85,11 +85,25 @@ index 2e11fbc1fa3278bbdf1317f7c2a9533669b4de63..02cb4fd85475d56730a0eee36046af27
 +export { RemixEntryContext } from './components.js';
 +export { matchClientRoutes } from './routeMatching.js';
 +export { createTransitionManager } from './transition.js';
++export { loadRouteModuleWithBlockingLinks } from './routes.js';
+diff --git a/dist/esm/routes.js b/dist/esm/routes.js
+index ad1f483ff08866b12944c5c36bb6b4e55dd71e7e..adf80ab55b28001e1b30bd94c8781b29a408b69f 100644
+--- a/dist/esm/routes.js
++++ b/dist/esm/routes.js
+@@ -57,7 +57,7 @@ function createShouldReload(route, routeModules) {
+   return shouldReload;
+ }
+ 
+-async function loadRouteModuleWithBlockingLinks(route, routeModules) {
++export async function loadRouteModuleWithBlockingLinks(route, routeModules) {
+   let routeModule = await loadRouteModule(route, routeModules);
+   await prefetchStyleLinks(routeModule);
+   return routeModule;
 diff --git a/dist/index.d.ts b/dist/index.d.ts
-index f4cf93355c80de06a2497d8589fc375f0defac63..32f9bf2d1145af91805e03cca26eff1ecb19c230 100644
+index f4cf93355c80de06a2497d8589fc375f0defac63..988ce35445ca68db180419dd022d23963424b4bd 100644
 --- a/dist/index.d.ts
 +++ b/dist/index.d.ts
-@@ -13,3 +13,12 @@ export { ScrollRestoration } from "./scroll-restoration";
+@@ -13,3 +13,13 @@ export { ScrollRestoration } from "./scroll-restoration";
  export type { RemixServerProps } from "./server";
  export { RemixServer } from "./server";
  export type { Fetcher } from "./transition";
@@ -100,10 +114,11 @@ index f4cf93355c80de06a2497d8589fc375f0defac63..32f9bf2d1145af91805e03cca26eff1e
 +export { RemixEntryContext } from "./components";
 +export { matchClientRoutes } from "./routeMatching";
 +export { createTransitionManager } from "./transition";
++export { loadRouteModuleWithBlockingLinks } from "./transition";
 +export type { ClientRoute } from "./routes";
 +export type { AppState } from "./errors";
 diff --git a/dist/index.js b/dist/index.js
-index f0f257179dc33aeb11dc060867afcfbaf3b69c62..822b10ca9de2aa35402b2d9d4c2532a2f1baa929 100644
+index f0f257179dc33aeb11dc060867afcfbaf3b69c62..547b1d46f3b7654b5ac7c4c50bbbd3fc2a157361 100644
 --- a/dist/index.js
 +++ b/dist/index.js
 @@ -18,6 +18,9 @@ var components = require('./components.js');
@@ -116,7 +131,7 @@ index f0f257179dc33aeb11dc060867afcfbaf3b69c62..822b10ca9de2aa35402b2d9d4c2532a2
  
  
  
-@@ -82,3 +85,10 @@ exports.useTransition = components.useTransition;
+@@ -82,3 +85,11 @@ exports.useTransition = components.useTransition;
  exports.useCatch = errorBoundaries.useCatch;
  exports.ScrollRestoration = scrollRestoration.ScrollRestoration;
  exports.RemixServer = server.RemixServer;
@@ -127,3 +142,31 @@ index f0f257179dc33aeb11dc060867afcfbaf3b69c62..822b10ca9de2aa35402b2d9d4c2532a2
 +exports.RemixEntryContext = components.RemixEntryContext;
 +exports.matchClientRoutes = routeMatching.matchClientRoutes;
 +exports.createTransitionManager = transition.createTransitionManager;
++exports.loadRouteModuleWithBlockingLinks = routes.loadRouteModuleWithBlockingLinks;
+diff --git a/dist/routes.d.ts b/dist/routes.d.ts
+index dfed6c8b58159cd304d5525c796d85f1dc03ea5f..9e06338fcc332394a856f5c3abb12a265978e8e2 100644
+--- a/dist/routes.d.ts
++++ b/dist/routes.d.ts
+@@ -1,6 +1,6 @@
+ import type { ComponentType, ReactNode } from "react";
+ import type { Params } from "react-router";
+-import type { RouteModules, ShouldReloadFunction } from "./routeModules";
++import type { RouteModule, RouteModules, ShouldReloadFunction } from "./routeModules";
+ import type { Submission } from "./transition";
+ export interface RouteManifest<Route> {
+     [routeId: string]: Route;
+@@ -57,4 +57,5 @@ declare type RemixRouteComponentType = ComponentType<{
+ }>;
+ export declare function createClientRoute(entryRoute: EntryRoute, routeModulesCache: RouteModules, Component: RemixRouteComponentType): ClientRoute;
+ export declare function createClientRoutes(routeManifest: RouteManifest<EntryRoute>, routeModulesCache: RouteModules, Component: RemixRouteComponentType, parentId?: string): ClientRoute[];
++export function loadRouteModuleWithBlockingLinks(route: EntryRoute, routeModules: RouteModules): Promise<RouteModule>;
+ export {};
+diff --git a/dist/routes.js b/dist/routes.js
+index 4642c9e913fe972cf560d62d6c35f41e79592e14..d7b6846432849b06481d9f042c84f1c49718ca7e 100644
+--- a/dist/routes.js
++++ b/dist/routes.js
+@@ -160,3 +160,4 @@ async function checkRedirect(response) {
+ 
+ exports.createClientRoute = createClientRoute;
+ exports.createClientRoutes = createClientRoutes;
++exports.loadRouteModuleWithBlockingLinks = loadRouteModuleWithBlockingLinks;
