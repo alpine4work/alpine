@@ -198,15 +198,22 @@ const specialGreyColorVars: {
      * In dark mode, this is a darker shade of grey than our `grey-90` panels.
      */
     "grey-wash": CssVarFunction;
+
+    /**
+     * `grey-5` in light mode and `grey-10` in dark mode (the inverted `grey-10`).
+     */
+    "grey-5-dark-10": CssVarFunction;
 } = createGlobalTheme(":root", {
     "grey-text": colors["grey-dark"],
     "grey-wash": colors["grey-5"],
+    "grey-5-dark-10": colors["grey-5"],
 });
 
 globalStyle(darkColorSchemeSelector, {
     vars: assignVars(specialGreyColorVars, {
         "grey-text": colors["grey-0"],
         "grey-wash": colors["grey-dark"],
+        "grey-5-dark-10": invertedColorsWithShade["grey-10"],
     }),
 });
 

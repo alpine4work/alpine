@@ -1,5 +1,5 @@
 import {isToday} from "date-fns";
-import {ReactNode, useMemo} from "react";
+import {ReactNode, useMemo, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
 import {ContentView} from "~/client/content/content_view";
@@ -32,20 +32,28 @@ export const inboxEntryWidth: Spacing = "96";
 
 export function InboxEntryView({
     entry,
-    isSelected,
+    isSelected = false,
+    onPressStart,
     onPress,
     "aria-setsize": ariaSetsize,
     "aria-posinset": ariaPosinset,
+    isFirstEntry,
+    isLastEntry,
+    withinOverlay = false,
 }: {
     entry: InboxEntryModel;
-    isSelected: boolean;
-    onPress: () => void;
+    isSelected?: boolean;
+    onPressStart?: () => void;
+    onPress?: () => void;
+    isFirstEntry: boolean;
+    isLastEntry: boolean;
+    withinOverlay?: boolean;
     // Because entries are virtualized, we need to set these properties so screen
     // readers can correctly announce what position the user is in no matter
     // what's in the DOM.
     // https://w3c.github.io/aria/#aria-setsize
-    "aria-setsize": number;
-    "aria-posinset": number;
+    "aria-setsize"?: number;
+    "aria-posinset"?: number;
 }) {
     switch (entry.type) {
         case "Chat":
@@ -53,7 +61,11 @@ export function InboxEntryView({
                 <InboxChatEntryView
                     entry={entry}
                     isSelected={isSelected}
+                    onPressStart={onPressStart}
                     onPress={onPress}
+                    isFirstEntry={isFirstEntry}
+                    isLastEntry={isLastEntry}
+                    withinOverlay={withinOverlay}
                     aria-setsize={ariaSetsize}
                     aria-posinset={ariaPosinset}
                 />
@@ -63,7 +75,11 @@ export function InboxEntryView({
                 <InboxPostCommentsEntryView
                     entry={entry}
                     isSelected={isSelected}
+                    onPressStart={onPressStart}
                     onPress={onPress}
+                    isFirstEntry={isFirstEntry}
+                    isLastEntry={isLastEntry}
+                    withinOverlay={withinOverlay}
                     aria-setsize={ariaSetsize}
                     aria-posinset={ariaPosinset}
                 />
@@ -80,15 +96,23 @@ const boldClassName = sprinkles({
 function InboxChatEntryView({
     entry,
     isSelected,
+    onPressStart,
     onPress,
+    isFirstEntry,
+    isLastEntry,
+    withinOverlay,
     "aria-setsize": ariaSetsize,
     "aria-posinset": ariaPosinset,
 }: {
     entry: InboxChatEntryModel;
     isSelected: boolean;
-    onPress: () => void;
-    "aria-setsize": number;
-    "aria-posinset": number;
+    onPressStart: (() => void) | undefined;
+    onPress: (() => void) | undefined;
+    isFirstEntry: boolean;
+    isLastEntry: boolean;
+    withinOverlay: boolean;
+    "aria-setsize": number | undefined;
+    "aria-posinset": number | undefined;
 }) {
     const firstAccount = entry.otherChatAccount ?? entry.latestMessage.author;
 
@@ -101,7 +125,11 @@ function InboxChatEntryView({
             secondAccount={secondAccount}
             loudNotificationCount={entry.loudNotificationCount}
             isSelected={isSelected}
+            onPressStart={onPressStart}
             onPress={onPress}
+            isFirstEntry={isFirstEntry}
+            isLastEntry={isLastEntry}
+            withinOverlay={withinOverlay}
             aria-setsize={ariaSetsize}
             aria-posinset={ariaPosinset}
         >
@@ -134,15 +162,23 @@ function InboxChatEntryView({
 function InboxPostCommentsEntryView({
     entry,
     isSelected,
+    onPressStart,
     onPress,
+    isFirstEntry,
+    isLastEntry,
+    withinOverlay,
     "aria-setsize": ariaSetsize,
     "aria-posinset": ariaPosinset,
 }: {
     entry: InboxPostCommentsEntryModel;
     isSelected: boolean;
-    onPress: () => void;
-    "aria-setsize": number;
-    "aria-posinset": number;
+    onPressStart: (() => void) | undefined;
+    onPress: (() => void) | undefined;
+    isFirstEntry: boolean;
+    isLastEntry: boolean;
+    withinOverlay: boolean;
+    "aria-setsize": number | undefined;
+    "aria-posinset": number | undefined;
 }) {
     const {currentAccount} = useSpaceContext();
 
@@ -163,7 +199,11 @@ function InboxPostCommentsEntryView({
             secondAccount={secondAccount}
             loudNotificationCount={entry.loudNotificationCount}
             isSelected={isSelected}
+            onPressStart={onPressStart}
             onPress={onPress}
+            isFirstEntry={isFirstEntry}
+            isLastEntry={isLastEntry}
+            withinOverlay={withinOverlay}
             aria-setsize={ariaSetsize}
             aria-posinset={ariaPosinset}
         >
@@ -190,7 +230,11 @@ function InboxEntryViewBase({
     secondAccount,
     loudNotificationCount,
     isSelected,
+    onPressStart,
     onPress,
+    isFirstEntry,
+    isLastEntry,
+    withinOverlay,
     "aria-setsize": ariaSetsize,
     "aria-posinset": ariaPosinset,
     children,
@@ -199,15 +243,25 @@ function InboxEntryViewBase({
     secondAccount: AccountModel | null;
     loudNotificationCount: number;
     isSelected: boolean;
-    onPress: () => void;
+    onPressStart: (() => void) | undefined;
+    onPress: (() => void) | undefined;
+    isFirstEntry: boolean;
+    isLastEntry: boolean;
+    withinOverlay: boolean;
     // Because entries are virtualized, we need to set these properties so screen
     // readers can correctly announce what position the user is in no matter
     // what's in the DOM.
     // https://w3c.github.io/aria/#aria-setsize
-    "aria-setsize": number;
-    "aria-posinset": number;
+    "aria-setsize": number | undefined;
+    "aria-posinset": number | undefined;
     children?: ReactNode;
 }) {
+    // In an overlay in dark mode the background color is `grey-5` instead of
+    // `grey-0`. So we need to use `grey-10` for divider colors in an overlay.
+    const dividerColor = withinOverlay ? "grey-5-dark-10" : "grey-5";
+
+    const [isPressed, setIsPressed] = useState(false);
+
     return (
         <Box
             // Our inbox implements the ARIA `listbox` role.
@@ -216,69 +270,90 @@ function InboxEntryViewBase({
             aria-selected={isSelected}
             aria-setsize={ariaSetsize}
             aria-posinset={ariaPosinset}
-            paddingX="4"
-            backgroundColor={isSelected ? "grey-5" : undefined}
-            style={{
-                minHeight: inboxEntryViewMinHeight,
-                // Draw border with a `box-shadow` instead of `border` so it doesn't contribute
-                // 1px to layout. Layout needs to be precise since this is rendered in a
-                // virtualized list.
-                boxShadow: isSelected ? `0 1px 0 0 ${colorSchemeVars["grey-5"]}` : undefined,
-            }}
+            paddingX="1"
+            paddingTop={isFirstEntry ? "1" : undefined}
+            paddingBottom={isLastEntry ? "1" : undefined}
+            style={{minHeight: inboxEntryViewMinHeight}}
             // NOTE(calebmer): Not using `usePress()` here because that hook does something
-            // weird with `event.preventDefault()` that causes the listbox to not be
-            // focused after a click.
-            onClick={onPress}
+            // weird with `event.preventDefault()` that causes the listbox in `<InboxView>`
+            // to not be focused after a click.
+            onPointerDown={() => {
+                setIsPressed(true);
+                onPressStart?.();
+            }}
+            onPointerUp={() => {
+                const wasPressed = isPressed;
+                setIsPressed(false);
+                if (wasPressed) onPress?.();
+            }}
+            onPointerLeave={() => {
+                setIsPressed(false);
+            }}
         >
             <Box
-                display="flex"
-                alignItems="center"
-                gap="3"
+                paddingX="3"
+                borderRadius="md"
+                backgroundColor={isPressed ? "grey-10" : isSelected ? dividerColor : undefined}
                 style={{
-                    // Draw border with a `box-shadow` instead of `border` so it doesn't contribute
-                    // 1px to layout. Layout needs to be precise since this is rendered in a
-                    // virtualized list.
-                    boxShadow: `0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
+                    // Add an extra pixel of padding so the background color covers the
+                    // border rendered with `boxShadow`.
+                    paddingBottom: 1,
+                    marginBottom: -1,
                 }}
             >
-                <Box flexShrink="0" paddingY="3">
-                    <Box
-                        position="relative"
-                        width="10"
-                        height="10"
-                        display="flex"
-                        alignItems="center"
-                        justifyContent="center"
-                    >
-                        {!secondAccount ? (
-                            <AccountAvatar account={firstAccount} size="9" />
-                        ) : (
-                            <>
-                                <Box position="absolute" top="0" left="0">
-                                    <AccountAvatar account={firstAccount} size="7" />
-                                </Box>
-                                <Box
-                                    position="absolute"
-                                    bottom="0"
-                                    right="0"
-                                    borderRadius="full"
-                                    style={{boxShadow: `0 0 0 2px ${backgroundColorVar}`}}
-                                >
-                                    <AccountAvatar account={secondAccount} size="7" />
-                                </Box>
-                            </>
-                        )}
-                        {loudNotificationCount > 0 && (
-                            <LoudNotificationBadge
-                                top="0"
-                                right="1"
-                                loudNotificationCount={loudNotificationCount}
-                            />
-                        )}
+                <Box
+                    display="flex"
+                    alignItems="center"
+                    gap="3"
+                    style={{
+                        // Draw border with a `box-shadow` instead of `border` so it doesn't contribute
+                        // 1px to layout. Layout needs to be precise since this is rendered in a
+                        // virtualized list.
+                        boxShadow:
+                            !(isPressed && withinOverlay) && !isLastEntry
+                                ? `0 1px 0 0 ${colorSchemeVars[dividerColor]}`
+                                : undefined,
+                    }}
+                >
+                    <Box flexShrink="0" paddingY="3">
+                        <Box
+                            position="relative"
+                            width="10"
+                            height="10"
+                            display="flex"
+                            alignItems="center"
+                            justifyContent="center"
+                        >
+                            {!secondAccount ? (
+                                <AccountAvatar account={firstAccount} size="9" />
+                            ) : (
+                                <>
+                                    <Box position="absolute" top="0" left="0">
+                                        <AccountAvatar account={firstAccount} size="7" />
+                                    </Box>
+                                    <Box
+                                        position="absolute"
+                                        bottom="0"
+                                        right="0"
+                                        borderRadius="full"
+                                        style={{boxShadow: `0 0 0 2px ${backgroundColorVar}`}}
+                                    >
+                                        <AccountAvatar account={secondAccount} size="7" />
+                                    </Box>
+                                </>
+                            )}
+                            {loudNotificationCount > 0 && (
+                                <LoudNotificationBadge
+                                    top="0"
+                                    right="1"
+                                    loudNotificationCount={loudNotificationCount}
+                                />
+                            )}
+                        </Box>
                     </Box>
-                </Box>
-                <Box paddingY="3" flexGrow="1" fontSize="75" overflow="hidden">
-                    {children}
+                    <Box paddingY="3" flexGrow="1" fontSize="75" overflow="hidden">
+                        {children}
+                    </Box>
                 </Box>
             </Box>
         </Box>

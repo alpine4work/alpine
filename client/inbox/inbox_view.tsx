@@ -251,14 +251,13 @@ export function InboxView({
         }
     }, [onPeekChange, selectedEntryKey, selectedPeek]);
 
+    const itemCount = query.getItemCount();
+
     // We use this to help assistive technologies understand our list
     // virtualization. If we haven't loaded all items we set the size to -1 which
     // indicates the size is unknown.
     // https://w3c.github.io/aria/#aria-setsize
-    const ariaSetsize =
-        query.getItemCountWithoutLoadingIndicator() === query.getItemCount()
-            ? query.getItemCount()
-            : -1;
+    const ariaSetsize = query.getItemCountWithoutLoadingIndicator() === itemCount ? itemCount : -1;
 
     return (
         <GlobalKeyDownEvent
@@ -337,7 +336,7 @@ export function InboxView({
                             ref={entriesViewRef}
                             bufferedItemHeight={inboxEntryViewMinHeight}
                             onRenderedRangeChange={tryLoadingMore}
-                            itemCount={query.getItemCount()}
+                            itemCount={itemCount}
                             renderItem={useCallback(
                                 index => {
                                     const item = query.getItem(index);
@@ -352,7 +351,12 @@ export function InboxView({
                                                         isSelected={
                                                             selectedEntryKey === item.item.key
                                                         }
-                                                        onPress={() => selectEntry(item.item)}
+                                                        // Select entry when the press starts so we only highlight one item
+                                                        // at a time. Instead of highlighting both the pressed item and last
+                                                        // selected item.
+                                                        onPressStart={() => selectEntry(item.item)}
+                                                        isFirstEntry={index === 0}
+                                                        isLastEntry={index === itemCount - 1}
                                                         aria-posinset={index}
                                                         aria-setsize={ariaSetsize}
                                                     />
@@ -383,7 +387,7 @@ export function InboxView({
                                             throw exhaustive(item);
                                     }
                                 },
-                                [ariaSetsize, query, selectEntry, selectedEntryKey],
+                                [ariaSetsize, itemCount, query, selectEntry, selectedEntryKey],
                             )}
                         />
                     </Box>

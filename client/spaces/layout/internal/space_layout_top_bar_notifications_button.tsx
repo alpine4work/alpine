@@ -1,5 +1,5 @@
 import {Bell, SpinnerGap} from "phosphor-react";
-import {useCallback, useEffect, useRef, useState} from "react";
+import {Memo, useCallback, useEffect, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_press";
@@ -7,6 +7,7 @@ import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {IconButton} from "~/client/design/icon_button";
 import {Overlay} from "~/client/design/overlay";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
+import {useShowToast} from "~/client/design/toast";
 import {defaultTooltipOffset} from "~/client/design/tooltip";
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item";
 import {usePromise} from "~/client/helpers/use_promise";
@@ -17,6 +18,7 @@ import {
 } from "~/client/inbox/inbox_entry_view";
 import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge";
 import {useInboxState} from "~/client/inbox/use_inbox_state";
+import {usePeekStackContext} from "~/client/peek/peek_stack";
 import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context";
 import {
     VirtualizedScrollView,
@@ -108,6 +110,10 @@ export function SpaceLayoutTopBarNotificationsButton({
         };
     }, [overlayState.isDelayingLoadingIndicator, overlayState.isVisible]);
 
+    const handleClose = useCallback(() => {
+        setOverlayState({isVisible: false});
+    }, []);
+
     return (
         <Box position="relative" zIndex="0">
             <Overlay
@@ -134,6 +140,7 @@ export function SpaceLayoutTopBarNotificationsButton({
                                 initialEntriesResultPromise={
                                     overlayState.initialEntriesResultPromise
                                 }
+                                onClose={handleClose}
                             />
                         )}
                     </Box>
@@ -191,10 +198,12 @@ export function SpaceLayoutTopBarNotificationsButton({
 
 function SpaceLayoutTopBarNotificationOverlay({
     initialEntriesResultPromise,
+    onClose,
 }: {
     initialEntriesResultPromise: PromiseImmediate<
         DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>
     >;
+    onClose: Memo<() => void>;
 }) {
     const initialEntriesResult = usePromise(initialEntriesResultPromise);
 
@@ -209,18 +218,21 @@ function SpaceLayoutTopBarNotificationOverlay({
                     />
                 </Box>
             ) : (
-                <SpaceLayoutTopBarNotificationOverlayList
+                <SpaceLayoutTopBarNotificationOverlayInbox
                     initialEntriesResult={initialEntriesResult.value}
+                    onClose={onClose}
                 />
             )}
         </>
     );
 }
 
-function SpaceLayoutTopBarNotificationOverlayList({
+function SpaceLayoutTopBarNotificationOverlayInbox({
     initialEntriesResult,
+    onClose,
 }: {
     initialEntriesResult: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>;
+    onClose: Memo<() => void>;
 }) {
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
@@ -245,13 +257,15 @@ function SpaceLayoutTopBarNotificationOverlayList({
         tryLoadingMore(view.getRenderedRange());
     }, [query, tryLoadingMore]);
 
+    const itemCount = query.getItemCount();
+
     return (
         <VirtualizedScrollView
             ref={viewRef}
             bufferedItemHeight={inboxEntryViewMinHeight}
             initialViewHeight={spacing[notificationOverlayHeight]}
             onRenderedRangeChange={tryLoadingMore}
-            itemCount={query.getItemCount()}
+            itemCount={itemCount}
             renderItem={useCallback(
                 index => {
                     const item = query.getItem(index);
@@ -261,15 +275,11 @@ function SpaceLayoutTopBarNotificationOverlayList({
                                 key: `LoadedItem:${item.item.key}`,
                                 minHeight: inboxEntryViewMinHeight,
                                 node: (
-                                    <InboxEntryView
+                                    <SpaceLayoutTopBarNotificationOverlayInboxEntry
                                         entry={item.item.model}
-                                        isSelected={false}
-                                        onPress={() => {
-                                            // NOCOMMIT
-                                        }}
-                                        aria-posinset={index}
-                                        // NOCOMMIT
-                                        aria-setsize={-1}
+                                        isFirstEntry={index === 0}
+                                        isLastEntry={index === itemCount - 1}
+                                        onClose={onClose}
                                     />
                                 ),
                             };
@@ -298,8 +308,53 @@ function SpaceLayoutTopBarNotificationOverlayList({
                             throw exhaustive(item);
                     }
                 },
-                [query],
+                [itemCount, onClose, query],
             )}
+        />
+    );
+}
+
+function SpaceLayoutTopBarNotificationOverlayInboxEntry({
+    entry,
+    isFirstEntry,
+    isLastEntry,
+    onClose,
+}: {
+    entry: InboxEntryModel;
+    isFirstEntry: boolean;
+    isLastEntry: boolean;
+    onClose: () => void;
+}) {
+    const showToast = useShowToast();
+    const peekStackContext = usePeekStackContext();
+
+    const [isPending, setIsPending] = useState(false);
+
+    return (
+        <InboxEntryView
+            entry={entry}
+            withinOverlay={true}
+            isFirstEntry={isFirstEntry}
+            isLastEntry={isLastEntry}
+            onPress={() => {
+                if (isPending) return;
+
+                // TODO(calebmer): Some kind of global loading indicator?
+                peekStackContext.push(entry.getPath()).then(
+                    () => {
+                        setIsPending(false);
+                        onClose();
+                    },
+                    error => {
+                        setIsPending(false);
+                        showToast({
+                            type: "Error",
+                            title: "Couldn’t open notification",
+                            error,
+                        });
+                    },
+                );
+            }}
         />
     );
 }
