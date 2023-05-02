@@ -11,6 +11,7 @@ import {parseDotenv} from "~/admin/helpers/parse_dotenv";
 import {createLocalServer} from "~/app/local/create_local_server";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
+import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {quote} from "~/shared/helpers/string/quote";
 
@@ -163,19 +164,54 @@ process.stdin.on("data", chunk => {
 
 function shouldWait(tryAgain: () => void) {
     if (!devServerPromiseResolver.isSettled()) {
-        devServerPromiseResolver.promise.finally(tryAgain);
+        const timeout = createTimeout(() => {
+            // eslint-disable-next-line no-console
+            console.log("`devServerPromiseResolver` took more than 5s to resolve");
+        }, 5000);
+
+        devServerPromiseResolver.promise.finally(() => {
+            timeout.clear();
+            tryAgain();
+        });
         return true;
     }
+
     if (!dynamoLocalPromiseResolver.isSettled()) {
-        dynamoLocalPromiseResolver.promise.finally(tryAgain);
+        const timeout = createTimeout(() => {
+            // eslint-disable-next-line no-console
+            console.log("`dynamoLocalPromiseResolver` took more than 5s to resolve");
+        }, 5000);
+
+        dynamoLocalPromiseResolver.promise.finally(() => {
+            timeout.clear();
+            tryAgain();
+        });
         return true;
     }
+
     if (!bazelBuildPromiseResolver.isSettled()) {
-        bazelBuildPromiseResolver.promise.finally(tryAgain);
+        const timeout = createTimeout(() => {
+            // eslint-disable-next-line no-console
+            console.log("`bazelBuildPromiseResolver` took more than 5s to resolve");
+        }, 5000);
+
+        bazelBuildPromiseResolver.promise.finally(() => {
+            timeout.clear();
+            tryAgain();
+        });
         return true;
     }
+
     if (!miniflareReloadPromiseResolver.isSettled()) {
-        miniflareReloadPromiseResolver.promise.finally(tryAgain);
+        const timeout = createTimeout(() => {
+            // eslint-disable-next-line no-console
+            console.log("`miniflareReloadPromiseResolver` took more than 5s to resolve");
+        }, 5000);
+
+        miniflareReloadPromiseResolver.promise.finally(() => {
+            timeout.clear();
+            tryAgain();
+        });
         return true;
     }
 
