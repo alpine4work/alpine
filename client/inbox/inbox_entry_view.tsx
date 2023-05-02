@@ -256,10 +256,6 @@ function InboxEntryViewBase({
     "aria-posinset": number | undefined;
     children?: ReactNode;
 }) {
-    // In an overlay in dark mode the background color is `grey-5` instead of
-    // `grey-0`. So we need to use `grey-10` for divider colors in an overlay.
-    const dividerColor = withinOverlay ? "grey-5-dark-10" : "grey-5";
-
     const [isPressed, setIsPressed] = useState(false);
 
     return (
@@ -293,7 +289,7 @@ function InboxEntryViewBase({
             <Box
                 paddingX="3"
                 borderRadius="md"
-                backgroundColor={isPressed ? "grey-10" : isSelected ? dividerColor : undefined}
+                backgroundColor={isPressed ? "grey-10" : isSelected ? "grey-5" : undefined}
                 style={{
                     // Add an extra pixel of padding so the background color covers the
                     // border rendered with `boxShadow`.
@@ -311,7 +307,7 @@ function InboxEntryViewBase({
                         // virtualized list.
                         boxShadow:
                             !(isPressed && withinOverlay) && !isLastEntry
-                                ? `0 1px 0 0 ${colorSchemeVars[dividerColor]}`
+                                ? `0 1px 0 0 ${colorSchemeVars["grey-5"]}`
                                 : undefined,
                     }}
                 >

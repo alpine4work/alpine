@@ -1,7 +1,8 @@
-import {Bell, SpinnerGap} from "phosphor-react";
+import {ArrowRight, Bell, SpinnerGap} from "phosphor-react";
 import {Memo, useCallback, useEffect, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
+import {Button} from "~/client/design/button";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_press";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {IconButton} from "~/client/design/icon_button";
@@ -37,7 +38,11 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {InboxEntryModel, InboxModel} from "~/shared/models/inbox_model";
 import {getInboxWithStrongReadConsistency} from "~/shared/rpc/accounts_rpc_definitions";
 import {getInboxEntries} from "~/shared/rpc/notifications_rpc_definitions";
-import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles";
+import {
+    colorSchemeVars,
+    greyElevatedClassName,
+    spinAnimationClassName,
+} from "~/shared/styles/styles";
 
 const notificationOverlayHeight: Spacing = "128";
 
@@ -129,11 +134,12 @@ export function SpaceLayoutTopBarNotificationsButton({
                         width={inboxEntryWidth}
                         height={notificationOverlayHeight}
                         borderRadius="md"
-                        backgroundColor={{light: "grey-0", dark: "grey-5"}}
+                        backgroundColor="grey-0"
                         boxShadow="elevation-20"
                         display="flex"
                         flexDirection="column"
                         overflow="hidden"
+                        className={greyElevatedClassName}
                     >
                         {overlayState.isVisible && (
                             <SpaceLayoutTopBarNotificationOverlay
@@ -209,6 +215,19 @@ function SpaceLayoutTopBarNotificationOverlay({
 
     return (
         <>
+            <Box
+                flexShrink="0"
+                height="7"
+                borderBottom="grey-10"
+                paddingX="2"
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+            >
+                <Box fontSize="50" color="grey-70">
+                    Notifications
+                </Box>
+            </Box>
             {initialEntriesResult.isPending ? (
                 <Box flexGrow="1" display="flex" justifyContent="center" alignItems="center">
                     <SpinnerGap
