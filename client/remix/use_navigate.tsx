@@ -1,7 +1,6 @@
 import {useTransition} from "@remix-run/react";
 import {Memo, ReactNode, createContext, useCallback, useContext, useRef} from "react";
 import {
-    Location,
     NavigateOptions,
     To,
     useLocation,
@@ -9,9 +8,9 @@ import {
     // eslint-disable-next-line no-restricted-imports
     useNavigate as useOriginalNavigate,
 } from "react-router-dom";
+import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {CancelledError, InternalError, UnimplementedError} from "~/shared/error/error";
-import {errorDisplayMessage} from "~/shared/error/error_display_message";
+import {InternalError, UnimplementedError} from "~/shared/error/error";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
 
 export interface NavigateFunction {
@@ -94,7 +93,7 @@ export function WaitForNavigationContextProvider({children}: {children?: ReactNo
 
     const navigationPromiseResolversRef = useRef<
         Array<{
-            location: Location | null;
+            lastLocationKey: string;
             promiseResolver: PromiseResolver<void>;
         }>
     >([]);
@@ -102,42 +101,10 @@ export function WaitForNavigationContextProvider({children}: {children?: ReactNo
     useLayoutEffectWithoutServerSideWarning(() => {
         navigationPromiseResolversRef.current = navigationPromiseResolversRef.current.filter(
             navigationPromiseResolver => {
-                // If our navigation promise resolver doesn't have a location object yet
-                // then we assume the first location object we see is the one it is
-                // waiting for.
-                if (!navigationPromiseResolver.location) {
-                    if (transition.state === "loading") {
-                        navigationPromiseResolver.location = transition.location;
-                        return true;
-                    }
-                    // If the first navigation is not `loading` or `idle` then the navigation we
-                    // were waiting for must have been cancelled. (Right now the only other state is
-                    // `submitting` is in form submission.)
-                    else if (transition.state !== "idle") {
-                        navigationPromiseResolver.promiseResolver.reject(
-                            new CancelledError("Navigation cancelled", {
-                                displayMessage: errorDisplayMessage`You opened a different link.`,
-                            }),
-                        );
-                        return false;
-                    }
-                } else {
-                    // Yay! The location we were waiting for is now the app location. We can resolve
-                    // our promise resolver.
-                    if (location.key === navigationPromiseResolver.location.key) {
-                        navigationPromiseResolver.promiseResolver.resolve();
-                        return false;
-                    }
-                    // Oh no...there's a new transition with a different location. This means our
-                    // navigation was cancelled.
-                    else if (transition.location?.key !== navigationPromiseResolver.location.key) {
-                        navigationPromiseResolver.promiseResolver.reject(
-                            new CancelledError("Navigation cancelled", {
-                                displayMessage: errorDisplayMessage`You opened a different link.`,
-                            }),
-                        );
-                        return false;
-                    }
+                // Once the location changes, we can resolve our promise...
+                if (location.key !== navigationPromiseResolver.lastLocationKey) {
+                    navigationPromiseResolver.promiseResolver.resolve();
+                    return false;
                 }
 
                 return true;
@@ -145,16 +112,17 @@ export function WaitForNavigationContextProvider({children}: {children?: ReactNo
         );
     }, [location, transition.location, transition.state]);
 
-    const waitForNextNavigation = useCallback((): Promise<void> => {
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    const waitForNextNavigation = useEvent((): Promise<void> => {
         const promiseResolver = createPromiseResolver();
 
         navigationPromiseResolversRef.current.push({
-            location: null,
+            lastLocationKey: location.key,
             promiseResolver,
         });
 
         return promiseResolver.promise;
-    }, []);
+    });
 
     return (
         <WaitForNavigationContext.Provider value={waitForNextNavigation}>
