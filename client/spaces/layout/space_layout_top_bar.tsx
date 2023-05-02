@@ -143,7 +143,14 @@ function SpaceLayoutTopBarAccountButton() {
                 },
             ]}
         >
-            <IconButton size="md" variant="accent" description="Account" tooltipPlacement="bottom">
+            <IconButton
+                size="md"
+                variant="accent"
+                description="Account"
+                // The notification bell does not have a tooltip. It opens up an inbox preview
+                // on hover. It's weird if the buttons around it have tooltips.
+                withoutTooltip={true}
+            >
                 <AccountAvatar account={currentAccount} size="6" />
             </IconButton>
         </MenuButton>

@@ -1,6 +1,15 @@
 import {PressEvent} from "@react-types/shared";
 import {IconContext, SpinnerGap} from "phosphor-react";
-import {ButtonHTMLAttributes, ReactNode, Ref, forwardRef, useEffect, useRef, useState} from "react";
+import {
+    ButtonHTMLAttributes,
+    PointerEvent,
+    ReactNode,
+    Ref,
+    forwardRef,
+    useEffect,
+    useRef,
+    useState,
+} from "react";
 import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
@@ -120,6 +129,24 @@ function IconButton(
         // place. At least this prop makes it explicit that the component expects
         // no overflow.
         disableOverflowHidden?: boolean;
+
+        /**
+         * Called when we start hovering the button.
+         */
+        onHoverStart?: () => void;
+
+        /**
+         * Called when we stop hovering the button.
+         */
+        onHoverEnd?: () => void;
+
+        /**
+         * Called when the pointer leaves the button. Corresponds to the
+         * [`pointerleave`][1] event.
+         *
+         * [1]: https://developer.mozilla.org/en-US/docs/Web/API/Element/pointerleave_event
+         */
+        onPointerLeave?: (event: PointerEvent) => void;
     },
     foreignRef: Ref<HTMLButtonElement>,
 ) {
@@ -138,6 +165,9 @@ function IconButton(
         tooltipContentOverride,
         disableKeyboardFocus = false,
         disableOverflowHidden = false,
+        onHoverStart,
+        onHoverEnd,
+        onPointerLeave,
     } = props;
     const localRef = useRef<HTMLButtonElement>(null);
     const showToast = useShowToast();
@@ -194,7 +224,7 @@ function IconButton(
         },
         localRef,
     );
-    const {hoverProps, isHovered} = useHover({});
+    const {hoverProps, isHovered} = useHover({onHoverStart, onHoverEnd});
 
     const stylesByVariant: {[K in IconButtonVariant]: Sprinkles} = {
         accent: !isDisabled
@@ -316,6 +346,7 @@ function IconButton(
                         cast<ButtonHTMLAttributes<HTMLButtonElement>>(
                             disableKeyboardFocus ? {tabIndex: -1} : {},
                         ),
+                        {onPointerLeave},
                     )}
                     ref={useMergedRefs(foreignRef, localRef)}
                     className={sprinkles({
