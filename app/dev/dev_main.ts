@@ -129,32 +129,44 @@ process.stdin.resume();
 // Listen for `ibazel` change notifications.
 // https://github.com/bazelbuild/bazel-watcher
 process.stdin.on("data", chunk => {
-    const chunkString = chunk.toString("utf8");
+    let chunkString = chunk.toString("utf8");
 
     // When we start building, create a promise that will resolve when the build
     // completes. The promise will block HTTP requests.
-    if (chunkString.includes("IBAZEL_BUILD_STARTED")) {
-        bazelBuildPromiseResolver = createPromiseResolver();
+    {
+        const buildStartString = "IBAZEL_BUILD_STARTED";
+        const index = chunkString.indexOf(buildStartString);
+        if (index !== -1) {
+            bazelBuildPromiseResolver = createPromiseResolver();
 
-        broadcastLog("Rebuilding...");
-        return;
+            broadcastLog("Rebuilding...");
+
+            // Let the function continue with the rest of the chunk string...
+            chunkString = chunkString.slice(index + buildStartString.length);
+        }
     }
 
     // Resolve the build promise when the build completes!
-    if (chunkString.includes("IBAZEL_BUILD_COMPLETED")) {
-        // If the build failed, set a flag. We will return a 500 for all server
-        // messages until the next successful build.
-        if (chunkString.includes("IBAZEL_BUILD_COMPLETED FAILURE")) {
-            hasBazelBuildFailed = true;
-            broadcastLog("Build failed, check Bazel output");
-        } else {
-            hasBazelBuildFailed = false;
-            reloadMiniflare();
-            broadcast({type: "RELOAD"});
-        }
+    {
+        const buildCompleteString = "IBAZEL_BUILD_COMPLETED";
+        const index = chunkString.indexOf(buildCompleteString);
+        if (index !== -1) {
+            // If the build failed, set a flag. We will return a 500 for all server
+            // messages until the next successful build.
+            if (chunkString.includes("IBAZEL_BUILD_COMPLETED FAILURE")) {
+                hasBazelBuildFailed = true;
+                broadcastLog("Build failed, check Bazel output");
+            } else {
+                hasBazelBuildFailed = false;
+                reloadMiniflare();
+                broadcast({type: "RELOAD"});
+            }
 
-        bazelBuildPromiseResolver.resolve();
-        return;
+            bazelBuildPromiseResolver.resolve();
+
+            // Let the function continue with the rest of the chunk string...
+            chunkString = chunkString.slice(index + buildCompleteString.length);
+        }
     }
 });
 
