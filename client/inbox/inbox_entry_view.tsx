@@ -395,7 +395,11 @@ function InboxEntryLatestMessagePreview({
                     // instead of opacity so when the background color changes the colors of the
                     // message stay the same. But we want the arbitrary content in our message
                     // content to also mix with the white background.
-                    opacity: 0.575,
+                    //
+                    // Experimentally, `grey-text` at 0.59 opacity looks identical to `grey-50` in
+                    // light mode and `grey-text` at 0.61 opacity looks identical to `grey-50` in
+                    // dark mode. Splitting the difference with 0.6.
+                    opacity: 0.6,
                 }}
             >
                 <Box flexShrink="0" style={contentSchemaStyles.paragraphFontSize} marginRight="-1">
