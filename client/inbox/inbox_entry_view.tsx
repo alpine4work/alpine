@@ -148,7 +148,7 @@ export function InboxEntryView({
                         // 1px to layout. Layout needs to be precise since this is rendered in a
                         // virtualized list.
                         boxShadow:
-                            !(isPressed && withinOverlay) && !isLastEntry
+                            !isPressed && !isSelected && !isLastEntry
                                 ? `0 1px 0 0 ${colorSchemeVars["grey-5"]}`
                                 : undefined,
                     }}
