@@ -432,9 +432,8 @@ export function InboxView({
                                                         isSelected={
                                                             selectedEntryKey === item.item.key
                                                         }
-                                                        // Select entry when the press starts so we only highlight one item
-                                                        // at a time. Instead of highlighting both the pressed item and last
-                                                        // selected item.
+                                                        // We don't have a visual press state for items, so immediately
+                                                        // select the entry on press start to give the user some response.
                                                         onPressStart={() => selectEntry(item.item)}
                                                         isFirstEntry={index === 0}
                                                         isLastEntry={index === itemCount - 1}

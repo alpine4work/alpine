@@ -131,7 +131,9 @@ export function InboxEntryView({
             <Box
                 paddingX="3"
                 borderRadius="md"
-                backgroundColor={isPressed ? "grey-10" : isSelected ? "grey-5" : undefined}
+                backgroundColor={
+                    isPressed && withinOverlay ? "grey-10" : isSelected ? "grey-5" : undefined
+                }
                 style={{
                     // Add an extra pixel of padding so the background color covers the
                     // border rendered with `boxShadow`.
@@ -148,7 +150,7 @@ export function InboxEntryView({
                         // 1px to layout. Layout needs to be precise since this is rendered in a
                         // virtualized list.
                         boxShadow:
-                            !isPressed && !isSelected && !isLastEntry
+                            !(isPressed && withinOverlay) && !isSelected && !isLastEntry
                                 ? `0 1px 0 0 ${colorSchemeVars["grey-5"]}`
                                 : undefined,
                     }}
