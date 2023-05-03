@@ -368,18 +368,8 @@ export function InboxView({
                                                         isLastEntry={index === itemCount - 1}
                                                         aria-posinset={index}
                                                         aria-setsize={ariaSetsize}
-                                                        animatingDeletedItemCountBefore={query.getAnimatingDeletedItemCountBefore(
-                                                            item.cursor,
-                                                        )}
                                                     />
                                                 ),
-                                            };
-                                        }
-                                        case "AnimatingDeletion": {
-                                            return {
-                                                key: `AnimatingDeletion:${item.oldCursor}`,
-                                                minHeight: inboxEntryViewMinHeight,
-                                                node: null,
                                             };
                                         }
                                         case "LoadingIndicator": {
