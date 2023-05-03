@@ -669,6 +669,10 @@ function getInboxEntryItemKey({
  * Archives an inbox entry, moving it out of the account's primary inbox and
  * into an archive. The user can still manually revive archived inbox entries
  * if desired.
+ *
+ * If the user sends a message to a chat and that implicitly archives the inbox
+ * entry, that doesn't happen through this function. Instead it happens through
+ * `processNotificationEvent()`.
  */
 export function archiveInboxEntry(
     context: SessionActionContext,
@@ -999,7 +1003,7 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
         item: (InboxEntryItem & ItemKey) | null,
     ) => DistributiveOmit<
         InboxEntryItem & ItemKey,
-        DistributiveKeyOf<InboxEntryItemKey> | "isArchived" | "generation" | "enteredTime"
+        DistributiveKeyOf<InboxEntryItemKey> | "generation" | "enteredTime"
     >,
 ): Promise<void> {
     await context.dynamo.retryTransaction(async context => {
@@ -1015,6 +1019,12 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
 
         const newInboxEntryItemPartial1 = update(oldInboxEntryItem);
 
+        assert(
+            !newInboxEntryItemPartial1.isArchived ||
+                newInboxEntryItemPartial1.loudNotificationCount === 0,
+            "Loud notification count of archived inbox entries must be zero",
+        );
+
         const loudNotificationCountDifference =
             newInboxEntryItemPartial1.loudNotificationCount -
             (oldInboxEntryItem?.loudNotificationCount ?? 0);
@@ -1025,31 +1035,13 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             ...newInboxEntryItemPartial1,
             ...itemKey,
             updateLockVersion: oldInboxEntryItem?.updateLockVersion,
-        } as DistributiveOmit<
-            InboxEntryItem & ItemKey,
-            "isArchived" | "generation" | "enteredTime"
-        >;
+        } as DistributiveOmit<InboxEntryItem & ItemKey, "generation" | "enteredTime">;
 
-        // Unarchive the inbox entry after a notification.
-        let isArchived = false;
-
-        // If the notification event author is the owner of this inbox then we have a
-        // "silent" notification. A silent notification updates the inbox entry so it's
-        // recent but does not deliver a push notification to the user or update any
-        // notification indicator.
-        //
-        // An edge case is when a notification event creates a loud notification for
-        // the event author. Usually we defend against this in our notification event
-        // implementations.
-        //
-        // - If there is no existing inbox entry, don't create one
-        // - If there is an existing archived inbox entry then keep it in the archive
-        if (event.authorId === itemKey.accountId && loudNotificationCountDifference === 0) {
-            if (!oldInboxEntryItem) {
-                return;
-            } else {
-                isArchived = oldInboxEntryItem.isArchived;
-            }
+        // If there was no inbox entry and the new inbox entry would be archived (maybe
+        // a user is sending a message to a chat they created) then don't create a
+        // new entry.
+        if (!oldInboxEntryItem && newInboxEntryItemPartial2.isArchived) {
+            return;
         }
 
         // Move the entry to the top of the inbox if:
@@ -1059,12 +1051,11 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
         // - The entry has a loud notification
         const shouldMoveToTop =
             !oldInboxEntryItem ||
-            (!isArchived && oldInboxEntryItem.isArchived) ||
+            (!newInboxEntryItemPartial2.isArchived && oldInboxEntryItem.isArchived) ||
             loudNotificationCountDifference > 0;
 
         const newInboxEntryItem: InboxEntryItem = {
             ...newInboxEntryItemPartial2,
-            isArchived,
 
             generation: shouldMoveToTop
                 ? // Move our entry to the higher generation of:
@@ -1146,39 +1137,58 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
                 chatId: event.chatId,
             },
             oldItem => {
-                // We increment the loud notification count if:
+                // When the user messages a chat we archive the corresponding inbox entry. Or
+                // if the chat is already archived, we keep it archived. By sending a message
+                // the user implicitly marks their entry as done.
                 //
-                // - This account was mentioned in the message
-                // - We are adding an entry for this chat to this account's inbox (either we
-                //   are creating a new one or moving it out of the inbox archive)
-                // - Enough time has passed that new messages are likely a new thought (we use
-                //   the same time period in which timestamp dividers will be inserted so the
-                //   user may also see this visually)
-                //
-                // Chat messages are attention grabbing by default (even without messages)
-                // since chat is intended to be a realtime communication medium unlike forum
-                // which is an asynchronous communication medium.
-                //
-                // However, we don't want 1 chat message to equal 1 loud notification count
-                // since then chat messages could easily overwhelm your loud notification count
-                // and make it meaningless. So instead we have approximately 1 loud
-                // notification per chat per hour.
-                //
-                // While this scheme is a little hard for users to understand, the loud
-                // notification count does not need to be precise. It needs to give a sense of
-                // scale of work involved in answering entries in the user's inbox and our bet
-                // is the work involved to resolve your inbox entries is proportional to number
-                // of entries (vs number of messages within an entry).
-                const shouldIncrementLoudNotificationCount =
-                    account.id !== event.authorId &&
-                    (event.mentionedAccountIds.has(account.id) ||
+                // If the events were received out-of-order we keep the last archive state
+                // of the entry.
+                const isArchived =
+                    !oldItem || event.messageIndex > oldItem.latestMessage.index
+                        ? account.id === event.authorId
+                        : oldItem.isArchived;
+
+                let loudNotificationCount;
+                if (isArchived) {
+                    loudNotificationCount = 0;
+                } else {
+                    // We increment the loud notification count if:
+                    //
+                    // - This account was mentioned in the message
+                    // - We are adding an entry for this chat to this account's inbox (either we
+                    //   are creating a new one or moving it out of the inbox archive)
+                    // - Enough time has passed that new messages are likely a new thought (we use
+                    //   the same time period in which timestamp dividers will be inserted so the
+                    //   user may also see this visually)
+                    //
+                    // Chat messages are attention grabbing by default (even without messages)
+                    // since chat is intended to be a realtime communication medium unlike forum
+                    // which is an asynchronous communication medium.
+                    //
+                    // However, we don't want 1 chat message to equal 1 loud notification count
+                    // since then chat messages could easily overwhelm your loud notification count
+                    // and make it meaningless. So instead we have approximately 1 loud
+                    // notification per chat per hour.
+                    //
+                    // While this scheme is a little hard for users to understand, the loud
+                    // notification count does not need to be precise. It needs to give a sense of
+                    // scale of work involved in answering entries in the user's inbox and our bet
+                    // is the work involved to resolve your inbox entries is proportional to number
+                    // of entries (vs number of messages within an entry).
+                    const shouldIncrementLoudNotificationCount =
+                        event.mentionedAccountIds.has(account.id) ||
                         oldItem?.isArchived ||
                         !oldItem?.latestMessage ||
                         // Events might arrive out-of-order but if events 10min+ apart are arriving
                         // out-of-order we have a bigger problem so we don't worry about the
                         // out-of-order case when subtracting timestamps here.
                         differenceInMinutes(event.createdTime, oldItem.latestMessage.createdTime) >=
-                            minMessageViewTimestampDividerElapsedMinutes);
+                            minMessageViewTimestampDividerElapsedMinutes;
+
+                    loudNotificationCount =
+                        (oldItem?.loudNotificationCount ?? 0) +
+                        (shouldIncrementLoudNotificationCount ? 1 : 0);
+                }
 
                 let latestMessage: {
                     index: number;
@@ -1236,10 +1246,8 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
                 }
 
                 return {
-                    loudNotificationCount:
-                        (oldItem?.loudNotificationCount ?? 0) +
-                        (shouldIncrementLoudNotificationCount ? 1 : 0),
-
+                    isArchived,
+                    loudNotificationCount,
                     latestMessage,
                     otherAccountId,
                 };
@@ -1271,11 +1279,32 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
                 postId: event.postId,
             },
             oldItem => {
-                // We increment the loud notification count only if someone is explicitly
-                // trying to get your attention by mentioning your account. Otherwise, we
-                // expect users will respond to new post comments in their own time.
-                const shouldIncrementLoudNotificationCount =
-                    account.id !== event.authorId && event.mentionedAccountIds.has(account.id);
+                // When the user comments on a post we archive the corresponding inbox entry. Or
+                // if the entry is already archived, we keep it archived. By sending a comment
+                // the user implicitly marks their entry as done.
+                //
+                // If the events were received out-of-order we keep the last archive state
+                // of the entry.
+                const isArchived =
+                    !oldItem || event.commentIndex > oldItem.latestComment.index
+                        ? account.id === event.authorId
+                        : oldItem.isArchived;
+
+                let loudNotificationCount;
+                if (isArchived) {
+                    loudNotificationCount = 0;
+                } else {
+                    // We increment the loud notification count only if someone is explicitly
+                    // trying to get your attention by mentioning your account. Otherwise, we
+                    // expect users will respond to new post comments in their own time.
+                    const shouldIncrementLoudNotificationCount = event.mentionedAccountIds.has(
+                        account.id,
+                    );
+
+                    loudNotificationCount =
+                        (oldItem?.loudNotificationCount ?? 0) +
+                        (shouldIncrementLoudNotificationCount ? 1 : 0);
+                }
 
                 let latestComment: {
                     index: number;
@@ -1314,10 +1343,8 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
                 }
 
                 return {
-                    loudNotificationCount:
-                        (oldItem?.loudNotificationCount ?? 0) +
-                        (shouldIncrementLoudNotificationCount ? 1 : 0),
-
+                    isArchived,
+                    loudNotificationCount,
                     latestComment,
                     otherCommentAuthorId,
                 };
