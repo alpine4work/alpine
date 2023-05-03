@@ -32,6 +32,7 @@ import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,
 } from "~/shared/dynamo/dynamo_general_realtime_types";
+import {UnimplementedError} from "~/shared/error/error";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -448,6 +449,7 @@ function SpaceLayoutTopBarNotificationOverlayInbox({
 
     const {query, tryLoadingMore} = useInboxState({
         initialEntriesResult,
+        shouldAnimateDeletion: false,
     });
 
     // Whenever our query data changes, try loading more entries. In case our
@@ -492,6 +494,10 @@ function SpaceLayoutTopBarNotificationOverlayInbox({
                                     />
                                 ),
                             };
+                        }
+                        case "AnimatingDeletion": {
+                            // NOCOMMIT
+                            throw new UnimplementedError("TODO");
                         }
                         case "LoadingIndicator": {
                             return {

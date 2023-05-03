@@ -1,4 +1,5 @@
 import {isToday} from "date-fns";
+import {animate} from "motion";
 import {ReactNode, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
@@ -42,6 +43,7 @@ export function InboxEntryView({
     withinOverlay = false,
     "aria-setsize": ariaSetsize,
     "aria-posinset": ariaPosinset,
+    animatingDeletedItemCountBefore = 0,
 }: {
     entry: InboxEntryModel;
     isSelected?: boolean;
@@ -56,6 +58,7 @@ export function InboxEntryView({
     // https://w3c.github.io/aria/#aria-setsize
     "aria-setsize"?: number;
     "aria-posinset"?: number;
+    animatingDeletedItemCountBefore?: number;
 }) {
     const entryRef = useRef<HTMLDivElement>(null);
     const [isPressed, setIsPressed] = useState(false);
@@ -71,6 +74,16 @@ export function InboxEntryView({
         default:
             throw exhaustive(entry);
     }
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        const entryElement = assertExists(entryRef.current);
+
+        if (animatingDeletedItemCountBefore === 0) return;
+
+        animate(entryElement, {
+            y: `-${inboxEntryViewMinHeight}`,
+        });
+    }, [animatingDeletedItemCountBefore]);
 
     return (
         <Box

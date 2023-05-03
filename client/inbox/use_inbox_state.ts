@@ -1,9 +1,9 @@
 import {useEffect, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
-import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {inboxEntryViewMinHeight} from "~/client/inbox/inbox_entry_view";
+import {InboxDynamoGeneralRealtimeIndexQuery} from "~/client/inbox/internal/inbox_dynamo_general_realtime_index_query";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context";
 import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view";
@@ -30,7 +30,7 @@ export function useInboxState({
     const {isConnected, subscribeToEvents} = useMyAccountWebSocket();
 
     const [query, setQuery] = useState(() =>
-        DynamoGeneralRealtimeIndexQuery.new(initialEntriesResult),
+        InboxDynamoGeneralRealtimeIndexQuery.new(initialEntriesResult),
     );
 
     // Subscribe to realtime events that may change what's in the inbox.
@@ -92,7 +92,7 @@ export function useInboxState({
                                 // were disconnected from realtime up until this point.
                                 wasConnectedRef.current = false;
 
-                                setQuery(DynamoGeneralRealtimeIndexQuery.new(entriesResult));
+                                setQuery(InboxDynamoGeneralRealtimeIndexQuery.new(entriesResult));
                             },
                             error => setErrorState({hasError: true, error}),
                         );

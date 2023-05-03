@@ -7,7 +7,6 @@ import {
 import {DynamoIndexCursor, DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings";
 import {InternalError, OutOfRangeError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {Lazy} from "~/shared/helpers/control/lazy";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
@@ -25,7 +24,7 @@ type DynamoGeneralRealtimeIndexQueryLoadedPageInfo =
           readonly startCursor: DynamoIndexCursor;
       };
 
-export type DynamoGeneralRealtimeIndexQueryItem<Model> =
+export type DynamoGeneralRealtimeIndexQueryItem<Model, ExtraItem extends {type: string}> =
     | {
           readonly type: "Loaded";
           readonly cursor: DynamoIndexCursor;
@@ -33,16 +32,17 @@ export type DynamoGeneralRealtimeIndexQueryItem<Model> =
       }
     | {
           readonly type: "LoadingIndicator";
-      };
+      }
+    | ExtraItem;
 
-type DynamoGeneralRealtimeIndexQueryData<Model> = {
+export type DynamoGeneralRealtimeIndexQueryData<Model, ExtraItem extends {type: string}> = {
     readonly indexName: string;
     readonly startCursorBound: string | null;
     readonly endCursorBound: string | null;
     readonly readTime: Date;
     readonly itemByCursor: Tree<
-        DynamoIndexCursor,
-        DynamoGeneralRealtimeItem<Model> & {cursor?: undefined}
+        DynamoGeneralRealtimeIndexQueryInternalItemKey,
+        DynamoGeneralRealtimeIndexQueryInternalItem<Model, ExtraItem>
     >;
     readonly itemVisibilityByKey: ImmutableMap<
         DynamoItemKey,
@@ -51,6 +51,36 @@ type DynamoGeneralRealtimeIndexQueryData<Model> = {
     >;
     readonly loadedPageInfo: DynamoGeneralRealtimeIndexQueryLoadedPageInfo | null;
 };
+
+/**
+ * All normal items have a key that's `DynamoIndexCursor` and `#1`. Extra items
+ * have an arbitrary string key for sorting relative to cursors and a `#0`
+ * and `#2`.
+ *
+ * We expect `DynamoIndexCursor` to be unique per item so we don't want extra
+ * items to share cursors with regular items. We use the `#0`, `#1`, and `#2`
+ * scheme for sorting keys relative to each other. Extra items may use `#0` to
+ * sort before a cursor and `#2` to sort after a cursor. We use `#` since it is
+ * an ASCII character smaller than all valid `DynamoIndexCursor` characters.
+ */
+type DynamoGeneralRealtimeIndexQueryInternalItemKey =
+    | `${DynamoIndexCursor}#1`
+    | `${string}#0`
+    | `${string}#2`;
+
+type DynamoGeneralRealtimeIndexQueryInternalItem<Model, ExtraItem extends {type: string}> =
+    | {
+          readonly type: "Normal";
+          readonly item: DynamoGeneralRealtimeItem<Model> & {
+              // Remove `cursor` property before adding to this map. It's not strictly
+              // necessary but makes debugging a little cleaner.
+              readonly cursor?: undefined;
+          };
+      }
+    | {
+          readonly type: "Extra";
+          readonly item: ExtraItem;
+      };
 
 /**
  * An immutable object representing the client state of a query against an
@@ -63,7 +93,7 @@ type DynamoGeneralRealtimeIndexQueryData<Model> = {
  * custom items within the query. If you want to use this class without
  * customization see the `DynamoGeneralRealtimeIndexQuery` subclass.
  */
-export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
+export abstract class DynamoGeneralRealtimeIndexQueryBase<Model, ExtraItem extends {type: string}> {
     /**
      * The name of the index we are querying. Cursors are only meaningful for a
      * specific index. Can not load results across indexes.
@@ -117,12 +147,8 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
      * `loadedPageItemSlice`.
      */
     private readonly _itemByCursor: Tree<
-        DynamoIndexCursor,
-        DynamoGeneralRealtimeItem<Model> & {
-            // Remove `cursor` property before adding to this map. It's not strictly
-            // necessary but makes debugging a little cleaner.
-            cursor?: undefined;
-        }
+        DynamoGeneralRealtimeIndexQueryInternalItemKey,
+        DynamoGeneralRealtimeIndexQueryInternalItem<Model, ExtraItem>
     >;
 
     /**
@@ -180,25 +206,29 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
         itemByCursor,
         itemVisibilityByKey,
         loadedPageInfo,
-    }: DynamoGeneralRealtimeIndexQueryData<Model>) {
+    }: DynamoGeneralRealtimeIndexQueryData<Model, ExtraItem>) {
         // Run some data validity assertions to verify assumptions about our data in
         // development and test environments but not in production since these
         // assertions can be expensive.
         if (process.env.NODE_ENV !== "production") {
             assert(
-                iterableEvery(
-                    itemVisibilityByKey,
-                    ([key, itemVisibility]) =>
-                        !itemVisibility.isVisible ||
-                        itemByCursor.get(itemVisibility.cursor)?.key === key,
-                ),
+                iterableEvery(itemVisibilityByKey, ([key, itemVisibility]) => {
+                    if (!itemVisibility.isVisible) return true;
+                    const item = itemByCursor.get(`${itemVisibility.cursor}#1`);
+                    if (item?.type !== "Normal") return false;
+                    return item.item.key === key;
+                }),
                 "Expected an entry in `itemByCursor` for every entry in `itemVisibilityByKey`",
             );
 
             assert(
-                iterableEvery(iterateTreeEntries(itemByCursor), ([cursor, item]) => {
-                    const itemVisibility = itemVisibilityByKey.get(item.key);
+                iterableEvery(iterateTreeEntries(itemByCursor), ([key, item]) => {
+                    if (item.type !== "Normal") return key.endsWith("#0") || key.endsWith("#2");
+
+                    const cursor = key.slice(0, -2);
+                    const itemVisibility = itemVisibilityByKey.get(item.item.key);
                     return (
+                        key.endsWith("#1") &&
                         !!itemVisibility?.isVisible &&
                         itemVisibility.cursor === cursor &&
                         (startCursorBound === null || startCursorBound < cursor) &&
@@ -221,18 +251,32 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
     /**
      * Construct a new immutable instance of our class.
      */
-    protected abstract _construct(data: DynamoGeneralRealtimeIndexQueryData<Model>): this;
+    protected abstract _construct(
+        data: DynamoGeneralRealtimeIndexQueryData<Model, ExtraItem>,
+    ): this;
+
+    protected _getData(): DynamoGeneralRealtimeIndexQueryData<Model, ExtraItem> {
+        return {
+            indexName: this._indexName,
+            startCursorBound: this._startCursorBound,
+            endCursorBound: this._endCursorBound,
+            readTime: this._readTime,
+            itemByCursor: this._itemByCursor,
+            itemVisibilityByKey: this._itemVisibilityByKey,
+            loadedPageInfo: this._loadedPageInfo,
+        };
+    }
 
     public getReadTime() {
         return this._readTime;
     }
 
-    protected static _getInitialData<Model>(
+    protected static _getInitialData<Model, ExtraItem extends {type: string}>(
         result: DynamoGeneralRealtimeIndexQueryResult<Model>,
-    ): DynamoGeneralRealtimeIndexQueryData<Model> {
+    ): DynamoGeneralRealtimeIndexQueryData<Model, ExtraItem> {
         let itemByCursor = createTree<
-            DynamoIndexCursor,
-            DynamoGeneralRealtimeItem<Model> & {cursor?: undefined}
+            DynamoGeneralRealtimeIndexQueryInternalItemKey,
+            DynamoGeneralRealtimeIndexQueryInternalItem<Model, ExtraItem>
         >();
 
         let itemVisibilityByKey = ImmutableMap.empty<
@@ -249,7 +293,10 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
                 isVisible: true,
                 cursor: item.cursor,
             });
-            itemByCursor = itemByCursor.insert(item.cursor, omitObject(item, ["cursor"]));
+            itemByCursor = itemByCursor.insert(`${item.cursor}#1`, {
+                type: "Normal",
+                item: omitObject(item, ["cursor"]),
+            });
         }
 
         let loadedPageInfo: DynamoGeneralRealtimeIndexQueryLoadedPageInfo | null;
@@ -322,14 +369,15 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
      * Throws an error if the data is from a different index.
      */
     public loadMore(result: DynamoGeneralRealtimeIndexQueryResult<Model>): this {
-        return DynamoGeneralRealtimeIndexQueryBase._loadMore(this, result);
+        return DynamoGeneralRealtimeIndexQueryBase._loadMore<Model, ExtraItem, this>(this, result);
     }
 
     // Use a static method so we can reassign `this` within the function.
-    private static _loadMore<Model, Self extends DynamoGeneralRealtimeIndexQueryBase<Model>>(
-        self: Self,
-        result: DynamoGeneralRealtimeIndexQueryResult<Model>,
-    ): Self {
+    private static _loadMore<
+        Model,
+        ExtraItem extends {type: string},
+        Self extends DynamoGeneralRealtimeIndexQueryBase<Model, ExtraItem>,
+    >(self: Self, result: DynamoGeneralRealtimeIndexQueryResult<Model>): Self {
         if (self._indexName !== result.indexName) {
             throw new InternalError("Tried to load more data from a different index");
         }
@@ -456,6 +504,11 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
         let itemByCursor = this._itemByCursor;
         let itemVisibilityByKey = this._itemVisibilityByKey;
 
+        const deletedItems: Array<{
+            oldCursor: DynamoIndexCursor;
+            oldItem: DynamoGeneralRealtimeItem<Model>;
+        }> = [];
+
         for (const {cursor, item} of items) {
             const isCursorVisible =
                 (this._startCursorBound === null || this._startCursorBound < cursor) &&
@@ -465,7 +518,7 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
 
             if (oldItemVisibility === undefined) {
                 if (isCursorVisible) {
-                    itemByCursor = itemByCursor.insert(cursor, item);
+                    itemByCursor = itemByCursor.insert(`${cursor}#1`, {type: "Normal", item});
                     itemVisibilityByKey = itemVisibilityByKey.set(item.key, {
                         isVisible: true,
                         cursor,
@@ -477,38 +530,55 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
                     });
                 }
             } else {
-                const oldItemVersion = oldItemVisibility.isVisible
-                    ? assertExists(itemByCursor.get(oldItemVisibility.cursor)).version
-                    : oldItemVisibility.version;
+                if (oldItemVisibility.isVisible) {
+                    const oldItemIterator = itemByCursor.find(`${oldItemVisibility.cursor}#1`);
+                    assert(oldItemIterator.node?.value.type === "Normal");
+                    const oldItemVersion = oldItemIterator.node.value.item.version;
 
-                // We may receive items out-of-order. Only put the latest the version of the
-                // item in our query.
-                if (oldItemVersion < item.version) {
-                    if (isCursorVisible) {
-                        if (oldItemVisibility.isVisible) {
+                    // We may receive items out-of-order. Only put the latest the version of the
+                    // item in our query.
+                    if (oldItemVersion < item.version) {
+                        if (isCursorVisible) {
                             if (oldItemVisibility.cursor === cursor) {
-                                itemByCursor = itemByCursor.find(cursor).update(item);
+                                itemByCursor = oldItemIterator.update({type: "Normal", item});
                             } else {
-                                itemByCursor = itemByCursor.insert(cursor, item);
-                                itemByCursor = itemByCursor.remove(oldItemVisibility.cursor);
+                                itemByCursor = oldItemIterator.remove();
+                                itemByCursor = itemByCursor.insert(`${cursor}#1`, {
+                                    type: "Normal",
+                                    item,
+                                });
                                 itemVisibilityByKey = itemVisibilityByKey.set(item.key, {
                                     isVisible: true,
                                     cursor,
                                 });
                             }
                         } else {
-                            itemByCursor = itemByCursor.insert(cursor, item);
-                            itemVisibilityByKey = itemVisibilityByKey.set(item.key, {
-                                isVisible: true,
-                                cursor,
-                            });
-                        }
-                    } else {
-                        if (oldItemVisibility.isVisible) {
-                            itemByCursor = itemByCursor.remove(oldItemVisibility.cursor);
+                            itemByCursor = oldItemIterator.remove();
                             itemVisibilityByKey = itemVisibilityByKey.set(item.key, {
                                 isVisible: false,
                                 version: item.version,
+                            });
+
+                            deletedItems.push({
+                                oldCursor: oldItemVisibility.cursor,
+                                oldItem: oldItemIterator.node.value.item,
+                            });
+                        }
+                    }
+                } else {
+                    const oldItemVersion = oldItemVisibility.version;
+
+                    // We may receive items out-of-order. Only put the latest the version of the
+                    // item in our query.
+                    if (oldItemVersion < item.version) {
+                        if (isCursorVisible) {
+                            itemByCursor = itemByCursor.insert(`${cursor}#1`, {
+                                type: "Normal",
+                                item,
+                            });
+                            itemVisibilityByKey = itemVisibilityByKey.set(item.key, {
+                                isVisible: true,
+                                cursor,
                             });
                         } else {
                             itemVisibilityByKey = itemVisibilityByKey.set(item.key, {
@@ -530,13 +600,91 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
             return this;
         }
 
-        return this._construct({
+        let self = this._construct({
             indexName: this._indexName,
             startCursorBound: this._startCursorBound,
             endCursorBound: this._endCursorBound,
             readTime: readTime > this._readTime ? readTime : this._readTime,
             itemByCursor,
             itemVisibilityByKey,
+            loadedPageInfo: this._loadedPageInfo,
+        });
+
+        // Run any callbacks available on subclasses...
+        if (this._afterItemDeleted) {
+            self = deletedItems.reduce(
+                (self, {oldCursor, oldItem}) => self._afterItemDeleted!(oldCursor, oldItem),
+                self,
+            );
+        }
+
+        return self;
+    }
+
+    /**
+     * Ran after an item is deleted from the query.
+     *
+     * Either the item was in the query and moved out of the visible range for this
+     * query or it was fully deleted from the query.
+     */
+    protected abstract _afterItemDeleted?(
+        oldCursor: DynamoIndexCursor,
+        oldItem: DynamoGeneralRealtimeItem<Model>,
+    ): this;
+
+    /**
+     * Add an extra item (as provided by a subclass) to our query next to the
+     * provided cursor. The extra item will not replace the item at the provided
+     * cursor but rather be placed next to it. Either before or after depending on
+     * how you configure `side`.
+     */
+    protected _setExtraItem(
+        cursor: DynamoIndexCursor,
+        item: ExtraItem,
+        {side = "After"}: {side?: "Before" | "After"} = {},
+    ): this {
+        const key: DynamoGeneralRealtimeIndexQueryInternalItemKey =
+            side === "Before" ? `${cursor}#0` : `${cursor}#2`;
+
+        const iterator = this._itemByCursor.find(key);
+
+        const itemByCursor = iterator.node
+            ? iterator.update({type: "Extra", item})
+            : this._itemByCursor.insert(key, {type: "Extra", item});
+
+        return this._construct({
+            indexName: this._indexName,
+            startCursorBound: this._startCursorBound,
+            endCursorBound: this._endCursorBound,
+            readTime: this._readTime,
+            itemByCursor,
+            itemVisibilityByKey: this._itemVisibilityByKey,
+            loadedPageInfo: this._loadedPageInfo,
+        });
+    }
+
+    /**
+     * Delete the extra item next to the provided cursor if it exists. If no item
+     * exists than this does nothing.
+     */
+    protected _deleteExtraItemIfExists(
+        cursor: DynamoIndexCursor,
+        {side = "After"}: {side?: "Before" | "After"} = {},
+    ): this {
+        const key: DynamoGeneralRealtimeIndexQueryInternalItemKey =
+            side === "Before" ? `${cursor}#0` : `${cursor}#2`;
+
+        const iterator = this._itemByCursor.find(key);
+
+        const itemByCursor = iterator.node ? iterator.remove() : this._itemByCursor;
+
+        return this._construct({
+            indexName: this._indexName,
+            startCursorBound: this._startCursorBound,
+            endCursorBound: this._endCursorBound,
+            readTime: this._readTime,
+            itemByCursor,
+            itemVisibilityByKey: this._itemVisibilityByKey,
             loadedPageInfo: this._loadedPageInfo,
         });
     }
@@ -557,7 +705,7 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
 
         switch (this._loadedPageInfo.type) {
             case "FromStart": {
-                const iterator = this._itemByCursor.find(this._loadedPageInfo.endCursor);
+                const iterator = this._itemByCursor.find(`${this._loadedPageInfo.endCursor}#1`);
                 assert(iterator.node);
 
                 return {
@@ -566,7 +714,7 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
                 };
             }
             case "FromEnd": {
-                const iterator = this._itemByCursor.find(this._loadedPageInfo.startCursor);
+                const iterator = this._itemByCursor.find(`${this._loadedPageInfo.startCursor}#1`);
                 assert(iterator.node);
 
                 return {
@@ -580,7 +728,10 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
     });
 
     private _getIteratorIndex(
-        iterator: TreeIterator<DynamoIndexCursor, DynamoGeneralRealtimeItem<Model>>,
+        iterator: TreeIterator<
+            DynamoGeneralRealtimeIndexQueryInternalItemKey,
+            DynamoGeneralRealtimeIndexQueryInternalItem<Model, ExtraItem>
+        >,
     ): number {
         assert(iterator.node);
 
@@ -623,13 +774,16 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
     // O(1) instead of O(log(n)).
     private _getItemIterator: {
         index: number;
-        iterator: TreeIterator<DynamoIndexCursor, DynamoGeneralRealtimeItem<Model>>;
+        iterator: TreeIterator<
+            DynamoGeneralRealtimeIndexQueryInternalItemKey,
+            DynamoGeneralRealtimeIndexQueryInternalItem<Model, ExtraItem>
+        >;
     } | null = null;
 
     /**
      * Get the item at the provided index.
      */
-    public getItem(index: number): DynamoGeneralRealtimeIndexQueryItem<Model> {
+    public getItem(index: number): DynamoGeneralRealtimeIndexQueryItem<Model, ExtraItem> {
         if (this._loadedPageInfo) {
             switch (this._loadedPageInfo.type) {
                 case "FromStart": {
@@ -689,10 +843,15 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
                 iterator,
             };
 
-            return {
-                type: "Loaded",
-                item: iterator.node.value,
-            };
+            if (iterator.node.value.type !== "Normal") {
+                return iterator.node.value.item;
+            } else {
+                return {
+                    type: "Loaded",
+                    cursor: iterator.node.key.slice(0, -2) as DynamoIndexCursor,
+                    item: iterator.node.value.item,
+                };
+            }
         }
     }
 
@@ -703,8 +862,8 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
         const itemVisibility = this._itemVisibilityByKey.get(key);
         if (!itemVisibility?.isVisible) return null;
 
-        const iterator = this._itemByCursor.find(itemVisibility.cursor);
-        assert(iterator.node);
+        const iterator = this._itemByCursor.find(`${itemVisibility.cursor}#1`);
+        assert(iterator.node?.value.type === "Normal");
 
         const index = this._getIteratorIndex(iterator);
         const loadedPageItemSlice = this._loadedPageItemSlice.get();
@@ -717,7 +876,7 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
             return null;
         }
 
-        return iterator.node.value;
+        return iterator.node.value.item;
     }
 
     /**
@@ -731,7 +890,7 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
         const itemVisibility = this._itemVisibilityByKey.get(key);
         if (!itemVisibility?.isVisible) return null;
 
-        const iterator = this._itemByCursor.find(itemVisibility.cursor);
+        const iterator = this._itemByCursor.find(`${itemVisibility.cursor}#1`);
         assert(iterator.node);
 
         const index = this._getIteratorIndex(iterator);
@@ -747,9 +906,13 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
         }
 
         iterator.next();
-        if (!iterator.node) return null;
 
-        return iterator.node.value;
+        while (iterator.node) {
+            if (iterator.node.value.type === "Normal") return iterator.node.value.item;
+            iterator.next();
+        }
+
+        return null;
     }
 
     /**
@@ -763,7 +926,7 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
         const itemVisibility = this._itemVisibilityByKey.get(key);
         if (!itemVisibility?.isVisible) return null;
 
-        const iterator = this._itemByCursor.find(itemVisibility.cursor);
+        const iterator = this._itemByCursor.find(`${itemVisibility.cursor}#1`);
         assert(iterator.node);
 
         const index = this._getIteratorIndex(iterator);
@@ -779,9 +942,13 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
         }
 
         iterator.prev();
-        if (!iterator.node) return null;
 
-        return iterator.node.value;
+        while (iterator.node) {
+            if (iterator.node.value.type === "Normal") return iterator.node.value.item;
+            iterator.prev();
+        }
+
+        return null;
     }
 
     /**
@@ -834,15 +1001,16 @@ function* iterateTreeEntries<Key, Value>(tree: Tree<Key, Value>): IterableIterat
  *
  * Realtime queries should be eventually correct within a few seconds.
  */
-export class DynamoGeneralRealtimeIndexQuery<
+export class DynamoGeneralRealtimeIndexQuery<Model> extends DynamoGeneralRealtimeIndexQueryBase<
     Model,
-> extends DynamoGeneralRealtimeIndexQueryBase<Model> {
+    never
+> {
     // Private constructor means you can't subclass.
-    private constructor(data: DynamoGeneralRealtimeIndexQueryData<Model>) {
+    private constructor(data: DynamoGeneralRealtimeIndexQueryData<Model, never>) {
         super(data);
     }
 
-    protected override _construct(data: DynamoGeneralRealtimeIndexQueryData<Model>): this {
+    protected override _construct(data: DynamoGeneralRealtimeIndexQueryData<Model, never>): this {
         // Ok to case `as this` because our class has a private constructor and can't
         // be subclassed.
         return new DynamoGeneralRealtimeIndexQuery(data) as this;
@@ -860,4 +1028,6 @@ export class DynamoGeneralRealtimeIndexQuery<
             DynamoGeneralRealtimeIndexQueryBase._getInitialData(result),
         );
     }
+
+    protected readonly _afterItemDeleted?: undefined;
 }
