@@ -42,7 +42,7 @@ import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,
 } from "~/shared/dynamo/dynamo_general_realtime_types";
-import {DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings";
+import {DynamoIndexCursor, DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings";
 import {InternalError} from "~/shared/error/error";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate";
 import {createTimeout} from "~/shared/helpers/async/timeout";
@@ -240,7 +240,7 @@ export function InboxView({
     }, [peekState]);
 
     const selectedPeek = peekState.transitionPeek ?? peekState.activePeek;
-    const selectedEntryKey = selectedPeek?.key;
+    const selectedEntryKey = selectedPeek?.key ?? null;
 
     // Whenever a new entry is selected:
     //
@@ -251,7 +251,7 @@ export function InboxView({
         const entriesView = assertExists(entriesViewRef.current);
 
         if (lastSelectedEntryKeyRef.current === selectedPeek?.key) return;
-        lastSelectedEntryKeyRef.current = selectedPeek?.key;
+        lastSelectedEntryKeyRef.current = selectedPeek?.key ?? null;
 
         if (!selectedPeek) {
             onPeekChange(null);
@@ -264,6 +264,37 @@ export function InboxView({
         }
     }, [onPeekChange, selectedEntryKey, selectedPeek]);
 
+    // Remember the last cursor of our selected item. We use this when the user
+    // presses up and down to figure out what the next entry to go to is.
+    const selectedEntryCursorRef = useRef<{
+        key: DynamoItemKey;
+        cursor: DynamoIndexCursor | null;
+    } | null>(null);
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (!selectedEntryKey) {
+            selectedEntryCursorRef.current = null;
+            return;
+        }
+
+        if (
+            !selectedEntryCursorRef.current ||
+            selectedEntryCursorRef.current.key !== selectedEntryKey
+        ) {
+            selectedEntryCursorRef.current = {
+                key: selectedEntryKey,
+                cursor: null,
+            };
+        }
+
+        // Only update the cursor if we have it. If the item was removed from `query`,
+        // we want to keep the last cursor we saw for the entry key.
+        const cursor = query.getItemByKeyIfExists(selectedEntryKey)?.cursor;
+        if (cursor) selectedEntryCursorRef.current.cursor = cursor;
+    }, [query, selectedEntryKey]);
+
+    // When an item is deleted, we start an animation to shift entries below the
+    // deleted item up to fill its space. This helps users see an item was removed
+    // and what happens next.
     const [animationState, setAnimationState] = useStateWithDependencies(
         itemsDeletedByLastChange => {
             if (itemsDeletedByLastChange.length === 0) return null;
@@ -316,8 +347,10 @@ export function InboxView({
 
                         // If an item is already selected, select the previous item. Otherwise select
                         // the first item.
-                        if (selectedEntryKey) {
-                            const previousEntry = query.getItemBeforeKeyIfExists(selectedEntryKey);
+                        if (selectedEntryCursorRef.current?.cursor) {
+                            const previousEntry = query.getItemBeforeCursorIfExists(
+                                selectedEntryCursorRef.current.cursor,
+                            );
                             if (previousEntry) {
                                 selectEntry(previousEntry);
                             }
@@ -339,8 +372,10 @@ export function InboxView({
 
                         // If an item is already selected, select the next item. Otherwise select
                         // the first item.
-                        if (selectedEntryKey) {
-                            const nextEntry = query.getItemAfterKeyIfExists(selectedEntryKey);
+                        if (selectedEntryCursorRef.current?.cursor) {
+                            const nextEntry = query.getItemAfterCursorIfExists(
+                                selectedEntryCursorRef.current.cursor,
+                            );
                             if (nextEntry) {
                                 selectEntry(nextEntry);
                             }

@@ -693,7 +693,10 @@ export class DynamoGeneralRealtimeIndexQuery<Model> {
     /**
      * Get an item by its key if it exists in the query and is loaded.
      */
-    public getItemByKeyIfExists(key: DynamoItemKey): DynamoGeneralRealtimeItem<Model> | null {
+    public getItemByKeyIfExists(key: DynamoItemKey): {
+        readonly cursor: DynamoIndexCursor;
+        readonly item: DynamoGeneralRealtimeItem<Model>;
+    } | null {
         const itemVisibility = this._itemVisibilityByKey.get(key);
         if (!itemVisibility?.isVisible) return null;
 
@@ -711,20 +714,20 @@ export class DynamoGeneralRealtimeIndexQuery<Model> {
             return null;
         }
 
-        return iterator.node.value;
+        return {
+            cursor: itemVisibility.cursor,
+            item: iterator.node.value,
+        };
     }
 
     /**
-     * Get the item after the item with the provided key if it exists. Might return
-     * null if the item key is not in the query or there is no item after this item
-     * key in the query.
+     * Get the item after the provided cursor if an item exists.
      */
-    public getItemAfterKeyIfExists(key: DynamoItemKey): DynamoGeneralRealtimeItem<Model> | null {
-        const itemVisibility = this._itemVisibilityByKey.get(key);
-        if (!itemVisibility?.isVisible) return null;
-
-        const iterator = this._itemByCursor.find(itemVisibility.cursor);
-        assert(iterator.node);
+    public getItemAfterCursorIfExists(
+        cursor: DynamoIndexCursor,
+    ): DynamoGeneralRealtimeItem<Model> | null {
+        const iterator = this._itemByCursor.gt(cursor);
+        if (!iterator.node) return null;
 
         const index = this._getIteratorIndex(iterator);
         const loadedPageItemSlice = this._loadedPageItemSlice.get();
@@ -733,28 +736,22 @@ export class DynamoGeneralRealtimeIndexQuery<Model> {
         // items range.
         if (
             loadedPageItemSlice &&
-            (index < loadedPageItemSlice.startIndex || loadedPageItemSlice.endIndex < index + 1)
+            (index < loadedPageItemSlice.startIndex || loadedPageItemSlice.endIndex < index)
         ) {
             return null;
         }
-
-        iterator.next();
-        if (!iterator.node) return null;
 
         return iterator.node.value;
     }
 
     /**
-     * Get the item before the item with the provided key if it exists. Might
-     * return null if the item key is not in the query or there is no item before
-     * this item key in the query.
+     * Get the item before the provided cursor if an item exists.
      */
-    public getItemBeforeKeyIfExists(key: DynamoItemKey): DynamoGeneralRealtimeItem<Model> | null {
-        const itemVisibility = this._itemVisibilityByKey.get(key);
-        if (!itemVisibility?.isVisible) return null;
-
-        const iterator = this._itemByCursor.find(itemVisibility.cursor);
-        assert(iterator.node);
+    public getItemBeforeCursorIfExists(
+        cursor: DynamoIndexCursor,
+    ): DynamoGeneralRealtimeItem<Model> | null {
+        const iterator = this._itemByCursor.lt(cursor);
+        if (!iterator.node) return null;
 
         const index = this._getIteratorIndex(iterator);
         const loadedPageItemSlice = this._loadedPageItemSlice.get();
@@ -763,13 +760,10 @@ export class DynamoGeneralRealtimeIndexQuery<Model> {
         // items range.
         if (
             loadedPageItemSlice &&
-            (index - 1 < loadedPageItemSlice.startIndex || loadedPageItemSlice.endIndex < index)
+            (index < loadedPageItemSlice.startIndex || loadedPageItemSlice.endIndex < index)
         ) {
             return null;
         }
-
-        iterator.prev();
-        if (!iterator.node) return null;
 
         return iterator.node.value;
     }
