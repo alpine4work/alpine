@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState} from "react";
+import {useEffect, useReducer, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query";
@@ -8,10 +8,48 @@ import {getClientInfoWithoutListening} from "~/client/remix/client_info_context"
 import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view";
 import {convertRemLengthToPx} from "~/shared/design/spacing";
-import {DynamoGeneralRealtimeIndexQueryResult} from "~/shared/dynamo/dynamo_general_realtime_types";
+import {
+    DynamoGeneralRealtimeIndexQueryResult,
+    DynamoGeneralRealtimeItem,
+} from "~/shared/dynamo/dynamo_general_realtime_types";
+import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {InboxEntryModel} from "~/shared/models/inbox_model";
 import {backfillInboxEntries, getInboxEntries} from "~/shared/rpc/notifications_rpc_definitions";
+
+type InboxState = {
+    readonly query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;
+    readonly itemsDeletedByLastChange: ReadonlyArray<{
+        readonly cursor: DynamoIndexCursor;
+        readonly item: DynamoGeneralRealtimeItem<InboxEntryModel>;
+    }>;
+};
+
+function getInitialInboxState(
+    initialEntriesResult: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>,
+): InboxState {
+    return {
+        query: DynamoGeneralRealtimeIndexQuery.new(initialEntriesResult),
+        itemsDeletedByLastChange: [],
+    };
+}
+
+function reduceInboxState(
+    oldState: InboxState,
+    getNewQuery:
+        | DynamoGeneralRealtimeIndexQuery<InboxEntryModel>
+        | ((
+              oldQuery: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
+          ) => DynamoGeneralRealtimeIndexQuery<InboxEntryModel>),
+): InboxState {
+    const newQuery = typeof getNewQuery === "function" ? getNewQuery(oldState.query) : getNewQuery;
+    const deletedItems = newQuery.getDeletedItems(oldState.query);
+
+    return {
+        query: newQuery,
+        itemsDeletedByLastChange: Array.from(deletedItems),
+    };
+}
 
 /**
  * Manages the inbox's realtime state.
@@ -29,14 +67,16 @@ export function useInboxState({
     const {space} = useSpaceContext();
     const {isConnected, subscribeToEvents} = useMyAccountWebSocket();
 
-    const [query, setQuery] = useState(() =>
-        DynamoGeneralRealtimeIndexQuery.new(initialEntriesResult),
+    const [{query, itemsDeletedByLastChange}, dispatch] = useReducer(
+        reduceInboxState,
+        initialEntriesResult,
+        getInitialInboxState,
     );
 
     // Subscribe to realtime events that may change what's in the inbox.
     useEffect(() => {
         return subscribeToEvents(event =>
-            setQuery(query => query.handleEventTransaction(event.readTime, event.eventTransaction)),
+            dispatch(query => query.handleEventTransaction(event.readTime, event.eventTransaction)),
         );
     }, [subscribeToEvents]);
 
@@ -64,7 +104,7 @@ export function useInboxState({
             ({backfillEntriesResult}) => {
                 switch (backfillEntriesResult.type) {
                     case "Available": {
-                        setQuery(query =>
+                        dispatch(query =>
                             query.handleEventTransaction(
                                 backfillEntriesResult.readTime,
                                 backfillEntriesResult.eventTransaction,
@@ -92,7 +132,7 @@ export function useInboxState({
                                 // were disconnected from realtime up until this point.
                                 wasConnectedRef.current = false;
 
-                                setQuery(DynamoGeneralRealtimeIndexQuery.new(entriesResult));
+                                dispatch(DynamoGeneralRealtimeIndexQuery.new(entriesResult));
                             },
                             error => setErrorState({hasError: true, error}),
                         );
@@ -167,7 +207,7 @@ export function useInboxState({
                         afterCursor,
                     });
 
-                    setQuery(query => query.loadMore(entriesResult));
+                    dispatch(query => query.loadMore(entriesResult));
                 })();
 
                 return {isLoading: true, promise};
@@ -175,5 +215,9 @@ export function useInboxState({
         },
     );
 
-    return {query, tryLoadingMore};
+    return {
+        query,
+        itemsDeletedByLastChange,
+        tryLoadingMore,
+    };
 }

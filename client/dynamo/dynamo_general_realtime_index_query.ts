@@ -11,6 +11,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {Lazy} from "~/shared/helpers/control/lazy";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
+import {symmetricDiffTree} from "~/shared/helpers/immutable/symmetric_diff_tree";
 import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every";
 import {omitObject} from "~/shared/helpers/object/omit_object";
@@ -692,7 +693,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model> {
     /**
      * Get an item by its key if it exists in the query and is loaded.
      */
-    public getLoadedItemByKeyIfExists(key: DynamoItemKey): DynamoGeneralRealtimeItem<Model> | null {
+    public getItemByKeyIfExists(key: DynamoItemKey): DynamoGeneralRealtimeItem<Model> | null {
         const itemVisibility = this._itemVisibilityByKey.get(key);
         if (!itemVisibility?.isVisible) return null;
 
@@ -718,9 +719,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model> {
      * null if the item key is not in the query or there is no item after this item
      * key in the query.
      */
-    public getLoadedItemAfterKeyIfExists(
-        key: DynamoItemKey,
-    ): DynamoGeneralRealtimeItem<Model> | null {
+    public getItemAfterKeyIfExists(key: DynamoItemKey): DynamoGeneralRealtimeItem<Model> | null {
         const itemVisibility = this._itemVisibilityByKey.get(key);
         if (!itemVisibility?.isVisible) return null;
 
@@ -750,9 +749,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model> {
      * return null if the item key is not in the query or there is no item before
      * this item key in the query.
      */
-    public getLoadedItemBeforeKeyIfExists(
-        key: DynamoItemKey,
-    ): DynamoGeneralRealtimeItem<Model> | null {
+    public getItemBeforeKeyIfExists(key: DynamoItemKey): DynamoGeneralRealtimeItem<Model> | null {
         const itemVisibility = this._itemVisibilityByKey.get(key);
         if (!itemVisibility?.isVisible) return null;
 
@@ -808,6 +805,51 @@ export class DynamoGeneralRealtimeIndexQuery<Model> {
     public getPreviousPageCursorIfExists(): DynamoIndexCursor | null {
         if (this._loadedPageInfo?.type !== "FromEnd") return null;
         return this._loadedPageInfo.startCursor;
+    }
+
+    /**
+     * Get items that were deleted from the provided `oldQuery` in this query.
+     * So any items that were in `oldQuery` but are not in this query.
+     */
+    public getDeletedItems(oldQuery: DynamoGeneralRealtimeIndexQuery<Model>): Iterable<{
+        readonly cursor: DynamoIndexCursor;
+        readonly item: DynamoGeneralRealtimeItem<Model>;
+    }> {
+        const createdItemKeys = new Set<DynamoItemKey>();
+        const deletedOldItemByKey = new Map<
+            DynamoItemKey,
+            {cursor: DynamoIndexCursor; item: DynamoGeneralRealtimeItem<Model>}
+        >();
+
+        for (const change of symmetricDiffTree(oldQuery._itemByCursor, this._itemByCursor)) {
+            switch (change.type) {
+                // Ignore...
+                case "UpdateEntry": {
+                    break;
+                }
+                // We need to look at create changes because if an item is moved then it will
+                // be represented as a delete then a create. We only want items that were
+                // deleted. Not items that were moved.
+                case "CreateEntry": {
+                    createdItemKeys.add(change.newValue.key);
+                    deletedOldItemByKey.delete(change.newValue.key);
+                    break;
+                }
+                case "DeleteEntry": {
+                    if (!createdItemKeys.has(change.oldValue.key)) {
+                        deletedOldItemByKey.set(change.oldValue.key, {
+                            cursor: change.key,
+                            item: change.oldValue,
+                        });
+                    }
+                    break;
+                }
+                default:
+                    throw exhaustive(change);
+            }
+        }
+
+        return deletedOldItemByKey.values();
     }
 }
 

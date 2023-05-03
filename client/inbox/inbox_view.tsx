@@ -12,14 +12,17 @@ import {
 } from "react";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
+import {useRemPx} from "~/client/design/helpers/use_rem_px";
 import {delayFullPageTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
+import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies";
 import {usePromise} from "~/client/helpers/use_promise";
 import {
     InboxEntryView,
+    inboxEntryAnimationDurationMs,
     inboxEntryViewMinHeight,
     inboxEntryWidth,
 } from "~/client/inbox/inbox_entry_view";
@@ -34,7 +37,7 @@ import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view";
-import {spacing} from "~/shared/design/spacing";
+import {convertRemLengthToPx, spacing} from "~/shared/design/spacing";
 import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,
@@ -75,10 +78,11 @@ export function InboxView({
 }) {
     const remixEntryContext = useContext(RemixEntryContext);
     assert(remixEntryContext, "Expected Remix entry context");
+    const remPx = useRemPx();
 
     const entriesViewRef = useRef<VirtualizedScrollViewRef>(null);
 
-    const {query, tryLoadingMore} = useInboxState({
+    const {query, itemsDeletedByLastChange, tryLoadingMore} = useInboxState({
         initialEntriesResult,
     });
 
@@ -238,6 +242,10 @@ export function InboxView({
     const selectedPeek = peekState.transitionPeek ?? peekState.activePeek;
     const selectedEntryKey = selectedPeek?.key;
 
+    // Whenever a new entry is selected:
+    //
+    // 1. We want to scroll to that entry
+    // 2. We want to call our `onPeekChange()` callback which changes the URL
     const lastSelectedEntryKeyRef = useRef(selectedEntryKey);
     useLayoutEffectWithoutServerSideWarning(() => {
         const entriesView = assertExists(entriesViewRef.current);
@@ -255,6 +263,36 @@ export function InboxView({
             onPeekChange(selectedPeek);
         }
     }, [onPeekChange, selectedEntryKey, selectedPeek]);
+
+    const [animationState, setAnimationState] = useStateWithDependencies(
+        itemsDeletedByLastChange => {
+            if (itemsDeletedByLastChange.length === 0) return null;
+            const {cursor, item} = itemsDeletedByLastChange[0]!;
+
+            // We should still have the height of the deleted item in
+            // `VirtualizedScrollViewRef` since the render hasn't finished and unmounted
+            // the element yet.
+            const offset =
+                entriesViewRef.current?.getPositionByKeyIfExists(`Loaded:${item.key}`)?.height ??
+                convertRemLengthToPx(inboxEntryViewMinHeight, remPx);
+
+            return {
+                afterCursor: cursor,
+                offset,
+            };
+        },
+        [itemsDeletedByLastChange],
+    );
+
+    useEffect(() => {
+        if (!animationState) return;
+
+        const timeout = createTimeout(() => {
+            setAnimationState(null);
+        }, inboxEntryAnimationDurationMs);
+
+        return () => timeout.clear();
+    }, [animationState, setAnimationState]);
 
     const itemCount = query.getItemCount();
 
@@ -279,8 +317,7 @@ export function InboxView({
                         // If an item is already selected, select the previous item. Otherwise select
                         // the first item.
                         if (selectedEntryKey) {
-                            const previousEntry =
-                                query.getLoadedItemBeforeKeyIfExists(selectedEntryKey);
+                            const previousEntry = query.getItemBeforeKeyIfExists(selectedEntryKey);
                             if (previousEntry) {
                                 selectEntry(previousEntry);
                             }
@@ -303,7 +340,7 @@ export function InboxView({
                         // If an item is already selected, select the next item. Otherwise select
                         // the first item.
                         if (selectedEntryKey) {
-                            const nextEntry = query.getLoadedItemAfterKeyIfExists(selectedEntryKey);
+                            const nextEntry = query.getItemAfterKeyIfExists(selectedEntryKey);
                             if (nextEntry) {
                                 selectEntry(nextEntry);
                             }
@@ -368,6 +405,12 @@ export function InboxView({
                                                         isLastEntry={index === itemCount - 1}
                                                         aria-posinset={index}
                                                         aria-setsize={ariaSetsize}
+                                                        animationState={
+                                                            animationState &&
+                                                            animationState.afterCursor < item.cursor
+                                                                ? animationState
+                                                                : null
+                                                        }
                                                     />
                                                 ),
                                             };
@@ -396,7 +439,14 @@ export function InboxView({
                                             throw exhaustive(item);
                                     }
                                 },
-                                [ariaSetsize, itemCount, query, selectEntry, selectedEntryKey],
+                                [
+                                    animationState,
+                                    ariaSetsize,
+                                    itemCount,
+                                    query,
+                                    selectEntry,
+                                    selectedEntryKey,
+                                ],
                             )}
                         />
                     </Box>

@@ -1,16 +1,17 @@
 import {isToday} from "date-fns";
+import {animate} from "motion";
 import {ReactNode, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
 import {ContentView} from "~/client/content/content_view";
 import {Box} from "~/client/design/box";
 import {PrettyNumber} from "~/client/design/pretty_number";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {Spacing, parseRemLengthNumber} from "~/shared/design/spacing";
+import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {AccountModel} from "~/shared/models/account_model";
@@ -29,8 +30,8 @@ import {
 } from "~/shared/styles/styles";
 
 export const inboxEntryViewMinHeight = "4rem";
-
 export const inboxEntryWidth: Spacing = "96";
+export const inboxEntryAnimationDurationMs = 300;
 
 export function InboxEntryView({
     entry,
@@ -42,6 +43,7 @@ export function InboxEntryView({
     withinOverlay = false,
     "aria-setsize": ariaSetsize,
     "aria-posinset": ariaPosinset,
+    animationState = null,
 }: {
     entry: InboxEntryModel;
     isSelected?: boolean;
@@ -56,9 +58,34 @@ export function InboxEntryView({
     // https://w3c.github.io/aria/#aria-setsize
     "aria-setsize"?: number;
     "aria-posinset"?: number;
+    animationState?: {
+        afterCursor: DynamoIndexCursor;
+        offset: number;
+    } | null;
 }) {
     const entryRef = useRef<HTMLDivElement>(null);
     const [isPressed, setIsPressed] = useState(false);
+
+    const lastAnimationStateRef = useRef(animationState);
+    useEffect(() => {
+        if (lastAnimationStateRef.current === animationState) return;
+        lastAnimationStateRef.current = animationState;
+
+        if (!animationState) return;
+
+        const entryElement = assertExists(entryRef.current);
+
+        animate(
+            entryElement,
+            {
+                y: [animationState.offset, 0],
+            },
+            {
+                easing: "ease",
+                duration: inboxEntryAnimationDurationMs / 1000,
+            },
+        );
+    }, [animationState]);
 
     let children;
     switch (entry.type) {
