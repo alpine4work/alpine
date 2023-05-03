@@ -76,7 +76,7 @@ test("initializes a query with items from start", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -84,7 +84,7 @@ test("initializes a query with items from start", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -92,7 +92,7 @@ test("initializes a query with items from start", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -137,7 +137,7 @@ test("initializes a query with items from end", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -145,7 +145,7 @@ test("initializes a query with items from end", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -153,7 +153,7 @@ test("initializes a query with items from end", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -198,7 +198,7 @@ test("initializes a query with items from start and a next page", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -206,7 +206,7 @@ test("initializes a query with items from start and a next page", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -214,7 +214,7 @@ test("initializes a query with items from start and a next page", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -265,7 +265,7 @@ test("initializes a query with items from end and a previous page", () => {
             type: "LoadingIndicator",
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -273,7 +273,7 @@ test("initializes a query with items from end and a previous page", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -281,7 +281,7 @@ test("initializes a query with items from end and a previous page", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -326,7 +326,7 @@ test("items update after receiving a realtime event", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -334,7 +334,7 @@ test("items update after receiving a realtime event", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -342,7 +342,7 @@ test("items update after receiving a realtime event", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -365,7 +365,7 @@ test("items update after receiving a realtime event", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -373,7 +373,7 @@ test("items update after receiving a realtime event", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -381,7 +381,7 @@ test("items update after receiving a realtime event", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 1,
@@ -404,7 +404,7 @@ test("items update after receiving a realtime event", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 1,
@@ -412,7 +412,7 @@ test("items update after receiving a realtime event", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -420,7 +420,7 @@ test("items update after receiving a realtime event", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 1,
@@ -443,7 +443,7 @@ test("items update after receiving a realtime event", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 2,
@@ -451,7 +451,7 @@ test("items update after receiving a realtime event", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -459,7 +459,7 @@ test("items update after receiving a realtime event", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 1,
@@ -504,7 +504,7 @@ test("items update after receiving a realtime event out-of-order", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -512,7 +512,7 @@ test("items update after receiving a realtime event out-of-order", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -520,7 +520,7 @@ test("items update after receiving a realtime event out-of-order", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -543,7 +543,7 @@ test("items update after receiving a realtime event out-of-order", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -551,7 +551,7 @@ test("items update after receiving a realtime event out-of-order", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -559,7 +559,7 @@ test("items update after receiving a realtime event out-of-order", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 1,
@@ -582,7 +582,7 @@ test("items update after receiving a realtime event out-of-order", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 2,
@@ -590,7 +590,7 @@ test("items update after receiving a realtime event out-of-order", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -598,7 +598,7 @@ test("items update after receiving a realtime event out-of-order", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 1,
@@ -621,7 +621,7 @@ test("items update after receiving a realtime event out-of-order", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 2,
@@ -629,7 +629,7 @@ test("items update after receiving a realtime event out-of-order", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -637,7 +637,7 @@ test("items update after receiving a realtime event out-of-order", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 1,
@@ -682,7 +682,7 @@ test("items move after receiving a realtime event", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -690,7 +690,7 @@ test("items move after receiving a realtime event", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -698,7 +698,7 @@ test("items move after receiving a realtime event", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -721,7 +721,7 @@ test("items move after receiving a realtime event", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 1,
@@ -729,7 +729,7 @@ test("items move after receiving a realtime event", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -737,7 +737,7 @@ test("items move after receiving a realtime event", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -760,7 +760,7 @@ test("items move after receiving a realtime event", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 1,
@@ -768,7 +768,7 @@ test("items move after receiving a realtime event", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -776,7 +776,7 @@ test("items move after receiving a realtime event", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 1,
@@ -821,7 +821,7 @@ test("items move after receiving a realtime event out-of-order", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 2,
@@ -829,7 +829,7 @@ test("items move after receiving a realtime event out-of-order", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -837,7 +837,7 @@ test("items move after receiving a realtime event out-of-order", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -860,7 +860,7 @@ test("items move after receiving a realtime event out-of-order", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 2,
@@ -868,7 +868,7 @@ test("items move after receiving a realtime event out-of-order", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -876,7 +876,7 @@ test("items move after receiving a realtime event out-of-order", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -899,7 +899,7 @@ test("items move after receiving a realtime event out-of-order", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -907,7 +907,7 @@ test("items move after receiving a realtime event out-of-order", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -915,7 +915,7 @@ test("items move after receiving a realtime event out-of-order", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 4,
@@ -938,7 +938,7 @@ test("items move after receiving a realtime event out-of-order", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -946,7 +946,7 @@ test("items move after receiving a realtime event out-of-order", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -954,7 +954,7 @@ test("items move after receiving a realtime event out-of-order", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 4,
@@ -999,7 +999,7 @@ test("items move out of bounds after receiving a realtime event", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -1007,7 +1007,7 @@ test("items move out of bounds after receiving a realtime event", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -1015,7 +1015,7 @@ test("items move out of bounds after receiving a realtime event", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -1038,7 +1038,7 @@ test("items move out of bounds after receiving a realtime event", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -1046,7 +1046,7 @@ test("items move out of bounds after receiving a realtime event", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -1069,7 +1069,7 @@ test("items move out of bounds after receiving a realtime event", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -1114,7 +1114,7 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -1122,7 +1122,7 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -1130,7 +1130,7 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -1153,7 +1153,7 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -1161,7 +1161,7 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -1184,7 +1184,7 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -1207,7 +1207,7 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -1230,7 +1230,7 @@ test("items move out of bounds and stays out of bounds after receiving an out-of
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -1275,7 +1275,7 @@ test("item created within the query", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -1283,7 +1283,7 @@ test("item created within the query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -1291,7 +1291,7 @@ test("item created within the query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -1314,7 +1314,7 @@ test("item created within the query", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -1322,7 +1322,7 @@ test("item created within the query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -1330,7 +1330,7 @@ test("item created within the query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item4"),
                 version: 0,
@@ -1338,7 +1338,7 @@ test("item created within the query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -1383,7 +1383,7 @@ test("item created then moved out of bounds within the query", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -1391,7 +1391,7 @@ test("item created then moved out of bounds within the query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -1399,7 +1399,7 @@ test("item created then moved out of bounds within the query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -1422,7 +1422,7 @@ test("item created then moved out of bounds within the query", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -1430,7 +1430,7 @@ test("item created then moved out of bounds within the query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -1438,7 +1438,7 @@ test("item created then moved out of bounds within the query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item4"),
                 version: 0,
@@ -1446,7 +1446,7 @@ test("item created then moved out of bounds within the query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -1469,7 +1469,7 @@ test("item created then moved out of bounds within the query", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -1477,7 +1477,7 @@ test("item created then moved out of bounds within the query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -1485,7 +1485,7 @@ test("item created then moved out of bounds within the query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -1530,7 +1530,7 @@ test("item created then moved out of bounds within the query received out-of-ord
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -1538,7 +1538,7 @@ test("item created then moved out of bounds within the query received out-of-ord
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -1546,7 +1546,7 @@ test("item created then moved out of bounds within the query received out-of-ord
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -1569,7 +1569,7 @@ test("item created then moved out of bounds within the query received out-of-ord
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -1577,7 +1577,7 @@ test("item created then moved out of bounds within the query received out-of-ord
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -1585,7 +1585,7 @@ test("item created then moved out of bounds within the query received out-of-ord
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -1608,7 +1608,7 @@ test("item created then moved out of bounds within the query received out-of-ord
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -1616,7 +1616,7 @@ test("item created then moved out of bounds within the query received out-of-ord
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -1624,7 +1624,7 @@ test("item created then moved out of bounds within the query received out-of-ord
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -1669,7 +1669,7 @@ test("item moving in and out of bounds", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -1677,7 +1677,7 @@ test("item moving in and out of bounds", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -1685,7 +1685,7 @@ test("item moving in and out of bounds", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -1708,7 +1708,7 @@ test("item moving in and out of bounds", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -1716,7 +1716,7 @@ test("item moving in and out of bounds", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -1739,7 +1739,7 @@ test("item moving in and out of bounds", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -1747,7 +1747,7 @@ test("item moving in and out of bounds", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 2,
@@ -1755,7 +1755,7 @@ test("item moving in and out of bounds", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -1778,7 +1778,7 @@ test("item moving in and out of bounds", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -1786,7 +1786,7 @@ test("item moving in and out of bounds", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -1831,7 +1831,7 @@ test("item moving in and out of bounds received out-of-order", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -1839,7 +1839,7 @@ test("item moving in and out of bounds received out-of-order", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -1847,7 +1847,7 @@ test("item moving in and out of bounds received out-of-order", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -1870,7 +1870,7 @@ test("item moving in and out of bounds received out-of-order", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -1878,7 +1878,7 @@ test("item moving in and out of bounds received out-of-order", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -1901,7 +1901,7 @@ test("item moving in and out of bounds received out-of-order", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -1909,7 +1909,7 @@ test("item moving in and out of bounds received out-of-order", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -1932,7 +1932,7 @@ test("item moving in and out of bounds received out-of-order", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -1940,7 +1940,7 @@ test("item moving in and out of bounds received out-of-order", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -1985,7 +1985,7 @@ test("can load more at the end of a query", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -1993,7 +1993,7 @@ test("can load more at the end of a query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -2001,7 +2001,7 @@ test("can load more at the end of a query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -2047,7 +2047,7 @@ test("can load more at the end of a query", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -2055,7 +2055,7 @@ test("can load more at the end of a query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -2063,7 +2063,7 @@ test("can load more at the end of a query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -2071,7 +2071,7 @@ test("can load more at the end of a query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item3"),
                 version: 0,
@@ -2079,7 +2079,7 @@ test("can load more at the end of a query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item4"),
                 version: 0,
@@ -2087,7 +2087,7 @@ test("can load more at the end of a query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item5"),
                 version: 0,
@@ -2133,7 +2133,7 @@ test("can load more at the end of a query", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -2141,7 +2141,7 @@ test("can load more at the end of a query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -2149,7 +2149,7 @@ test("can load more at the end of a query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -2157,7 +2157,7 @@ test("can load more at the end of a query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item3"),
                 version: 0,
@@ -2165,7 +2165,7 @@ test("can load more at the end of a query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item4"),
                 version: 0,
@@ -2173,7 +2173,7 @@ test("can load more at the end of a query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item5"),
                 version: 0,
@@ -2181,7 +2181,7 @@ test("can load more at the end of a query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item6"),
                 version: 0,
@@ -2189,7 +2189,7 @@ test("can load more at the end of a query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item7"),
                 version: 0,
@@ -2197,7 +2197,7 @@ test("can load more at the end of a query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item8"),
                 version: 0,
@@ -2245,7 +2245,7 @@ test("can load more at the start of a query", () => {
             type: "LoadingIndicator",
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -2253,7 +2253,7 @@ test("can load more at the start of a query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -2261,7 +2261,7 @@ test("can load more at the start of a query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -2307,7 +2307,7 @@ test("can load more at the start of a query", () => {
             type: "LoadingIndicator",
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item3"),
                 version: 0,
@@ -2315,7 +2315,7 @@ test("can load more at the start of a query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item4"),
                 version: 0,
@@ -2323,7 +2323,7 @@ test("can load more at the start of a query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item5"),
                 version: 0,
@@ -2331,7 +2331,7 @@ test("can load more at the start of a query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -2339,7 +2339,7 @@ test("can load more at the start of a query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -2347,7 +2347,7 @@ test("can load more at the start of a query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -2390,7 +2390,7 @@ test("can load more at the start of a query", () => {
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item6"),
                 version: 0,
@@ -2398,7 +2398,7 @@ test("can load more at the start of a query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item7"),
                 version: 0,
@@ -2406,7 +2406,7 @@ test("can load more at the start of a query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item8"),
                 version: 0,
@@ -2414,7 +2414,7 @@ test("can load more at the start of a query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item3"),
                 version: 0,
@@ -2422,7 +2422,7 @@ test("can load more at the start of a query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item4"),
                 version: 0,
@@ -2430,7 +2430,7 @@ test("can load more at the start of a query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item5"),
                 version: 0,
@@ -2438,7 +2438,7 @@ test("can load more at the start of a query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -2446,7 +2446,7 @@ test("can load more at the start of a query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -2454,7 +2454,7 @@ test("can load more at the start of a query", () => {
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -2499,7 +2499,7 @@ test("can load more at the end of a query that overlaps a bit with the previous 
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -2507,7 +2507,7 @@ test("can load more at the end of a query that overlaps a bit with the previous 
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -2515,7 +2515,7 @@ test("can load more at the end of a query that overlaps a bit with the previous 
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -2567,7 +2567,7 @@ test("can load more at the end of a query that overlaps a bit with the previous 
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -2575,7 +2575,7 @@ test("can load more at the end of a query that overlaps a bit with the previous 
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -2583,7 +2583,7 @@ test("can load more at the end of a query that overlaps a bit with the previous 
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 1,
@@ -2591,7 +2591,7 @@ test("can load more at the end of a query that overlaps a bit with the previous 
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item3"),
                 version: 0,
@@ -2599,7 +2599,7 @@ test("can load more at the end of a query that overlaps a bit with the previous 
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item4"),
                 version: 0,
@@ -2607,7 +2607,7 @@ test("can load more at the end of a query that overlaps a bit with the previous 
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item5"),
                 version: 0,
@@ -2652,7 +2652,7 @@ test("can load more at the end in a way that doesn't overlap with the last query
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -2660,7 +2660,7 @@ test("can load more at the end in a way that doesn't overlap with the last query
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -2668,7 +2668,7 @@ test("can load more at the end in a way that doesn't overlap with the last query
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -2708,7 +2708,7 @@ test("can load more at the end in a way that doesn't overlap with the last query
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -2716,7 +2716,7 @@ test("can load more at the end in a way that doesn't overlap with the last query
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -2724,7 +2724,7 @@ test("can load more at the end in a way that doesn't overlap with the last query
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -2775,7 +2775,7 @@ test("can load more at the start of a query that overlaps a bit with the previou
             type: "LoadingIndicator",
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -2783,7 +2783,7 @@ test("can load more at the start of a query that overlaps a bit with the previou
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -2791,7 +2791,7 @@ test("can load more at the start of a query that overlaps a bit with the previou
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -2840,7 +2840,7 @@ test("can load more at the start of a query that overlaps a bit with the previou
 
     expect(testItems(query)).toEqual([
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item3"),
                 version: 0,
@@ -2848,7 +2848,7 @@ test("can load more at the start of a query that overlaps a bit with the previou
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item4"),
                 version: 0,
@@ -2856,7 +2856,7 @@ test("can load more at the start of a query that overlaps a bit with the previou
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item5"),
                 version: 0,
@@ -2864,7 +2864,7 @@ test("can load more at the start of a query that overlaps a bit with the previou
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 1,
@@ -2872,7 +2872,7 @@ test("can load more at the start of a query that overlaps a bit with the previou
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -2880,7 +2880,7 @@ test("can load more at the start of a query that overlaps a bit with the previou
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -2928,7 +2928,7 @@ test("can load more at the start in a way that doesn't overlap with the last que
             type: "LoadingIndicator",
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -2936,7 +2936,7 @@ test("can load more at the start in a way that doesn't overlap with the last que
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -2944,7 +2944,7 @@ test("can load more at the start in a way that doesn't overlap with the last que
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
@@ -2984,7 +2984,7 @@ test("can load more at the start in a way that doesn't overlap with the last que
             type: "LoadingIndicator",
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item0"),
                 version: 0,
@@ -2992,7 +2992,7 @@ test("can load more at the start in a way that doesn't overlap with the last que
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item1"),
                 version: 0,
@@ -3000,7 +3000,7 @@ test("can load more at the start in a way that doesn't overlap with the last que
             },
         },
         {
-            type: "LoadedItem",
+            type: "Loaded",
             item: {
                 key: testItemKey("item2"),
                 version: 0,
