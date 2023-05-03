@@ -80,10 +80,6 @@ export function InboxView({
 
     const {query, tryLoadingMore} = useInboxState({
         initialEntriesResult,
-        getViewHeight: () => {
-            const view = assertExists(entriesViewRef.current);
-            return view.getHeight();
-        },
     });
 
     // Whenever our query data changes, try loading more entries. In case our
@@ -96,7 +92,7 @@ export function InboxView({
         query;
 
         const view = assertExists(entriesViewRef.current);
-        tryLoadingMore(view.getRenderedRange());
+        tryLoadingMore(view.getHeight(), view.getRenderedRange());
     }, [query, tryLoadingMore]);
 
     // Takes the initial path we get when server-side rendering and returns the key
@@ -109,7 +105,7 @@ export function InboxView({
             const itemCount = query.getItemCount();
             for (let i = 0; i < itemCount; i++) {
                 const item = query.getItem(i);
-                if (item.type === "LoadedItem") {
+                if (item.type === "Loaded") {
                     const path = item.item.model.getPath();
                     const pathString = typeof path !== "string" ? createPath(path) : path;
                     if (pathString === initialPath) {
@@ -254,7 +250,7 @@ export function InboxView({
         } else {
             // When a new entry is selected, make sure it is visible in our scroll window. Scroll to
             // it if it is not visible.
-            if (selectedPeek.key) entriesView.scrollToKeyIfExists(`LoadedItem:${selectedPeek.key}`);
+            if (selectedPeek.key) entriesView.scrollToKeyIfExists(`Loaded:${selectedPeek.key}`);
 
             onPeekChange(selectedPeek);
         }
@@ -283,13 +279,14 @@ export function InboxView({
                         // If an item is already selected, select the previous item. Otherwise select
                         // the first item.
                         if (selectedEntryKey) {
-                            const previousEntry = query.getItemBeforeKeyIfExists(selectedEntryKey);
+                            const previousEntry =
+                                query.getLoadedItemBeforeKeyIfExists(selectedEntryKey);
                             if (previousEntry) {
                                 selectEntry(previousEntry);
                             }
                         } else if (query.getItemCount() > 0) {
                             const item = query.getItem(0);
-                            if (item.type === "LoadedItem") {
+                            if (item.type === "Loaded") {
                                 selectEntry(item.item);
                             }
                         }
@@ -306,13 +303,13 @@ export function InboxView({
                         // If an item is already selected, select the next item. Otherwise select
                         // the first item.
                         if (selectedEntryKey) {
-                            const nextEntry = query.getItemAfterKeyIfExists(selectedEntryKey);
+                            const nextEntry = query.getLoadedItemAfterKeyIfExists(selectedEntryKey);
                             if (nextEntry) {
                                 selectEntry(nextEntry);
                             }
                         } else if (query.getItemCount() > 0) {
                             const item = query.getItem(0);
-                            if (item.type === "LoadedItem") {
+                            if (item.type === "Loaded") {
                                 selectEntry(item.item);
                             }
                         }
@@ -344,15 +341,18 @@ export function InboxView({
                         <VirtualizedScrollView
                             ref={entriesViewRef}
                             bufferedItemHeight={inboxEntryViewMinHeight}
-                            onRenderedRangeChange={tryLoadingMore}
+                            onRenderedRangeChange={renderedRange => {
+                                const view = assertExists(entriesViewRef.current);
+                                tryLoadingMore(view.getHeight(), renderedRange);
+                            }}
                             itemCount={itemCount}
                             renderItem={useCallback(
                                 index => {
                                     const item = query.getItem(index);
                                     switch (item.type) {
-                                        case "LoadedItem": {
+                                        case "Loaded": {
                                             return {
-                                                key: `LoadedItem:${item.item.key}`,
+                                                key: `Loaded:${item.item.key}`,
                                                 minHeight: inboxEntryViewMinHeight,
                                                 node: (
                                                     <InboxEntryView

@@ -22,10 +22,8 @@ import {backfillInboxEntries, getInboxEntries} from "~/shared/rpc/notifications_
  */
 export function useInboxState({
     initialEntriesResult,
-    getViewHeight,
 }: {
     initialEntriesResult: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>;
-    getViewHeight: () => number;
 }) {
     const context = useAppContext();
     const {space} = useSpaceContext();
@@ -117,6 +115,7 @@ export function useInboxState({
 
     const tryLoadingMore = useEvent(
         (
+            viewHeight: number,
             renderedRange: {startIndex: number; endIndex: number} | null,
         ): {isLoading: false} | {isLoading: true; promise: Promise<void>} => {
             // If we're already loading, don't try to load more comments.
@@ -147,8 +146,6 @@ export function useInboxState({
 
                 const afterCursor = query.getNextPageCursorIfExists();
                 if (!afterCursor) return {isLoading: false};
-
-                const viewHeight = getViewHeight();
 
                 const promise = (async () => {
                     // The limit of items we will load is one view worth of entries. This gives

@@ -28,6 +28,7 @@ type DynamoGeneralRealtimeIndexQueryLoadedPageInfo =
 export type DynamoGeneralRealtimeIndexQueryItem<Model> =
     | {
           readonly type: "Loaded";
+          readonly cursor: DynamoIndexCursor;
           readonly item: DynamoGeneralRealtimeItem<Model>;
       }
     | {
@@ -668,11 +669,17 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
         if (this._getItemIterator !== null && this._getItemIterator.index === index - 1) {
             this._getItemIterator.index += 1;
             this._getItemIterator.iterator.next();
-            assert(this._getItemIterator.iterator.node);
-            return {
-                type: "Loaded",
-                item: this._getItemIterator.iterator.node.value,
-            };
+            const iterator = this._getItemIterator.iterator;
+            assert(iterator.node);
+            if (iterator.node.value.type !== "Normal") {
+                return iterator.node.value.item;
+            } else {
+                return {
+                    type: "Loaded",
+                    cursor: iterator.node.key.slice(0, -2) as DynamoIndexCursor,
+                    item: iterator.node.value.item,
+                };
+            }
         } else {
             const iterator = this._itemByCursor.at(index);
             assert(iterator.node);
@@ -692,7 +699,7 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
     /**
      * Get an item by its key if it exists in the query and is loaded.
      */
-    public getItemByKeyIfExists(key: DynamoItemKey): DynamoGeneralRealtimeItem<Model> | null {
+    public getLoadedItemByKeyIfExists(key: DynamoItemKey): DynamoGeneralRealtimeItem<Model> | null {
         const itemVisibility = this._itemVisibilityByKey.get(key);
         if (!itemVisibility?.isVisible) return null;
 
@@ -718,7 +725,9 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
      * null if the item key is not in the query or there is no item after this item
      * key in the query.
      */
-    public getItemAfterKeyIfExists(key: DynamoItemKey): DynamoGeneralRealtimeItem<Model> | null {
+    public getLoadedItemAfterKeyIfExists(
+        key: DynamoItemKey,
+    ): DynamoGeneralRealtimeItem<Model> | null {
         const itemVisibility = this._itemVisibilityByKey.get(key);
         if (!itemVisibility?.isVisible) return null;
 
@@ -748,7 +757,9 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
      * return null if the item key is not in the query or there is no item before
      * this item key in the query.
      */
-    public getItemBeforeKeyIfExists(key: DynamoItemKey): DynamoGeneralRealtimeItem<Model> | null {
+    public getLoadedItemBeforeKeyIfExists(
+        key: DynamoItemKey,
+    ): DynamoGeneralRealtimeItem<Model> | null {
         const itemVisibility = this._itemVisibilityByKey.get(key);
         if (!itemVisibility?.isVisible) return null;
 

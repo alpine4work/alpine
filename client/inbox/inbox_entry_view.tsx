@@ -1,15 +1,17 @@
 import {isToday} from "date-fns";
-import {ReactNode, useMemo, useState} from "react";
+import {ReactNode, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
 import {ContentView} from "~/client/content/content_view";
 import {Box} from "~/client/design/box";
 import {PrettyNumber} from "~/client/design/pretty_number";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {Spacing, parseRemLengthNumber} from "~/shared/design/spacing";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {AccountModel} from "~/shared/models/account_model";
 import {
@@ -35,11 +37,11 @@ export function InboxEntryView({
     isSelected = false,
     onPressStart,
     onPress,
-    "aria-setsize": ariaSetsize,
-    "aria-posinset": ariaPosinset,
     isFirstEntry,
     isLastEntry,
     withinOverlay = false,
+    "aria-setsize": ariaSetsize,
+    "aria-posinset": ariaPosinset,
 }: {
     entry: InboxEntryModel;
     isSelected?: boolean;
@@ -55,211 +57,24 @@ export function InboxEntryView({
     "aria-setsize"?: number;
     "aria-posinset"?: number;
 }) {
+    const entryRef = useRef<HTMLDivElement>(null);
+    const [isPressed, setIsPressed] = useState(false);
+
+    let children;
     switch (entry.type) {
         case "Chat":
-            return (
-                <InboxChatEntryView
-                    entry={entry}
-                    isSelected={isSelected}
-                    onPressStart={onPressStart}
-                    onPress={onPress}
-                    isFirstEntry={isFirstEntry}
-                    isLastEntry={isLastEntry}
-                    withinOverlay={withinOverlay}
-                    aria-setsize={ariaSetsize}
-                    aria-posinset={ariaPosinset}
-                />
-            );
+            children = <InboxChatEntryView entry={entry} />;
+            break;
         case "PostComments":
-            return (
-                <InboxPostCommentsEntryView
-                    entry={entry}
-                    isSelected={isSelected}
-                    onPressStart={onPressStart}
-                    onPress={onPress}
-                    isFirstEntry={isFirstEntry}
-                    isLastEntry={isLastEntry}
-                    withinOverlay={withinOverlay}
-                    aria-setsize={ariaSetsize}
-                    aria-posinset={ariaPosinset}
-                />
-            );
+            children = <InboxPostCommentsEntryView entry={entry} />;
+            break;
         default:
             throw exhaustive(entry);
     }
-}
-
-const boldClassName = sprinkles({
-    fontStyle: "bold",
-});
-
-function InboxChatEntryView({
-    entry,
-    isSelected,
-    onPressStart,
-    onPress,
-    isFirstEntry,
-    isLastEntry,
-    withinOverlay,
-    "aria-setsize": ariaSetsize,
-    "aria-posinset": ariaPosinset,
-}: {
-    entry: InboxChatEntryModel;
-    isSelected: boolean;
-    onPressStart: (() => void) | undefined;
-    onPress: (() => void) | undefined;
-    isFirstEntry: boolean;
-    isLastEntry: boolean;
-    withinOverlay: boolean;
-    "aria-setsize": number | undefined;
-    "aria-posinset": number | undefined;
-}) {
-    const firstAccount = entry.otherChatAccount ?? entry.latestMessage.author;
-
-    const secondAccount =
-        entry.latestMessage.author.id !== firstAccount.id ? entry.latestMessage.author : null;
-
-    return (
-        <InboxEntryViewBase
-            firstAccount={firstAccount}
-            secondAccount={secondAccount}
-            loudNotificationCount={entry.loudNotificationCount}
-            isSelected={isSelected}
-            onPressStart={onPressStart}
-            onPress={onPress}
-            isFirstEntry={isFirstEntry}
-            isLastEntry={isLastEntry}
-            withinOverlay={withinOverlay}
-            aria-setsize={ariaSetsize}
-            aria-posinset={ariaPosinset}
-        >
-            <Box>
-                <span className={boldClassName}>
-                    <AccountShortName account={entry.latestMessage.author} />
-                </span>{" "}
-                sent you
-                {entry.chatAccountCount === 3 && entry.otherChatAccount ? (
-                    <>
-                        {" "}
-                        and{" "}
-                        <span className={boldClassName}>
-                            <AccountShortName account={entry.otherChatAccount} />
-                        </span>
-                    </>
-                ) : entry.chatAccountCount > 2 ? (
-                    <>
-                        {" "}
-                        and <PrettyNumber number={entry.chatAccountCount - 2} label="other" />
-                    </>
-                ) : null}{" "}
-                a chat message
-            </Box>
-            <InboxEntryLatestMessagePreview latestMessage={entry.latestMessage} />
-        </InboxEntryViewBase>
-    );
-}
-
-function InboxPostCommentsEntryView({
-    entry,
-    isSelected,
-    onPressStart,
-    onPress,
-    isFirstEntry,
-    isLastEntry,
-    withinOverlay,
-    "aria-setsize": ariaSetsize,
-    "aria-posinset": ariaPosinset,
-}: {
-    entry: InboxPostCommentsEntryModel;
-    isSelected: boolean;
-    onPressStart: (() => void) | undefined;
-    onPress: (() => void) | undefined;
-    isFirstEntry: boolean;
-    isLastEntry: boolean;
-    withinOverlay: boolean;
-    "aria-setsize": number | undefined;
-    "aria-posinset": number | undefined;
-}) {
-    const {currentAccount} = useSpaceContext();
-
-    const firstAccount: AccountModel =
-        entry.postAuthor.id !== currentAccount.id
-            ? entry.postAuthor
-            : entry.otherCommentAuthor ?? entry.latestComment.author;
-
-    const secondAccount: AccountModel | null = false
-        ? null
-        : entry.latestComment.author.id !== firstAccount.id
-        ? entry.latestComment.author
-        : null;
-
-    return (
-        <InboxEntryViewBase
-            firstAccount={firstAccount}
-            secondAccount={secondAccount}
-            loudNotificationCount={entry.loudNotificationCount}
-            isSelected={isSelected}
-            onPressStart={onPressStart}
-            onPress={onPress}
-            isFirstEntry={isFirstEntry}
-            isLastEntry={isLastEntry}
-            withinOverlay={withinOverlay}
-            aria-setsize={ariaSetsize}
-            aria-posinset={ariaPosinset}
-        >
-            <Box>
-                {currentAccount.id === entry.postAuthor.id ? (
-                    "Your"
-                ) : (
-                    <>
-                        <span className={boldClassName}>
-                            <AccountShortName account={entry.postAuthor} />
-                        </span>
-                        ’s
-                    </>
-                )}{" "}
-                post in <span className={boldClassName}>{entry.channel.name}</span> has new comments
-            </Box>
-            <InboxEntryLatestMessagePreview latestMessage={entry.latestComment} />
-        </InboxEntryViewBase>
-    );
-}
-
-function InboxEntryViewBase({
-    firstAccount,
-    secondAccount,
-    loudNotificationCount,
-    isSelected,
-    onPressStart,
-    onPress,
-    isFirstEntry,
-    isLastEntry,
-    withinOverlay,
-    "aria-setsize": ariaSetsize,
-    "aria-posinset": ariaPosinset,
-    children,
-}: {
-    firstAccount: AccountModel;
-    secondAccount: AccountModel | null;
-    loudNotificationCount: number;
-    isSelected: boolean;
-    onPressStart: (() => void) | undefined;
-    onPress: (() => void) | undefined;
-    isFirstEntry: boolean;
-    isLastEntry: boolean;
-    withinOverlay: boolean;
-    // Because entries are virtualized, we need to set these properties so screen
-    // readers can correctly announce what position the user is in no matter
-    // what's in the DOM.
-    // https://w3c.github.io/aria/#aria-setsize
-    "aria-setsize": number | undefined;
-    "aria-posinset": number | undefined;
-    children?: ReactNode;
-}) {
-    const [isPressed, setIsPressed] = useState(false);
 
     return (
         <Box
+            ref={entryRef}
             // Our inbox implements the ARIA `listbox` role.
             // https://www.w3.org/WAI/ARIA/apg/patterns/listbox
             role="option"
@@ -311,48 +126,146 @@ function InboxEntryViewBase({
                                 : undefined,
                     }}
                 >
-                    <Box flexShrink="0" paddingY="3">
-                        <Box
-                            position="relative"
-                            width="10"
-                            height="10"
-                            display="flex"
-                            alignItems="center"
-                            justifyContent="center"
-                        >
-                            {!secondAccount ? (
-                                <AccountAvatar account={firstAccount} size="9" />
-                            ) : (
-                                <>
-                                    <Box position="absolute" top="0" left="0">
-                                        <AccountAvatar account={firstAccount} size="7" />
-                                    </Box>
-                                    <Box
-                                        position="absolute"
-                                        bottom="0"
-                                        right="0"
-                                        borderRadius="full"
-                                        style={{boxShadow: `0 0 0 2px ${backgroundColorVar}`}}
-                                    >
-                                        <AccountAvatar account={secondAccount} size="7" />
-                                    </Box>
-                                </>
-                            )}
-                            {loudNotificationCount > 0 && (
-                                <LoudNotificationBadge
-                                    top="0"
-                                    right="1"
-                                    loudNotificationCount={loudNotificationCount}
-                                />
-                            )}
-                        </Box>
-                    </Box>
-                    <Box paddingY="3" flexGrow="1" fontSize="75" overflow="hidden">
-                        {children}
-                    </Box>
+                    {children}
                 </Box>
             </Box>
         </Box>
+    );
+}
+
+const boldClassName = sprinkles({
+    fontStyle: "bold",
+});
+
+function InboxChatEntryView({entry}: {entry: InboxChatEntryModel}) {
+    const firstAccount = entry.otherChatAccount ?? entry.latestMessage.author;
+
+    const secondAccount =
+        entry.latestMessage.author.id !== firstAccount.id ? entry.latestMessage.author : null;
+
+    return (
+        <InboxEntryViewBase
+            firstAccount={firstAccount}
+            secondAccount={secondAccount}
+            loudNotificationCount={entry.loudNotificationCount}
+        >
+            <Box>
+                <span className={boldClassName}>
+                    <AccountShortName account={entry.latestMessage.author} />
+                </span>{" "}
+                sent you
+                {entry.chatAccountCount === 3 && entry.otherChatAccount ? (
+                    <>
+                        {" "}
+                        and{" "}
+                        <span className={boldClassName}>
+                            <AccountShortName account={entry.otherChatAccount} />
+                        </span>
+                    </>
+                ) : entry.chatAccountCount > 2 ? (
+                    <>
+                        {" "}
+                        and <PrettyNumber number={entry.chatAccountCount - 2} label="other" />
+                    </>
+                ) : null}{" "}
+                a chat message
+            </Box>
+            <InboxEntryLatestMessagePreview latestMessage={entry.latestMessage} />
+        </InboxEntryViewBase>
+    );
+}
+
+function InboxPostCommentsEntryView({entry}: {entry: InboxPostCommentsEntryModel}) {
+    const {currentAccount} = useSpaceContext();
+
+    const firstAccount: AccountModel =
+        entry.postAuthor.id !== currentAccount.id
+            ? entry.postAuthor
+            : entry.otherCommentAuthor ?? entry.latestComment.author;
+
+    const secondAccount: AccountModel | null = false
+        ? null
+        : entry.latestComment.author.id !== firstAccount.id
+        ? entry.latestComment.author
+        : null;
+
+    return (
+        <InboxEntryViewBase
+            firstAccount={firstAccount}
+            secondAccount={secondAccount}
+            loudNotificationCount={entry.loudNotificationCount}
+        >
+            <Box>
+                {currentAccount.id === entry.postAuthor.id ? (
+                    "Your"
+                ) : (
+                    <>
+                        <span className={boldClassName}>
+                            <AccountShortName account={entry.postAuthor} />
+                        </span>
+                        ’s
+                    </>
+                )}{" "}
+                post in <span className={boldClassName}>{entry.channel.name}</span> has new comments
+            </Box>
+            <InboxEntryLatestMessagePreview latestMessage={entry.latestComment} />
+        </InboxEntryViewBase>
+    );
+}
+
+function InboxEntryViewBase({
+    firstAccount,
+    secondAccount,
+    loudNotificationCount,
+    children,
+}: {
+    firstAccount: AccountModel;
+    secondAccount: AccountModel | null;
+    loudNotificationCount: number;
+    children?: ReactNode;
+}) {
+    return (
+        <>
+            <Box flexShrink="0" paddingY="3">
+                <Box
+                    position="relative"
+                    width="10"
+                    height="10"
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                >
+                    {!secondAccount ? (
+                        <AccountAvatar account={firstAccount} size="9" />
+                    ) : (
+                        <>
+                            <Box position="absolute" top="0" left="0">
+                                <AccountAvatar account={firstAccount} size="7" />
+                            </Box>
+                            <Box
+                                position="absolute"
+                                bottom="0"
+                                right="0"
+                                borderRadius="full"
+                                style={{boxShadow: `0 0 0 2px ${backgroundColorVar}`}}
+                            >
+                                <AccountAvatar account={secondAccount} size="7" />
+                            </Box>
+                        </>
+                    )}
+                    {loudNotificationCount > 0 && (
+                        <LoudNotificationBadge
+                            top="0"
+                            right="1"
+                            loudNotificationCount={loudNotificationCount}
+                        />
+                    )}
+                </Box>
+            </Box>
+            <Box paddingY="3" flexGrow="1" fontSize="75" overflow="hidden">
+                {children}
+            </Box>
+        </>
     );
 }
 

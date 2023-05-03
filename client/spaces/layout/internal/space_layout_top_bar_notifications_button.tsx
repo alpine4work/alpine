@@ -448,10 +448,6 @@ function SpaceLayoutTopBarNotificationOverlayInbox({
 
     const {query, tryLoadingMore} = useInboxState({
         initialEntriesResult,
-        getViewHeight: () => {
-            const view = assertExists(viewRef.current);
-            return view.getHeight();
-        },
     });
 
     // Whenever our query data changes, try loading more entries. In case our
@@ -464,7 +460,7 @@ function SpaceLayoutTopBarNotificationOverlayInbox({
         query;
 
         const view = assertExists(viewRef.current);
-        tryLoadingMore(view.getRenderedRange());
+        tryLoadingMore(view.getHeight(), view.getRenderedRange());
     }, [query, tryLoadingMore]);
 
     const itemCount = query.getItemCount();
@@ -474,15 +470,18 @@ function SpaceLayoutTopBarNotificationOverlayInbox({
             ref={viewRef}
             bufferedItemHeight={inboxEntryViewMinHeight}
             initialViewHeight={spacing[notificationOverlayHeight]}
-            onRenderedRangeChange={tryLoadingMore}
+            onRenderedRangeChange={renderedRange => {
+                const view = assertExists(viewRef.current);
+                tryLoadingMore(view.getHeight(), renderedRange);
+            }}
             itemCount={itemCount}
             renderItem={useCallback(
                 index => {
                     const item = query.getItem(index);
                     switch (item.type) {
-                        case "LoadedItem": {
+                        case "Loaded": {
                             return {
-                                key: `LoadedItem:${item.item.key}`,
+                                key: `Loaded:${item.item.key}`,
                                 minHeight: inboxEntryViewMinHeight,
                                 node: (
                                     <SpaceLayoutTopBarNotificationOverlayInboxEntry
