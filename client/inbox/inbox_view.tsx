@@ -1,7 +1,15 @@
 import {RemixEntryContext} from "@remix-run/react";
 import {MemoryHistory, createMemoryHistory, createPath} from "history";
 import {SpinnerGap} from "phosphor-react";
-import {MutableRefObject, useCallback, useContext, useEffect, useRef, useState} from "react";
+import {
+    MutableRefObject,
+    useCallback,
+    useContext,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {delayFullPageTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
@@ -147,18 +155,19 @@ export function InboxView({
     // included in the initial set of inbox entries.
     useEffect(() => {
         if (peekState.activePeek && !peekState.activePeek.key) {
-            setPeekState(peekState => {
-                if (!peekState.activePeek || peekState.activePeek.key) {
-                    return peekState;
-                }
-                return {
-                    ...peekState,
-                    activePeek: {
-                        ...peekState.activePeek,
-                        key: findItemKeyForPathIfExists(peekState.activePeek.initialPath),
-                    },
-                };
-            });
+            const key = findItemKeyForPathIfExists(peekState.activePeek.initialPath);
+
+            if (key) {
+                setPeekState(peekState => {
+                    if (!peekState.activePeek || peekState.activePeek.key) {
+                        return peekState;
+                    }
+                    return {
+                        ...peekState,
+                        activePeek: {...peekState.activePeek, key},
+                    };
+                });
+            }
         }
     }, [findItemKeyForPathIfExists, peekState.activePeek]);
 
@@ -392,15 +401,20 @@ export function InboxView({
                         />
                     </Box>
                 </FocusRing>
-                <Box flexGrow="1" overflow="hidden">
-                    {peekState.activePeek && (
-                        <InboxViewPeekContent
-                            // Fully remount whenever the peek changes...
-                            key={peekState.activePeek.key}
-                            peek={peekState.activePeek}
-                        />
-                    )}
-                </Box>
+                {useMemo(
+                    () => (
+                        <Box flexGrow="1" overflow="hidden">
+                            {peekState.activePeek && (
+                                <InboxViewPeekContent
+                                    // Fully remount whenever the peek changes...
+                                    key={peekState.activePeek.key}
+                                    peek={peekState.activePeek}
+                                />
+                            )}
+                        </Box>
+                    ),
+                    [peekState.activePeek],
+                )}
             </Box>
         </GlobalKeyDownEvent>
     );

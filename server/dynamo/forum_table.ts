@@ -618,20 +618,20 @@ async function createPostModelFromItem(
 }
 
 /**
- * Get the `ChannelPreviewModel` for a post.
+ * Get the `ChannelPreviewModel` for a post and the `AccountModel` who authored
+ * the post.
  */
 export async function getPostAuthorAndChannelPreview(context: ActionContext, postId: PostId) {
-    const postItem = await ForumTable.getPartialItem(
-        context,
-        {
-            partitionType: "Post",
-            sortRangeType: "Attributes",
-            postId,
-        },
-        {
-            attributes: ["spaceId", "authorId", "channelId"],
-        },
-    );
+    // NOTE(calebmer): Ideally we'd use `getPartialItem()` here but it doesn't
+    // batch into one network request so while we're on Cloudflare Workers we find
+    // ourselves hitting the Cloudflare Workers sub-request limit. Switch this back
+    // to `getPartialItem()` if we switch away from Cloudflare Workers for running
+    // DynamoDB reads.
+    const postItem = await ForumTable.getItem(context, {
+        partitionType: "Post",
+        sortRangeType: "Attributes",
+        postId,
+    });
 
     const [author, channel] = await runAllPromises([
         getAccount(context, postItem.spaceId, postItem.authorId),
