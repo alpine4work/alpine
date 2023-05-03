@@ -35,35 +35,14 @@ export type DynamoGeneralRealtimeIndexQueryItem<Model> =
           readonly type: "LoadingIndicator";
       };
 
-type DynamoGeneralRealtimeIndexQueryData<Model> = {
-    readonly indexName: string;
-    readonly startCursorBound: string | null;
-    readonly endCursorBound: string | null;
-    readonly readTime: Date;
-    readonly itemByCursor: Tree<
-        DynamoIndexCursor,
-        DynamoGeneralRealtimeItem<Model> & {cursor?: undefined}
-    >;
-    readonly itemVisibilityByKey: ImmutableMap<
-        DynamoItemKey,
-        | {readonly isVisible: true; readonly cursor: DynamoIndexCursor}
-        | {readonly isVisible: false; readonly version: number}
-    >;
-    readonly loadedPageInfo: DynamoGeneralRealtimeIndexQueryLoadedPageInfo | null;
-};
-
 /**
  * An immutable object representing the client state of a query against an
  * index in a DynamoDB realtime table. Handles loading pages fetched from the
  * server with eventual consistency and receiving realtime events out-of-order.
  *
  * Realtime queries should be eventually correct within a few seconds.
- *
- * This is a base class which allows some customization. For example adding
- * custom items within the query. If you want to use this class without
- * customization see the `DynamoGeneralRealtimeIndexQuery` subclass.
  */
-export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
+export class DynamoGeneralRealtimeIndexQuery<Model> {
     /**
      * The name of the index we are querying. Cursors are only meaningful for a
      * specific index. Can not load results across indexes.
@@ -172,7 +151,7 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
      */
     private readonly _loadedPageInfo: DynamoGeneralRealtimeIndexQueryLoadedPageInfo | null;
 
-    protected constructor({
+    private constructor({
         indexName,
         startCursorBound,
         endCursorBound,
@@ -180,7 +159,22 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
         itemByCursor,
         itemVisibilityByKey,
         loadedPageInfo,
-    }: DynamoGeneralRealtimeIndexQueryData<Model>) {
+    }: {
+        indexName: string;
+        startCursorBound: string | null;
+        endCursorBound: string | null;
+        readTime: Date;
+        itemByCursor: Tree<
+            DynamoIndexCursor,
+            DynamoGeneralRealtimeItem<Model> & {cursor?: undefined}
+        >;
+        itemVisibilityByKey: ImmutableMap<
+            DynamoItemKey,
+            | {readonly isVisible: true; readonly cursor: DynamoIndexCursor}
+            | {readonly isVisible: false; readonly version: number}
+        >;
+        loadedPageInfo: DynamoGeneralRealtimeIndexQueryLoadedPageInfo | null;
+    }) {
         // Run some data validity assertions to verify assumptions about our data in
         // development and test environments but not in production since these
         // assertions can be expensive.
@@ -218,18 +212,18 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
         this._loadedPageInfo = loadedPageInfo;
     }
 
-    /**
-     * Construct a new immutable instance of our class.
-     */
-    protected abstract _construct(data: DynamoGeneralRealtimeIndexQueryData<Model>): this;
-
     public getReadTime() {
         return this._readTime;
     }
 
-    protected static _getInitialData<Model>(
+    /**
+     * Initialize our immutable query data type with a query result.
+     *
+     * Does not currently support initializing data in the middle of the query.
+     */
+    public static new<Model>(
         result: DynamoGeneralRealtimeIndexQueryResult<Model>,
-    ): DynamoGeneralRealtimeIndexQueryData<Model> {
+    ): DynamoGeneralRealtimeIndexQuery<Model> {
         let itemByCursor = createTree<
             DynamoIndexCursor,
             DynamoGeneralRealtimeItem<Model> & {cursor?: undefined}
@@ -304,7 +298,7 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
                 throw exhaustive(result.pageInfo);
         }
 
-        return {
+        return new DynamoGeneralRealtimeIndexQuery({
             indexName: result.indexName,
             startCursorBound: result.startCursorBound,
             endCursorBound: result.endCursorBound,
@@ -312,7 +306,7 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
             itemByCursor,
             itemVisibilityByKey,
             loadedPageInfo,
-        };
+        });
     }
 
     /**
@@ -321,20 +315,22 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
      *
      * Throws an error if the data is from a different index.
      */
-    public loadMore(result: DynamoGeneralRealtimeIndexQueryResult<Model>): this {
-        return DynamoGeneralRealtimeIndexQueryBase._loadMore(this, result);
+    public loadMore(
+        result: DynamoGeneralRealtimeIndexQueryResult<Model>,
+    ): DynamoGeneralRealtimeIndexQuery<Model> {
+        return DynamoGeneralRealtimeIndexQuery._loadMore(this, result);
     }
 
     // Use a static method so we can reassign `this` within the function.
-    private static _loadMore<Model, Self extends DynamoGeneralRealtimeIndexQueryBase<Model>>(
-        self: Self,
+    private static _loadMore<Model>(
+        query: DynamoGeneralRealtimeIndexQuery<Model>,
         result: DynamoGeneralRealtimeIndexQueryResult<Model>,
-    ): Self {
-        if (self._indexName !== result.indexName) {
+    ): DynamoGeneralRealtimeIndexQuery<Model> {
+        if (query._indexName !== result.indexName) {
             throw new InternalError("Tried to load more data from a different index");
         }
 
-        self = self._putItems(
+        query = query._putItems(
             result.readTime,
             result.items.map(item => ({
                 cursor: item.cursor,
@@ -342,7 +338,7 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
             })),
         );
 
-        let loadedPageInfo = self._loadedPageInfo;
+        let loadedPageInfo = query._loadedPageInfo;
 
         // Update the loaded page if our new page extends its bounds. That means the
         // new page should start within the loaded page and should end outside of the
@@ -352,7 +348,7 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
                 const lastItem =
                     result.items.length > 0 ? result.items[result.items.length - 1]! : null;
 
-                if (self._loadedPageInfo?.type === "FromStart") {
+                if (query._loadedPageInfo?.type === "FromStart") {
                     const resultStartCursorBound =
                         result.pageInfo.afterCursor !== null &&
                         result.startCursorBound !== null &&
@@ -362,7 +358,7 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
 
                     if (
                         resultStartCursorBound === null ||
-                        resultStartCursorBound <= self._loadedPageInfo.endCursor
+                        resultStartCursorBound <= query._loadedPageInfo.endCursor
                     ) {
                         loadedPageInfo =
                             lastItem && result.pageInfo.hasNextPage
@@ -378,7 +374,7 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
             case "FromEnd": {
                 const firstItem = result.items.length > 0 ? result.items[0]! : null;
 
-                if (self._loadedPageInfo?.type === "FromEnd") {
+                if (query._loadedPageInfo?.type === "FromEnd") {
                     const resultEndCursorBound =
                         result.pageInfo.beforeCursor !== null &&
                         result.endCursorBound !== null &&
@@ -388,7 +384,7 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
 
                     if (
                         resultEndCursorBound === null ||
-                        resultEndCursorBound >= self._loadedPageInfo.startCursor
+                        resultEndCursorBound >= query._loadedPageInfo.startCursor
                     ) {
                         loadedPageInfo =
                             firstItem && result.pageInfo.hasPreviousPage
@@ -406,15 +402,15 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
         }
 
         // Optimization: If nothing changed, don't update our instance.
-        if (loadedPageInfo === self._loadedPageInfo) return self;
+        if (loadedPageInfo === query._loadedPageInfo) return query;
 
-        return self._construct({
-            indexName: self._indexName,
-            startCursorBound: self._startCursorBound,
-            endCursorBound: self._endCursorBound,
-            readTime: self._readTime,
-            itemByCursor: self._itemByCursor,
-            itemVisibilityByKey: self._itemVisibilityByKey,
+        return new DynamoGeneralRealtimeIndexQuery({
+            indexName: query._indexName,
+            startCursorBound: query._startCursorBound,
+            endCursorBound: query._endCursorBound,
+            readTime: query._readTime,
+            itemByCursor: query._itemByCursor,
+            itemVisibilityByKey: query._itemVisibilityByKey,
             loadedPageInfo,
         });
     }
@@ -426,7 +422,7 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
     public handleEventTransaction(
         readTime: Date,
         eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<unknown>>,
-    ): this {
+    ): DynamoGeneralRealtimeIndexQuery<Model> {
         return this._putItems(
             readTime,
             filterMapArray(eventTransaction, event => {
@@ -452,7 +448,7 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
             cursor: DynamoIndexCursor;
             item: DynamoGeneralRealtimeItem<Model> & {cursor?: undefined};
         }>,
-    ): this {
+    ): DynamoGeneralRealtimeIndexQuery<Model> {
         let itemByCursor = this._itemByCursor;
         let itemVisibilityByKey = this._itemVisibilityByKey;
 
@@ -530,7 +526,7 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
             return this;
         }
 
-        return this._construct({
+        return new DynamoGeneralRealtimeIndexQuery({
             indexName: this._indexName,
             startCursorBound: this._startCursorBound,
             endCursorBound: this._endCursorBound,
@@ -671,15 +667,11 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
             this._getItemIterator.iterator.next();
             const iterator = this._getItemIterator.iterator;
             assert(iterator.node);
-            if (iterator.node.value.type !== "Normal") {
-                return iterator.node.value.item;
-            } else {
-                return {
-                    type: "Loaded",
-                    cursor: iterator.node.key.slice(0, -2) as DynamoIndexCursor,
-                    item: iterator.node.value.item,
-                };
-            }
+            return {
+                type: "Loaded",
+                cursor: iterator.node.key,
+                item: iterator.node.value,
+            };
         } else {
             const iterator = this._itemByCursor.at(index);
             assert(iterator.node);
@@ -691,6 +683,7 @@ export abstract class DynamoGeneralRealtimeIndexQueryBase<Model> {
 
             return {
                 type: "Loaded",
+                cursor: iterator.node.key,
                 item: iterator.node.value,
             };
         }
@@ -824,40 +817,5 @@ function* iterateTreeEntries<Key, Value>(tree: Tree<Key, Value>): IterableIterat
     while (iterator.valid) {
         yield [iterator.key!, iterator.value!];
         iterator.next();
-    }
-}
-
-/**
- * An immutable object representing the client state of a query against an
- * index in a DynamoDB realtime table. Handles loading pages fetched from the
- * server with eventual consistency and receiving realtime events out-of-order.
- *
- * Realtime queries should be eventually correct within a few seconds.
- */
-export class DynamoGeneralRealtimeIndexQuery<
-    Model,
-> extends DynamoGeneralRealtimeIndexQueryBase<Model> {
-    // Private constructor means you can't subclass.
-    private constructor(data: DynamoGeneralRealtimeIndexQueryData<Model>) {
-        super(data);
-    }
-
-    protected override _construct(data: DynamoGeneralRealtimeIndexQueryData<Model>): this {
-        // Ok to case `as this` because our class has a private constructor and can't
-        // be subclassed.
-        return new DynamoGeneralRealtimeIndexQuery(data) as this;
-    }
-
-    /**
-     * Initialize our immutable query data type with a query result.
-     *
-     * Does not currently support initializing data in the middle of the query.
-     */
-    public static new<Model>(
-        result: DynamoGeneralRealtimeIndexQueryResult<Model>,
-    ): DynamoGeneralRealtimeIndexQuery<Model> {
-        return new DynamoGeneralRealtimeIndexQuery(
-            DynamoGeneralRealtimeIndexQueryBase._getInitialData(result),
-        );
     }
 }
