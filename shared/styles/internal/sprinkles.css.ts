@@ -249,31 +249,56 @@ const colorProperties = defineProperties({
         })),
 
         // Default to thin 1px borders over chunky borders.
-        border: mapObjectValues(colorSchemeVarsWithTransparent, colorSchemeVar => ({
-            borderStyle: "solid",
-            borderWidth: 1,
-            borderColor: colorSchemeVar,
-        })),
-        borderTop: mapObjectValues(colorSchemeVarsWithTransparent, colorSchemeVar => ({
-            borderStyle: "solid",
-            borderTopWidth: 1,
-            borderTopColor: colorSchemeVar,
-        })),
-        borderBottom: mapObjectValues(colorSchemeVarsWithTransparent, colorSchemeVar => ({
-            borderStyle: "solid",
-            borderBottomWidth: 1,
-            borderBottomColor: colorSchemeVar,
-        })),
-        borderLeft: mapObjectValues(colorSchemeVarsWithTransparent, colorSchemeVar => ({
-            borderStyle: "solid",
-            borderLeftWidth: 1,
-            borderLeftColor: colorSchemeVar,
-        })),
-        borderRight: mapObjectValues(colorSchemeVarsWithTransparent, colorSchemeVar => ({
-            borderStyle: "solid",
-            borderRightWidth: 1,
-            borderRightColor: colorSchemeVar,
-        })),
+        border: {
+            ...mapObjectValues(colorSchemeVarsWithTransparent, colorSchemeVar => ({
+                borderStyle: "solid",
+                borderWidth: 1,
+                borderColor: colorSchemeVar,
+            })),
+            none: {
+                border: "none",
+            },
+        },
+        borderTop: {
+            ...mapObjectValues(colorSchemeVarsWithTransparent, colorSchemeVar => ({
+                borderStyle: "solid",
+                borderTopWidth: 1,
+                borderTopColor: colorSchemeVar,
+            })),
+            none: {
+                borderTop: "none",
+            },
+        },
+        borderBottom: {
+            ...mapObjectValues(colorSchemeVarsWithTransparent, colorSchemeVar => ({
+                borderStyle: "solid",
+                borderBottomWidth: 1,
+                borderBottomColor: colorSchemeVar,
+            })),
+            none: {
+                borderBottom: "none",
+            },
+        },
+        borderLeft: {
+            ...mapObjectValues(colorSchemeVarsWithTransparent, colorSchemeVar => ({
+                borderStyle: "solid",
+                borderLeftWidth: 1,
+                borderLeftColor: colorSchemeVar,
+            })),
+            none: {
+                borderLeft: "none",
+            },
+        },
+        borderRight: {
+            ...mapObjectValues(colorSchemeVarsWithTransparent, colorSchemeVar => ({
+                borderStyle: "solid",
+                borderRightWidth: 1,
+                borderRightColor: colorSchemeVar,
+            })),
+            none: {
+                borderRight: "none",
+            },
+        },
     },
     shorthands: {
         borderX: ["borderLeft", "borderRight"],

@@ -26,6 +26,7 @@ import {
     inboxEntryViewMinHeight,
     inboxEntryWidth,
 } from "~/client/inbox/inbox_entry_view";
+import {InboxViewTopBar} from "~/client/inbox/inbox_view_top_bar";
 import {useInboxState} from "~/client/inbox/use_inbox_state";
 import {loadInitialPeekDataForClient} from "~/client/peek/load_initial_peek_data_for_client";
 import {
@@ -390,6 +391,7 @@ export function InboxView({
                 }
             }}
         >
+            <InboxViewTopBar />
             <Box flexGrow="1" overflow="hidden" display="flex">
                 <FocusRing offset="inset">
                     <Box

@@ -15,7 +15,7 @@ import {Sprinkles, spinAnimationClassName, sprinkles} from "~/shared/styles/styl
 const ButtonForwardRef = forwardRef(Button);
 export {ButtonForwardRef as Button};
 
-type ButtonVariant = "quiet" | "accent" | "accent-even-when-disabled";
+type ButtonVariant = "quiet" | "neutral" | "accent" | "accent-even-when-disabled";
 
 function Button(
     props: Omit<AriaButtonProps<"button">, "onPress"> & {
@@ -189,8 +189,17 @@ function Button(
     // Only show the pending spinner if we are actually pending.
     const shouldShowPendingSpinner = _shouldShowPendingSpinner && isPending;
 
+    const isBold = variant === "neutral";
+
     const labelChild = (
-        <span className={sprinkles({display: "block", fontStyle: "truncate"})}>{children}</span>
+        <span
+            className={sprinkles({
+                display: "block",
+                fontStyle: isBold ? "truncate-semi-bold" : "truncate",
+            })}
+        >
+            {children}
+        </span>
     );
 
     const iconSize: Spacing = "3";
@@ -200,6 +209,7 @@ function Button(
             value={{
                 color: "currentColor",
                 size: spacing[iconSize],
+                weight: isBold ? "bold" : "regular",
             }}
         >
             {icon}
@@ -214,6 +224,15 @@ function Button(
               }
             : {
                   backgroundColor: undefined,
+                  color: "grey-30",
+              },
+        neutral: !isDisabled
+            ? {
+                  backgroundColor: {light: "grey-80", dark: "grey-90"},
+                  color: "grey-0",
+              }
+            : {
+                  backgroundColor: "grey-5",
                   color: "grey-30",
               },
         accent: !isDisabled
