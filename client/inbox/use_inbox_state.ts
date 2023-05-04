@@ -180,8 +180,10 @@ function reduceInboxState(oldState: InboxState, action: InboxStateAction): Inbox
  * - Provides a function to load more data based on what's rendered
  */
 export function useInboxState({
+    filter,
     initialEntriesResult,
 }: {
+    filter: "New" | "Archive";
     initialEntriesResult: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>;
 }) {
     const context = useAppContext();
@@ -291,6 +293,7 @@ export function useInboxState({
                         // up to the latest data.
                         getInboxEntries(context, {
                             spaceId: space.id,
+                            filter,
                             limit: getInitialVirtualizedScrollViewRenderedItemCount(
                                 getClientInfoWithoutListening(),
                                 inboxEntryViewMinHeight,
@@ -322,7 +325,7 @@ export function useInboxState({
             },
             error => setErrorState({hasError: true, error}),
         );
-    }, [context, isConnected, query, space.id]);
+    }, [context, filter, isConnected, query, space.id]);
 
     const isLoadingRef = useRef(false);
     const [errorState, setErrorState] = useState<
@@ -381,6 +384,7 @@ export function useInboxState({
 
                     const {entriesResult} = await getInboxEntries(context, {
                         spaceId: space.id,
+                        filter,
                         limit,
                         afterCursor,
                     });

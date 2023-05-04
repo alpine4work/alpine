@@ -12,6 +12,7 @@ export const getInboxEntries = defineRpc({
     name: "getInboxEntries",
     input: {
         spaceId: Schema.id<SpaceId>(),
+        filter: Schema.enum(["New", "Archive"]),
         limit: Schema.integer,
         afterCursor: DynamoIndexCursorSchema.nullable(),
     },
@@ -34,6 +35,15 @@ export const backfillInboxEntries = defineRpc({
 
 export const archiveInboxEntry = defineRpc({
     name: "archiveInboxEntry",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        key: InboxEntryKeySchema,
+    },
+    output: {},
+});
+
+export const unarchiveInboxEntry = defineRpc({
+    name: "unarchiveInboxEntry",
     input: {
         spaceId: Schema.id<SpaceId>(),
         key: InboxEntryKeySchema,

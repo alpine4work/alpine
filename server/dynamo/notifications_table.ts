@@ -556,10 +556,12 @@ export async function getInboxEntries(
     context: SessionActionContext,
     {
         spaceId,
+        filter,
         limit,
         afterCursor,
     }: {
         spaceId: SpaceId;
+        filter: "New" | "Archive";
         limit: number;
         afterCursor: DynamoIndexCursor | null;
     },
@@ -571,11 +573,22 @@ export async function getInboxEntries(
             spaceId,
             accountId: context.actor.getAccountId(),
         },
-        endSortKey: {
-            isArchived: false,
-            generation: InboxEntriesIndex.sortKeyAttributes.generation.maxValue,
-            enteredTime: InboxEntriesIndex.sortKeyAttributes.enteredTime.maxValue,
-        },
+        startSortKey:
+            filter === "Archive"
+                ? {
+                      isArchived: true,
+                      generation: InboxEntriesIndex.sortKeyAttributes.generation.minValue,
+                      enteredTime: InboxEntriesIndex.sortKeyAttributes.enteredTime.minValue,
+                  }
+                : undefined,
+        endSortKey:
+            filter === "New"
+                ? {
+                      isArchived: false,
+                      generation: InboxEntriesIndex.sortKeyAttributes.generation.maxValue,
+                      enteredTime: InboxEntriesIndex.sortKeyAttributes.enteredTime.maxValue,
+                  }
+                : undefined,
         limit,
         paginate: {type: "FromStart", afterCursor},
     });
@@ -585,6 +598,8 @@ export async function getInboxEntries(
  * Backfill any inbox entry updates between now and `readTime`. Use when you
  * connect to realtime after reading data to make sure you haven't missed
  * any updates.
+ *
+ * This will backfill updates both for non-archived and archived entries.
  */
 export async function backfillInboxEntries(
     context: SessionActionContext,
@@ -677,7 +692,7 @@ function getInboxEntryItemKey({
 export async function archiveInboxEntry(
     context: SessionActionContext,
     {spaceId, key}: {spaceId: SpaceId; key: InboxEntryKey},
-): Promise<void> {
+): Promise<{archiveTime: Date}> {
     return archiveInboxEntryItemKey(
         context,
         getInboxEntryItemKey({
@@ -710,10 +725,10 @@ export function unarchiveInboxEntry(
 async function archiveInboxEntryItemKey(
     context: ActionContext,
     itemKey: InboxEntryItemKey,
-): Promise<void> {
+): Promise<{archiveTime: Date}> {
     await authorizeSpaceAccess(context, itemKey.spaceId);
 
-    await context.dynamo.retryTransaction(async context => {
+    return context.dynamo.retryTransaction(async context => {
         const [inboxItem, inboxEntryItem] = await runAllPromises([
             InboxTable.getItemIfExists(context, {
                 partitionType: "Inbox",
@@ -732,15 +747,20 @@ async function archiveInboxEntryItemKey(
         );
 
         // If the inbox entry item is already archived, do nothing.
-        if (inboxEntryItem.isArchived) return;
+        if (inboxEntryItem.isArchived) return {archiveTime: inboxEntryItem.enteredTime};
+
+        const archiveTime = new Date();
 
         const newInboxEntryItem = {
             ...inboxEntryItem,
             isArchived: true,
             // Archiving an entry clears all of its loud notifications.
             loudNotificationCount: 0,
-            // When we archive an item it goes back to our inbox generation.
+            // When we archive an item it goes back to our inbox generation. That way if
+            // it's unarchived it doesn't go back into the loud notification generation.
             generation: inboxItem.generation,
+            // When we archive an item, it goes to the top of the archive.
+            enteredTime: archiveTime,
         };
 
         // Optimization: If we don't need to update the inbox item, save some write
@@ -757,6 +777,8 @@ async function archiveInboxEntryItemKey(
                 InboxTable.transactionDirectlyUpdateItem(newInboxEntryItem),
             ]);
         }
+
+        return {archiveTime};
     });
 }
 
@@ -1075,13 +1097,17 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
                               ? loudNotificationInboxGenerationIncrement
                               : 0),
                   )
-                : // When we archive an item it goes back to our inbox generation.
-                !newInboxEntryItemPartial2.isArchived
-                ? oldInboxEntryItem.generation
-                : inboxGeneration,
+                : // When we archive an item it goes back to our inbox generation. That way if
+                // it's unarchived it doesn't go back into the loud notification generation.
+                newInboxEntryItemPartial2.isArchived
+                ? inboxGeneration
+                : oldInboxEntryItem.generation,
 
             enteredTime: shouldMoveToTop
                 ? getInboxEntryLatestUpdateTime(newInboxEntryItemPartial2)
+                : // When we archive an item, it goes to the top of the archive.
+                newInboxEntryItemPartial2.isArchived
+                ? new Date()
                 : oldInboxEntryItem.enteredTime,
         };
 

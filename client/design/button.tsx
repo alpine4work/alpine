@@ -17,7 +17,13 @@ import {Sprinkles, spinAnimationClassName, sprinkles} from "~/shared/styles/styl
 const ButtonForwardRef = forwardRef(Button);
 export {ButtonForwardRef as Button};
 
-type ButtonVariant = "quiet" | "neutral" | "accent" | "accent-even-when-disabled";
+type ButtonVariant =
+    | "quiet"
+    | "quiet-on"
+    | "quiet-off"
+    | "neutral"
+    | "accent"
+    | "accent-even-when-disabled";
 
 function Button(
     props: Omit<AriaButtonProps<"button">, "onPress"> & {
@@ -234,6 +240,24 @@ function Button(
                   backgroundColor: undefined,
                   color: "grey-30",
               },
+        "quiet-on": !isDisabled
+            ? {
+                  backgroundColor: isPressed ? "grey-10" : "grey-5",
+                  color: "grey-text",
+              }
+            : {
+                  backgroundColor: undefined,
+                  color: "grey-30",
+              },
+        "quiet-off": !isDisabled
+            ? {
+                  backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
+                  color: isPressed ? "grey-text" : "grey-50",
+              }
+            : {
+                  backgroundColor: undefined,
+                  color: "grey-30",
+              },
         neutral: !isDisabled
             ? {
                   backgroundColor: {light: "grey-80", dark: "grey-90"},
@@ -261,8 +285,10 @@ function Button(
         },
     };
 
+    const isQuietVariant = variant === "quiet" || variant === "quiet-on" || variant === "quiet-off";
+
     let node = (
-        <FocusRing offset={variant === "quiet" ? "0" : "0.5"}>
+        <FocusRing offset={isQuietVariant ? "0" : "0.5"}>
             <button
                 {...mergeProps(buttonProps, hoverProps)}
                 ref={useMergedRefs(foreignRef, localRef)}
@@ -275,7 +301,7 @@ function Button(
                     justifyContent: "center",
                     alignItems: "center",
                     height,
-                    minWidth: variant !== "quiet" ? "16" : undefined,
+                    minWidth: !isQuietVariant ? "16" : undefined,
                     width: fullWidth ? "full" : undefined,
                     paddingX,
                     fontSize: "75",
@@ -288,7 +314,7 @@ function Button(
                     flexShrink: "0",
                 })}
             >
-                {isPressed && variant !== "quiet" && (
+                {isPressed && !isQuietVariant && (
                     // For accent buttons, instead of choosing a darker background color shade when
                     // pressed we add a black overlay at a lowered opacity. We accomplish this with
                     // an overlay element since such a color is not in our color scheme.

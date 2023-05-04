@@ -2,6 +2,7 @@ import {
     archiveInboxEntry,
     backfillInboxEntries,
     getInboxEntries,
+    unarchiveInboxEntry,
 } from "~/server/dynamo/notifications_table";
 import {implementRpc} from "~/server/rpc/internal/implement_rpc";
 import * as definition from "~/shared/rpc/notifications_rpc_definitions";
@@ -21,5 +22,10 @@ implementRpc(definition.backfillInboxEntries, async (context, input) => {
 
 implementRpc(definition.archiveInboxEntry, async (context, input) => {
     await archiveInboxEntry(await context.actor.authenticate(), input);
+    return {};
+});
+
+implementRpc(definition.unarchiveInboxEntry, async (context, input) => {
+    await unarchiveInboxEntry(await context.actor.authenticate(), input);
     return {};
 });

@@ -183,7 +183,7 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                     // Optimistically archive these entries so we don't need to wait for
                     // realtime. The latency of which may be long since notification events are
                     // processed by a queue.
-                    inboxPeekContext?.archiveActiveEntryOptimistically(promise);
+                    inboxPeekContext?.deleteActiveEntryOptimistically(promise);
 
                     await promise;
 

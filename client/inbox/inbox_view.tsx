@@ -75,10 +75,12 @@ type InboxViewPeekState = {
 };
 
 export function InboxView({
+    filter,
     initialEntriesResult,
     initialPeekData,
     onPeekChange,
 }: {
+    filter: "New" | "Archive";
     initialEntriesResult: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>;
     initialPeekData: {path: string; loaderData: unknown} | null;
     onPeekChange: (peek: InboxViewPeek | null) => void;
@@ -95,6 +97,7 @@ export function InboxView({
 
     const {query, updateQueryOptimistically, itemsDeletedByLastChange, tryLoadingMore} =
         useInboxState({
+            filter,
             initialEntriesResult,
         });
 
@@ -203,7 +206,7 @@ export function InboxView({
         [peekState.activePeek, query],
     );
 
-    const archiveActiveEntryOptimistically = useEvent((promise: Promise<unknown>) => {
+    const deleteActiveEntryOptimistically = useEvent((promise: Promise<unknown>) => {
         if (!activeEntry) return;
 
         updateQueryOptimistically(promise, query =>
@@ -436,11 +439,12 @@ export function InboxView({
             }}
         >
             <InboxViewTopBar
+                filter={filter}
                 activeEntry={activeEntry?.item ?? null}
                 nextEntry={nextEntry}
                 previousEntry={previousEntry}
                 selectEntry={selectEntry}
-                archiveActiveEntryOptimistically={archiveActiveEntryOptimistically}
+                deleteActiveEntryOptimistically={deleteActiveEntryOptimistically}
             />
             <Box flexGrow="1" overflow="hidden" display="flex">
                 <FocusRing offset="inset">
@@ -551,14 +555,14 @@ export function InboxView({
                                     // Fully remount whenever the peek changes...
                                     key={peekState.activePeek.key}
                                     peek={peekState.activePeek}
-                                    archiveActiveEntryOptimistically={
-                                        archiveActiveEntryOptimistically
+                                    deleteActiveEntryOptimistically={
+                                        deleteActiveEntryOptimistically
                                     }
                                 />
                             )}
                         </Box>
                     ),
-                    [archiveActiveEntryOptimistically, peekState.activePeek],
+                    [deleteActiveEntryOptimistically, peekState.activePeek],
                 )}
             </Box>
         </GlobalKeyDownEvent>
@@ -567,10 +571,10 @@ export function InboxView({
 
 function InboxViewPeekContent({
     peek,
-    archiveActiveEntryOptimistically,
+    deleteActiveEntryOptimistically,
 }: {
     peek: InboxViewPeek;
-    archiveActiveEntryOptimistically: Memo<(promise: Promise<unknown>) => void>;
+    deleteActiveEntryOptimistically: Memo<(promise: Promise<unknown>) => void>;
 }) {
     const loaderDataRefResult = usePromise(peek.loaderDataRefPromise);
 
@@ -578,7 +582,7 @@ function InboxViewPeekContent({
         <Box width="full" height="full" overflow="hidden" display="flex" flexDirection="column">
             {!loaderDataRefResult.isPending ? (
                 <InboxPeekContextProvider
-                    archiveActiveEntryOptimistically={archiveActiveEntryOptimistically}
+                    deleteActiveEntryOptimistically={deleteActiveEntryOptimistically}
                 >
                     <PeekRemixEmbed
                         peekId={peek.id}

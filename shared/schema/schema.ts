@@ -444,7 +444,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
     /**
      * Accept only values included in the enum array/object.
      */
-    public static enum<Value extends string | number>(
+    public static enum<const Value extends string | number>(
         values: ReadonlyArray<Value> | Readonly<Record<string, Value>>,
     ): Schema<Value> {
         let valueSet: ReadonlySet<Value>;

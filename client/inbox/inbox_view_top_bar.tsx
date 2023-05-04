@@ -1,34 +1,34 @@
-import {CaretDown, CaretUp, Check} from "phosphor-react";
+import {ArrowRight, CaretDown, CaretUp, Check} from "phosphor-react";
 import {useRef, useState} from "react";
-import {mergeProps, useButton, useHover} from "react-aria";
 import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
-import {FocusRing} from "~/client/design/focus_ring";
 import {IconButton} from "~/client/design/icon_button";
 import {useShowToast} from "~/client/design/toast";
 import {isMac} from "~/client/helpers/browser/is_mac";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event";
 import {inboxEntryWidth} from "~/client/inbox/inbox_entry_view";
+import {useNavigate} from "~/client/remix/use_navigate";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {InboxEntryModel} from "~/shared/models/inbox_model";
-import {archiveInboxEntry} from "~/shared/rpc/notifications_rpc_definitions";
-import {sprinkles} from "~/shared/styles/styles";
+import {archiveInboxEntry, unarchiveInboxEntry} from "~/shared/rpc/notifications_rpc_definitions";
 
 export function InboxViewTopBar({
+    filter,
     activeEntry,
     nextEntry,
     previousEntry,
     selectEntry,
-    archiveActiveEntryOptimistically,
+    deleteActiveEntryOptimistically,
 }: {
+    filter: "New" | "Archive";
     activeEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     nextEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     previousEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     selectEntry: (entry: DynamoGeneralRealtimeItem<InboxEntryModel>) => Promise<void>;
-    archiveActiveEntryOptimistically: (promise: Promise<unknown>) => void;
+    deleteActiveEntryOptimistically: (promise: Promise<unknown>) => void;
 }) {
     return (
         <Box
@@ -51,7 +51,7 @@ export function InboxViewTopBar({
                     Inbox
                 </Box>
                 <Box flexShrink="0" paddingRight="2">
-                    <InboxViewTopBarModeToggleButton />
+                    <InboxViewTopBarModeToggleButton filter={filter} />
                 </Box>
                 <Box flexShrink="0" height="full" paddingY="2">
                     <Box height="full" borderRight="grey-5" />
@@ -95,106 +95,75 @@ export function InboxViewTopBar({
                     </Box>
                 </Box>
                 <Box paddingX="2">
-                    <InboxViewTopBarDoneButton
-                        activeEntry={activeEntry}
-                        nextEntry={nextEntry}
-                        previousEntry={previousEntry}
-                        selectEntry={selectEntry}
-                        archiveActiveEntryOptimistically={archiveActiveEntryOptimistically}
-                    />
+                    {filter === "New" ? (
+                        <InboxViewTopBarArchiveButton
+                            activeEntry={activeEntry}
+                            nextEntry={nextEntry}
+                            previousEntry={previousEntry}
+                            selectEntry={selectEntry}
+                            deleteActiveEntryOptimistically={deleteActiveEntryOptimistically}
+                        />
+                    ) : (
+                        <InboxViewTopBarUnarchiveButton
+                            activeEntry={activeEntry}
+                            nextEntry={nextEntry}
+                            previousEntry={previousEntry}
+                            selectEntry={selectEntry}
+                            deleteActiveEntryOptimistically={deleteActiveEntryOptimistically}
+                        />
+                    )}
                 </Box>
             </Box>
         </Box>
     );
 }
 
-function InboxViewTopBarModeToggleButton() {
-    const leftButtonRef = useRef<HTMLButtonElement>(null);
-    const rightButtonRef = useRef<HTMLButtonElement>(null);
-
-    const isLeftSelected = true;
-
-    const {isPressed: isLeftPressed, buttonProps: leftButtonProps} = useButton(
-        {
-            onPress: () => {
-                // NOCOMMIT
-            },
-        },
-        leftButtonRef,
-    );
-
-    const {isPressed: isRightPressed, buttonProps: rightButtonProps} = useButton(
-        {
-            onPress: () => {
-                // NOCOMMIT
-            },
-        },
-        rightButtonRef,
-    );
-
-    const {isHovered: isLeftHovered, hoverProps: leftHoverProps} = useHover({});
-    const {isHovered: isRightHovered, hoverProps: rightHoverProps} = useHover({});
+function InboxViewTopBarModeToggleButton({filter}: {filter: "New" | "Archive"}) {
+    const navigate = useNavigate();
+    const {space} = useSpaceContext();
 
     return (
         <Box display="flex" gap="1.5">
-            <FocusRing offset="0">
-                <button
-                    {...mergeProps(leftButtonProps, leftHoverProps)}
-                    ref={leftButtonRef}
-                    className={sprinkles({
-                        height: "6",
-                        paddingX: "2",
-                        display: "flex",
-                        alignItems: "center",
-                        borderRadius: "base",
-                        color: isLeftSelected || isRightPressed ? "grey-text" : "grey-50",
-                        backgroundColor: isLeftPressed
-                            ? "grey-10"
-                            : isLeftSelected || isLeftHovered
-                            ? "grey-5"
-                            : undefined,
-                    })}
-                >
-                    <Box>New</Box>
-                </button>
-            </FocusRing>
-            <FocusRing offset="0">
-                <button
-                    {...mergeProps(rightButtonProps, rightHoverProps)}
-                    ref={rightButtonRef}
-                    className={sprinkles({
-                        height: "6",
-                        paddingX: "2",
-                        display: "flex",
-                        alignItems: "center",
-                        borderRadius: "base",
-                        color: !isLeftSelected || isRightPressed ? "grey-text" : "grey-50",
-                        backgroundColor: isRightPressed
-                            ? "grey-10"
-                            : !isLeftSelected || isRightHovered
-                            ? "grey-5"
-                            : undefined,
-                    })}
-                >
-                    <Box>Old</Box>
-                </button>
-            </FocusRing>
+            <Button
+                variant={filter === "New" ? "quiet-on" : "quiet-off"}
+                height="6"
+                paddingX="2"
+                pressErrorTitle="Can’t open new notifications"
+                onPress={async () => {
+                    if (filter === "New") return;
+                    await navigate(`/s/${space.id}/inbox`);
+                }}
+            >
+                New
+            </Button>
+            <Button
+                variant={filter === "Archive" ? "quiet-on" : "quiet-off"}
+                height="6"
+                paddingX="2"
+                pressErrorTitle="Can’t open old notifications"
+                onPress={async () => {
+                    if (filter === "Archive") return;
+                    await navigate(`/s/${space.id}/inbox?tab=old`);
+                }}
+            >
+                Old
+            </Button>
         </Box>
     );
 }
 
-function InboxViewTopBarDoneButton({
+function InboxViewTopBarArchiveButton({
     activeEntry,
     nextEntry,
     previousEntry,
     selectEntry,
-    archiveActiveEntryOptimistically,
+    deleteActiveEntryOptimistically,
 }: {
     activeEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     nextEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     previousEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     selectEntry: (entry: DynamoGeneralRealtimeItem<InboxEntryModel>) => Promise<void>;
-    archiveActiveEntryOptimistically: (promise: Promise<unknown>) => void;
+    deleteActiveEntryOptimistically: (promise: Promise<unknown>) => void;
 }) {
     const context = useAppContext();
     const showToast = useShowToast();
@@ -202,6 +171,8 @@ function InboxViewTopBarDoneButton({
     const buttonRef = useRef<HTMLButtonElement>(null);
     const [isPending, setIsPending] = useState(false);
 
+    // Don't flash the button into a disabled state because `activeEntry` is
+    // cleared when we optimistically archive the entry.
     const isDisabled = !activeEntry && !isPending;
 
     return (
@@ -233,9 +204,7 @@ function InboxViewTopBarDoneButton({
                 paddingX="2"
                 icon={<Check />}
                 keyboardShortcutHint={isMac ? "⌘+D" : "Ctrl+D"}
-                // Don't flash the button into a disabled state because `activeEntry` is
-                // cleared when we optimistically archive the entry.
-                isDisabled={!activeEntry && !isPending}
+                isDisabled={isDisabled}
                 pressErrorTitle="Can’t go to next notification"
                 onPress={async () => {
                     if (!activeEntry) return;
@@ -257,7 +226,7 @@ function InboxViewTopBarDoneButton({
 
                         // Immediately delete the item from the query so we don't have to wait for
                         // realtime to respond to this.
-                        archiveActiveEntryOptimistically(archivePromise);
+                        deleteActiveEntryOptimistically(archivePromise);
 
                         if (nextEntry) {
                             await selectEntry(nextEntry);
@@ -272,5 +241,73 @@ function InboxViewTopBarDoneButton({
                 Done
             </Button>
         </GlobalKeyDownEvent>
+    );
+}
+
+function InboxViewTopBarUnarchiveButton({
+    activeEntry,
+    nextEntry,
+    previousEntry,
+    selectEntry,
+    deleteActiveEntryOptimistically,
+}: {
+    activeEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
+    nextEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
+    previousEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
+    selectEntry: (entry: DynamoGeneralRealtimeItem<InboxEntryModel>) => Promise<void>;
+    deleteActiveEntryOptimistically: (promise: Promise<unknown>) => void;
+}) {
+    const context = useAppContext();
+    const showToast = useShowToast();
+    const {space} = useSpaceContext();
+    const [isPending, setIsPending] = useState(false);
+
+    // Don't flash the button into a disabled state because `activeEntry` is
+    // cleared when we optimistically archive the entry.
+    const isDisabled = !activeEntry && !isPending;
+
+    return (
+        <Button
+            variant="quiet"
+            height="6"
+            paddingX="2"
+            icon={<ArrowRight />}
+            iconPlacement="end"
+            isDisabled={isDisabled}
+            pressErrorTitle="Can’t go to next notification"
+            onPress={async () => {
+                if (!activeEntry) return;
+
+                setIsPending(true);
+                try {
+                    const archivePromise = unarchiveInboxEntry(context, {
+                        spaceId: space.id,
+                        key: activeEntry.model.getKey(),
+                    });
+
+                    archivePromise.catch(error => {
+                        showToast({
+                            type: "Error",
+                            title: "Can’t move notification to new",
+                            error,
+                        });
+                    });
+
+                    // Immediately delete the item from the query so we don't have to wait for
+                    // realtime to respond to this.
+                    deleteActiveEntryOptimistically(archivePromise);
+
+                    if (nextEntry) {
+                        await selectEntry(nextEntry);
+                    } else if (previousEntry) {
+                        await selectEntry(previousEntry);
+                    }
+                } finally {
+                    setIsPending(false);
+                }
+            }}
+        >
+            Move to new
+        </Button>
     );
 }

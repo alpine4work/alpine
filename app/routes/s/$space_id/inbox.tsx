@@ -24,6 +24,7 @@ import {Schema, SchemaType} from "~/shared/schema/schema";
 export type LoaderData = SchemaType<typeof LoaderSchema>;
 
 const LoaderSchema = Schema.object({
+    filter: Schema.enum(["New", "Archive"]),
     entriesResult: createDynamoGeneralRealtimeIndexQuerySchema(InboxEntryModelSchema),
     peekData: Schema.object({
         path: Schema.string,
@@ -40,10 +41,12 @@ export async function loader({params, context, request, serverRoutes}: LoaderArg
     const url = new URL(request.url);
     const spaceId = Schema.id<SpaceId>().deserialize(params.space_id ?? null);
     const selectedParam = url.searchParams.get("selected");
+    const filter = url.searchParams.get("tab") === "old" ? "Archive" : "New";
 
     const [entriesResult, _peekData] = await runAllPromises([
         getInboxEntries(await context.actor.authenticate(), {
             spaceId,
+            filter,
             limit: getInitialVirtualizedScrollViewRenderedItemCount(
                 context.loader.clientInfo,
                 inboxEntryViewMinHeight,
@@ -71,6 +74,7 @@ export async function loader({params, context, request, serverRoutes}: LoaderArg
             : _peekData;
 
     return jsonWithSchema(LoaderSchema, {
+        filter,
         entriesResult,
         peekData: peekData
             ? {
@@ -97,7 +101,7 @@ export default function InboxRoute() {
     const remixEntryContext = useContext(RemixEntryContext);
     assert(remixEntryContext, "Expected Remix entry context");
     const isInitialAppRender = useIsInitialAppRender();
-    const {entriesResult, peekData} = useLoaderDataWithSchema(LoaderSchema);
+    const {filter, entriesResult, peekData} = useLoaderDataWithSchema(LoaderSchema);
 
     return (
         // Strange format to override the `<SpaceLayoutTopBar>` bottom border with a
@@ -114,6 +118,9 @@ export default function InboxRoute() {
             flexDirection="column"
         >
             <InboxView
+                // Remount if the filter changes...
+                key={filter}
+                filter={filter}
                 initialEntriesResult={entriesResult}
                 initialPeekData={peekData}
                 onPeekChange={peek => {

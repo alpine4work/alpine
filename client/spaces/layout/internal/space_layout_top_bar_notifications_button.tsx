@@ -142,6 +142,7 @@ export function SpaceLayoutTopBarNotificationsButton({
                 return PromiseImmediate.resolve(
                     getInboxEntries(context, {
                         spaceId: space.id,
+                        filter: "New",
                         limit,
                         afterCursor: null,
                     }).then(({entriesResult}) => entriesResult),
@@ -449,6 +450,7 @@ function SpaceLayoutTopBarNotificationOverlayInbox({
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
     const {query, tryLoadingMore} = useInboxState({
+        filter: "New",
         initialEntriesResult,
     });
 
