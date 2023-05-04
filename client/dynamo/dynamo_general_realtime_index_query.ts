@@ -845,6 +845,61 @@ export class DynamoGeneralRealtimeIndexQuery<Model> {
 
         return deletedOldItemByKey.values();
     }
+
+    /**
+     * Delete an item in the query if the item exists and is at the specified
+     * version.
+     *
+     * If the item updates on the server to a new version it will appear back in
+     * the query. This function is designed to be used as an optimistic delete
+     * update. We expect the next update from the server to also delete the item.
+     */
+    public deleteItemByKeyIfExistsAtVersion(
+        key: DynamoItemKey,
+        version: number,
+    ): DynamoGeneralRealtimeIndexQuery<Model> {
+        const itemVisibility = this._itemVisibilityByKey.get(key);
+        if (!itemVisibility) return this;
+
+        let itemVisibilityByKey = this._itemVisibilityByKey;
+        let itemByCursor = this._itemByCursor;
+
+        if (itemVisibility.isVisible) {
+            const iterator = itemByCursor.find(itemVisibility.cursor);
+            assert(iterator.node);
+
+            // If the item is at a future version, don't do anything.
+            if (iterator.node.value.version > version) {
+                return this;
+            }
+
+            itemVisibilityByKey = itemVisibilityByKey.set(key, {
+                isVisible: false,
+                version: version + 1,
+            });
+            itemByCursor = iterator.remove();
+        } else {
+            // If the item is at a future version, don't do anything.
+            if (itemVisibility.version > version) {
+                return this;
+            }
+
+            itemVisibilityByKey = itemVisibilityByKey.set(key, {
+                isVisible: false,
+                version: version + 1,
+            });
+        }
+
+        return new DynamoGeneralRealtimeIndexQuery({
+            indexName: this._indexName,
+            startCursorBound: this._startCursorBound,
+            endCursorBound: this._endCursorBound,
+            readTime: this._readTime,
+            itemByCursor,
+            itemVisibilityByKey,
+            loadedPageInfo: this._loadedPageInfo,
+        });
+    }
 }
 
 function* iterateTreeEntries<Key, Value>(tree: Tree<Key, Value>): IterableIterator<[Key, Value]> {

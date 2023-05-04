@@ -1,4 +1,4 @@
-import {useEffect, useReducer, useRef, useState} from "react";
+import {useCallback, useEffect, useReducer, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
 import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query";
@@ -18,37 +18,158 @@ import {InboxEntryModel} from "~/shared/models/inbox_model";
 import {backfillInboxEntries, getInboxEntries} from "~/shared/rpc/notifications_rpc_definitions";
 
 type InboxState = {
+    readonly queryWithoutOptimisticUpdates: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;
     readonly query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;
+    readonly optimisticUpdates: ReadonlyArray<{
+        readonly promise: Promise<unknown>;
+        readonly update: (
+            query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
+        ) => DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;
+    }>;
     readonly itemsDeletedByLastChange: ReadonlyArray<{
         readonly cursor: DynamoIndexCursor;
         readonly item: DynamoGeneralRealtimeItem<InboxEntryModel>;
     }>;
 };
 
+type InboxStateAction =
+    | {
+          readonly type: "Update";
+          readonly update: (
+              query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
+          ) => DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;
+      }
+    | {
+          readonly type: "OptimisticUpdate";
+          readonly promise: Promise<unknown>;
+          readonly update: (
+              query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
+          ) => DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;
+      }
+    | {
+          readonly type: "ResolveOptimisticUpdate";
+          readonly promise: Promise<unknown>;
+      }
+    | {
+          readonly type: "RejectOptimisticUpdate";
+          readonly promise: Promise<unknown>;
+      };
+
 function getInitialInboxState(
     initialEntriesResult: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>,
 ): InboxState {
+    const query = DynamoGeneralRealtimeIndexQuery.new(initialEntriesResult);
+
     return {
-        query: DynamoGeneralRealtimeIndexQuery.new(initialEntriesResult),
+        queryWithoutOptimisticUpdates: query,
+        query,
+        optimisticUpdates: [],
         itemsDeletedByLastChange: [],
     };
 }
 
-function reduceInboxState(
-    oldState: InboxState,
-    getNewQuery:
-        | DynamoGeneralRealtimeIndexQuery<InboxEntryModel>
-        | ((
-              oldQuery: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
-          ) => DynamoGeneralRealtimeIndexQuery<InboxEntryModel>),
-): InboxState {
-    const newQuery = typeof getNewQuery === "function" ? getNewQuery(oldState.query) : getNewQuery;
-    const deletedItems = newQuery.getDeletedItems(oldState.query);
+function reduceInboxState(oldState: InboxState, action: InboxStateAction): InboxState {
+    switch (action.type) {
+        case "Update": {
+            const newQueryWithoutOptimisticUpdates = action.update(
+                oldState.queryWithoutOptimisticUpdates,
+            );
 
-    return {
-        query: newQuery,
-        itemsDeletedByLastChange: Array.from(deletedItems),
-    };
+            const newQuery = oldState.optimisticUpdates.reduce(
+                (query, {update}) => update(query),
+                newQueryWithoutOptimisticUpdates,
+            );
+
+            return {
+                queryWithoutOptimisticUpdates: newQueryWithoutOptimisticUpdates,
+                query: newQuery,
+                optimisticUpdates: oldState.optimisticUpdates,
+                itemsDeletedByLastChange: Array.from(newQuery.getDeletedItems(oldState.query)),
+            };
+        }
+        case "OptimisticUpdate": {
+            const newOptimisticUpdates = [
+                ...oldState.optimisticUpdates,
+                {
+                    promise: action.promise,
+                    update: action.update,
+                },
+            ];
+
+            const newQuery = newOptimisticUpdates.reduce(
+                (query, {update}) => update(query),
+                oldState.queryWithoutOptimisticUpdates,
+            );
+
+            return {
+                queryWithoutOptimisticUpdates: oldState.queryWithoutOptimisticUpdates,
+                query: newQuery,
+                optimisticUpdates: newOptimisticUpdates,
+                itemsDeletedByLastChange: Array.from(newQuery.getDeletedItems(oldState.query)),
+            };
+        }
+        case "ResolveOptimisticUpdate": {
+            const resolvedOptimisticUpdates = [];
+            const pendingOptimisticUpdates = [];
+
+            for (const optimisticUpdate of oldState.optimisticUpdates) {
+                if (optimisticUpdate.promise !== action.promise) {
+                    pendingOptimisticUpdates.push(optimisticUpdate);
+                } else {
+                    resolvedOptimisticUpdates.push(optimisticUpdate);
+                }
+            }
+
+            // Optimization: If no promises resolved, don't change state.
+            if (pendingOptimisticUpdates.length === oldState.optimisticUpdates.length)
+                return oldState;
+
+            // Permanently apply optimistic update...
+            const newQueryWithoutOptimisticUpdates = resolvedOptimisticUpdates.reduce(
+                (query, {update}) => update(query),
+                oldState.queryWithoutOptimisticUpdates,
+            );
+
+            const newQuery = pendingOptimisticUpdates.reduce(
+                (query, {update}) => update(query),
+                newQueryWithoutOptimisticUpdates,
+            );
+
+            return {
+                queryWithoutOptimisticUpdates: newQueryWithoutOptimisticUpdates,
+                query: newQuery,
+                optimisticUpdates: pendingOptimisticUpdates,
+                itemsDeletedByLastChange: Array.from(newQuery.getDeletedItems(oldState.query)),
+            };
+        }
+        case "RejectOptimisticUpdate": {
+            const pendingOptimisticUpdates = [];
+
+            for (const optimisticUpdate of oldState.optimisticUpdates) {
+                if (optimisticUpdate.promise !== action.promise) {
+                    pendingOptimisticUpdates.push(optimisticUpdate);
+                }
+            }
+
+            // Optimization: If no promises rejected, don't change state.
+            if (pendingOptimisticUpdates.length === oldState.optimisticUpdates.length)
+                return oldState;
+
+            const newQuery = pendingOptimisticUpdates.reduce(
+                (query, {update}) => update(query),
+                oldState.queryWithoutOptimisticUpdates,
+            );
+
+            return {
+                queryWithoutOptimisticUpdates: oldState.queryWithoutOptimisticUpdates,
+                query: newQuery,
+                optimisticUpdates: pendingOptimisticUpdates,
+                itemsDeletedByLastChange: Array.from(newQuery.getDeletedItems(oldState.query)),
+            };
+        }
+        default:
+            throw exhaustive(action);
+    }
 }
 
 /**
@@ -67,16 +188,67 @@ export function useInboxState({
     const {space} = useSpaceContext();
     const {isConnected, subscribeToEvents} = useMyAccountWebSocket();
 
-    const [{query, itemsDeletedByLastChange}, dispatch] = useReducer(
+    const [{query, optimisticUpdates, itemsDeletedByLastChange}, dispatch] = useReducer(
         reduceInboxState,
         initialEntriesResult,
         getInitialInboxState,
     );
 
+    const updateQueryOptimistically = useCallback(
+        (
+            promise: Promise<unknown>,
+            update: (
+                query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
+            ) => DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
+        ) => {
+            dispatch({
+                type: "OptimisticUpdate",
+                promise,
+                update,
+            });
+        },
+        [],
+    );
+
+    useEffect(() => {
+        let isCancelled = false;
+
+        for (const {promise} of optimisticUpdates) {
+            promise.then(
+                // eslint-disable-next-line no-loop-func
+                () => {
+                    if (isCancelled) return;
+
+                    dispatch({
+                        type: "ResolveOptimisticUpdate",
+                        promise,
+                    });
+                },
+                // eslint-disable-next-line no-loop-func
+                () => {
+                    if (isCancelled) return;
+
+                    dispatch({
+                        type: "RejectOptimisticUpdate",
+                        promise,
+                    });
+                },
+            );
+        }
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [optimisticUpdates]);
+
     // Subscribe to realtime events that may change what's in the inbox.
     useEffect(() => {
         return subscribeToEvents(event =>
-            dispatch(query => query.handleEventTransaction(event.readTime, event.eventTransaction)),
+            dispatch({
+                type: "Update",
+                update: query =>
+                    query.handleEventTransaction(event.readTime, event.eventTransaction),
+            }),
         );
     }, [subscribeToEvents]);
 
@@ -104,12 +276,14 @@ export function useInboxState({
             ({backfillEntriesResult}) => {
                 switch (backfillEntriesResult.type) {
                     case "Available": {
-                        dispatch(query =>
-                            query.handleEventTransaction(
-                                backfillEntriesResult.readTime,
-                                backfillEntriesResult.eventTransaction,
-                            ),
-                        );
+                        dispatch({
+                            type: "Update",
+                            update: query =>
+                                query.handleEventTransaction(
+                                    backfillEntriesResult.readTime,
+                                    backfillEntriesResult.eventTransaction,
+                                ),
+                        });
                         break;
                     }
                     case "Unavailable": {
@@ -132,7 +306,11 @@ export function useInboxState({
                                 // were disconnected from realtime up until this point.
                                 wasConnectedRef.current = false;
 
-                                dispatch(DynamoGeneralRealtimeIndexQuery.new(entriesResult));
+                                dispatch({
+                                    type: "Update",
+                                    update: () =>
+                                        DynamoGeneralRealtimeIndexQuery.new(entriesResult),
+                                });
                             },
                             error => setErrorState({hasError: true, error}),
                         );
@@ -207,7 +385,10 @@ export function useInboxState({
                         afterCursor,
                     });
 
-                    dispatch(query => query.loadMore(entriesResult));
+                    dispatch({
+                        type: "Update",
+                        update: query => query.loadMore(entriesResult),
+                    });
                 })();
 
                 return {isLoading: true, promise};
@@ -217,6 +398,7 @@ export function useInboxState({
 
     return {
         query,
+        updateQueryOptimistically,
         itemsDeletedByLastChange,
         tryLoadingMore,
     };

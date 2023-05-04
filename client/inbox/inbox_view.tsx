@@ -2,6 +2,7 @@ import {RemixEntryContext} from "@remix-run/react";
 import {MemoryHistory, createMemoryHistory, createPath} from "history";
 import {SpinnerGap} from "phosphor-react";
 import {
+    Memo,
     MutableRefObject,
     useCallback,
     useContext,
@@ -26,6 +27,7 @@ import {
     inboxEntryViewMinHeight,
     inboxEntryWidth,
 } from "~/client/inbox/inbox_entry_view";
+import {InboxPeekContextProvider} from "~/client/inbox/inbox_peek_context";
 import {InboxViewTopBar} from "~/client/inbox/inbox_view_top_bar";
 import {useInboxState} from "~/client/inbox/use_inbox_state";
 import {loadInitialPeekDataForClient} from "~/client/peek/load_initial_peek_data_for_client";
@@ -91,9 +93,10 @@ export function InboxView({
      *                           Realtime inbox entries                           *
     \* ========================================================================== */
 
-    const {query, itemsDeletedByLastChange, tryLoadingMore} = useInboxState({
-        initialEntriesResult,
-    });
+    const {query, updateQueryOptimistically, itemsDeletedByLastChange, tryLoadingMore} =
+        useInboxState({
+            initialEntriesResult,
+        });
 
     // Whenever our query data changes, try loading more entries. In case our
     // rendered range stayed the same but we now see the loading indicator.
@@ -191,6 +194,22 @@ export function InboxView({
             }
         }
     }, [findItemKeyForPathIfExists, peekState.activePeek]);
+
+    const activeEntry = useMemo(
+        () =>
+            peekState.activePeek && peekState.activePeek.key
+                ? query.getItemByKeyIfExists(peekState.activePeek.key)
+                : null,
+        [peekState.activePeek, query],
+    );
+
+    const archiveActiveEntryOptimistically = useEvent((promise: Promise<unknown>) => {
+        if (!activeEntry) return;
+
+        updateQueryOptimistically(promise, query =>
+            query.deleteItemByKeyIfExistsAtVersion(activeEntry.item.key, activeEntry.item.version),
+        );
+    });
 
     /* ========================================================================== *\
      *                           Inbox entry selection                            *
@@ -417,10 +436,11 @@ export function InboxView({
             }}
         >
             <InboxViewTopBar
-                selectedEntry={selectedEntry?.item ?? null}
+                activeEntry={activeEntry?.item ?? null}
                 nextEntry={nextEntry}
                 previousEntry={previousEntry}
                 selectEntry={selectEntry}
+                archiveActiveEntryOptimistically={archiveActiveEntryOptimistically}
             />
             <Box flexGrow="1" overflow="hidden" display="flex">
                 <FocusRing offset="inset">
@@ -531,29 +551,42 @@ export function InboxView({
                                     // Fully remount whenever the peek changes...
                                     key={peekState.activePeek.key}
                                     peek={peekState.activePeek}
+                                    archiveActiveEntryOptimistically={
+                                        archiveActiveEntryOptimistically
+                                    }
                                 />
                             )}
                         </Box>
                     ),
-                    [peekState.activePeek],
+                    [archiveActiveEntryOptimistically, peekState.activePeek],
                 )}
             </Box>
         </GlobalKeyDownEvent>
     );
 }
 
-function InboxViewPeekContent({peek}: {peek: InboxViewPeek}) {
+function InboxViewPeekContent({
+    peek,
+    archiveActiveEntryOptimistically,
+}: {
+    peek: InboxViewPeek;
+    archiveActiveEntryOptimistically: Memo<(promise: Promise<unknown>) => void>;
+}) {
     const loaderDataRefResult = usePromise(peek.loaderDataRefPromise);
 
     return (
         <Box width="full" height="full" overflow="hidden" display="flex" flexDirection="column">
             {!loaderDataRefResult.isPending ? (
-                <PeekRemixEmbed
-                    peekId={peek.id}
-                    withMobileLayout={false}
-                    loaderDataRef={loaderDataRefResult.value}
-                    history={peek.history}
-                />
+                <InboxPeekContextProvider
+                    archiveActiveEntryOptimistically={archiveActiveEntryOptimistically}
+                >
+                    <PeekRemixEmbed
+                        peekId={peek.id}
+                        withMobileLayout={false}
+                        loaderDataRef={loaderDataRefResult.value}
+                        history={peek.history}
+                    />
+                </InboxPeekContextProvider>
             ) : (
                 <Box flexGrow="1" display="flex" justifyContent="center" alignItems="center">
                     <SpinnerGap

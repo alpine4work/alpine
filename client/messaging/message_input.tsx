@@ -12,6 +12,7 @@ import {IconButton} from "~/client/design/icon_button";
 import {useShowToast} from "~/client/design/toast";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
+import {useInboxPeekContext} from "~/client/inbox/inbox_peek_context";
 import {MessageEditing} from "~/client/messaging/message_editing";
 import {MessageList} from "~/client/messaging/message_list";
 import {
@@ -89,6 +90,7 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
 }) {
     const showToast = useShowToast();
     const {currentAccount} = useSpaceContext();
+    const inboxPeekContext = useInboxPeekContext();
     const editorRef = useRef<ContentEditorRef>(null);
     const [state, setState] = useState(
         () =>
@@ -172,10 +174,18 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                         typingIndicatorStateRef.current = {shouldBeShowing: false};
                     }
 
-                    await createMessage({
+                    const promise = createMessage({
                         parentMessageIndex: replyingToMessage?.message.index ?? null,
                         content: content.doc,
                     });
+
+                    // Sending a message dismisses post comment entries and chat entries.
+                    // Optimistically archive these entries so we don't need to wait for
+                    // realtime. The latency of which may be long since notification events are
+                    // processed by a queue.
+                    inboxPeekContext?.archiveActiveEntryOptimistically(promise);
+
+                    await promise;
 
                     // We wait to receive the new message over realtime to confirm the optimistic
                     // message. We do this so that messages are delivered to the user in order

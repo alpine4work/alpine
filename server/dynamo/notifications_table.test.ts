@@ -5478,6 +5478,379 @@ describe("Post comments", () => {
             ],
         });
     });
+
+    test("archiving an entry with loud notifications puts it back at the inbox generation", async () => {
+        const scenario = await createScenario();
+
+        const _channel = await createChannel(context.action(scenario.session1), {
+            spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const channel = new ChannelPreviewModel({
+            id: _channel.id,
+            spaceId: scenario.space.id,
+            createdTime: _channel.createdTime,
+            name: "Test",
+        });
+
+        const post1 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+
+        const post2 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+
+        const comment1 = await createPostComment(context.action(scenario.session1), {
+            postId: post1.id,
+            parentCommentIndex: null,
+            content: scenario.mentionAccount2MessageContent,
+        });
+
+        const comment2 = await createPostComment(context.action(scenario.session1), {
+            postId: post2.id,
+            parentCommentIndex: null,
+            content: scenario.mentionAccount2MessageContent,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                postId: post2.id,
+                postAuthor: scenario.session1.account,
+                channel,
+                loudNotificationCount: 1,
+                latestComment: {
+                    createdTime: comment2.createdTime,
+                    author: scenario.session1.account,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
+                    },
+                },
+                otherCommentAuthor: null,
+            }),
+            new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
+                loudNotificationCount: 1,
+                latestComment: {
+                    createdTime: comment1.createdTime,
+                    author: scenario.session1.account,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
+                    },
+                },
+                otherCommentAuthor: null,
+            }),
+        ]);
+
+        await archiveInboxEntry(context.action(scenario.session2), {
+            spaceId: scenario.space.id,
+            key: {type: "PostComments", postId: post2.id},
+        });
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
+                loudNotificationCount: 1,
+                latestComment: {
+                    createdTime: comment1.createdTime,
+                    author: scenario.session1.account,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
+                    },
+                },
+                otherCommentAuthor: null,
+            }),
+        ]);
+
+        const comment3 = await createPostComment(context.action(scenario.session1), {
+            postId: post2.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("comment3"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
+                loudNotificationCount: 1,
+                latestComment: {
+                    createdTime: comment1.createdTime,
+                    author: scenario.session1.account,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
+                    },
+                },
+                otherCommentAuthor: null,
+            }),
+            new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                postId: post2.id,
+                postAuthor: scenario.session1.account,
+                channel,
+                loudNotificationCount: 0,
+                latestComment: {
+                    createdTime: comment3.createdTime,
+                    author: scenario.session1.account,
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
+                },
+                otherCommentAuthor: null,
+            }),
+        ]);
+    });
+
+    test("implicitly archiving an entry with loud notifications puts it back at the inbox generation", async () => {
+        const scenario = await createScenario();
+
+        const _channel = await createChannel(context.action(scenario.session1), {
+            spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const channel = new ChannelPreviewModel({
+            id: _channel.id,
+            spaceId: scenario.space.id,
+            createdTime: _channel.createdTime,
+            name: "Test",
+        });
+
+        const post1 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+
+        const post2 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+
+        const comment1 = await createPostComment(context.action(scenario.session1), {
+            postId: post1.id,
+            parentCommentIndex: null,
+            content: scenario.mentionAccount2MessageContent,
+        });
+
+        const comment2 = await createPostComment(context.action(scenario.session1), {
+            postId: post2.id,
+            parentCommentIndex: null,
+            content: scenario.mentionAccount2MessageContent,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                postId: post2.id,
+                postAuthor: scenario.session1.account,
+                channel,
+                loudNotificationCount: 1,
+                latestComment: {
+                    createdTime: comment2.createdTime,
+                    author: scenario.session1.account,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
+                    },
+                },
+                otherCommentAuthor: null,
+            }),
+            new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
+                loudNotificationCount: 1,
+                latestComment: {
+                    createdTime: comment1.createdTime,
+                    author: scenario.session1.account,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
+                    },
+                },
+                otherCommentAuthor: null,
+            }),
+        ]);
+
+        await createPostComment(context.action(scenario.session2), {
+            postId: post2.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("test"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
+                loudNotificationCount: 1,
+                latestComment: {
+                    createdTime: comment1.createdTime,
+                    author: scenario.session1.account,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
+                    },
+                },
+                otherCommentAuthor: null,
+            }),
+        ]);
+
+        const comment3 = await createPostComment(context.action(scenario.session1), {
+            postId: post2.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("comment3"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                postId: post1.id,
+                postAuthor: scenario.session1.account,
+                channel,
+                loudNotificationCount: 1,
+                latestComment: {
+                    createdTime: comment1.createdTime,
+                    author: scenario.session1.account,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
+                    },
+                },
+                otherCommentAuthor: null,
+            }),
+            new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                postId: post2.id,
+                postAuthor: scenario.session1.account,
+                channel,
+                loudNotificationCount: 0,
+                latestComment: {
+                    createdTime: comment3.createdTime,
+                    author: scenario.session1.account,
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment3"),
+                        references: emptyContentReferences,
+                    },
+                },
+                otherCommentAuthor: scenario.session1.account,
+            }),
+        ]);
+    });
 });
 
 describe("Chat", () => {

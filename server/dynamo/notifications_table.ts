@@ -33,7 +33,6 @@ import {
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings";
 import {CancelledError, NotFoundError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
-import {wait} from "~/shared/helpers/async/wait";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {randomInteger} from "~/shared/helpers/number/random_integer";
@@ -679,9 +678,6 @@ export async function archiveInboxEntry(
     context: SessionActionContext,
     {spaceId, key}: {spaceId: SpaceId; key: InboxEntryKey},
 ): Promise<void> {
-    // NOCOMMIT: Remove!
-    await wait(2000);
-
     return archiveInboxEntryItemKey(
         context,
         getInboxEntryItemKey({
@@ -743,6 +739,8 @@ async function archiveInboxEntryItemKey(
             isArchived: true,
             // Archiving an entry clears all of its loud notifications.
             loudNotificationCount: 0,
+            // When we archive an item it goes back to our inbox generation.
+            generation: inboxItem.generation,
         };
 
         // Optimization: If we don't need to update the inbox item, save some write
@@ -1077,7 +1075,10 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
                               ? loudNotificationInboxGenerationIncrement
                               : 0),
                   )
-                : oldInboxEntryItem.generation,
+                : // When we archive an item it goes back to our inbox generation.
+                !newInboxEntryItemPartial2.isArchived
+                ? oldInboxEntryItem.generation
+                : inboxGeneration,
 
             enteredTime: shouldMoveToTop
                 ? getInboxEntryLatestUpdateTime(newInboxEntryItemPartial2)

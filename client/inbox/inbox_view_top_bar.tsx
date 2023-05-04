@@ -1,5 +1,5 @@
 import {Bell, CaretDown, CaretUp, Check} from "phosphor-react";
-import {useRef} from "react";
+import {useRef, useState} from "react";
 import {useButton} from "react-aria";
 import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
@@ -16,19 +16,23 @@ import {archiveInboxEntry} from "~/shared/rpc/notifications_rpc_definitions";
 import {sprinkles} from "~/shared/styles/styles";
 
 export function InboxViewTopBar({
-    selectedEntry,
+    activeEntry,
     nextEntry,
     previousEntry,
     selectEntry,
+    archiveActiveEntryOptimistically,
 }: {
-    selectedEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
+    activeEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     nextEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     previousEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     selectEntry: (entry: DynamoGeneralRealtimeItem<InboxEntryModel>) => Promise<void>;
+    archiveActiveEntryOptimistically: (promise: Promise<unknown>) => void;
 }) {
     const context = useAppContext();
     const showToast = useShowToast();
     const {space} = useSpaceContext();
+
+    const [isArchivePending, setIsArchivePending] = useState(false);
 
     return (
         <Box
@@ -99,24 +103,39 @@ export function InboxViewTopBar({
                         height="6"
                         paddingX="2"
                         icon={<Check />}
-                        isDisabled={!selectedEntry}
+                        // Don't flash the button into a disabled state because `activeEntry` is
+                        // cleared when we optimistically archive the entry.
+                        isDisabled={!activeEntry && !isArchivePending}
                         pressErrorTitle="Can’t go to next notification"
                         onPress={async () => {
-                            if (!selectedEntry) return;
+                            if (!activeEntry) return;
 
-                            archiveInboxEntry(context, {
-                                spaceId: space.id,
-                                key: selectedEntry.model.getKey(),
-                            }).catch(error => {
-                                showToast({
-                                    type: "Error",
-                                    title: "Can’t dismiss notification",
-                                    error,
+                            setIsArchivePending(true);
+                            try {
+                                const archivePromise = archiveInboxEntry(context, {
+                                    spaceId: space.id,
+                                    key: activeEntry.model.getKey(),
                                 });
-                            });
 
-                            if (nextEntry) {
-                                await selectEntry(nextEntry);
+                                archivePromise.catch(error => {
+                                    showToast({
+                                        type: "Error",
+                                        title: "Can’t dismiss notification",
+                                        error,
+                                    });
+                                });
+
+                                // Immediately delete the item from the query so we don't have to wait for
+                                // realtime to respond to this.
+                                archiveActiveEntryOptimistically(archivePromise);
+
+                                if (nextEntry) {
+                                    await selectEntry(nextEntry);
+                                } else if (previousEntry) {
+                                    await selectEntry(previousEntry);
+                                }
+                            } finally {
+                                setIsArchivePending(false);
                             }
                         }}
                     >
