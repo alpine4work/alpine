@@ -449,6 +449,10 @@ export function InboxView({
                                 const view = assertExists(entriesViewRef.current);
                                 tryLoadingMore(view.getHeight(), renderedRange);
                             }}
+                            // While animating add the height of the removed item to the virtualized scroll
+                            // view's height then when the animation is done the virtualized scroll view
+                            // can go to its new height.
+                            extraHeight={animationState?.offset ?? 0}
                             itemCount={itemCount}
                             renderItem={useCallback(
                                 index => {
