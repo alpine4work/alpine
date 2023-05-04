@@ -108,9 +108,9 @@ export function InboxEntryView({
             aria-selected={isSelected}
             aria-setsize={ariaSetsize}
             aria-posinset={ariaPosinset}
-            paddingX={withinOverlay ? "1" : undefined}
-            paddingTop={withinOverlay && isFirstEntry ? "1" : undefined}
-            paddingBottom={withinOverlay && isLastEntry ? "1" : undefined}
+            paddingX="1"
+            paddingTop={isFirstEntry ? "1" : undefined}
+            paddingBottom={isLastEntry ? "1" : undefined}
             style={{minHeight: inboxEntryViewMinHeight}}
             // NOTE(calebmer): Not using `usePress()` here because that hook does something
             // weird with `event.preventDefault()` that causes the listbox in `<InboxView>`
@@ -129,16 +129,16 @@ export function InboxEntryView({
             }}
         >
             <Box
-                paddingX={withinOverlay ? "3" : "4"}
-                borderRadius={withinOverlay ? "md" : undefined}
+                paddingX="3"
+                borderRadius="md"
                 backgroundColor={
                     isPressed && withinOverlay ? "grey-10" : isSelected ? "grey-5" : undefined
                 }
                 style={{
                     // Add an extra pixel of padding so the background color covers the
                     // border rendered with `boxShadow`.
-                    paddingBottom: !isLastEntry ? 1 : undefined,
-                    marginBottom: !isLastEntry ? -1 : undefined,
+                    paddingBottom: 1,
+                    marginBottom: -1,
                 }}
             >
                 <Box
