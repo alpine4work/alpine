@@ -43,9 +43,10 @@ import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,
 } from "~/shared/dynamo/dynamo_general_realtime_types";
-import {DynamoIndexCursor, DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings";
+import {DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings";
 import {InternalError} from "~/shared/error/error";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate";
+import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -65,7 +66,10 @@ export type InboxViewPeek = {
 
 type InboxViewPeekState = {
     readonly activePeek: InboxViewPeek | null;
-    readonly transitionPeek: InboxViewPeek | null;
+    readonly transition: {
+        readonly peek: InboxViewPeek;
+        readonly pendingPromiseResolver: PromiseResolver<void>;
+    } | null;
 };
 
 export function InboxView({
@@ -83,6 +87,10 @@ export function InboxView({
 
     const entriesViewRef = useRef<VirtualizedScrollViewRef>(null);
 
+    /* ========================================================================== *\
+     *                           Realtime inbox entries                           *
+    \* ========================================================================== */
+
     const {query, itemsDeletedByLastChange, tryLoadingMore} = useInboxState({
         initialEntriesResult,
     });
@@ -99,6 +107,18 @@ export function InboxView({
         const view = assertExists(entriesViewRef.current);
         tryLoadingMore(view.getHeight(), view.getRenderedRange());
     }, [query, tryLoadingMore]);
+
+    const itemCount = query.getItemCount();
+
+    // We use this to help assistive technologies understand our list
+    // virtualization. If we haven't loaded all items we set the size to -1 which
+    // indicates the size is unknown.
+    // https://w3c.github.io/aria/#aria-setsize
+    const ariaSetsize = query.getItemCountWithoutLoadingIndicator() === itemCount ? itemCount : -1;
+
+    /* ========================================================================== *\
+     *                                 Peek state                                 *
+    \* ========================================================================== */
 
     // Takes the initial path we get when server-side rendering and returns the key
     // for the first item in our query that has a matching path.
@@ -127,7 +147,7 @@ export function InboxView({
         if (!initialPeekData) {
             return {
                 activePeek: null,
-                transitionPeek: null,
+                transition: null,
             };
         }
 
@@ -145,7 +165,7 @@ export function InboxView({
                     current: initialPeekData.loaderData as {[key: string]: unknown},
                 }),
             },
-            transitionPeek: null,
+            transition: null,
         };
     });
 
@@ -172,11 +192,16 @@ export function InboxView({
         }
     }, [findItemKeyForPathIfExists, peekState.activePeek]);
 
+    /* ========================================================================== *\
+     *                           Inbox entry selection                            *
+    \* ========================================================================== */
+
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     const selectEntry = useEvent((entry: DynamoGeneralRealtimeItem<InboxEntryModel>) => {
         // Don't select the same entry twice in a row since that would cause two
         // data fetches.
-        if ((peekState.transitionPeek ?? peekState.activePeek)?.key === entry.key) {
-            return;
+        if ((peekState.transition?.peek ?? peekState.activePeek)?.key === entry.key) {
+            return Promise.resolve();
         }
 
         const abortController = new AbortController();
@@ -194,20 +219,28 @@ export function InboxView({
             return {current: loaderData};
         })();
 
+        const pendingPromiseResolver = createPromiseResolver();
+
         setPeekState({
             activePeek: peekState.activePeek,
-            transitionPeek: {
-                id: generateId(),
-                key: entry.key,
-                initialPath: typeof spacePath !== "string" ? createPath(spacePath) : spacePath,
-                history: createMemoryHistory({initialEntries: [peekPath]}),
-                loaderDataRefPromise: PromiseImmediate.resolve(loaderDataRefPromise),
+            transition: {
+                peek: {
+                    id: generateId(),
+                    key: entry.key,
+                    initialPath: typeof spacePath !== "string" ? createPath(spacePath) : spacePath,
+                    history: createMemoryHistory({initialEntries: [peekPath]}),
+                    loaderDataRefPromise: PromiseImmediate.resolve(loaderDataRefPromise),
+                },
+                pendingPromiseResolver,
             },
         });
+
+        return pendingPromiseResolver.promise;
     });
 
     useEffect(() => {
-        if (!peekState.transitionPeek) return;
+        const {transition} = peekState;
+        if (!transition) return;
 
         let isCancelled = false;
         let isAccepted = false;
@@ -218,9 +251,11 @@ export function InboxView({
             if (isAccepted) return;
             isAccepted = true;
 
+            transition.pendingPromiseResolver.resolve();
+
             setPeekState({
-                activePeek: peekState.transitionPeek,
-                transitionPeek: null,
+                activePeek: transition.peek,
+                transition: null,
             });
         };
 
@@ -228,7 +263,7 @@ export function InboxView({
         //
         // - Our data promise resolves
         // - Our loading indicator delay finishes
-        peekState.transitionPeek.loaderDataRefPromise.then(acceptTransition, acceptTransition);
+        transition.peek.loaderDataRefPromise.then(acceptTransition, acceptTransition);
         const timeout = createTimeout(
             acceptTransition,
             delayFullPageTransitionLoadingIndicatorLimitMs,
@@ -237,10 +272,11 @@ export function InboxView({
         return () => {
             isCancelled = true;
             timeout.clear();
+            transition.pendingPromiseResolver.resolve();
         };
     }, [peekState]);
 
-    const selectedPeek = peekState.transitionPeek ?? peekState.activePeek;
+    const selectedPeek = peekState.transition?.peek ?? peekState.activePeek;
     const selectedEntryKey = selectedPeek?.key ?? null;
 
     // Whenever a new entry is selected:
@@ -265,33 +301,58 @@ export function InboxView({
         }
     }, [onPeekChange, selectedEntryKey, selectedPeek]);
 
-    // Remember the last cursor of our selected item. We use this when the user
-    // presses up and down to figure out what the next entry to go to is.
-    const selectedEntryCursorRef = useRef<{
-        key: DynamoItemKey;
-        cursor: DynamoIndexCursor | null;
-    } | null>(null);
-    useLayoutEffectWithoutServerSideWarning(() => {
-        if (!selectedEntryKey) {
-            selectedEntryCursorRef.current = null;
-            return;
-        }
+    /* ========================================================================== *\
+     *                    Adjacent inbox entries to selection                     *
+    \* ========================================================================== */
 
-        if (
-            !selectedEntryCursorRef.current ||
-            selectedEntryCursorRef.current.key !== selectedEntryKey
-        ) {
-            selectedEntryCursorRef.current = {
-                key: selectedEntryKey,
-                cursor: null,
-            };
-        }
+    const currentSelectedEntryCursor = useMemo(
+        () =>
+            selectedEntryKey ? query.getItemByKeyIfExists(selectedEntryKey)?.cursor ?? null : null,
+        [query, selectedEntryKey],
+    );
 
-        // Only update the cursor if we have it. If the item was removed from `query`,
-        // we want to keep the last cursor we saw for the entry key.
-        const cursor = query.getItemByKeyIfExists(selectedEntryKey)?.cursor;
-        if (cursor) selectedEntryCursorRef.current.cursor = cursor;
-    }, [query, selectedEntryKey]);
+    const [selectedEntryCursor, setSelectedEntryCursor] = useStateWithDependencies(
+        currentSelectedEntryCursor,
+        [selectedEntryKey],
+    );
+
+    // If `currentSelectedEntryCursor` changes then update
+    // `selectedEntryCursor`. But not when `currentSelectedEntryCursor` changes to
+    // null! If `currentSelectedEntryCursor` is null we want to remember the
+    // old cursor.
+    if (currentSelectedEntryCursor && selectedEntryCursor !== currentSelectedEntryCursor) {
+        setSelectedEntryCursor(currentSelectedEntryCursor);
+    }
+
+    const nextEntry = useMemo(() => {
+        // If we know where the selected item is in the inbox, select the item after
+        // it. Otherwise select the first item.
+        if (selectedEntryCursor) {
+            return query.getItemAfterCursorIfExists(selectedEntryCursor);
+        } else if (query.getItemCount() > 0) {
+            const item = query.getItem(0);
+            return item.type === "Loaded" ? item.item : null;
+        } else {
+            return null;
+        }
+    }, [query, selectedEntryCursor]);
+
+    const previousEntry = useMemo(() => {
+        // If we know where the selected item is in the inbox, select the item before
+        // it. Otherwise select the first item.
+        if (selectedEntryCursor) {
+            return query.getItemBeforeCursorIfExists(selectedEntryCursor);
+        } else if (query.getItemCount() > 0) {
+            const item = query.getItem(0);
+            return item.type === "Loaded" ? item.item : null;
+        } else {
+            return null;
+        }
+    }, [query, selectedEntryCursor]);
+
+    /* ========================================================================== *\
+     *                   Inbox entries deletion slide animation                   *
+    \* ========================================================================== */
 
     // When an item is deleted, we start an animation to shift entries below the
     // deleted item up to fill its space. This helps users see an item was removed
@@ -326,14 +387,6 @@ export function InboxView({
         return () => timeout.clear();
     }, [animationState, setAnimationState]);
 
-    const itemCount = query.getItemCount();
-
-    // We use this to help assistive technologies understand our list
-    // virtualization. If we haven't loaded all items we set the size to -1 which
-    // indicates the size is unknown.
-    // https://w3c.github.io/aria/#aria-setsize
-    const ariaSetsize = query.getItemCountWithoutLoadingIndicator() === itemCount ? itemCount : -1;
-
     return (
         <GlobalKeyDownEvent
             onGlobalKeyDown={event => {
@@ -346,20 +399,8 @@ export function InboxView({
                         event.stopPropagation();
                         event.preventDefault();
 
-                        // If an item is already selected, select the previous item. Otherwise select
-                        // the first item.
-                        if (selectedEntryCursorRef.current?.cursor) {
-                            const previousEntry = query.getItemBeforeCursorIfExists(
-                                selectedEntryCursorRef.current.cursor,
-                            );
-                            if (previousEntry) {
-                                selectEntry(previousEntry);
-                            }
-                        } else if (query.getItemCount() > 0) {
-                            const item = query.getItem(0);
-                            if (item.type === "Loaded") {
-                                selectEntry(item.item);
-                            }
+                        if (previousEntry) {
+                            void selectEntry(previousEntry);
                         }
                         break;
                     }
@@ -371,27 +412,19 @@ export function InboxView({
                         event.stopPropagation();
                         event.preventDefault();
 
-                        // If an item is already selected, select the next item. Otherwise select
-                        // the first item.
-                        if (selectedEntryCursorRef.current?.cursor) {
-                            const nextEntry = query.getItemAfterCursorIfExists(
-                                selectedEntryCursorRef.current.cursor,
-                            );
-                            if (nextEntry) {
-                                selectEntry(nextEntry);
-                            }
-                        } else if (query.getItemCount() > 0) {
-                            const item = query.getItem(0);
-                            if (item.type === "Loaded") {
-                                selectEntry(item.item);
-                            }
+                        if (nextEntry) {
+                            void selectEntry(nextEntry);
                         }
                         break;
                     }
                 }
             }}
         >
-            <InboxViewTopBar />
+            <InboxViewTopBar
+                nextEntry={nextEntry}
+                previousEntry={previousEntry}
+                selectEntry={selectEntry}
+            />
             <Box flexGrow="1" overflow="hidden" display="flex">
                 <FocusRing offset="inset">
                     <Box
@@ -436,7 +469,9 @@ export function InboxView({
                                                         }
                                                         // We don't have a visual press state for items, so immediately
                                                         // select the entry on press start to give the user some response.
-                                                        onPressStart={() => selectEntry(item.item)}
+                                                        onPressStart={() => {
+                                                            void selectEntry(item.item);
+                                                        }}
                                                         isFirstEntry={index === 0}
                                                         isLastEntry={index === itemCount - 1}
                                                         aria-posinset={index}

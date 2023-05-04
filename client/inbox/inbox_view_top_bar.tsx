@@ -7,9 +7,19 @@ import {FocusRing} from "~/client/design/focus_ring";
 import {IconButton} from "~/client/design/icon_button";
 import {inboxEntryWidth} from "~/client/inbox/inbox_entry_view";
 import {spacing} from "~/shared/design/spacing";
+import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types";
+import {InboxEntryModel} from "~/shared/models/inbox_model";
 import {sprinkles} from "~/shared/styles/styles";
 
-export function InboxViewTopBar() {
+export function InboxViewTopBar({
+    nextEntry,
+    previousEntry,
+    selectEntry,
+}: {
+    nextEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
+    previousEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
+    selectEntry: (entry: DynamoGeneralRealtimeItem<InboxEntryModel>) => Promise<void>;
+}) {
     return (
         <Box
             flexShrink="0"
@@ -48,14 +58,12 @@ export function InboxViewTopBar() {
                         <IconButton
                             size="xs"
                             description="Previous notification"
-                            // NOCOMMIT
-                            // keyboardShortcutHint={isMac ? "⌘+Shift+," : "Ctrl+Shift+,"}
-                            // isDisabled={!previousCommentThreadId}
+                            keyboardShortcutHint="↑"
+                            isDisabled={!previousEntry}
                             pressErrorTitle="Can’t go to previous notification"
                             onPress={async () => {
-                                // NOCOMMIT
-                                // if (!previousCommentThreadId) return;
-                                // await openCommentThread(previousCommentThreadId);
+                                if (!previousEntry) return;
+                                await selectEntry(previousEntry);
                             }}
                         >
                             <CaretUp />
@@ -63,14 +71,12 @@ export function InboxViewTopBar() {
                         <IconButton
                             size="xs"
                             description="Next notification"
-                            // NOCOMMIT
-                            // keyboardShortcutHint={isMac ? "⌘+Shift+." : "Ctrl+Shift+."}
-                            // isDisabled={!nextCommentThreadId}
+                            keyboardShortcutHint="↓"
+                            isDisabled={!nextEntry}
                             pressErrorTitle="Can’t go to next notification"
                             onPress={async () => {
-                                // NOCOMMIT
-                                // if (!nextCommentThreadId) return;
-                                // await openCommentThread(nextCommentThreadId);
+                                if (!nextEntry) return;
+                                await selectEntry(nextEntry);
                             }}
                         >
                             <CaretDown />
@@ -127,7 +133,7 @@ function InboxViewTopBarModeToggleButton() {
                     ref={leftButtonRef}
                     className={sprinkles({
                         height: "6",
-                        paddingX: "3",
+                        paddingX: "2",
                         display: "flex",
                         alignItems: "center",
                         gap: "1",
@@ -152,7 +158,7 @@ function InboxViewTopBarModeToggleButton() {
                     ref={rightButtonRef}
                     className={sprinkles({
                         height: "6",
-                        paddingX: "3",
+                        paddingX: "2",
                         display: "flex",
                         alignItems: "center",
                         gap: "1",
