@@ -46,6 +46,8 @@ import {
     overlayAnimateContainerClassName,
     overlayAnimateFadeInClassName,
     overlayAnimateFadeOutClassName,
+    overlayFadeInAnimationDurationMs,
+    overlayFadeOutAnimationDurationMs,
     spinAnimationClassName,
 } from "~/shared/styles/styles";
 
@@ -195,7 +197,7 @@ export function SpaceLayoutTopBarNotificationsButton({
                         }
                         return {...overlayState, animationState: null};
                     });
-                }, 200); // NOCOMMIT: Real delay
+                }, overlayFadeInAnimationDurationMs);
 
                 return () => timeout.clear();
             }
@@ -210,7 +212,7 @@ export function SpaceLayoutTopBarNotificationsButton({
                         }
                         return {isVisible: false};
                     });
-                }, 200); // NOCOMMIT: Real delay
+                }, overlayFadeOutAnimationDurationMs);
 
                 return () => timeout.clear();
             }

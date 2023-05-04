@@ -33,6 +33,7 @@ import {
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings";
 import {CancelledError, NotFoundError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
+import {wait} from "~/shared/helpers/async/wait";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {randomInteger} from "~/shared/helpers/number/random_integer";
@@ -674,10 +675,13 @@ function getInboxEntryItemKey({
  * entry, that doesn't happen through this function. Instead it happens through
  * `processNotificationEvent()`.
  */
-export function archiveInboxEntry(
+export async function archiveInboxEntry(
     context: SessionActionContext,
     {spaceId, key}: {spaceId: SpaceId; key: InboxEntryKey},
 ): Promise<void> {
+    // NOCOMMIT: Remove!
+    await wait(2000);
+
     return archiveInboxEntryItemKey(
         context,
         getInboxEntryItemKey({

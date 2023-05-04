@@ -4,7 +4,7 @@ import {
 } from "~/shared/dynamo/dynamo_general_realtime_types";
 import {DynamoIndexCursorSchema} from "~/shared/dynamo/dynamo_opaque_strings";
 import {SpaceId} from "~/shared/id/types/id_types";
-import {InboxEntryModelSchema} from "~/shared/models/inbox_model";
+import {InboxEntryKeySchema, InboxEntryModelSchema} from "~/shared/models/inbox_model";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc";
 import {Schema} from "~/shared/schema/schema";
 
@@ -30,4 +30,13 @@ export const backfillInboxEntries = defineRpc({
         backfillEntriesResult:
             createDynamoGeneralRealtimeBackfillResultSchema(InboxEntryModelSchema),
     },
+});
+
+export const archiveInboxEntry = defineRpc({
+    name: "archiveInboxEntry",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        key: InboxEntryKeySchema,
+    },
+    output: {},
 });

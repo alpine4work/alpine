@@ -279,6 +279,11 @@ export function InboxView({
     const selectedPeek = peekState.transition?.peek ?? peekState.activePeek;
     const selectedEntryKey = selectedPeek?.key ?? null;
 
+    const selectedEntry = useMemo(
+        () => (selectedEntryKey ? query.getItemByKeyIfExists(selectedEntryKey) : null),
+        [query, selectedEntryKey],
+    );
+
     // Whenever a new entry is selected:
     //
     // 1. We want to scroll to that entry
@@ -305,50 +310,41 @@ export function InboxView({
      *                    Adjacent inbox entries to selection                     *
     \* ========================================================================== */
 
-    const currentSelectedEntryCursor = useMemo(
-        () =>
-            selectedEntryKey ? query.getItemByKeyIfExists(selectedEntryKey)?.cursor ?? null : null,
-        [query, selectedEntryKey],
-    );
+    const [rememberedSelectedEntryCursor, setRememberedSelectedEntryCursor] =
+        useStateWithDependencies(selectedEntry?.cursor ?? null, [selectedEntryKey]);
 
-    const [selectedEntryCursor, setSelectedEntryCursor] = useStateWithDependencies(
-        currentSelectedEntryCursor,
-        [selectedEntryKey],
-    );
-
-    // If `currentSelectedEntryCursor` changes then update
-    // `selectedEntryCursor`. But not when `currentSelectedEntryCursor` changes to
-    // null! If `currentSelectedEntryCursor` is null we want to remember the
-    // old cursor.
-    if (currentSelectedEntryCursor && selectedEntryCursor !== currentSelectedEntryCursor) {
-        setSelectedEntryCursor(currentSelectedEntryCursor);
+    // If `selectedEntry` changes then update `rememberedSelectedEntryCursor`. But
+    // not when `selectedEntry` changes to null! If `selectedEntry` is null we want
+    // to remember the old cursor for `selectedEntryKey`.
+    if (selectedEntry && rememberedSelectedEntryCursor !== selectedEntry.cursor) {
+        setRememberedSelectedEntryCursor(selectedEntry.cursor);
     }
 
     const nextEntry = useMemo(() => {
         // If we know where the selected item is in the inbox, select the item after
         // it. Otherwise select the first item.
-        if (selectedEntryCursor) {
-            return query.getItemAfterCursorIfExists(selectedEntryCursor);
+        if (rememberedSelectedEntryCursor) {
+            return query.getItemAfterCursorIfExists(rememberedSelectedEntryCursor);
         } else if (query.getItemCount() > 0) {
             const item = query.getItem(0);
             return item.type === "Loaded" ? item.item : null;
         } else {
             return null;
         }
-    }, [query, selectedEntryCursor]);
+    }, [query, rememberedSelectedEntryCursor]);
 
     const previousEntry = useMemo(() => {
         // If we know where the selected item is in the inbox, select the item before
         // it. Otherwise select the first item.
-        if (selectedEntryCursor) {
-            return query.getItemBeforeCursorIfExists(selectedEntryCursor);
+        if (rememberedSelectedEntryCursor) {
+            return query.getItemBeforeCursorIfExists(rememberedSelectedEntryCursor);
         } else if (query.getItemCount() > 0) {
             const item = query.getItem(0);
             return item.type === "Loaded" ? item.item : null;
         } else {
             return null;
         }
-    }, [query, selectedEntryCursor]);
+    }, [query, rememberedSelectedEntryCursor]);
 
     /* ========================================================================== *\
      *                   Inbox entries deletion slide animation                   *
@@ -421,6 +417,7 @@ export function InboxView({
             }}
         >
             <InboxViewTopBar
+                selectedEntry={selectedEntry?.item ?? null}
                 nextEntry={nextEntry}
                 previousEntry={previousEntry}
                 selectEntry={selectEntry}

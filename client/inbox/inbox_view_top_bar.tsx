@@ -1,25 +1,35 @@
 import {Bell, CaretDown, CaretUp, Check} from "phosphor-react";
 import {useRef} from "react";
 import {useButton} from "react-aria";
+import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {FocusRing} from "~/client/design/focus_ring";
 import {IconButton} from "~/client/design/icon_button";
+import {useShowToast} from "~/client/design/toast";
 import {inboxEntryWidth} from "~/client/inbox/inbox_entry_view";
+import {useSpaceContext} from "~/client/spaces/space_context";
 import {spacing} from "~/shared/design/spacing";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types";
 import {InboxEntryModel} from "~/shared/models/inbox_model";
+import {archiveInboxEntry} from "~/shared/rpc/notifications_rpc_definitions";
 import {sprinkles} from "~/shared/styles/styles";
 
 export function InboxViewTopBar({
+    selectedEntry,
     nextEntry,
     previousEntry,
     selectEntry,
 }: {
+    selectedEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     nextEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     previousEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     selectEntry: (entry: DynamoGeneralRealtimeItem<InboxEntryModel>) => Promise<void>;
 }) {
+    const context = useAppContext();
+    const showToast = useShowToast();
+    const {space} = useSpaceContext();
+
     return (
         <Box
             flexShrink="0"
@@ -89,8 +99,25 @@ export function InboxViewTopBar({
                         height="6"
                         paddingX="2"
                         icon={<Check />}
-                        onPress={() => {
-                            // NOCOMMIT
+                        isDisabled={!selectedEntry}
+                        pressErrorTitle="Can’t go to next notification"
+                        onPress={async () => {
+                            if (!selectedEntry) return;
+
+                            archiveInboxEntry(context, {
+                                spaceId: space.id,
+                                key: selectedEntry.model.getKey(),
+                            }).catch(error => {
+                                showToast({
+                                    type: "Error",
+                                    title: "Can’t dismiss notification",
+                                    error,
+                                });
+                            });
+
+                            if (nextEntry) {
+                                await selectEntry(nextEntry);
+                            }
                         }}
                     >
                         Done
