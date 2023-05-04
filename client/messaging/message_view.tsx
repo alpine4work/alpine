@@ -617,52 +617,21 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         const formattedDate = formatter.format(message.createdTime);
 
         return (
-            <div className={sprinkles({paddingTop: "6", paddingBottom: "3"})}>
-                <div
-                    className={sprinkles({
-                        position: "relative",
-                        zIndex: "0",
-                        display: "flex",
-                        justifyContent: "center",
-                    })}
-                >
-                    <div
-                        className={sprinkles({
-                            position: "relative",
-                            zIndex: "20",
-                            fontSize: "50",
-                            fontStyle: "truncate",
-                            color: "grey-50",
-                            backgroundColor: "grey-0",
-                            paddingX: "6",
-                        })}
-                    >
-                        {formattedDate}
-                    </div>
-                    <div
-                        className={sprinkles({
-                            position: "absolute",
-                            zIndex: "10",
-                            backgroundColor: "grey-5",
-                        })}
-                        style={{
-                            height: 1,
-                            top: "50%",
-                            left: addRemLengths(spacing[marginX], spacing["5"]),
-                            right: addRemLengths(spacing[marginX], spacing["5"]),
-                        }}
-                    />
-                </div>
+            <div
+                className={sprinkles({
+                    paddingTop: "8",
+                    paddingBottom: "2",
+                    display: "flex",
+                    justifyContent: "center",
+                    fontSize: "50",
+                    fontStyle: "truncate",
+                    color: "grey-50",
+                })}
+            >
+                {formattedDate}
             </div>
         );
-    }, [
-        isFirstMessage,
-        marginX,
-        message.createdTime,
-        previousMessage,
-        roomDisplayedCreatedTime,
-        timeZone,
-    ]);
+    }, [isFirstMessage, message.createdTime, previousMessage, roomDisplayedCreatedTime, timeZone]);
 
     // IMPORTANT(calebmer): Be careful about what you put in this component!
     // `<MessageView>` needs to render fast for us to get good FPS when scrolling
