@@ -7,10 +7,7 @@ import {Box} from "~/client/design/box";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px";
 import {IconButton} from "~/client/design/icon_button";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
-import {
-    delayFullPageTransitionLoadingIndicatorLimitMs,
-    delayLoadingIndicatorLimitMs,
-} from "~/client/design/timing_constants";
+import {delayFullPageTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
 import {
     DocumentCommentThreadListView,

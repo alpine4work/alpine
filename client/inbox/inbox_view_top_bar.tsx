@@ -7,10 +7,13 @@ import {Button} from "~/client/design/button";
 import {FocusRing} from "~/client/design/focus_ring";
 import {IconButton} from "~/client/design/icon_button";
 import {useShowToast} from "~/client/design/toast";
+import {isMac} from "~/client/helpers/browser/is_mac";
+import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event";
 import {inboxEntryWidth} from "~/client/inbox/inbox_entry_view";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {spacing} from "~/shared/design/spacing";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {InboxEntryModel} from "~/shared/models/inbox_model";
 import {archiveInboxEntry} from "~/shared/rpc/notifications_rpc_definitions";
 import {sprinkles} from "~/shared/styles/styles";
@@ -28,12 +31,6 @@ export function InboxViewTopBar({
     selectEntry: (entry: DynamoGeneralRealtimeItem<InboxEntryModel>) => Promise<void>;
     archiveActiveEntryOptimistically: (promise: Promise<unknown>) => void;
 }) {
-    const context = useAppContext();
-    const showToast = useShowToast();
-    const {space} = useSpaceContext();
-
-    const [isArchivePending, setIsArchivePending] = useState(false);
-
     return (
         <Box
             flexShrink="0"
@@ -98,49 +95,13 @@ export function InboxViewTopBar({
                     </Box>
                 </Box>
                 <Box paddingX="2">
-                    <Button
-                        variant="neutral"
-                        height="6"
-                        paddingX="2"
-                        icon={<Check />}
-                        // Don't flash the button into a disabled state because `activeEntry` is
-                        // cleared when we optimistically archive the entry.
-                        isDisabled={!activeEntry && !isArchivePending}
-                        pressErrorTitle="Can’t go to next notification"
-                        onPress={async () => {
-                            if (!activeEntry) return;
-
-                            setIsArchivePending(true);
-                            try {
-                                const archivePromise = archiveInboxEntry(context, {
-                                    spaceId: space.id,
-                                    key: activeEntry.model.getKey(),
-                                });
-
-                                archivePromise.catch(error => {
-                                    showToast({
-                                        type: "Error",
-                                        title: "Can’t dismiss notification",
-                                        error,
-                                    });
-                                });
-
-                                // Immediately delete the item from the query so we don't have to wait for
-                                // realtime to respond to this.
-                                archiveActiveEntryOptimistically(archivePromise);
-
-                                if (nextEntry) {
-                                    await selectEntry(nextEntry);
-                                } else if (previousEntry) {
-                                    await selectEntry(previousEntry);
-                                }
-                            } finally {
-                                setIsArchivePending(false);
-                            }
-                        }}
-                    >
-                        Done
-                    </Button>
+                    <InboxViewTopBarDoneButton
+                        activeEntry={activeEntry}
+                        nextEntry={nextEntry}
+                        previousEntry={previousEntry}
+                        selectEntry={selectEntry}
+                        archiveActiveEntryOptimistically={archiveActiveEntryOptimistically}
+                    />
                 </Box>
             </Box>
         </Box>
@@ -225,5 +186,97 @@ function InboxViewTopBarModeToggleButton() {
                 </button>
             </FocusRing>
         </Box>
+    );
+}
+
+function InboxViewTopBarDoneButton({
+    activeEntry,
+    nextEntry,
+    previousEntry,
+    selectEntry,
+    archiveActiveEntryOptimistically,
+}: {
+    activeEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
+    nextEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
+    previousEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
+    selectEntry: (entry: DynamoGeneralRealtimeItem<InboxEntryModel>) => Promise<void>;
+    archiveActiveEntryOptimistically: (promise: Promise<unknown>) => void;
+}) {
+    const context = useAppContext();
+    const showToast = useShowToast();
+    const {space} = useSpaceContext();
+    const buttonRef = useRef<HTMLButtonElement>(null);
+    const [isPending, setIsPending] = useState(false);
+
+    const isDisabled = !activeEntry && !isPending;
+
+    return (
+        <GlobalKeyDownEvent
+            onGlobalKeyDown={event => {
+                if (event.key === "d" && (isMac ? event.metaKey : event.ctrlKey)) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    // If the button is disabled, navigate when the keyboard shortcut is hit.
+                    if (isDisabled) {
+                        if (nextEntry) {
+                            void selectEntry(nextEntry);
+                        } else if (previousEntry) {
+                            void selectEntry(previousEntry);
+                        }
+                    } else {
+                        // Programmatically click the button to correctly handle loading and
+                        // error states.
+                        assertExists(buttonRef.current).click();
+                    }
+                }
+            }}
+        >
+            <Button
+                ref={buttonRef}
+                variant="neutral"
+                height="6"
+                paddingX="2"
+                icon={<Check />}
+                keyboardShortcutHint={isMac ? "⌘+D" : "Ctrl+D"}
+                // Don't flash the button into a disabled state because `activeEntry` is
+                // cleared when we optimistically archive the entry.
+                isDisabled={!activeEntry && !isPending}
+                pressErrorTitle="Can’t go to next notification"
+                onPress={async () => {
+                    if (!activeEntry) return;
+
+                    setIsPending(true);
+                    try {
+                        const archivePromise = archiveInboxEntry(context, {
+                            spaceId: space.id,
+                            key: activeEntry.model.getKey(),
+                        });
+
+                        archivePromise.catch(error => {
+                            showToast({
+                                type: "Error",
+                                title: "Can’t dismiss notification",
+                                error,
+                            });
+                        });
+
+                        // Immediately delete the item from the query so we don't have to wait for
+                        // realtime to respond to this.
+                        archiveActiveEntryOptimistically(archivePromise);
+
+                        if (nextEntry) {
+                            await selectEntry(nextEntry);
+                        } else if (previousEntry) {
+                            await selectEntry(previousEntry);
+                        }
+                    } finally {
+                        setIsPending(false);
+                    }
+                }}
+            >
+                Done
+            </Button>
+        </GlobalKeyDownEvent>
     );
 }

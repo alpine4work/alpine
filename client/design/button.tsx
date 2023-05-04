@@ -3,9 +3,11 @@ import classNames from "classnames";
 import {IconContext, SpinnerGap} from "phosphor-react";
 import {ReactNode, Ref, forwardRef, useEffect, useRef, useState} from "react";
 import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";
+import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {useShowToast} from "~/client/design/toast";
+import {Tooltip} from "~/client/design/tooltip";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
 import {Spacing, spacing} from "~/shared/design/spacing";
 import {createTimeout} from "~/shared/helpers/async/timeout";
@@ -62,6 +64,11 @@ function Button(
         iconPlacement?: "start" | "end";
 
         /**
+         * A keyboard shortcut that will display in a tooltip on the button.
+         */
+        keyboardShortcutHint?: string;
+
+        /**
          * Are we waiting for some asynchronous action that was initiated by our button
          * to complete?
          *
@@ -100,6 +107,7 @@ function Button(
         icon,
         iconPlacement = "start",
         isDisabled,
+        keyboardShortcutHint,
         isPending: isPendingFromProps,
         fullWidth = false,
         shouldSubmitForm = false,
@@ -253,7 +261,7 @@ function Button(
         },
     };
 
-    return (
+    let node = (
         <FocusRing offset={variant === "quiet" ? "0" : "0.5"}>
             <button
                 {...mergeProps(buttonProps, hoverProps)}
@@ -343,4 +351,28 @@ function Button(
             </button>
         </FocusRing>
     );
+
+    if (keyboardShortcutHint) {
+        node = (
+            <Tooltip
+                placement="bottom"
+                content={
+                    <Box color="grey-50">
+                        <IconContext.Provider
+                            value={{
+                                color: "currentColor",
+                                size: spacing["3"],
+                            }}
+                        >
+                            {keyboardShortcutHint}
+                        </IconContext.Provider>
+                    </Box>
+                }
+            >
+                {node}
+            </Tooltip>
+        );
+    }
+
+    return node;
 }
