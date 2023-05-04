@@ -1,3 +1,4 @@
+import GraphemeSplitter from "grapheme-splitter";
 import {useMemo} from "react";
 import {parseAccountName} from "~/client/accounts/internal/parse_account_name";
 import {Box} from "~/client/design/box";
@@ -9,6 +10,8 @@ import {AccountModel} from "~/shared/models/account_model";
  */
 export function AccountAvatar({account, size}: {account: AccountModel; size: Spacing}) {
     const {firstInitial, lastInitial} = useMemo(() => {
+        const splitter = new GraphemeSplitter();
+
         const {firstName, lastName} = parseAccountName(account);
 
         // We use iterators instead of indexing into the name because iterators give us
@@ -16,9 +19,9 @@ export function AccountAvatar({account, size}: {account: AccountModel; size: Spa
         // split, but surrogate pairs will be preserved.
         //
         // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/@@iterator
-        const firstInitial: string = firstName[Symbol.iterator]().next().value;
+        const firstInitial: string = splitter.iterateGraphemes(firstName).next().value;
         const lastInitial: string | null = lastName
-            ? lastName[Symbol.iterator]().next().value
+            ? splitter.iterateGraphemes(lastName).next().value
             : null;
 
         return {firstInitial, lastInitial};

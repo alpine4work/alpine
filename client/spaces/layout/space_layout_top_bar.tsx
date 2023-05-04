@@ -1,7 +1,8 @@
+import GraphemeSplitter from "grapheme-splitter";
 import {MagnifyingGlass} from "phosphor-react";
+import {useMemo} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {Box} from "~/client/design/box";
-import {Button} from "~/client/design/button";
 import {IconButton} from "~/client/design/icon_button";
 import {MenuButton} from "~/client/design/menu_button";
 import {useShowToast} from "~/client/design/toast";
@@ -27,7 +28,6 @@ export function SpaceLayoutTopBar({
     initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
 }) {
     const showToast = useShowToast();
-    const navigate = useNavigate();
     const isMobile = useIsMobile();
 
     return (
@@ -46,34 +46,30 @@ export function SpaceLayoutTopBar({
                 display="flex"
                 justifyContent="flex-start"
                 alignItems="center"
-                paddingX="1"
+                gap="2"
+                paddingX="2"
             >
-                <Button
-                    paddingX="2"
-                    pressErrorTitle="Can not navigate to home page"
-                    onPress={async () => {
-                        if (space.alphaAccessDefaultChannelId) {
-                            await navigate(
-                                `/s/${space.id}/channels/${space.alphaAccessDefaultChannelId}`,
-                            );
-                        } else {
-                            showToast({
-                                type: "Error",
-                                title: "Can not navigate to home page",
-                                error: new UnimplementedError(
-                                    "Home page has not been implemented yet",
-                                    {
-                                        displayMessage: errorDisplayMessage`Home page has not been implemented yet.`,
-                                    },
-                                ),
-                            });
-                        }
-                    }}
+                <Box
+                    backgroundColor="grey-30-const"
+                    width="6"
+                    height="6"
+                    borderRadius="sm"
+                    display="flex"
+                    justifyContent="center"
+                    alignItems="center"
+                    color="grey-80-const"
                 >
-                    <Box fontSize="200" fontStyle="truncate-semi-bold">
-                        {space.name}
+                    <Box fontSize="75" style={{transform: `scale(${6 / 8})`}} aria-hidden="true">
+                        {useMemo(() => {
+                            const splitter = new GraphemeSplitter();
+                            const graphemes = splitter.iterateGraphemes(space.name);
+                            return graphemes.next().value;
+                        }, [space.name])}
                     </Box>
-                </Button>
+                </Box>
+                <Box fontSize="100" fontStyle="truncate-semi-bold">
+                    {space.name}
+                </Box>
             </Box>
             {!isMobile && (
                 // NOTE(calebmer): For now the search bar looks whack on mobile. Since it's not
@@ -81,9 +77,8 @@ export function SpaceLayoutTopBar({
                 <Box flexGrow="1" display="flex" justifyContent="center" alignItems="center">
                     <Box
                         minWidth="48"
-                        maxWidth="128"
+                        maxWidth="96"
                         width="full"
-                        backgroundColor="grey-5"
                         border="grey-10"
                         borderRadius="md"
                         display="flex"

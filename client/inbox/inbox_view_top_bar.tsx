@@ -1,6 +1,6 @@
-import {Bell, CaretDown, CaretUp, Check} from "phosphor-react";
+import {CaretDown, CaretUp, Check} from "phosphor-react";
 import {useRef, useState} from "react";
-import {useButton} from "react-aria";
+import {mergeProps, useButton, useHover} from "react-aria";
 import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
@@ -11,7 +11,6 @@ import {isMac} from "~/client/helpers/browser/is_mac";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event";
 import {inboxEntryWidth} from "~/client/inbox/inbox_entry_view";
 import {useSpaceContext} from "~/client/spaces/space_context";
-import {spacing} from "~/shared/design/spacing";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {InboxEntryModel} from "~/shared/models/inbox_model";
@@ -48,13 +47,14 @@ export function InboxViewTopBar({
                 display="flex"
                 alignItems="center"
             >
-                <Box paddingLeft="2" flexShrink="0">
+                <Box flexGrow="1" paddingLeft="2" fontSize="200" fontStyle="semi-bold">
+                    Inbox
+                </Box>
+                <Box flexShrink="0" paddingRight="2">
                     <InboxViewTopBarModeToggleButton />
                 </Box>
-                <Box flexGrow="1" height="full" display="flex" justifyContent="flex-end">
-                    <Box height="full" paddingY="2">
-                        <Box height="full" borderRight="grey-5" />
-                    </Box>
+                <Box flexShrink="0" height="full" paddingY="2">
+                    <Box height="full" borderRight="grey-5" />
                 </Box>
             </Box>
             <Box
@@ -132,57 +132,51 @@ function InboxViewTopBarModeToggleButton() {
         rightButtonRef,
     );
 
-    // NOCOMMIT: This design is confusing...
+    const {isHovered: isLeftHovered, hoverProps: leftHoverProps} = useHover({});
+    const {isHovered: isRightHovered, hoverProps: rightHoverProps} = useHover({});
 
     return (
-        <Box display="flex">
-            <FocusRing offset="border">
+        <Box display="flex" gap="1.5">
+            <FocusRing offset="0">
                 <button
-                    {...leftButtonProps}
+                    {...mergeProps(leftButtonProps, leftHoverProps)}
                     ref={leftButtonRef}
                     className={sprinkles({
                         height: "6",
                         paddingX: "2",
                         display: "flex",
                         alignItems: "center",
-                        gap: "1",
-                        border: "grey-10",
-                        borderRight: "none",
-                        borderLeftRadius: "base",
-                        color: isLeftSelected || isLeftPressed ? "grey-text" : "grey-50",
+                        borderRadius: "base",
+                        color: isLeftSelected || isRightPressed ? "grey-text" : "grey-50",
                         backgroundColor: isLeftPressed
                             ? "grey-10"
-                            : isLeftSelected
+                            : isLeftSelected || isLeftHovered
                             ? "grey-5"
                             : undefined,
                     })}
                 >
-                    <Bell size={spacing["3"]} />
-                    <Box>Inbox</Box>
+                    <Box>New</Box>
                 </button>
             </FocusRing>
-            <FocusRing offset="border">
+            <FocusRing offset="0">
                 <button
-                    {...rightButtonProps}
+                    {...mergeProps(rightButtonProps, rightHoverProps)}
                     ref={rightButtonRef}
                     className={sprinkles({
                         height: "6",
                         paddingX: "2",
                         display: "flex",
                         alignItems: "center",
-                        gap: "1",
-                        border: "grey-10",
-                        borderRightRadius: "base",
+                        borderRadius: "base",
                         color: !isLeftSelected || isRightPressed ? "grey-text" : "grey-50",
                         backgroundColor: isRightPressed
                             ? "grey-10"
-                            : !isLeftSelected
+                            : !isLeftSelected || isRightHovered
                             ? "grey-5"
                             : undefined,
                     })}
                 >
-                    <Check size={spacing["3"]} />
-                    <Box>Done</Box>
+                    <Box>Old</Box>
                 </button>
             </FocusRing>
         </Box>

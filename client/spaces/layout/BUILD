@@ -8,6 +8,7 @@ ts_project(
     ],
     deps = [
         "//:node_modules/@types/react",
+        "//:node_modules/grapheme-splitter",
         "//:node_modules/phosphor-react",
         "//:node_modules/react",
         "//client/accounts",
