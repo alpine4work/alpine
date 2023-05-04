@@ -152,6 +152,8 @@ function InboxViewTopBarModeToggleButton() {
         rightButtonRef,
     );
 
+    // NOCOMMIT: This design is confusing...
+
     return (
         <Box display="flex">
             <FocusRing offset="border">
