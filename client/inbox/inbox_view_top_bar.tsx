@@ -8,6 +8,7 @@ import {useShowToast} from "~/client/design/toast";
 import {isMac} from "~/client/helpers/browser/is_mac";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event";
 import {inboxEntryWidth} from "~/client/inbox/inbox_entry_view";
+import {InboxViewTopBarModeToggleButton} from "~/client/inbox/inbox_view_top_bar_mode_toggle_button";
 import {useNavigate} from "~/client/remix/use_navigate";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types";
@@ -27,9 +28,12 @@ export function InboxViewTopBar({
     activeEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     nextEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     previousEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
-    selectEntry: (entry: DynamoGeneralRealtimeItem<InboxEntryModel>) => Promise<void>;
+    selectEntry: (entry: DynamoGeneralRealtimeItem<InboxEntryModel> | null) => Promise<void>;
     deleteActiveEntryOptimistically: (promise: Promise<unknown>) => void;
 }) {
+    const navigate = useNavigate();
+    const {space} = useSpaceContext();
+
     return (
         <Box
             flexShrink="0"
@@ -51,7 +55,17 @@ export function InboxViewTopBar({
                     Inbox
                 </Box>
                 <Box flexShrink="0" paddingRight="2">
-                    <InboxViewTopBarModeToggleButton filter={filter} />
+                    <InboxViewTopBarModeToggleButton
+                        filter={filter}
+                        onNewPress={async () => {
+                            if (filter === "New") return;
+                            await navigate(`/s/${space.id}/inbox`);
+                        }}
+                        onArchivePress={async () => {
+                            if (filter === "Archive") return;
+                            await navigate(`/s/${space.id}/inbox?tab=old`);
+                        }}
+                    />
                 </Box>
                 <Box flexShrink="0" height="full" paddingY="2">
                     <Box height="full" borderRight="grey-5" />
@@ -118,40 +132,6 @@ export function InboxViewTopBar({
     );
 }
 
-function InboxViewTopBarModeToggleButton({filter}: {filter: "New" | "Archive"}) {
-    const navigate = useNavigate();
-    const {space} = useSpaceContext();
-
-    return (
-        <Box display="flex" gap="1.5">
-            <Button
-                variant={filter === "New" ? "quiet-on" : "quiet-off"}
-                height="6"
-                paddingX="2"
-                pressErrorTitle="Can’t open new notifications"
-                onPress={async () => {
-                    if (filter === "New") return;
-                    await navigate(`/s/${space.id}/inbox`);
-                }}
-            >
-                New
-            </Button>
-            <Button
-                variant={filter === "Archive" ? "quiet-on" : "quiet-off"}
-                height="6"
-                paddingX="2"
-                pressErrorTitle="Can’t open old notifications"
-                onPress={async () => {
-                    if (filter === "Archive") return;
-                    await navigate(`/s/${space.id}/inbox?tab=old`);
-                }}
-            >
-                Old
-            </Button>
-        </Box>
-    );
-}
-
 function InboxViewTopBarArchiveButton({
     activeEntry,
     nextEntry,
@@ -162,7 +142,7 @@ function InboxViewTopBarArchiveButton({
     activeEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     nextEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     previousEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
-    selectEntry: (entry: DynamoGeneralRealtimeItem<InboxEntryModel>) => Promise<void>;
+    selectEntry: (entry: DynamoGeneralRealtimeItem<InboxEntryModel> | null) => Promise<void>;
     deleteActiveEntryOptimistically: (promise: Promise<unknown>) => void;
 }) {
     const context = useAppContext();
@@ -232,6 +212,8 @@ function InboxViewTopBarArchiveButton({
                             await selectEntry(nextEntry);
                         } else if (previousEntry) {
                             await selectEntry(previousEntry);
+                        } else {
+                            await selectEntry(null);
                         }
                     } finally {
                         setIsPending(false);
@@ -254,7 +236,7 @@ function InboxViewTopBarUnarchiveButton({
     activeEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     nextEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     previousEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
-    selectEntry: (entry: DynamoGeneralRealtimeItem<InboxEntryModel>) => Promise<void>;
+    selectEntry: (entry: DynamoGeneralRealtimeItem<InboxEntryModel> | null) => Promise<void>;
     deleteActiveEntryOptimistically: (promise: Promise<unknown>) => void;
 }) {
     const context = useAppContext();
@@ -301,6 +283,8 @@ function InboxViewTopBarUnarchiveButton({
                         await selectEntry(nextEntry);
                     } else if (previousEntry) {
                         await selectEntry(previousEntry);
+                    } else {
+                        await selectEntry(null);
                     }
                 } finally {
                     setIsPending(false);

@@ -9,7 +9,7 @@ import {useShowToast} from "~/client/design/toast";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {useNavigate} from "~/client/remix/use_navigate";
 import {SpaceLayoutTopBarCreateButton} from "~/client/spaces/layout/internal/space_layout_top_bar_create_button";
-import {SpaceLayoutTopBarNotificationsButton} from "~/client/spaces/layout/internal/space_layout_top_bar_notifications_button";
+import {SpaceLayoutTopBarInboxButton} from "~/client/spaces/layout/internal/space_layout_top_bar_inbox_button";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {spacing} from "~/shared/design/spacing";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types";
@@ -115,7 +115,7 @@ export function SpaceLayoutTopBar({
                 paddingX="2"
             >
                 <SpaceLayoutTopBarCreateButton />
-                <SpaceLayoutTopBarNotificationsButton initialInbox={initialInbox} />
+                <SpaceLayoutTopBarInboxButton initialInbox={initialInbox} />
                 <Box paddingLeft="1">
                     <SpaceLayoutTopBarAccountButton />
                 </Box>

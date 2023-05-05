@@ -1,43 +1,33 @@
 import classNames from "classnames";
 import {differenceInHours} from "date-fns";
-import {Bell, SpinnerGap, Tray} from "phosphor-react";
-import {Memo, useCallback, useEffect, useRef, useState} from "react";
+import {Bell} from "phosphor-react";
+import {useCallback, useEffect, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
 import {useRemPx} from "~/client/design/helpers/use_rem_px";
 import {IconButton} from "~/client/design/icon_button";
 import {Overlay} from "~/client/design/overlay";
-import {useShowToast} from "~/client/design/toast";
 import {tooltipDelayMs} from "~/client/design/tooltip";
 import {defaultTooltipOffset} from "~/client/design/tooltip";
-import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query";
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useCurrentTimeRoundedToHour} from "~/client/helpers/use_current_time_rounded_to_hour";
-import {usePromise} from "~/client/helpers/use_promise";
-import {
-    InboxEntryView,
-    inboxEntryViewMinHeight,
-    inboxEntryWidth,
-} from "~/client/inbox/inbox_entry_view";
+import {inboxEntryViewMinHeight, inboxEntryWidth} from "~/client/inbox/inbox_entry_view";
 import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge";
-import {useInboxState} from "~/client/inbox/use_inbox_state";
-import {usePeekStackContext} from "~/client/peek/peek_stack";
 import {useNavigate} from "~/client/remix/use_navigate";
-import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context";
 import {
-    VirtualizedScrollView,
-    VirtualizedScrollViewRef,
-} from "~/client/virtualized/virtualized_scroll_view";
+    SpaceLayoutTopBarInboxOverlay,
+    spaceLayoutTopBarInboxOverlayHeight,
+} from "~/client/spaces/layout/internal/space_layout_top_bar_inbox_overlay";
+import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context";
 import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_scroll_view_state";
-import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/spacing";
+import {convertRemLengthToPx, spacing} from "~/shared/design/spacing";
 import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,
 } from "~/shared/dynamo/dynamo_general_realtime_types";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate";
 import {createTimeout} from "~/shared/helpers/async/timeout";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {Lazy} from "~/shared/helpers/control/lazy";
 import {InboxEntryModel, InboxModel} from "~/shared/models/inbox_model";
@@ -45,19 +35,15 @@ import {getInboxWithStrongReadConsistency} from "~/shared/rpc/accounts_rpc_defin
 import {getInboxEntries} from "~/shared/rpc/notifications_rpc_definitions";
 import {
     backgroundColorVar,
-    colorSchemeVars,
     greyElevatedClassName,
     overlayAnimateContainerClassName,
     overlayAnimateFadeInClassName,
     overlayAnimateFadeOutClassName,
     overlayFadeInAnimationDurationMs,
     overlayFadeOutAnimationDurationMs,
-    spinAnimationClassName,
 } from "~/shared/styles/styles";
 
-const notificationOverlayHeight: Spacing = "96";
-
-export function SpaceLayoutTopBarNotificationsButton({
+export function SpaceLayoutTopBarInboxButton({
     initialInbox,
 }: {
     initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
@@ -116,6 +102,7 @@ export function SpaceLayoutTopBarNotificationsButton({
         | {
               isVisible: true;
               animationState: "FadingIn" | "FadingOut" | "WaitingForTooltipDelay" | null;
+              filter: "New" | "Archive";
               initialEntriesResultPromise: Lazy<
                   PromiseImmediate<DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>>
               >;
@@ -131,28 +118,29 @@ export function SpaceLayoutTopBarNotificationsButton({
         setIsOverlayHovered(false);
     }
 
+    // Fetch enough items to fill the virtualization window with entries. This
+    // gives the user a bit of space to scroll.
+    const initialEntriesLimit = Math.ceil(
+        getVirtualizationWindowHeight(
+            convertRemLengthToPx(spacing[spaceLayoutTopBarInboxOverlayHeight], remPx),
+        ) / convertRemLengthToPx(inboxEntryViewMinHeight, remPx),
+    );
+
     if (shouldOverlayBeVisible && !overlayState.isVisible) {
         setOverlayState({
             isVisible: true,
             animationState: "WaitingForTooltipDelay",
-            initialEntriesResultPromise: new Lazy(() => {
-                // Fetch enough items to fill the virtualization window with entries. This
-                // gives the user a bit of space to scroll.
-                const limit = Math.ceil(
-                    getVirtualizationWindowHeight(
-                        convertRemLengthToPx(spacing[notificationOverlayHeight], remPx),
-                    ) / convertRemLengthToPx(inboxEntryViewMinHeight, remPx),
-                );
-
-                return PromiseImmediate.resolve(
+            filter: "New",
+            initialEntriesResultPromise: new Lazy(() =>
+                PromiseImmediate.resolve(
                     getInboxEntries(context, {
                         spaceId: space.id,
                         filter: "New",
-                        limit,
+                        limit: initialEntriesLimit,
                         afterCursor: null,
                     }).then(({entriesResult}) => entriesResult),
-                );
-            }),
+                ),
+            ),
         });
     }
 
@@ -327,7 +315,7 @@ export function SpaceLayoutTopBarNotificationsButton({
                         <Box
                             ref={overlayRef}
                             width={inboxEntryWidth}
-                            height={notificationOverlayHeight}
+                            height={spaceLayoutTopBarInboxOverlayHeight}
                             borderRadius="md"
                             backgroundColor="grey-0"
                             boxShadow="elevation-20"
@@ -345,8 +333,53 @@ export function SpaceLayoutTopBarNotificationsButton({
                             onPointerLeave={() => setIsOverlayHovered(false)}
                         >
                             {overlayState.isVisible && (
-                                <SpaceLayoutTopBarNotificationOverlay
+                                <SpaceLayoutTopBarInboxOverlay
+                                    // Remount when the filter changes...
+                                    key={overlayState.filter}
+                                    filter={overlayState.filter}
                                     initialEntriesResultPromise={overlayState.initialEntriesResultPromise.get()}
+                                    onNewPress={async () => {
+                                        const {entriesResult} = await getInboxEntries(context, {
+                                            spaceId: space.id,
+                                            filter: "New",
+                                            limit: initialEntriesLimit,
+                                            afterCursor: null,
+                                        });
+
+                                        setOverlayState(overlayState => {
+                                            if (!overlayState.isVisible) return overlayState;
+
+                                            return {
+                                                isVisible: true,
+                                                animationState: overlayState.animationState,
+                                                filter: "New",
+                                                initialEntriesResultPromise: new Lazy(() =>
+                                                    PromiseImmediate.resolve(entriesResult),
+                                                ),
+                                            };
+                                        });
+                                    }}
+                                    onArchivePress={async () => {
+                                        const {entriesResult} = await getInboxEntries(context, {
+                                            spaceId: space.id,
+                                            filter: "Archive",
+                                            limit: initialEntriesLimit,
+                                            afterCursor: null,
+                                        });
+
+                                        setOverlayState(overlayState => {
+                                            if (!overlayState.isVisible) return overlayState;
+
+                                            return {
+                                                isVisible: true,
+                                                animationState: overlayState.animationState,
+                                                filter: "Archive",
+                                                initialEntriesResultPromise: new Lazy(() =>
+                                                    PromiseImmediate.resolve(entriesResult),
+                                                ),
+                                            };
+                                        });
+                                    }}
                                     onClose={handleOverlayClose}
                                 />
                             )}
@@ -444,230 +477,5 @@ export function SpaceLayoutTopBarNotificationsButton({
                 </IconButton>
             </Overlay>
         </Box>
-    );
-}
-
-function SpaceLayoutTopBarNotificationOverlay({
-    initialEntriesResultPromise,
-    onClose,
-}: {
-    initialEntriesResultPromise: PromiseImmediate<
-        DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>
-    >;
-    onClose: Memo<() => void>;
-}) {
-    const initialEntriesResult = usePromise(initialEntriesResultPromise);
-
-    return (
-        <>
-            {initialEntriesResult.isPending ? (
-                <Box flexGrow="1" display="flex" justifyContent="center" alignItems="center">
-                    <SpinnerGap
-                        className={spinAnimationClassName}
-                        color={colorSchemeVars["grey-70"]}
-                        size={spacing["6"]}
-                    />
-                </Box>
-            ) : (
-                <SpaceLayoutTopBarNotificationOverlayInbox
-                    initialEntriesResult={initialEntriesResult.value}
-                    onClose={onClose}
-                />
-            )}
-        </>
-    );
-}
-
-function SpaceLayoutTopBarNotificationOverlayInbox({
-    initialEntriesResult,
-    onClose,
-}: {
-    initialEntriesResult: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>;
-    onClose: Memo<() => void>;
-}) {
-    const {query, tryLoadingMore} = useInboxState({
-        filter: "New",
-        initialEntriesResult,
-    });
-
-    if (query.getItemCount() === 0) {
-        return (
-            <Box
-                flexGrow="1"
-                width="full"
-                display="flex"
-                flexDirection="column"
-                justifyContent="center"
-                alignItems="center"
-                gap="2"
-                color="grey-70"
-            >
-                <Tray size={spacing["9"]} weight="thin" />
-                <Box>No new notifications</Box>
-            </Box>
-        );
-    }
-
-    return (
-        <SpaceLayoutTopBarNotificationOverlayInboxVirtualizedList
-            query={query}
-            tryLoadingMore={tryLoadingMore}
-            onClose={onClose}
-        />
-    );
-}
-
-function SpaceLayoutTopBarNotificationOverlayInboxVirtualizedList({
-    query,
-    tryLoadingMore,
-    onClose,
-}: {
-    query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;
-    tryLoadingMore: (
-        viewHeight: number,
-        renderedRange: {startIndex: number; endIndex: number} | null,
-    ) => void;
-    onClose: () => void;
-}) {
-    const viewRef = useRef<VirtualizedScrollViewRef>(null);
-
-    // Whenever our query data changes, try loading more entries. In case our
-    // rendered range stayed the same but we now see the loading indicator.
-    //
-    // This effect should also fire when `tryLoadingMore()` completes in case it
-    // didn't fully load the query.
-    useEffect(() => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-        query;
-
-        const view = assertExists(viewRef.current);
-        tryLoadingMore(view.getHeight(), view.getRenderedRange());
-    }, [query, tryLoadingMore]);
-
-    const itemCount = query.getItemCount();
-
-    return (
-        <VirtualizedScrollView
-            ref={viewRef}
-            bufferedItemHeight={inboxEntryViewMinHeight}
-            initialViewHeight={spacing[notificationOverlayHeight]}
-            onRenderedRangeChange={renderedRange => {
-                const view = assertExists(viewRef.current);
-                tryLoadingMore(view.getHeight(), renderedRange);
-            }}
-            itemCount={itemCount}
-            renderItem={useCallback(
-                index => {
-                    const item = query.getItem(index);
-                    switch (item.type) {
-                        case "Loaded": {
-                            return {
-                                key: `Loaded:${item.item.key}`,
-                                minHeight: inboxEntryViewMinHeight,
-                                node: (
-                                    <SpaceLayoutTopBarNotificationOverlayInboxEntry
-                                        entry={item.item.model}
-                                        isFirstEntry={index === 0}
-                                        isLastEntry={index === itemCount - 1}
-                                        onClose={onClose}
-                                    />
-                                ),
-                            };
-                        }
-                        case "LoadingIndicator": {
-                            return {
-                                key: "LoadingIndicator",
-                                minHeight: inboxEntryViewMinHeight,
-                                node: (
-                                    <Box
-                                        display="flex"
-                                        justifyContent="center"
-                                        alignItems="center"
-                                        style={{height: inboxEntryViewMinHeight}}
-                                    >
-                                        <SpinnerGap
-                                            className={spinAnimationClassName}
-                                            color={colorSchemeVars["grey-60"]}
-                                            size={spacing["4"]}
-                                        />
-                                    </Box>
-                                ),
-                            };
-                        }
-                        default:
-                            throw exhaustive(item);
-                    }
-                },
-                [itemCount, onClose, query],
-            )}
-            // Render a div at the bottom of the notification list that covers the bottom
-            // border of the last entry but only when there's enough content to scroll. If
-            // there are only 2 entries, we want to show that last border.
-            extraChildren={
-                <Box
-                    position="absolute"
-                    zIndex="50"
-                    left="0"
-                    right="0"
-                    top="0"
-                    height="full"
-                    minHeight={notificationOverlayHeight}
-                >
-                    <Box
-                        position="absolute"
-                        left="0"
-                        right="0"
-                        bottom="0"
-                        height="1"
-                        backgroundColor="grey-0"
-                    />
-                </Box>
-            }
-        />
-    );
-}
-
-function SpaceLayoutTopBarNotificationOverlayInboxEntry({
-    entry,
-    isFirstEntry,
-    isLastEntry,
-    onClose,
-}: {
-    entry: InboxEntryModel;
-    isFirstEntry: boolean;
-    isLastEntry: boolean;
-    onClose: () => void;
-}) {
-    const showToast = useShowToast();
-    const peekStackContext = usePeekStackContext();
-
-    const [isPending, setIsPending] = useState(false);
-
-    return (
-        <InboxEntryView
-            entry={entry}
-            withinOverlay={true}
-            isFirstEntry={isFirstEntry}
-            isLastEntry={isLastEntry}
-            onPress={() => {
-                if (isPending) return;
-
-                // TODO(calebmer): Some kind of global loading indicator?
-                peekStackContext.push(entry.getPath()).then(
-                    () => {
-                        setIsPending(false);
-                        onClose();
-                    },
-                    error => {
-                        setIsPending(false);
-                        showToast({
-                            type: "Error",
-                            title: "Couldn’t open notification",
-                            error,
-                        });
-                    },
-                );
-            }}
-        />
     );
 }

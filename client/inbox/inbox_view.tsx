@@ -1,6 +1,6 @@
 import {RemixEntryContext} from "@remix-run/react";
 import {MemoryHistory, createMemoryHistory, createPath} from "history";
-import {SpinnerGap, Tray} from "phosphor-react";
+import {SpinnerGap} from "phosphor-react";
 import {
     Memo,
     MutableRefObject,
@@ -29,6 +29,7 @@ import {
     inboxEntryWidth,
 } from "~/client/inbox/inbox_entry_view";
 import {InboxPeekContextProvider} from "~/client/inbox/inbox_peek_context";
+import {InboxViewEntriesEmpty} from "~/client/inbox/inbox_view_entries_empty";
 import {InboxViewTopBar} from "~/client/inbox/inbox_view_top_bar";
 import {useInboxState} from "~/client/inbox/use_inbox_state";
 import {loadInitialPeekDataForClient} from "~/client/peek/load_initial_peek_data_for_client";
@@ -192,7 +193,15 @@ export function InboxView({
     \* ========================================================================== */
 
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    const selectEntry = useEvent((entry: DynamoGeneralRealtimeItem<InboxEntryModel>) => {
+    const selectEntry = useEvent((entry: DynamoGeneralRealtimeItem<InboxEntryModel> | null) => {
+        if (!entry) {
+            setPeekState({
+                activePeek: null,
+                transition: null,
+            });
+            return Promise.resolve();
+        }
+
         // Don't select the same entry twice in a row since that would cause two
         // data fetches.
         if ((peekState.transition?.peek ?? peekState.activePeek)?.key === entry.key) {
@@ -379,27 +388,7 @@ export function InboxView({
                     borderRight="grey-10"
                 >
                     {query.getItemCount() === 0 ? (
-                        <Box
-                            width="full"
-                            height="full"
-                            display="flex"
-                            flexDirection="column"
-                            justifyContent="center"
-                            alignItems="center"
-                            gap="2"
-                            color="grey-70"
-                        >
-                            <Tray size={spacing["9"]} weight="thin" />
-                            {filter === "New" ? (
-                                <Box>No new notifications</Box>
-                            ) : (
-                                <Box>
-                                    Notifications you mark as done
-                                    <br />
-                                    or respond to will appear here
-                                </Box>
-                            )}
-                        </Box>
+                        <InboxViewEntriesEmpty filter={filter} />
                     ) : (
                         <InboxViewEntries
                             query={query}
