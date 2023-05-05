@@ -53,7 +53,7 @@ export function SpaceLayoutTopBar({
                     backgroundColor="grey-30-const"
                     width="6"
                     height="6"
-                    borderRadius="sm"
+                    borderRadius="base"
                     display="flex"
                     justifyContent="center"
                     alignItems="center"

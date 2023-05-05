@@ -50,3 +50,11 @@ export const unarchiveInboxEntry = defineRpc({
     },
     output: {},
 });
+
+export const observeInbox = defineRpc({
+    name: "observeInbox",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+    },
+    output: {},
+});

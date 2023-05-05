@@ -15,7 +15,11 @@ import {
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {InboxEntryModel} from "~/shared/models/inbox_model";
-import {backfillInboxEntries, getInboxEntries} from "~/shared/rpc/notifications_rpc_definitions";
+import {
+    backfillInboxEntries,
+    getInboxEntries,
+    observeInbox,
+} from "~/shared/rpc/notifications_rpc_definitions";
 
 type InboxState = {
     readonly queryWithoutOptimisticUpdates: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;
@@ -325,6 +329,16 @@ export function useInboxState({
             },
             error => setErrorState({hasError: true, error}),
         );
+
+        // Also observe the inbox when we successfully connect to realtime. When we're
+        // connected to realtime this also incidentally means the page is visible.
+        //
+        // We find this a pretty reasonable place to say "ok, the user is actually
+        // looking at the inbox" whether they are looking at the inbox page or the
+        // inbox preview overlay.
+        observeInbox(context, {spaceId: space.id}).catch(error => {
+            context.tracer.getRoot().logUncaughtException("Couldn't observe inbox", error);
+        });
     }, [context, filter, isConnected, query, space.id]);
 
     const isLoadingRef = useRef(false);
