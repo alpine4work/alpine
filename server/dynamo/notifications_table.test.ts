@@ -4383,6 +4383,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 loudNotificationCount: 0,
+                entryCount: 0,
+                lastZeroEntryCountTime: null,
             }),
         );
     });
@@ -4397,6 +4399,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 loudNotificationCount: 0,
+                entryCount: 0,
+                lastZeroEntryCountTime: null,
             }),
         );
 
@@ -4407,6 +4411,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 loudNotificationCount: 0,
+                entryCount: 0,
+                lastZeroEntryCountTime: null,
             }),
         );
 
@@ -4417,6 +4423,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 loudNotificationCount: 0,
+                entryCount: 0,
+                lastZeroEntryCountTime: null,
             }),
         );
 
@@ -4456,6 +4464,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 loudNotificationCount: 0,
+                entryCount: 0,
+                lastZeroEntryCountTime: null,
             }),
         );
 
@@ -4466,6 +4476,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 loudNotificationCount: 0,
+                entryCount: 0,
+                lastZeroEntryCountTime: null,
             }),
         );
 
@@ -4476,6 +4488,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 loudNotificationCount: 0,
+                entryCount: 0,
+                lastZeroEntryCountTime: null,
             }),
         );
 
@@ -4494,6 +4508,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 loudNotificationCount: 0,
+                entryCount: 1,
+                lastZeroEntryCountTime: null,
             }),
         );
 
@@ -4504,6 +4520,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 loudNotificationCount: 0,
+                entryCount: 0,
+                lastZeroEntryCountTime: null,
             }),
         );
 
@@ -4514,6 +4532,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 loudNotificationCount: 0,
+                entryCount: 0,
+                lastZeroEntryCountTime: null,
             }),
         );
 
@@ -4532,6 +4552,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 loudNotificationCount: 0,
+                entryCount: 1,
+                lastZeroEntryCountTime: null,
             }),
         );
 
@@ -4542,6 +4564,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 loudNotificationCount: 0,
+                entryCount: 1,
+                lastZeroEntryCountTime: null,
             }),
         );
 
@@ -4552,6 +4576,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 loudNotificationCount: 0,
+                entryCount: 0,
+                lastZeroEntryCountTime: null,
             }),
         );
 
@@ -4570,6 +4596,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 loudNotificationCount: 0,
+                entryCount: 1,
+                lastZeroEntryCountTime: null,
             }),
         );
 
@@ -4580,6 +4608,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 loudNotificationCount: 0,
+                entryCount: 0,
+                lastZeroEntryCountTime: expect.any(Date),
             }),
         );
 
@@ -4590,6 +4620,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 loudNotificationCount: 0,
+                entryCount: 1,
+                lastZeroEntryCountTime: null,
             }),
         );
 
@@ -4608,6 +4640,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 loudNotificationCount: 0,
+                entryCount: 1,
+                lastZeroEntryCountTime: null,
             }),
         );
 
@@ -4618,6 +4652,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 loudNotificationCount: 1,
+                entryCount: 1,
+                lastZeroEntryCountTime: expect.any(Date),
             }),
         );
 
@@ -4628,6 +4664,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 loudNotificationCount: 0,
+                entryCount: 1,
+                lastZeroEntryCountTime: null,
             }),
         );
 
@@ -4646,6 +4684,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 loudNotificationCount: 0,
+                entryCount: 1,
+                lastZeroEntryCountTime: null,
             }),
         );
 
@@ -4656,6 +4696,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 loudNotificationCount: 2,
+                entryCount: 2,
+                lastZeroEntryCountTime: expect.any(Date),
             }),
         );
 
@@ -4666,6 +4708,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 loudNotificationCount: 0,
+                entryCount: 1,
+                lastZeroEntryCountTime: null,
             }),
         );
 
@@ -4681,6 +4725,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 loudNotificationCount: 0,
+                entryCount: 1,
+                lastZeroEntryCountTime: null,
             }),
         );
 
@@ -4691,6 +4737,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 loudNotificationCount: 2,
+                entryCount: 2,
+                lastZeroEntryCountTime: expect.any(Date),
             }),
         );
 
@@ -4701,6 +4749,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 loudNotificationCount: 0,
+                entryCount: 0,
+                lastZeroEntryCountTime: expect.any(Date),
             }),
         );
 
@@ -4716,6 +4766,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 loudNotificationCount: 0,
+                entryCount: 1,
+                lastZeroEntryCountTime: null,
             }),
         );
 
@@ -4726,6 +4778,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 loudNotificationCount: 1,
+                entryCount: 1,
+                lastZeroEntryCountTime: expect.any(Date),
             }),
         );
 
@@ -4736,6 +4790,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 loudNotificationCount: 0,
+                entryCount: 0,
+                lastZeroEntryCountTime: expect.any(Date),
             }),
         );
 
@@ -4751,6 +4807,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 loudNotificationCount: 0,
+                entryCount: 1,
+                lastZeroEntryCountTime: null,
             }),
         );
 
@@ -4761,6 +4819,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 loudNotificationCount: 1,
+                entryCount: 1,
+                lastZeroEntryCountTime: expect.any(Date),
             }),
         );
 
@@ -4771,6 +4831,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 loudNotificationCount: 0,
+                entryCount: 0,
+                lastZeroEntryCountTime: expect.any(Date),
             }),
         );
 
@@ -4786,6 +4848,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 loudNotificationCount: 0,
+                entryCount: 1,
+                lastZeroEntryCountTime: null,
             }),
         );
 
@@ -4796,6 +4860,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 loudNotificationCount: 1,
+                entryCount: 1,
+                lastZeroEntryCountTime: expect.any(Date),
             }),
         );
 
@@ -4806,6 +4872,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 loudNotificationCount: 0,
+                entryCount: 1,
+                lastZeroEntryCountTime: expect.any(Date),
             }),
         );
 
@@ -4821,6 +4889,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 loudNotificationCount: 0,
+                entryCount: 1,
+                lastZeroEntryCountTime: null,
             }),
         );
 
@@ -4831,6 +4901,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 loudNotificationCount: 1,
+                entryCount: 2,
+                lastZeroEntryCountTime: expect.any(Date),
             }),
         );
 
@@ -4841,6 +4913,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 loudNotificationCount: 0,
+                entryCount: 1,
+                lastZeroEntryCountTime: expect.any(Date),
             }),
         );
 
@@ -4856,6 +4930,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session1.account.id,
                 loudNotificationCount: 0,
+                entryCount: 1,
+                lastZeroEntryCountTime: null,
             }),
         );
 
@@ -4866,6 +4942,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 loudNotificationCount: 1,
+                entryCount: 3,
+                lastZeroEntryCountTime: expect.any(Date),
             }),
         );
 
@@ -4876,6 +4954,8 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 loudNotificationCount: 0,
+                entryCount: 1,
+                lastZeroEntryCountTime: expect.any(Date),
             }),
         );
     });

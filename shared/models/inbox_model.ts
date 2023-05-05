@@ -12,6 +12,8 @@ export class InboxModel extends Model(
         spaceId: Schema.id<SpaceId>(),
         accountId: Schema.id<AccountId>(),
         loudNotificationCount: Schema.integer.min(0),
+        entryCount: Schema.integer.min(0),
+        lastZeroEntryCountTime: Schema.date.nullable(),
     }),
 ) {}
 

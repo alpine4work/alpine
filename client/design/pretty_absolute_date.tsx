@@ -1,6 +1,7 @@
 import {useMemo} from "react";
 import {OverlayPlacement} from "~/client/design/overlay";
 import {Tooltip} from "~/client/design/tooltip";
+import {useCurrentTimeRoundedToHour} from "~/client/helpers/use_current_time_rounded_to_hour";
 import {useClientInfo} from "~/client/remix/client_info_context";
 
 /**
@@ -11,9 +12,10 @@ import {useClientInfo} from "~/client/remix/client_info_context";
  */
 export function PrettyAbsoluteDate({date, placement}: {date: Date; placement?: OverlayPlacement}) {
     const {timeZone} = useClientInfo();
+    const currentTime = useCurrentTimeRoundedToHour();
 
     const formattedDate = useMemo(() => {
-        const isCurrentYear = new Date().getFullYear() === date.getFullYear();
+        const isCurrentYear = currentTime.getFullYear() === date.getFullYear();
 
         const formatter = new Intl.DateTimeFormat("en-US", {
             timeZone,
@@ -24,7 +26,7 @@ export function PrettyAbsoluteDate({date, placement}: {date: Date; placement?: O
         });
 
         return formatter.format(date);
-    }, [date, timeZone]);
+    }, [currentTime, date, timeZone]);
 
     return (
         <Tooltip content={<PrettyAbsoluteDateTooltipContent date={date} />} placement={placement}>

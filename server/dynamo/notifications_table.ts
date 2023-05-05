@@ -198,6 +198,22 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                          * indicators.
                          */
                         loudNotificationCount: Schema.integer.min(0),
+
+                        /**
+                         * The number of entries in our inbox. Does not count archived entries
+                         * (entries with `isArchived: true`).
+                         */
+                        entryCount: Schema.integer.min(0).default(0),
+
+                        /**
+                         * When `entryCount` is set to 0 from a non-zero value, we set this to the
+                         * current time. We use this to tell:
+                         *
+                         * - If the inbox has never had notifications in it this will be `null`
+                         * - If the inbox was recently cleared, we don't want to show a notification
+                         *   indicator for a while to give the user some peace
+                         */
+                        lastZeroEntryCountTime: Schema.date.nullable().default(null),
                     }),
                 },
                 {
@@ -284,6 +300,8 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         spaceId: item.spaceId,
                         accountId: item.accountId,
                         loudNotificationCount: item.loudNotificationCount,
+                        entryCount: item.entryCount,
+                        lastZeroEntryCountTime: item.lastZeroEntryCountTime,
                     });
                 },
             },
@@ -544,6 +562,8 @@ export async function getInbox(
             accountId: context.actor.getAccountId(),
             generation: initialInboxGeneration,
             loudNotificationCount: 0,
+            entryCount: 0,
+            lastZeroEntryCountTime: null,
         });
         return getRealtimeItem();
     });
@@ -568,7 +588,7 @@ export async function getInboxEntries(
 ): Promise<DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>> {
     await authorizeSpaceAccess(context, spaceId);
 
-    return InboxEntriesIndex.realtimeQuery(context, {
+    const result = await InboxEntriesIndex.realtimeQuery(context, {
         partitionKey: {
             spaceId,
             accountId: context.actor.getAccountId(),
@@ -592,6 +612,44 @@ export async function getInboxEntries(
         limit,
         paginate: {type: "FromStart", afterCursor},
     });
+
+    // In test environments, if we've fetched all non-archived entries from the
+    // inbox then test the inbox attributes item has the correct entry count.
+    //
+    // This works because we have a lot of Jest notification tests that load all
+    // un-archived inbox entries.
+    if (
+        process.env.NODE_ENV === "test" &&
+        filter === "New" &&
+        afterCursor === null &&
+        (result.pageInfo.type === "FromStart"
+            ? !result.pageInfo.hasNextPage
+            : !result.pageInfo.hasPreviousPage)
+    ) {
+        const inboxItem = await InboxTable.getItemIfExists(context, {
+            partitionType: "Inbox",
+            sortRangeType: "Attributes",
+            spaceId,
+            accountId: context.actor.getAccountId(),
+        });
+
+        assert(
+            (inboxItem?.entryCount ?? 0) === result.items.length,
+            "Expected inbox item's `entryCount` to have the correct number of non-archived inbox entries",
+        );
+
+        assert(
+            (inboxItem?.loudNotificationCount ?? 0) ===
+                result.items.reduce(
+                    (loudNotificationCount, item) =>
+                        loudNotificationCount + item.model.loudNotificationCount,
+                    0,
+                ),
+            "Expected inbox item's `loudNotificationCount` to be the sum of all non-archived inbox entry loud notification counts",
+        );
+    }
+
+    return result;
 }
 
 /**
@@ -643,6 +701,8 @@ export async function observeInbox(
             generation:
                 (item?.generation ?? initialInboxGeneration) + observeInboxGenerationIncrement,
             loudNotificationCount: item?.loudNotificationCount ?? 0,
+            entryCount: item?.entryCount ?? 0,
+            lastZeroEntryCountTime: item?.lastZeroEntryCountTime ?? null,
         }),
     );
 }
@@ -763,20 +823,23 @@ async function archiveInboxEntryItemKey(
             enteredTime: archiveTime,
         };
 
-        // Optimization: If we don't need to update the inbox item, save some write
-        // capacity units.
-        if (inboxEntryItem.loudNotificationCount === 0) {
-            await InboxTable.directlyUpdateItem(context, newInboxEntryItem);
-        } else {
-            await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
-                InboxTable.transactionDirectlyUpdateItem({
-                    ...inboxItem,
-                    loudNotificationCount:
-                        inboxItem.loudNotificationCount - inboxEntryItem.loudNotificationCount,
-                }),
-                InboxTable.transactionDirectlyUpdateItem(newInboxEntryItem),
-            ]);
-        }
+        // `Math.max` to protect against in case we under-counted the number of inbox
+        // entries at some point.
+        const newEntryCount = Math.max(0, inboxItem.entryCount - 1);
+
+        await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
+            InboxTable.transactionDirectlyUpdateItem({
+                ...inboxItem,
+                loudNotificationCount:
+                    inboxItem.loudNotificationCount - inboxEntryItem.loudNotificationCount,
+                entryCount: newEntryCount,
+                lastZeroEntryCountTime:
+                    newEntryCount === 0 && inboxItem.entryCount !== 0
+                        ? archiveTime
+                        : inboxItem.lastZeroEntryCountTime,
+            }),
+            InboxTable.transactionDirectlyUpdateItem(newInboxEntryItem),
+        ]);
 
         return {archiveTime};
     });
@@ -809,15 +872,21 @@ async function unarchiveInboxEntryItemKey(
         // If the inbox entry item is already unarchived, do nothing.
         if (!inboxEntryItem.isArchived) return;
 
-        await InboxTable.directlyUpdateItem(context, {
-            ...inboxEntryItem,
-            isArchived: false,
-            // When unarchiving, move the unarchived entry to the top of the inbox so it's
-            // easier to find. Unarchiving is a clear signal from the user that they care
-            // about this entry.
-            generation: inboxItem.generation + unarchivedInboxEntryGenerationIncrement,
-            enteredTime: new Date(),
-        });
+        await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
+            InboxTable.transactionDirectlyUpdateItem({
+                ...inboxItem,
+                entryCount: inboxItem.entryCount + 1,
+            }),
+            InboxTable.transactionDirectlyUpdateItem({
+                ...inboxEntryItem,
+                isArchived: false,
+                // When unarchiving, move the unarchived entry to the top of the inbox so it's
+                // easier to find. Unarchiving is a clear signal from the user that they care
+                // about this entry.
+                generation: inboxItem.generation + unarchivedInboxEntryGenerationIncrement,
+                enteredTime: new Date(),
+            }),
+        ]);
     });
 }
 
@@ -1078,6 +1147,8 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             (!newInboxEntryItemPartial2.isArchived && oldInboxEntryItem.isArchived) ||
             loudNotificationCountDifference > 0;
 
+        const currentTime = new Date();
+
         const newInboxEntryItem: InboxEntryItem = {
             ...newInboxEntryItemPartial2,
 
@@ -1107,14 +1178,24 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
                 ? getInboxEntryLatestUpdateTime(newInboxEntryItemPartial2)
                 : // When we archive an item, it goes to the top of the archive.
                 newInboxEntryItemPartial2.isArchived
-                ? new Date()
+                ? currentTime
                 : oldInboxEntryItem.enteredTime,
         };
 
+        const entryCountDifference =
+            (!newInboxEntryItem.isArchived ? 1 : 0) -
+            (oldInboxEntryItem && !oldInboxEntryItem.isArchived ? 1 : 0);
+
         // Optimization: If the inbox item isn't changing don't run a transaction.
-        if (inboxItem && loudNotificationCountDifference === 0) {
+        if (inboxItem && loudNotificationCountDifference === 0 && entryCountDifference === 0) {
             await InboxTable.directlyUpdateItem(context, newInboxEntryItem);
         } else {
+            const oldEntryCount = inboxItem?.entryCount ?? 0;
+
+            // `Math.max` to protect against in case we under-counted the number of inbox
+            // entries at some point.
+            const newEntryCount = Math.max(0, oldEntryCount + entryCountDifference);
+
             await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
                 InboxTable.transactionDirectlyUpdateItem({
                     ...inboxItem,
@@ -1125,6 +1206,11 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
                     generation: inboxGeneration,
                     loudNotificationCount:
                         (inboxItem?.loudNotificationCount ?? 0) + loudNotificationCountDifference,
+                    entryCount: newEntryCount,
+                    lastZeroEntryCountTime:
+                        newEntryCount === 0 && oldEntryCount !== 0
+                            ? currentTime
+                            : inboxItem?.lastZeroEntryCountTime ?? null,
                 }),
                 InboxTable.transactionDirectlyUpdateItem(newInboxEntryItem),
             ]);

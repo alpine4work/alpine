@@ -1,4 +1,5 @@
 import classNames from "classnames";
+import {differenceInHours} from "date-fns";
 import {Bell, SpinnerGap} from "phosphor-react";
 import {Memo, useCallback, useEffect, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context";
@@ -11,6 +12,7 @@ import {tooltipDelayMs} from "~/client/design/tooltip";
 import {defaultTooltipOffset} from "~/client/design/tooltip";
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
+import {useCurrentTimeRoundedToHour} from "~/client/helpers/use_current_time_rounded_to_hour";
 import {usePromise} from "~/client/helpers/use_promise";
 import {
     InboxEntryView,
@@ -41,6 +43,7 @@ import {InboxEntryModel, InboxModel} from "~/shared/models/inbox_model";
 import {getInboxWithStrongReadConsistency} from "~/shared/rpc/accounts_rpc_definitions";
 import {getInboxEntries} from "~/shared/rpc/notifications_rpc_definitions";
 import {
+    backgroundColorVar,
     colorSchemeVars,
     greyElevatedClassName,
     overlayAnimateContainerClassName,
@@ -58,6 +61,7 @@ export function SpaceLayoutTopBarNotificationsButton({
 }: {
     initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
 }) {
+    const currentTimeRoundedToHour = useCurrentTimeRoundedToHour();
     const context = useAppContext();
     const {space} = useSpaceContext();
     const remPx = useRemPx();
@@ -396,13 +400,46 @@ export function SpaceLayoutTopBarNotificationsButton({
                     }}
                 >
                     <Bell />
-                    {inbox.model.loudNotificationCount > 0 && (
+                    {inbox.model.loudNotificationCount > 0 ? (
                         <LoudNotificationBadge
                             top="-0.0625rem"
                             right="0.5rem"
                             loudNotificationCount={inbox.model.loudNotificationCount}
                         />
-                    )}
+                    ) : // If the inbox has entries then we want to render a subtle dot on top of our
+                    // notification bell. However, we want folks to have a healthy relationship with
+                    // their notifications. You could be getting new non-loud notifications pretty
+                    // frequently as folks create new posts or add comments. So when you reach inbox
+                    // zero we give you 1-2 hours of peace before showing you have new
+                    // notifications. You can still reach someone immediately with a loud
+                    // notification.
+                    inbox.model.entryCount > 0 &&
+                      (!inbox.model.lastZeroEntryCountTime ||
+                          differenceInHours(
+                              currentTimeRoundedToHour,
+                              inbox.model.lastZeroEntryCountTime,
+                          ) >= 1) ? (
+                        <Box
+                            zIndex="30"
+                            position="absolute"
+                            pointerEvents="none"
+                            borderRadius="full"
+                            width="1"
+                            height="1"
+                            style={{
+                                top: "0.3125rem",
+                                right: "0.4375rem",
+                                backgroundColor: "currentcolor",
+                                // On high pixel density displays we want 1.3px should to round up to 1.5px and
+                                // on low pixel density displays we want 1.3px to round down to 1px.
+                                //
+                                // That extra width is helpful when rendering this on top of a solid object
+                                // like an avatar. We don't want 2px since an avatar pile will use that for
+                                // occluding other avatars.
+                                boxShadow: `0 0 0 1.3px ${backgroundColorVar}`,
+                            }}
+                        />
+                    ) : null}
                 </IconButton>
             </Overlay>
         </Box>

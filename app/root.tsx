@@ -30,6 +30,7 @@ import {
 } from "~/client/helpers/color_scheme";
 import {GlobalKeyDownRootContextProvider} from "~/client/helpers/global_key_down_event";
 import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render";
+import {CurrentTimeContextProvider} from "~/client/helpers/use_current_time_rounded_to_hour";
 import {useStableValue} from "~/client/helpers/use_stable_value";
 import {ClientInfoContextProvider, defaultClientInfo} from "~/client/remix/client_info_context";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema";
@@ -75,12 +76,14 @@ export function links(): Array<LinkDescriptor> {
 export const unstable_shouldReload = () => false;
 
 const LoaderSchema = Schema.object({
+    initialTime: Schema.date,
     clientInfo: ClientInfoSchema,
     devServerPort: Schema.integer.optional(),
 });
 
 export function loader({context}: LoaderArgs) {
     return jsonWithSchema(LoaderSchema, {
+        initialTime: new Date(),
         clientInfo: context.loader.clientInfo,
         devServerPort: context.loader.devServerPort ?? undefined,
     });
@@ -170,6 +173,13 @@ export default function Root({error}: {error?: unknown}) {
             <Outlet />
         );
 
+    // In case we don't have loader data (an error was thrown) fallback to trying
+    // to read the current date.
+    const initialTime = useMemo(
+        () => loaderData?.initialTime ?? new Date(),
+        [loaderData?.initialTime],
+    );
+
     const wrappedChildren = (
         <UpdateMetaTitleContextProvider
             onUpdateMetaTitle={useCallback(title => {
@@ -181,21 +191,23 @@ export default function Root({error}: {error?: unknown}) {
                     <ClientInfoContextProvider
                         initialClientInfo={loaderData?.clientInfo ?? defaultClientInfo}
                     >
-                        <AppInitialRenderContextProvider>
-                            <IsMobileContextProvider>
-                                <WaitForNavigationContextProvider>
-                                    <GlobalKeyDownRootContextProvider>
-                                        <OverlayScopeContextProvider>
-                                            <TooltipCoordinationContextProvider>
-                                                <ToastContextProvider>
-                                                    {children}
-                                                </ToastContextProvider>
-                                            </TooltipCoordinationContextProvider>
-                                        </OverlayScopeContextProvider>
-                                    </GlobalKeyDownRootContextProvider>
-                                </WaitForNavigationContextProvider>
-                            </IsMobileContextProvider>
-                        </AppInitialRenderContextProvider>
+                        <CurrentTimeContextProvider initialTime={initialTime}>
+                            <AppInitialRenderContextProvider>
+                                <IsMobileContextProvider>
+                                    <WaitForNavigationContextProvider>
+                                        <GlobalKeyDownRootContextProvider>
+                                            <OverlayScopeContextProvider>
+                                                <TooltipCoordinationContextProvider>
+                                                    <ToastContextProvider>
+                                                        {children}
+                                                    </ToastContextProvider>
+                                                </TooltipCoordinationContextProvider>
+                                            </OverlayScopeContextProvider>
+                                        </GlobalKeyDownRootContextProvider>
+                                    </WaitForNavigationContextProvider>
+                                </IsMobileContextProvider>
+                            </AppInitialRenderContextProvider>
+                        </CurrentTimeContextProvider>
                     </ClientInfoContextProvider>
                 </AppContextProvider>
             </IconContext.Provider>

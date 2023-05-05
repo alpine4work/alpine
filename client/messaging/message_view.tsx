@@ -11,6 +11,7 @@ import {ModalDialog} from "~/client/design/modal_dialog";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date";
 import {Tooltip} from "~/client/design/tooltip";
+import {useCurrentTimeRoundedToHour} from "~/client/helpers/use_current_time_rounded_to_hour";
 import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/message_delete_confirmation_dialog";
 import {MessageViewActions} from "~/client/messaging/internal/message_view_actions";
 import {
@@ -160,6 +161,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     marginX?: Spacing;
 }) {
     const {timeZone} = useClientInfo();
+    const currentTime = useCurrentTimeRoundedToHour();
 
     const shouldMergeWithPreviousMessage: boolean =
         !!previousMessage && shouldMergeMessages(previousMessage, message);
@@ -601,7 +603,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                   minMessageViewTimestampDividerElapsedMinutes;
         if (!shouldShowTimestampBeforeMessage) return null;
 
-        const isCurrentYear = new Date().getFullYear() === message.createdTime.getFullYear();
+        const isCurrentYear = currentTime.getFullYear() === message.createdTime.getFullYear();
 
         const formatter = new Intl.DateTimeFormat("en-US", {
             timeZone,
@@ -631,7 +633,14 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 {formattedDate}
             </div>
         );
-    }, [isFirstMessage, message.createdTime, previousMessage, roomDisplayedCreatedTime, timeZone]);
+    }, [
+        currentTime,
+        isFirstMessage,
+        message.createdTime,
+        previousMessage,
+        roomDisplayedCreatedTime,
+        timeZone,
+    ]);
 
     // IMPORTANT(calebmer): Be careful about what you put in this component!
     // `<MessageView>` needs to render fast for us to get good FPS when scrolling
