@@ -998,7 +998,24 @@ function VirtualizedScrollView(
             if (nextPosition) {
                 const lastPosition = scrollAnchorRef.current.lastPosition;
 
-                const scrollAdjustment = nextPosition.offset - lastPosition.offset;
+                const scrollAdjustment =
+                    nextPosition.offset -
+                    lastPosition.offset +
+                    // If we've re-rendered and the content height changed but we had scrolled to
+                    // the end of the virtualized view then `scrollElement.scrollTop` will have
+                    // already been adjusted to not extend past the missing content.
+                    //
+                    // Take that adjustment into account since if we only use our offsets we'll
+                    // overshoot the actual desired scroll position.
+                    //
+                    // We detect this case by checking whether `lastScrollTopRef` (updated by the
+                    // scroll event) is different from the current `scrollElement.scrollTop`
+                    // (updated by React's render). If `lastScrollTopRef` is not equal to
+                    // `scrollElement.scrollTop` that means the content size changed during render
+                    // so we had to scroll to keep our scroll window on visible content.
+                    (lastScrollTopRef.current !== null
+                        ? Math.max(0, lastScrollTopRef.current - scrollTop)
+                        : 0);
 
                 // If this is not a mobile WebKit scroll, actually update the `scrollTop`. On
                 // mobile WebKit this cancels the scrolling animation so instead we have a
