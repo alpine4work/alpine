@@ -1,6 +1,6 @@
 import {RemixEntryContext} from "@remix-run/react";
 import {MemoryHistory, createMemoryHistory, createPath} from "history";
-import {SpinnerGap} from "phosphor-react";
+import {SpinnerGap, Tray} from "phosphor-react";
 import {
     Memo,
     MutableRefObject,
@@ -15,6 +15,7 @@ import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {useRemPx} from "~/client/design/helpers/use_rem_px";
 import {delayFullPageTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
+import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
@@ -45,7 +46,7 @@ import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,
 } from "~/shared/dynamo/dynamo_general_realtime_types";
-import {DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings";
+import {DynamoIndexCursor, DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings";
 import {InternalError} from "~/shared/error/error";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
@@ -87,40 +88,12 @@ export function InboxView({
 }) {
     const remixEntryContext = useContext(RemixEntryContext);
     assert(remixEntryContext, "Expected Remix entry context");
-    const remPx = useRemPx();
-
-    const entriesViewRef = useRef<VirtualizedScrollViewRef>(null);
-
-    /* ========================================================================== *\
-     *                           Realtime inbox entries                           *
-    \* ========================================================================== */
 
     const {query, updateQueryOptimistically, itemsDeletedByLastChange, tryLoadingMore} =
         useInboxState({
             filter,
             initialEntriesResult,
         });
-
-    // Whenever our query data changes, try loading more entries. In case our
-    // rendered range stayed the same but we now see the loading indicator.
-    //
-    // This effect should also fire when `tryLoadingMore()` completes in case it
-    // didn't fully load the query.
-    useEffect(() => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-        query;
-
-        const view = assertExists(entriesViewRef.current);
-        tryLoadingMore(view.getHeight(), view.getRenderedRange());
-    }, [query, tryLoadingMore]);
-
-    const itemCount = query.getItemCount();
-
-    // We use this to help assistive technologies understand our list
-    // virtualization. If we haven't loaded all items we set the size to -1 which
-    // indicates the size is unknown.
-    // https://w3c.github.io/aria/#aria-setsize
-    const ariaSetsize = query.getItemCountWithoutLoadingIndicator() === itemCount ? itemCount : -1;
 
     /* ========================================================================== *\
      *                                 Peek state                                 *
@@ -306,26 +279,14 @@ export function InboxView({
         [query, selectedEntryKey],
     );
 
-    // Whenever a new entry is selected:
-    //
-    // 1. We want to scroll to that entry
-    // 2. We want to call our `onPeekChange()` callback which changes the URL
+    // Whenever a new entry is selected we want to call our `onPeekChange()`
+    // callback which changes the URL.
     const lastSelectedEntryKeyRef = useRef(selectedEntryKey);
     useLayoutEffectWithoutServerSideWarning(() => {
-        const entriesView = assertExists(entriesViewRef.current);
-
         if (lastSelectedEntryKeyRef.current === selectedPeek?.key) return;
         lastSelectedEntryKeyRef.current = selectedPeek?.key ?? null;
 
-        if (!selectedPeek) {
-            onPeekChange(null);
-        } else {
-            // When a new entry is selected, make sure it is visible in our scroll window. Scroll to
-            // it if it is not visible.
-            if (selectedPeek.key) entriesView.scrollToKeyIfExists(`Loaded:${selectedPeek.key}`);
-
-            onPeekChange(selectedPeek);
-        }
+        onPeekChange(selectedPeek);
     }, [onPeekChange, selectedEntryKey, selectedPeek]);
 
     /* ========================================================================== *\
@@ -367,43 +328,6 @@ export function InboxView({
             return null;
         }
     }, [query, rememberedSelectedEntryCursor]);
-
-    /* ========================================================================== *\
-     *                   Inbox entries deletion slide animation                   *
-    \* ========================================================================== */
-
-    // When an item is deleted, we start an animation to shift entries below the
-    // deleted item up to fill its space. This helps users see an item was removed
-    // and what happens next.
-    const [animationState, setAnimationState] = useStateWithDependencies(
-        itemsDeletedByLastChange => {
-            if (itemsDeletedByLastChange.length === 0) return null;
-            const {cursor, item} = itemsDeletedByLastChange[0]!;
-
-            // We should still have the height of the deleted item in
-            // `VirtualizedScrollViewRef` since the render hasn't finished and unmounted
-            // the element yet.
-            const offset =
-                entriesViewRef.current?.getPositionByKeyIfExists(`Loaded:${item.key}`)?.height ??
-                convertRemLengthToPx(inboxEntryViewMinHeight, remPx);
-
-            return {
-                afterCursor: cursor,
-                offset,
-            };
-        },
-        [itemsDeletedByLastChange],
-    );
-
-    useEffect(() => {
-        if (!animationState) return;
-
-        const timeout = createTimeout(() => {
-            setAnimationState(null);
-        }, inboxEntryAnimationDurationMs);
-
-        return () => timeout.clear();
-    }, [animationState, setAnimationState]);
 
     return (
         <GlobalKeyDownEvent
@@ -447,106 +371,45 @@ export function InboxView({
                 deleteActiveEntryOptimistically={deleteActiveEntryOptimistically}
             />
             <Box flexGrow="1" overflow="hidden" display="flex">
-                <FocusRing offset="inset">
-                    <Box
-                        // Our notification inbox implements the `listbox` ARIA role. So the inbox
-                        // receives focus and you use arrow keys to navigate through notifications.
-                        // https://www.w3.org/WAI/ARIA/apg/patterns/listbox
-                        //
-                        // The arrow key keyboard handlers are attached globally with
-                        // `<GlobalKeyDownEvent>` so the user doesn't need the listbox focused to
-                        // move between items. (This is nice for sighted users who like
-                        // keyboard shortcuts.)
-                        role="listbox"
-                        tabIndex={0}
-                        aria-label="Inbox"
-                        flexShrink="0"
-                        overflow="hidden"
-                        width={inboxEntryWidth}
-                        backgroundColor="grey-0"
-                        borderRight="grey-10"
-                    >
-                        <VirtualizedScrollView
-                            ref={entriesViewRef}
-                            bufferedItemHeight={inboxEntryViewMinHeight}
-                            onRenderedRangeChange={renderedRange => {
-                                const view = assertExists(entriesViewRef.current);
-                                tryLoadingMore(view.getHeight(), renderedRange);
-                            }}
-                            // While animating add the height of the removed item to the virtualized scroll
-                            // view's height then when the animation is done the virtualized scroll view
-                            // can go to its new height.
-                            extraContentHeight={animationState?.offset ?? 0}
-                            itemCount={itemCount}
-                            renderItem={useCallback(
-                                index => {
-                                    const item = query.getItem(index);
-                                    switch (item.type) {
-                                        case "Loaded": {
-                                            return {
-                                                key: `Loaded:${item.item.key}`,
-                                                minHeight: inboxEntryViewMinHeight,
-                                                node: (
-                                                    <InboxEntryView
-                                                        entry={item.item.model}
-                                                        isSelected={
-                                                            selectedEntryKey === item.item.key
-                                                        }
-                                                        // We don't have a visual press state for items, so immediately
-                                                        // select the entry on press start to give the user some response.
-                                                        onPressStart={() => {
-                                                            void selectEntry(item.item);
-                                                        }}
-                                                        isFirstEntry={index === 0}
-                                                        isLastEntry={index === itemCount - 1}
-                                                        aria-posinset={index}
-                                                        aria-setsize={ariaSetsize}
-                                                        animationState={
-                                                            animationState &&
-                                                            animationState.afterCursor < item.cursor
-                                                                ? animationState
-                                                                : null
-                                                        }
-                                                    />
-                                                ),
-                                            };
-                                        }
-                                        case "LoadingIndicator": {
-                                            return {
-                                                key: "LoadingIndicator",
-                                                minHeight: inboxEntryViewMinHeight,
-                                                node: (
-                                                    <Box
-                                                        display="flex"
-                                                        justifyContent="center"
-                                                        alignItems="center"
-                                                        style={{height: inboxEntryViewMinHeight}}
-                                                    >
-                                                        <SpinnerGap
-                                                            className={spinAnimationClassName}
-                                                            color={colorSchemeVars["grey-60"]}
-                                                            size={spacing["4"]}
-                                                        />
-                                                    </Box>
-                                                ),
-                                            };
-                                        }
-                                        default:
-                                            throw exhaustive(item);
-                                    }
-                                },
-                                [
-                                    animationState,
-                                    ariaSetsize,
-                                    itemCount,
-                                    query,
-                                    selectEntry,
-                                    selectedEntryKey,
-                                ],
+                <Box
+                    flexShrink="0"
+                    width={inboxEntryWidth}
+                    overflow="hidden"
+                    backgroundColor="grey-0"
+                    borderRight="grey-10"
+                >
+                    {query.getItemCount() === 0 ? (
+                        <Box
+                            width="full"
+                            height="full"
+                            display="flex"
+                            flexDirection="column"
+                            justifyContent="center"
+                            alignItems="center"
+                            gap="2"
+                            color="grey-70"
+                        >
+                            <Tray size={spacing["9"]} weight="thin" />
+                            {filter === "New" ? (
+                                <Box>No new notifications</Box>
+                            ) : (
+                                <Box>
+                                    Notifications you mark as done
+                                    <br />
+                                    or respond to will appear here
+                                </Box>
                             )}
+                        </Box>
+                    ) : (
+                        <InboxViewEntries
+                            query={query}
+                            tryLoadingMore={tryLoadingMore}
+                            itemsDeletedByLastChange={itemsDeletedByLastChange}
+                            selectedEntryKey={selectedEntryKey}
+                            selectEntry={selectEntry}
                         />
-                    </Box>
-                </FocusRing>
+                    )}
+                </Box>
                 {useMemo(
                     () => (
                         <Box flexGrow="1" overflow="hidden">
@@ -566,6 +429,199 @@ export function InboxView({
                 )}
             </Box>
         </GlobalKeyDownEvent>
+    );
+}
+
+function InboxViewEntries({
+    query,
+    tryLoadingMore,
+    itemsDeletedByLastChange,
+    selectedEntryKey,
+    selectEntry,
+}: {
+    query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;
+    tryLoadingMore: (
+        viewHeight: number,
+        renderedRange: {startIndex: number; endIndex: number} | null,
+    ) => void;
+    itemsDeletedByLastChange: ReadonlyArray<{
+        cursor: DynamoIndexCursor;
+        item: DynamoGeneralRealtimeItem<InboxEntryModel>;
+    }>;
+    selectedEntryKey: DynamoItemKey | null;
+    selectEntry: (entry: DynamoGeneralRealtimeItem<InboxEntryModel>) => Promise<void>;
+}) {
+    const viewRef = useRef<VirtualizedScrollViewRef>(null);
+    const remPx = useRemPx();
+
+    // Whenever our query data changes, try loading more entries. In case our
+    // rendered range stayed the same but we now see the loading indicator.
+    //
+    // This effect should also fire when `tryLoadingMore()` completes in case it
+    // didn't fully load the query.
+    useEffect(() => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        query;
+
+        const view = assertExists(viewRef.current);
+        tryLoadingMore(view.getHeight(), view.getRenderedRange());
+    }, [query, tryLoadingMore]);
+
+    const itemCount = query.getItemCount();
+
+    // We use this to help assistive technologies understand our list
+    // virtualization. If we haven't loaded all items we set the size to -1 which
+    // indicates the size is unknown.
+    // https://w3c.github.io/aria/#aria-setsize
+    const ariaSetsize = query.getItemCountWithoutLoadingIndicator() === itemCount ? itemCount : -1;
+
+    // Whenever a new entry is selected we want to scroll to that entry
+    const lastSelectedEntryKeyRef = useRef(selectedEntryKey);
+    useLayoutEffectWithoutServerSideWarning(() => {
+        const view = assertExists(viewRef.current);
+
+        if (lastSelectedEntryKeyRef.current === selectedEntryKey) return;
+        lastSelectedEntryKeyRef.current = selectedEntryKey ?? null;
+
+        // When a new entry is selected, make sure it is visible in our scroll window. Scroll to
+        // it if it is not visible.
+        if (selectedEntryKey) {
+            view.scrollToKeyIfExists(`Loaded:${selectedEntryKey}`);
+        }
+    }, [selectedEntryKey]);
+
+    // When an item is deleted, we start an animation to shift entries below the
+    // deleted item up to fill its space. This helps users see an item was removed
+    // and what happens next.
+    const [animationState, setAnimationState] = useStateWithDependencies(
+        itemsDeletedByLastChange => {
+            if (itemsDeletedByLastChange.length === 0) return null;
+            const {cursor, item} = itemsDeletedByLastChange[0]!;
+
+            // We should still have the height of the deleted item in
+            // `VirtualizedScrollViewRef` since the render hasn't finished and unmounted
+            // the element yet.
+            const offset =
+                viewRef.current?.getPositionByKeyIfExists(`Loaded:${item.key}`)?.height ??
+                convertRemLengthToPx(inboxEntryViewMinHeight, remPx);
+
+            return {
+                afterCursor: cursor,
+                offset,
+            };
+        },
+        [itemsDeletedByLastChange],
+    );
+
+    useEffect(() => {
+        if (!animationState) return;
+
+        const timeout = createTimeout(() => {
+            setAnimationState(null);
+        }, inboxEntryAnimationDurationMs);
+
+        return () => timeout.clear();
+    }, [animationState, setAnimationState]);
+
+    return (
+        <FocusRing offset="inset">
+            <Box
+                // Our notification inbox implements the `listbox` ARIA role. So the inbox
+                // receives focus and you use arrow keys to navigate through notifications.
+                // https://www.w3.org/WAI/ARIA/apg/patterns/listbox
+                //
+                // The arrow key keyboard handlers are attached globally with
+                // `<GlobalKeyDownEvent>` so the user doesn't need the listbox focused to
+                // move between items. (This is nice for sighted users who like
+                // keyboard shortcuts.)
+                role="listbox"
+                tabIndex={0}
+                aria-label="Inbox"
+                width="full"
+                height="full"
+                overflow="hidden"
+            >
+                <VirtualizedScrollView
+                    ref={viewRef}
+                    bufferedItemHeight={inboxEntryViewMinHeight}
+                    onRenderedRangeChange={renderedRange => {
+                        const view = assertExists(viewRef.current);
+                        tryLoadingMore(view.getHeight(), renderedRange);
+                    }}
+                    // While animating add the height of the removed item to the virtualized scroll
+                    // view's height then when the animation is done the virtualized scroll view
+                    // can go to its new height.
+                    extraContentHeight={animationState?.offset ?? 0}
+                    itemCount={itemCount}
+                    renderItem={useCallback(
+                        index => {
+                            const item = query.getItem(index);
+                            switch (item.type) {
+                                case "Loaded": {
+                                    return {
+                                        key: `Loaded:${item.item.key}`,
+                                        minHeight: inboxEntryViewMinHeight,
+                                        node: (
+                                            <InboxEntryView
+                                                entry={item.item.model}
+                                                isSelected={selectedEntryKey === item.item.key}
+                                                // We don't have a visual press state for items, so immediately
+                                                // select the entry on press start to give the user some response.
+                                                onPressStart={() => {
+                                                    void selectEntry(item.item);
+                                                }}
+                                                isFirstEntry={index === 0}
+                                                isLastEntry={index === itemCount - 1}
+                                                aria-posinset={index}
+                                                aria-setsize={ariaSetsize}
+                                                animationState={
+                                                    animationState &&
+                                                    animationState.afterCursor < item.cursor
+                                                        ? animationState
+                                                        : null
+                                                }
+                                            />
+                                        ),
+                                    };
+                                }
+                                case "LoadingIndicator": {
+                                    return {
+                                        key: "LoadingIndicator",
+                                        minHeight: inboxEntryViewMinHeight,
+                                        node: (
+                                            <Box
+                                                display="flex"
+                                                justifyContent="center"
+                                                alignItems="center"
+                                                style={{
+                                                    height: inboxEntryViewMinHeight,
+                                                }}
+                                            >
+                                                <SpinnerGap
+                                                    className={spinAnimationClassName}
+                                                    color={colorSchemeVars["grey-60"]}
+                                                    size={spacing["4"]}
+                                                />
+                                            </Box>
+                                        ),
+                                    };
+                                }
+                                default:
+                                    throw exhaustive(item);
+                            }
+                        },
+                        [
+                            animationState,
+                            ariaSetsize,
+                            itemCount,
+                            query,
+                            selectEntry,
+                            selectedEntryKey,
+                        ],
+                    )}
+                />
+            </Box>
+        </FocusRing>
     );
 }
 

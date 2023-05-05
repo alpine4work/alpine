@@ -1,6 +1,6 @@
 import classNames from "classnames";
 import {differenceInHours} from "date-fns";
-import {Bell, SpinnerGap} from "phosphor-react";
+import {Bell, SpinnerGap, Tray} from "phosphor-react";
 import {Memo, useCallback, useEffect, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context";
 import {Box} from "~/client/design/box";
@@ -10,6 +10,7 @@ import {Overlay} from "~/client/design/overlay";
 import {useShowToast} from "~/client/design/toast";
 import {tooltipDelayMs} from "~/client/design/tooltip";
 import {defaultTooltipOffset} from "~/client/design/tooltip";
+import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query";
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useCurrentTimeRoundedToHour} from "~/client/helpers/use_current_time_rounded_to_hour";
@@ -484,12 +485,51 @@ function SpaceLayoutTopBarNotificationOverlayInbox({
     initialEntriesResult: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>;
     onClose: Memo<() => void>;
 }) {
-    const viewRef = useRef<VirtualizedScrollViewRef>(null);
-
     const {query, tryLoadingMore} = useInboxState({
         filter: "New",
         initialEntriesResult,
     });
+
+    if (query.getItemCount() === 0) {
+        return (
+            <Box
+                flexGrow="1"
+                width="full"
+                display="flex"
+                flexDirection="column"
+                justifyContent="center"
+                alignItems="center"
+                gap="2"
+                color="grey-70"
+            >
+                <Tray size={spacing["9"]} weight="thin" />
+                <Box>No new notifications</Box>
+            </Box>
+        );
+    }
+
+    return (
+        <SpaceLayoutTopBarNotificationOverlayInboxVirtualizedList
+            query={query}
+            tryLoadingMore={tryLoadingMore}
+            onClose={onClose}
+        />
+    );
+}
+
+function SpaceLayoutTopBarNotificationOverlayInboxVirtualizedList({
+    query,
+    tryLoadingMore,
+    onClose,
+}: {
+    query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;
+    tryLoadingMore: (
+        viewHeight: number,
+        renderedRange: {startIndex: number; endIndex: number} | null,
+    ) => void;
+    onClose: () => void;
+}) {
+    const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
     // Whenever our query data changes, try loading more entries. In case our
     // rendered range stayed the same but we now see the loading indicator.
