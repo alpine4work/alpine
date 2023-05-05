@@ -345,7 +345,7 @@ function VirtualizedScrollView(
         onRenderedRangeChange: _onRenderedRangeChange,
         onScroll,
         extraChildren,
-        extraHeight = 0,
+        extraContentHeight = 0,
     }: {
         /**
          * The total number of virtualized items. You do not need all the items loaded
@@ -414,9 +414,6 @@ function VirtualizedScrollView(
          * The children are rendered in a container with no pointer events. So you need
          * to add `pointerEvents: "auto"` on elements you want to be interactive with
          * a pointer.
-         *
-         * This is an advanced feature and requires you to understand implementation
-         * details of `<VirtualizedScrollView>` to make sure nothing breaks.
          */
         extraChildren?: ReactNode;
 
@@ -426,7 +423,7 @@ function VirtualizedScrollView(
          * This is an advanced feature and requires you to understand implementation
          * details of `<VirtualizedScrollView>` to make sure nothing breaks.
          */
-        extraHeight?: number;
+        extraContentHeight?: number;
     },
     ref: Ref<VirtualizedScrollViewRef>,
 ) {
@@ -1295,7 +1292,7 @@ function VirtualizedScrollView(
                 }}
                 onScroll={handleScroll}
             >
-                <div style={{height: contentHeight + extraHeight}} />
+                <div style={{height: contentHeight + extraContentHeight}} />
                 <div
                     ref={contentRef}
                     style={{

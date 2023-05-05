@@ -51,7 +51,7 @@ import {
     spinAnimationClassName,
 } from "~/shared/styles/styles";
 
-const notificationOverlayHeight: Spacing = "128";
+const notificationOverlayHeight: Spacing = "96";
 
 export function SpaceLayoutTopBarNotificationsButton({
     initialInbox,
@@ -523,6 +523,29 @@ function SpaceLayoutTopBarNotificationOverlayInbox({
                 },
                 [itemCount, onClose, query],
             )}
+            // Render a div at the bottom of the notification list that covers the bottom
+            // border of the last entry but only when there's enough content to scroll. If
+            // there are only 2 entries, we want to show that last border.
+            extraChildren={
+                <Box
+                    position="absolute"
+                    zIndex="50"
+                    left="0"
+                    right="0"
+                    top="0"
+                    height="full"
+                    minHeight={notificationOverlayHeight}
+                >
+                    <Box
+                        position="absolute"
+                        left="0"
+                        right="0"
+                        bottom="0"
+                        height="1"
+                        backgroundColor="grey-0"
+                    />
+                </Box>
+            }
         />
     );
 }
