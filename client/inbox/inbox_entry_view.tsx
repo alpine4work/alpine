@@ -255,8 +255,8 @@ function InboxPostCommentsEntryView({entry}: {entry: InboxPostCommentsEntryModel
                         <span className={boldClassName}>
                             <AccountShortName account={entry.postAuthor} />
                         </span>{" "}
-                        mentioned you in a{" "}
-                        <span className={boldClassName}>{entry.channel.name}</span> post
+                        mentioned you in a post in{" "}
+                        <span className={boldClassName}>{entry.channel.name}</span>
                     </>
                 ) : (
                     <>
