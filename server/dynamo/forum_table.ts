@@ -16,7 +16,10 @@ import {createMessagePayloadModel} from "~/server/dynamo/helpers/messaging/creat
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/dynamo/helpers/messaging/get_message_change_log_expiration_time_from_change_time";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
-import {getNotificationMessageContentSnippet} from "~/server/dynamo/notifications_table";
+import {
+    getNotificationMessageContentSnippet,
+    getNotificationPostContentSnippet,
+} from "~/server/dynamo/notifications_table";
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
 import {
     MessageContent,
@@ -548,6 +551,17 @@ export async function createPost(
 
     await ForumTable.createItem(context, postItem);
 
+    context.notifications.sendNotificationEvent({
+        type: "CreatePost",
+        id: generateId(),
+        spaceId: channel.spaceId,
+        postId: postItem.postId,
+        createdTime: postItem.createdTime,
+        authorId: postItem.authorId,
+        mentionedAccountIds: getMentionedAccountIdsInContent(content),
+        contentSnippet: getNotificationPostContentSnippet(content),
+    });
+
     return {
         id: postItem.postId,
         spaceId: channel.spaceId,
@@ -650,6 +664,7 @@ export async function getPostNotificationSubscribers(
 ): Promise<{
     spaceId: SpaceId;
     accounts: ReadonlyArray<AccountModel>;
+    postCreatedTime: Date;
 }> {
     const postItem = await ForumTable.getPartialItem(
         context,
@@ -659,7 +674,7 @@ export async function getPostNotificationSubscribers(
             postId: id,
         },
         {
-            attributes: ["authorId", "spaceId", "channelId", "commentsSummary"],
+            attributes: ["createdTime", "authorId", "spaceId", "channelId", "commentsSummary"],
         },
     );
 
@@ -682,6 +697,7 @@ export async function getPostNotificationSubscribers(
     return {
         spaceId: postItem.spaceId,
         accounts: accounts.filter(isNonNullable),
+        postCreatedTime: postItem.createdTime,
     };
 }
 

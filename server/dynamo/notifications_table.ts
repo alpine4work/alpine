@@ -18,7 +18,7 @@ import {
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
-import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
+import {authorizeSpaceAccess, expensivelyGetAllSpaceAccounts} from "~/server/dynamo/spaces_table";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint";
 import {getContentSnippet} from "~/shared/content/get_content_snippet";
 import {
@@ -27,12 +27,17 @@ import {
     assertMessageContent,
 } from "~/shared/content/message_content_schema";
 import {
+    PostContent,
+    PostContentSchema,
+    assertPostContent,
+} from "~/shared/content/post_content_schema";
+import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,
 } from "~/shared/dynamo/dynamo_general_realtime_types";
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings";
 import {CancelledError, NotFoundError} from "~/shared/error/error";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
+import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {randomInteger} from "~/shared/helpers/number/random_integer";
@@ -269,6 +274,24 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         loudNotificationCount: Schema.integer.min(0),
 
                         /**
+                         * The time the post was created.
+                         */
+                        postCreatedTime: Schema.date
+                            // For inbox entries created before we had the
+                            // `postCreatedTime` property, use a mock time smaller than future times.
+                            .default(new Date("2023-05-08T17:34:17.801Z")),
+
+                        /**
+                         * If the user was mentioned in the post's content this will be set. If this is
+                         * set then we override the notification text to say something along the lines
+                         * of "You were mentioned in a post".
+                         *
+                         * We unset this if a new comment revives this entry from the archive. The
+                         * entry will now be focused on new comments instead of the mention.
+                         */
+                        postContentSnippetIfMentioned: PostContentSchema.nullable().default(null),
+
+                        /**
                          * The last comment on the post. Will be used to render a preview of the post
                          * on the entry before the user clicks in.
                          */
@@ -277,7 +300,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             authorId: Schema.id<AccountId>(),
                             createdTime: Schema.date,
                             contentSnippet: MessageContentSchema,
-                        }),
+                        }).nullable(),
 
                         /**
                          * A second commenting account which we'll show on the inbox entry to imply a
@@ -344,19 +367,38 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                 async build(context, item) {
                     const [
                         {channel, author: postAuthor},
-                        latestCommentAuthor,
-                        latestCommentReferences,
+                        latestComment,
                         otherCommentAuthor,
+                        postContentSnippetIfMentioned,
                     ] = await runAllPromises([
                         getPostAuthorAndChannelPreview(context, item.postId),
-                        getAccount(context, item.spaceId, item.latestComment.authorId),
-                        getContentReferencesForNode(
-                            context,
-                            item.spaceId,
-                            item.latestComment.contentSnippet,
-                        ),
+                        item.latestComment
+                            ? runAllObjectPromises({
+                                  comment: item.latestComment,
+                                  author: getAccount(
+                                      context,
+                                      item.spaceId,
+                                      item.latestComment.authorId,
+                                  ),
+                                  references: getContentReferencesForNode(
+                                      context,
+                                      item.spaceId,
+                                      item.latestComment.contentSnippet,
+                                  ),
+                              })
+                            : null,
                         item.otherCommentAuthorId
                             ? getAccount(context, item.spaceId, item.otherCommentAuthorId)
+                            : null,
+                        item.postContentSnippetIfMentioned
+                            ? runAllObjectPromises({
+                                  doc: item.postContentSnippetIfMentioned,
+                                  references: getContentReferencesForNode(
+                                      context,
+                                      item.spaceId,
+                                      item.postContentSnippetIfMentioned,
+                                  ),
+                              })
                             : null,
                     ]);
 
@@ -367,14 +409,18 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         channel,
                         postAuthor,
                         loudNotificationCount: item.loudNotificationCount,
-                        latestComment: {
-                            author: latestCommentAuthor,
-                            createdTime: item.latestComment.createdTime,
-                            contentSnippet: {
-                                doc: item.latestComment.contentSnippet,
-                                references: latestCommentReferences,
-                            },
-                        },
+                        postCreatedTime: item.postCreatedTime,
+                        postContentSnippetIfMentioned,
+                        latestComment: latestComment
+                            ? {
+                                  author: latestComment.author,
+                                  createdTime: latestComment.comment.createdTime,
+                                  contentSnippet: {
+                                      doc: latestComment.comment.contentSnippet,
+                                      references: latestComment.references,
+                                  },
+                              }
+                            : null,
                         otherCommentAuthor,
                     });
                 },
@@ -922,12 +968,27 @@ const NotificationCreatePostCommentEventSchema = Schema.object({
     contentSnippet: MessageContentSchema,
 });
 
-// TODO(calebmer): Add message and comment update events in case they add a mention.
+export type NotificationCreatePostEvent = SchemaType<typeof NotificationCreatePostEventSchema>;
+
+const NotificationCreatePostEventSchema = Schema.object({
+    type: Schema.value("CreatePost"),
+    id: Schema.id<NotificationEventId>(),
+    spaceId: Schema.id<SpaceId>(),
+    postId: Schema.id<PostId>(),
+    createdTime: Schema.date,
+    authorId: Schema.id<AccountId>(),
+    mentionedAccountIds: Schema.set(Schema.id<ContentMentionAccountId>()),
+    contentSnippet: PostContentSchema,
+});
+
+// TODO(calebmer): Add message, comment, and post update events in case they add
+// a mention? How should this work?
 export type NotificationEvent = SchemaType<typeof NotificationEventSchema>;
 
 export const NotificationEventSchema = Schema.union({
     CreateChatMessage: NotificationCreateChatMessageEventSchema,
     CreatePostComment: NotificationCreatePostCommentEventSchema,
+    CreatePost: NotificationCreatePostEventSchema,
 });
 
 /**
@@ -937,6 +998,13 @@ export function getNotificationMessageContentSnippet(content: MessageContent): M
     return assertMessageContent(
         getContentSnippet(content.resolve(0), {linesAbove: 0, linesBelow: 1}),
     );
+}
+
+/**
+ * Get the content snippet for `PostContent` for a notification event.
+ */
+export function getNotificationPostContentSnippet(content: PostContent): PostContent {
+    return assertPostContent(getContentSnippet(content.resolve(0), {linesAbove: 0, linesBelow: 1}));
 }
 
 export const notificationEventBeforeProcessingTestCheckpoint = new TestCheckpoint<AccountId>();
@@ -972,6 +1040,8 @@ function actuallyProcessNotificationEvent(
             return processNotificationCreateChatMessageEvent(context, event);
         case "CreatePostComment":
             return processNotificationCreatePostCommentEvent(context, event);
+        case "CreatePost":
+            return processNotificationCreatePostEvent(context, event);
         default:
             throw exhaustive(event);
     }
@@ -1225,7 +1295,7 @@ function getInboxEntryLatestUpdateTime(
         case "ChatEntry":
             return entryItem.latestMessage.createdTime;
         case "PostCommentsEntry":
-            return entryItem.latestComment.createdTime;
+            return entryItem.latestComment?.createdTime ?? entryItem.postCreatedTime;
         default:
             throw exhaustive(entryItem);
     }
@@ -1375,16 +1445,19 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
 
 const processNotificationCreatePostCommentEvent = createNotificationEventProcessor<
     NotificationCreatePostCommentEvent,
-    {spaceId: SpaceId}
+    {spaceId: SpaceId; postCreatedTime: Date}
 >({
     getSubscribers: async (context, event) => {
-        const {spaceId, accounts} = await getPostNotificationSubscribers(context, event.postId);
+        const {spaceId, accounts, postCreatedTime} = await getPostNotificationSubscribers(
+            context,
+            event.postId,
+        );
         return {
-            info: {spaceId},
+            info: {spaceId, postCreatedTime},
             accounts,
         };
     },
-    updateInboxEntry: async (context, event, {info: {spaceId}, account}) => {
+    updateInboxEntry: async (context, event, {info: {spaceId, postCreatedTime}, account}) => {
         await updateInboxEntry(
             context,
             event,
@@ -1403,7 +1476,7 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
                 // If the events were received out-of-order we keep the last archive state
                 // of the entry.
                 const isArchived =
-                    !oldItem || event.commentIndex > oldItem.latestComment.index
+                    !oldItem?.latestComment || event.commentIndex > oldItem.latestComment.index
                         ? account.id === event.authorId
                         : oldItem.isArchived;
 
@@ -1434,7 +1507,7 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
                 // Our events may arrive out-of-order. If we have an earlier message index then
                 // what's in the entry's latest message then don't bother updating the latest
                 // message.
-                if (oldItem && oldItem.latestComment.index > event.commentIndex) {
+                if (oldItem?.latestComment && oldItem.latestComment.index > event.commentIndex) {
                     latestComment = oldItem.latestComment;
                     otherCommentAuthorId = oldItem.otherCommentAuthorId;
                 } else {
@@ -1452,6 +1525,7 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
                         // author into `otherCommentAuthorId`. But not if the old `latestComment`
                         // had our inbox's account as the author.
                         otherCommentAuthorId =
+                            oldItem.latestComment &&
                             oldItem.latestComment.authorId !== latestComment.authorId &&
                             oldItem.latestComment.authorId !== account.id
                                 ? oldItem.latestComment.authorId
@@ -1459,13 +1533,84 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
                     }
                 }
 
+                // If the new comment moves our entry out of the archive, unset the post
+                // comment snippet.
+                const postContentSnippetIfMentioned =
+                    oldItem?.isArchived && !isArchived
+                        ? null
+                        : oldItem?.postContentSnippetIfMentioned ?? null;
+
                 return {
                     isArchived,
                     loudNotificationCount,
+                    postCreatedTime,
+                    postContentSnippetIfMentioned,
                     latestComment,
                     otherCommentAuthorId,
                 };
             },
         );
+    },
+});
+
+const processNotificationCreatePostEvent = createNotificationEventProcessor<
+    NotificationCreatePostEvent,
+    {spaceId: SpaceId}
+>({
+    getSubscribers: async (context, event) => {
+        // TODO(calebmer): For now, until we implement channel subscriptions, every
+        // account gets a notification for any new post in every channel. When we have
+        // channel subscriptions, a mention should deliver a notification regardless of
+        // whether the mentioned user is in the channel.
+        const accounts = await expensivelyGetAllSpaceAccounts(context, event.spaceId);
+
+        return {
+            info: {spaceId: event.spaceId},
+            accounts,
+        };
+    },
+    updateInboxEntry: async (context, event, {info: {spaceId}, account}) => {
+        // Don't update an entry for the account who created the post.
+        if (event.authorId === account.id) return;
+
+        // If the account was mentioned in the post, we create a separate entry with a
+        // loud notification instead of merging into one channel post summary entry.
+        if (event.mentionedAccountIds.has(account.id)) {
+            await updateInboxEntry(
+                context,
+                event,
+                {
+                    partitionType: "Inbox",
+                    sortRangeType: "PostCommentsEntry",
+                    spaceId,
+                    accountId: account.id,
+                    postId: event.postId,
+                },
+                oldItem => {
+                    // If we received events out-of-order a new comment event may have created this
+                    // comments inbox entry. Keep old properties in this case.
+                    if (oldItem) {
+                        return {
+                            ...oldItem,
+                            loudNotificationCount:
+                                oldItem.loudNotificationCount + (!oldItem.isArchived ? 1 : 0),
+                            postContentSnippetIfMentioned: event.contentSnippet,
+                        };
+                    }
+
+                    return {
+                        isArchived: false,
+                        loudNotificationCount: 1,
+                        postCreatedTime: event.createdTime,
+                        postContentSnippetIfMentioned: event.contentSnippet,
+                        latestComment: null,
+                        otherCommentAuthorId: null,
+                    };
+                },
+            );
+            return;
+        }
+
+        // TODO(calebmer): Implement for non-mentioned accounts.
     },
 });

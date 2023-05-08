@@ -5,6 +5,7 @@ import {ChannelPreviewModel} from "~/shared/models/channel_model";
 import {createModelUnionSchema} from "~/shared/models/helpers/create_model_union_schema";
 import {MessageContentWithReferencesSchema} from "~/shared/models/message_model";
 import {Model} from "~/shared/models/model";
+import {PostContentWithReferencesSchema} from "~/shared/models/post_model";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 
 export class InboxModel extends Model(
@@ -78,11 +79,13 @@ export class InboxPostCommentsEntryModel
             postAuthor: AccountModel.schema(),
             channel: ChannelPreviewModel.schema(),
             loudNotificationCount: Schema.integer.min(0),
+            postCreatedTime: Schema.date,
+            postContentSnippetIfMentioned: PostContentWithReferencesSchema.nullable(),
             latestComment: Schema.object({
                 author: AccountModel.schema(),
                 createdTime: Schema.date,
                 contentSnippet: MessageContentWithReferencesSchema,
-            }),
+            }).nullable(),
             otherCommentAuthor: AccountModel.schema().nullable(),
         }),
     )

@@ -70,3 +70,15 @@ export function runAllPromiseThunks<PromiseThunks extends ReadonlyArray<() => Pr
 ): Promise<{-readonly [K in keyof PromiseThunks]: Awaited<ReturnType<PromiseThunks[K]>>}> {
     return runAllPromises(promiseThunks.map(thunk => thunk())) as any;
 }
+
+/**
+ * Run all promises in an object in parallel. Returns an object of the same
+ * shape. Returns `runAllPromises()` under the hood.
+ */
+export async function runAllObjectPromises<const Promises extends {}>(
+    promises: Promises,
+): Promise<{[K in keyof Promises]: Awaited<Promises[K]>}> {
+    const entries = Object.entries(promises);
+    const values = await runAllPromises(entries.map(([, promise]) => promise));
+    return Object.fromEntries(entries.map(([key], index) => [key, values[index]!])) as any;
+}

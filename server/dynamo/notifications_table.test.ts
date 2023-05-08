@@ -18,7 +18,11 @@ import {
     assertMessageContent,
     createSimpleMessageContent,
 } from "~/shared/content/message_content_schema";
-import {emptyPostContent} from "~/shared/content/post_content_schema";
+import {
+    PostContentProsemirrorSchema,
+    assertPostContent,
+    emptyPostContent,
+} from "~/shared/content/post_content_schema";
 import {ProcessContextModule} from "~/shared/context/process_context_module";
 import {DynamoGeneralRealtimeIndexQueryResult} from "~/shared/dynamo/dynamo_general_realtime_types";
 import {PermissionDeniedError} from "~/shared/error/error";
@@ -379,6 +383,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
@@ -432,6 +438,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session3.account,
@@ -459,6 +467,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session3.account,
@@ -512,6 +522,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session1.account,
@@ -539,6 +551,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session1.account,
@@ -622,6 +636,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
@@ -663,6 +679,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
@@ -703,6 +721,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session2.account,
@@ -744,6 +764,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session2.account,
@@ -784,6 +806,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 2,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session3.account,
@@ -816,6 +840,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session3.account,
@@ -913,6 +939,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
@@ -980,6 +1008,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session1.account,
@@ -1024,6 +1054,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
@@ -1138,6 +1170,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
@@ -1187,6 +1221,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
@@ -1219,6 +1255,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.otherSession.account,
                 channel: otherChannel,
                 loudNotificationCount: 1,
+                postCreatedTime: otherPost.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.otherSession.account,
@@ -1308,6 +1346,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
@@ -1357,6 +1397,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
@@ -1468,6 +1510,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session2.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session3.account,
@@ -1495,6 +1539,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session2.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session3.account,
@@ -1525,6 +1571,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session2.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session3.account,
@@ -1552,6 +1600,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session2.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session3.account,
@@ -1649,6 +1699,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session2.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
@@ -1688,6 +1740,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session2.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
@@ -1774,6 +1828,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
@@ -1809,6 +1865,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session2.account,
@@ -1831,6 +1889,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
@@ -1866,6 +1926,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session2.account,
@@ -1888,6 +1950,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post3.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
@@ -1905,6 +1969,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
@@ -1940,6 +2006,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session2.account,
@@ -1962,6 +2030,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post3.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
@@ -1979,6 +2049,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session2.account,
@@ -2014,6 +2086,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment5.createdTime,
                     author: scenario.session2.account,
@@ -2031,6 +2105,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post3.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
@@ -2048,6 +2124,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session2.account,
@@ -2083,6 +2161,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post3.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment6.createdTime,
                     author: scenario.session2.account,
@@ -2105,6 +2185,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment5.createdTime,
                     author: scenario.session2.account,
@@ -2122,6 +2204,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session2.account,
@@ -2157,6 +2241,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post3.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment6.createdTime,
                     author: scenario.session2.account,
@@ -2179,6 +2265,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment7.createdTime,
                     author: scenario.session2.account,
@@ -2196,6 +2284,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session2.account,
@@ -2231,6 +2321,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 2,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment8.createdTime,
                     author: scenario.session2.account,
@@ -2253,6 +2345,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post3.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment6.createdTime,
                     author: scenario.session2.account,
@@ -2275,6 +2369,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session2.account,
@@ -2365,6 +2461,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
@@ -2400,6 +2498,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session2.account,
@@ -2422,6 +2522,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
@@ -2457,6 +2559,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session2.account,
@@ -2479,6 +2583,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post3.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
@@ -2496,6 +2602,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
@@ -2525,6 +2633,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session2.account,
@@ -2547,6 +2657,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post3.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
@@ -2564,6 +2676,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
@@ -2599,6 +2713,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post4.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session2.account,
@@ -2616,6 +2732,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session2.account,
@@ -2638,6 +2756,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post3.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
@@ -2655,6 +2775,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
@@ -2690,6 +2812,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post4.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session2.account,
@@ -2707,6 +2831,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment5.createdTime,
                     author: scenario.session2.account,
@@ -2724,6 +2850,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post3.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session2.account,
@@ -2741,6 +2869,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
@@ -2776,6 +2906,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post4.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session2.account,
@@ -2793,6 +2925,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment5.createdTime,
                     author: scenario.session2.account,
@@ -2810,6 +2944,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post3.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment6.createdTime,
                     author: scenario.session2.account,
@@ -2827,6 +2963,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
@@ -2862,6 +3000,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post3.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment7.createdTime,
                     author: scenario.session2.account,
@@ -2884,6 +3024,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post4.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session2.account,
@@ -2901,6 +3043,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment5.createdTime,
                     author: scenario.session2.account,
@@ -2918,6 +3062,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
@@ -3008,6 +3154,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.sharedSession.account,
@@ -3035,6 +3183,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session1.account,
@@ -3057,6 +3207,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.sharedSession.account,
@@ -3084,6 +3236,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.sharedSession.account,
@@ -3116,6 +3270,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.sharedSession.account,
@@ -3143,6 +3299,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session1.account,
@@ -3165,6 +3323,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.sharedSession.account,
@@ -3206,6 +3366,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.sharedSession.account,
@@ -3233,6 +3395,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.sharedSession.account,
@@ -3274,6 +3438,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.sharedSession.account,
@@ -3402,6 +3568,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post3.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment5.createdTime,
                     author: scenario.session1.account,
@@ -3424,6 +3592,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session1.account,
@@ -3446,6 +3616,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session1.account,
@@ -3473,6 +3645,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session1.account,
@@ -3524,6 +3698,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post3.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment5.createdTime,
                     author: scenario.session1.account,
@@ -3579,6 +3755,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post3.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment5.createdTime,
                     author: scenario.session1.account,
@@ -3611,6 +3789,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session1.account,
@@ -3652,6 +3832,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session1.account,
@@ -3674,6 +3856,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post3.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment5.createdTime,
                     author: scenario.session1.account,
@@ -3706,6 +3890,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session1.account,
@@ -3747,6 +3933,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session1.account,
@@ -3764,6 +3952,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session1.account,
@@ -3786,6 +3976,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post3.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment5.createdTime,
                     author: scenario.session1.account,
@@ -3818,6 +4010,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session1.account,
@@ -3850,6 +4044,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session1.account,
@@ -3877,6 +4073,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session1.account,
@@ -3894,6 +4092,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session1.account,
@@ -3916,6 +4116,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post3.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment5.createdTime,
                     author: scenario.session1.account,
@@ -3948,6 +4150,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session1.account,
@@ -4052,6 +4256,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
@@ -4101,6 +4307,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session2.account,
@@ -4168,6 +4376,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
@@ -4222,6 +4432,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session2.account,
@@ -4289,6 +4501,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session2.account,
@@ -4352,6 +4566,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session1.account,
@@ -5098,6 +5314,8 @@ describe("Post comments", () => {
                         postId: post6.id,
                         postAuthor: scenario.session1.account,
                         loudNotificationCount: 0,
+                        postCreatedTime: post6.createdTime,
+                        postContentSnippetIfMentioned: null,
                         latestComment: {
                             createdTime: comment6.createdTime,
                             author: scenario.session2.account,
@@ -5120,6 +5338,8 @@ describe("Post comments", () => {
                         postId: post5.id,
                         postAuthor: scenario.session1.account,
                         loudNotificationCount: 0,
+                        postCreatedTime: post5.createdTime,
+                        postContentSnippetIfMentioned: null,
                         latestComment: {
                             createdTime: comment5.createdTime,
                             author: scenario.session2.account,
@@ -5142,6 +5362,8 @@ describe("Post comments", () => {
                         postId: post4.id,
                         postAuthor: scenario.session1.account,
                         loudNotificationCount: 0,
+                        postCreatedTime: post4.createdTime,
+                        postContentSnippetIfMentioned: null,
                         latestComment: {
                             createdTime: comment4.createdTime,
                             author: scenario.session2.account,
@@ -5164,6 +5386,8 @@ describe("Post comments", () => {
                         postId: post3.id,
                         postAuthor: scenario.session1.account,
                         loudNotificationCount: 0,
+                        postCreatedTime: post3.createdTime,
+                        postContentSnippetIfMentioned: null,
                         latestComment: {
                             createdTime: comment3.createdTime,
                             author: scenario.session2.account,
@@ -5186,6 +5410,8 @@ describe("Post comments", () => {
                         postId: post2.id,
                         postAuthor: scenario.session1.account,
                         loudNotificationCount: 0,
+                        postCreatedTime: post2.createdTime,
+                        postContentSnippetIfMentioned: null,
                         latestComment: {
                             createdTime: comment2.createdTime,
                             author: scenario.session2.account,
@@ -5208,6 +5434,8 @@ describe("Post comments", () => {
                         postId: post1.id,
                         postAuthor: scenario.session1.account,
                         loudNotificationCount: 0,
+                        postCreatedTime: post1.createdTime,
+                        postContentSnippetIfMentioned: null,
                         latestComment: {
                             createdTime: comment1.createdTime,
                             author: scenario.session2.account,
@@ -5257,6 +5485,8 @@ describe("Post comments", () => {
                         postId: post4.id,
                         postAuthor: scenario.session1.account,
                         loudNotificationCount: 0,
+                        postCreatedTime: post4.createdTime,
+                        postContentSnippetIfMentioned: null,
                         latestComment: {
                             createdTime: comment4.createdTime,
                             author: scenario.session2.account,
@@ -5279,6 +5509,8 @@ describe("Post comments", () => {
                         postId: post3.id,
                         postAuthor: scenario.session1.account,
                         loudNotificationCount: 0,
+                        postCreatedTime: post3.createdTime,
+                        postContentSnippetIfMentioned: null,
                         latestComment: {
                             createdTime: comment3.createdTime,
                             author: scenario.session2.account,
@@ -5301,6 +5533,8 @@ describe("Post comments", () => {
                         postId: post2.id,
                         postAuthor: scenario.session1.account,
                         loudNotificationCount: 0,
+                        postCreatedTime: post2.createdTime,
+                        postContentSnippetIfMentioned: null,
                         latestComment: {
                             createdTime: comment2.createdTime,
                             author: scenario.session2.account,
@@ -5323,6 +5557,8 @@ describe("Post comments", () => {
                         postId: post1.id,
                         postAuthor: scenario.session1.account,
                         loudNotificationCount: 0,
+                        postCreatedTime: post1.createdTime,
+                        postContentSnippetIfMentioned: null,
                         latestComment: {
                             createdTime: comment1.createdTime,
                             author: scenario.session2.account,
@@ -5373,6 +5609,8 @@ describe("Post comments", () => {
                         postId: post3.id,
                         postAuthor: scenario.session1.account,
                         loudNotificationCount: 0,
+                        postCreatedTime: post3.createdTime,
+                        postContentSnippetIfMentioned: null,
                         latestComment: {
                             createdTime: comment3.createdTime,
                             author: scenario.session2.account,
@@ -5395,6 +5633,8 @@ describe("Post comments", () => {
                         postId: post2.id,
                         postAuthor: scenario.session1.account,
                         loudNotificationCount: 0,
+                        postCreatedTime: post2.createdTime,
+                        postContentSnippetIfMentioned: null,
                         latestComment: {
                             createdTime: comment2.createdTime,
                             author: scenario.session2.account,
@@ -5417,6 +5657,8 @@ describe("Post comments", () => {
                         postId: post1.id,
                         postAuthor: scenario.session1.account,
                         loudNotificationCount: 0,
+                        postCreatedTime: post1.createdTime,
+                        postContentSnippetIfMentioned: null,
                         latestComment: {
                             createdTime: comment1.createdTime,
                             author: scenario.session2.account,
@@ -5466,6 +5708,8 @@ describe("Post comments", () => {
                         postId: post6.id,
                         postAuthor: scenario.session1.account,
                         loudNotificationCount: 0,
+                        postCreatedTime: post6.createdTime,
+                        postContentSnippetIfMentioned: null,
                         latestComment: {
                             createdTime: comment6.createdTime,
                             author: scenario.session2.account,
@@ -5488,6 +5732,8 @@ describe("Post comments", () => {
                         postId: post5.id,
                         postAuthor: scenario.session1.account,
                         loudNotificationCount: 0,
+                        postCreatedTime: post5.createdTime,
+                        postContentSnippetIfMentioned: null,
                         latestComment: {
                             createdTime: comment5.createdTime,
                             author: scenario.session2.account,
@@ -5510,6 +5756,8 @@ describe("Post comments", () => {
                         postId: post4.id,
                         postAuthor: scenario.session1.account,
                         loudNotificationCount: 0,
+                        postCreatedTime: post4.createdTime,
+                        postContentSnippetIfMentioned: null,
                         latestComment: {
                             createdTime: comment4.createdTime,
                             author: scenario.session2.account,
@@ -5532,6 +5780,8 @@ describe("Post comments", () => {
                         postId: post3.id,
                         postAuthor: scenario.session1.account,
                         loudNotificationCount: 0,
+                        postCreatedTime: post3.createdTime,
+                        postContentSnippetIfMentioned: null,
                         latestComment: {
                             createdTime: comment3.createdTime,
                             author: scenario.session2.account,
@@ -5554,6 +5804,8 @@ describe("Post comments", () => {
                         postId: post2.id,
                         postAuthor: scenario.session1.account,
                         loudNotificationCount: 0,
+                        postCreatedTime: post2.createdTime,
+                        postContentSnippetIfMentioned: null,
                         latestComment: {
                             createdTime: comment2.createdTime,
                             author: scenario.session2.account,
@@ -5604,6 +5856,8 @@ describe("Post comments", () => {
                         postId: post6.id,
                         postAuthor: scenario.session1.account,
                         loudNotificationCount: 0,
+                        postCreatedTime: post6.createdTime,
+                        postContentSnippetIfMentioned: null,
                         latestComment: {
                             createdTime: comment6.createdTime,
                             author: scenario.session2.account,
@@ -5626,6 +5880,8 @@ describe("Post comments", () => {
                         postId: post5.id,
                         postAuthor: scenario.session1.account,
                         loudNotificationCount: 0,
+                        postCreatedTime: post5.createdTime,
+                        postContentSnippetIfMentioned: null,
                         latestComment: {
                             createdTime: comment5.createdTime,
                             author: scenario.session2.account,
@@ -5648,6 +5904,8 @@ describe("Post comments", () => {
                         postId: post4.id,
                         postAuthor: scenario.session1.account,
                         loudNotificationCount: 0,
+                        postCreatedTime: post4.createdTime,
+                        postContentSnippetIfMentioned: null,
                         latestComment: {
                             createdTime: comment4.createdTime,
                             author: scenario.session2.account,
@@ -5670,6 +5928,8 @@ describe("Post comments", () => {
                         postId: post3.id,
                         postAuthor: scenario.session1.account,
                         loudNotificationCount: 0,
+                        postCreatedTime: post3.createdTime,
+                        postContentSnippetIfMentioned: null,
                         latestComment: {
                             createdTime: comment3.createdTime,
                             author: scenario.session2.account,
@@ -5739,6 +5999,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session1.account,
@@ -5761,6 +6023,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session1.account,
@@ -5798,6 +6062,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session1.account,
@@ -5838,6 +6104,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session1.account,
@@ -5860,6 +6128,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session1.account,
@@ -5927,6 +6197,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session1.account,
@@ -5949,6 +6221,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session1.account,
@@ -5989,6 +6263,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session1.account,
@@ -6029,6 +6305,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session1.account,
@@ -6051,6 +6329,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session1.account,
@@ -6129,6 +6409,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post3.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session1.account,
@@ -6151,6 +6433,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session1.account,
@@ -6173,6 +6457,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session1.account,
@@ -6219,6 +6505,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session1.account,
@@ -6241,6 +6529,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session1.account,
@@ -6273,6 +6563,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post3.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session1.account,
@@ -6310,6 +6602,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session1.account,
@@ -6342,6 +6636,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session1.account,
@@ -6364,6 +6660,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post3.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session1.account,
@@ -6410,6 +6708,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session1.account,
@@ -6432,6 +6732,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session1.account,
@@ -6454,6 +6756,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post3.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session1.account,
@@ -6537,6 +6841,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post3.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session1.account,
@@ -6559,6 +6865,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session1.account,
@@ -6581,6 +6889,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session1.account,
@@ -6630,6 +6940,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session1.account,
@@ -6652,6 +6964,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session1.account,
@@ -6684,6 +6998,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post3.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session2.account,
@@ -6719,6 +7035,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 1,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session1.account,
@@ -6751,6 +7069,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment5.createdTime,
                     author: scenario.session2.account,
@@ -6768,6 +7088,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post3.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session2.account,
@@ -6812,6 +7134,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment6.createdTime,
                     author: scenario.session2.account,
@@ -6829,6 +7153,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment5.createdTime,
                     author: scenario.session2.account,
@@ -6846,6 +7172,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post3.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session2.account,
@@ -6939,6 +7267,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session1.account,
@@ -6961,6 +7291,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session1.account,
@@ -6983,6 +7315,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post3.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment3.createdTime,
                     author: scenario.session1.account,
@@ -7023,6 +7357,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment2.createdTime,
                     author: scenario.session1.account,
@@ -7045,6 +7381,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session1.account,
@@ -7067,6 +7405,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post3.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session2.account,
@@ -7102,6 +7442,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment5.createdTime,
                     author: scenario.session2.account,
@@ -7119,6 +7461,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post1.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment1.createdTime,
                     author: scenario.session1.account,
@@ -7141,6 +7485,8 @@ describe("Post comments", () => {
                 postAuthor: scenario.session1.account,
                 channel,
                 loudNotificationCount: 0,
+                postCreatedTime: post3.createdTime,
+                postContentSnippetIfMentioned: null,
                 latestComment: {
                     createdTime: comment4.createdTime,
                     author: scenario.session2.account,
@@ -11447,6 +11793,834 @@ describe("Chat", () => {
                     },
                 },
                 otherChatAccount: scenario.session2.account,
+            }),
+        ]);
+    });
+});
+
+describe("Posts", () => {
+    test("mentioning in a post creates an entry for the mentioned account", async () => {
+        const scenario = await createScenario();
+
+        const _channel = await createChannel(context.action(scenario.session1), {
+            spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const channel = new ChannelPreviewModel({
+            id: _channel.id,
+            spaceId: scenario.space.id,
+            createdTime: _channel.createdTime,
+            name: "Test",
+        });
+
+        await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: assertPostContent(
+                PostContentProsemirrorSchema.node("doc", {}, [
+                    PostContentProsemirrorSchema.node("paragraph", {}, [
+                        PostContentProsemirrorSchema.text("Hello "),
+                        PostContentProsemirrorSchema.node("mention", {
+                            mention: {accountId: scenario.session1.account.id, isShort: false},
+                        }),
+                        PostContentProsemirrorSchema.text("!"),
+                    ]),
+                ]),
+            ),
+        });
+
+        const post2 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: assertPostContent(
+                PostContentProsemirrorSchema.node("doc", {}, [
+                    PostContentProsemirrorSchema.node("paragraph", {}, [
+                        PostContentProsemirrorSchema.text("Hello "),
+                        PostContentProsemirrorSchema.node("mention", {
+                            mention: {accountId: scenario.session2.account.id, isShort: false},
+                        }),
+                        PostContentProsemirrorSchema.text("!"),
+                    ]),
+                ]),
+            ),
+        });
+
+        const post3 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: assertPostContent(
+                PostContentProsemirrorSchema.node("doc", {}, [
+                    PostContentProsemirrorSchema.node("paragraph", {}, [
+                        PostContentProsemirrorSchema.text("Hello "),
+                        PostContentProsemirrorSchema.node("mention", {
+                            mention: {accountId: scenario.session3.account.id, isShort: false},
+                        }),
+                        PostContentProsemirrorSchema.text("!"),
+                    ]),
+                ]),
+            ),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.action(scenario.session1), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([]);
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                postId: post2.id,
+                postAuthor: scenario.session1.account,
+                channel,
+                loudNotificationCount: 1,
+                postCreatedTime: post2.createdTime,
+                postContentSnippetIfMentioned: {
+                    doc: assertPostContent(
+                        PostContentProsemirrorSchema.node("doc", {}, [
+                            PostContentProsemirrorSchema.node("paragraph", {}, [
+                                PostContentProsemirrorSchema.text("Hello "),
+                                PostContentProsemirrorSchema.node("mention", {
+                                    mention: {
+                                        accountId: scenario.session2.account.id,
+                                        isShort: false,
+                                    },
+                                }),
+                                PostContentProsemirrorSchema.text("!"),
+                            ]),
+                        ]),
+                    ),
+                    references: {
+                        ...emptyContentReferences,
+                        accountById: new Map([
+                            [scenario.session2.account.id, scenario.session2.account],
+                        ]),
+                    },
+                },
+                latestComment: null,
+                otherCommentAuthor: null,
+            }),
+        ]);
+
+        expect(
+            await getInboxEntries(context.action(scenario.session3), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                postId: post3.id,
+                postAuthor: scenario.session1.account,
+                channel,
+                loudNotificationCount: 1,
+                postCreatedTime: post3.createdTime,
+                postContentSnippetIfMentioned: {
+                    doc: assertPostContent(
+                        PostContentProsemirrorSchema.node("doc", {}, [
+                            PostContentProsemirrorSchema.node("paragraph", {}, [
+                                PostContentProsemirrorSchema.text("Hello "),
+                                PostContentProsemirrorSchema.node("mention", {
+                                    mention: {
+                                        accountId: scenario.session3.account.id,
+                                        isShort: false,
+                                    },
+                                }),
+                                PostContentProsemirrorSchema.text("!"),
+                            ]),
+                        ]),
+                    ),
+                    references: {
+                        ...emptyContentReferences,
+                        accountById: new Map([
+                            [scenario.session3.account.id, scenario.session3.account],
+                        ]),
+                    },
+                },
+                latestComment: null,
+                otherCommentAuthor: null,
+            }),
+        ]);
+    });
+
+    test("commenting on a post someone was mentioned on updates an entry for the mentioned account", async () => {
+        const scenario = await createScenario();
+
+        const _channel = await createChannel(context.action(scenario.session1), {
+            spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const channel = new ChannelPreviewModel({
+            id: _channel.id,
+            spaceId: scenario.space.id,
+            createdTime: _channel.createdTime,
+            name: "Test",
+        });
+
+        const post = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: assertPostContent(
+                PostContentProsemirrorSchema.node("doc", {}, [
+                    PostContentProsemirrorSchema.node("paragraph", {}, [
+                        PostContentProsemirrorSchema.text("Hello "),
+                        PostContentProsemirrorSchema.node("mention", {
+                            mention: {accountId: scenario.session2.account.id, isShort: false},
+                        }),
+                        PostContentProsemirrorSchema.text("!"),
+                    ]),
+                ]),
+            ),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
+                loudNotificationCount: 1,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: {
+                    doc: assertPostContent(
+                        PostContentProsemirrorSchema.node("doc", {}, [
+                            PostContentProsemirrorSchema.node("paragraph", {}, [
+                                PostContentProsemirrorSchema.text("Hello "),
+                                PostContentProsemirrorSchema.node("mention", {
+                                    mention: {
+                                        accountId: scenario.session2.account.id,
+                                        isShort: false,
+                                    },
+                                }),
+                                PostContentProsemirrorSchema.text("!"),
+                            ]),
+                        ]),
+                    ),
+                    references: {
+                        ...emptyContentReferences,
+                        accountById: new Map([
+                            [scenario.session2.account.id, scenario.session2.account],
+                        ]),
+                    },
+                },
+                latestComment: null,
+                otherCommentAuthor: null,
+            }),
+        ]);
+
+        const comment1 = await createPostComment(context.action(scenario.session3), {
+            postId: post.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("comment1"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
+                loudNotificationCount: 1,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: {
+                    doc: assertPostContent(
+                        PostContentProsemirrorSchema.node("doc", {}, [
+                            PostContentProsemirrorSchema.node("paragraph", {}, [
+                                PostContentProsemirrorSchema.text("Hello "),
+                                PostContentProsemirrorSchema.node("mention", {
+                                    mention: {
+                                        accountId: scenario.session2.account.id,
+                                        isShort: false,
+                                    },
+                                }),
+                                PostContentProsemirrorSchema.text("!"),
+                            ]),
+                        ]),
+                    ),
+                    references: {
+                        ...emptyContentReferences,
+                        accountById: new Map([
+                            [scenario.session2.account.id, scenario.session2.account],
+                        ]),
+                    },
+                },
+                latestComment: {
+                    createdTime: comment1.createdTime,
+                    author: scenario.session3.account,
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment1"),
+                        references: emptyContentReferences,
+                    },
+                },
+                otherCommentAuthor: null,
+            }),
+        ]);
+    });
+
+    test("commenting on a post revives an archived entry someone was mentioned on", async () => {
+        const scenario = await createScenario();
+
+        const _channel = await createChannel(context.action(scenario.session1), {
+            spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const channel = new ChannelPreviewModel({
+            id: _channel.id,
+            spaceId: scenario.space.id,
+            createdTime: _channel.createdTime,
+            name: "Test",
+        });
+
+        const post = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: assertPostContent(
+                PostContentProsemirrorSchema.node("doc", {}, [
+                    PostContentProsemirrorSchema.node("paragraph", {}, [
+                        PostContentProsemirrorSchema.text("Hello "),
+                        PostContentProsemirrorSchema.node("mention", {
+                            mention: {accountId: scenario.session2.account.id, isShort: false},
+                        }),
+                        PostContentProsemirrorSchema.text("!"),
+                    ]),
+                ]),
+            ),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
+                loudNotificationCount: 1,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: {
+                    doc: assertPostContent(
+                        PostContentProsemirrorSchema.node("doc", {}, [
+                            PostContentProsemirrorSchema.node("paragraph", {}, [
+                                PostContentProsemirrorSchema.text("Hello "),
+                                PostContentProsemirrorSchema.node("mention", {
+                                    mention: {
+                                        accountId: scenario.session2.account.id,
+                                        isShort: false,
+                                    },
+                                }),
+                                PostContentProsemirrorSchema.text("!"),
+                            ]),
+                        ]),
+                    ),
+                    references: {
+                        ...emptyContentReferences,
+                        accountById: new Map([
+                            [scenario.session2.account.id, scenario.session2.account],
+                        ]),
+                    },
+                },
+                latestComment: null,
+                otherCommentAuthor: null,
+            }),
+        ]);
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                filter: "Archive",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([]);
+
+        await archiveInboxEntry(context.action(scenario.session2), {
+            spaceId: scenario.space.id,
+            key: {type: "PostComments", postId: post.id},
+        });
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([]);
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                filter: "Archive",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
+                loudNotificationCount: 0,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: {
+                    doc: assertPostContent(
+                        PostContentProsemirrorSchema.node("doc", {}, [
+                            PostContentProsemirrorSchema.node("paragraph", {}, [
+                                PostContentProsemirrorSchema.text("Hello "),
+                                PostContentProsemirrorSchema.node("mention", {
+                                    mention: {
+                                        accountId: scenario.session2.account.id,
+                                        isShort: false,
+                                    },
+                                }),
+                                PostContentProsemirrorSchema.text("!"),
+                            ]),
+                        ]),
+                    ),
+                    references: {
+                        ...emptyContentReferences,
+                        accountById: new Map([
+                            [scenario.session2.account.id, scenario.session2.account],
+                        ]),
+                    },
+                },
+                latestComment: null,
+                otherCommentAuthor: null,
+            }),
+        ]);
+
+        const comment1 = await createPostComment(context.action(scenario.session3), {
+            postId: post.id,
+            parentCommentIndex: null,
+            content: createSimpleMessageContent("comment1"),
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
+                loudNotificationCount: 0,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
+                latestComment: {
+                    createdTime: comment1.createdTime,
+                    author: scenario.session3.account,
+                    contentSnippet: {
+                        doc: createSimpleMessageContent("comment1"),
+                        references: emptyContentReferences,
+                    },
+                },
+                otherCommentAuthor: null,
+            }),
+        ]);
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                filter: "Archive",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([]);
+    });
+
+    test("post with mention create event processed after comment event", async () => {
+        const scenario = await createScenario();
+
+        const _channel = await createChannel(context.action(scenario.session2), {
+            spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const channel = new ChannelPreviewModel({
+            id: _channel.id,
+            spaceId: scenario.space.id,
+            createdTime: _channel.createdTime,
+            name: "Test",
+        });
+
+        const pause1Promise = notificationEventBeforeProcessingTestCheckpoint.pauseForTest(
+            scenario.session1.account.id,
+        );
+        const pause2Promise = notificationEventAfterProcessingTestCheckpoint.pauseForTest(
+            scenario.session3.account.id,
+        );
+
+        const post = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: assertPostContent(
+                PostContentProsemirrorSchema.node("doc", {}, [
+                    PostContentProsemirrorSchema.node("paragraph", {}, [
+                        PostContentProsemirrorSchema.text("Hello "),
+                        PostContentProsemirrorSchema.node("mention", {
+                            mention: {accountId: scenario.session2.account.id, isShort: false},
+                        }),
+                        PostContentProsemirrorSchema.text("!"),
+                    ]),
+                ]),
+            ),
+        });
+
+        const comment = await createPostComment(context.action(scenario.session3), {
+            postId: post.id,
+            parentCommentIndex: null,
+            content: scenario.mentionAccount2MessageContent,
+        });
+
+        const {unpause: unpause1} = await pause1Promise;
+        const {unpause: unpause2} = await pause2Promise;
+        unpause2();
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
+                loudNotificationCount: 1,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
+                latestComment: {
+                    createdTime: comment.createdTime,
+                    author: scenario.session3.account,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
+                    },
+                },
+                otherCommentAuthor: null,
+            }),
+        ]);
+
+        unpause1();
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
+                loudNotificationCount: 2,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: {
+                    doc: assertPostContent(
+                        PostContentProsemirrorSchema.node("doc", {}, [
+                            PostContentProsemirrorSchema.node("paragraph", {}, [
+                                PostContentProsemirrorSchema.text("Hello "),
+                                PostContentProsemirrorSchema.node("mention", {
+                                    mention: {
+                                        accountId: scenario.session2.account.id,
+                                        isShort: false,
+                                    },
+                                }),
+                                PostContentProsemirrorSchema.text("!"),
+                            ]),
+                        ]),
+                    ),
+                    references: {
+                        ...emptyContentReferences,
+                        accountById: new Map([
+                            [scenario.session2.account.id, scenario.session2.account],
+                        ]),
+                    },
+                },
+                latestComment: {
+                    createdTime: comment.createdTime,
+                    author: scenario.session3.account,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
+                    },
+                },
+                otherCommentAuthor: null,
+            }),
+        ]);
+    });
+
+    test("post with mention create event processed after comment event and after entry was archived", async () => {
+        const scenario = await createScenario();
+
+        const _channel = await createChannel(context.action(scenario.session2), {
+            spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const channel = new ChannelPreviewModel({
+            id: _channel.id,
+            spaceId: scenario.space.id,
+            createdTime: _channel.createdTime,
+            name: "Test",
+        });
+
+        const pause1Promise = notificationEventBeforeProcessingTestCheckpoint.pauseForTest(
+            scenario.session1.account.id,
+        );
+        const pause2Promise = notificationEventAfterProcessingTestCheckpoint.pauseForTest(
+            scenario.session3.account.id,
+        );
+
+        const post = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: assertPostContent(
+                PostContentProsemirrorSchema.node("doc", {}, [
+                    PostContentProsemirrorSchema.node("paragraph", {}, [
+                        PostContentProsemirrorSchema.text("Hello "),
+                        PostContentProsemirrorSchema.node("mention", {
+                            mention: {accountId: scenario.session2.account.id, isShort: false},
+                        }),
+                        PostContentProsemirrorSchema.text("!"),
+                    ]),
+                ]),
+            ),
+        });
+
+        const comment = await createPostComment(context.action(scenario.session3), {
+            postId: post.id,
+            parentCommentIndex: null,
+            content: scenario.mentionAccount2MessageContent,
+        });
+
+        const {unpause: unpause1} = await pause1Promise;
+        const {unpause: unpause2} = await pause2Promise;
+        unpause2();
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
+                loudNotificationCount: 1,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
+                latestComment: {
+                    createdTime: comment.createdTime,
+                    author: scenario.session3.account,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
+                    },
+                },
+                otherCommentAuthor: null,
+            }),
+        ]);
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                filter: "Archive",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([]);
+
+        await archiveInboxEntry(context.action(scenario.session2), {
+            spaceId: scenario.space.id,
+            key: {type: "PostComments", postId: post.id},
+        });
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([]);
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                filter: "Archive",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
+                loudNotificationCount: 0,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: null,
+                latestComment: {
+                    createdTime: comment.createdTime,
+                    author: scenario.session3.account,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
+                    },
+                },
+                otherCommentAuthor: null,
+            }),
+        ]);
+
+        unpause1();
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([]);
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                filter: "Archive",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxPostCommentsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                postId: post.id,
+                postAuthor: scenario.session1.account,
+                channel,
+                loudNotificationCount: 0,
+                postCreatedTime: post.createdTime,
+                postContentSnippetIfMentioned: {
+                    doc: assertPostContent(
+                        PostContentProsemirrorSchema.node("doc", {}, [
+                            PostContentProsemirrorSchema.node("paragraph", {}, [
+                                PostContentProsemirrorSchema.text("Hello "),
+                                PostContentProsemirrorSchema.node("mention", {
+                                    mention: {
+                                        accountId: scenario.session2.account.id,
+                                        isShort: false,
+                                    },
+                                }),
+                                PostContentProsemirrorSchema.text("!"),
+                            ]),
+                        ]),
+                    ),
+                    references: {
+                        ...emptyContentReferences,
+                        accountById: new Map([
+                            [scenario.session2.account.id, scenario.session2.account],
+                        ]),
+                    },
+                },
+                latestComment: {
+                    createdTime: comment.createdTime,
+                    author: scenario.session3.account,
+                    contentSnippet: {
+                        doc: scenario.mentionAccount2MessageContent,
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
+                    },
+                },
+                otherCommentAuthor: null,
             }),
         ]);
     });

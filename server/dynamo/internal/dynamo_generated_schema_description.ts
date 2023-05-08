@@ -3051,6 +3051,21 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                                         },
                                         "optional": false
                                     },
+                                    "entryCount": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    },
+                                    "lastZeroEntryCountTime": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Date"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "updateLockVersion": {
                                         "valueSchema": {
                                             "type": "Integer"
@@ -3181,34 +3196,53 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                                         },
                                         "optional": false
                                     },
+                                    "postCreatedTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": true
+                                    },
+                                    "postContentSnippetIfMentioned": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Reference",
+                                                "reuseReferenceId": "e7c1103e"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "latestComment": {
                                         "valueSchema": {
-                                            "type": "Object",
-                                            "propertySchemaByKey": {
-                                                "index": {
-                                                    "valueSchema": {
-                                                        "type": "Integer"
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Object",
+                                                "propertySchemaByKey": {
+                                                    "index": {
+                                                        "valueSchema": {
+                                                            "type": "Integer"
+                                                        },
+                                                        "optional": false
                                                     },
-                                                    "optional": false
-                                                },
-                                                "authorId": {
-                                                    "valueSchema": {
-                                                        "type": "Id"
+                                                    "authorId": {
+                                                        "valueSchema": {
+                                                            "type": "Id"
+                                                        },
+                                                        "optional": false
                                                     },
-                                                    "optional": false
-                                                },
-                                                "createdTime": {
-                                                    "valueSchema": {
-                                                        "type": "Date"
+                                                    "createdTime": {
+                                                        "valueSchema": {
+                                                            "type": "Date"
+                                                        },
+                                                        "optional": false
                                                     },
-                                                    "optional": false
-                                                },
-                                                "contentSnippet": {
-                                                    "valueSchema": {
-                                                        "type": "Reference",
-                                                        "reuseReferenceId": "05d7837f"
-                                                    },
-                                                    "optional": false
+                                                    "contentSnippet": {
+                                                        "valueSchema": {
+                                                            "type": "Reference",
+                                                            "reuseReferenceId": "05d7837f"
+                                                        },
+                                                        "optional": false
+                                                    }
                                                 }
                                             }
                                         },

@@ -1,4 +1,4 @@
-import {isToday} from "date-fns";
+import {differenceInHours} from "date-fns";
 import {AnimationControls, animate} from "motion";
 import {ReactNode, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
@@ -6,6 +6,7 @@ import {AccountShortName} from "~/client/accounts/account_short_name";
 import {ContentView} from "~/client/content/content_view";
 import {Box} from "~/client/design/box";
 import {PrettyNumber} from "~/client/design/pretty_number";
+import {useCurrentTimeRoundedToHour} from "~/client/helpers/use_current_time_rounded_to_hour";
 import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
@@ -15,12 +16,12 @@ import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {AccountModel} from "~/shared/models/account_model";
+import {ContentWithReferences} from "~/shared/models/content_references";
 import {
     InboxChatEntryModel,
     InboxEntryModel,
     InboxPostCommentsEntryModel,
 } from "~/shared/models/inbox_model";
-import {MessageContentWithReferences} from "~/shared/models/message_model";
 import {
     backgroundColorVar,
     colorSchemeVars,
@@ -220,7 +221,10 @@ function InboxChatEntryView({entry}: {entry: InboxChatEntryModel}) {
                 ) : null}{" "}
                 a chat message
             </Box>
-            <InboxEntryLatestMessagePreview latestMessage={entry.latestMessage} />
+            <InboxEntryLatestMessagePreview
+                time={entry.latestMessage.createdTime}
+                latestMessage={entry.latestMessage}
+            />
         </InboxEntryViewBase>
     );
 }
@@ -231,12 +235,12 @@ function InboxPostCommentsEntryView({entry}: {entry: InboxPostCommentsEntryModel
     const firstAccount: AccountModel =
         entry.postAuthor.id !== currentAccount.id
             ? entry.postAuthor
-            : entry.otherCommentAuthor ?? entry.latestComment.author;
+            : entry.otherCommentAuthor ?? entry.latestComment?.author ?? entry.postAuthor;
 
     const secondAccount: AccountModel | null = false
         ? null
-        : entry.latestComment.author.id !== firstAccount.id
-        ? entry.latestComment.author
+        : entry.latestComment?.author.id !== firstAccount.id
+        ? entry.latestComment?.author ?? null
         : null;
 
     return (
@@ -246,19 +250,42 @@ function InboxPostCommentsEntryView({entry}: {entry: InboxPostCommentsEntryModel
             loudNotificationCount={entry.loudNotificationCount}
         >
             <Box>
-                {currentAccount.id === entry.postAuthor.id ? (
-                    "Your"
-                ) : (
+                {entry.postContentSnippetIfMentioned ? (
                     <>
                         <span className={boldClassName}>
                             <AccountShortName account={entry.postAuthor} />
-                        </span>
-                        ’s
+                        </span>{" "}
+                        mentioned you in a{" "}
+                        <span className={boldClassName}>{entry.channel.name}</span> post
                     </>
-                )}{" "}
-                post in <span className={boldClassName}>{entry.channel.name}</span> has new comments
+                ) : (
+                    <>
+                        {currentAccount.id === entry.postAuthor.id ? (
+                            "Your"
+                        ) : (
+                            <>
+                                <span className={boldClassName}>
+                                    <AccountShortName account={entry.postAuthor} />
+                                </span>
+                                ’s
+                            </>
+                        )}{" "}
+                        post in <span className={boldClassName}>{entry.channel.name}</span> has new
+                        comments
+                    </>
+                )}
             </Box>
-            <InboxEntryLatestMessagePreview latestMessage={entry.latestComment} />
+            <InboxEntryLatestMessagePreview
+                time={entry.latestComment?.createdTime ?? entry.postCreatedTime}
+                latestMessage={
+                    entry.postContentSnippetIfMentioned
+                        ? {
+                              author: entry.postAuthor,
+                              contentSnippet: entry.postContentSnippetIfMentioned,
+                          }
+                        : entry.latestComment
+                }
+            />
         </InboxEntryViewBase>
     );
 }
@@ -320,14 +347,16 @@ function InboxEntryViewBase({
 }
 
 function InboxEntryLatestMessagePreview({
+    time,
     latestMessage,
 }: {
+    time: Date;
     latestMessage: {
         author: AccountModel;
-        createdTime: Date;
-        contentSnippet: MessageContentWithReferences;
-    };
+        contentSnippet: ContentWithReferences;
+    } | null;
 }) {
+    const currentTime = useCurrentTimeRoundedToHour();
     const {timeZone} = useClientInfo();
 
     const isMobile = useIsMobile();
@@ -365,19 +394,29 @@ function InboxEntryLatestMessagePreview({
                     opacity: 0.6,
                 }}
             >
-                <Box flexShrink="0" style={contentSchemaStyles.paragraphFontSize} marginRight="-1">
-                    <AccountShortName account={latestMessage.author} />:
-                </Box>
-                <Box flexGrow="1" overflow="hidden">
-                    <ContentView
-                        content={latestMessage.contentSnippet}
-                        isInert={true}
-                        isTruncated={true}
-                    />
-                </Box>
+                {latestMessage ? (
+                    <>
+                        <Box
+                            flexShrink="0"
+                            style={contentSchemaStyles.paragraphFontSize}
+                            marginRight="-1"
+                        >
+                            <AccountShortName account={latestMessage.author} />:
+                        </Box>
+                        <Box flexGrow="1" overflow="hidden">
+                            <ContentView
+                                content={latestMessage.contentSnippet}
+                                isInert={true}
+                                isTruncated={true}
+                            />
+                        </Box>
+                    </>
+                ) : (
+                    <Box flexGrow="1" />
+                )}
                 <Box flexShrink="0" style={contentSchemaStyles.paragraphFontSize} marginLeft="0.5">
                     {useMemo(() => {
-                        if (isToday(latestMessage.createdTime)) {
+                        if (differenceInHours(currentTime, time) < 24) {
                             const formatter = new Intl.DateTimeFormat("en-US", {
                                 timeZone,
                                 calendar: "iso8601",
@@ -386,7 +425,7 @@ function InboxEntryLatestMessagePreview({
                                 hour12: true,
                             });
 
-                            return formatter.format(latestMessage.createdTime);
+                            return formatter.format(time);
                         } else {
                             const formatter = new Intl.DateTimeFormat("en-US", {
                                 timeZone,
@@ -395,9 +434,9 @@ function InboxEntryLatestMessagePreview({
                                 day: "numeric",
                             });
 
-                            return formatter.format(latestMessage.createdTime);
+                            return formatter.format(time);
                         }
-                    }, [latestMessage.createdTime, timeZone])}
+                    }, [currentTime, time, timeZone])}
                 </Box>
             </Box>
         </Box>
