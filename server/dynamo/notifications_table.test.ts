@@ -33,6 +33,7 @@ import {AccountModel} from "~/shared/models/account_model";
 import {ChannelPreviewModel} from "~/shared/models/channel_model";
 import {emptyContentReferences} from "~/shared/models/content_references";
 import {
+    InboxChannelPostsEntryModel,
     InboxChatEntryModel,
     InboxEntryModel,
     InboxModel,
@@ -333,6 +334,8 @@ describe("Post comments", () => {
             content: emptyPostContent,
         });
 
+        await ProcessContextModule.waitForTestTasks();
+
         expect(
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
@@ -349,7 +352,26 @@ describe("Post comments", () => {
                 limit: 100,
                 afterCursor: null,
             }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
 
         expect(
             await getInboxEntries(context.action(scenario.session3), {
@@ -358,7 +380,26 @@ describe("Post comments", () => {
                 limit: 100,
                 afterCursor: null,
             }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
 
         const comment1 = await createPostComment(context.action(scenario.session2), {
             postId: post.id,
@@ -404,7 +445,26 @@ describe("Post comments", () => {
                 limit: 100,
                 afterCursor: null,
             }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
 
         expect(
             await getInboxEntries(context.action(scenario.session3), {
@@ -413,7 +473,26 @@ describe("Post comments", () => {
                 limit: 100,
                 afterCursor: null,
             }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
 
         const comment2 = await createPostComment(context.action(scenario.session3), {
             postId: post.id,
@@ -479,6 +558,24 @@ describe("Post comments", () => {
                 },
                 otherCommentAuthor: null,
             }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
         ]);
 
         expect(
@@ -488,7 +585,26 @@ describe("Post comments", () => {
                 limit: 100,
                 afterCursor: null,
             }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
 
         const comment3 = await createPostComment(context.action(scenario.session1), {
             postId: post.id,
@@ -534,6 +650,24 @@ describe("Post comments", () => {
                 },
                 otherCommentAuthor: scenario.session3.account,
             }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
         ]);
 
         expect(
@@ -563,10 +697,28 @@ describe("Post comments", () => {
                 },
                 otherCommentAuthor: null,
             }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
         ]);
     });
 
-    test("mentioning someone in a creates a loud notification for them whether or not they are a subscriber", async () => {
+    test("mentioning someone in a post a creates a loud notification for them whether or not they are a subscriber", async () => {
         const scenario = await createScenario();
 
         const _channel = await createChannel(context.action(scenario.session1), {
@@ -586,6 +738,8 @@ describe("Post comments", () => {
             content: emptyPostContent,
         });
 
+        await ProcessContextModule.waitForTestTasks();
+
         expect(
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
@@ -602,7 +756,26 @@ describe("Post comments", () => {
                 limit: 100,
                 afterCursor: null,
             }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
 
         expect(
             await getInboxEntries(context.action(scenario.session3), {
@@ -611,7 +784,26 @@ describe("Post comments", () => {
                 limit: 100,
                 afterCursor: null,
             }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
 
         const comment1 = await createPostComment(context.action(scenario.session2), {
             postId: post.id,
@@ -662,7 +854,26 @@ describe("Post comments", () => {
                 limit: 100,
                 afterCursor: null,
             }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
 
         expect(
             await getInboxEntries(context.action(scenario.session3), {
@@ -695,6 +906,24 @@ describe("Post comments", () => {
                     },
                 },
                 otherCommentAuthor: null,
+            }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
             }),
         ]);
 
@@ -747,7 +976,26 @@ describe("Post comments", () => {
                 limit: 100,
                 afterCursor: null,
             }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
 
         expect(
             await getInboxEntries(context.action(scenario.session3), {
@@ -780,6 +1028,24 @@ describe("Post comments", () => {
                     },
                 },
                 otherCommentAuthor: null,
+            }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
             }),
         ]);
 
@@ -857,6 +1123,24 @@ describe("Post comments", () => {
                 },
                 otherCommentAuthor: null,
             }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
         ]);
 
         expect(
@@ -866,7 +1150,26 @@ describe("Post comments", () => {
                 limit: 100,
                 afterCursor: null,
             }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
     });
 
     test("mentioning yourself does not create a loud notification for yourself", async () => {
@@ -889,6 +1192,8 @@ describe("Post comments", () => {
             content: emptyPostContent,
         });
 
+        await ProcessContextModule.waitForTestTasks();
+
         expect(
             await getInboxEntries(context.action(scenario.session1), {
                 spaceId: scenario.space.id,
@@ -905,7 +1210,26 @@ describe("Post comments", () => {
                 limit: 100,
                 afterCursor: null,
             }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
 
         expect(
             await getInboxEntries(context.action(scenario.session3), {
@@ -914,7 +1238,26 @@ describe("Post comments", () => {
                 limit: 100,
                 afterCursor: null,
             }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
 
         const comment1 = await createPostComment(context.action(scenario.session2), {
             postId: post.id,
@@ -965,7 +1308,26 @@ describe("Post comments", () => {
                 limit: 100,
                 afterCursor: null,
             }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
 
         expect(
             await getInboxEntries(context.action(scenario.session3), {
@@ -974,7 +1336,26 @@ describe("Post comments", () => {
                 limit: 100,
                 afterCursor: null,
             }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
 
         const comment2 = await createPostComment(context.action(scenario.session1), {
             postId: post.id,
@@ -1020,6 +1401,24 @@ describe("Post comments", () => {
                 },
                 otherCommentAuthor: null,
             }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
         ]);
 
         expect(
@@ -1029,7 +1428,26 @@ describe("Post comments", () => {
                 limit: 100,
                 afterCursor: null,
             }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
 
         const comment3 = await createPostComment(context.action(scenario.session2), {
             postId: post.id,
@@ -1080,7 +1498,26 @@ describe("Post comments", () => {
                 limit: 100,
                 afterCursor: null,
             }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
 
         expect(
             await getInboxEntries(context.action(scenario.session3), {
@@ -1089,7 +1526,26 @@ describe("Post comments", () => {
                 limit: 100,
                 afterCursor: null,
             }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
     });
 
     test("accounts have separate inboxes for each space", async () => {
@@ -1136,7 +1592,26 @@ describe("Post comments", () => {
                 limit: 100,
                 afterCursor: null,
             }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.sharedSession.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
 
         expect(
             await getInboxEntries(context.action(scenario.sharedSession), {
@@ -1145,7 +1620,26 @@ describe("Post comments", () => {
                 limit: 100,
                 afterCursor: null,
             }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.otherSpace.id,
+                accountId: scenario.sharedSession.account.id,
+                loudNotificationCount: 0,
+                channel: otherChannel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.otherSession.account,
+                    createdTime: otherPost.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
 
         const comment1 = await createPostComment(context.action(scenario.session2), {
             postId: post.id,
@@ -1187,6 +1681,24 @@ describe("Post comments", () => {
                 },
                 otherCommentAuthor: null,
             }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.sharedSession.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
         ]);
 
         expect(
@@ -1196,7 +1708,26 @@ describe("Post comments", () => {
                 limit: 100,
                 afterCursor: null,
             }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.otherSpace.id,
+                accountId: scenario.sharedSession.account.id,
+                loudNotificationCount: 0,
+                channel: otherChannel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.otherSession.account,
+                    createdTime: otherPost.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
 
         const comment2 = await createPostComment(context.action(scenario.otherSession), {
             postId: otherPost.id,
@@ -1238,6 +1769,24 @@ describe("Post comments", () => {
                 },
                 otherCommentAuthor: null,
             }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.sharedSession.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
         ]);
 
         expect(
@@ -1271,6 +1820,24 @@ describe("Post comments", () => {
                     },
                 },
                 otherCommentAuthor: null,
+            }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.otherSpace.id,
+                accountId: scenario.sharedSession.account.id,
+                loudNotificationCount: 0,
+                channel: otherChannel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.otherSession.account,
+                    createdTime: otherPost.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
             }),
         ]);
     });
@@ -1312,7 +1879,26 @@ describe("Post comments", () => {
                 limit: 100,
                 afterCursor: null,
             }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
 
         await expect(
             getInboxEntries(context.action(scenario.session3), {
@@ -1362,6 +1948,24 @@ describe("Post comments", () => {
                     },
                 },
                 otherCommentAuthor: null,
+            }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
             }),
         ]);
 
@@ -1413,6 +2017,24 @@ describe("Post comments", () => {
                     },
                 },
                 otherCommentAuthor: null,
+            }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
             }),
         ]);
 
@@ -1522,6 +2144,24 @@ describe("Post comments", () => {
                 },
                 otherCommentAuthor: null,
             }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session2.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
         ]);
 
         expect(
@@ -1582,6 +2222,24 @@ describe("Post comments", () => {
                     },
                 },
                 otherCommentAuthor: null,
+            }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session2.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
             }),
         ]);
 
@@ -1711,6 +2369,24 @@ describe("Post comments", () => {
                 },
                 otherCommentAuthor: null,
             }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session2.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
         ]);
 
         expect(
@@ -1751,6 +2427,24 @@ describe("Post comments", () => {
                     },
                 },
                 otherCommentAuthor: null,
+            }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session2.account,
+                    createdTime: post.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
             }),
         ]);
 
@@ -3219,6 +3913,24 @@ describe("Post comments", () => {
                 },
                 otherCommentAuthor: scenario.session3.account,
             }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 2,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post2.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
         ]);
 
         expect(
@@ -3247,6 +3959,24 @@ describe("Post comments", () => {
                     },
                 },
                 otherCommentAuthor: null,
+            }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 2,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post2.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
             }),
         ]);
 
@@ -3335,6 +4065,24 @@ describe("Post comments", () => {
                 },
                 otherCommentAuthor: scenario.session3.account,
             }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 2,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post2.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
         ]);
 
         expect(
@@ -3344,7 +4092,26 @@ describe("Post comments", () => {
                 limit: 100,
                 afterCursor: null,
             }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 2,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post2.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
 
         await archiveInboxEntry(context.action(scenario.session2), {
             spaceId: scenario.space.id,
@@ -3407,6 +4174,24 @@ describe("Post comments", () => {
                 },
                 otherCommentAuthor: scenario.session3.account,
             }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 2,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post2.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
         ]);
 
         expect(
@@ -3416,7 +4201,26 @@ describe("Post comments", () => {
                 limit: 100,
                 afterCursor: null,
             }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 2,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post2.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
 
         await archiveInboxEntry(context.action(scenario.session2), {
             spaceId: scenario.space.id,
@@ -3459,7 +4263,26 @@ describe("Post comments", () => {
                 limit: 100,
                 afterCursor: null,
             }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 2,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post2.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
 
         expect(
             await getInboxEntries(context.action(scenario.session3), {
@@ -3468,7 +4291,26 @@ describe("Post comments", () => {
                 limit: 100,
                 afterCursor: null,
             }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 2,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post2.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
     });
 
     test("can unarchive inbox entries", async () => {
@@ -3628,6 +4470,24 @@ describe("Post comments", () => {
                 },
                 otherCommentAuthor: scenario.session3.account,
             }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 3,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post3.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
         ]);
 
         expect(
@@ -3656,6 +4516,24 @@ describe("Post comments", () => {
                     },
                 },
                 otherCommentAuthor: null,
+            }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 3,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post3.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
             }),
         ]);
 
@@ -3715,6 +4593,24 @@ describe("Post comments", () => {
                 },
                 otherCommentAuthor: null,
             }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 3,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post3.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
         ]);
 
         expect(
@@ -3724,7 +4620,26 @@ describe("Post comments", () => {
                 limit: 100,
                 afterCursor: null,
             }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 3,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post3.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
 
         await unarchiveInboxEntry(context.action(scenario.session3), {
             spaceId: scenario.space.id,
@@ -3772,6 +4687,24 @@ describe("Post comments", () => {
                 },
                 otherCommentAuthor: null,
             }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 3,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post3.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
         ]);
 
         expect(
@@ -3800,6 +4733,24 @@ describe("Post comments", () => {
                     },
                 },
                 otherCommentAuthor: null,
+            }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 3,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post3.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
             }),
         ]);
 
@@ -3873,6 +4824,24 @@ describe("Post comments", () => {
                 },
                 otherCommentAuthor: null,
             }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 3,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post3.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
         ]);
 
         expect(
@@ -3901,6 +4870,24 @@ describe("Post comments", () => {
                     },
                 },
                 otherCommentAuthor: null,
+            }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 3,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post3.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
             }),
         ]);
 
@@ -3993,6 +4980,24 @@ describe("Post comments", () => {
                 },
                 otherCommentAuthor: null,
             }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 3,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post3.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
         ]);
 
         expect(
@@ -4021,6 +5026,24 @@ describe("Post comments", () => {
                     },
                 },
                 otherCommentAuthor: null,
+            }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 3,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post3.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
             }),
         ]);
 
@@ -4133,6 +5156,24 @@ describe("Post comments", () => {
                 },
                 otherCommentAuthor: null,
             }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 3,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post3.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
         ]);
 
         expect(
@@ -4161,6 +5202,24 @@ describe("Post comments", () => {
                     },
                 },
                 otherCommentAuthor: null,
+            }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 3,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post3.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
             }),
         ]);
     });
@@ -4692,7 +5751,7 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 loudNotificationCount: 0,
-                entryCount: 0,
+                entryCount: 1,
                 lastZeroEntryCountTime: null,
             }),
         );
@@ -4704,7 +5763,7 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 loudNotificationCount: 0,
-                entryCount: 0,
+                entryCount: 1,
                 lastZeroEntryCountTime: null,
             }),
         );
@@ -4736,7 +5795,7 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 loudNotificationCount: 0,
-                entryCount: 0,
+                entryCount: 1,
                 lastZeroEntryCountTime: null,
             }),
         );
@@ -4748,7 +5807,7 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 loudNotificationCount: 0,
-                entryCount: 0,
+                entryCount: 1,
                 lastZeroEntryCountTime: null,
             }),
         );
@@ -4780,7 +5839,7 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session2.account.id,
                 loudNotificationCount: 0,
-                entryCount: 1,
+                entryCount: 2,
                 lastZeroEntryCountTime: null,
             }),
         );
@@ -4792,7 +5851,7 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 loudNotificationCount: 0,
-                entryCount: 0,
+                entryCount: 1,
                 lastZeroEntryCountTime: null,
             }),
         );
@@ -4804,6 +5863,11 @@ describe("Post comments", () => {
         });
 
         await ProcessContextModule.waitForTestTasks();
+
+        await archiveInboxEntry(context.action(scenario.session2), {
+            spaceId: scenario.space.id,
+            key: {type: "ChannelPosts", channelId: channel.id, bucketGeneration: 0},
+        });
 
         expect(
             (await getInbox(context.action(scenario.session1), {spaceId: scenario.space.id})).model,
@@ -4836,7 +5900,7 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 loudNotificationCount: 0,
-                entryCount: 1,
+                entryCount: 2,
                 lastZeroEntryCountTime: null,
             }),
         );
@@ -4880,7 +5944,7 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 loudNotificationCount: 0,
-                entryCount: 1,
+                entryCount: 2,
                 lastZeroEntryCountTime: null,
             }),
         );
@@ -4924,7 +5988,7 @@ describe("Post comments", () => {
                 spaceId: scenario.space.id,
                 accountId: scenario.session3.account.id,
                 loudNotificationCount: 0,
-                entryCount: 1,
+                entryCount: 2,
                 lastZeroEntryCountTime: null,
             }),
         );
@@ -4932,6 +5996,11 @@ describe("Post comments", () => {
         await archiveInboxEntry(context.action(scenario.session3), {
             spaceId: scenario.space.id,
             key: {type: "PostComments", postId: post1.id},
+        });
+
+        await archiveInboxEntry(context.action(scenario.session3), {
+            spaceId: scenario.space.id,
+            key: {type: "ChannelPosts", channelId: channel.id, bucketGeneration: 0},
         });
 
         expect(
@@ -6040,6 +7109,24 @@ describe("Post comments", () => {
                 },
                 otherCommentAuthor: null,
             }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 2,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post2.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
         ]);
 
         await archiveInboxEntry(context.action(scenario.session2), {
@@ -6078,6 +7165,24 @@ describe("Post comments", () => {
                     },
                 },
                 otherCommentAuthor: null,
+            }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 2,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post2.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
             }),
         ]);
 
@@ -6139,6 +7244,24 @@ describe("Post comments", () => {
                     },
                 },
                 otherCommentAuthor: null,
+            }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 2,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post2.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
             }),
         ]);
     });
@@ -6238,6 +7361,24 @@ describe("Post comments", () => {
                 },
                 otherCommentAuthor: null,
             }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 2,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post2.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
         ]);
 
         await createPostComment(context.action(scenario.session2), {
@@ -6279,6 +7420,24 @@ describe("Post comments", () => {
                     },
                 },
                 otherCommentAuthor: null,
+            }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 2,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post2.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
             }),
         ]);
 
@@ -6340,6 +7499,24 @@ describe("Post comments", () => {
                     },
                 },
                 otherCommentAuthor: scenario.session1.account,
+            }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 2,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post2.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
             }),
         ]);
     });
@@ -6474,6 +7651,24 @@ describe("Post comments", () => {
                 },
                 otherCommentAuthor: null,
             }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 3,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post3.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
         ]);
 
         expect(
@@ -6545,6 +7740,24 @@ describe("Post comments", () => {
                     },
                 },
                 otherCommentAuthor: null,
+            }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 3,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post3.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
             }),
         ]);
 
@@ -6619,6 +7832,24 @@ describe("Post comments", () => {
                 },
                 otherCommentAuthor: null,
             }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 3,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post3.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
         ]);
 
         expect(
@@ -6691,7 +7922,26 @@ describe("Post comments", () => {
                 limit: 100,
                 afterCursor: null,
             }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 3,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post3.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
 
         expect(
             await getInboxEntries(context.action(scenario.session2), {
@@ -6906,6 +8156,24 @@ describe("Post comments", () => {
                 },
                 otherCommentAuthor: null,
             }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 3,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post3.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
         ]);
 
         expect(
@@ -6981,6 +8249,24 @@ describe("Post comments", () => {
                 },
                 otherCommentAuthor: null,
             }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 3,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post3.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
         ]);
 
         expect(
@@ -7052,6 +8338,24 @@ describe("Post comments", () => {
                 },
                 otherCommentAuthor: null,
             }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 3,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post3.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
         ]);
 
         expect(
@@ -7117,7 +8421,26 @@ describe("Post comments", () => {
                 limit: 100,
                 afterCursor: null,
             }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 3,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post3.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
 
         expect(
             await getInboxEntries(context.action(scenario.session2), {
@@ -11911,6 +13234,42 @@ describe("Posts", () => {
                 latestComment: null,
                 otherCommentAuthor: null,
             }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 2,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post3.createdTime,
+                    contentSnippet: {
+                        doc: assertPostContent(
+                            PostContentProsemirrorSchema.node("doc", {}, [
+                                PostContentProsemirrorSchema.node("paragraph", {}, [
+                                    PostContentProsemirrorSchema.text("Hello "),
+                                    PostContentProsemirrorSchema.node("mention", {
+                                        mention: {
+                                            accountId: scenario.session3.account.id,
+                                            isShort: false,
+                                        },
+                                    }),
+                                    PostContentProsemirrorSchema.text("!"),
+                                ]),
+                            ]),
+                        ),
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session3.account.id, scenario.session3.account],
+                            ]),
+                        },
+                    },
+                },
+                otherPostAuthor: null,
+            }),
         ]);
 
         expect(
@@ -11953,6 +13312,42 @@ describe("Posts", () => {
                 },
                 latestComment: null,
                 otherCommentAuthor: null,
+            }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 2,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post2.createdTime,
+                    contentSnippet: {
+                        doc: assertPostContent(
+                            PostContentProsemirrorSchema.node("doc", {}, [
+                                PostContentProsemirrorSchema.node("paragraph", {}, [
+                                    PostContentProsemirrorSchema.text("Hello "),
+                                    PostContentProsemirrorSchema.node("mention", {
+                                        mention: {
+                                            accountId: scenario.session2.account.id,
+                                            isShort: false,
+                                        },
+                                    }),
+                                    PostContentProsemirrorSchema.text("!"),
+                                ]),
+                            ]),
+                        ),
+                        references: {
+                            ...emptyContentReferences,
+                            accountById: new Map([
+                                [scenario.session2.account.id, scenario.session2.account],
+                            ]),
+                        },
+                    },
+                },
+                otherPostAuthor: null,
             }),
         ]);
     });
@@ -12623,5 +14018,606 @@ describe("Posts", () => {
                 otherCommentAuthor: null,
             }),
         ]);
+    });
+
+    test("creating posts updates an entry for every member in the space", async () => {
+        const scenario = await createScenario();
+
+        const _channel1 = await createChannel(context.action(scenario.session2), {
+            spaceId: scenario.space.id,
+            name: "Test 1",
+        });
+
+        const channel1 = new ChannelPreviewModel({
+            id: _channel1.id,
+            spaceId: scenario.space.id,
+            createdTime: _channel1.createdTime,
+            name: "Test 1",
+        });
+
+        const _channel2 = await createChannel(context.action(scenario.session2), {
+            spaceId: scenario.space.id,
+            name: "Test 2",
+        });
+
+        const channel2 = new ChannelPreviewModel({
+            id: _channel2.id,
+            spaceId: scenario.space.id,
+            createdTime: _channel2.createdTime,
+            name: "Test 2",
+        });
+
+        expect(
+            await getInboxEntries(context.action(scenario.session1), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([]);
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([]);
+
+        expect(
+            await getInboxEntries(context.action(scenario.session3), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([]);
+
+        expect(
+            await getInboxEntries(context.action(scenario.sharedSession), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([]);
+
+        expect(
+            await getInboxEntries(context.action(scenario.otherSession), {
+                spaceId: scenario.otherSpace.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([]);
+
+        const post1 = await createPost(context.action(scenario.session1), {
+            channelId: channel1.id,
+            content: emptyPostContent,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.action(scenario.session1), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([]);
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel: channel1,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post1.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
+
+        expect(
+            await getInboxEntries(context.action(scenario.session3), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+                channel: channel1,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post1.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
+
+        expect(
+            await getInboxEntries(context.action(scenario.sharedSession), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.sharedSession.account.id,
+                loudNotificationCount: 0,
+                channel: channel1,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post1.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
+
+        expect(
+            await getInboxEntries(context.action(scenario.otherSession), {
+                spaceId: scenario.otherSpace.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([]);
+
+        const post2 = await createPost(context.action(scenario.session1), {
+            channelId: channel1.id,
+            content: emptyPostContent,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.action(scenario.session1), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([]);
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel: channel1,
+                bucketGeneration: 0,
+                postCount: 2,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post2.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
+
+        expect(
+            await getInboxEntries(context.action(scenario.session3), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+                channel: channel1,
+                bucketGeneration: 0,
+                postCount: 2,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post2.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
+
+        expect(
+            await getInboxEntries(context.action(scenario.sharedSession), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.sharedSession.account.id,
+                loudNotificationCount: 0,
+                channel: channel1,
+                bucketGeneration: 0,
+                postCount: 2,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post2.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
+
+        expect(
+            await getInboxEntries(context.action(scenario.otherSession), {
+                spaceId: scenario.otherSpace.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([]);
+
+        const post3 = await createPost(context.action(scenario.session2), {
+            channelId: channel1.id,
+            content: emptyPostContent,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.action(scenario.session1), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
+                loudNotificationCount: 0,
+                channel: channel1,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session2.account,
+                    createdTime: post3.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel: channel1,
+                bucketGeneration: 0,
+                postCount: 2,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post2.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
+
+        expect(
+            await getInboxEntries(context.action(scenario.session3), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+                channel: channel1,
+                bucketGeneration: 0,
+                postCount: 3,
+                postAuthorCount: 2,
+                latestPost: {
+                    author: scenario.session2.account,
+                    createdTime: post3.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: scenario.session1.account,
+            }),
+        ]);
+
+        expect(
+            await getInboxEntries(context.action(scenario.sharedSession), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.sharedSession.account.id,
+                loudNotificationCount: 0,
+                channel: channel1,
+                bucketGeneration: 0,
+                postCount: 3,
+                postAuthorCount: 2,
+                latestPost: {
+                    author: scenario.session2.account,
+                    createdTime: post3.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: scenario.session1.account,
+            }),
+        ]);
+
+        expect(
+            await getInboxEntries(context.action(scenario.otherSession), {
+                spaceId: scenario.otherSpace.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([]);
+
+        const post4 = await createPost(context.action(scenario.session2), {
+            channelId: channel2.id,
+            content: emptyPostContent,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.action(scenario.session1), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
+                loudNotificationCount: 0,
+                channel: channel2,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session2.account,
+                    createdTime: post4.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session1.account.id,
+                loudNotificationCount: 0,
+                channel: channel1,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session2.account,
+                    createdTime: post3.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel: channel1,
+                bucketGeneration: 0,
+                postCount: 2,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post2.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
+
+        expect(
+            await getInboxEntries(context.action(scenario.session3), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+                channel: channel2,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session2.account,
+                    createdTime: post4.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session3.account.id,
+                loudNotificationCount: 0,
+                channel: channel1,
+                bucketGeneration: 0,
+                postCount: 3,
+                postAuthorCount: 2,
+                latestPost: {
+                    author: scenario.session2.account,
+                    createdTime: post3.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: scenario.session1.account,
+            }),
+        ]);
+
+        expect(
+            await getInboxEntries(context.action(scenario.sharedSession), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.sharedSession.account.id,
+                loudNotificationCount: 0,
+                channel: channel2,
+                bucketGeneration: 0,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session2.account,
+                    createdTime: post4.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: null,
+            }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.sharedSession.account.id,
+                loudNotificationCount: 0,
+                channel: channel1,
+                bucketGeneration: 0,
+                postCount: 3,
+                postAuthorCount: 2,
+                latestPost: {
+                    author: scenario.session2.account,
+                    createdTime: post3.createdTime,
+                    contentSnippet: {
+                        doc: emptyPostContent,
+                        references: emptyContentReferences,
+                    },
+                },
+                otherPostAuthor: scenario.session1.account,
+            }),
+        ]);
+
+        expect(
+            await getInboxEntries(context.action(scenario.otherSession), {
+                spaceId: scenario.otherSpace.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([]);
     });
 });

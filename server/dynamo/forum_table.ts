@@ -555,6 +555,7 @@ export async function createPost(
         type: "CreatePost",
         id: generateId(),
         spaceId: channel.spaceId,
+        channelId: postItem.channelId,
         postId: postItem.postId,
         createdTime: postItem.createdTime,
         authorId: postItem.authorId,

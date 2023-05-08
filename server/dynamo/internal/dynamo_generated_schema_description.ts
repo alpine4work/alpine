@@ -3265,6 +3265,98 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                                     }
                                 }
                             }
+                        },
+                        "ChannelPostsEntry": {
+                            "id": 3,
+                            "orderKey": "a3",
+                            "sortKeyAttributeByKey": {
+                                "channelId": {
+                                    "type": "Id"
+                                },
+                                "bucketGeneration": {
+                                    "type": "Integer"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "isArchived": {
+                                        "valueSchema": {
+                                            "type": "Boolean"
+                                        },
+                                        "optional": false
+                                    },
+                                    "generation": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "enteredTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "loudNotificationCount": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "postIds": {
+                                        "valueSchema": {
+                                            "type": "Set",
+                                            "valueSchema": {
+                                                "type": "Id"
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "postAuthorIds": {
+                                        "valueSchema": {
+                                            "type": "Set",
+                                            "valueSchema": {
+                                                "type": "Id"
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "latestPost": {
+                                        "valueSchema": {
+                                            "type": "Object",
+                                            "propertySchemaByKey": {
+                                                "authorId": {
+                                                    "valueSchema": {
+                                                        "type": "Id"
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "createdTime": {
+                                                    "valueSchema": {
+                                                        "type": "Date"
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "contentSnippet": {
+                                                    "valueSchema": {
+                                                        "type": "Reference",
+                                                        "reuseReferenceId": "e7c1103e"
+                                                    },
+                                                    "optional": false
+                                                }
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
                         }
                     }
                 },
@@ -3354,6 +3446,10 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                                 {
                                     "partitionType": "Inbox",
                                     "sortRangeType": "PostCommentsEntry"
+                                },
+                                {
+                                    "partitionType": "Inbox",
+                                    "sortRangeType": "ChannelPostsEntry"
                                 }
                             ],
                             "partitionKeyAttributeByKey": {

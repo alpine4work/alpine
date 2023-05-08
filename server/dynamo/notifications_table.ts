@@ -7,6 +7,7 @@ import {
     SystemActionContext,
 } from "~/server/dynamo/context/action_context";
 import {
+    getChannelPreview,
     getPostAuthorAndChannelPreview,
     getPostNotificationSubscribers,
 } from "~/server/dynamo/forum_table";
@@ -40,12 +41,14 @@ import {CancelledError, NotFoundError} from "~/shared/error/error";
 import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {iterableFind} from "~/shared/helpers/iterable/iterable_find";
 import {randomInteger} from "~/shared/helpers/number/random_integer";
 import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
 import {
     AccountId,
+    ChannelId,
     ChatId,
     ContentMentionAccountId,
     NotificationEventId,
@@ -56,6 +59,7 @@ import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/messaging/m
 import {AccountModel} from "~/shared/models/account_model";
 import {ChatModel} from "~/shared/models/chat_model";
 import {
+    InboxChannelPostsEntryModel,
     InboxChatEntryModel,
     InboxEntryKey,
     InboxEntryModel,
@@ -311,6 +315,56 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         otherCommentAuthorId: Schema.id<AccountId>().nullable().default(null),
                     }),
                 },
+                {
+                    name: "ChannelPostsEntry",
+                    sortKeyAttributes: {
+                        channelId: DynamoKeyAttributeSchema.id<ChannelId>(),
+
+                        /**
+                         * While we are at this inbox generation, new posts will be bucketed into this
+                         * entry. When the generation advances new posts will fall into a new entry.
+                         */
+                        bucketGeneration: DynamoKeyAttributeSchema.integer,
+                    },
+                    attributes: Schema.object({
+                        /** See the documentation on `isArchived` in `InboxEntriesIndex`. */
+                        isArchived: Schema.boolean,
+                        /** See the documentation on `generation` in `InboxEntriesIndex`. */
+                        generation: Schema.integer.min(initialInboxGeneration),
+                        /** See the documentation on `enteredTime` in `InboxEntriesIndex`. */
+                        enteredTime: Schema.date,
+                        /**
+                         * See the documentation on `loudNotificationCount` in the `Inbox` partition's `Attributes` item.
+                         *
+                         * Should never have loud notifications in a channel post aggregation inbox
+                         * entry. If we want a loud notification for a post we'll create a new entry.
+                         */
+                        loudNotificationCount: Schema.integer.min(0).max(0),
+
+                        /**
+                         * The posts in this inbox entry. In reverse chronological order. The newest
+                         * posts appear first.
+                         */
+                        postIds: Schema.set(Schema.id<PostId>()).minSize(1),
+
+                        /**
+                         * The authors of posts in this inbox entry. Will have a size less than or
+                         * equal to `postIds`. In reverse chronological order. The latest authors to
+                         * post will appear first.
+                         */
+                        postAuthorIds: Schema.set(Schema.id<AccountId>()).minSize(1),
+
+                        /**
+                         * A preview of the first post. Will display a preview of the first post's
+                         * content in the inbox entry.
+                         */
+                        latestPost: Schema.object({
+                            authorId: Schema.id<AccountId>(),
+                            createdTime: Schema.date,
+                            contentSnippet: PostContentSchema,
+                        }),
+                    }),
+                },
             ],
         },
     ],
@@ -425,6 +479,51 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                     });
                 },
             },
+            ChannelPostsEntry: {
+                async build(context, item) {
+                    const otherPostAuthorId = iterableFind(
+                        item.postAuthorIds,
+                        accountId => accountId !== item.latestPost.authorId,
+                    );
+
+                    const [
+                        channel,
+                        latestPostAuthor,
+                        latestPostContentSnippetReferences,
+                        otherPostAuthor,
+                    ] = await runAllPromises([
+                        getChannelPreview(context, item.channelId),
+                        getAccount(context, item.spaceId, item.latestPost.authorId),
+                        getContentReferencesForNode(
+                            context,
+                            item.spaceId,
+                            item.latestPost.contentSnippet,
+                        ),
+                        otherPostAuthorId
+                            ? getAccount(context, item.spaceId, otherPostAuthorId)
+                            : null,
+                    ]);
+
+                    return new InboxChannelPostsEntryModel({
+                        spaceId: item.spaceId,
+                        accountId: item.accountId,
+                        loudNotificationCount: item.loudNotificationCount,
+                        channel,
+                        bucketGeneration: item.bucketGeneration,
+                        postCount: item.postIds.size,
+                        postAuthorCount: item.postAuthorIds.size,
+                        latestPost: {
+                            author: latestPostAuthor,
+                            createdTime: item.latestPost.createdTime,
+                            contentSnippet: {
+                                doc: item.latestPost.contentSnippet,
+                                references: latestPostContentSnippetReferences,
+                            },
+                        },
+                        otherPostAuthor,
+                    });
+                },
+            },
         },
     },
     sendEventTransaction: (context, readTime, eventTransaction) =>
@@ -434,9 +533,17 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
 const inboxEntryItemTypes = [
     {partitionType: "Inbox", sortRangeType: "ChatEntry"},
     {partitionType: "Inbox", sortRangeType: "PostCommentsEntry"},
+    {partitionType: "Inbox", sortRangeType: "ChannelPostsEntry"},
 ] as const;
 
 type InboxTableTypes = DynamoGeneralRealtimeTableSchemaGetTypes<typeof InboxTable>;
+
+type InboxAttributesItem = MergeObjectIntersection<
+    InboxTableTypes["Item"] & {
+        readonly partitionType: "Inbox";
+        readonly sortRangeType: "Attributes";
+    }
+>;
 
 type InboxEntryItem = MergeObjectIntersection<
     InboxTableTypes["Item"] & (typeof inboxEntryItemTypes)[number]
@@ -781,6 +888,16 @@ function getInboxEntryItemKey({
                 postId: key.postId,
             };
         }
+        case "ChannelPosts": {
+            return {
+                partitionType: "Inbox",
+                sortRangeType: "ChannelPostsEntry",
+                spaceId,
+                accountId,
+                channelId: key.channelId,
+                bucketGeneration: key.bucketGeneration,
+            };
+        }
         default:
             throw exhaustive(key);
     }
@@ -974,6 +1091,7 @@ const NotificationCreatePostEventSchema = Schema.object({
     type: Schema.value("CreatePost"),
     id: Schema.id<NotificationEventId>(),
     spaceId: Schema.id<SpaceId>(),
+    channelId: Schema.id<ChannelId>(),
     postId: Schema.id<PostId>(),
     createdTime: Schema.date,
     authorId: Schema.id<AccountId>(),
@@ -1168,15 +1286,23 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
         InboxEntryItem & ItemKey,
         DistributiveKeyOf<InboxEntryItemKey> | "generation" | "enteredTime"
     >,
+    {initialInboxItemIfExists}: {initialInboxItemIfExists?: InboxAttributesItem | null} = {},
 ): Promise<void> {
+    let hasAttempted = false;
+
     await context.dynamo.retryTransaction(async context => {
+        const isInitialAttempt = !hasAttempted;
+        hasAttempted = true;
+
         const [inboxItem, oldInboxEntryItem] = await runAllPromises([
-            InboxTable.getItemIfExists(context, {
-                partitionType: "Inbox",
-                sortRangeType: "Attributes",
-                spaceId: itemKey.spaceId,
-                accountId: itemKey.accountId,
-            }),
+            isInitialAttempt && initialInboxItemIfExists !== undefined
+                ? initialInboxItemIfExists
+                : InboxTable.getItemIfExists(context, {
+                      partitionType: "Inbox",
+                      sortRangeType: "Attributes",
+                      spaceId: itemKey.spaceId,
+                      accountId: itemKey.accountId,
+                  }),
             InboxTable.getItemIfExists(context, itemKey),
         ]);
 
@@ -1296,6 +1422,8 @@ function getInboxEntryLatestUpdateTime(
             return entryItem.latestMessage.createdTime;
         case "PostCommentsEntry":
             return entryItem.latestComment?.createdTime ?? entryItem.postCreatedTime;
+        case "ChannelPostsEntry":
+            return entryItem.latestPost.createdTime;
         default:
             throw exhaustive(entryItem);
     }
@@ -1611,6 +1739,41 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
             return;
         }
 
-        // TODO(calebmer): Implement for non-mentioned accounts.
+        const inboxItem = await InboxTable.getItemIfExists(context, {
+            partitionType: "Inbox",
+            sortRangeType: "Attributes",
+            spaceId,
+            accountId: account.id,
+        });
+
+        await updateInboxEntry(
+            context,
+            event,
+            {
+                partitionType: "Inbox",
+                sortRangeType: "ChannelPostsEntry",
+                spaceId,
+                accountId: account.id,
+                channelId: event.channelId,
+                bucketGeneration: inboxItem?.generation ?? initialInboxGeneration,
+            },
+            oldItem => {
+                const postIds = new Set([event.postId, ...(oldItem?.postIds ?? [])]);
+                const postAuthorIds = new Set([event.authorId, ...(oldItem?.postAuthorIds ?? [])]);
+
+                return {
+                    isArchived: false,
+                    loudNotificationCount: 0,
+                    postIds,
+                    postAuthorIds,
+                    latestPost: {
+                        authorId: event.authorId,
+                        createdTime: event.createdTime,
+                        contentSnippet: event.contentSnippet,
+                    },
+                };
+            },
+            {initialInboxItemIfExists: inboxItem},
+        );
     },
 });

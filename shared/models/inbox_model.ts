@@ -1,5 +1,5 @@
 import {To} from "history";
-import {AccountId, ChatId, PostId, SpaceId} from "~/shared/id/types/id_types";
+import {AccountId, ChannelId, ChatId, PostId, SpaceId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
 import {ChannelPreviewModel} from "~/shared/models/channel_model";
 import {createModelUnionSchema} from "~/shared/models/helpers/create_model_union_schema";
@@ -30,9 +30,16 @@ const InboxPostCommentsEntryKeySchema = Schema.object({
     postId: Schema.id<PostId>(),
 });
 
+const InboxChannelPostsEntryKeySchema = Schema.object({
+    type: Schema.value("ChannelPosts"),
+    channelId: Schema.id<ChannelId>(),
+    bucketGeneration: Schema.integer,
+});
+
 export const InboxEntryKeySchema = Schema.union({
     Chat: InboxChatEntryKeySchema,
     PostComments: InboxPostCommentsEntryKeySchema,
+    ChannelPosts: InboxChannelPostsEntryKeySchema,
 });
 
 interface InboxEntryModelInterface {
@@ -102,11 +109,48 @@ export class InboxPostCommentsEntryModel
     }
 }
 
+export class InboxChannelPostsEntryModel
+    extends Model(
+        Schema.object({
+            spaceId: Schema.id<SpaceId>(),
+            accountId: Schema.id<AccountId>(),
+            loudNotificationCount: Schema.integer.min(0).max(0),
+            channel: ChannelPreviewModel.schema(),
+            bucketGeneration: Schema.integer,
+            postCount: Schema.integer.min(1),
+            postAuthorCount: Schema.integer.min(1),
+            latestPost: Schema.object({
+                author: AccountModel.schema(),
+                createdTime: Schema.date,
+                contentSnippet: PostContentWithReferencesSchema,
+            }),
+            otherPostAuthor: AccountModel.schema().nullable(),
+        }),
+    )
+    implements InboxEntryModelInterface
+{
+    public readonly type = "ChannelPosts" as const;
+
+    public getKey(): InboxEntryKey {
+        return {
+            type: "ChannelPosts",
+            channelId: this.channel.id,
+            bucketGeneration: this.bucketGeneration,
+        };
+    }
+
+    public getPath(): To {
+        // NOCOMMIT
+        return "/s/ywcffewdn377x442nkxd5x41r0/posts/7we4mwsxawhtxvxv41mdc0j4m0";
+    }
+}
+
 export type InboxEntryModel = SchemaType<typeof InboxEntryModelSchema>;
 
 export const InboxEntryModelSchema = createModelUnionSchema({
     InboxChatEntry: InboxChatEntryModel,
     InboxPostCommentsEntry: InboxPostCommentsEntryModel,
+    InboxChannelPostsEntry: InboxChannelPostsEntryModel,
 });
 
 export type InboxItemModel = SchemaType<typeof InboxItemModelSchema>;
@@ -115,4 +159,5 @@ export const InboxItemModelSchema = createModelUnionSchema({
     Inbox: InboxModel,
     InboxChatEntry: InboxChatEntryModel,
     InboxPostCommentsEntry: InboxPostCommentsEntryModel,
+    InboxChannelPostsEntry: InboxChannelPostsEntryModel,
 });

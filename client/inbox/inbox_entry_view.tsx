@@ -18,6 +18,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {AccountModel} from "~/shared/models/account_model";
 import {ContentWithReferences} from "~/shared/models/content_references";
 import {
+    InboxChannelPostsEntryModel,
     InboxChatEntryModel,
     InboxEntryModel,
     InboxPostCommentsEntryModel,
@@ -116,6 +117,9 @@ export function InboxEntryView({
             break;
         case "PostComments":
             children = <InboxPostCommentsEntryView entry={entry} />;
+            break;
+        case "ChannelPosts":
+            children = <InboxChannelPostsEntryView entry={entry} />;
             break;
         default:
             throw exhaustive(entry);
@@ -237,11 +241,10 @@ function InboxPostCommentsEntryView({entry}: {entry: InboxPostCommentsEntryModel
             ? entry.postAuthor
             : entry.otherCommentAuthor ?? entry.latestComment?.author ?? entry.postAuthor;
 
-    const secondAccount: AccountModel | null = false
-        ? null
-        : entry.latestComment?.author.id !== firstAccount.id
-        ? entry.latestComment?.author ?? null
-        : null;
+    const secondAccount: AccountModel | null =
+        entry.latestComment?.author.id !== firstAccount.id
+            ? entry.latestComment?.author ?? null
+            : null;
 
     return (
         <InboxEntryViewBase
@@ -285,6 +288,56 @@ function InboxPostCommentsEntryView({entry}: {entry: InboxPostCommentsEntryModel
                           }
                         : entry.latestComment
                 }
+            />
+        </InboxEntryViewBase>
+    );
+}
+
+function InboxChannelPostsEntryView({entry}: {entry: InboxChannelPostsEntryModel}) {
+    const firstAccount: AccountModel = entry.otherPostAuthor ?? entry.latestPost.author;
+
+    const secondAccount: AccountModel | null =
+        entry.latestPost.author.id !== firstAccount.id ? entry.latestPost.author : null;
+
+    return (
+        <InboxEntryViewBase
+            firstAccount={firstAccount}
+            secondAccount={secondAccount}
+            loudNotificationCount={entry.loudNotificationCount}
+        >
+            <Box>
+                New {entry.postCount > 1 ? "posts" : "post"} in{" "}
+                <span className={boldClassName}>{entry.channel.name}</span> by{" "}
+                {!secondAccount ? (
+                    <span className={boldClassName}>
+                        <AccountShortName account={firstAccount} />
+                    </span>
+                ) : entry.postAuthorCount <= 2 ? (
+                    <>
+                        <span className={boldClassName}>
+                            <AccountShortName account={secondAccount} />
+                        </span>{" "}
+                        and{" "}
+                        <span className={boldClassName}>
+                            <AccountShortName account={firstAccount} />
+                        </span>
+                    </>
+                ) : (
+                    <>
+                        <span className={boldClassName}>
+                            <AccountShortName account={secondAccount} />
+                        </span>
+                        ,{" "}
+                        <span className={boldClassName}>
+                            <AccountShortName account={firstAccount} />
+                        </span>
+                        , and <PrettyNumber number={entry.postAuthorCount - 2} label="other" />
+                    </>
+                )}
+            </Box>
+            <InboxEntryLatestMessagePreview
+                time={entry.latestPost.createdTime}
+                latestMessage={entry.latestPost}
             />
         </InboxEntryViewBase>
     );
