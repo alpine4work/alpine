@@ -1170,14 +1170,14 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
                   )
                 : // When we archive an item it goes back to our inbox generation. That way if
                 // it's unarchived it doesn't go back into the loud notification generation.
-                newInboxEntryItemPartial2.isArchived
+                newInboxEntryItemPartial2.isArchived && !oldInboxEntryItem.isArchived
                 ? inboxGeneration
                 : oldInboxEntryItem.generation,
 
             enteredTime: shouldMoveToTop
                 ? getInboxEntryLatestUpdateTime(newInboxEntryItemPartial2)
                 : // When we archive an item, it goes to the top of the archive.
-                newInboxEntryItemPartial2.isArchived
+                newInboxEntryItemPartial2.isArchived && !oldInboxEntryItem.isArchived
                 ? currentTime
                 : oldInboxEntryItem.enteredTime,
         };
