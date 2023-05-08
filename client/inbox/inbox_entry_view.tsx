@@ -1,5 +1,5 @@
 import {isToday} from "date-fns";
-import {animate} from "motion";
+import {AnimationControls, animate} from "motion";
 import {ReactNode, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
@@ -11,7 +11,7 @@ import {useClientInfo} from "~/client/remix/client_info_context";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {Spacing, parseRemLengthNumber} from "~/shared/design/spacing";
-import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings";
+import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {AccountModel} from "~/shared/models/account_model";
@@ -31,7 +31,12 @@ import {
 
 export const inboxEntryViewMinHeight = "4rem";
 export const inboxEntryWidth: Spacing = "96";
-export const inboxEntryAnimationDurationMs = 300;
+
+const inboxEntryDeleteAnimationFadeDurationMs = 150;
+const inboxEntryDeleteAnimationSlideDurationMs = 230;
+const inboxEntryDeleteAnimationSlideDelayDurationMs = 70;
+export const inboxEntryDeleteAnimationDurationMs =
+    inboxEntryDeleteAnimationSlideDelayDurationMs + inboxEntryDeleteAnimationSlideDurationMs;
 
 export function InboxEntryView({
     entry,
@@ -43,7 +48,7 @@ export function InboxEntryView({
     withinOverlay = false,
     "aria-setsize": ariaSetsize,
     "aria-posinset": ariaPosinset,
-    animationState = null,
+    deletedItemAnimation = null,
 }: {
     entry: InboxEntryModel;
     isSelected?: boolean;
@@ -58,34 +63,50 @@ export function InboxEntryView({
     // https://w3c.github.io/aria/#aria-setsize
     "aria-setsize"?: number;
     "aria-posinset"?: number;
-    animationState?: {
-        afterCursor: DynamoIndexCursor;
+    deletedItemAnimation?: {
         offset: number;
+        deletedItem: {item: DynamoGeneralRealtimeItem<InboxEntryModel>};
     } | null;
 }) {
     const entryRef = useRef<HTMLDivElement>(null);
     const [isPressed, setIsPressed] = useState(false);
 
-    const lastAnimationStateRef = useRef(animationState);
+    const lastDeletedItemAnimationRef = useRef(deletedItemAnimation);
+    const lastAnimationRef = useRef<AnimationControls | null>(null);
     useEffect(() => {
-        if (lastAnimationStateRef.current === animationState) return;
-        lastAnimationStateRef.current = animationState;
-
-        if (!animationState) return;
+        if (lastDeletedItemAnimationRef.current === deletedItemAnimation) return;
+        lastDeletedItemAnimationRef.current = deletedItemAnimation;
 
         const entryElement = assertExists(entryRef.current);
+        lastAnimationRef.current?.cancel();
+        lastAnimationRef.current = null;
 
-        animate(
-            entryElement,
-            {
-                y: [animationState.offset, 0],
-            },
-            {
-                easing: "ease",
-                duration: inboxEntryAnimationDurationMs / 1000,
-            },
-        );
-    }, [animationState]);
+        // Reset any animated values.
+        animate(entryElement, {opacity: 1, y: 0}, {duration: 0});
+
+        if (!deletedItemAnimation) return;
+
+        if (deletedItemAnimation.deletedItem.item.model === entry) {
+            lastAnimationRef.current = animate(
+                entryElement,
+                {opacity: 0},
+                {
+                    easing: "linear",
+                    duration: inboxEntryDeleteAnimationFadeDurationMs / 1000,
+                },
+            );
+        } else {
+            lastAnimationRef.current = animate(
+                entryElement,
+                {y: -deletedItemAnimation.offset},
+                {
+                    easing: "ease",
+                    duration: inboxEntryDeleteAnimationSlideDurationMs / 1000,
+                    delay: inboxEntryDeleteAnimationSlideDelayDurationMs / 1000,
+                },
+            );
+        }
+    }, [deletedItemAnimation, entry]);
 
     let children;
     switch (entry.type) {

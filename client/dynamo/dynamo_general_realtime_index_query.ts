@@ -694,6 +694,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model> {
      * Get an item by its key if it exists in the query and is loaded.
      */
     public getItemByKeyIfExists(key: DynamoItemKey): {
+        readonly index: number;
         readonly cursor: DynamoIndexCursor;
         readonly item: DynamoGeneralRealtimeItem<Model>;
     } | null {
@@ -715,6 +716,7 @@ export class DynamoGeneralRealtimeIndexQuery<Model> {
         }
 
         return {
+            index,
             cursor: itemVisibility.cursor,
             item: iterator.node.value,
         };
@@ -806,13 +808,14 @@ export class DynamoGeneralRealtimeIndexQuery<Model> {
      * So any items that were in `oldQuery` but are not in this query.
      */
     public getDeletedItems(oldQuery: DynamoGeneralRealtimeIndexQuery<Model>): Iterable<{
+        readonly index: number;
         readonly cursor: DynamoIndexCursor;
         readonly item: DynamoGeneralRealtimeItem<Model>;
     }> {
         const createdItemKeys = new Set<DynamoItemKey>();
         const deletedOldItemByKey = new Map<
             DynamoItemKey,
-            {cursor: DynamoIndexCursor; item: DynamoGeneralRealtimeItem<Model>}
+            {index: number; cursor: DynamoIndexCursor; item: DynamoGeneralRealtimeItem<Model>}
         >();
 
         for (const change of symmetricDiffTree(oldQuery._itemByCursor, this._itemByCursor)) {
@@ -831,7 +834,11 @@ export class DynamoGeneralRealtimeIndexQuery<Model> {
                 }
                 case "DeleteEntry": {
                     if (!createdItemKeys.has(change.oldValue.key)) {
+                        const iterator = oldQuery._itemByCursor.find(change.key);
+                        assert(iterator.node);
+
                         deletedOldItemByKey.set(change.oldValue.key, {
+                            index: this._getIteratorIndex(iterator),
                             cursor: change.key,
                             item: change.oldValue,
                         });

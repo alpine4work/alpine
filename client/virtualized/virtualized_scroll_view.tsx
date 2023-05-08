@@ -219,7 +219,8 @@ export type VirtualizedScrollViewRef = {
     setScrollOffset(scrollOffset: number): void;
 
     /**
-     * Get the position of an item with the provided key if it exists.
+     * Get the position of an item with the provided key. Returns null if an item
+     * with the provided key does not exist.
      */
     getPositionByKeyIfExists(key: Key): {
         offset: number;
@@ -345,7 +346,6 @@ function VirtualizedScrollView(
         onRenderedRangeChange: _onRenderedRangeChange,
         onScroll,
         extraChildren,
-        extraContentHeight = 0,
     }: {
         /**
          * The total number of virtualized items. You do not need all the items loaded
@@ -416,14 +416,6 @@ function VirtualizedScrollView(
          * a pointer.
          */
         extraChildren?: ReactNode;
-
-        /**
-         * Extra height added to the content area of the virtualized scroll view.
-         *
-         * This is an advanced feature and requires you to understand implementation
-         * details of `<VirtualizedScrollView>` to make sure nothing breaks.
-         */
-        extraContentHeight?: number;
     },
     ref: Ref<VirtualizedScrollViewRef>,
 ) {
@@ -1309,7 +1301,7 @@ function VirtualizedScrollView(
                 }}
                 onScroll={handleScroll}
             >
-                <div style={{height: contentHeight + extraContentHeight}} />
+                <div style={{height: contentHeight}} />
                 <div
                     ref={contentRef}
                     style={{

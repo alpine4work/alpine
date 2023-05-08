@@ -24,7 +24,7 @@ import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_wit
 import {usePromise} from "~/client/helpers/use_promise";
 import {
     InboxEntryView,
-    inboxEntryAnimationDurationMs,
+    inboxEntryDeleteAnimationDurationMs,
     inboxEntryViewMinHeight,
     inboxEntryWidth,
 } from "~/client/inbox/inbox_entry_view";
@@ -49,6 +49,7 @@ import {
 } from "~/shared/dynamo/dynamo_general_realtime_types";
 import {DynamoIndexCursor, DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings";
 import {InternalError} from "~/shared/error/error";
+import {createInterval} from "~/shared/helpers/async/interval";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
 import {createTimeout} from "~/shared/helpers/async/timeout";
@@ -434,6 +435,7 @@ function InboxViewEntries({
         renderedRange: {startIndex: number; endIndex: number} | null,
     ) => void;
     itemsDeletedByLastChange: ReadonlyArray<{
+        index: number;
         cursor: DynamoIndexCursor;
         item: DynamoGeneralRealtimeItem<InboxEntryModel>;
     }>;
@@ -479,38 +481,122 @@ function InboxViewEntries({
         }
     }, [selectedEntryKey]);
 
+    const [deletedItemAnimationsState, setDeletedItemAnimationsState] = useState<{
+        readonly currentAnimation: {
+            readonly offset: number;
+            readonly deletedItem: {
+                readonly index: number;
+                readonly cursor: DynamoIndexCursor;
+                readonly item: DynamoGeneralRealtimeItem<InboxEntryModel>;
+            };
+        };
+        readonly queuedAnimations: ReadonlyArray<{
+            readonly offset: number;
+            readonly deletedItem: {
+                readonly index: number;
+                readonly cursor: DynamoIndexCursor;
+                readonly item: DynamoGeneralRealtimeItem<InboxEntryModel>;
+            };
+        }>;
+    } | null>(null);
+
     // When an item is deleted, we start an animation to shift entries below the
     // deleted item up to fill its space. This helps users see an item was removed
     // and what happens next.
-    const [animationState, setAnimationState] = useStateWithDependencies(
-        itemsDeletedByLastChange => {
-            if (itemsDeletedByLastChange.length === 0) return null;
-            const {cursor, item} = itemsDeletedByLastChange[0]!;
-
+    {
+        const deletedItem = itemsDeletedByLastChange[0];
+        if (deletedItem) {
             // We should still have the height of the deleted item in
             // `VirtualizedScrollViewRef` since the render hasn't finished and unmounted
             // the element yet.
-            const offset =
-                viewRef.current?.getPositionByKeyIfExists(`Loaded:${item.key}`)?.height ??
-                convertRemLengthToPx(inboxEntryViewMinHeight, remPx);
+            let offset = viewRef.current?.getPositionByKeyIfExists(
+                `Loaded:${deletedItem.item.key}`,
+            )?.height;
 
-            return {
-                afterCursor: cursor,
-                offset,
-            };
-        },
-        [itemsDeletedByLastChange],
-    );
+            // If we are deleting the first item, don't animate into the top padding.
+            if (typeof offset === "number" && deletedItem.index === 0) {
+                offset -= convertRemLengthToPx(spacing["1"], remPx);
+            }
+
+            offset ??= convertRemLengthToPx(inboxEntryViewMinHeight, remPx);
+
+            if (!deletedItemAnimationsState) {
+                setDeletedItemAnimationsState({
+                    currentAnimation: {
+                        offset,
+                        deletedItem,
+                    },
+                    queuedAnimations: [],
+                });
+            } else if (
+                deletedItemAnimationsState.currentAnimation.deletedItem !== deletedItem &&
+                deletedItemAnimationsState.queuedAnimations.every(
+                    animation => animation.deletedItem !== deletedItem,
+                )
+            ) {
+                setDeletedItemAnimationsState({
+                    currentAnimation: deletedItemAnimationsState.currentAnimation,
+                    queuedAnimations: [
+                        ...deletedItemAnimationsState.queuedAnimations,
+                        {
+                            offset,
+                            deletedItem,
+                        },
+                    ],
+                });
+            }
+        }
+    }
+
+    const hasDeletedAnimationState = !!deletedItemAnimationsState;
 
     useEffect(() => {
-        if (!animationState) return;
+        // Important to use a boolean here so we don't subscribe to all
+        // `deletedItemAnimationsState` changes.
+        if (!hasDeletedAnimationState) return;
 
-        const timeout = createTimeout(() => {
-            setAnimationState(null);
-        }, inboxEntryAnimationDurationMs);
+        // Keep popping animations from the stack until `deletedItemAnimationsState` is
+        // null which will re-run the effect and clear the interval.
+        const interval = createInterval(() => {
+            setDeletedItemAnimationsState(animationState => {
+                if (!animationState) return null;
 
-        return () => timeout.clear();
-    }, [animationState, setAnimationState]);
+                const [currentAnimation, ...queuedAnimations] = animationState.queuedAnimations;
+                if (!currentAnimation) return null;
+
+                return {
+                    currentAnimation,
+                    queuedAnimations,
+                };
+            });
+        }, inboxEntryDeleteAnimationDurationMs);
+
+        return () => interval.clear();
+    }, [hasDeletedAnimationState]);
+
+    // Collect all items that we need to animate deletion of into a sorted array.
+    // We will interleave this array in our virtualized list.
+    const deletedItemAnimations = useMemo(() => {
+        if (!deletedItemAnimationsState) return [];
+
+        const deletedItemAnimations = [];
+
+        for (const animation of [
+            deletedItemAnimationsState.currentAnimation,
+            ...deletedItemAnimationsState.queuedAnimations,
+        ]) {
+            if (animation.deletedItem.index < itemCount + 1) {
+                deletedItemAnimations.push(animation);
+            }
+        }
+
+        // Sort animations by the index they are replacing.
+        deletedItemAnimations.sort((a, b) => a.deletedItem.index - b.deletedItem.index);
+
+        return deletedItemAnimations;
+    }, [deletedItemAnimationsState, itemCount]);
+
+    const itemCountWithDeletedItemAnimations = itemCount + deletedItemAnimations.length;
 
     return (
         <FocusRing offset="inset">
@@ -537,14 +623,48 @@ function InboxViewEntries({
                         const view = assertExists(viewRef.current);
                         tryLoadingMore(view.getHeight(), renderedRange);
                     }}
-                    // While animating add the height of the removed item to the virtualized scroll
-                    // view's height then when the animation is done the virtualized scroll view
-                    // can go to its new height.
-                    extraContentHeight={animationState?.offset ?? 0}
-                    itemCount={itemCount}
+                    itemCount={itemCountWithDeletedItemAnimations}
                     renderItem={useCallback(
                         index => {
+                            const isFirstItem = index === 0;
+                            const isLastItem = index === itemCountWithDeletedItemAnimations - 1;
+
+                            let deletedItemAnimation = null;
+
+                            for (const animation of deletedItemAnimations) {
+                                if (index === animation.deletedItem.index) {
+                                    return {
+                                        key: `Loaded:${animation.deletedItem.item.key}`,
+                                        minHeight: inboxEntryViewMinHeight,
+                                        node: (
+                                            <InboxEntryView
+                                                entry={animation.deletedItem.item.model}
+                                                isSelected={false}
+                                                onPressStart={() => {}}
+                                                isFirstEntry={isFirstItem}
+                                                isLastEntry={isLastItem}
+                                                deletedItemAnimation={
+                                                    animation ===
+                                                    deletedItemAnimationsState?.currentAnimation
+                                                        ? animation
+                                                        : deletedItemAnimation
+                                                }
+                                            />
+                                        ),
+                                    };
+                                } else if (index > animation.deletedItem.index) {
+                                    index--;
+
+                                    if (
+                                        animation === deletedItemAnimationsState?.currentAnimation
+                                    ) {
+                                        deletedItemAnimation = animation;
+                                    }
+                                }
+                            }
+
                             const item = query.getItem(index);
+
                             switch (item.type) {
                                 case "Loaded": {
                                     return {
@@ -559,16 +679,11 @@ function InboxViewEntries({
                                                 onPressStart={() => {
                                                     void selectEntry(item.item);
                                                 }}
-                                                isFirstEntry={index === 0}
-                                                isLastEntry={index === itemCount - 1}
+                                                isFirstEntry={isFirstItem}
+                                                isLastEntry={isLastItem}
                                                 aria-posinset={index}
                                                 aria-setsize={ariaSetsize}
-                                                animationState={
-                                                    animationState &&
-                                                    animationState.afterCursor < item.cursor
-                                                        ? animationState
-                                                        : null
-                                                }
+                                                deletedItemAnimation={deletedItemAnimation}
                                             />
                                         ),
                                     };
@@ -600,12 +715,13 @@ function InboxViewEntries({
                             }
                         },
                         [
-                            animationState,
-                            ariaSetsize,
-                            itemCount,
                             query,
-                            selectEntry,
+                            deletedItemAnimations,
+                            itemCountWithDeletedItemAnimations,
+                            deletedItemAnimationsState?.currentAnimation,
                             selectedEntryKey,
+                            ariaSetsize,
+                            selectEntry,
                         ],
                     )}
                 />

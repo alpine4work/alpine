@@ -31,6 +31,7 @@ type InboxState = {
         ) => DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;
     }>;
     readonly itemsDeletedByLastChange: ReadonlyArray<{
+        readonly index: number;
         readonly cursor: DynamoIndexCursor;
         readonly item: DynamoGeneralRealtimeItem<InboxEntryModel>;
     }>;
