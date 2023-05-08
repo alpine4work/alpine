@@ -91,7 +91,7 @@ export function InboxView({
     const remixEntryContext = useContext(RemixEntryContext);
     assert(remixEntryContext, "Expected Remix entry context");
 
-    const {query, updateQueryOptimistically, itemsDeletedByLastChange, tryLoadingMore} =
+    const {query, updateQueryOptimistically, itemsDeletedByLastChangeForAnimation, tryLoadingMore} =
         useInboxState({
             filter,
             initialEntriesResult,
@@ -181,12 +181,29 @@ export function InboxView({
         [peekState.activePeek, query],
     );
 
-    const deleteActiveEntryOptimistically = useEvent((promise: Promise<unknown>) => {
-        if (!activeEntry) return;
+    const deleteActiveEntryOptimistically = useEvent(
+        (promise: Promise<unknown>, {withAnimation}: {withAnimation: boolean}) => {
+            if (!activeEntry) return;
 
-        updateQueryOptimistically(promise, query =>
-            query.deleteItemByKeyIfExistsAtVersion(activeEntry.item.key, activeEntry.item.version),
-        );
+            updateQueryOptimistically(promise, {withAnimation}, query =>
+                query.deleteItemByKeyIfExistsAtVersion(
+                    activeEntry.item.key,
+                    activeEntry.item.version,
+                ),
+            );
+        },
+    );
+
+    const deleteActiveEntryOptimisticallyForPeekContent = useEvent((promise: Promise<unknown>) => {
+        // If we are in the archive tab, then responding to a notification does not
+        // dismiss it.
+        if (filter !== "New") return;
+
+        deleteActiveEntryOptimistically(promise, {
+            // Always animate when deleting from peek content. Since an interaction with
+            // the peek content is indirectly related to the inbox.
+            withAnimation: true,
+        });
     });
 
     /* ========================================================================== *\
@@ -394,7 +411,9 @@ export function InboxView({
                         <InboxViewEntries
                             query={query}
                             tryLoadingMore={tryLoadingMore}
-                            itemsDeletedByLastChange={itemsDeletedByLastChange}
+                            itemsDeletedByLastChangeForAnimation={
+                                itemsDeletedByLastChangeForAnimation
+                            }
                             selectedEntryKey={selectedEntryKey}
                             selectEntry={selectEntry}
                         />
@@ -409,13 +428,13 @@ export function InboxView({
                                     key={peekState.activePeek.key}
                                     peek={peekState.activePeek}
                                     deleteActiveEntryOptimistically={
-                                        deleteActiveEntryOptimistically
+                                        deleteActiveEntryOptimisticallyForPeekContent
                                     }
                                 />
                             )}
                         </Box>
                     ),
-                    [deleteActiveEntryOptimistically, peekState.activePeek],
+                    [deleteActiveEntryOptimisticallyForPeekContent, peekState.activePeek],
                 )}
             </Box>
         </GlobalKeyDownEvent>
@@ -425,7 +444,7 @@ export function InboxView({
 function InboxViewEntries({
     query,
     tryLoadingMore,
-    itemsDeletedByLastChange,
+    itemsDeletedByLastChangeForAnimation,
     selectedEntryKey,
     selectEntry,
 }: {
@@ -434,7 +453,7 @@ function InboxViewEntries({
         viewHeight: number,
         renderedRange: {startIndex: number; endIndex: number} | null,
     ) => void;
-    itemsDeletedByLastChange: ReadonlyArray<{
+    itemsDeletedByLastChangeForAnimation: ReadonlyArray<{
         index: number;
         cursor: DynamoIndexCursor;
         item: DynamoGeneralRealtimeItem<InboxEntryModel>;
@@ -504,7 +523,7 @@ function InboxViewEntries({
     // deleted item up to fill its space. This helps users see an item was removed
     // and what happens next.
     {
-        const deletedItem = itemsDeletedByLastChange[0];
+        const deletedItem = itemsDeletedByLastChangeForAnimation[0];
         if (deletedItem) {
             // We should still have the height of the deleted item in
             // `VirtualizedScrollViewRef` since the render hasn't finished and unmounted

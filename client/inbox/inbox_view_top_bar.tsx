@@ -29,7 +29,10 @@ export function InboxViewTopBar({
     nextEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     previousEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     selectEntry: (entry: DynamoGeneralRealtimeItem<InboxEntryModel> | null) => Promise<void>;
-    deleteActiveEntryOptimistically: (promise: Promise<unknown>) => void;
+    deleteActiveEntryOptimistically: (
+        promise: Promise<unknown>,
+        options: {withAnimation: boolean},
+    ) => void;
 }) {
     const navigate = useNavigate();
     const {space} = useSpaceContext();
@@ -143,7 +146,10 @@ function InboxViewTopBarArchiveButton({
     nextEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     previousEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     selectEntry: (entry: DynamoGeneralRealtimeItem<InboxEntryModel> | null) => Promise<void>;
-    deleteActiveEntryOptimistically: (promise: Promise<unknown>) => void;
+    deleteActiveEntryOptimistically: (
+        promise: Promise<unknown>,
+        options: {withAnimation: boolean},
+    ) => void;
 }) {
     const context = useAppContext();
     const showToast = useShowToast();
@@ -206,7 +212,10 @@ function InboxViewTopBarArchiveButton({
 
                         // Immediately delete the item from the query so we don't have to wait for
                         // realtime to respond to this.
-                        deleteActiveEntryOptimistically(archivePromise);
+                        deleteActiveEntryOptimistically(archivePromise, {
+                            // No animation since we are directly dismissing the item.
+                            withAnimation: false,
+                        });
 
                         if (nextEntry) {
                             await selectEntry(nextEntry);
@@ -237,7 +246,10 @@ function InboxViewTopBarUnarchiveButton({
     nextEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     previousEntry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     selectEntry: (entry: DynamoGeneralRealtimeItem<InboxEntryModel> | null) => Promise<void>;
-    deleteActiveEntryOptimistically: (promise: Promise<unknown>) => void;
+    deleteActiveEntryOptimistically: (
+        promise: Promise<unknown>,
+        options: {withAnimation: boolean},
+    ) => void;
 }) {
     const context = useAppContext();
     const showToast = useShowToast();
@@ -277,7 +289,10 @@ function InboxViewTopBarUnarchiveButton({
 
                     // Immediately delete the item from the query so we don't have to wait for
                     // realtime to respond to this.
-                    deleteActiveEntryOptimistically(archivePromise);
+                    deleteActiveEntryOptimistically(archivePromise, {
+                        // No animation since we are directly dismissing the item.
+                        withAnimation: false,
+                    });
 
                     if (nextEntry) {
                         await selectEntry(nextEntry);

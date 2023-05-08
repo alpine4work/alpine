@@ -30,7 +30,7 @@ type InboxState = {
             query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
         ) => DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;
     }>;
-    readonly itemsDeletedByLastChange: ReadonlyArray<{
+    readonly itemsDeletedByLastChangeForAnimation: ReadonlyArray<{
         readonly index: number;
         readonly cursor: DynamoIndexCursor;
         readonly item: DynamoGeneralRealtimeItem<InboxEntryModel>;
@@ -50,6 +50,7 @@ type InboxStateAction =
           readonly update: (
               query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
           ) => DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;
+          readonly withAnimation: boolean;
       }
     | {
           readonly type: "ResolveOptimisticUpdate";
@@ -69,7 +70,7 @@ function getInitialInboxState(
         queryWithoutOptimisticUpdates: query,
         query,
         optimisticUpdates: [],
-        itemsDeletedByLastChange: [],
+        itemsDeletedByLastChangeForAnimation: [],
     };
 }
 
@@ -89,7 +90,9 @@ function reduceInboxState(oldState: InboxState, action: InboxStateAction): Inbox
                 queryWithoutOptimisticUpdates: newQueryWithoutOptimisticUpdates,
                 query: newQuery,
                 optimisticUpdates: oldState.optimisticUpdates,
-                itemsDeletedByLastChange: Array.from(newQuery.getDeletedItems(oldState.query)),
+                itemsDeletedByLastChangeForAnimation: Array.from(
+                    newQuery.getDeletedItems(oldState.query),
+                ),
             };
         }
         case "OptimisticUpdate": {
@@ -110,7 +113,9 @@ function reduceInboxState(oldState: InboxState, action: InboxStateAction): Inbox
                 queryWithoutOptimisticUpdates: oldState.queryWithoutOptimisticUpdates,
                 query: newQuery,
                 optimisticUpdates: newOptimisticUpdates,
-                itemsDeletedByLastChange: Array.from(newQuery.getDeletedItems(oldState.query)),
+                itemsDeletedByLastChangeForAnimation: action.withAnimation
+                    ? Array.from(newQuery.getDeletedItems(oldState.query))
+                    : [],
             };
         }
         case "ResolveOptimisticUpdate": {
@@ -144,7 +149,9 @@ function reduceInboxState(oldState: InboxState, action: InboxStateAction): Inbox
                 queryWithoutOptimisticUpdates: newQueryWithoutOptimisticUpdates,
                 query: newQuery,
                 optimisticUpdates: pendingOptimisticUpdates,
-                itemsDeletedByLastChange: Array.from(newQuery.getDeletedItems(oldState.query)),
+                itemsDeletedByLastChangeForAnimation: Array.from(
+                    newQuery.getDeletedItems(oldState.query),
+                ),
             };
         }
         case "RejectOptimisticUpdate": {
@@ -169,7 +176,9 @@ function reduceInboxState(oldState: InboxState, action: InboxStateAction): Inbox
                 queryWithoutOptimisticUpdates: oldState.queryWithoutOptimisticUpdates,
                 query: newQuery,
                 optimisticUpdates: pendingOptimisticUpdates,
-                itemsDeletedByLastChange: Array.from(newQuery.getDeletedItems(oldState.query)),
+                itemsDeletedByLastChangeForAnimation: Array.from(
+                    newQuery.getDeletedItems(oldState.query),
+                ),
             };
         }
         default:
@@ -195,7 +204,7 @@ export function useInboxState({
     const {space} = useSpaceContext();
     const {isConnected, subscribeToEvents} = useMyAccountWebSocket();
 
-    const [{query, optimisticUpdates, itemsDeletedByLastChange}, dispatch] = useReducer(
+    const [{query, optimisticUpdates, itemsDeletedByLastChangeForAnimation}, dispatch] = useReducer(
         reduceInboxState,
         initialEntriesResult,
         getInitialInboxState,
@@ -204,6 +213,7 @@ export function useInboxState({
     const updateQueryOptimistically = useCallback(
         (
             promise: Promise<unknown>,
+            {withAnimation}: {withAnimation: boolean},
             update: (
                 query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
             ) => DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
@@ -212,6 +222,7 @@ export function useInboxState({
                 type: "OptimisticUpdate",
                 promise,
                 update,
+                withAnimation,
             });
         },
         [],
@@ -418,7 +429,7 @@ export function useInboxState({
     return {
         query,
         updateQueryOptimistically,
-        itemsDeletedByLastChange,
+        itemsDeletedByLastChangeForAnimation,
         tryLoadingMore,
     };
 }
