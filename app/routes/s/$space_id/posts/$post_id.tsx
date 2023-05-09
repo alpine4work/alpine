@@ -1,6 +1,5 @@
 import {useSearchParams} from "react-router-dom";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name";
-import {Box} from "~/client/design/box";
 import {PostView} from "~/client/forum/post_view";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {createMetaFunction} from "~/client/remix/create_meta_function";
@@ -66,16 +65,14 @@ export default function PostRoute({withMobileLayout}: {withMobileLayout?: boolea
     const postCommentIndex = postCommentIndexString ? parseInt(postCommentIndexString, 10) : null;
 
     return (
-        <Box flexGrow="1" overflow="hidden">
-            <PostView
-                // Remount when navigating to a different post.
-                key={post.id}
-                initialPost={post}
-                initialPostComments={initialPostComments}
-                initialOtherReferencedPostComments={initialOtherReferencedPostComments}
-                initialScrollToPostCommentIndex={postCommentIndex}
-                withMobileLayout={withMobileLayout}
-            />
-        </Box>
+        <PostView
+            // Remount when navigating to a different post.
+            key={post.id}
+            initialPost={post}
+            initialPostComments={initialPostComments}
+            initialOtherReferencedPostComments={initialOtherReferencedPostComments}
+            initialScrollToPostCommentIndex={postCommentIndex}
+            withMobileLayout={withMobileLayout}
+        />
     );
 }

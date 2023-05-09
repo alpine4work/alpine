@@ -140,8 +140,7 @@ export class InboxChannelPostsEntryModel
     }
 
     public getPath(): To {
-        // NOCOMMIT
-        return "/s/ywcffewdn377x442nkxd5x41r0/posts/7we4mwsxawhtxvxv41mdc0j4m0";
+        return `/s/${this.spaceId}/notifications/channel-posts/${this.channel.id}-${this.bucketGeneration}`;
     }
 }
 

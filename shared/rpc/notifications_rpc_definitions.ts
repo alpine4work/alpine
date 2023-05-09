@@ -3,8 +3,9 @@ import {
     createDynamoGeneralRealtimeIndexQuerySchema,
 } from "~/shared/dynamo/dynamo_general_realtime_types";
 import {DynamoIndexCursorSchema} from "~/shared/dynamo/dynamo_opaque_strings";
-import {SpaceId} from "~/shared/id/types/id_types";
+import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types";
 import {InboxEntryKeySchema, InboxEntryModelSchema} from "~/shared/models/inbox_model";
+import {PostModel} from "~/shared/models/post_model";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc";
 import {Schema} from "~/shared/schema/schema";
 
@@ -57,4 +58,19 @@ export const observeInbox = defineRpc({
         spaceId: Schema.id<SpaceId>(),
     },
     output: {},
+});
+
+export const getInboxChannelPostsEntryPosts = defineRpc({
+    name: "getInboxChannelPostsEntryPosts",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        channelId: Schema.id<ChannelId>(),
+        bucketGeneration: Schema.integer,
+        limit: Schema.integer,
+        afterPostId: Schema.id<PostId>().nullable(),
+    },
+    output: {
+        hasMorePosts: Schema.boolean,
+        posts: Schema.array(PostModel.schema()),
+    },
 });

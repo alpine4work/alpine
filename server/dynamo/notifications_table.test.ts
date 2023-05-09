@@ -4,6 +4,7 @@ import {createChannel, createPost, createPostComment} from "~/server/dynamo/foru
 import {
     archiveInboxEntry,
     getInbox,
+    getInboxChannelPostsEntryPosts,
     getInboxEntries,
     getInboxEntriesIndexForTest,
     notificationEventAfterProcessingTestCheckpoint,
@@ -25,7 +26,7 @@ import {
 } from "~/shared/content/post_content_schema";
 import {ProcessContextModule} from "~/shared/context/process_context_module";
 import {DynamoGeneralRealtimeIndexQueryResult} from "~/shared/dynamo/dynamo_general_realtime_types";
-import {PermissionDeniedError} from "~/shared/error/error";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {generateId} from "~/shared/id/id";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types";
@@ -39,6 +40,7 @@ import {
     InboxModel,
     InboxPostCommentsEntryModel,
 } from "~/shared/models/inbox_model";
+import {PostModel, emptyPostContentWithReferences} from "~/shared/models/post_model";
 
 const context = createTestContext();
 
@@ -14619,5 +14621,1006 @@ describe("Posts", () => {
                 afterCursor: null,
             }).then(massageInboxEntriesQuery),
         ).toEqual([]);
+    });
+
+    test("can not get inbox entry posts for a space you don't have access to", async () => {
+        const scenario = await createScenario();
+
+        const _channel = await createChannel(context.action(scenario.session2), {
+            spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const channel = new ChannelPreviewModel({
+            id: _channel.id,
+            spaceId: scenario.space.id,
+            createdTime: _channel.createdTime,
+            name: "Test",
+        });
+
+        await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        await expect(
+            getInboxChannelPostsEntryPosts(context.action(scenario.otherSession), {
+                spaceId: scenario.space.id,
+                channelId: channel.id,
+                bucketGeneration: 0,
+                limit: 100,
+                afterPostId: null,
+            }),
+        ).rejects.toThrow(PermissionDeniedError);
+    });
+
+    test("getting inbox entry posts freezes the inbox entry", async () => {
+        const scenario = await createScenario();
+
+        const _channel = await createChannel(context.action(scenario.session2), {
+            spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const channel = new ChannelPreviewModel({
+            id: _channel.id,
+            spaceId: scenario.space.id,
+            createdTime: _channel.createdTime,
+            name: "Test",
+        });
+
+        const post1 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const post2 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 2,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post2.createdTime,
+                    contentSnippet: emptyPostContentWithReferences,
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
+
+        expect(
+            await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                channelId: channel.id,
+                bucketGeneration: 0,
+                limit: 100,
+                afterPostId: null,
+            }),
+        ).toEqual({
+            hasMorePosts: false,
+            posts: [
+                new PostModel({
+                    id: post2.id,
+                    spaceId: scenario.space.id,
+                    channel,
+                    createdTime: post2.createdTime,
+                    author: scenario.session1.account,
+                    content: emptyPostContentWithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
+                }),
+                new PostModel({
+                    id: post1.id,
+                    spaceId: scenario.space.id,
+                    channel,
+                    createdTime: post1.createdTime,
+                    author: scenario.session1.account,
+                    content: emptyPostContentWithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
+                }),
+            ],
+        });
+
+        await expect(
+            getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                channelId: channel.id,
+                bucketGeneration: 4,
+                limit: 100,
+                afterPostId: null,
+            }),
+        ).rejects.toThrow(NotFoundError);
+
+        const post3 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 2,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post3.createdTime,
+                    contentSnippet: emptyPostContentWithReferences,
+                },
+                otherPostAuthor: null,
+            }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 2,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post2.createdTime,
+                    contentSnippet: emptyPostContentWithReferences,
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
+
+        expect(
+            await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                channelId: channel.id,
+                bucketGeneration: 0,
+                limit: 100,
+                afterPostId: null,
+            }),
+        ).toEqual({
+            hasMorePosts: false,
+            posts: [
+                new PostModel({
+                    id: post2.id,
+                    spaceId: scenario.space.id,
+                    channel,
+                    createdTime: post2.createdTime,
+                    author: scenario.session1.account,
+                    content: emptyPostContentWithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
+                }),
+                new PostModel({
+                    id: post1.id,
+                    spaceId: scenario.space.id,
+                    channel,
+                    createdTime: post1.createdTime,
+                    author: scenario.session1.account,
+                    content: emptyPostContentWithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
+                }),
+            ],
+        });
+
+        expect(
+            await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                channelId: channel.id,
+                bucketGeneration: 2,
+                limit: 100,
+                afterPostId: null,
+            }),
+        ).toEqual({
+            hasMorePosts: false,
+            posts: [
+                new PostModel({
+                    id: post3.id,
+                    spaceId: scenario.space.id,
+                    channel,
+                    createdTime: post3.createdTime,
+                    author: scenario.session1.account,
+                    content: emptyPostContentWithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
+                }),
+            ],
+        });
+
+        const post4 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 4,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post4.createdTime,
+                    contentSnippet: emptyPostContentWithReferences,
+                },
+                otherPostAuthor: null,
+            }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 2,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post3.createdTime,
+                    contentSnippet: emptyPostContentWithReferences,
+                },
+                otherPostAuthor: null,
+            }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 2,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post2.createdTime,
+                    contentSnippet: emptyPostContentWithReferences,
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
+
+        expect(
+            await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                channelId: channel.id,
+                bucketGeneration: 0,
+                limit: 100,
+                afterPostId: null,
+            }),
+        ).toEqual({
+            hasMorePosts: false,
+            posts: [
+                new PostModel({
+                    id: post2.id,
+                    spaceId: scenario.space.id,
+                    channel,
+                    createdTime: post2.createdTime,
+                    author: scenario.session1.account,
+                    content: emptyPostContentWithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
+                }),
+                new PostModel({
+                    id: post1.id,
+                    spaceId: scenario.space.id,
+                    channel,
+                    createdTime: post1.createdTime,
+                    author: scenario.session1.account,
+                    content: emptyPostContentWithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
+                }),
+            ],
+        });
+
+        expect(
+            await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                channelId: channel.id,
+                bucketGeneration: 2,
+                limit: 100,
+                afterPostId: null,
+            }),
+        ).toEqual({
+            hasMorePosts: false,
+            posts: [
+                new PostModel({
+                    id: post3.id,
+                    spaceId: scenario.space.id,
+                    channel,
+                    createdTime: post3.createdTime,
+                    author: scenario.session1.account,
+                    content: emptyPostContentWithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
+                }),
+            ],
+        });
+
+        expect(
+            await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                channelId: channel.id,
+                bucketGeneration: 4,
+                limit: 100,
+                afterPostId: null,
+            }),
+        ).toEqual({
+            hasMorePosts: false,
+            posts: [
+                new PostModel({
+                    id: post4.id,
+                    spaceId: scenario.space.id,
+                    channel,
+                    createdTime: post4.createdTime,
+                    author: scenario.session1.account,
+                    content: emptyPostContentWithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
+                }),
+            ],
+        });
+    });
+
+    test("getting inbox entry posts does not observe if inbox was already observed", async () => {
+        const scenario = await createScenario();
+
+        const _channel = await createChannel(context.action(scenario.session2), {
+            spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const channel = new ChannelPreviewModel({
+            id: _channel.id,
+            spaceId: scenario.space.id,
+            createdTime: _channel.createdTime,
+            name: "Test",
+        });
+
+        const post1 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const post2 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 2,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post2.createdTime,
+                    contentSnippet: emptyPostContentWithReferences,
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
+
+        await observeInbox(context.action(scenario.session2), {spaceId: scenario.space.id});
+
+        const post3 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 2,
+                postCount: 1,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post3.createdTime,
+                    contentSnippet: emptyPostContentWithReferences,
+                },
+                otherPostAuthor: null,
+            }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 2,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post2.createdTime,
+                    contentSnippet: emptyPostContentWithReferences,
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
+
+        expect(
+            await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                channelId: channel.id,
+                bucketGeneration: 0,
+                limit: 100,
+                afterPostId: null,
+            }),
+        ).toEqual({
+            hasMorePosts: false,
+            posts: [
+                new PostModel({
+                    id: post2.id,
+                    spaceId: scenario.space.id,
+                    channel,
+                    createdTime: post2.createdTime,
+                    author: scenario.session1.account,
+                    content: emptyPostContentWithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
+                }),
+                new PostModel({
+                    id: post1.id,
+                    spaceId: scenario.space.id,
+                    channel,
+                    createdTime: post1.createdTime,
+                    author: scenario.session1.account,
+                    content: emptyPostContentWithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
+                }),
+            ],
+        });
+
+        const post4 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await getInboxEntries(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                filter: "New",
+                limit: 100,
+                afterCursor: null,
+            }).then(massageInboxEntriesQuery),
+        ).toEqual([
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 2,
+                postCount: 2,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post4.createdTime,
+                    contentSnippet: emptyPostContentWithReferences,
+                },
+                otherPostAuthor: null,
+            }),
+            new InboxChannelPostsEntryModel({
+                spaceId: scenario.space.id,
+                accountId: scenario.session2.account.id,
+                loudNotificationCount: 0,
+                channel,
+                bucketGeneration: 0,
+                postCount: 2,
+                postAuthorCount: 1,
+                latestPost: {
+                    author: scenario.session1.account,
+                    createdTime: post2.createdTime,
+                    contentSnippet: emptyPostContentWithReferences,
+                },
+                otherPostAuthor: null,
+            }),
+        ]);
+
+        expect(
+            await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                channelId: channel.id,
+                bucketGeneration: 0,
+                limit: 100,
+                afterPostId: null,
+            }),
+        ).toEqual({
+            hasMorePosts: false,
+            posts: [
+                new PostModel({
+                    id: post2.id,
+                    spaceId: scenario.space.id,
+                    channel,
+                    createdTime: post2.createdTime,
+                    author: scenario.session1.account,
+                    content: emptyPostContentWithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
+                }),
+                new PostModel({
+                    id: post1.id,
+                    spaceId: scenario.space.id,
+                    channel,
+                    createdTime: post1.createdTime,
+                    author: scenario.session1.account,
+                    content: emptyPostContentWithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
+                }),
+            ],
+        });
+
+        expect(
+            await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                channelId: channel.id,
+                bucketGeneration: 2,
+                limit: 100,
+                afterPostId: null,
+            }),
+        ).toEqual({
+            hasMorePosts: false,
+            posts: [
+                new PostModel({
+                    id: post4.id,
+                    spaceId: scenario.space.id,
+                    channel,
+                    createdTime: post4.createdTime,
+                    author: scenario.session1.account,
+                    content: emptyPostContentWithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
+                }),
+                new PostModel({
+                    id: post3.id,
+                    spaceId: scenario.space.id,
+                    channel,
+                    createdTime: post3.createdTime,
+                    author: scenario.session1.account,
+                    content: emptyPostContentWithReferences,
+                    contentUpdatedTime: null,
+                    commentCount: 0,
+                    lastCommentChangeTime: null,
+                    commentAuthorCount: 0,
+                    previewCommentAuthors: [],
+                }),
+            ],
+        });
+    });
+
+    test("can paginate getting inbox entries", async () => {
+        const scenario = await createScenario();
+
+        const _channel = await createChannel(context.action(scenario.session2), {
+            spaceId: scenario.space.id,
+            name: "Test",
+        });
+
+        const channel = new ChannelPreviewModel({
+            id: _channel.id,
+            spaceId: scenario.space.id,
+            createdTime: _channel.createdTime,
+            name: "Test",
+        });
+
+        const post1 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+        await ProcessContextModule.waitForTestTasks();
+
+        const post2 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+        await ProcessContextModule.waitForTestTasks();
+
+        const post3 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+        await ProcessContextModule.waitForTestTasks();
+
+        const post4 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+        await ProcessContextModule.waitForTestTasks();
+
+        const post5 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+        await ProcessContextModule.waitForTestTasks();
+
+        const post6 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+        await ProcessContextModule.waitForTestTasks();
+
+        const post7 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+        await ProcessContextModule.waitForTestTasks();
+
+        const post8 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+        await ProcessContextModule.waitForTestTasks();
+
+        const post1Model = new PostModel({
+            id: post1.id,
+            spaceId: scenario.space.id,
+            channel,
+            createdTime: post1.createdTime,
+            author: scenario.session1.account,
+            content: emptyPostContentWithReferences,
+            contentUpdatedTime: null,
+            commentCount: 0,
+            lastCommentChangeTime: null,
+            commentAuthorCount: 0,
+            previewCommentAuthors: [],
+        });
+
+        const post2Model = new PostModel({
+            id: post2.id,
+            spaceId: scenario.space.id,
+            channel,
+            createdTime: post2.createdTime,
+            author: scenario.session1.account,
+            content: emptyPostContentWithReferences,
+            contentUpdatedTime: null,
+            commentCount: 0,
+            lastCommentChangeTime: null,
+            commentAuthorCount: 0,
+            previewCommentAuthors: [],
+        });
+
+        const post3Model = new PostModel({
+            id: post3.id,
+            spaceId: scenario.space.id,
+            channel,
+            createdTime: post3.createdTime,
+            author: scenario.session1.account,
+            content: emptyPostContentWithReferences,
+            contentUpdatedTime: null,
+            commentCount: 0,
+            lastCommentChangeTime: null,
+            commentAuthorCount: 0,
+            previewCommentAuthors: [],
+        });
+
+        const post4Model = new PostModel({
+            id: post4.id,
+            spaceId: scenario.space.id,
+            channel,
+            createdTime: post4.createdTime,
+            author: scenario.session1.account,
+            content: emptyPostContentWithReferences,
+            contentUpdatedTime: null,
+            commentCount: 0,
+            lastCommentChangeTime: null,
+            commentAuthorCount: 0,
+            previewCommentAuthors: [],
+        });
+
+        const post5Model = new PostModel({
+            id: post5.id,
+            spaceId: scenario.space.id,
+            channel,
+            createdTime: post5.createdTime,
+            author: scenario.session1.account,
+            content: emptyPostContentWithReferences,
+            contentUpdatedTime: null,
+            commentCount: 0,
+            lastCommentChangeTime: null,
+            commentAuthorCount: 0,
+            previewCommentAuthors: [],
+        });
+
+        const post6Model = new PostModel({
+            id: post6.id,
+            spaceId: scenario.space.id,
+            channel,
+            createdTime: post6.createdTime,
+            author: scenario.session1.account,
+            content: emptyPostContentWithReferences,
+            contentUpdatedTime: null,
+            commentCount: 0,
+            lastCommentChangeTime: null,
+            commentAuthorCount: 0,
+            previewCommentAuthors: [],
+        });
+
+        const post7Model = new PostModel({
+            id: post7.id,
+            spaceId: scenario.space.id,
+            channel,
+            createdTime: post7.createdTime,
+            author: scenario.session1.account,
+            content: emptyPostContentWithReferences,
+            contentUpdatedTime: null,
+            commentCount: 0,
+            lastCommentChangeTime: null,
+            commentAuthorCount: 0,
+            previewCommentAuthors: [],
+        });
+
+        const post8Model = new PostModel({
+            id: post8.id,
+            spaceId: scenario.space.id,
+            channel,
+            createdTime: post8.createdTime,
+            author: scenario.session1.account,
+            content: emptyPostContentWithReferences,
+            contentUpdatedTime: null,
+            commentCount: 0,
+            lastCommentChangeTime: null,
+            commentAuthorCount: 0,
+            previewCommentAuthors: [],
+        });
+
+        expect(
+            await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                channelId: channel.id,
+                bucketGeneration: 0,
+                limit: 100,
+                afterPostId: null,
+            }),
+        ).toEqual({
+            hasMorePosts: false,
+            posts: [
+                post8Model,
+                post7Model,
+                post6Model,
+                post5Model,
+                post4Model,
+                post3Model,
+                post2Model,
+                post1Model,
+            ],
+        });
+
+        expect(
+            await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                channelId: channel.id,
+                bucketGeneration: 0,
+                limit: 4,
+                afterPostId: null,
+            }),
+        ).toEqual({
+            hasMorePosts: true,
+            posts: [post8Model, post7Model, post6Model, post5Model],
+        });
+
+        expect(
+            await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                channelId: channel.id,
+                bucketGeneration: 0,
+                limit: 7,
+                afterPostId: null,
+            }),
+        ).toEqual({
+            hasMorePosts: true,
+            posts: [
+                post8Model,
+                post7Model,
+                post6Model,
+                post5Model,
+                post4Model,
+                post3Model,
+                post2Model,
+            ],
+        });
+
+        expect(
+            await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                channelId: channel.id,
+                bucketGeneration: 0,
+                limit: 8,
+                afterPostId: null,
+            }),
+        ).toEqual({
+            hasMorePosts: false,
+            posts: [
+                post8Model,
+                post7Model,
+                post6Model,
+                post5Model,
+                post4Model,
+                post3Model,
+                post2Model,
+                post1Model,
+            ],
+        });
+
+        expect(
+            await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                channelId: channel.id,
+                bucketGeneration: 0,
+                limit: 100,
+                afterPostId: post5.id,
+            }),
+        ).toEqual({
+            hasMorePosts: false,
+            posts: [post4Model, post3Model, post2Model, post1Model],
+        });
+
+        expect(
+            await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                channelId: channel.id,
+                bucketGeneration: 0,
+                limit: 4,
+                afterPostId: post5.id,
+            }),
+        ).toEqual({
+            hasMorePosts: false,
+            posts: [post4Model, post3Model, post2Model, post1Model],
+        });
+
+        expect(
+            await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                channelId: channel.id,
+                bucketGeneration: 0,
+                limit: 3,
+                afterPostId: post5.id,
+            }),
+        ).toEqual({
+            hasMorePosts: true,
+            posts: [post4Model, post3Model, post2Model],
+        });
+
+        expect(
+            await getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                channelId: channel.id,
+                bucketGeneration: 0,
+                limit: 4,
+                afterPostId: post7.id,
+            }),
+        ).toEqual({
+            hasMorePosts: true,
+            posts: [post6Model, post5Model, post4Model, post3Model],
+        });
+
+        const post9 = await createPost(context.action(scenario.session1), {
+            channelId: channel.id,
+            content: emptyPostContent,
+        });
+        await ProcessContextModule.waitForTestTasks();
+
+        await expect(
+            getInboxChannelPostsEntryPosts(context.action(scenario.session2), {
+                spaceId: scenario.space.id,
+                channelId: channel.id,
+                bucketGeneration: 0,
+                limit: 4,
+                afterPostId: post9.id,
+            }),
+        ).rejects.toThrow(NotFoundError);
     });
 });

@@ -1497,6 +1497,7 @@ function PostListView(
             <div
                 ref={viewContainerRef}
                 className={sprinkles({
+                    flexGrow: "1",
                     width: "full",
                     height: "full",
                     overflow: "hidden",

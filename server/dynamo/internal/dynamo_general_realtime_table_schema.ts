@@ -513,6 +513,7 @@ export class DynamoGeneralRealtimeTableSchema<
         update: (
             item: MergeObjectIntersection<Types["Item"] & Key> | null,
         ) => MaybePromise<MergeObjectIntersection<Types["Item"] & Key>>,
+        {initialItem}: {initialItem?: Types["Item"] & Key} = {},
     ): Promise<{
         getRealtimeItem: () => Promise<
             DynamoGeneralRealtimeItem<ModelMap[Key["partitionType"]][Key["sortRangeType"]]>
@@ -532,11 +533,16 @@ export class DynamoGeneralRealtimeTableSchema<
         // the write.
         const readTime = new Date();
 
-        const item = await this._table.updateItem(context, itemKey, async item => {
-            const newItem = await update(item);
-            assert(newItem, "Deleting items is currently unsupported with a realtime schema");
-            return newItem;
-        });
+        const item = await this._table.updateItem(
+            context,
+            itemKey,
+            async item => {
+                const newItem = await update(item);
+                assert(newItem, "Deleting items is currently unsupported with a realtime schema");
+                return newItem;
+            },
+            {initialItem},
+        );
         assert(item, "Deleting items is currently unsupported with a realtime schema");
 
         const key = this._table.serializeOpaqueItemKey(item);

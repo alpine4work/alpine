@@ -1,6 +1,7 @@
 import {
     archiveInboxEntry,
     backfillInboxEntries,
+    getInboxChannelPostsEntryPosts,
     getInboxEntries,
     observeInbox,
     unarchiveInboxEntry,
@@ -34,4 +35,8 @@ implementRpc(definition.unarchiveInboxEntry, async (context, input) => {
 implementRpc(definition.observeInbox, async (context, input) => {
     await observeInbox(await context.actor.authenticate(), input);
     return {};
+});
+
+implementRpc(definition.getInboxChannelPostsEntryPosts, async (context, input) => {
+    return getInboxChannelPostsEntryPosts(await context.actor.authenticate(), input);
 });

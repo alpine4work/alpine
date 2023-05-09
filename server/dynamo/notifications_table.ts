@@ -8,6 +8,7 @@ import {
 } from "~/server/dynamo/context/action_context";
 import {
     getChannelPreview,
+    getPost,
     getPostAuthorAndChannelPreview,
     getPostNotificationSubscribers,
 } from "~/server/dynamo/forum_table";
@@ -42,6 +43,8 @@ import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_a
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {iterableFind} from "~/shared/helpers/iterable/iterable_find";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
+import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable";
 import {randomInteger} from "~/shared/helpers/number/random_integer";
 import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit";
@@ -67,6 +70,7 @@ import {
     InboxModel,
     InboxPostCommentsEntryModel,
 } from "~/shared/models/inbox_model";
+import {PostModel} from "~/shared/models/post_model";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 
 /**
@@ -189,6 +193,8 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                          * The current inbox generation. This is incremented whenever the inbox is
                          * observed so new entries are always placed above old entries (including
                          * old entries with loud notifications).
+                         *
+                         * This should only ever increase! Never decrease.
                          */
                         generation: Schema.integer.min(initialInboxGeneration),
 
@@ -323,6 +329,14 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         /**
                          * While we are at this inbox generation, new posts will be bucketed into this
                          * entry. When the generation advances new posts will fall into a new entry.
+                         *
+                         * When loading the posts from this entry to show to the client we freeze this
+                         * entry so no new `postIds` can be added. We do this by observing the inbox as
+                         * a side effect which means new posts will fall into a new `bucketGeneration`.
+                         *
+                         * By doing this, the client doesn't have to subscribe to realtime updates for
+                         * this inbox entry's `postIds` list. Since whatever data they read is
+                         * guaranteed to be frozen.
                          */
                         bucketGeneration: DynamoKeyAttributeSchema.integer,
                     },
@@ -333,6 +347,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         generation: Schema.integer.min(initialInboxGeneration),
                         /** See the documentation on `enteredTime` in `InboxEntriesIndex`. */
                         enteredTime: Schema.date,
+
                         /**
                          * See the documentation on `loudNotificationCount` in the `Inbox` partition's `Attributes` item.
                          *
@@ -344,6 +359,10 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         /**
                          * The posts in this inbox entry. In reverse chronological order. The newest
                          * posts appear first.
+                         *
+                         * We assume that if you take a slice of this list it will be frozen and
+                         * receive no updates. All new posts should be added to the beginning of the
+                         * list.
                          */
                         postIds: Schema.set(Schema.id<PostId>()).minSize(1),
 
@@ -689,6 +708,19 @@ const loudNotificationInboxGenerationIncrement = 1;
  */
 const unarchivedInboxEntryGenerationIncrement = 1;
 
+function getInitialInboxItem(spaceId: SpaceId, accountId: AccountId): InboxAttributesItem {
+    return {
+        partitionType: "Inbox",
+        sortRangeType: "Attributes",
+        spaceId,
+        accountId,
+        generation: initialInboxGeneration,
+        loudNotificationCount: 0,
+        entryCount: 0,
+        lastZeroEntryCountTime: null,
+    };
+}
+
 /**
  * Get the session account's inbox in the provided space.
  */
@@ -708,16 +740,10 @@ export async function getInbox(
         if (inbox) return inbox;
 
         // If the inbox item doesn't exist yet, let's create one.
-        const {getRealtimeItem} = await InboxTable.createItem(context, {
-            partitionType: "Inbox",
-            sortRangeType: "Attributes",
-            spaceId,
-            accountId: context.actor.getAccountId(),
-            generation: initialInboxGeneration,
-            loudNotificationCount: 0,
-            entryCount: 0,
-            lastZeroEntryCountTime: null,
-        });
+        const {getRealtimeItem} = await InboxTable.createItem(
+            context,
+            getInitialInboxItem(spaceId, context.actor.getAccountId()),
+        );
         return getRealtimeItem();
     });
 }
@@ -845,19 +871,18 @@ export async function observeInbox(
             spaceId,
             accountId: context.actor.getAccountId(),
         },
-        item => ({
-            ...item,
-            partitionType: "Inbox",
-            sortRangeType: "Attributes",
-            spaceId,
-            accountId: context.actor.getAccountId(),
-            generation:
-                (item?.generation ?? initialInboxGeneration) + observeInboxGenerationIncrement,
-            loudNotificationCount: item?.loudNotificationCount ?? 0,
-            entryCount: item?.entryCount ?? 0,
-            lastZeroEntryCountTime: item?.lastZeroEntryCountTime ?? null,
-        }),
+        item => {
+            item ??= getInitialInboxItem(spaceId, context.actor.getAccountId());
+            return observeInboxItem(item);
+        },
     );
+}
+
+function observeInboxItem(item: InboxAttributesItem) {
+    return {
+        ...item,
+        generation: item.generation + observeInboxGenerationIncrement,
+    };
 }
 
 function getInboxEntryItemKey({
@@ -1777,3 +1802,136 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
         );
     },
 });
+
+/**
+ * Get the posts in a channel posts inbox entry. After you call this function,
+ * you're guaranteed that the posts in the corresponding inbox entry will not
+ * change anymore. This means you don't need to subscribe to realtime updates
+ * of the post list for the entry.
+ *
+ * This has a side effect of observing the inbox if the inbox has not been
+ * observed since the entry was created. By observing the inbox we freeze the
+ * underlying channel posts inbox entry so it will accumulate no new posts.
+ */
+export async function getInboxChannelPostsEntryPosts(
+    context: SessionActionContext,
+    {
+        spaceId,
+        channelId,
+        bucketGeneration,
+        limit,
+        afterPostId,
+    }: {
+        spaceId: SpaceId;
+        channelId: ChannelId;
+        bucketGeneration: number;
+        limit: number;
+        afterPostId: PostId | null;
+    },
+): Promise<{
+    hasMorePosts: boolean;
+    posts: Array<PostModel>;
+}> {
+    await authorizeSpaceAccess(context, spaceId);
+
+    if (afterPostId === null) {
+        // If an inbox entry exists then the inbox attributes item should also exist.
+        const inboxItem = await InboxTable.getItem(
+            // Use a strong read consistency to make sure we get the up-to-date generation.
+            context.dynamo.setDefaultReadConsistency("Strong"),
+            {
+                partitionType: "Inbox",
+                sortRangeType: "Attributes",
+                spaceId,
+                accountId: context.actor.getAccountId(),
+            },
+        );
+
+        // If the bucket generation is equal to the current inbox generation then we
+        // want to increment the inbox's generation. This means new channel posts will
+        // create a new entry with a new bucket generation.
+        if (bucketGeneration === inboxItem.generation) {
+            await InboxTable.updateItem(
+                context,
+                {
+                    partitionType: "Inbox",
+                    sortRangeType: "Attributes",
+                    spaceId,
+                    accountId: context.actor.getAccountId(),
+                },
+                item => {
+                    assert(item);
+
+                    // If the generation was updated concurrently, we don't need to update
+                    // it again.
+                    if (item.generation !== bucketGeneration) return item;
+
+                    return observeInboxItem(item);
+                },
+                {initialItem: inboxItem},
+            );
+        }
+
+        const inboxEntryItem = await InboxTable.getItem(
+            // Use a strong read consistency when reading the entry since we don't want to
+            // miss any posts.
+            //
+            // At this point the channel posts entry is frozen. So we don't subscribe to
+            // realtime changes for `postIds`. If we get a stale read that's missing a
+            // `PostId` the client will never see it.
+            context.dynamo.setDefaultReadConsistency("Strong"),
+            {
+                partitionType: "Inbox",
+                sortRangeType: "ChannelPostsEntry",
+                spaceId,
+                accountId: context.actor.getAccountId(),
+                channelId,
+                bucketGeneration,
+            },
+        );
+
+        const posts = await runAllPromises(
+            mapIterable(sliceIterable(inboxEntryItem.postIds, 0, limit), postId =>
+                getPost(context, postId),
+            ),
+        );
+
+        return {
+            hasMorePosts: inboxEntryItem.postIds.size > limit,
+            posts,
+        };
+    } else {
+        // If we have an `afterPostId` we don't need to observe the inbox because new
+        // posts are only added to the beginning of `postIds`. So loading posts after a
+        // certain point is guaranteed to be frozen and not update in realtime.
+        //
+        // If we have an `afterPostId` that also probably means the client has already
+        // called this function with `afterPostId` set to null. Which means the current
+        // inbox generation should have advanced past our bucket generation.
+        const inboxEntryItem = await InboxTable.getItem(context, {
+            partitionType: "Inbox",
+            sortRangeType: "ChannelPostsEntry",
+            spaceId,
+            accountId: context.actor.getAccountId(),
+            channelId,
+            bucketGeneration,
+        });
+
+        const postIds = Array.from(inboxEntryItem.postIds);
+
+        const afterPostIndex = postIds.indexOf(afterPostId);
+        if (afterPostIndex === -1)
+            throw new NotFoundError("`PostId` not found in channel posts inbox entry");
+
+        const posts = await runAllPromises(
+            postIds
+                .slice(afterPostIndex + 1, afterPostIndex + 1 + limit)
+                .map(postId => getPost(context, postId)),
+        );
+
+        return {
+            hasMorePosts: inboxEntryItem.postIds.size > limit + afterPostIndex + 1,
+            posts,
+        };
+    }
+}
