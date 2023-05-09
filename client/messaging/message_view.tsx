@@ -616,7 +616,10 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             hour12: true,
         });
 
-        const formattedDate = formatter.format(message.createdTime);
+        const formattedDate = formatter
+            .format(message.createdTime)
+            .replace(/, (\d+:\d+)/, " at $1")
+            .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
 
         return (
             <div

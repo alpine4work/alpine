@@ -21,11 +21,17 @@ export function PrettyAbsoluteDate({date, placement}: {date: Date; placement?: O
             timeZone,
             calendar: "iso8601",
             year: !isCurrentYear ? "numeric" : undefined,
-            month: "short",
+            month: !isCurrentYear ? "long" : "short",
             day: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
         });
 
-        return formatter.format(date);
+        return formatter
+            .format(date)
+            .replace(/, (\d+:\d+)/, " at $1")
+            .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
     }, [currentTime, date, timeZone]);
 
     return (
@@ -54,7 +60,9 @@ export function PrettyAbsoluteDateTooltipContent({date}: {date: Date}) {
             hour12: true,
         });
 
-        return formatter.format(date);
+        return formatter
+            .format(date)
+            .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
     }, [date, timeZone]);
 
     return <>{formattedDate}</>;

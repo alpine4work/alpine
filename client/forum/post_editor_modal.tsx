@@ -111,7 +111,7 @@ export function PostEditorModal({
                 }
             >
                 <Box paddingTop="5" paddingX="5">
-                    <PostContentViewHeader post={post} />
+                    <PostContentViewHeader post={post} shouldShowChannel={true} />
                 </Box>
                 <ContentEditor
                     ref={editorRef}

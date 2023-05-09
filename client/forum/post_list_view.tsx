@@ -739,6 +739,11 @@ function PostListView(
                                             post={item.post}
                                             postComments={item.postComments}
                                             postCommentsState={item.postCommentsState}
+                                            // If we are rendering in the context of a channel, don't render the channel
+                                            // in posts.
+                                            shouldShowChannel={
+                                                channelHeader?.channel.id !== item.post.channel.id
+                                            }
                                             onEditPost={() => setEditingPost(item.post)}
                                             onTogglePostComments={() =>
                                                 setPosts(posts =>
@@ -1483,6 +1488,7 @@ function PostListView(
             posts,
             hasMargin,
             hasAside,
+            channelHeader?.channel.id,
             isSingleMobilePostWithPinnedCommentInput,
             loadInitialPostComments,
             messageEditing,

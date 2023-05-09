@@ -35,6 +35,7 @@ export function PostContentView({
     post,
     postComments,
     postCommentsState,
+    shouldShowChannel,
     onEditPost,
     onTogglePostComments,
     onLoadInitialPostComments,
@@ -42,6 +43,7 @@ export function PostContentView({
     post: PostModel;
     postComments: MessageList<PostCommentModel>;
     postCommentsState: PostCommentsState;
+    shouldShowChannel: boolean;
     onEditPost: () => void;
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
@@ -51,7 +53,7 @@ export function PostContentView({
     return (
         <Box style={{minHeight: postContentViewMinHeight}}>
             <Box position="relative" paddingTop="5" paddingX="5">
-                <PostContentViewHeader post={post} />
+                <PostContentViewHeader post={post} shouldShowChannel={shouldShowChannel} />
                 <Box position="absolute" top="2" right="2">
                     <MenuButton
                         actions={[

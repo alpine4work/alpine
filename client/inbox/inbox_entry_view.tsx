@@ -478,7 +478,9 @@ function InboxEntryLatestMessagePreview({
                                 hour12: true,
                             });
 
-                            return formatter.format(time);
+                            return formatter
+                                .format(time)
+                                .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
                         } else {
                             const formatter = new Intl.DateTimeFormat("en-US", {
                                 timeZone,
@@ -487,7 +489,9 @@ function InboxEntryLatestMessagePreview({
                                 day: "numeric",
                             });
 
-                            return formatter.format(time);
+                            return formatter
+                                .format(time)
+                                .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
                         }
                     }, [currentTime, time, timeZone])}
                 </Box>
