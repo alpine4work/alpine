@@ -3357,6 +3357,199 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                                     }
                                 }
                             }
+                        },
+                        "DocumentCommentThreadEntry": {
+                            "id": 4,
+                            "orderKey": "a4",
+                            "sortKeyAttributeByKey": {
+                                "documentId": {
+                                    "type": "Id"
+                                },
+                                "commentThreadId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "isArchived": {
+                                        "valueSchema": {
+                                            "type": "Boolean"
+                                        },
+                                        "optional": false
+                                    },
+                                    "generation": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "enteredTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "loudNotificationCount": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "firstCommentAuthorId": {
+                                        "valueSchema": {
+                                            "type": "Id"
+                                        },
+                                        "optional": false
+                                    },
+                                    "latestComment": {
+                                        "valueSchema": {
+                                            "type": "Object",
+                                            "propertySchemaByKey": {
+                                                "index": {
+                                                    "valueSchema": {
+                                                        "type": "Integer"
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "authorId": {
+                                                    "valueSchema": {
+                                                        "type": "Id"
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "createdTime": {
+                                                    "valueSchema": {
+                                                        "type": "Date"
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "contentSnippet": {
+                                                    "valueSchema": {
+                                                        "type": "Reference",
+                                                        "reuseReferenceId": "05d7837f"
+                                                    },
+                                                    "optional": false
+                                                }
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "otherCommentAuthorId": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Id"
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
+                        },
+                        "DocumentNewCommentThreadsEntry": {
+                            "id": 5,
+                            "orderKey": "a5",
+                            "sortKeyAttributeByKey": {
+                                "documentId": {
+                                    "type": "Id"
+                                },
+                                "bucketGeneration": {
+                                    "type": "Integer"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "isArchived": {
+                                        "valueSchema": {
+                                            "type": "Boolean"
+                                        },
+                                        "optional": false
+                                    },
+                                    "generation": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "enteredTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "loudNotificationCount": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "commentThreadIds": {
+                                        "valueSchema": {
+                                            "type": "Set",
+                                            "valueSchema": {
+                                                "type": "Id"
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "commentThreadAuthorIds": {
+                                        "valueSchema": {
+                                            "type": "Set",
+                                            "valueSchema": {
+                                                "type": "Id"
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "firstComment": {
+                                        "valueSchema": {
+                                            "type": "Object",
+                                            "propertySchemaByKey": {
+                                                "authorId": {
+                                                    "valueSchema": {
+                                                        "type": "Id"
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "createdTime": {
+                                                    "valueSchema": {
+                                                        "type": "Date"
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "contentSnippet": {
+                                                    "valueSchema": {
+                                                        "type": "Reference",
+                                                        "reuseReferenceId": "05d7837f"
+                                                    },
+                                                    "optional": false
+                                                }
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "latestCommentThreadCreatedTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
                         }
                     }
                 },
@@ -3450,6 +3643,14 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                                 {
                                     "partitionType": "Inbox",
                                     "sortRangeType": "ChannelPostsEntry"
+                                },
+                                {
+                                    "partitionType": "Inbox",
+                                    "sortRangeType": "DocumentCommentThreadEntry"
+                                },
+                                {
+                                    "partitionType": "Inbox",
+                                    "sortRangeType": "DocumentNewCommentThreadsEntry"
                                 }
                             ],
                             "partitionKeyAttributeByKey": {

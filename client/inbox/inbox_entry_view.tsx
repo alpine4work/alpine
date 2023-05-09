@@ -1,4 +1,5 @@
 import {differenceInHours} from "date-fns";
+import GraphemeSplitter from "grapheme-splitter";
 import {AnimationControls, animate} from "motion";
 import {ReactNode, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
@@ -20,6 +21,8 @@ import {ContentWithReferences} from "~/shared/models/content_references";
 import {
     InboxChannelPostsEntryModel,
     InboxChatEntryModel,
+    InboxDocumentCommentThreadEntryModel,
+    InboxDocumentNewCommentThreadsEntryModel,
     InboxEntryModel,
     InboxPostCommentsEntryModel,
 } from "~/shared/models/inbox_model";
@@ -120,6 +123,12 @@ export function InboxEntryView({
             break;
         case "ChannelPosts":
             children = <InboxChannelPostsEntryView entry={entry} />;
+            break;
+        case "DocumentCommentThread":
+            children = <InboxDocumentCommentThreadEntryView entry={entry} />;
+            break;
+        case "DocumentNewCommentThreads":
+            children = <InboxDocumentNewCommentThreadsEntryView entry={entry} />;
             break;
         default:
             throw exhaustive(entry);
@@ -341,6 +350,126 @@ function InboxChannelPostsEntryView({entry}: {entry: InboxChannelPostsEntryModel
             />
         </InboxEntryViewBase>
     );
+}
+
+function InboxDocumentCommentThreadEntryView({
+    entry,
+}: {
+    entry: InboxDocumentCommentThreadEntryModel;
+}) {
+    const {currentAccount} = useSpaceContext();
+
+    const firstAccount: AccountModel =
+        entry.firstCommentAuthor.id !== currentAccount.id
+            ? entry.firstCommentAuthor
+            : entry.otherCommentAuthor ?? entry.latestComment.author;
+
+    const secondAccount: AccountModel | null =
+        entry.latestComment?.author.id !== firstAccount.id
+            ? entry.latestComment?.author ?? null
+            : null;
+
+    return (
+        <InboxEntryViewBase
+            firstAccount={firstAccount}
+            secondAccount={secondAccount}
+            loudNotificationCount={entry.loudNotificationCount}
+        >
+            <Box>
+                {currentAccount.id === entry.firstCommentAuthor.id ? (
+                    "Your"
+                ) : (
+                    <>
+                        <span className={boldClassName}>
+                            <AccountShortName account={entry.firstCommentAuthor} />
+                        </span>
+                        ’s
+                    </>
+                )}{" "}
+                thread on “
+                <span className={boldClassName}>
+                    {useMemo(
+                        () => truncateDocumentTitle(entry.document.getTitle()),
+                        [entry.document],
+                    )}
+                </span>
+                ” has new comments
+            </Box>
+            <InboxEntryLatestMessagePreview
+                time={entry.latestComment.createdTime}
+                latestMessage={entry.latestComment}
+            />
+        </InboxEntryViewBase>
+    );
+}
+
+function InboxDocumentNewCommentThreadsEntryView({
+    entry,
+}: {
+    entry: InboxDocumentNewCommentThreadsEntryModel;
+}) {
+    const firstAccount: AccountModel = entry.otherCommentThreadAuthor ?? entry.firstComment.author;
+
+    const secondAccount: AccountModel | null =
+        entry.firstComment.author.id !== firstAccount.id ? entry.firstComment.author : null;
+
+    return (
+        <InboxEntryViewBase
+            firstAccount={firstAccount}
+            secondAccount={secondAccount}
+            loudNotificationCount={entry.loudNotificationCount}
+        >
+            <Box>
+                New {entry.commentThreadCount > 1 ? "threads" : "thread"} on “
+                <span className={boldClassName}>
+                    {truncateDocumentTitle(entry.document.getTitle())}
+                </span>
+                ” by{" "}
+                {!secondAccount ? (
+                    <span className={boldClassName}>
+                        <AccountShortName account={firstAccount} />
+                    </span>
+                ) : entry.commentThreadAuthorCount <= 2 ? (
+                    <>
+                        <span className={boldClassName}>
+                            <AccountShortName account={secondAccount} />
+                        </span>{" "}
+                        and{" "}
+                        <span className={boldClassName}>
+                            <AccountShortName account={firstAccount} />
+                        </span>
+                    </>
+                ) : (
+                    <>
+                        <span className={boldClassName}>
+                            <AccountShortName account={secondAccount} />
+                        </span>
+                        ,{" "}
+                        <span className={boldClassName}>
+                            <AccountShortName account={firstAccount} />
+                        </span>
+                        , and{" "}
+                        <PrettyNumber number={entry.commentThreadAuthorCount - 2} label="other" />
+                    </>
+                )}
+            </Box>
+            <InboxEntryLatestMessagePreview
+                time={entry.firstComment.createdTime}
+                latestMessage={entry.firstComment}
+            />
+        </InboxEntryViewBase>
+    );
+}
+
+function truncateDocumentTitle(string: string) {
+    const splitter = new GraphemeSplitter();
+
+    const maxGraphemeCount = 50;
+    const graphemes = splitter.splitGraphemes(string);
+
+    if (graphemes.length < maxGraphemeCount) return graphemes;
+
+    return `${graphemes.slice(0, maxGraphemeCount).join("").trim()}…`;
 }
 
 function InboxEntryViewBase({

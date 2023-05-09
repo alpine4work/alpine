@@ -968,10 +968,10 @@ function DocumentContentEditorSidebar({
                         <IconButton
                             ref={previousCommentThreadButtonRef}
                             size="xs"
-                            description="Previous comment"
+                            description="Previous thread"
                             keyboardShortcutHint={isMac ? "⌘+Shift+," : "Ctrl+Shift+,"}
                             isDisabled={!previousCommentThreadId}
-                            pressErrorTitle="Can’t go to previous comment"
+                            pressErrorTitle="Can’t go to previous thread"
                             onPress={async () => {
                                 if (!previousCommentThreadId) return;
                                 await openCommentThread(previousCommentThreadId);
@@ -982,10 +982,10 @@ function DocumentContentEditorSidebar({
                         <IconButton
                             ref={nextCommentThreadButtonRef}
                             size="xs"
-                            description="Next comment"
+                            description="Next thread"
                             keyboardShortcutHint={isMac ? "⌘+Shift+." : "Ctrl+Shift+."}
                             isDisabled={!nextCommentThreadId}
-                            pressErrorTitle="Can’t go to next comment"
+                            pressErrorTitle="Can’t go to next thread"
                             onPress={async () => {
                                 if (!nextCommentThreadId) return;
                                 await openCommentThread(nextCommentThreadId);

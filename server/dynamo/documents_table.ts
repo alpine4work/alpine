@@ -9,12 +9,14 @@ import {getContentReferencesForNode} from "~/server/dynamo/helpers/get_content_r
 import {
     applyMentionCountByAccountIdDifferenceFromContentUpdate,
     getMentionCountByAccountIdInContent,
+    getMentionedAccountIdsInContent,
 } from "~/server/dynamo/helpers/get_mentioned_account_ids_in_content";
 import {createMessagePayloadModel} from "~/server/dynamo/helpers/messaging/create_message_payload_model";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/dynamo/helpers/messaging/get_message_change_log_expiration_time_from_change_time";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
+import {getNotificationMessageContentSnippet} from "~/server/dynamo/notifications_table";
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint";
 import {TestCounter} from "~/server/helpers/test/test_counter";
@@ -547,6 +549,20 @@ export async function getDocumentPreviewIfExists(
         version: attributes.version,
         titleWithoutFallback: attributes.titleWithoutFallback,
     });
+}
+
+/**
+ * Get a preview of the document with the provided id.
+ *
+ * Cheaper than `getDocument()` since we don't return the full content.
+ */
+export async function getDocumentPreview(
+    context: ActionContext,
+    id: DocumentId,
+): Promise<DocumentPreviewModel> {
+    const document = await getDocumentPreviewIfExists(context, id);
+    if (!document) throw new NotFoundError("Document not found");
+    return document;
 }
 
 /**
@@ -1727,6 +1743,25 @@ export async function updateDocumentContent(
                 newSteps: steps,
                 newInvertedSteps: invertedSteps,
                 clientId,
+            });
+        }
+
+        for (const createCommentThread of createCommentThreads) {
+            context.notifications.sendNotificationEvent({
+                type: "CreateDocumentComment",
+                id: generateId(),
+                spaceId: internalDocument.spaceId,
+                documentId: id,
+                commentThreadId: createCommentThread.commentThreadId,
+                commentIndex: 0,
+                createdTime: createCommentThread.createdTime ?? currentTime,
+                authorId: context.actor.getAccountId(),
+                mentionedAccountIds: getMentionedAccountIdsInContent(
+                    createCommentThread.initialCommentContent,
+                ),
+                contentSnippet: getNotificationMessageContentSnippet(
+                    createCommentThread.initialCommentContent,
+                ),
             });
         }
 
@@ -2928,6 +2963,19 @@ export async function createDocumentComment(
             ),
         ]);
 
+        context.notifications.sendNotificationEvent({
+            type: "CreateDocumentComment",
+            id: generateId(),
+            spaceId: documentItem.spaceId,
+            documentId,
+            commentThreadId,
+            commentIndex,
+            createdTime,
+            authorId,
+            mentionedAccountIds: getMentionedAccountIdsInContent(content),
+            contentSnippet: getNotificationMessageContentSnippet(content),
+        });
+
         return {
             index: commentIndex,
             createdTime,
@@ -2950,6 +2998,51 @@ export async function getDocumentComment(
         commentIndex: number;
     },
 ): Promise<DocumentCommentModel> {
+    const {spaceId, commentItem} = await getDocumentCommentItem(context, {
+        documentId,
+        commentThreadId,
+        commentIndex,
+    });
+
+    return createDocumentCommentModelFromItem(context, spaceId, commentItem);
+}
+
+/**
+ * Get a document comment's author.
+ */
+export async function getDocumentCommentAuthorId(
+    context: ActionContext,
+    {
+        documentId,
+        commentThreadId,
+        commentIndex,
+    }: {
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+        commentIndex: number;
+    },
+): Promise<AccountId> {
+    const {commentItem} = await getDocumentCommentItem(context, {
+        documentId,
+        commentThreadId,
+        commentIndex,
+    });
+
+    return commentItem.authorId;
+}
+
+async function getDocumentCommentItem(
+    context: ActionContext,
+    {
+        documentId,
+        commentThreadId,
+        commentIndex,
+    }: {
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+        commentIndex: number;
+    },
+) {
     const [documentItem, , commentItem] = await runAllPromises([
         DocumentsTable.getItem(context, {
             partitionType: "Document",
@@ -2971,7 +3064,10 @@ export async function getDocumentComment(
 
     await authorizeSpaceAccess(context, documentItem.spaceId);
 
-    return createDocumentCommentModelFromItem(context, documentItem.spaceId, commentItem);
+    return {
+        spaceId: documentItem.spaceId,
+        commentItem,
+    };
 }
 
 async function createDocumentCommentModelFromItem(

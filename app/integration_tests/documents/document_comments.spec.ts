@@ -353,14 +353,14 @@ test("can leave multiple comments on a document and navigate between them", asyn
     await expect(page.getByText("Test comment content 1")).toBeHidden();
     await expect(page.getByText("Test comment content 2")).toBeVisible();
 
-    await expect(page.getByRole("button", {name: "Next comment"})).toBeDisabled();
-    await page.getByRole("button", {name: "Previous comment"}).click();
+    await expect(page.getByRole("button", {name: "Next thread"})).toBeDisabled();
+    await page.getByRole("button", {name: "Previous thread"}).click();
 
     await expect(page.getByText("Test comment content 1")).toBeVisible();
     await expect(page.getByText("Test comment content 2")).toBeHidden();
 
-    await expect(page.getByRole("button", {name: "Previous comment"})).toBeDisabled();
-    await page.getByRole("button", {name: "Next comment"}).click();
+    await expect(page.getByRole("button", {name: "Previous thread"})).toBeDisabled();
+    await page.getByRole("button", {name: "Next thread"}).click();
 
     await expect(page.getByText("Test comment content 1")).toBeHidden();
     await expect(page.getByText("Test comment content 2")).toBeVisible();
@@ -370,8 +370,8 @@ test("can leave multiple comments on a document and navigate between them", asyn
     await expect(page.getByText("Test comment content 1")).toBeHidden();
     await expect(page.getByText("Test comment content 2")).toBeVisible();
 
-    await expect(page.getByRole("button", {name: "Next comment"})).toBeDisabled();
-    await page.getByRole("button", {name: "Previous comment"}).click();
+    await expect(page.getByRole("button", {name: "Next thread"})).toBeDisabled();
+    await page.getByRole("button", {name: "Previous thread"}).click();
 
     await expect(page.getByText("Test comment content 1")).toBeVisible();
     await expect(page.getByText("Test comment content 2")).toBeHidden();

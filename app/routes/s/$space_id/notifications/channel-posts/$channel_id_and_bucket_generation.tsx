@@ -76,6 +76,7 @@ export const meta: MetaFunction = () => {
     };
 };
 
+// NOCOMMIT: Peek mobile layout
 export default function ChannelPostsRoute() {
     const context = useAppContext();
     const {space} = useSpaceContext();

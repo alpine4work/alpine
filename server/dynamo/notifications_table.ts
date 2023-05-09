@@ -7,6 +7,11 @@ import {
     SystemActionContext,
 } from "~/server/dynamo/context/action_context";
 import {
+    getDocumentCommentAuthorId,
+    getDocumentCommentThreadNotificationSubscribers,
+    getDocumentPreview,
+} from "~/server/dynamo/documents_table";
+import {
     getChannelPreview,
     getPost,
     getPostAuthorAndChannelPreview,
@@ -48,12 +53,15 @@ import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable";
 import {randomInteger} from "~/shared/helpers/number/random_integer";
 import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
 import {
     AccountId,
     ChannelId,
     ChatId,
     ContentMentionAccountId,
+    DocumentCommentThreadId,
+    DocumentId,
     NotificationEventId,
     PostId,
     SpaceId,
@@ -64,6 +72,8 @@ import {ChatModel} from "~/shared/models/chat_model";
 import {
     InboxChannelPostsEntryModel,
     InboxChatEntryModel,
+    InboxDocumentCommentThreadEntryModel,
+    InboxDocumentNewCommentThreadsEntryModel,
     InboxEntryKey,
     InboxEntryModel,
     InboxItemModelSchema,
@@ -384,6 +394,107 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         }),
                     }),
                 },
+                {
+                    name: "DocumentCommentThreadEntry",
+                    sortKeyAttributes: {
+                        documentId: DynamoKeyAttributeSchema.id<DocumentId>(),
+                        commentThreadId: DynamoKeyAttributeSchema.id<DocumentCommentThreadId>(),
+                    },
+                    attributes: Schema.object({
+                        /** See the documentation on `isArchived` in `InboxEntriesIndex`. */
+                        isArchived: Schema.boolean,
+                        /** See the documentation on `generation` in `InboxEntriesIndex`. */
+                        generation: Schema.integer.min(initialInboxGeneration),
+                        /** See the documentation on `enteredTime` in `InboxEntriesIndex`. */
+                        enteredTime: Schema.date,
+                        /** See the documentation on `loudNotificationCount` in the `Inbox` partition's `Attributes` item. */
+                        loudNotificationCount: Schema.integer.min(0),
+
+                        /**
+                         * The author of the first comment in the thread.
+                         */
+                        firstCommentAuthorId: Schema.id<AccountId>(),
+
+                        /**
+                         * The last comment on the thread. Will be used to render a preview of the
+                         * thread on the entry before the user clicks in.
+                         */
+                        latestComment: Schema.object({
+                            index: Schema.integer,
+                            authorId: Schema.id<AccountId>(),
+                            createdTime: Schema.date,
+                            contentSnippet: MessageContentSchema,
+                        }),
+
+                        /**
+                         * A second commenting account which we'll show on the inbox entry to imply a
+                         * conversation between multiple users. We compute this as the account which
+                         * commented before `latestComment`. Will never be the same account as the
+                         * `latestComment`'s author.
+                         */
+                        otherCommentAuthorId: Schema.id<AccountId>().nullable(),
+                    }),
+                },
+                {
+                    name: "DocumentNewCommentThreadsEntry",
+                    sortKeyAttributes: {
+                        documentId: DynamoKeyAttributeSchema.id<DocumentId>(),
+
+                        /**
+                         * While we are at this inbox generation, new comment threads will be bucketed
+                         * into this entry. When the generation advances new threads will fall into a
+                         * new entry.
+                         */
+                        bucketGeneration: DynamoKeyAttributeSchema.integer,
+                    },
+                    attributes: Schema.object({
+                        /** See the documentation on `isArchived` in `InboxEntriesIndex`. */
+                        isArchived: Schema.boolean,
+                        /** See the documentation on `generation` in `InboxEntriesIndex`. */
+                        generation: Schema.integer.min(initialInboxGeneration),
+                        /** See the documentation on `enteredTime` in `InboxEntriesIndex`. */
+                        enteredTime: Schema.date,
+
+                        /**
+                         * See the documentation on `loudNotificationCount` in the `Inbox` partition's `Attributes` item.
+                         *
+                         * Should never have loud notifications in a document comment thread
+                         * aggregation inbox entry. If we want a loud notification for a document
+                         * comment we'll create a new entry.
+                         */
+                        loudNotificationCount: Schema.integer.min(0).max(0),
+
+                        /**
+                         * The comment threads in this inbox entry. In chronological order. The newest
+                         * threads appear last.
+                         */
+                        commentThreadIds: Schema.set(Schema.id<DocumentCommentThreadId>()).minSize(
+                            1,
+                        ),
+
+                        /**
+                         * The first comment author of threads in this inbox entry. Will have a size
+                         * less than or equal to `commentThreadIds`. In chronological order. The latest
+                         * authors to create threads will appear last.
+                         */
+                        commentThreadAuthorIds: Schema.set(Schema.id<AccountId>()).minSize(1),
+
+                        /**
+                         * A preview of the first comment thread. Will display a preview of the first
+                         * comment's content in the inbox entry.
+                         */
+                        firstComment: Schema.object({
+                            authorId: Schema.id<AccountId>(),
+                            createdTime: Schema.date,
+                            contentSnippet: MessageContentSchema,
+                        }),
+
+                        /**
+                         * The time the latest comment thread was created.
+                         */
+                        latestCommentThreadCreatedTime: Schema.date,
+                    }),
+                },
             ],
         },
     ],
@@ -543,6 +654,92 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                     });
                 },
             },
+            DocumentCommentThreadEntry: {
+                async build(context, item) {
+                    const [
+                        document,
+                        firstCommentAuthor,
+                        latestCommentAuthor,
+                        latestCommentContentSnippetReferences,
+                        otherCommentAuthor,
+                    ] = await runAllPromises([
+                        getDocumentPreview(context, item.documentId),
+                        getAccount(context, item.spaceId, item.firstCommentAuthorId),
+                        getAccount(context, item.spaceId, item.latestComment.authorId),
+                        getContentReferencesForNode(
+                            context,
+                            item.spaceId,
+                            item.latestComment.contentSnippet,
+                        ),
+                        item.otherCommentAuthorId
+                            ? getAccount(context, item.spaceId, item.otherCommentAuthorId)
+                            : null,
+                    ]);
+
+                    return new InboxDocumentCommentThreadEntryModel({
+                        spaceId: item.spaceId,
+                        accountId: item.accountId,
+                        loudNotificationCount: item.loudNotificationCount,
+                        document,
+                        commentThreadId: item.commentThreadId,
+                        firstCommentAuthor,
+                        latestComment: {
+                            author: latestCommentAuthor,
+                            createdTime: item.latestComment.createdTime,
+                            contentSnippet: {
+                                doc: item.latestComment.contentSnippet,
+                                references: latestCommentContentSnippetReferences,
+                            },
+                        },
+                        otherCommentAuthor,
+                    });
+                },
+            },
+            DocumentNewCommentThreadsEntry: {
+                async build(context, item) {
+                    const otherCommentThreadAuthorId = iterableFind(
+                        item.commentThreadAuthorIds,
+                        accountId => accountId !== item.firstComment.authorId,
+                    );
+
+                    const [
+                        document,
+                        firstCommentAuthor,
+                        firstCommentContentSnippetReferences,
+                        otherCommentThreadAuthor,
+                    ] = await runAllPromises([
+                        getDocumentPreview(context, item.documentId),
+                        getAccount(context, item.spaceId, item.firstComment.authorId),
+                        getContentReferencesForNode(
+                            context,
+                            item.spaceId,
+                            item.firstComment.contentSnippet,
+                        ),
+                        otherCommentThreadAuthorId
+                            ? getAccount(context, item.spaceId, otherCommentThreadAuthorId)
+                            : null,
+                    ]);
+
+                    return new InboxDocumentNewCommentThreadsEntryModel({
+                        spaceId: item.spaceId,
+                        accountId: item.accountId,
+                        loudNotificationCount: item.loudNotificationCount,
+                        document,
+                        bucketGeneration: item.bucketGeneration,
+                        commentThreadCount: item.commentThreadIds.size,
+                        commentThreadAuthorCount: item.commentThreadAuthorIds.size,
+                        firstComment: {
+                            author: firstCommentAuthor,
+                            createdTime: item.firstComment.createdTime,
+                            contentSnippet: {
+                                doc: item.firstComment.contentSnippet,
+                                references: firstCommentContentSnippetReferences,
+                            },
+                        },
+                        otherCommentThreadAuthor,
+                    });
+                },
+            },
         },
     },
     sendEventTransaction: (context, readTime, eventTransaction) =>
@@ -553,6 +750,8 @@ const inboxEntryItemTypes = [
     {partitionType: "Inbox", sortRangeType: "ChatEntry"},
     {partitionType: "Inbox", sortRangeType: "PostCommentsEntry"},
     {partitionType: "Inbox", sortRangeType: "ChannelPostsEntry"},
+    {partitionType: "Inbox", sortRangeType: "DocumentCommentThreadEntry"},
+    {partitionType: "Inbox", sortRangeType: "DocumentNewCommentThreadsEntry"},
 ] as const;
 
 type InboxTableTypes = DynamoGeneralRealtimeTableSchemaGetTypes<typeof InboxTable>;
@@ -923,6 +1122,26 @@ function getInboxEntryItemKey({
                 bucketGeneration: key.bucketGeneration,
             };
         }
+        case "DocumentCommentThread": {
+            return {
+                partitionType: "Inbox",
+                sortRangeType: "DocumentCommentThreadEntry",
+                spaceId,
+                accountId,
+                documentId: key.documentId,
+                commentThreadId: key.commentThreadId,
+            };
+        }
+        case "DocumentNewCommentThreads": {
+            return {
+                partitionType: "Inbox",
+                sortRangeType: "DocumentNewCommentThreadsEntry",
+                spaceId,
+                accountId,
+                documentId: key.documentId,
+                bucketGeneration: key.bucketGeneration,
+            };
+        }
         default:
             throw exhaustive(key);
     }
@@ -1124,6 +1343,23 @@ const NotificationCreatePostEventSchema = Schema.object({
     contentSnippet: PostContentSchema,
 });
 
+export type NotificationCreateDocumentCommentEvent = SchemaType<
+    typeof NotificationCreateDocumentCommentEventSchema
+>;
+
+const NotificationCreateDocumentCommentEventSchema = Schema.object({
+    type: Schema.value("CreateDocumentComment"),
+    id: Schema.id<NotificationEventId>(),
+    spaceId: Schema.id<SpaceId>(),
+    documentId: Schema.id<DocumentId>(),
+    commentThreadId: Schema.id<DocumentCommentThreadId>(),
+    commentIndex: Schema.integer,
+    createdTime: Schema.date,
+    authorId: Schema.id<AccountId>(),
+    mentionedAccountIds: Schema.set(Schema.id<ContentMentionAccountId>()),
+    contentSnippet: MessageContentSchema,
+});
+
 // TODO(calebmer): Add message, comment, and post update events in case they add
 // a mention? How should this work?
 export type NotificationEvent = SchemaType<typeof NotificationEventSchema>;
@@ -1132,6 +1368,7 @@ export const NotificationEventSchema = Schema.union({
     CreateChatMessage: NotificationCreateChatMessageEventSchema,
     CreatePostComment: NotificationCreatePostCommentEventSchema,
     CreatePost: NotificationCreatePostEventSchema,
+    CreateDocumentComment: NotificationCreateDocumentCommentEventSchema,
 });
 
 /**
@@ -1185,6 +1422,8 @@ function actuallyProcessNotificationEvent(
             return processNotificationCreatePostCommentEvent(context, event);
         case "CreatePost":
             return processNotificationCreatePostEvent(context, event);
+        case "CreateDocumentComment":
+            return processNotificationCreateDocumentCommentEvent(context, event);
         default:
             throw exhaustive(event);
     }
@@ -1307,9 +1546,11 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
     itemKey: ItemKey,
     update: (
         item: (InboxEntryItem & ItemKey) | null,
-    ) => DistributiveOmit<
-        InboxEntryItem & ItemKey,
-        DistributiveKeyOf<InboxEntryItemKey> | "generation" | "enteredTime"
+    ) => MaybePromise<
+        DistributiveOmit<
+            InboxEntryItem & ItemKey,
+            DistributiveKeyOf<InboxEntryItemKey> | "generation" | "enteredTime"
+        >
     >,
     {initialInboxItemIfExists}: {initialInboxItemIfExists?: InboxAttributesItem | null} = {},
 ): Promise<void> {
@@ -1331,7 +1572,7 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             InboxTable.getItemIfExists(context, itemKey),
         ]);
 
-        const newInboxEntryItemPartial1 = update(oldInboxEntryItem);
+        const newInboxEntryItemPartial1 = await update(oldInboxEntryItem);
 
         assert(
             !newInboxEntryItemPartial1.isArchived ||
@@ -1449,6 +1690,10 @@ function getInboxEntryLatestUpdateTime(
             return entryItem.latestComment?.createdTime ?? entryItem.postCreatedTime;
         case "ChannelPostsEntry":
             return entryItem.latestPost.createdTime;
+        case "DocumentCommentThreadEntry":
+            return entryItem.latestComment.createdTime;
+        case "DocumentNewCommentThreadsEntry":
+            return entryItem.latestCommentThreadCreatedTime;
         default:
             throw exhaustive(entryItem);
     }
@@ -1799,6 +2044,177 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
                 };
             },
             {initialInboxItemIfExists: inboxItem},
+        );
+    },
+});
+
+const processNotificationCreateDocumentCommentEvent = createNotificationEventProcessor<
+    NotificationCreateDocumentCommentEvent,
+    {spaceId: SpaceId}
+>({
+    getSubscribers: async (context, event) => {
+        const {spaceId, accounts} = await getDocumentCommentThreadNotificationSubscribers(context, {
+            documentId: event.documentId,
+            commentThreadId: event.commentThreadId,
+            isFirstComment: event.commentIndex === 0,
+        });
+
+        return {
+            info: {spaceId},
+            accounts,
+        };
+    },
+    updateInboxEntry: async (context, event, {info: {spaceId}, account}) => {
+        const isFirstComment = event.commentIndex === 0;
+
+        // The first comment in a thread (if it doesn't contain a mention of our user)
+        // is batched into a "new comments" inbox entry. This makes it easier for the
+        // document owner to browse new comments.
+        if (isFirstComment && !event.mentionedAccountIds.has(account.id)) {
+            // Don't update a new comment threads entry for the account who authored
+            // the comment.
+            if (event.authorId === account.id) return;
+
+            const inboxItem = await InboxTable.getItemIfExists(context, {
+                partitionType: "Inbox",
+                sortRangeType: "Attributes",
+                spaceId,
+                accountId: account.id,
+            });
+
+            await updateInboxEntry(
+                context,
+                event,
+                {
+                    partitionType: "Inbox",
+                    sortRangeType: "DocumentNewCommentThreadsEntry",
+                    spaceId,
+                    accountId: account.id,
+                    documentId: event.documentId,
+                    bucketGeneration: inboxItem?.generation ?? initialInboxGeneration,
+                },
+                oldItem => {
+                    const commentThreadIds = new Set([
+                        ...(oldItem?.commentThreadIds ?? []),
+                        event.commentThreadId,
+                    ]);
+                    const commentThreadAuthorIds = new Set([
+                        ...(oldItem?.commentThreadAuthorIds ?? []),
+                        event.authorId,
+                    ]);
+
+                    return {
+                        isArchived: false,
+                        loudNotificationCount: 0,
+                        commentThreadIds,
+                        commentThreadAuthorIds,
+                        firstComment: oldItem?.firstComment ?? {
+                            authorId: event.authorId,
+                            createdTime: event.createdTime,
+                            contentSnippet: event.contentSnippet,
+                        },
+                        latestCommentThreadCreatedTime: event.createdTime,
+                    };
+                },
+                {initialInboxItemIfExists: inboxItem},
+            );
+            return;
+        }
+
+        await updateInboxEntry(
+            context,
+            event,
+            {
+                partitionType: "Inbox",
+                sortRangeType: "DocumentCommentThreadEntry",
+                spaceId,
+                accountId: account.id,
+                documentId: event.documentId,
+                commentThreadId: event.commentThreadId,
+            },
+            async oldItem => {
+                // When the user comments on a document comment thread we archive the
+                // corresponding inbox entry. Or if the entry is already archived, we keep it
+                // archived. By sending a comment the user implicitly marks their entry as done.
+                //
+                // If the events were received out-of-order we keep the last archive state
+                // of the entry.
+                const isArchived =
+                    !oldItem?.latestComment || event.commentIndex > oldItem.latestComment.index
+                        ? account.id === event.authorId
+                        : oldItem.isArchived;
+
+                let loudNotificationCount;
+                if (isArchived) {
+                    loudNotificationCount = 0;
+                } else {
+                    // We increment the loud notification count only if someone is explicitly
+                    // trying to get your attention by mentioning your account. Otherwise, we
+                    // expect users will respond to new post comments in their own time.
+                    const shouldIncrementLoudNotificationCount = event.mentionedAccountIds.has(
+                        account.id,
+                    );
+
+                    loudNotificationCount =
+                        (oldItem?.loudNotificationCount ?? 0) +
+                        (shouldIncrementLoudNotificationCount ? 1 : 0);
+                }
+
+                let latestComment: {
+                    index: number;
+                    authorId: AccountId;
+                    createdTime: Date;
+                    contentSnippet: MessageContent;
+                };
+                let otherCommentAuthorId: AccountId | null;
+
+                // Our events may arrive out-of-order. If we have an earlier message index then
+                // what's in the entry's latest message then don't bother updating the latest
+                // message.
+                if (oldItem?.latestComment && oldItem.latestComment.index > event.commentIndex) {
+                    latestComment = oldItem.latestComment;
+                    otherCommentAuthorId = oldItem.otherCommentAuthorId;
+                } else {
+                    latestComment = {
+                        index: event.commentIndex,
+                        authorId: event.authorId,
+                        createdTime: event.createdTime,
+                        contentSnippet: event.contentSnippet,
+                    };
+
+                    if (!oldItem) {
+                        otherCommentAuthorId = null;
+                    } else {
+                        // If the `latestComment`'s author changed then move the old `latestComment`
+                        // author into `otherCommentAuthorId`. But not if the old `latestComment`
+                        // had our inbox's account as the author.
+                        otherCommentAuthorId =
+                            oldItem.latestComment &&
+                            oldItem.latestComment.authorId !== latestComment.authorId &&
+                            oldItem.latestComment.authorId !== account.id
+                                ? oldItem.latestComment.authorId
+                                : oldItem.otherCommentAuthorId;
+                    }
+                }
+
+                const firstCommentAuthorId =
+                    oldItem?.firstCommentAuthorId ??
+                    (isFirstComment
+                        ? event.authorId
+                        : await getDocumentCommentAuthorId(context, {
+                              documentId: event.documentId,
+                              commentThreadId: event.commentThreadId,
+                              commentIndex: 0,
+                          }));
+
+                return {
+                    isArchived,
+                    loudNotificationCount,
+                    firstCommentAuthorId,
+                    latestComment,
+                    otherCommentAuthorId,
+                };
+            },
         );
     },
 });
