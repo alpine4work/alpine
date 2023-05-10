@@ -1034,8 +1034,14 @@ function PostListView(
                 // sticky. We create a second `<div>` of the same range but rendering the full
                 // post width border. The post comment input is shaped so that when we reach the
                 // bottom of the page the full width border will slide underneath it. Creating
-                // the effect if while scrolling the comment input is a layer on top of the post
+                // the effect of while scrolling the comment input is a layer on top of the post
                 // and when at the bottom of the post the comment input is inline.
+                //
+                // IMPORTANT: This code is very similar to how we render `<DocumentCommentInput>`
+                // in `<DocumentCommentThreadListView>`! If you are updating this code you also
+                // probably want to update `<DocumentCommentThreadListView>`. We don't know what
+                // a good abstraction here is so following the advice "no abstraction is better
+                // than the wrong abstraction".
                 case "PostCommentInput": {
                     const replyingToPostCommentIndex = replyingToPostCommentIndexByPostId.get(
                         item.post.id,
@@ -1420,6 +1426,7 @@ function PostListView(
                         },
                     };
                 }
+
                 // NOTE(calebmer, 2023-02-10): We render 3 shimmers before the spinner to
                 // create some space to scroll and more directly imply to the user that there
                 // is more content to be loaded. Sometimes we may only load 1 post and so the

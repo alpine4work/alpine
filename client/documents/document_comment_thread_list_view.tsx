@@ -597,6 +597,7 @@ function DocumentCommentThreadListView(
                         ),
                     };
                 }
+
                 case "DocumentComment": {
                     const renderedItem = renderMessageListItem<
                         DocumentCommentRoomKey,
@@ -679,6 +680,24 @@ function DocumentCommentThreadListView(
                                 : renderedItem.renderAdditionalItemIndexes,
                     };
                 }
+
+                // The document comment thread input item sticks to the bottom of the screen
+                // while the associated comment thread is visible. Whenever any item in the
+                // comment thread is rendered we also additionally render this input
+                // (`renderAdditionalItemIndexes`) so that virtualization doesn't remove it.
+                //
+                // We create a `<div>` that spans the bottom of the document preview to the end
+                // of the entire thread. This is the range in which our comment input will be
+                // sticky. We create a second `<div>` of the same range but rendering the full
+                // thread width border. The comment input is shaped so that when we reach the
+                // bottom of the page the full width border will slide underneath it. Creating
+                // the effect of while scrolling the comment input is a layer on top of the thread
+                // and when at the bottom of the thread the comment input is inline.
+                //
+                // IMPORTANT: This code is very similar to how we render `<PostCommentInput>`
+                // in `<PostListView>`! If you are updating this code you also probably want to
+                // update `<PostListView>`. We don't know what a good abstraction here is so
+                // following the advice "no abstraction is better than the wrong abstraction".
                 case "DocumentCommentInput": {
                     const replyingToCommentIndex = replyingToCommentIndexByCommentThreadId.get(
                         item.commentThread.id,
