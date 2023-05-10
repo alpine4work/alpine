@@ -743,7 +743,7 @@ function DocumentCommentThreadListView(
                             procedures={procedures}
                             subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
                             marginX={messageViewMarginX}
-                            withoutBorderTop={true}
+                            isStickyPositioned={true}
                         />
                     );
 

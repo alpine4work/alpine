@@ -34,7 +34,7 @@ export function PostCommentInput({
     replyingToPostComment,
     onClearReplyingToPostComment,
     onJumpToPostComment,
-    withoutBorderTop,
+    isStickyPositioned,
 }: {
     post: PostModel;
     viewRef: RefObject<VirtualizedScrollViewRef>;
@@ -47,7 +47,7 @@ export function PostCommentInput({
     replyingToPostComment: PostCommentModel | null;
     onClearReplyingToPostComment: () => void;
     onJumpToPostComment: (postComment: PostCommentModel) => void;
-    withoutBorderTop?: boolean;
+    isStickyPositioned?: boolean;
 }) {
     const context = useAppContext();
 
@@ -136,7 +136,7 @@ export function PostCommentInput({
             },
             [post.id],
         ),
-        stickyInputHeight: postCommentInputMinHeight,
+        stickyInputHeight: isStickyPositioned ? postCommentInputMinHeight : undefined,
     });
 
     return (
@@ -179,7 +179,7 @@ export function PostCommentInput({
                             .logUncaughtException("Couldn't update typing indicator", error),
                     );
             }}
-            withoutBorderTop={withoutBorderTop}
+            withoutBorderTop={isStickyPositioned}
         />
     );
 }

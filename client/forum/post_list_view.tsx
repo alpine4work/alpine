@@ -1082,7 +1082,7 @@ function PostListView(
                                 );
                             }}
                             onJumpToPostComment={handleJumpToPostComment}
-                            withoutBorderTop={true}
+                            isStickyPositioned={true}
                         />
                     );
 

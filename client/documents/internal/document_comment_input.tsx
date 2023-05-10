@@ -34,7 +34,7 @@ export function DocumentCommentInput({
     procedures,
     subscribeToCommentThreadEvents,
     marginX,
-    withoutBorderTop,
+    isStickyPositioned,
 }: {
     viewRef: RefObject<VirtualizedScrollViewRef>;
     commentThread: DocumentCommentThreadModel;
@@ -50,7 +50,7 @@ export function DocumentCommentInput({
     procedures: MemoObject<DocumentContentEditorWebSocketClientProcedures>;
     subscribeToCommentThreadEvents: SubscribeToCommentThreadEventsFunction;
     marginX?: Spacing;
-    withoutBorderTop?: boolean;
+    isStickyPositioned?: boolean;
 }) {
     const context = useAppContext();
 
@@ -103,6 +103,7 @@ export function DocumentCommentInput({
         getItemKey: useCallback((item: MessageListItem<DocumentCommentModel>) => {
             return getMessageListItemKey(item);
         }, []),
+        stickyInputHeight: isStickyPositioned ? documentCommentInputMinHeight : undefined,
     });
 
     return (
@@ -146,7 +147,7 @@ export function DocumentCommentInput({
                     );
             }}
             marginX={marginX}
-            withoutBorderTop={withoutBorderTop}
+            withoutBorderTop={isStickyPositioned}
         />
     );
 }
