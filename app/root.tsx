@@ -35,7 +35,10 @@ import {useStableValue} from "~/client/helpers/use_stable_value";
 import {ClientInfoContextProvider, defaultClientInfo} from "~/client/remix/client_info_context";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema";
 import {IsMobileContextProvider} from "~/client/remix/use_is_mobile";
-import {WaitForNavigationContextProvider} from "~/client/remix/use_navigate";
+import {
+    RootNavigationContextProvider,
+    WaitForNavigationContextProvider,
+} from "~/client/remix/use_navigate";
 import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
@@ -195,15 +198,17 @@ export default function Root({error}: {error?: unknown}) {
                             <AppInitialRenderContextProvider>
                                 <IsMobileContextProvider>
                                     <WaitForNavigationContextProvider>
-                                        <GlobalKeyDownRootContextProvider>
-                                            <OverlayScopeContextProvider>
-                                                <TooltipCoordinationContextProvider>
-                                                    <ToastContextProvider>
-                                                        {children}
-                                                    </ToastContextProvider>
-                                                </TooltipCoordinationContextProvider>
-                                            </OverlayScopeContextProvider>
-                                        </GlobalKeyDownRootContextProvider>
+                                        <RootNavigationContextProvider>
+                                            <GlobalKeyDownRootContextProvider>
+                                                <OverlayScopeContextProvider>
+                                                    <TooltipCoordinationContextProvider>
+                                                        <ToastContextProvider>
+                                                            {children}
+                                                        </ToastContextProvider>
+                                                    </TooltipCoordinationContextProvider>
+                                                </OverlayScopeContextProvider>
+                                            </GlobalKeyDownRootContextProvider>
+                                        </RootNavigationContextProvider>
                                     </WaitForNavigationContextProvider>
                                 </IsMobileContextProvider>
                             </AppInitialRenderContextProvider>

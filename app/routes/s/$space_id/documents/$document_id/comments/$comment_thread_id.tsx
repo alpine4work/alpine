@@ -1,10 +1,12 @@
 import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name";
+import {useShowToast} from "~/client/design/toast";
 import {DocumentCommentThreadListView} from "~/client/documents/document_comment_thread_list_view";
 import {useDocumentContentEditorWebSocket} from "~/client/documents/use_document_content_editor_web_socket";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {createMetaFunction} from "~/client/remix/create_meta_function";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
+import {useRootNavigate} from "~/client/remix/use_navigate";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
 import {
     getDocument,
@@ -58,8 +60,14 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {commentThread}}) =
     };
 });
 
-// NOCOMMIT: Mobile peek layout
-export default function DocumentCommentThreadRoute() {
+export default function DocumentCommentThreadRoute({
+    withMobileLayout,
+}: {
+    withMobileLayout?: boolean;
+}) {
+    const rootNavigate = useRootNavigate();
+    const showToast = useShowToast();
+
     const {
         document: initialDocument,
         commentThread,
@@ -78,7 +86,21 @@ export default function DocumentCommentThreadRoute() {
             procedures={procedures}
             subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
             onCommentThreadSnippetPress={useEvent(() => {
-                // NOCOMMIT
+                // Navigate the root of our app so we don't:
+                //
+                // - Open in a peek; OR
+                // - Navigate the peek we are rendered in
+                //
+                // TODO(calebmer): Some global loading indicator?
+                rootNavigate(
+                    `/s/${initialDocument.spaceId}/documents/${initialDocument.id}?comments=${commentThread.id}`,
+                ).catch(error => {
+                    showToast({
+                        type: "Error",
+                        title: "Can’t open document",
+                        error,
+                    });
+                });
             })}
             initialCommentThreadsResult={{
                 commentThread,
@@ -86,6 +108,7 @@ export default function DocumentCommentThreadRoute() {
                 otherReferencedComments: initialOtherReferencedComments,
                 optimisticComments: [],
             }}
+            withMobileLayout={withMobileLayout}
         />
     );
 }

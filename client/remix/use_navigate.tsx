@@ -79,7 +79,7 @@ function useNavigateWithJestFallback() {
     }
 }
 
-function unsupportedNavigateForTest() {
+function unsupportedNavigateForTest(): never {
     throw new UnimplementedError(
         "Can't navigate in Jest unit tests without a `<Router>` component and a `<WaitForNavigationContext>` component",
     );
@@ -169,5 +169,33 @@ export function NavigationEventContextProvider({
         >
             {children}
         </NavigationEventContext.Provider>
+    );
+}
+
+const RootNavigationContext = createContext<Memo<NavigateFunction> | null>(null);
+
+/**
+ * Use the root `navigate()` function. Ignores any
+ * `<NavigationEventContextProvider>`s and `<PeekRemixEmbed>` navigation
+ * listeners.
+ */
+export function useRootNavigate(): Memo<NavigateFunction> {
+    const navigate = useContext(RootNavigationContext);
+
+    if (navigate === null && typeof jest === "undefined")
+        throw new InternalError(
+            "Must render in a `<RootNavigationContextProvider>` to use this navigation function",
+        );
+
+    return navigate ?? (unsupportedNavigateForTest as any as Memo<NavigateFunction>);
+}
+
+export function RootNavigationContextProvider({children}: {children?: ReactNode}) {
+    if (useContext(RootNavigationContext))
+        throw new InternalError("Can't nest `<RootNavigationContextProvider>` components");
+
+    const navigate = useNavigate();
+    return (
+        <RootNavigationContext.Provider value={navigate}>{children}</RootNavigationContext.Provider>
     );
 }
