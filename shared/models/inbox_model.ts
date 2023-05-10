@@ -197,8 +197,7 @@ export class InboxDocumentCommentThreadEntryModel
     }
 
     public getPath(): To {
-        // NOCOMMIT
-        return "/s/ywcffewdn377x442nkxd5x41r0/notifications/channel-posts/qk8jepk9epmb48b3fbaykw4vk0-1490";
+        return `/s/${this.spaceId}/documents/${this.document.id}/comments/${this.commentThreadId}`;
     }
 }
 

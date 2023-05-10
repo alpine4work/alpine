@@ -2,7 +2,9 @@ import {
     Memo,
     MutableRefObject,
     ReactElement,
+    ReactNode,
     Ref,
+    cloneElement,
     forwardRef,
     useCallback,
     useEffect,
@@ -683,6 +685,7 @@ export function renderMessageListItem<
     roomDisplayedCreatedTime,
     shouldAddMarginTop = index === 0,
     marginX,
+    render: customRender,
 }: {
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
@@ -699,6 +702,7 @@ export function renderMessageListItem<
     roomDisplayedCreatedTime?: Date | undefined;
     shouldAddMarginTop?: boolean;
     marginX?: Spacing;
+    render?: (node: ReactNode) => ReactElement;
 }): VirtualizedScrollViewItem {
     switch (item.type) {
         case "Loaded":
@@ -785,37 +789,66 @@ export function renderMessageListItem<
                         : `UnloadedMessage:${item.messageIndex}`,
                 minHeight: messageViewMinHeight,
                 withManualLayout: true,
-                render: ({ref, shouldRenderWithRelativePositioning, offset, isScrolling}) => (
-                    <div
-                        ref={ref}
-                        style={{
-                            minHeight: messageViewMinHeight,
-                            ...(shouldRenderWithRelativePositioning
-                                ? {position: "relative"}
-                                : {
-                                      position: "absolute",
-                                      top: offset,
-                                      left: 0,
-                                      right: 0,
-                                  }),
-                        }}
-                    >
-                        {shouldAddMarginTop && <Spacer space={messageViewMarginY} />}
-                        {render(isScrolling)}
-                    </div>
-                ),
+                render: ({ref, shouldRenderWithRelativePositioning, offset, isScrolling}) => {
+                    if (!customRender) {
+                        return (
+                            <div
+                                ref={ref}
+                                style={{
+                                    minHeight: messageViewMinHeight,
+                                    ...(shouldRenderWithRelativePositioning
+                                        ? {position: "relative"}
+                                        : {
+                                              position: "absolute",
+                                              top: offset,
+                                              left: 0,
+                                              right: 0,
+                                          }),
+                                }}
+                            >
+                                {shouldAddMarginTop && <Spacer space={messageViewMarginY} />}
+                                {render(isScrolling)}
+                            </div>
+                        );
+                    } else {
+                        const node = customRender(
+                            <>
+                                {shouldAddMarginTop && <Spacer space={messageViewMarginY} />}
+                                {render(isScrolling)}
+                            </>,
+                        );
+
+                        return cloneElement(node, {
+                            ref,
+                            style: {
+                                ...node.props.style,
+                                minHeight: messageViewMinHeight,
+                                ...(shouldRenderWithRelativePositioning
+                                    ? {position: "relative"}
+                                    : {
+                                          position: "absolute",
+                                          top: offset,
+                                          left: 0,
+                                          right: 0,
+                                      }),
+                            },
+                        });
+                    }
+                },
             };
         }
         case "TypingIndicators": {
+            const node = (
+                <MessagingTypingIndicators
+                    typingStateByConnectionId={item.typingStateByConnectionId}
+                    marginX={marginX}
+                />
+            );
+
             return {
                 key: "TypingIndicators",
                 minHeight: messagingTypingIndicatorsMinHeight,
-                node: (
-                    <MessagingTypingIndicators
-                        typingStateByConnectionId={item.typingStateByConnectionId}
-                        marginX={marginX}
-                    />
-                ),
+                node: customRender ? customRender(node) : node,
             };
         }
         default:

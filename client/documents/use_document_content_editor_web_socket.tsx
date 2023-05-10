@@ -11,14 +11,9 @@ import {useStore} from "~/client/helpers/store/use_store";
 import {MemoObject} from "~/client/helpers/types/memo_object";
 import {DocumentContent} from "~/shared/content/document_content_schema";
 import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_protocol";
-import {assert} from "~/shared/helpers/control/assert";
 import {Lazy} from "~/shared/helpers/control/lazy";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
-import {
-    DocumentCommentThreadId,
-    DocumentId,
-    WebSocketConnectionId,
-} from "~/shared/id/types/id_types";
+import {DocumentCommentThreadId, WebSocketConnectionId} from "~/shared/id/types/id_types";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol";
 import {
     DocumentCommentModel,
@@ -34,21 +29,12 @@ export type SubscribeToCommentThreadEventsFunction = Memo<
 >;
 
 /**
- * Setup a WebSocket connection to the document collaboration service. If we
- * are in the document route then we'll have a shared WebSocket client in
- * context to use.
+ * Setup a WebSocket connection to the document collaboration service.
  *
  * We expect that you'll load the document on the server and provide an
- * `initialDocument` prop. However when opening a peek on top of a document the
- * document is already loaded so shouldn't need to be loaded again. In this
- * case `initialDocument` will be null. In the edge case that the document
- * hasn't loaded at all yet then when we connect to our WebSocket it will
- * return the full document.
+ * `initialDocument` prop.
  */
-export function useDocumentContentEditorWebSocket(
-    documentId: DocumentId,
-    initialDocument: DocumentModel,
-): {
+export function useDocumentContentEditorWebSocket(initialDocument: DocumentModel): {
     isConnected: boolean;
     editorState: ContentEditorState<DocumentContentWithReferences>;
     onChangeEditorState: Memo<
@@ -67,8 +53,6 @@ export function useDocumentContentEditorWebSocket(
     procedures: MemoObject<DocumentContentEditorWebSocketClientProcedures>;
     subscribeToCommentThreadEvents: SubscribeToCommentThreadEventsFunction;
 } {
-    assert(!initialDocument || documentId === initialDocument.id);
-
     const context = useAppContext();
     const contextRef = useRef(context);
     useLayoutEffectWithoutServerSideWarning(() => {
@@ -80,7 +64,7 @@ export function useDocumentContentEditorWebSocket(
     });
 
     // Re-initialize state if the `DocumentId` changes.
-    if (client.documentId !== documentId) {
+    if (client.documentId !== initialDocument.id) {
         setClient(() => {
             return new DocumentContentEditorWebSocketClient(
                 () => contextRef.current,

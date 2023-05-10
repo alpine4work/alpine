@@ -149,7 +149,7 @@ function PostListView(
         initialPostsResult,
         onLoadMorePosts,
         aside,
-        withMobileLayout = false,
+        withMobileLayout: _withMobileLayout = false,
     }: {
         /**
          * If this post list is rendering a channel, you may provide this prop and we
@@ -221,15 +221,15 @@ function PostListView(
     },
     ref: Ref<PostListViewRef>,
 ) {
-    if (withMobileLayout) {
+    if (_withMobileLayout) {
         assert(
             !aside,
             "Can't set both `withMobileLayout` and `aside` props since `aside` can't be rendered in a mobile layout",
         );
     }
 
-    const isActuallyMobile = useIsMobile();
-    const isMobile = isActuallyMobile || withMobileLayout;
+    const isMobile = useIsMobile();
+    const withMobileLayout = isMobile || _withMobileLayout;
 
     const context = useAppContext();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
@@ -245,8 +245,8 @@ function PostListView(
         asideBufferedHeight: 0,
     });
 
-    const hasAside = !isMobile && !!aside;
-    const hasMargin = !isMobile || hasAside;
+    const hasAside = !withMobileLayout && !!aside;
+    const hasMargin = !withMobileLayout || hasAside;
 
     const [postsWithoutChannelHeader, setPosts] = useState(() => {
         let posts: PostList;
@@ -275,8 +275,8 @@ function PostListView(
     // Always pin the post comment input to the bottom of the list view on mobile
     // layout of a single post. We use a heuristic of one post with always open
     // comments to determine if we're in a single post context.
-    const isSingleMobilePostWithPinnedCommentInput =
-        isMobile &&
+    const isSingleMobileLayoutPostWithPinnedCommentInput =
+        withMobileLayout &&
         posts.getPostCount() === 1 &&
         posts.getLastPostContentItemIfExists()?.postCommentsState === "AlwaysOpen";
 
@@ -769,7 +769,7 @@ function PostListView(
                         ),
                         renderAdditionalItemIndexes:
                             item.postCommentInputItemIndex !== null &&
-                            !isSingleMobilePostWithPinnedCommentInput
+                            !isSingleMobileLayoutPostWithPinnedCommentInput
                                 ? [item.postCommentInputItemIndex]
                                 : undefined,
                     };
@@ -943,7 +943,7 @@ function PostListView(
                                 ? `PostComment:${item.post.id}:${item.postCommentIndex}`
                                 : `UnloadedPostComment:${item.post.id}:${item.postCommentIndex}`,
                         minHeight: messageViewMinHeight,
-                        renderAdditionalItemIndexes: !isSingleMobilePostWithPinnedCommentInput
+                        renderAdditionalItemIndexes: !isSingleMobileLayoutPostWithPinnedCommentInput
                             ? [item.postCommentInputItemIndex]
                             : [],
                         withManualLayout: true,
@@ -1489,7 +1489,7 @@ function PostListView(
             hasMargin,
             hasAside,
             channelHeader?.channel.id,
-            isSingleMobilePostWithPinnedCommentInput,
+            isSingleMobileLayoutPostWithPinnedCommentInput,
             loadInitialPostComments,
             messageEditing,
             highlightPostComment,
@@ -1510,7 +1510,7 @@ function PostListView(
                     position: "relative",
                     display: "flex",
                     flexDirection: "column",
-                    backgroundColor: isSingleMobilePostWithPinnedCommentInput
+                    backgroundColor: isSingleMobileLayoutPostWithPinnedCommentInput
                         ? "grey-0"
                         : undefined,
                 })}
@@ -1521,7 +1521,8 @@ function PostListView(
                     itemCount={
                         // Don't render the post comment input (which should be the last item) if we are
                         // pinning the comment input to the bottom of the view.
-                        posts.getItemCount() - (isSingleMobilePostWithPinnedCommentInput ? 1 : 0)
+                        posts.getItemCount() -
+                        (isSingleMobileLayoutPostWithPinnedCommentInput ? 1 : 0)
                     }
                     renderItem={renderItem}
                     onRenderedRangeChange={tryLoadingMoreData}
@@ -1644,7 +1645,7 @@ function PostListView(
                         )
                     }
                 />
-                {isSingleMobilePostWithPinnedCommentInput &&
+                {isSingleMobileLayoutPostWithPinnedCommentInput &&
                     (() => {
                         const lastPostContentItem = assertExists(
                             posts.getLastPostContentItemIfExists(),

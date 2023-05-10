@@ -23,7 +23,7 @@ import {useDocumentContentEditorPhantomSelections} from "~/client/documents/inte
 import {
     SubscribeToCommentThreadEventsFunction,
     useDocumentContentEditorWebSocket,
-} from "~/client/documents/internal/use_document_content_editor_web_socket";
+} from "~/client/documents/use_document_content_editor_web_socket";
 import {isMac} from "~/client/helpers/browser/is_mac";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
@@ -160,7 +160,7 @@ function DocumentContentEditorStateful({
         toggleShouldConnect,
         procedures,
         subscribeToCommentThreadEvents,
-    } = useDocumentContentEditorWebSocket(initialDocument.id, initialDocument);
+    } = useDocumentContentEditorWebSocket(initialDocument);
 
     const phantomSelections = useDocumentContentEditorPhantomSelections({
         editorState,

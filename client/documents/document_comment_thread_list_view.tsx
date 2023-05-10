@@ -12,13 +12,16 @@ import {
 } from "react";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {createDocumentCommentThreadSnippetCollector} from "~/client/documents/internal/create_document_comment_thread_snippet_collector";
-import {DocumentCommentInput} from "~/client/documents/internal/document_comment_input";
+import {
+    DocumentCommentInput,
+    documentCommentInputMinHeight,
+} from "~/client/documents/internal/document_comment_input";
 import {
     DocumentCommentThreadPreview,
     documentCommentThreadPreviewHeight,
 } from "~/client/documents/internal/document_comment_thread_preview";
 import {DocumentContentEditorWebSocketClientProcedures} from "~/client/documents/internal/document_content_editor_web_socket_client";
-import {SubscribeToCommentThreadEventsFunction} from "~/client/documents/internal/use_document_content_editor_web_socket";
+import {SubscribeToCommentThreadEventsFunction} from "~/client/documents/use_document_content_editor_web_socket";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {MemoObject} from "~/client/helpers/types/memo_object";
 import {useStableJsonValue} from "~/client/helpers/use_stable_json_value";
@@ -37,7 +40,7 @@ import {
 } from "~/client/virtualized/virtualized_scroll_view";
 import {VirtualizedTree} from "~/client/virtualized/virtualized_tree";
 import {UncheckedDocumentContentSchema} from "~/shared/content/document_content_schema";
-import {Spacing} from "~/shared/design/spacing";
+import {Spacing, addRemLengths, spacing} from "~/shared/design/spacing";
 import {OutOfRangeError} from "~/shared/error/error";
 import {wait} from "~/shared/helpers/async/wait";
 import {assert} from "~/shared/helpers/control/assert";
@@ -56,6 +59,15 @@ import {
 import {OptimisticMessageModel} from "~/shared/models/message_model";
 import {Schema} from "~/shared/schema/schema";
 import {sprinkles} from "~/shared/styles/styles";
+
+const documentCommentThreadListViewMarginX: Spacing = "4";
+const documentCommentThreadListViewMaxWidth: Spacing = "160";
+
+// We want our Y margin to be the same as our X margin. We want to give items
+// some margin top and some margin bottom so that the shadows don't overflow.
+const documentCommentThreadListViewMarginTop: Spacing = "2";
+const documentCommentThreadListViewMarginBottom: Spacing = "2";
+const documentCommentThreadListViewMarginY: Spacing = "4";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
@@ -91,6 +103,8 @@ type DocumentCommentThreadTreeCommentThreadPreviewItem = {
     readonly type: "DocumentCommentThreadPreview";
     readonly commentThread: DocumentCommentThreadModel;
     readonly comments: MessageList<DocumentCommentModel>;
+    // The index of the `DocumentCommentInput` item in our `VirtualizedTree`.
+    readonly commentInputItemIndex: number;
 };
 
 type DocumentCommentThreadTreeCommentItem = {
@@ -100,12 +114,16 @@ type DocumentCommentThreadTreeCommentItem = {
     // The index of `commentItem` in `comments`.
     readonly commentItemIndex: number;
     readonly commentItem: MessageListItem<DocumentCommentModel>;
+    // The index of the `DocumentCommentInput` item in our `VirtualizedTree`.
+    readonly commentInputItemIndex: number;
 };
 
 type DocumentCommentThreadTreeCommentInputItem = {
     readonly type: "DocumentCommentInput";
     readonly commentThread: DocumentCommentThreadModel;
     readonly comments: MessageList<DocumentCommentModel>;
+    // The index of the `DocumentCommentThreadPreview` item in our `VirtualizedTree`.
+    readonly previewItemIndex: number;
 };
 
 type DocumentCommentThreadTree = VirtualizedTree<
@@ -121,12 +139,13 @@ function createEmptyDocumentCommentThreadTree(): DocumentCommentThreadTree {
     return VirtualizedTree.new({
         getNodeKey: node => node.commentThread.id,
         getNodeItemCount: node => node.comments.getItemCount() + 2,
-        getNodeItem: (node, index): DocumentCommentThreadTreeItem => {
+        getNodeItem: (node, index, startItemIndex): DocumentCommentThreadTreeItem => {
             if (index === 0) {
                 return {
                     type: "DocumentCommentThreadPreview",
                     commentThread: node.commentThread,
                     comments: node.comments,
+                    commentInputItemIndex: startItemIndex + node.comments.getItemCount() + 1,
                 };
             }
 
@@ -139,6 +158,7 @@ function createEmptyDocumentCommentThreadTree(): DocumentCommentThreadTree {
                     comments: node.comments,
                     commentItemIndex: index,
                     commentItem: node.comments.getItem(index),
+                    commentInputItemIndex: startItemIndex + node.comments.getItemCount() + 1,
                 };
             }
 
@@ -149,6 +169,7 @@ function createEmptyDocumentCommentThreadTree(): DocumentCommentThreadTree {
                     type: "DocumentCommentInput",
                     commentThread: node.commentThread,
                     comments: node.comments,
+                    previewItemIndex: startItemIndex,
                 };
             }
 
@@ -181,7 +202,7 @@ function DocumentCommentThreadListView(
         isConnected,
         procedures,
         subscribeToCommentThreadEvents,
-        withMobileLayout = false,
+        withMobileLayout: _withMobileLayout = false,
         messageViewMarginX,
     }: {
         documentId: DocumentId;
@@ -220,8 +241,8 @@ function DocumentCommentThreadListView(
     },
     ref: Ref<DocumentCommentThreadListViewRef>,
 ) {
-    const isActuallyMobile = useIsMobile();
-    const isMobile = isActuallyMobile || withMobileLayout;
+    const isMobile = useIsMobile();
+    const withMobileLayout = isMobile || _withMobileLayout;
 
     const {space} = useSpaceContext();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
@@ -276,7 +297,8 @@ function DocumentCommentThreadListView(
 
     // Always pin the comment input to the bottom of the list view on mobile
     // layout of a single comment thread.
-    const isSingleMobileCommentThreadWithPinnedCommentInput = isMobile && tree.getNodeCount() === 1;
+    const isSingleMobileLayoutCommentThreadWithPinnedCommentInput =
+        withMobileLayout && tree.getNodeCount() === 1;
 
     const isLoadingRef = useRef(false);
     const [errorState, setErrorState] = useState<
@@ -527,23 +549,59 @@ function DocumentCommentThreadListView(
                     // All comment threads should be in the same document.
                     assert(item.commentThread.documentId === documentId);
 
+                    // NOCOMMIT: Header of some kind?
+
                     return {
                         key: `DocumentCommentThreadPreview:${item.commentThread.id}`,
                         minHeight: documentCommentThreadPreviewHeight,
+                        renderAdditionalItemIndexes:
+                            !isSingleMobileLayoutCommentThreadWithPinnedCommentInput
+                                ? [item.commentInputItemIndex]
+                                : [],
                         node: (
-                            <DocumentCommentThreadPreview
-                                commentThread={item.commentThread}
-                                snippet={
-                                    snippetByCommentThreadId.get(item.commentThread.id) ?? null
-                                }
-                                contentReferences={content.references}
-                                onCommentThreadSnippetPress={onCommentThreadSnippetPress}
-                            />
+                            <div
+                                className={sprinkles({
+                                    display: "flex",
+                                    justifyContent: "center",
+                                    paddingX: !withMobileLayout
+                                        ? documentCommentThreadListViewMarginX
+                                        : undefined,
+                                    paddingTop:
+                                        index === 0
+                                            ? !withMobileLayout
+                                                ? documentCommentThreadListViewMarginY
+                                                : "0"
+                                            : documentCommentThreadListViewMarginTop,
+                                })}
+                            >
+                                <div
+                                    className={sprinkles({
+                                        width: "full",
+                                        maxWidth: documentCommentThreadListViewMaxWidth,
+                                        backgroundColor: "grey-0",
+                                        borderTopRadius: !withMobileLayout ? "md" : undefined,
+                                        boxShadow: "elevation-5",
+                                    })}
+                                >
+                                    <DocumentCommentThreadPreview
+                                        commentThread={item.commentThread}
+                                        snippet={
+                                            snippetByCommentThreadId.get(item.commentThread.id) ??
+                                            null
+                                        }
+                                        contentReferences={content.references}
+                                        onCommentThreadSnippetPress={onCommentThreadSnippetPress}
+                                    />
+                                </div>
+                            </div>
                         ),
                     };
                 }
                 case "DocumentComment": {
-                    return renderMessageListItem<DocumentCommentRoomKey, DocumentCommentModel>({
+                    const renderedItem = renderMessageListItem<
+                        DocumentCommentRoomKey,
+                        DocumentCommentModel
+                    >({
                         messageNoun: "comment",
                         messages: item.comments,
                         index: item.commentItemIndex,
@@ -585,15 +643,359 @@ function DocumentCommentThreadListView(
                             );
                         },
                         marginX: messageViewMarginX,
+                        render: node => (
+                            <div
+                                className={sprinkles({
+                                    display: "flex",
+                                    justifyContent: "center",
+                                    overflow: "hidden",
+                                    paddingX: !withMobileLayout
+                                        ? documentCommentThreadListViewMarginX
+                                        : undefined,
+                                })}
+                            >
+                                <div
+                                    className={sprinkles({
+                                        width: "full",
+                                        maxWidth: documentCommentThreadListViewMaxWidth,
+                                        backgroundColor: "grey-0",
+                                        boxShadow: "elevation-5",
+                                    })}
+                                >
+                                    {node}
+                                </div>
+                            </div>
+                        ),
                     });
+
+                    return {
+                        ...renderedItem,
+                        renderAdditionalItemIndexes:
+                            !isSingleMobileLayoutCommentThreadWithPinnedCommentInput
+                                ? [
+                                      ...(renderedItem.renderAdditionalItemIndexes ?? []),
+                                      item.commentInputItemIndex,
+                                  ]
+                                : renderedItem.renderAdditionalItemIndexes,
+                    };
                 }
                 case "DocumentCommentInput": {
-                    // TODO(calebmer): Implement when we have a surface that renders multiple
-                    // comment threads.
+                    const replyingToCommentIndex = replyingToCommentIndexByCommentThreadId.get(
+                        item.commentThread.id,
+                    );
+                    const replyingToComment =
+                        replyingToCommentIndex !== undefined
+                            ? item.comments.getLoadedMessageIfExists(replyingToCommentIndex)
+                            : null;
+
+                    // This is defined out here so that it doesn't re-rerender every time the
+                    // `render()` function is called since it's referentially stable.
+                    const inputNode = (
+                        <DocumentCommentInput
+                            viewRef={viewRef}
+                            commentThread={item.commentThread}
+                            comments={item.comments}
+                            onUpdateComments={update =>
+                                setTree(tree =>
+                                    tree.updateNode(item.commentThread.id, node => {
+                                        const newComments = update(node.comments);
+                                        if (newComments === node.comments) return node;
+                                        return {...node, comments: newComments};
+                                    }),
+                                )
+                            }
+                            messageEditing={messageEditing}
+                            replyingToComment={replyingToComment}
+                            onClearReplyingToComment={() => {
+                                setReplyingToCommentIndexByCommentThreadId(
+                                    replyingToCommentIndexByCommentThreadId => {
+                                        const newReplyingToCommentIndexByCommentThreadId = new Map(
+                                            replyingToCommentIndexByCommentThreadId,
+                                        );
+                                        newReplyingToCommentIndexByCommentThreadId.delete(
+                                            item.commentThread.id,
+                                        );
+                                        return newReplyingToCommentIndexByCommentThreadId;
+                                    },
+                                );
+                            }}
+                            onJumpToComment={handleJumpToComment}
+                            isConnected={isConnected}
+                            procedures={procedures}
+                            subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
+                            marginX={messageViewMarginX}
+                            withoutBorderTop={true}
+                        />
+                    );
+
+                    const marginBottom =
+                        index === tree.getItemCount() - 1
+                            ? !withMobileLayout
+                                ? documentCommentThreadListViewMarginY
+                                : "0"
+                            : documentCommentThreadListViewMarginBottom;
+
                     return {
                         key: `DocumentCommentInput:${item.commentThread.id}`,
-                        minHeight: 50,
-                        node: null,
+                        minHeight: addRemLengths(
+                            documentCommentInputMinHeight,
+                            spacing[marginBottom],
+                        ),
+                        withManualLayout: true,
+                        stayCompletelyVisibleAfterResize: true,
+                        render: ({
+                            ref,
+                            offset,
+                            height,
+                            shouldRenderWithRelativePositioning,
+                            getPositionByIndex,
+                        }) => {
+                            const previewPosition = getPositionByIndex(item.previewItemIndex);
+
+                            const previewOffsetEnd =
+                                previewPosition.offset + previewPosition.height - 1;
+
+                            return (
+                                <>
+                                    {!shouldRenderWithRelativePositioning && (
+                                        <div
+                                            style={{
+                                                position: "absolute",
+                                                top: offset,
+                                                left: 0,
+                                                right: 0,
+                                            }}
+                                        >
+                                            <div
+                                                className={sprinkles({
+                                                    display: "flex",
+                                                    justifyContent: "center",
+                                                    overflow: "hidden",
+                                                    paddingX: !withMobileLayout
+                                                        ? documentCommentThreadListViewMarginX
+                                                        : undefined,
+                                                    paddingBottom: marginBottom,
+                                                })}
+                                                style={{height}}
+                                            >
+                                                <div
+                                                    className={sprinkles({
+                                                        width: "full",
+                                                        height: "full",
+                                                        maxWidth:
+                                                            documentCommentThreadListViewMaxWidth,
+                                                        paddingX: "5",
+                                                        backgroundColor: "grey-0",
+                                                        borderBottomRadius: !withMobileLayout
+                                                            ? "md"
+                                                            : undefined,
+                                                        boxShadow: "elevation-5",
+                                                    })}
+                                                >
+                                                    <div
+                                                        className={sprinkles({
+                                                            width: "full",
+                                                            borderTop: "grey-5",
+                                                        })}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div
+                                        style={{
+                                            pointerEvents: "none",
+                                            display: "flex",
+                                            justifyContent: "center",
+                                            alignItems: "flex-end",
+                                            zIndex: "20",
+                                            ...(!shouldRenderWithRelativePositioning
+                                                ? {
+                                                      position: "absolute",
+                                                      top: previewOffsetEnd,
+                                                      left: "0",
+                                                      right: "0",
+                                                      height: offset - previewOffsetEnd + height,
+                                                  }
+                                                : {
+                                                      position: "relative",
+                                                  }),
+                                        }}
+                                    >
+                                        <div
+                                            ref={ref}
+                                            style={{
+                                                ...(!shouldRenderWithRelativePositioning && {
+                                                    position: "sticky",
+                                                    bottom: `-${spacing[marginBottom]}`,
+                                                }),
+                                            }}
+                                            className={sprinkles({
+                                                width: "full",
+                                                display: "flex",
+                                                justifyContent: "center",
+                                                overflowX: "hidden",
+                                                paddingX: !withMobileLayout
+                                                    ? documentCommentThreadListViewMarginX
+                                                    : undefined,
+                                                paddingBottom: marginBottom,
+                                            })}
+                                        >
+                                            <div
+                                                className={sprinkles({
+                                                    width: "full",
+                                                    maxWidth: documentCommentThreadListViewMaxWidth,
+                                                    position: "relative",
+                                                    display: "flex",
+                                                    pointerEvents: "auto",
+                                                    ...(shouldRenderWithRelativePositioning && {
+                                                        // When absolutely positioned we render an element underneath this one at the
+                                                        // end of the post so that while sticky scrolling we don't have double shadows.
+                                                        backgroundColor: "grey-0",
+                                                        borderBottomRadius: !withMobileLayout
+                                                            ? "md"
+                                                            : undefined,
+                                                        boxShadow: "elevation-5",
+                                                    }),
+                                                })}
+                                                style={{
+                                                    // Allow full-width top border to be visible until it slides under.
+                                                    paddingTop: 1,
+                                                }}
+                                            >
+                                                {shouldRenderWithRelativePositioning && (
+                                                    <div
+                                                        className={sprinkles({
+                                                            position: "absolute",
+                                                            top: "0",
+                                                            left: "5",
+                                                            right: "5",
+                                                            borderTop: "grey-5",
+                                                        })}
+                                                    />
+                                                )}
+                                                <div
+                                                    className={sprinkles({
+                                                        flexGrow: "1",
+                                                        overflowX: "hidden",
+                                                        // Full-width border will be hidden under this background.
+                                                        backgroundColor: "grey-0",
+                                                        borderBottomRadius: !withMobileLayout
+                                                            ? "md"
+                                                            : undefined,
+                                                    })}
+                                                >
+                                                    {inputNode}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {!shouldRenderWithRelativePositioning && (
+                                        <>
+                                            <div
+                                                // Render a white backdrop below the entire post so that when the user is jump
+                                                // scrolling we don't have the pinned comment input and the wash
+                                                // background color.
+                                                className={sprinkles({
+                                                    position: "absolute",
+                                                    left: "0",
+                                                    right: "0",
+                                                    display: "flex",
+                                                    justifyContent: "center",
+                                                    zIndex: "-10",
+                                                    paddingX: !withMobileLayout
+                                                        ? documentCommentThreadListViewMarginX
+                                                        : undefined,
+                                                    overflowX: "hidden",
+                                                })}
+                                                style={{
+                                                    top: `calc(${
+                                                        previewOffsetEnd -
+                                                        previewPosition.height +
+                                                        1
+                                                    }px + ${
+                                                        item.previewItemIndex === 0
+                                                            ? spacing[
+                                                                  documentCommentThreadListViewMarginY
+                                                              ]
+                                                            : spacing[
+                                                                  documentCommentThreadListViewMarginTop
+                                                              ]
+                                                    })`,
+                                                    height: `calc(${
+                                                        offset -
+                                                        previewOffsetEnd +
+                                                        previewPosition.height
+                                                    }px - ${
+                                                        item.previewItemIndex === 0
+                                                            ? spacing[
+                                                                  documentCommentThreadListViewMarginY
+                                                              ]
+                                                            : spacing[
+                                                                  documentCommentThreadListViewMarginTop
+                                                              ]
+                                                    })`,
+                                                }}
+                                            >
+                                                <div
+                                                    className={sprinkles({
+                                                        width: "full",
+                                                        height: "full",
+                                                        maxWidth:
+                                                            documentCommentThreadListViewMaxWidth,
+                                                        backgroundColor: "grey-0",
+                                                        borderTopRadius: !withMobileLayout
+                                                            ? "md"
+                                                            : undefined,
+                                                    })}
+                                                />
+                                            </div>
+                                            <div
+                                                style={{
+                                                    position: "absolute",
+                                                    top: previewOffsetEnd,
+                                                    left: "0",
+                                                    right: "0",
+                                                    height: offset - previewOffsetEnd + height + 1,
+                                                    pointerEvents: "none",
+                                                    display: "flex",
+                                                    justifyContent: "center",
+                                                    alignItems: "flex-end",
+                                                    zIndex: "10",
+                                                }}
+                                            >
+                                                <div
+                                                    style={{
+                                                        position: "sticky",
+                                                        bottom: `-${spacing[marginBottom]}`,
+                                                        height,
+                                                    }}
+                                                    className={sprinkles({
+                                                        width: "full",
+                                                        display: "flex",
+                                                        justifyContent: "center",
+                                                        paddingBottom: marginBottom,
+                                                        paddingX: !withMobileLayout
+                                                            ? documentCommentThreadListViewMarginX
+                                                            : undefined,
+                                                        overflowX: "hidden",
+                                                    })}
+                                                >
+                                                    <div
+                                                        className={sprinkles({
+                                                            width: "full",
+                                                            maxWidth:
+                                                                documentCommentThreadListViewMaxWidth,
+                                                            borderTop: "grey-10",
+                                                        })}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+                                </>
+                            );
+                        },
                     };
                 }
                 default:
@@ -603,6 +1005,8 @@ function DocumentCommentThreadListView(
         [
             tree,
             documentId,
+            isSingleMobileLayoutCommentThreadWithPinnedCommentInput,
+            withMobileLayout,
             snippetByCommentThreadId,
             content.references,
             onCommentThreadSnippetPress,
@@ -612,6 +1016,9 @@ function DocumentCommentThreadListView(
             messageViewMarginX,
             procedures,
             space.id,
+            replyingToCommentIndexByCommentThreadId,
+            isConnected,
+            subscribeToCommentThreadEvents,
         ],
     );
 
@@ -626,7 +1033,7 @@ function DocumentCommentThreadListView(
                     position: "relative",
                     display: "flex",
                     flexDirection: "column",
-                    backgroundColor: isSingleMobileCommentThreadWithPinnedCommentInput
+                    backgroundColor: isSingleMobileLayoutCommentThreadWithPinnedCommentInput
                         ? "grey-0"
                         : undefined,
                 })}
@@ -638,12 +1045,12 @@ function DocumentCommentThreadListView(
                         // Don't render the comment input (which should be the last item) if we are
                         // pinning the comment input to the bottom of the view.
                         tree.getItemCount() -
-                        (isSingleMobileCommentThreadWithPinnedCommentInput ? 1 : 0)
+                        (isSingleMobileLayoutCommentThreadWithPinnedCommentInput ? 1 : 0)
                     }
                     renderItem={renderItem}
                     onRenderedRangeChange={tryLoadingMoreData}
                 />
-                {isSingleMobileCommentThreadWithPinnedCommentInput &&
+                {isSingleMobileLayoutCommentThreadWithPinnedCommentInput &&
                     (() => {
                         const item = tree.getItem(tree.getItemCount() - 1);
                         assert(item.type === "DocumentCommentInput");
