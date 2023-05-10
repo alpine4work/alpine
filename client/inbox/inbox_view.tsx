@@ -181,30 +181,23 @@ export function InboxView({
         [peekState.activePeek, query],
     );
 
-    const deleteActiveEntryOptimistically = useEvent(
-        (promise: Promise<unknown>, {withAnimation}: {withAnimation: boolean}) => {
-            if (!activeEntry) return;
-
-            updateQueryOptimistically(promise, {withAnimation}, query =>
-                query.deleteItemByKeyIfExistsAtVersion(
-                    activeEntry.item.key,
-                    activeEntry.item.version,
-                ),
-            );
+    const deleteEntryOptimistically = useEvent(
+        ({
+            promise,
+            entry,
+            withAnimation,
+        }: {
+            promise: Promise<unknown>;
+            entry: DynamoGeneralRealtimeItem<InboxEntryModel>;
+            withAnimation: boolean;
+        }) => {
+            updateQueryOptimistically({
+                promise,
+                withAnimation,
+                update: query => query.deleteItemByKeyIfExistsAtVersion(entry.key, entry.version),
+            });
         },
     );
-
-    const deleteActiveEntryOptimisticallyForPeekContent = useEvent((promise: Promise<unknown>) => {
-        // If we are in the archive tab, then responding to a notification does not
-        // dismiss it.
-        if (filter !== "New") return;
-
-        deleteActiveEntryOptimistically(promise, {
-            // Always animate when deleting from peek content. Since an interaction with
-            // the peek content is indirectly related to the inbox.
-            withAnimation: true,
-        });
-    });
 
     /* ========================================================================== *\
      *                           Inbox entry selection                            *
@@ -395,7 +388,10 @@ export function InboxView({
                 nextEntry={nextEntry}
                 previousEntry={previousEntry}
                 selectEntry={selectEntry}
-                deleteActiveEntryOptimistically={deleteActiveEntryOptimistically}
+                deleteActiveEntryOptimistically={(promise, {withAnimation}) => {
+                    if (!activeEntry) return;
+                    deleteEntryOptimistically({promise, entry: activeEntry.item, withAnimation});
+                }}
             />
             <Box flexGrow="1" overflow="hidden" display="flex">
                 <Box
@@ -426,15 +422,15 @@ export function InboxView({
                                 <InboxViewPeekContent
                                     // Fully remount whenever the peek changes...
                                     key={peekState.activePeek.key}
+                                    filter={filter}
                                     peek={peekState.activePeek}
-                                    deleteActiveEntryOptimistically={
-                                        deleteActiveEntryOptimisticallyForPeekContent
-                                    }
+                                    entry={activeEntry?.item ?? null}
+                                    deleteEntryOptimistically={deleteEntryOptimistically}
                                 />
                             )}
                         </Box>
                     ),
-                    [deleteActiveEntryOptimisticallyForPeekContent, peekState.activePeek],
+                    [activeEntry, deleteEntryOptimistically, filter, peekState.activePeek],
                 )}
             </Box>
         </GlobalKeyDownEvent>
@@ -750,19 +746,66 @@ function InboxViewEntries({
 }
 
 function InboxViewPeekContent({
+    filter,
     peek,
-    deleteActiveEntryOptimistically,
+    entry,
+    deleteEntryOptimistically,
 }: {
+    filter: "New" | "Archive";
     peek: InboxViewPeek;
-    deleteActiveEntryOptimistically: Memo<(promise: Promise<unknown>) => void>;
+    entry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
+    deleteEntryOptimistically: Memo<
+        ({
+            promise,
+            entry,
+            withAnimation,
+        }: {
+            promise: Promise<unknown>;
+            entry: DynamoGeneralRealtimeItem<InboxEntryModel>;
+            withAnimation: boolean;
+        }) => void
+    >;
 }) {
     const loaderDataRefResult = usePromise(peek.loaderDataRefPromise);
+
+    const onCreateMessageOptimistically = useEvent((promise: Promise<unknown>) => {
+        // We may not have an entry if the path in the URL is no longer in the inbox
+        // entries query.
+        if (!entry) return;
+
+        // Only new entries implicitly dismiss on message creation.
+        if (filter !== "New") return;
+
+        let shouldImplicitlyDismissAfterCreateMessage;
+        switch (entry.model.type) {
+            case "Chat":
+            case "PostComments":
+            case "DocumentCommentThread":
+                shouldImplicitlyDismissAfterCreateMessage = true;
+                break;
+            case "ChannelPosts":
+            case "DocumentNewCommentThreads":
+                shouldImplicitlyDismissAfterCreateMessage = false;
+                break;
+            default:
+                throw exhaustive(entry.model);
+        }
+
+        // Only some entries implicitly dismiss after sending a message.
+        if (!shouldImplicitlyDismissAfterCreateMessage) return;
+
+        deleteEntryOptimistically({
+            promise,
+            entry,
+            withAnimation: true,
+        });
+    });
 
     return (
         <Box width="full" height="full" overflow="hidden" display="flex" flexDirection="column">
             {!loaderDataRefResult.isPending ? (
                 <InboxPeekContextProvider
-                    deleteActiveEntryOptimistically={deleteActiveEntryOptimistically}
+                    onCreateMessageOptimistically={onCreateMessageOptimistically}
                 >
                     <PeekRemixEmbed
                         peekId={peek.id}

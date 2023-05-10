@@ -211,13 +211,17 @@ export function useInboxState({
     );
 
     const updateQueryOptimistically = useCallback(
-        (
-            promise: Promise<unknown>,
-            {withAnimation}: {withAnimation: boolean},
+        ({
+            promise,
+            update,
+            withAnimation,
+        }: {
+            promise: Promise<unknown>;
+            withAnimation: boolean;
             update: (
                 query: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
-            ) => DynamoGeneralRealtimeIndexQuery<InboxEntryModel>,
-        ) => {
+            ) => DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;
+        }) => {
             dispatch({
                 type: "OptimisticUpdate",
                 promise,

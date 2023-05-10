@@ -1,7 +1,7 @@
 import {Memo, ReactNode, createContext, useContext, useMemo} from "react";
 
 export type InboxPeekContext = {
-    readonly deleteActiveEntryOptimistically: (promise: Promise<unknown>) => void;
+    readonly onCreateMessageOptimistically: (promise: Promise<unknown>) => void;
 };
 
 const InboxPeekContext = createContext<InboxPeekContext | null>(null);
@@ -11,17 +11,17 @@ export function useInboxPeekContext() {
 }
 
 export function InboxPeekContextProvider({
-    deleteActiveEntryOptimistically,
+    onCreateMessageOptimistically,
     children,
 }: {
-    deleteActiveEntryOptimistically: Memo<(promise: Promise<unknown>) => void>;
+    onCreateMessageOptimistically: Memo<(promise: Promise<unknown>) => void>;
     children?: ReactNode;
 }) {
     return (
         <InboxPeekContext.Provider
             value={useMemo(
-                () => ({deleteActiveEntryOptimistically}),
-                [deleteActiveEntryOptimistically],
+                () => ({onCreateMessageOptimistically}),
+                [onCreateMessageOptimistically],
             )}
         >
             {children}
