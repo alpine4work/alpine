@@ -76,14 +76,14 @@ export const meta: MetaFunction = () => {
     };
 };
 
-// NOCOMMIT: Peek mobile layout
-export default function ChannelPostsRoute() {
+export default function ChannelPostsRoute({withMobileLayout}: {withMobileLayout?: boolean}) {
     const context = useAppContext();
     const {space} = useSpaceContext();
     const {channelId, bucketGeneration, postsResult} = useLoaderDataWithSchema(LoaderSchema);
 
     return (
         <PostListView
+            withMobileLayout={withMobileLayout}
             initialPostsResult={{type: "Many", ...postsResult}}
             onLoadMorePosts={({limit, afterCursor}) => {
                 return getInboxChannelPostsEntryPosts(context, {

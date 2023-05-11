@@ -1,5 +1,17 @@
+import ChannelPostsRoute from "~/app/routes/s/$space_id/notifications/channel-posts/$channel_id_and_bucket_generation";
+
 export {
     loader,
     meta,
-    default,
 } from "~/app/routes/s/$space_id/notifications/channel-posts/$channel_id_and_bucket_generation";
+
+export default function ChannelPostsPeekRoute() {
+    return (
+        <ChannelPostsRoute
+            // We intentionally don't use the mobile layout for the document comment
+            // threads peek. Having no X margin by having Y margin looks a little weird in
+            // a peek rendered on top of other content.
+            withMobileLayout={false}
+        />
+    );
+}
