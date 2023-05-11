@@ -1023,6 +1023,7 @@ function DocumentContentEditorSidebar({
                             </Box>
                         ) : (
                             <DocumentCommentThreadListView
+                                withPreviewHeaders={false}
                                 key={commentThreadId}
                                 ref={commentThreadListViewRef}
                                 documentId={documentId}

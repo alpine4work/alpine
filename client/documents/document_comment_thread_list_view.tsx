@@ -13,7 +13,8 @@ import {
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {
     documentCommentInputMinHeight,
-    documentCommentThreadPreviewHeight,
+    documentCommentThreadPreviewHeightWithHeader,
+    documentCommentThreadPreviewHeightWithoutHeader,
 } from "~/client/documents/document_shared_styles";
 import {createDocumentCommentThreadSnippetCollector} from "~/client/documents/internal/create_document_comment_thread_snippet_collector";
 import {DocumentCommentInput} from "~/client/documents/internal/document_comment_input";
@@ -53,6 +54,7 @@ import {
     DocumentCommentThreadModel,
     DocumentContentWithReferences,
     decodeDocumentCommentRoomKey,
+    getDocumentContentTitle,
 } from "~/shared/models/document_model";
 import {OptimisticMessageModel} from "~/shared/models/message_model";
 import {Schema} from "~/shared/schema/schema";
@@ -176,7 +178,7 @@ function createEmptyDocumentCommentThreadTree(): DocumentCommentThreadTree {
     });
 }
 
-const SnippetByCommentThreadIdSchema = Schema.map(
+const ContentSnippetByCommentThreadIdSchema = Schema.map(
     Schema.id<DocumentCommentThreadId>(),
     UncheckedDocumentContentSchema,
 );
@@ -196,6 +198,7 @@ function DocumentCommentThreadListView(
         documentId,
         content,
         onCommentThreadSnippetPress,
+        withPreviewHeaders,
         initialCommentThreadsResult,
         isConnected,
         procedures,
@@ -206,6 +209,7 @@ function DocumentCommentThreadListView(
         documentId: DocumentId;
         content: DocumentContentWithReferences;
         onCommentThreadSnippetPress: Memo<(commentThreadId: DocumentCommentThreadId) => void>;
+        withPreviewHeaders: boolean;
 
         /**
          * The initial comment threads loaded to populate this view. We will use this
@@ -292,8 +296,8 @@ function DocumentCommentThreadListView(
         [commentThreadIds],
     );
 
-    const snippetByCommentThreadId = useStableValue(
-        SnippetByCommentThreadIdSchema,
+    const contentSnippetByCommentThreadId = useStableValue(
+        ContentSnippetByCommentThreadIdSchema,
         useMemo(
             () => collectCommentThreadSnippets(content.doc),
             [collectCommentThreadSnippets, content.doc],
@@ -546,6 +550,8 @@ function DocumentCommentThreadListView(
 
     useImperativeHandle(ref, () => ({jumpToCommentIndex}), [jumpToCommentIndex]);
 
+    const documentTitle = getDocumentContentTitle(content.doc);
+
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
             const item = tree.getItem(index);
@@ -554,11 +560,11 @@ function DocumentCommentThreadListView(
                     // All comment threads should be in the same document.
                     assert(item.commentThread.documentId === documentId);
 
-                    // NOCOMMIT: Header of some kind?
-
                     return {
                         key: `DocumentCommentThreadPreview:${item.commentThread.id}`,
-                        minHeight: documentCommentThreadPreviewHeight,
+                        minHeight: withPreviewHeaders
+                            ? documentCommentThreadPreviewHeightWithHeader
+                            : documentCommentThreadPreviewHeightWithoutHeader,
                         renderAdditionalItemIndexes:
                             !isSingleMobileLayoutCommentThreadWithPinnedCommentInput
                                 ? [item.commentInputItemIndex]
@@ -589,10 +595,13 @@ function DocumentCommentThreadListView(
                                     })}
                                 >
                                     <DocumentCommentThreadPreview
+                                        withHeader={withPreviewHeaders}
+                                        documentTitle={documentTitle}
                                         commentThread={item.commentThread}
-                                        snippet={
-                                            snippetByCommentThreadId.get(item.commentThread.id) ??
-                                            null
+                                        contentSnippet={
+                                            contentSnippetByCommentThreadId.get(
+                                                item.commentThread.id,
+                                            ) ?? null
                                         }
                                         contentReferences={content.references}
                                         onCommentThreadSnippetPress={onCommentThreadSnippetPress}
@@ -1030,9 +1039,11 @@ function DocumentCommentThreadListView(
         [
             tree,
             documentId,
+            withPreviewHeaders,
             isSingleMobileLayoutCommentThreadWithPinnedCommentInput,
             withMobileLayout,
-            snippetByCommentThreadId,
+            documentTitle,
+            contentSnippetByCommentThreadId,
             content.references,
             onCommentThreadSnippetPress,
             messageEditing,

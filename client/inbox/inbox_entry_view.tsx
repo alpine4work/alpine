@@ -420,7 +420,7 @@ function InboxDocumentNewCommentThreadsEntryView({
             loudNotificationCount={entry.loudNotificationCount}
         >
             <Box>
-                New {entry.commentThreadCount > 1 ? "threads" : "thread"} on “
+                New comment {entry.commentThreadCount > 1 ? "threads" : "thread"} on “
                 <span className={boldClassName}>
                     {truncateDocumentTitle(entry.document.getTitle())}
                 </span>

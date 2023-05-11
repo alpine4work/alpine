@@ -5,7 +5,10 @@ import {ContentView} from "~/client/content/content_view";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {useRemPx} from "~/client/design/helpers/use_rem_px";
-import {documentCommentThreadPreviewHeight} from "~/client/documents/document_shared_styles";
+import {
+    documentCommentThreadPreviewHeaderHeight,
+    documentCommentThreadPreviewHeightWithoutHeader,
+} from "~/client/documents/document_shared_styles";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {convertRemLengthToPx, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
@@ -19,13 +22,17 @@ import {
 import {documentCommentThreadPreviewStyles, fontSizesByPlatform} from "~/shared/styles/styles";
 
 export function DocumentCommentThreadPreview({
+    withHeader,
+    documentTitle,
     commentThread,
-    snippet,
+    contentSnippet,
     contentReferences,
     onCommentThreadSnippetPress,
 }: {
+    withHeader: boolean;
+    documentTitle: string;
     commentThread: DocumentCommentThreadModel;
-    snippet: Node | null;
+    contentSnippet: Node | null;
     contentReferences: DocumentContentReferences;
     onCommentThreadSnippetPress: (commentThreadId: DocumentCommentThreadId) => void;
 }) {
@@ -34,9 +41,9 @@ export function DocumentCommentThreadPreview({
     const previewContentRef = useRef<HTMLDivElement>(null);
 
     const content = useMemo(() => {
-        if (!snippet) return null;
-        return {doc: snippet, references: contentReferences};
-    }, [contentReferences, snippet]);
+        if (!contentSnippet) return null;
+        return {doc: contentSnippet, references: contentReferences};
+    }, [contentReferences, contentSnippet]);
 
     const shouldHighlightComment = useCallback(
         (commentThreadId: DocumentCommentThreadId) => commentThreadId === commentThread.id,
@@ -90,62 +97,75 @@ export function DocumentCommentThreadPreview({
     );
 
     return (
-        <FocusRing offset="inset">
-            <Box
-                ref={buttonRef}
-                display="block"
-                position="relative"
-                zIndex="0"
-                // Use pointer cursor because otherwise the preview has a weak clickable
-                // affordance. It's not clear that the preview is clickable unlike a button.
-                cursor="pointer"
-                borderBottom="grey-10"
-                style={{height: documentCommentThreadPreviewHeight}}
-                {...(buttonProps as any)}
-            >
-                {isPressed && (
-                    <Box
-                        position="absolute"
-                        inset="0"
-                        zIndex="50"
-                        pointerEvents="none"
-                        className={documentCommentThreadPreviewStyles.pressOverlayClassName}
-                    />
-                )}
-                <Box ref={previewRef} overflow="hidden" height="full">
-                    <Box
-                        ref={previewContentRef}
-                        pointerEvents="none"
-                        paddingX="1.5"
-                        style={{
-                            width: `${(1 / scale) * 100}%`,
-                            transformOrigin: "0 0",
-                            transform: `scale(${scale})`,
-                        }}
-                    >
-                        {content && (
-                            // Don't render the snippet on initial app render because we need a layout
-                            // effect to correctly position the content. Flashing content from invisible
-                            // to visible is better than flashing content with the wrong scroll position
-                            // to the right scroll position.
-                            <ContentView
-                                content={content}
-                                // Don't allow interacting with the content at all. (Like clicking links.)
-                                // Clicking on the preview opens it in the document.
-                                isInert={true}
-                                shouldHighlightComment={shouldHighlightComment}
-                            />
-                        )}
-                    </Box>
-                    <ScriptBeforeAppInitialRender
-                        script={safe`var previewContentElement = document.currentScript.previousElementSibling; var previewElement = previewContentElement.parentElement; var commentElement = previewContentElement.querySelector('[data-comment="${safeAlphanumericString(
-                            commentThread.id,
-                        )}"]'); if (commentElement) { var previewRect = previewElement.getBoundingClientRect(); var commentRect = commentElement.getBoundingClientRect(); previewElement.scrollTop = commentRect.y - (previewRect.y - previewElement.scrollTop) - ${safeNumber(
-                            commentOffset,
-                        )}; }`}
-                    />
+        <Box>
+            {withHeader && (
+                <Box
+                    display="flex"
+                    alignItems="center"
+                    paddingX="3"
+                    borderBottom="grey-10"
+                    style={{height: documentCommentThreadPreviewHeaderHeight}}
+                >
+                    <Box fontStyle="truncate-semi-bold">{documentTitle}</Box>
                 </Box>
-            </Box>
-        </FocusRing>
+            )}
+            <FocusRing offset="inset">
+                <Box
+                    ref={buttonRef}
+                    display="block"
+                    position="relative"
+                    zIndex="0"
+                    // Use pointer cursor because otherwise the preview has a weak clickable
+                    // affordance. It's not clear that the preview is clickable unlike a button.
+                    cursor="pointer"
+                    borderBottom="grey-10"
+                    style={{height: documentCommentThreadPreviewHeightWithoutHeader}}
+                    {...(buttonProps as any)}
+                >
+                    {isPressed && (
+                        <Box
+                            position="absolute"
+                            inset="0"
+                            zIndex="50"
+                            pointerEvents="none"
+                            className={documentCommentThreadPreviewStyles.pressOverlayClassName}
+                        />
+                    )}
+                    <Box ref={previewRef} overflow="hidden" height="full">
+                        <Box
+                            ref={previewContentRef}
+                            pointerEvents="none"
+                            paddingX="1.5"
+                            style={{
+                                width: `${(1 / scale) * 100}%`,
+                                transformOrigin: "0 0",
+                                transform: `scale(${scale})`,
+                            }}
+                        >
+                            {content && (
+                                // Don't render the snippet on initial app render because we need a layout
+                                // effect to correctly position the content. Flashing content from invisible
+                                // to visible is better than flashing content with the wrong scroll position
+                                // to the right scroll position.
+                                <ContentView
+                                    content={content}
+                                    // Don't allow interacting with the content at all. (Like clicking links.)
+                                    // Clicking on the preview opens it in the document.
+                                    isInert={true}
+                                    shouldHighlightComment={shouldHighlightComment}
+                                />
+                            )}
+                        </Box>
+                        <ScriptBeforeAppInitialRender
+                            script={safe`var previewContentElement = document.currentScript.previousElementSibling; var previewElement = previewContentElement.parentElement; var commentElement = previewContentElement.querySelector('[data-comment="${safeAlphanumericString(
+                                commentThread.id,
+                            )}"]'); if (commentElement) { var previewRect = previewElement.getBoundingClientRect(); var commentRect = commentElement.getBoundingClientRect(); previewElement.scrollTop = commentRect.y - (previewRect.y - previewElement.scrollTop) - ${safeNumber(
+                                commentOffset,
+                            )}; }`}
+                        />
+                    </Box>
+                </Box>
+            </FocusRing>
+        </Box>
     );
 }
