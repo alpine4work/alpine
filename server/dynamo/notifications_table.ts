@@ -7,6 +7,7 @@ import {
     SystemActionContext,
 } from "~/server/dynamo/context/action_context";
 import {
+    getDocumentAndCommentThreadsWithInitialComments,
     getDocumentCommentAuthorId,
     getDocumentCommentThreadNotificationSubscribers,
     getDocumentPreview,
@@ -69,6 +70,11 @@ import {
 import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/messaging/messaging_shared_styles";
 import {AccountModel} from "~/shared/models/account_model";
 import {ChatModel} from "~/shared/models/chat_model";
+import {
+    DocumentCommentModel,
+    DocumentCommentThreadModel,
+    DocumentModel,
+} from "~/shared/models/document_model";
 import {
     InboxChannelPostsEntryModel,
     InboxChatEntryModel,
@@ -1056,6 +1062,13 @@ export async function backfillInboxEntries(
  * Mark the current account's inbox as observed. Any loud notifications will
  * freeze in place at this point.
  */
+// TODO(calebmer): It's a little weird that we observe the inbox only when it
+// opens. That means inbox entries accumulate as if the inbox is unobserved
+// while the user is staring it in realtime. We should probably change this to
+// a model of "user is observing" and if the user is observing we increment the
+// inbox generation on basically every update. This means new inbox entries
+// will be directly added to the top of the inbox while the user is actively
+// observing.
 export async function observeInbox(
     context: SessionActionContext,
     {spaceId}: {spaceId: SpaceId},
@@ -2350,4 +2363,120 @@ export async function getInboxChannelPostsEntryPosts(
             posts,
         };
     }
+}
+
+/**
+ * Get all the comment threads in the inbox entry and some initial comments for
+ * those threads up to the provided comment limit. After you call this
+ * function, you're guaranteed that the list of comment threads in the entry
+ * will not change anymore. This means you don't need to subscribe to realtime
+ * updates of the document comment thread list for the entry. You still need to
+ * subscribe to realtime updates for new comments within threads.
+ *
+ * This has a side effect of observing the inbox if the inbox has not been
+ * observed since the entry was created. By observing the inbox we freeze the
+ * underlying document comment threads entry so it will accumulate no
+ * new threads.
+ */
+export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
+    context: SessionActionContext,
+    {
+        spaceId,
+        documentId,
+        bucketGeneration,
+        commentLimit,
+        commentThreadCountAgainstLimit,
+    }: {
+        spaceId: SpaceId;
+        documentId: DocumentId;
+        bucketGeneration: number;
+        commentLimit: number;
+        commentThreadCountAgainstLimit: number;
+    },
+): Promise<{
+    document: DocumentModel;
+    commentThreads: Array<DocumentCommentThreadModel>;
+    initialCommentsByCommentThreadId: Map<
+        DocumentCommentThreadId,
+        {
+            comments: Array<DocumentCommentModel>;
+            otherReferencedComments: Array<DocumentCommentModel>;
+        }
+    >;
+}> {
+    const commentThreadIdsPromise = (async () => {
+        await authorizeSpaceAccess(context, spaceId);
+
+        // If an inbox entry exists then the inbox attributes item should also exist.
+        const inboxItem = await InboxTable.getItem(
+            // Use a strong read consistency to make sure we get the up-to-date generation.
+            context.dynamo.setDefaultReadConsistency("Strong"),
+            {
+                partitionType: "Inbox",
+                sortRangeType: "Attributes",
+                spaceId,
+                accountId: context.actor.getAccountId(),
+            },
+        );
+
+        // If the bucket generation is equal to the current inbox generation then we
+        // want to increment the inbox's generation. This means new comment threads will
+        // create a new entry with a new bucket generation.
+        if (bucketGeneration === inboxItem.generation) {
+            await InboxTable.updateItem(
+                context,
+                {
+                    partitionType: "Inbox",
+                    sortRangeType: "Attributes",
+                    spaceId,
+                    accountId: context.actor.getAccountId(),
+                },
+                item => {
+                    assert(item);
+
+                    // If the generation was updated concurrently, we don't need to update
+                    // it again.
+                    if (item.generation !== bucketGeneration) return item;
+
+                    return observeInboxItem(item);
+                },
+                {initialItem: inboxItem},
+            );
+        }
+
+        const inboxEntryItem = await InboxTable.getItem(
+            // Use a strong read consistency when reading the entry since we don't want to
+            // miss any comment threads.
+            //
+            // At this point the comment threads entry is frozen. So we don't subscribe to
+            // realtime changes for `commentThreadIds`.
+            context.dynamo.setDefaultReadConsistency("Strong"),
+            {
+                partitionType: "Inbox",
+                sortRangeType: "DocumentNewCommentThreadsEntry",
+                spaceId,
+                accountId: context.actor.getAccountId(),
+                documentId,
+                bucketGeneration,
+            },
+        );
+
+        return inboxEntryItem.commentThreadIds;
+    })();
+
+    const [, {document, commentThreads, initialCommentsByCommentThreadId}] = await runAllPromises([
+        commentThreadIdsPromise,
+        getDocumentAndCommentThreadsWithInitialComments(context, {
+            documentId,
+            commentThreadIds: commentThreadIdsPromise,
+            commentLimit,
+            commentThreadCountAgainstLimit,
+        }),
+    ]);
+
+    return {
+        document,
+        commentThreads,
+        initialCommentsByCommentThreadId,
+    };
 }

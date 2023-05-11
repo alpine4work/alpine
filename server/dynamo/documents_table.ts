@@ -35,6 +35,7 @@ import {
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error";
+import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
@@ -697,162 +698,251 @@ async function getInternalDocumentIfExists(
 /**
  * Get the full document with the provided id.
  */
-export async function getDocument(context: ActionContext, id: DocumentId): Promise<DocumentModel> {
-    getInternalDocumentTestCounter.incrementForTest(id);
+export async function getDocument(
+    context: ActionContext,
+    documentId: DocumentId,
+): Promise<DocumentModel> {
+    return (await getDocumentAndCommentThreads(context, {documentId, commentThreadIds: []}))
+        .document;
+}
 
-    let _attributes: DocumentAttributesItem | null = null;
-    let stepTransactionsAfterSnapshot: Array<DocumentStepTransactionAfterSnapshotItem> = [];
-    let maybeSnapshot: DocumentSnapshotItem | null = null;
-    const staleReferencedCommentThreadById = new Map<
-        DocumentCommentThreadId,
-        DocumentReferencedCommentThreadItem
-    >();
+/**
+ * Get the document with the provided id and all the requested comment threads.
+ *
+ * The returned document model includes all referenced comment threads already,
+ * so if you request any archived comment threads they are returned out of band
+ * in the `archivedCommentThreadById` map.
+ */
+export async function getDocumentAndCommentThreads(
+    context: ActionContext,
+    {
+        documentId,
+        commentThreadIds: _requestedCommentThreadIds,
+        spaceIdPromiseResolver,
+    }: {
+        documentId: DocumentId;
+        // Allow `commentThreadIds` to be a promise so we can execute document loading
+        // in parallel with code that loads which `commentThreadIds`.
+        commentThreadIds:
+            | Iterable<DocumentCommentThreadId>
+            | Promise<Iterable<DocumentCommentThreadId>>;
+        // If you pass this in, we will resolve the promise once we load the `SpaceId`
+        // for the document.
+        spaceIdPromiseResolver?: PromiseResolver<SpaceId>;
+    },
+): Promise<{
+    document: DocumentModel;
+    commentThreads: Array<DocumentCommentThreadModel>;
+}> {
+    try {
+        getInternalDocumentTestCounter.incrementForTest(documentId);
 
-    for await (const item of DocumentsTable.query(context, {
-        partitionKey: {
-            partitionType: "Document",
-            documentId: id,
-        },
-        startSortKey: {
-            sortRangeType: "Attributes",
-        },
-        endSortKey: {
-            sortRangeType: "ReferencedCommentThread",
-            commentThreadId: getMaxId<DocumentCommentThreadId>(),
-        },
-        limit: "All",
-    })) {
-        switch (item.sortRangeType) {
-            case "Attributes":
-                _attributes = item;
-                break;
-            case "StepTransactionsAfterSnapshot":
-                stepTransactionsAfterSnapshot.push(item);
-                break;
-            case "Snapshot":
-                maybeSnapshot = item;
-                break;
-            case "ReferencedCommentThread":
-                staleReferencedCommentThreadById.set(item.commentThreadId, item);
-                break;
-            default:
-                throw exhaustive(item);
+        let _attributes: DocumentAttributesItem | null = null;
+        let stepTransactionsAfterSnapshot: Array<DocumentStepTransactionAfterSnapshotItem> = [];
+        let maybeSnapshot: DocumentSnapshotItem | null = null;
+        const staleReferencedCommentThreadById = new Map<
+            DocumentCommentThreadId,
+            DocumentReferencedCommentThreadItem
+        >();
+
+        for await (const item of DocumentsTable.query(context, {
+            partitionKey: {
+                partitionType: "Document",
+                documentId,
+            },
+            startSortKey: {
+                sortRangeType: "Attributes",
+            },
+            endSortKey: {
+                sortRangeType: "ReferencedCommentThread",
+                commentThreadId: getMaxId<DocumentCommentThreadId>(),
+            },
+            limit: "All",
+        })) {
+            switch (item.sortRangeType) {
+                case "Attributes":
+                    _attributes = item;
+                    spaceIdPromiseResolver?.resolve(item.spaceId);
+                    break;
+                case "StepTransactionsAfterSnapshot":
+                    stepTransactionsAfterSnapshot.push(item);
+                    break;
+                case "Snapshot":
+                    maybeSnapshot = item;
+                    break;
+                case "ReferencedCommentThread":
+                    staleReferencedCommentThreadById.set(item.commentThreadId, item);
+                    break;
+                default:
+                    throw exhaustive(item);
+            }
         }
-    }
 
-    if (_attributes === null) {
-        assert(
-            !maybeSnapshot &&
-                stepTransactionsAfterSnapshot.length === 0 &&
-                staleReferencedCommentThreadById.size === 0,
-            "Document with no attributes should not have snapshot",
-        );
-        throw new NotFoundError("Document not found");
-    }
-    const attributes = _attributes;
-
-    await authorizeSpaceAccess(context, attributes.spaceId);
-
-    if (!maybeSnapshot)
-        throw new DataLossError("Document with attributes should also have a snapshot");
-    const snapshot = maybeSnapshot;
-
-    if (snapshot.version > attributes.version)
-        throw new DataLossError("Document snapshot version is ahead of version attribute");
-
-    // If we have some steps before the snapshot in
-    // `stepTransactionsAfterSnapshot`, that's fine. We may be in the middle of
-    // moving steps into the `StepTransactionsBeforeSnapshot` sort range.
-    //
-    // Drop any steps before the snapshot.
-    stepTransactionsAfterSnapshot = stepTransactionsAfterSnapshot.filter(stepTransaction => {
-        if (stepTransaction.startVersion < snapshot.version) {
-            // We assume step transactions are applied to the snapshot atomically. We don't
-            // support some steps in a transaction being before the snapshot and some steps
-            // in a transaction being after the snapshot. It's all or nothing for now.
-            if (stepTransaction.startVersion + stepTransaction.steps.length > snapshot.version)
-                throw new DataLossError(
-                    "Document snapshot version is in the middle of a step transaction",
-                );
-
-            return false;
-        }
-
-        return true;
-    });
-
-    let version = snapshot.version;
-    let content = snapshot.content;
-
-    for (const stepTransaction of stepTransactionsAfterSnapshot) {
-        if (stepTransaction.startVersion !== version)
-            throw new DataLossError(
-                "Mismatched document snapshot version and step transaction version",
+        if (_attributes === null) {
+            assert(
+                !maybeSnapshot &&
+                    stepTransactionsAfterSnapshot.length === 0 &&
+                    staleReferencedCommentThreadById.size === 0,
+                "Document with no attributes should not have snapshot",
             );
+            throw new NotFoundError("Document not found");
+        }
+        const attributes = _attributes;
 
-        for (const step of stepTransaction.steps) {
-            const stepResult = step.apply(content);
-            if (!stepResult.doc)
+        await authorizeSpaceAccess(context, attributes.spaceId);
+
+        if (!maybeSnapshot)
+            throw new DataLossError("Document with attributes should also have a snapshot");
+        const snapshot = maybeSnapshot;
+
+        if (snapshot.version > attributes.version)
+            throw new DataLossError("Document snapshot version is ahead of version attribute");
+
+        // If we have some steps before the snapshot in
+        // `stepTransactionsAfterSnapshot`, that's fine. We may be in the middle of
+        // moving steps into the `StepTransactionsBeforeSnapshot` sort range.
+        //
+        // Drop any steps before the snapshot.
+        stepTransactionsAfterSnapshot = stepTransactionsAfterSnapshot.filter(stepTransaction => {
+            if (stepTransaction.startVersion < snapshot.version) {
+                // We assume step transactions are applied to the snapshot atomically. We don't
+                // support some steps in a transaction being before the snapshot and some steps
+                // in a transaction being after the snapshot. It's all or nothing for now.
+                if (stepTransaction.startVersion + stepTransaction.steps.length > snapshot.version)
+                    throw new DataLossError(
+                        "Document snapshot version is in the middle of a step transaction",
+                    );
+
+                return false;
+            }
+
+            return true;
+        });
+
+        let version = snapshot.version;
+        let content = snapshot.content;
+
+        for (const stepTransaction of stepTransactionsAfterSnapshot) {
+            if (stepTransaction.startVersion !== version)
                 throw new DataLossError(
-                    `Step after document snapshot could not be applied: ${stepResult.failed!}`,
+                    "Mismatched document snapshot version and step transaction version",
                 );
 
-            assert(isDocumentContent(stepResult.doc));
-            content = stepResult.doc;
+            for (const step of stepTransaction.steps) {
+                const stepResult = step.apply(content);
+                if (!stepResult.doc)
+                    throw new DataLossError(
+                        `Step after document snapshot could not be applied: ${stepResult.failed!}`,
+                    );
+
+                assert(isDocumentContent(stepResult.doc));
+                content = stepResult.doc;
+            }
+
+            version += stepTransaction.steps.length;
         }
 
-        version += stepTransaction.steps.length;
-    }
+        const referencedCommentThreadIds = getReferencedDocumentCommentThreadIds(content);
 
-    const referencedCommentThreadIds = getReferencedDocumentCommentThreadIds(content);
-
-    const [contentReferences, commentThreadById] = await runAllPromises([
-        getContentReferencesForNode(context, attributes.spaceId, content),
-        runAllPromises(
-            mapIterable(
-                referencedCommentThreadIds,
-                async (
+        const getCommentThread = async (
+            commentThreadId: DocumentCommentThreadId,
+        ): Promise<[DocumentCommentThreadId, DocumentCommentThreadModel] | null> => {
+            const commentThread =
+                staleReferencedCommentThreadById.get(commentThreadId) ??
+                // If our query didn't find the comment thread, it must be because our snapshot
+                // update process hasn't moved it from the archive range back into the
+                // referenced range. Try reading it from the archive range. Eventually the
+                // comment thread should be in our referenced range.
+                (await getDocumentCommentThreadItemIfExists(context, {
+                    documentId,
                     commentThreadId,
-                ): Promise<[DocumentCommentThreadId, DocumentCommentThreadModel] | null> => {
-                    const commentThread =
-                        staleReferencedCommentThreadById.get(commentThreadId) ??
-                        // If our query didn't find the comment thread, it must be because our snapshot
-                        // update process hasn't moved it from the archive range back into the
-                        // referenced range. Try reading it from the archive range. Eventually the
-                        // comment thread should be in our referenced range.
-                        (await getDocumentCommentThreadItemIfExists(context, {
-                            documentId: id,
-                            commentThreadId,
-                            // Try reading from the archive range first because we already queried the
-                            // entire referenced comment thread range.
-                            shouldTryArchiveFirst: true,
-                        }));
+                    // Try reading from the archive range first because we already queried the
+                    // entire referenced comment thread range.
+                    shouldTryArchiveFirst: true,
+                }));
 
-                    if (!commentThread) return null;
+            if (!commentThread) return null;
 
-                    return [
-                        commentThread.commentThreadId,
-                        await createDocumentCommentThreadModelFromItem(
-                            context,
-                            attributes.spaceId,
-                            commentThread,
-                        ),
-                    ];
-                },
+            return [
+                commentThread.commentThreadId,
+                await createDocumentCommentThreadModelFromItem(
+                    context,
+                    attributes.spaceId,
+                    commentThread,
+                ),
+            ];
+        };
+
+        const [
+            contentReferences,
+            referencedCommentThreadById,
+            {requestedCommentThreadIds, archivedCommentThreadById},
+        ] = await runAllPromises([
+            getContentReferencesForNode(context, attributes.spaceId, content),
+            runAllPromises(mapIterable(referencedCommentThreadIds, getCommentThread)).then(
+                commentThreadById => new Map(filterIterable(commentThreadById, isNonNullable)),
             ),
-        ).then(commentThreadById => new Map(filterIterable(commentThreadById, isNonNullable))),
-    ]);
+            (async () => {
+                const requestedCommentThreadIds = await _requestedCommentThreadIds;
 
-    return new DocumentModel({
-        id,
-        createdTime: attributes.createdTime,
-        spaceId: attributes.spaceId,
-        version: attributes.version,
-        content: {
-            doc: content,
-            references: {...contentReferences, commentThreadById},
-        },
-    });
+                // All the requested comment threads that aren't part of the referenced comment
+                // thread set we're already loading.
+                const archivedCommentThreadIds = new Set(
+                    filterIterable(
+                        requestedCommentThreadIds,
+                        commentThreadId => !referencedCommentThreadIds.has(commentThreadId),
+                    ),
+                );
+
+                const archivedCommentThreadById = await runAllPromises(
+                    mapIterable(archivedCommentThreadIds, getCommentThread),
+                ).then(
+                    commentThreadById => new Map(filterIterable(commentThreadById, isNonNullable)),
+                );
+
+                return {
+                    requestedCommentThreadIds,
+                    archivedCommentThreadById,
+                };
+            })(),
+        ]);
+
+        const requestedCommentThreads: Array<DocumentCommentThreadModel> = [];
+
+        // Double check that all the comment threads that were requested are returned
+        // in one of our two comment thread maps.
+        for (const requestedCommentThreadId of requestedCommentThreadIds) {
+            const commentThread =
+                referencedCommentThreadById.get(requestedCommentThreadId) ??
+                archivedCommentThreadById.get(requestedCommentThreadId);
+
+            if (!commentThread) {
+                throw new NotFoundError("Comment thread does not exist");
+            }
+
+            requestedCommentThreads.push(commentThread);
+        }
+
+        return {
+            document: new DocumentModel({
+                id: documentId,
+                createdTime: attributes.createdTime,
+                spaceId: attributes.spaceId,
+                version: attributes.version,
+                content: {
+                    doc: content,
+                    references: {
+                        ...contentReferences,
+                        commentThreadById: referencedCommentThreadById,
+                    },
+                },
+            }),
+            commentThreads: requestedCommentThreads,
+        };
+    } catch (error) {
+        spaceIdPromiseResolver?.reject(error);
+        throw error;
+    }
 }
 
 /**
@@ -3363,6 +3453,126 @@ export async function getDocumentCommentThreadAndInitialComments(
         }),
         initialComments: comments,
         initialOtherReferencedComments: otherReferencedComments,
+    };
+}
+
+/**
+ * Get a document, some comment threads in the document, and initial comments
+ * for these threads as if we are rendering the list of comment threads
+ * in order.
+ *
+ * For instance, if we have a limit of 20 and the first comment thread has 15
+ * comments and the second comment thread has 30 comments then we'd load 15
+ * comments from the first thread and 5 comments from the second thread to meet
+ * our 20 comment limit. We may load more comments than our limit since we load
+ * some comment threads in parallel before we know how many comments they
+ * contain.
+ */
+export async function getDocumentAndCommentThreadsWithInitialComments(
+    context: ActionContext,
+    {
+        documentId,
+        commentThreadIds,
+        commentLimit,
+        commentThreadCountAgainstLimit,
+    }: {
+        documentId: DocumentId;
+        commentThreadIds:
+            | Iterable<DocumentCommentThreadId>
+            | Promise<Iterable<DocumentCommentThreadId>>;
+        commentLimit: number;
+        // Comment threads take some space in our rendered list of comment threads.
+        // This number specifies how much we should decrease our limit for every
+        // comment thread we load.
+        //
+        // For example, if this is set to 5 then we decrease the limit by 5 for every
+        // comment thread between comments. So if we have a comment thread with 10
+        // comments and a comment thread of 20 comments and we run this function with a
+        // limit of 12 then we only load comments from the first thread because the
+        // thread itself counts for 5 comments.
+        //
+        // This number can be fractional like 5.8.
+        commentThreadCountAgainstLimit: number;
+    },
+): Promise<{
+    document: DocumentModel;
+    commentThreads: Array<DocumentCommentThreadModel>;
+    initialCommentsByCommentThreadId: Map<
+        DocumentCommentThreadId,
+        {
+            comments: Array<DocumentCommentModel>;
+            otherReferencedComments: Array<DocumentCommentModel>;
+        }
+    >;
+}> {
+    const spaceIdPromiseResolver = createPromiseResolver<SpaceId>();
+
+    const documentPromise = getDocumentAndCommentThreads(context, {
+        documentId,
+        commentThreadIds,
+        spaceIdPromiseResolver,
+    });
+
+    const initialCommentsByCommentThreadIdPromise = (async () => {
+        const commentThreadIdQueue = Array.from(await commentThreadIds);
+        let currentCommentLimit = commentLimit;
+
+        const initialCommentsByCommentThreadId = new Map<
+            DocumentCommentThreadId,
+            {
+                comments: Array<DocumentCommentModel>;
+                otherReferencedComments: Array<DocumentCommentModel>;
+            }
+        >();
+
+        while (currentCommentLimit > 0 && commentThreadIdQueue.length > 0) {
+            const commentThread1Id = commentThreadIdQueue.shift()!;
+            const commentThread2Id = commentThreadIdQueue.shift();
+
+            const [commentThread1Result, commentThread2Result] = await runAllPromises([
+                getDocumentCommentsFromStartAssumingAuthorizedCommentThread(context, {
+                    documentId,
+                    commentThreadId: commentThread1Id,
+                    getSpaceId: () => spaceIdPromiseResolver.promise,
+                    limit: Math.ceil(currentCommentLimit),
+                    afterCommentIndex: null,
+                    beforeCommentIndex: null,
+                }),
+                commentThread2Id
+                    ? getDocumentCommentsFromStartAssumingAuthorizedCommentThread(context, {
+                          documentId,
+                          commentThreadId: commentThread2Id,
+                          getSpaceId: () => spaceIdPromiseResolver.promise,
+                          limit: Math.ceil(currentCommentLimit),
+                          afterCommentIndex: null,
+                          beforeCommentIndex: null,
+                      })
+                    : null,
+            ]);
+
+            currentCommentLimit -= commentThreadCountAgainstLimit;
+            currentCommentLimit -= commentThread1Result.comments.length;
+            initialCommentsByCommentThreadId.set(commentThread1Id, commentThread1Result);
+
+            if (commentThread2Result) {
+                currentCommentLimit -= commentThreadCountAgainstLimit;
+                currentCommentLimit -= commentThread2Result.comments.length;
+                initialCommentsByCommentThreadId.set(commentThread2Id!, commentThread2Result);
+            }
+        }
+
+        return initialCommentsByCommentThreadId;
+    })();
+
+    const [{document, commentThreads}, initialCommentsByCommentThreadId] = await runAllPromises([
+        documentPromise,
+        initialCommentsByCommentThreadIdPromise,
+    ]);
+
+    return {
+        document,
+        commentThreads,
+        initialCommentsByCommentThreadId,
     };
 }
 

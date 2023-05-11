@@ -11,15 +11,13 @@ import {
     useState,
 } from "react";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
-import {createDocumentCommentThreadSnippetCollector} from "~/client/documents/internal/create_document_comment_thread_snippet_collector";
 import {
-    DocumentCommentInput,
     documentCommentInputMinHeight,
-} from "~/client/documents/internal/document_comment_input";
-import {
-    DocumentCommentThreadPreview,
     documentCommentThreadPreviewHeight,
-} from "~/client/documents/internal/document_comment_thread_preview";
+} from "~/client/documents/document_shared_styles";
+import {createDocumentCommentThreadSnippetCollector} from "~/client/documents/internal/create_document_comment_thread_snippet_collector";
+import {DocumentCommentInput} from "~/client/documents/internal/document_comment_input";
+import {DocumentCommentThreadPreview} from "~/client/documents/internal/document_comment_thread_preview";
 import {DocumentContentEditorWebSocketClientProcedures} from "~/client/documents/internal/document_content_editor_web_socket_client";
 import {SubscribeToCommentThreadEventsFunction} from "~/client/documents/use_document_content_editor_web_socket";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
@@ -67,7 +65,7 @@ const documentCommentThreadListViewMaxWidth: Spacing = "160";
 // some margin top and some margin bottom so that the shadows don't overflow.
 const documentCommentThreadListViewMarginTop: Spacing = "2";
 const documentCommentThreadListViewMarginBottom: Spacing = "2";
-const documentCommentThreadListViewMarginY: Spacing = "4";
+export const documentCommentThreadListViewMarginY: Spacing = "4";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders
@@ -213,12 +211,12 @@ function DocumentCommentThreadListView(
          * The initial comment threads loaded to populate this view. We will use this
          * to construct a `DocumentCommentThreadTree` class.
          */
-        initialCommentThreadsResult: {
+        initialCommentThreadsResult: ReadonlyArray<{
             commentThread: DocumentCommentThreadModel;
             comments: ReadonlyArray<DocumentCommentModel>;
             otherReferencedComments: ReadonlyArray<DocumentCommentModel>;
             optimisticComments: ReadonlyArray<OptimisticMessageModel>;
-        };
+        }>;
 
         // Realtime props that should come from `useDocumentContentEditorWebSocket()`.
         isConnected: boolean;
@@ -248,27 +246,34 @@ function DocumentCommentThreadListView(
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
     const [tree, setTree] = useState(() => {
-        let comments = MessageList.new<DocumentCommentModel>({
-            messageCount: initialCommentThreadsResult.commentThread.commentCount,
-            lastMessageChangeTime: initialCommentThreadsResult.commentThread.lastCommentChangeTime,
-        }).loadMessages({
-            messageCount: initialCommentThreadsResult.commentThread.commentCount,
-            messages: initialCommentThreadsResult.comments,
-            otherReferencedMessages: initialCommentThreadsResult.otherReferencedComments,
-        });
+        let tree = createEmptyDocumentCommentThreadTree();
 
-        if (initialCommentThreadsResult.optimisticComments.length > 0) {
-            for (const optimisticComment of initialCommentThreadsResult.optimisticComments) {
-                comments = comments.addOptimisticMessage(optimisticComment);
+        for (const initialCommentThreadResult of initialCommentThreadsResult) {
+            let comments = MessageList.new<DocumentCommentModel>({
+                messageCount: initialCommentThreadResult.commentThread.commentCount,
+                lastMessageChangeTime:
+                    initialCommentThreadResult.commentThread.lastCommentChangeTime,
+            }).loadMessages({
+                messageCount: initialCommentThreadResult.commentThread.commentCount,
+                messages: initialCommentThreadResult.comments,
+                otherReferencedMessages: initialCommentThreadResult.otherReferencedComments,
+            });
+
+            if (initialCommentThreadResult.optimisticComments.length > 0) {
+                for (const optimisticComment of initialCommentThreadResult.optimisticComments) {
+                    comments = comments.addOptimisticMessage(optimisticComment);
+                }
             }
+
+            tree = tree.insertNodesAtEnd([
+                {
+                    commentThread: initialCommentThreadResult.commentThread,
+                    comments,
+                },
+            ]);
         }
 
-        return createEmptyDocumentCommentThreadTree().insertNodesAtEnd([
-            {
-                commentThread: initialCommentThreadsResult.commentThread,
-                comments,
-            },
-        ]);
+        return tree;
     });
 
     // Stable list of all the `DocumentCommentThreadId`s in this list. It's
@@ -605,6 +610,7 @@ function DocumentCommentThreadListView(
                     >({
                         messageNoun: "comment",
                         messages: item.comments,
+                        groupKey: item.commentThread.id,
                         index: item.commentItemIndex,
                         item: item.commentItem,
                         randomSeedForShimmer: item.commentThread.id,
@@ -1054,7 +1060,7 @@ function DocumentCommentThreadListView(
                     flexDirection: "column",
                     backgroundColor: isSingleMobileLayoutCommentThreadWithPinnedCommentInput
                         ? "grey-0"
-                        : undefined,
+                        : "grey-5",
                 })}
             >
                 <VirtualizedScrollView

@@ -232,8 +232,7 @@ export class InboxDocumentNewCommentThreadsEntryModel
     }
 
     public getPath(): To {
-        // NOCOMMIT
-        return "/s/ywcffewdn377x442nkxd5x41r0/notifications/channel-posts/qk8jepk9epmb48b3fbaykw4vk0-1490";
+        return `/s/${this.spaceId}/notifications/document-comment-threads/${this.document.id}-${this.bucketGeneration}`;
     }
 }
 

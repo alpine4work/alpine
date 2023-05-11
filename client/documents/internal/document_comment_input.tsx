@@ -1,5 +1,6 @@
 import {RefObject, useCallback} from "react";
 import {useAppContext} from "~/client/context/app_context";
+import {documentCommentInputMinHeight} from "~/client/documents/document_shared_styles";
 import {DocumentContentEditorWebSocketClientProcedures} from "~/client/documents/internal/document_content_editor_web_socket_client";
 import {SubscribeToCommentThreadEventsFunction} from "~/client/documents/use_document_content_editor_web_socket";
 import {MemoObject} from "~/client/helpers/types/memo_object";
@@ -12,14 +13,11 @@ import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messa
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view";
 import {Spacing} from "~/shared/design/spacing";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol";
-import {messageInputMinHeight} from "~/shared/messaging/messaging_shared_styles";
 import {
     DocumentCommentModel,
     DocumentCommentRoomKey,
     DocumentCommentThreadModel,
 } from "~/shared/models/document_model";
-
-export const documentCommentInputMinHeight = messageInputMinHeight;
 
 export function DocumentCommentInput({
     viewRef,
@@ -100,9 +98,11 @@ export function DocumentCommentInput({
     useScrollToNewMessages({
         viewRef,
         messages: comments,
-        getItemKey: useCallback((item: MessageListItem<DocumentCommentModel>) => {
-            return getMessageListItemKey(item);
-        }, []),
+        getItemKey: useCallback(
+            (item: MessageListItem<DocumentCommentModel>) =>
+                getMessageListItemKey(item, commentThread.id),
+            [commentThread.id],
+        ),
         stickyInputHeight: isStickyPositioned ? documentCommentInputMinHeight : undefined,
     });
 

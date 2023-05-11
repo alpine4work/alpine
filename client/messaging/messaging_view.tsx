@@ -539,7 +539,10 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     useScrollToNewMessages({
         viewRef,
         messages: state.messages,
-        getItemKey: getMessageListItemKey,
+        getItemKey: useCallback(
+            (item: MessageListItem<Message>) => getMessageListItemKey(item, null),
+            [],
+        ),
     });
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
@@ -558,6 +561,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         messageNoun,
                         messageStartOfSentenceNoun,
                         messages: state.messages,
+                        groupKey: null,
                         index: state.hasHeader() ? index - 1 : index,
                         item,
                         randomSeedForShimmer,
@@ -673,6 +677,7 @@ export function renderMessageListItem<
     messageNoun,
     messageStartOfSentenceNoun,
     messages,
+    groupKey,
     index,
     item,
     randomSeedForShimmer,
@@ -690,6 +695,7 @@ export function renderMessageListItem<
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
     messages: MessageList<Message>;
+    groupKey: string | null;
     index: number;
     item: MessageListItem<Message>;
     randomSeedForShimmer: string;
@@ -784,7 +790,11 @@ export function renderMessageListItem<
 
             return {
                 key:
-                    item.type === "Loaded" || item.type === "Optimistic"
+                    typeof groupKey === "string"
+                        ? item.type === "Loaded" || item.type === "Optimistic"
+                            ? `Message:${groupKey}:${item.messageIndex}`
+                            : `UnloadedMessage:${groupKey}:${item.messageIndex}`
+                        : item.type === "Loaded" || item.type === "Optimistic"
                         ? `Message:${item.messageIndex}`
                         : `UnloadedMessage:${item.messageIndex}`,
                 minHeight: messageViewMinHeight,
@@ -846,7 +856,10 @@ export function renderMessageListItem<
             );
 
             return {
-                key: "TypingIndicators",
+                key:
+                    typeof groupKey === "string"
+                        ? `TypingIndicators:${groupKey}`
+                        : "TypingIndicators",
                 minHeight: messagingTypingIndicatorsMinHeight,
                 node: customRender ? customRender(node) : node,
             };
@@ -856,18 +869,26 @@ export function renderMessageListItem<
     }
 }
 
-export const getMessageListItemKey = (<Message extends MessageModel>(
+export function getMessageListItemKey<Message extends MessageModel>(
     item: MessageListItem<Message>,
-) => {
+    groupKey: string | null,
+) {
     switch (item.type) {
         case "Loaded":
         case "Optimistic":
-            return `Message:${item.messageIndex}`;
+            return typeof groupKey === "string"
+                ? `Message:${groupKey}:${item.messageIndex}`
+                : `Message:${item.messageIndex}`;
         case "Unloaded":
-            return `UnloadedMessage:${item.messageIndex}`;
+            return typeof groupKey === "string"
+                ? `UnloadedMessage:${groupKey}:${item.messageIndex}`
+                : `UnloadedMessage:${item.messageIndex}`;
         case "TypingIndicators":
-            return "TypingIndicators";
+            return typeof groupKey === "string"
+                ? `TypingIndicators:${groupKey}`
+                : "TypingIndicators";
+
         default:
             throw exhaustive(item);
     }
-}) as Memo<<Message extends MessageModel>(item: MessageListItem<Message>) => string>;
+}

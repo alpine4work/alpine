@@ -1028,14 +1028,16 @@ function DocumentContentEditorSidebar({
                                 documentId={documentId}
                                 content={content}
                                 onCommentThreadSnippetPress={onCommentThreadSnippetPress}
-                                initialCommentThreadsResult={{
-                                    commentThread: initialDataResult.value.commentThread,
-                                    comments: initialDataResult.value.initialComments,
-                                    otherReferencedComments:
-                                        initialDataResult.value.initialOtherReferencedComments,
-                                    optimisticComments:
-                                        initialDataResult.value.initialOptimisticComments,
-                                }}
+                                initialCommentThreadsResult={[
+                                    {
+                                        commentThread: initialDataResult.value.commentThread,
+                                        comments: initialDataResult.value.initialComments,
+                                        otherReferencedComments:
+                                            initialDataResult.value.initialOtherReferencedComments,
+                                        optimisticComments:
+                                            initialDataResult.value.initialOptimisticComments,
+                                    },
+                                ]}
                                 isConnected={isConnected}
                                 procedures={procedures}
                                 subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}

@@ -5,6 +5,7 @@ import {ContentView} from "~/client/content/content_view";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {useRemPx} from "~/client/design/helpers/use_rem_px";
+import {documentCommentThreadPreviewHeight} from "~/client/documents/document_shared_styles";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {convertRemLengthToPx, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
@@ -16,8 +17,6 @@ import {
     DocumentContentReferences,
 } from "~/shared/models/document_model";
 import {documentCommentThreadPreviewStyles, fontSizesByPlatform} from "~/shared/styles/styles";
-
-export const documentCommentThreadPreviewHeight = spacing["32"];
 
 export function DocumentCommentThreadPreview({
     commentThread,
