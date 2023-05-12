@@ -40,6 +40,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
+import {clamp} from "~/shared/helpers/number/clamp";
 import {safe} from "~/shared/helpers/string/safe_string";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit";
 import {ClientInfo} from "~/shared/remix/client_info";
@@ -759,7 +760,7 @@ function VirtualizedScrollView(
         // scroll window.
         shouldAnchorWhileVisible: boolean;
         lastPosition: {offset: number; height: number};
-        getPosition: () => {offset: number; height: number} | null;
+        getPosition: (state: VirtualizedScrollViewState) => {offset: number; height: number} | null;
     } | null>(null);
 
     // Implement an anchor node selection algorithm. Ours is simpler than the
@@ -773,7 +774,7 @@ function VirtualizedScrollView(
         // If the scroll anchor was manually set and it's currently visible then don't
         // update the scroll anchor to something different.
         if (scrollAnchorRef.current !== null && scrollAnchorRef.current.shouldAnchorWhileVisible) {
-            const scrollAnchorPosition = scrollAnchorRef.current.getPosition();
+            const scrollAnchorPosition = scrollAnchorRef.current.getPosition(state);
             if (
                 scrollAnchorPosition &&
                 areRangesOverlapping(
@@ -970,7 +971,18 @@ function VirtualizedScrollView(
             newState = newState.setItemHeight(key, height);
         }
 
-        const originalScrollTop = scrollElement.scrollTop;
+        // Use the last scroll position we saw from a scroll event. NOT the current
+        // scroll position in the DOM. This is so if the browser adjusted the scroll
+        // position between our last scroll event and now (probably while React was
+        // updating the DOM) we ignore those updates from the browser.
+        //
+        // Notably if the content height shrinks such that the old scroll top is
+        // out-of-bounds the browser will change the scroll offset. However, if we have
+        // a scroll anchor then we will also try to perform the same scroll adjustment
+        // here! We don't want to apply this adjustment twice so ignore the browser
+        // adjustment when computing our new `scrollTop`.
+        const originalScrollTop = lastScrollTopRef.current ?? scrollElement.scrollTop;
+
         let scrollTop = originalScrollTop;
         let newScrollAnchorAdjustmentDuringMobileWebKitScroll =
             actualState.scrollAnchorAdjustmentDuringMobileWebKitScroll;
@@ -986,28 +998,11 @@ function VirtualizedScrollView(
         // once again in the scroll event handler in response to our adjustment.
         if (scrollAnchorRef.current) {
             // Will return null if the scroll anchor was unmounted.
-            const nextPosition = scrollAnchorRef.current.getPosition();
+            const nextPosition = scrollAnchorRef.current.getPosition(newState);
             if (nextPosition) {
                 const lastPosition = scrollAnchorRef.current.lastPosition;
 
-                const scrollAdjustment =
-                    nextPosition.offset -
-                    lastPosition.offset +
-                    // If we've re-rendered and the content height changed but we had scrolled to
-                    // the end of the virtualized view then `scrollElement.scrollTop` will have
-                    // already been adjusted to not extend past the missing content.
-                    //
-                    // Take that adjustment into account since if we only use our offsets we'll
-                    // overshoot the actual desired scroll position.
-                    //
-                    // We detect this case by checking whether `lastScrollTopRef` (updated by the
-                    // scroll event) is different from the current `scrollElement.scrollTop`
-                    // (updated by React's render). If `lastScrollTopRef` is not equal to
-                    // `scrollElement.scrollTop` that means the content size changed during render
-                    // so we had to scroll to keep our scroll window on visible content.
-                    (lastScrollTopRef.current !== null
-                        ? Math.max(0, lastScrollTopRef.current - scrollTop)
-                        : 0);
+                const scrollAdjustment = nextPosition.offset - lastPosition.offset;
 
                 // If this is not a mobile WebKit scroll, actually update the `scrollTop`. On
                 // mobile WebKit this cancels the scrolling animation so instead we have a
@@ -1025,6 +1020,11 @@ function VirtualizedScrollView(
                 scrollAnchorRef.current.lastPosition = nextPosition;
             }
         }
+
+        // Make sure our new scroll top is in bounds. Since our scroll top starts from
+        // `lastScrollTopRef` instead of the scroll offset in the DOM we may be out
+        // of bounds.
+        scrollTop = clamp(0, scrollTop, newState.getContentHeight() - newState.getViewHeight());
 
         let newActualState =
             actualState.state !== newState ||
@@ -1158,9 +1158,8 @@ function VirtualizedScrollView(
                 //    `scheduleMicrotask()` wrapper which runs `scrollToIndex()` after the
                 //    React immediately scheduled re-render that updates state.
                 scheduleMicrotask(() => {
-                    const {state} = stateRef.current;
+                    const {state, getItemWithoutRender} = stateRef.current;
                     const scrollElement = assertExists(scrollRef.current);
-                    const contentElement = assertExists(contentRef.current);
 
                     const {scrollOffset, position} = getVirtualizedScrollViewOffsetForScrollToIndex(
                         {
@@ -1170,7 +1169,7 @@ function VirtualizedScrollView(
                         },
                     );
 
-                    let renderedItem: {key: Key; element: HTMLElement} | null = null;
+                    const itemKey = getItemWithoutRender(index).key;
 
                     // Anchor to the item we are scrolling to. At first when the item hasn't
                     // rendered we use the position we found in our state. Then once we find the
@@ -1182,46 +1181,17 @@ function VirtualizedScrollView(
                     scrollAnchorRef.current = {
                         shouldAnchorWhileVisible: true,
                         lastPosition: position,
-                        getPosition: () => {
-                            const state = stateRef.current.state;
-
-                            if (
-                                renderedItem === null ||
-                                !document.body.contains(renderedItem.element)
-                            ) {
-                                // Search for the rendered element in our refs first by looking for an element
-                                // ref at the same index. This will tell us the key of the item. In the future
-                                // we will use the item key in case the item moves.
-                                for (const [key, elementRef] of iterateItemRefs()) {
-                                    if (
-                                        (renderedItem
-                                            ? renderedItem.key === key
-                                            : elementRef.index === index) &&
-                                        elementRef.element.offsetParent === contentElement
-                                    ) {
-                                        renderedItem = {key, element: elementRef.element};
-                                        break;
-                                    }
-                                }
-
-                                // If the item hasn't rendered yet, get the current position in state for
-                                // the index.
-                                if (renderedItem === null) {
-                                    if (index >= state.getItemCount()) return null;
-                                    return state.getPositionByIndex(index);
-                                }
-
-                                // If the item was unmounted, look for the position by key in our state.
-                                // We use key instead of index in case the item moved.
-                                if (!document.body.contains(renderedItem.element)) {
-                                    return state.getPositionByKeyIfExists(renderedItem.key);
-                                }
-                            }
-
-                            return {
-                                offset: renderedItem.element.offsetTop,
-                                height: renderedItem.element.clientHeight,
-                            };
+                        getPosition: (state: VirtualizedScrollViewState) => {
+                            // We use the virtualized scroll view state to get the position instead of DOM
+                            // nodes because while scrolling to an item it may not be rendered in the
+                            // virtualization window but we still need the position.
+                            //
+                            // By using the latest state we can also see updates that haven't been written
+                            // to the DOM yet which causes less churn in scroll anchor adjustments.
+                            return (
+                                state.getPositionByKeyIfExists(itemKey) ??
+                                state.getPositionByIndex(index)
+                            );
                         },
                     };
 

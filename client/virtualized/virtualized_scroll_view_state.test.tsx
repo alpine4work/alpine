@@ -1,7 +1,11 @@
 /* eslint-disable react/jsx-key */
 
-import {VirtualizedScrollViewState} from "~/client/virtualized/virtualized_scroll_view_state";
+import {
+    VirtualizedScrollViewState,
+    withRealVirtualizationWindowHeightForTest,
+} from "~/client/virtualized/virtualized_scroll_view_state";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {StableRandom} from "~/shared/helpers/number/stable_random";
 import {omitObject} from "~/shared/helpers/object/omit_object";
 
@@ -3462,4 +3466,74 @@ test("an item maintains its height when expanding and collapsing another item", 
             bufferedHeightBeforeChildren: 0,
         });
     }
+});
+
+test.only("reproduce jump to reply scroll bug", () => {
+    withRealVirtualizationWindowHeightForTest(() => {
+        const itemCount = 1013;
+
+        const getItem = (index: number) => ({
+            key: index === 0 ? "PostContent" : `PostComment:${index - 1}`,
+            minHeight: index === 0 ? 376 : 34,
+            render: ({offset}: {offset: number}) => (
+                <div style={{top: offset}}>{String(index)}</div>
+            ),
+        });
+
+        let state = VirtualizedScrollViewState.initializeFromTop({
+            initialViewHeight: 1080,
+            bufferedItemHeight: 176,
+            itemCount,
+            getItem,
+        });
+
+        state = state.setViewHeight(980);
+        state = state.setItemHeight("PostComment:0", 64);
+
+        state = state.updateRenderedRange({
+            scrollOffset: 530,
+            itemCount,
+            getItem,
+        });
+
+        const lastPosition = state.getPositionByIndex(515);
+
+        let scrollOffset = 82296;
+
+        state = state.updateRenderedRange({
+            scrollOffset,
+            itemCount,
+            getItem,
+        });
+
+        // NOTE(calebmer): The bug was reading the `nextPosition` here BEFORE updating
+        // item heights. This ended up being a bug in `<VirtualizedScrollView>`, not
+        // `VirtualizedScrollViewState`. Leaving this test here since it exercises some
+        // interesting behavior even though it didn't expose the bug I was looking for.
+        //
+        // const nextPosition = state.getPositionByIndex(515);
+
+        for (let i = 509; i <= 591; i++) {
+            state = state.setItemHeight(`PostComment:${i}`, 274);
+        }
+
+        const nextPosition = state.getPositionByIndex(515);
+
+        const scrollAdjustment = nextPosition.offset - lastPosition.offset;
+
+        scrollOffset += scrollAdjustment;
+
+        state = state.updateRenderedRange({
+            scrollOffset,
+            itemCount,
+            getItem,
+        });
+
+        const {startIndex, endIndex} = assertExists(state.getRenderedRange());
+        const startPosition = state.getPositionByIndex(startIndex);
+        const endPosition = state.getPositionByIndex(endIndex);
+
+        expect(scrollOffset).toBeGreaterThanOrEqual(startPosition.offset);
+        expect(scrollOffset).toBeLessThanOrEqual(endPosition.offset + endPosition.height);
+    });
 });

@@ -62,9 +62,6 @@ export function tryLoadingMessages<Message extends MessageModel>({
     const startMessage = messages.getItem(range.startIndex);
     const endMessage = messages.getItem(range.endIndex);
 
-    const firstLoadedMessage = messages.getFirstLoadedMessageAfterIfExists(range.startIndex - 1);
-    const hasLoadedMessage = firstLoadedMessage && firstLoadedMessage.index <= range.endIndex;
-
     // Everything rendered is loaded. Yay! Proceed if we need to load some data.
     //
     // TODO(calebmer): If there are some unloaded messages in the middle of the
@@ -92,7 +89,7 @@ export function tryLoadingMessages<Message extends MessageModel>({
         ),
     );
 
-    if (endMessage.type === "Unloaded" && hasLoadedMessage) {
+    if (endMessage.type === "Unloaded" && startMessage.type !== "Unloaded") {
         const afterMessageIndex =
             messages.getLastLoadedMessageBeforeIfExists(range.endIndex)?.index ?? null;
 
@@ -114,7 +111,7 @@ export function tryLoadingMessages<Message extends MessageModel>({
         };
     }
 
-    if (startMessage.type === "Unloaded" && hasLoadedMessage) {
+    if (startMessage.type === "Unloaded" && endMessage.type !== "Unloaded") {
         const afterMessageIndex =
             messages.getLastLoadedMessageBeforeIfExists(range.startIndex)?.index ?? null;
 
@@ -136,11 +133,11 @@ export function tryLoadingMessages<Message extends MessageModel>({
         };
     }
 
-    // If our range has no loaded messages then this is a jump scroll. During a
-    // jump scroll we take advantage of the fact that message `id`s are mostly
-    // dense to pick a message `id` at roughly the same percentage the user has
-    // scrolled. We load data in at that point and scroll it into view.
-    assert(!hasLoadedMessage);
+    // If neither of the messages in our rendered range are loaded then this is a
+    // jump scroll. During a jump scroll we take advantage of the fact that message
+    // `id`s are mostly dense to pick a message `id` at roughly the same percentage
+    // the user has scrolled. We load data in at that point and scroll it
+    // into view.
     assert(startMessage.type === "Unloaded" && endMessage.type === "Unloaded");
 
     const messageBeforeUnloadedSegment = messages.getLastLoadedMessageBeforeIfExists(
