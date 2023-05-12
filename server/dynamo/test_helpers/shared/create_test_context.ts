@@ -99,7 +99,7 @@ export function createTestContext(): TestContext {
     const dynamoContextModule = DynamoContextModule.test();
 
     const processContextBase = Context.new<ProcessContextModulesBase>({
-        process: ProcessContextModule.test(),
+        process: ProcessContextModule.test(testSharedHooks),
         tracer: new TracerContextModule(tracer),
         dynamo: dynamoContextModule,
         email: new NoopEmailContextModule(),

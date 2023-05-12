@@ -19,14 +19,20 @@ export class ProcessContextModule extends ContextModuleBase {
     /**
      * Create an implementation of this context module for tests.
      */
-    public static test() {
+    public static test({afterEach}: {afterEach: (action: () => Promise<void>) => void}) {
         assert(process.env.NODE_ENV === "test");
+
+        // Install an after each hook to wait for tasks.
+        afterEach(async () => {
+            await ProcessContextModule.waitForTestTasks();
+        });
+
         return new ProcessContextModule({
             waitUntil: promise => {
                 // Don't treat errors as unhandled. They will be reported in `afterEach()`.
                 promise.catch(() => {});
 
-                jestAfterEachPromises.push(promise);
+                afterEachPromisesForTest.push(promise);
             },
         });
     }
@@ -51,24 +57,14 @@ export class ProcessContextModule extends ContextModuleBase {
      * `ProcessContextModule.test()`s to resolve.
      */
     public static async waitForTestTasks() {
-        assert(typeof jest !== "undefined");
+        assert(process.env.NODE_ENV === "test");
 
-        while (jestAfterEachPromises.length > 0) {
-            const promises = jestAfterEachPromises;
-            jestAfterEachPromises = [];
+        while (afterEachPromisesForTest.length > 0) {
+            const promises = afterEachPromisesForTest;
+            afterEachPromisesForTest = [];
             await runAllPromises(promises);
         }
     }
 }
 
-let jestAfterEachPromises: Array<Promise<void>> = [];
-
-if (typeof jest !== "undefined") {
-    afterEach(async () => {
-        while (jestAfterEachPromises.length > 0) {
-            const promises = jestAfterEachPromises;
-            jestAfterEachPromises = [];
-            await runAllPromises(promises);
-        }
-    });
-}
+let afterEachPromisesForTest: Array<Promise<unknown>> = [];

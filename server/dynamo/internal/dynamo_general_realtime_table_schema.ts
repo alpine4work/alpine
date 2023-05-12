@@ -1,4 +1,4 @@
-import {addDays, subDays, subMinutes} from "date-fns";
+import {addDays, addMinutes, subDays} from "date-fns";
 import {ActionContext} from "~/server/dynamo/context/action_context";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
 import {DynamoReadConsistency} from "~/server/dynamo/internal/dynamo_client";
@@ -1144,7 +1144,7 @@ export class DynamoGeneralRealtimeTableSchema<
         // events before the read time.
         //
         // [1]: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadConsistency.html
-        readTime = subMinutes(readTime, 3);
+        readTime = addMinutes(readTime, 3);
 
         // We have deleted events before this time to reduce our storage needs. That
         // means we can't backfill reads that ocurred before this time.

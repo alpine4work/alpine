@@ -278,9 +278,6 @@ export function useInboxState({
     // inbox entries until now. That way if any realtime events happened during
     // that time we can incorporate them into our state instead of completely
     // missing them.
-    //
-    // NOCOMMIT: Testing that disconnecting and reconnecting will get any events
-    // missed while disconnected
     const wasConnectedRef = useRef(false);
     useEffect(() => {
         if (!isConnected) {

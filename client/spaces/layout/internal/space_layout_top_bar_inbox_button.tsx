@@ -57,8 +57,6 @@ export function SpaceLayoutTopBarInboxButton({
     const overlayRef = useRef<HTMLDivElement>(null);
     const {isConnected, subscribeToEvents} = useMyAccountWebSocket();
 
-    // NOCOMMIT: Test that we can go offline then back online and the inbox count
-    // updates.
     const inbox = useDynamoGeneralRealtimeItem(initialInbox, {
         isConnected,
         subscribeToEvents: useCallback(

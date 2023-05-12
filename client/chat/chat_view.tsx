@@ -29,48 +29,55 @@ export function ChatView({
     initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
     initialScrollToMessageIndex: number | null;
 }) {
-    const {currentAccount} = useSpaceContext();
-    assert(chat.accounts.length > 0);
-    const otherChatAccounts = chat.accounts.filter(account => account.id !== currentAccount.id);
-
     return (
         <Box width="full" height="full" display="flex" flexDirection="column">
-            <Box
-                flexShrink="0"
-                borderBottom="grey-10"
-                height="12"
-                display="flex"
-                alignItems="center"
-                paddingX="5"
-                gap="2"
-            >
-                <Box paddingX="0.5">
-                    <AccountAvatarPile
-                        size="6"
-                        previewAccounts={otherChatAccounts.slice(0, 4)}
-                        accountCount={otherChatAccounts.length}
-                        getAllAccounts={() => otherChatAccounts}
-                    />
-                </Box>
-                <h1
-                    className={sprinkles({
-                        fontStyle: "truncate-semi-bold",
-                        fontSize: "200",
-                    })}
-                >
-                    <PrettyConjunctionList
-                        list={otherChatAccounts.map(account => (
-                            <AccountShortName key={account.id} account={account} />
-                        ))}
-                    />
-                </h1>
-            </Box>
+            <ChatViewTopBar chat={chat} />
             <ChatMessagingView
                 chat={chat}
                 initialMessages={initialMessages}
                 initialOtherReferencedMessages={initialOtherReferencedMessages}
                 initialScrollToMessageIndex={initialScrollToMessageIndex}
             />
+        </Box>
+    );
+}
+
+function ChatViewTopBar({chat}: {chat: ChatModel}) {
+    const {currentAccount} = useSpaceContext();
+    assert(chat.accounts.length > 0);
+    const otherChatAccounts = chat.accounts.filter(account => account.id !== currentAccount.id);
+
+    return (
+        <Box
+            data-testid="ChatViewTopBar"
+            flexShrink="0"
+            borderBottom="grey-10"
+            height="12"
+            display="flex"
+            alignItems="center"
+            paddingX="5"
+            gap="2"
+        >
+            <Box paddingX="0.5">
+                <AccountAvatarPile
+                    size="6"
+                    previewAccounts={otherChatAccounts.slice(0, 4)}
+                    accountCount={otherChatAccounts.length}
+                    getAllAccounts={() => otherChatAccounts}
+                />
+            </Box>
+            <h1
+                className={sprinkles({
+                    fontStyle: "truncate-semi-bold",
+                    fontSize: "200",
+                })}
+            >
+                <PrettyConjunctionList
+                    list={otherChatAccounts.map(account => (
+                        <AccountShortName key={account.id} account={account} />
+                    ))}
+                />
+            </h1>
         </Box>
     );
 }

@@ -11,4 +11,6 @@ assert(process.env.NODE_ENV === "test");
 export const testSharedHooks: {
     beforeAll: (action: () => Promise<void>) => void;
     afterAll: (action: () => Promise<void>) => void;
+    beforeEach: (action: () => Promise<void>) => void;
+    afterEach: (action: () => Promise<void>) => void;
 } = typeof jest !== "undefined" ? globalThis : require("@playwright/test").test;
