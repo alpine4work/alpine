@@ -13,6 +13,9 @@ import {
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {
     documentCommentInputMinHeight,
+    documentCommentThreadListViewMarginBottom,
+    documentCommentThreadListViewMarginTop,
+    documentCommentThreadListViewMarginY,
     documentCommentThreadPreviewHeight,
 } from "~/client/documents/document_shared_styles";
 import {createDocumentCommentThreadSnippetCollector} from "~/client/documents/internal/create_document_comment_thread_snippet_collector";
@@ -60,12 +63,6 @@ import {sprinkles} from "~/shared/styles/styles";
 
 const documentCommentThreadListViewMarginX: Spacing = "4";
 const documentCommentThreadListViewMaxWidth: Spacing = "128";
-
-// We want our Y margin to be the same as our X margin. We want to give items
-// some margin top and some margin bottom so that the shadows don't overflow.
-const documentCommentThreadListViewMarginTop: Spacing = "2";
-const documentCommentThreadListViewMarginBottom: Spacing = "2";
-export const documentCommentThreadListViewMarginY: Spacing = "4";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders

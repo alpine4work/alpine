@@ -17,6 +17,7 @@ ts_project(
         "//client/design",
         "//client/dev",
         "//client/rpc",
+        "//shared/accounts",
         "//shared/error",
         "//shared/helpers",
         "//shared/models",

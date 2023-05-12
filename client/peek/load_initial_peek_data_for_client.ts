@@ -1,8 +1,8 @@
 import {ClientRoute, matchClientRoutes} from "@remix-run/react";
 import {Path, To} from "history";
-import {convertSpacePathToPeekPath} from "~/client/peek/peek_path_helpers";
 import {InternalError, NotFoundError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
+import {convertSpacePathToPeekPath} from "~/shared/remix/peek_path_helpers";
 
 /**
  * We have a server version of this too: `loadInitialPeekDataForServer()`.

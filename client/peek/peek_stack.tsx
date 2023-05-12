@@ -55,10 +55,6 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {usePromise} from "~/client/helpers/use_promise";
 import {loadInitialPeekDataForClient} from "~/client/peek/load_initial_peek_data_for_client";
-import {
-    convertPeekPathToSpacePath,
-    convertSpacePathToPeekPath,
-} from "~/client/peek/peek_path_helpers";
 import {PeekRemixEmbed} from "~/client/peek/peek_remix_embed";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {NavigationEventContextProvider, useNavigate} from "~/client/remix/use_navigate";
@@ -78,6 +74,10 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
 import {Lazy} from "~/shared/helpers/control/lazy";
 import {generateId} from "~/shared/id/id";
 import {PeekId} from "~/shared/id/types/id_types";
+import {
+    convertPeekPathToSpacePath,
+    convertSpacePathToPeekPath,
+} from "~/shared/remix/peek_path_helpers";
 import {Schema} from "~/shared/schema/schema";
 import {
     colorSchemeVars,

@@ -1,6 +1,7 @@
 import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name";
 import {useShowToast} from "~/client/design/toast";
 import {DocumentCommentThreadListView} from "~/client/documents/document_comment_thread_list_view";
+import {documentCommentThreadCountAgainstLimit} from "~/client/documents/document_shared_styles";
 import {useDocumentContentEditorWebSocket} from "~/client/documents/use_document_content_editor_web_socket";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
@@ -38,6 +39,7 @@ export async function loader({params, context}: LoaderArgs) {
             documentId,
             commentThreadIds: [commentThreadId],
             commentLimit: getInitialLoadMessageCount(context.loader.clientInfo),
+            commentThreadCountAgainstLimit: documentCommentThreadCountAgainstLimit,
         });
 
     const commentThread = assertExists(commentThreads[0]);

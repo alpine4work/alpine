@@ -18,13 +18,13 @@ import {
 import {Navigator, UNSAFE_RouteContext as RouteContext} from "react-router";
 import {Router, useRoutes} from "react-router-dom";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {convertSpacePathToPeekPath, isPeekPath} from "~/client/peek/peek_path_helpers";
 import {WaitForNavigationContextProvider, useNavigate} from "~/client/remix/use_navigate";
 import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title";
 import {InternalError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {PeekId} from "~/shared/id/types/id_types";
+import {convertSpacePathToPeekPath, isPeekPath} from "~/shared/remix/peek_path_helpers";
 
 type RemixEntryContextType = typeof RemixEntryContext extends Context<infer ContextType>
     ? NonNullable<ContextType>

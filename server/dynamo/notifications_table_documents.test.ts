@@ -13,7 +13,7 @@ import {
 import {
     createNotificationsScenario,
     massageInboxEntriesQuery,
-} from "~/server/dynamo/notifications_table_test_helpers";
+} from "~/server/dynamo/test_helpers/jest/notifications_table_test_helpers";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
 import {
     DocumentContentProsemirrorSchema,

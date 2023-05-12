@@ -33,10 +33,6 @@ import {InboxViewEntriesEmpty} from "~/client/inbox/inbox_view_entries_empty";
 import {InboxViewTopBar} from "~/client/inbox/inbox_view_top_bar";
 import {useInboxState} from "~/client/inbox/use_inbox_state";
 import {loadInitialPeekDataForClient} from "~/client/peek/load_initial_peek_data_for_client";
-import {
-    convertPeekPathToSpacePath,
-    convertSpacePathToPeekPath,
-} from "~/client/peek/peek_path_helpers";
 import {PeekRemixEmbed} from "~/client/peek/peek_remix_embed";
 import {
     VirtualizedScrollView,
@@ -59,6 +55,10 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {generateId} from "~/shared/id/id";
 import {PeekId} from "~/shared/id/types/id_types";
 import {InboxEntryModel} from "~/shared/models/inbox_model";
+import {
+    convertPeekPathToSpacePath,
+    convertSpacePathToPeekPath,
+} from "~/shared/remix/peek_path_helpers";
 import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles";
 
 export type InboxViewPeek = {

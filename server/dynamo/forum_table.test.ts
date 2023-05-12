@@ -1,5 +1,4 @@
 import {
-    backfillPostComments,
     createChannel,
     createPost,
     createPostComment,
@@ -7,17 +6,13 @@ import {
     getChannel,
     getChannelPosts,
     getPost,
-    getPostComment,
     getPostCommentAuthors,
-    getPostCommentsFromEnd,
-    getPostCommentsFromStart,
     getPostNotificationSubscribers,
     updateChannelDescription,
     updateChannelName,
     updatePostCommentContent,
     updatePostContent,
 } from "~/server/dynamo/forum_table";
-import {testMessagingImplementation} from "~/server/dynamo/test_helpers/jest/test_messaging_implementation";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
 import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
@@ -35,7 +30,6 @@ import {
 import {InvalidArgumentError, NotFoundError, PermissionDeniedError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {generateId} from "~/shared/id/id";
-import {PostId} from "~/shared/id/types/id_types";
 import {emptyContentReferences} from "~/shared/models/content_references";
 import {PostContentWithReferences} from "~/shared/models/post_model";
 
@@ -2220,144 +2214,4 @@ describe("Notification subscribers", () => {
             session5.account,
         ]);
     });
-});
-
-testMessagingImplementation<PostId>(context, {
-    async createRoom(context, spaceId) {
-        const channel = await createChannel(context, {
-            spaceId,
-            name: "Test",
-        });
-
-        const post = await createPost(context, {
-            channelId: channel.id,
-            content: testContent1,
-        });
-
-        return {
-            key: post.id,
-            spaceId,
-            createdTime: post.createdTime,
-            messageCount: 0,
-        };
-    },
-
-    // TODO(calebmer): Implement when we can have private channels!
-    createPrivateRoom: "Unimplemented",
-
-    async getRoom(context, postId) {
-        const post = await getPost(context, postId);
-        return {
-            key: post.id,
-            spaceId: post.spaceId,
-            createdTime: post.createdTime,
-            messageCount: post.commentCount,
-        };
-    },
-    getMissingRoomKey() {
-        return generateId();
-    },
-    async createMessage(
-        context,
-        {roomKey: postId, parentMessageIndex: parentCommentIndex, content},
-    ) {
-        const comment = await createPostComment(context, {
-            postId,
-            parentCommentIndex,
-            content,
-        });
-
-        return {
-            index: comment.index,
-            createdTime: comment.createdTime,
-        };
-    },
-    async getMessage(context, {roomKey: postId, messageIndex: commentIndex}) {
-        return getPostComment(context, {postId, commentIndex});
-    },
-    async updateMessageContent(context, {roomKey: postId, messageIndex: commentIndex, content}) {
-        return updatePostCommentContent(context, {
-            postId,
-            commentIndex,
-            content,
-        });
-    },
-    async deleteMessage(context, {roomKey: postId, messageIndex: commentIndex}) {
-        return deletePostComment(context, {postId, commentIndex});
-    },
-    async getMessagesFromStart(
-        context,
-        {
-            roomKey: postId,
-            limit,
-            afterMessageIndex: afterCommentIndex,
-            beforeMessageIndex: beforeCommentIndex,
-        },
-    ) {
-        const {commentCount, comments, otherReferencedComments, lastCommentChangeTime} =
-            await getPostCommentsFromStart(context, {
-                postId,
-                limit,
-                afterCommentIndex,
-                beforeCommentIndex,
-            });
-        return {
-            messageCount: commentCount,
-            messages: comments,
-            otherReferencedMessages: otherReferencedComments,
-            lastMessageChangeTime: lastCommentChangeTime,
-        };
-    },
-    async getMessagesFromEnd(
-        context,
-        {
-            roomKey: postId,
-            limit,
-            afterMessageIndex: afterCommentIndex,
-            beforeMessageIndex: beforeCommentIndex,
-        },
-    ) {
-        const {commentCount, comments, otherReferencedComments, lastCommentChangeTime} =
-            await getPostCommentsFromEnd(context, {
-                postId,
-                limit,
-                afterCommentIndex,
-                beforeCommentIndex,
-            });
-        return {
-            messageCount: commentCount,
-            messages: comments,
-            otherReferencedMessages: otherReferencedComments,
-            lastMessageChangeTime: lastCommentChangeTime,
-        };
-    },
-    async backfillMessages(
-        context,
-        {
-            roomKey: postId,
-            clientMessageCount: clientCommentCount,
-            clientLastMessageChangeTime: clientLastCommentChangeTime,
-            newMessageLimit: newCommentLimit,
-        },
-    ) {
-        const {
-            commentCount,
-            lastCommentChangeTime,
-            newComments,
-            newOtherReferencedComments,
-            commentChangesResult,
-        } = await backfillPostComments(context, {
-            postId,
-            clientCommentCount,
-            clientLastCommentChangeTime,
-            newCommentLimit,
-        });
-        return {
-            messageCount: commentCount,
-            lastMessageChangeTime: lastCommentChangeTime,
-            newMessages: newComments,
-            newOtherReferencedMessages: newOtherReferencedComments,
-            messageChangesResult: commentChangesResult,
-        };
-    },
 });

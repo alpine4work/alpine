@@ -4,6 +4,8 @@
 
 import {RemLength, Spacing} from "~/shared/design/spacing";
 
+export const messageViewMinHeight: RemLength = "2.125rem";
+
 export const messageInputMinHeight: RemLength = "3.5rem";
 export const messageViewBubbleBorderRadius = "xl" as const;
 export const messageViewBubblePaddingX: Spacing = "0.5";

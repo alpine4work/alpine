@@ -1,16 +1,9 @@
 import {MetaFunction} from "@remix-run/server-runtime";
 import {useShowToast} from "~/client/design/toast";
-import {
-    DocumentCommentThreadListView,
-    documentCommentThreadListViewMarginY,
-} from "~/client/documents/document_comment_thread_list_view";
-import {
-    documentCommentInputMinHeight,
-    documentCommentThreadPreviewHeight,
-} from "~/client/documents/document_shared_styles";
+import {DocumentCommentThreadListView} from "~/client/documents/document_comment_thread_list_view";
+import {documentCommentThreadCountAgainstLimit} from "~/client/documents/document_shared_styles";
 import {useDocumentContentEditorWebSocket} from "~/client/documents/use_document_content_editor_web_socket";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {messageViewMinHeight} from "~/client/messaging/message_view";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {useRootNavigate} from "~/client/remix/use_navigate";
@@ -18,7 +11,6 @@ import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
 import {getInboxDocumentNewCommentThreadsEntryCommentThreads} from "~/server/dynamo/notifications_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
-import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {InvalidArgumentError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {isId} from "~/shared/id/id";
@@ -63,16 +55,6 @@ export async function loader({params, context}: LoaderArgs) {
     if (bucketGeneration === null || !Number.isInteger(bucketGeneration))
         throw new InvalidArgumentError("Expected bucket generation to be an integer");
 
-    const commentThreadHeightWithoutComments = addRemLengths(
-        documentCommentThreadPreviewHeight,
-        documentCommentInputMinHeight,
-        spacing[documentCommentThreadListViewMarginY],
-    );
-
-    const commentThreadCountAgainstLimit =
-        parseRemLengthNumber(commentThreadHeightWithoutComments) /
-        parseRemLengthNumber(messageViewMinHeight);
-
     const {document, commentThreads, initialCommentsByCommentThreadId} =
         await getInboxDocumentNewCommentThreadsEntryCommentThreads(
             await context.actor.authenticate(),
@@ -81,7 +63,7 @@ export async function loader({params, context}: LoaderArgs) {
                 documentId,
                 bucketGeneration,
                 commentLimit: getInitialLoadMessageCount(context.loader.clientInfo),
-                commentThreadCountAgainstLimit,
+                commentThreadCountAgainstLimit: documentCommentThreadCountAgainstLimit,
             },
         );
 
