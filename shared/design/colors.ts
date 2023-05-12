@@ -52,6 +52,11 @@ export const colors = {
     "grey-80-elevated": "#37373b",
     "grey-90-elevated": "#262629",
 
+    // These colors are not replaced everywhere in a peek, only the `grey-wash`
+    // color variable.
+    "grey-5-elevated": "#ebebef",
+    "grey-dark-elevated": "#131315",
+
     "red-5": "#fcf1e8",
     "red-10": "#ffd4c2",
     "red-20": "#fab29a",

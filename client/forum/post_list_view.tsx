@@ -1519,7 +1519,7 @@ function PostListView(
                     flexDirection: "column",
                     backgroundColor: isSingleMobileLayoutPostWithPinnedCommentInput
                         ? "grey-0"
-                        : "grey-5",
+                        : "grey-wash",
                 })}
             >
                 <VirtualizedScrollView

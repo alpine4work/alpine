@@ -13,8 +13,7 @@ import {
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {
     documentCommentInputMinHeight,
-    documentCommentThreadPreviewHeightWithHeader,
-    documentCommentThreadPreviewHeightWithoutHeader,
+    documentCommentThreadPreviewHeight,
 } from "~/client/documents/document_shared_styles";
 import {createDocumentCommentThreadSnippetCollector} from "~/client/documents/internal/create_document_comment_thread_snippet_collector";
 import {DocumentCommentInput} from "~/client/documents/internal/document_comment_input";
@@ -54,14 +53,13 @@ import {
     DocumentCommentThreadModel,
     DocumentContentWithReferences,
     decodeDocumentCommentRoomKey,
-    getDocumentContentTitle,
 } from "~/shared/models/document_model";
 import {OptimisticMessageModel} from "~/shared/models/message_model";
 import {Schema} from "~/shared/schema/schema";
 import {sprinkles} from "~/shared/styles/styles";
 
 const documentCommentThreadListViewMarginX: Spacing = "4";
-const documentCommentThreadListViewMaxWidth: Spacing = "160";
+const documentCommentThreadListViewMaxWidth: Spacing = "128";
 
 // We want our Y margin to be the same as our X margin. We want to give items
 // some margin top and some margin bottom so that the shadows don't overflow.
@@ -198,7 +196,6 @@ function DocumentCommentThreadListView(
         documentId,
         content,
         onCommentThreadSnippetPress,
-        withPreviewHeaders,
         initialCommentThreadsResult,
         isConnected,
         procedures,
@@ -209,7 +206,6 @@ function DocumentCommentThreadListView(
         documentId: DocumentId;
         content: DocumentContentWithReferences;
         onCommentThreadSnippetPress: Memo<(commentThreadId: DocumentCommentThreadId) => void>;
-        withPreviewHeaders: boolean;
 
         /**
          * The initial comment threads loaded to populate this view. We will use this
@@ -550,8 +546,6 @@ function DocumentCommentThreadListView(
 
     useImperativeHandle(ref, () => ({jumpToCommentIndex}), [jumpToCommentIndex]);
 
-    const documentTitle = getDocumentContentTitle(content.doc);
-
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
             const item = tree.getItem(index);
@@ -562,9 +556,7 @@ function DocumentCommentThreadListView(
 
                     return {
                         key: `DocumentCommentThreadPreview:${item.commentThread.id}`,
-                        minHeight: withPreviewHeaders
-                            ? documentCommentThreadPreviewHeightWithHeader
-                            : documentCommentThreadPreviewHeightWithoutHeader,
+                        minHeight: documentCommentThreadPreviewHeight,
                         renderAdditionalItemIndexes:
                             !isSingleMobileLayoutCommentThreadWithPinnedCommentInput
                                 ? [item.commentInputItemIndex]
@@ -595,8 +587,6 @@ function DocumentCommentThreadListView(
                                     })}
                                 >
                                     <DocumentCommentThreadPreview
-                                        withHeader={withPreviewHeaders}
-                                        documentTitle={documentTitle}
                                         commentThread={item.commentThread}
                                         contentSnippet={
                                             contentSnippetByCommentThreadId.get(
@@ -1039,10 +1029,8 @@ function DocumentCommentThreadListView(
         [
             tree,
             documentId,
-            withPreviewHeaders,
             isSingleMobileLayoutCommentThreadWithPinnedCommentInput,
             withMobileLayout,
-            documentTitle,
             contentSnippetByCommentThreadId,
             content.references,
             onCommentThreadSnippetPress,
@@ -1071,7 +1059,7 @@ function DocumentCommentThreadListView(
                     flexDirection: "column",
                     backgroundColor: isSingleMobileLayoutCommentThreadWithPinnedCommentInput
                         ? "grey-0"
-                        : "grey-5",
+                        : "grey-wash",
                 })}
             >
                 <VirtualizedScrollView

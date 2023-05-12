@@ -86,7 +86,6 @@ export default function DocumentCommentThreadRoute({
 
     return (
         <DocumentCommentThreadListView
-            withPreviewHeaders={true}
             documentId={initialDocument.id}
             content={editorState.getContent()}
             isConnected={isConnected}

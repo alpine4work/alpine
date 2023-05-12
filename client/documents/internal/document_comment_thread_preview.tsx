@@ -5,10 +5,7 @@ import {ContentView} from "~/client/content/content_view";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {useRemPx} from "~/client/design/helpers/use_rem_px";
-import {
-    documentCommentThreadPreviewHeaderHeight,
-    documentCommentThreadPreviewHeightWithoutHeader,
-} from "~/client/documents/document_shared_styles";
+import {documentCommentThreadPreviewHeight} from "~/client/documents/document_shared_styles";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {convertRemLengthToPx, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
@@ -22,15 +19,11 @@ import {
 import {documentCommentThreadPreviewStyles, fontSizesByPlatform} from "~/shared/styles/styles";
 
 export function DocumentCommentThreadPreview({
-    withHeader,
-    documentTitle,
     commentThread,
     contentSnippet,
     contentReferences,
     onCommentThreadSnippetPress,
 }: {
-    withHeader: boolean;
-    documentTitle: string;
     commentThread: DocumentCommentThreadModel;
     contentSnippet: Node | null;
     contentReferences: DocumentContentReferences;
@@ -98,17 +91,6 @@ export function DocumentCommentThreadPreview({
 
     return (
         <Box>
-            {withHeader && (
-                <Box
-                    display="flex"
-                    alignItems="center"
-                    paddingX="3"
-                    borderBottom="grey-10"
-                    style={{height: documentCommentThreadPreviewHeaderHeight}}
-                >
-                    <Box fontStyle="truncate-semi-bold">{documentTitle}</Box>
-                </Box>
-            )}
             <FocusRing offset="inset">
                 <Box
                     ref={buttonRef}
@@ -119,7 +101,7 @@ export function DocumentCommentThreadPreview({
                     // affordance. It's not clear that the preview is clickable unlike a button.
                     cursor="pointer"
                     borderBottom="grey-10"
-                    style={{height: documentCommentThreadPreviewHeightWithoutHeader}}
+                    style={{height: documentCommentThreadPreviewHeight}}
                     {...(buttonProps as any)}
                 >
                     {isPressed && (

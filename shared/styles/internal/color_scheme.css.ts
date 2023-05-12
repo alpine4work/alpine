@@ -236,12 +236,17 @@ export const colorSchemeVars = {
  * for peeks and since peeks contain arbitrary content we need to implement
  * these lighter backgrounds at the color system level.
  */
-export const greyElevatedClassName = style({});
+export const greyElevatedClassName = style({
+    vars: {
+        [specialGreyColorVars["grey-wash"]]: colors["grey-5-elevated"],
+    },
+});
 
 globalStyle(`${darkColorSchemeSelector} ${greyElevatedClassName}`, {
     vars: {
         [colorSchemeVars["grey-0"]]: colors["grey-90-elevated"],
         [colorSchemeVars["grey-5"]]: colors["grey-80-elevated"],
         [colorSchemeVars["grey-10"]]: colors["grey-70-elevated"],
+        [specialGreyColorVars["grey-wash"]]: colors["grey-dark-elevated"],
     },
 });

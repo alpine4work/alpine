@@ -6,7 +6,7 @@ import {
 } from "~/client/documents/document_comment_thread_list_view";
 import {
     documentCommentInputMinHeight,
-    documentCommentThreadPreviewHeightWithHeader,
+    documentCommentThreadPreviewHeight,
 } from "~/client/documents/document_shared_styles";
 import {useDocumentContentEditorWebSocket} from "~/client/documents/use_document_content_editor_web_socket";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
@@ -64,7 +64,7 @@ export async function loader({params, context}: LoaderArgs) {
         throw new InvalidArgumentError("Expected bucket generation to be an integer");
 
     const commentThreadHeightWithoutComments = addRemLengths(
-        documentCommentThreadPreviewHeightWithHeader,
+        documentCommentThreadPreviewHeight,
         documentCommentInputMinHeight,
         spacing[documentCommentThreadListViewMarginY],
     );
@@ -123,7 +123,6 @@ export default function DocumentNewCommentThreadsRoute({
 
     return (
         <DocumentCommentThreadListView
-            withPreviewHeaders={true}
             documentId={initialDocument.id}
             content={editorState.getContent()}
             isConnected={isConnected}
