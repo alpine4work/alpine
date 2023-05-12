@@ -1,5 +1,3 @@
-import "~/server/rpc/all_rpc_implementations";
-
 import {
     RpcImplementation,
     getRpcImplementationIfExists as _getRpcImplementationIfExists,
@@ -11,6 +9,14 @@ import {
  * Importing this module also imports all RPC implementations so
  * we know that all implementations exist.
  */
-export function getRpcImplementationIfExists(name: string): RpcImplementation | null {
+export async function getRpcImplementationIfExists(
+    name: string,
+): Promise<RpcImplementation | null> {
+    // NOTE(calebmer, 2023-05-12): We lazily import this file in order to stay
+    // under the Cloudflare Workers 200ms startup time limit. If our startup time
+    // limit is ever extended or if we ever move this code to AWS EC2, we should
+    // remove this lazy load.
+    await import("~/server/rpc/all_rpc_implementations");
+
     return _getRpcImplementationIfExists(name);
 }

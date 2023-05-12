@@ -404,7 +404,7 @@ function handleQueue(batch: MessageBatch, env: AppWorkerEnv, executionContext: E
                     },
                 });
 
-                if (batch.queue !== "NotificationsQueue")
+                if (batch.queue !== "notifications-queue")
                     throw new InternalError("Unrecognized queue name");
 
                 const {event, tracerContext} = NotificationsQueueMessageSchema.deserialize(

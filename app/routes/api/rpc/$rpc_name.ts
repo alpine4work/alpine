@@ -39,7 +39,7 @@ export async function action({request, context, span, params}: LoaderArgs) {
                 if (params.rpc_name !== call.name)
                     throw new InvalidArgumentError("Expected name in input to match name in URL");
 
-                const rpcImplementation = getRpcImplementationIfExists(call.name);
+                const rpcImplementation = await getRpcImplementationIfExists(call.name);
 
                 if (!rpcImplementation)
                     throw new NotFoundError("Could not find an implementation for RPC");

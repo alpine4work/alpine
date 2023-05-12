@@ -16,15 +16,15 @@ type = "ESModule"
 globs = ["**/*.js"]
 
 [[queues.producers]]
-queue = "NotificationsQueue"
+queue = "notifications-queue"
 binding = "NotificationsQueue"
 
 [[queues.consumers]]
-queue = "NotificationsQueue"
+queue = "notifications-queue"
 max_batch_size = 1
 max_batch_timeout = 0
 max_retries = 10
-dead_letter_queue = "NotificationsDeadLetterQueue"
+dead_letter_queue = "notifications-dead-letter-queue"
 
 [[durable_objects.bindings]]
 name = "DocumentCollaborationDurableObjectNamespace"
@@ -39,8 +39,8 @@ name = "ChatRealtimeDurableObjectNamespace"
 class_name = "ChatRealtimeDurableObject"
 
 [[durable_objects.bindings]]
-name = "MyAccountDirableObjectNamespace"
-class_name = "MyAccountDirableObject"
+name = "MyAccountDurableObjectNamespace"
+class_name = "MyAccountDurableObject"
 
 [[migrations]]
 tag = "v1"
@@ -56,4 +56,4 @@ new_classes = ["ChatRealtimeDurableObject"]
 
 [[migrations]]
 tag = "v4"
-new_classes = ["MyAccountDirableObject"]
+new_classes = ["MyAccountDurableObject"]

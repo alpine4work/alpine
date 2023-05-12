@@ -20,7 +20,7 @@ export class LocalRpcContextModule extends RpcContextModuleBase<MaybeSessionActi
         definition: RpcDefinition<Input, Output>,
         input: Input,
     ): Promise<Output> {
-        const implementation = getRpcImplementationIfExists(definition.name);
+        const implementation = await getRpcImplementationIfExists(definition.name);
 
         if (!implementation)
             throw new InternalError("Could not find an implementation for defined RPC");

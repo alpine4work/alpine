@@ -41,7 +41,9 @@ export async function action({request, context, span}: LoaderArgs) {
                     batchCall.calls.map(
                         async (call): Promise<SchemaType<typeof RpcHttpCallOutputSchema>> => {
                             try {
-                                const rpcImplementation = getRpcImplementationIfExists(call.name);
+                                const rpcImplementation = await getRpcImplementationIfExists(
+                                    call.name,
+                                );
 
                                 if (!rpcImplementation)
                                     throw new NotFoundError(
