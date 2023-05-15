@@ -2,6 +2,7 @@ import {Session} from "~/server/dynamo/accounts_table";
 import {SessionActionContext} from "~/server/dynamo/context/action_context";
 import {SessionActorContextModule} from "~/server/dynamo/context/actor_context_module";
 import {ProcessContext} from "~/server/dynamo/context/process_context";
+import {DynamoBatchContextModule} from "~/server/dynamo/dynamo_context_module";
 import {validateTracerEventFlatDataForPropagation} from "~/server/tracer/validate_tracer_event_flat_data";
 import {webSocketExpirationTimeoutMs} from "~/shared/cloudflare/web_socket_expiration_timeout_ms";
 import {
@@ -682,6 +683,7 @@ class WebSocketServerConnectionWrapper<
                                         const output = await context.with(
                                             {
                                                 cache: new CacheContextModule(),
+                                                dynamoBatchContext: new DynamoBatchContextModule(),
                                                 actor: new SessionActorContextModule(session),
                                             },
                                             (context: SessionActionContext) => {
@@ -967,6 +969,7 @@ class WebSocketServerTestConnectionWrapper<
                 return context.with(
                     {
                         cache: new CacheContextModule(),
+                        dynamoBatchContext: new DynamoBatchContextModule(),
                         actor: new SessionActorContextModule(session),
                     },
                     (context: SessionActionContext) => {

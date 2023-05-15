@@ -15,7 +15,7 @@ import {
     NotificationsContextModule,
     NotificationsQueueMessageSchema,
 } from "~/server/dynamo/context/notifications_context_module";
-import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
+import {DynamoBatchContextModule, DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
 import {processNotificationEvent} from "~/server/dynamo/notifications_table";
 import {seedDynamo} from "~/server/dynamo/seed_dynamo";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base";
@@ -320,6 +320,7 @@ async function handleFetch(
                             : null,
                     }),
                     cache: new CacheContextModule(),
+                    dynamoBatchContext: new DynamoBatchContextModule(),
                     notifications: new NotificationsContextModule(env),
 
                     actor: new MaybeSessionActorContextModule(async context => {
@@ -429,6 +430,7 @@ function handleQueue(batch: MessageBatch, env: AppWorkerEnv, executionContext: E
                         }),
                         tracer: new TracerContextModule(span),
                         cache: new CacheContextModule(),
+                        dynamoBatchContext: new DynamoBatchContextModule(),
                         notifications: new NotificationsContextModule(env),
                         actor: new SystemActorContextModule(event.spaceId),
                     },

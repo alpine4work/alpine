@@ -17,7 +17,7 @@ import {
 } from "~/server/dynamo/context/actor_context_module";
 import {TestNotificationsContextModule} from "~/server/dynamo/context/notifications_context_module";
 import {ProcessContext, ProcessContextModulesBase} from "~/server/dynamo/context/process_context";
-import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
+import {DynamoBatchContextModule, DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
 import {testSharedHooks} from "~/server/dynamo/test_helpers/shared/test_shared_hooks";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module";
 import {CacheContextModule} from "~/shared/context/cache_context_module";
@@ -78,6 +78,7 @@ export function createTestContext(): TestContext {
     const createUnauthenticatedSessionContext = (): MaybeSessionActionContext => {
         return processContext.clone({
             cache: new CacheContextModule(),
+            dynamoBatchContext: new DynamoBatchContextModule(),
             actor: new MaybeSessionActorContextModule(async () => null),
         });
     };
@@ -85,6 +86,7 @@ export function createTestContext(): TestContext {
     const createSessionContext = (session: {item: SessionItem}): SessionActionContext => {
         return processContext.clone({
             cache: new CacheContextModule(),
+            dynamoBatchContext: new DynamoBatchContextModule(),
             actor: new SessionActorContextModule(Session.test(session.item)),
         });
     };
@@ -92,6 +94,7 @@ export function createTestContext(): TestContext {
     const createSystemContext = (spaceId: SpaceId): SystemActionContext => {
         return processContextBase.clone({
             cache: new CacheContextModule(),
+            dynamoBatchContext: new DynamoBatchContextModule(),
             actor: new SystemActorContextModule(spaceId),
         });
     };

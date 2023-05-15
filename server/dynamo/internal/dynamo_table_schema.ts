@@ -24,7 +24,9 @@ import {
     getDynamoRetryTransactionIfExists,
 } from "~/server/dynamo/internal/get_dynamo_client";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
+import {isDynamoResourceInUseError} from "~/server/dynamo/internal/is_dynamo_resource_in_use_exception";
 import {isDynamoResourceNotFoundError} from "~/server/dynamo/internal/is_dynamo_resource_not_found_error";
+import {isDynamoValidationError} from "~/server/dynamo/internal/is_dynamo_validation_exception";
 import {DynamoTableSchemaTypes} from "~/server/dynamo/internal/types/dynamo_table_schema_types";
 import {checkSchemaBackwardsCompatibility} from "~/server/schema/check_schema_backwards_compatibility";
 import {DynamoIndexCursor, DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings";
@@ -528,7 +530,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         return assertExists(this._partitionConfigByName.get(partitionType)).partitionKeyAttributes;
     }
 
-    private _ensureTablePromise: Promise<void> | null = null;
+    private _ensureLocalTablePromise: Promise<void> | null = null;
 
     private async _getClient(
         context: DynamoContext,
@@ -557,9 +559,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         if (process.env.NODE_ENV !== "production") {
             const internalClient = client.getInternalClient();
             if (internalClient.isLocal()) {
-                if (!this._ensureTablePromise)
-                    this._ensureTablePromise = this._ensureLocalTable(context);
-                await this._ensureTablePromise;
+                if (!this._ensureLocalTablePromise) {
+                    this._ensureLocalTablePromise = this._ensureLocalTable(context);
+                }
+                await this._ensureLocalTablePromise;
             }
         }
 
@@ -570,113 +573,133 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      * Ensures that our table exists in DynamoDB local.
      */
     private async _ensureLocalTable(context: DynamoContext): Promise<void> {
-        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
+        await retryWithExponentialBackoff(async retry => {
+            assert(this._initializationState.isInitialized, "Schema has not finished initializing");
 
-        const client = getDynamoClient(context);
-        const internalClient = client.getInternalClient();
-        const tableName = this.getName();
+            const client = getDynamoClient(context);
+            const internalClient = client.getInternalClient();
+            const tableName = this.getName();
 
-        // Only allow creating tables in this way in local DynamoDB databases. In
-        // production we should use the AWS CDK.
-        assert(internalClient.isLocal());
+            // Only allow creating tables in this way in local DynamoDB databases. In
+            // production we should use the AWS CDK.
+            assert(internalClient.isLocal());
 
-        let doesTableExist;
-        let isTimeToLiveEnabled;
-        try {
-            const output = await internalClient.DescribeTimeToLive(context.tracer.getTracer(), {
-                TableName: tableName,
-            });
-            doesTableExist = true;
-            isTimeToLiveEnabled = output.TimeToLiveDescription?.TimeToLiveStatus !== "DISABLED";
-        } catch (error) {
-            if (isDynamoResourceNotFoundError(error)) {
-                doesTableExist = false;
-                isTimeToLiveEnabled = false;
-            } else {
-                throw error;
+            let doesTableExist;
+            let isTimeToLiveEnabled;
+            try {
+                const output = await internalClient.DescribeTimeToLive(context.tracer.getTracer(), {
+                    TableName: tableName,
+                });
+                doesTableExist = true;
+                isTimeToLiveEnabled = output.TimeToLiveDescription?.TimeToLiveStatus !== "DISABLED";
+            } catch (error) {
+                if (isDynamoResourceNotFoundError(error)) {
+                    doesTableExist = false;
+                    isTimeToLiveEnabled = false;
+                } else {
+                    throw error;
+                }
             }
-        }
 
-        if (!doesTableExist) {
-            await internalClient.CreateTable(context.tracer.getTracer(), {
-                TableName: tableName,
-                AttributeDefinitions: [
-                    {
-                        AttributeName: "partitionKey",
-                        AttributeType: "S",
-                    },
-                    {
-                        AttributeName: "sortKey",
-                        AttributeType: "S",
-                    },
-                    ...this._initializationState.description.indexes.flatMap(
-                        (indexDescription, i) => {
-                            const indexNumber = i + 1;
+            if (!doesTableExist) {
+                try {
+                    await internalClient.CreateTable(context.tracer.getTracer(), {
+                        TableName: tableName,
+                        AttributeDefinitions: [
+                            {
+                                AttributeName: "partitionKey",
+                                AttributeType: "S",
+                            },
+                            {
+                                AttributeName: "sortKey",
+                                AttributeType: "S",
+                            },
+                            ...this._initializationState.description.indexes.flatMap(
+                                (indexDescription, i) => {
+                                    const indexNumber = i + 1;
 
-                            return [
-                                {
-                                    AttributeName: `index${indexNumber}PartitionKey`,
-                                    AttributeType: "S",
+                                    return [
+                                        {
+                                            AttributeName: `index${indexNumber}PartitionKey`,
+                                            AttributeType: "S",
+                                        },
+                                        {
+                                            AttributeName: `index${indexNumber}SortKey`,
+                                            AttributeType: "S",
+                                        },
+                                    ];
                                 },
-                                {
-                                    AttributeName: `index${indexNumber}SortKey`,
-                                    AttributeType: "S",
-                                },
-                            ];
-                        },
-                    ),
-                ],
-                KeySchema: [
-                    {
-                        AttributeName: "partitionKey",
-                        KeyType: "HASH",
-                    },
-                    {
-                        AttributeName: "sortKey",
-                        KeyType: "RANGE",
-                    },
-                ],
-                BillingMode: "PAY_PER_REQUEST",
-                GlobalSecondaryIndexes:
-                    this._initializationState.description.indexes.length > 0
-                        ? this._initializationState.description.indexes.map(
-                              (indexDescription, i) => {
-                                  const indexNumber = i + 1;
+                            ),
+                        ],
+                        KeySchema: [
+                            {
+                                AttributeName: "partitionKey",
+                                KeyType: "HASH",
+                            },
+                            {
+                                AttributeName: "sortKey",
+                                KeyType: "RANGE",
+                            },
+                        ],
+                        BillingMode: "PAY_PER_REQUEST",
+                        GlobalSecondaryIndexes:
+                            this._initializationState.description.indexes.length > 0
+                                ? this._initializationState.description.indexes.map(
+                                      (indexDescription, i) => {
+                                          const indexNumber = i + 1;
 
-                                  return {
-                                      IndexName: `Index${indexNumber}`,
-                                      KeySchema: [
-                                          {
-                                              AttributeName: `index${indexNumber}PartitionKey`,
-                                              KeyType: "HASH",
-                                          },
-                                          {
-                                              AttributeName: `index${indexNumber}SortKey`,
-                                              KeyType: "RANGE",
-                                          },
-                                      ],
-                                      Projection: {
-                                          ProjectionType: {
-                                              KeysOnly: "KEYS_ONLY",
-                                              All: "ALL",
-                                          }[indexDescription.projection],
+                                          return {
+                                              IndexName: `Index${indexNumber}`,
+                                              KeySchema: [
+                                                  {
+                                                      AttributeName: `index${indexNumber}PartitionKey`,
+                                                      KeyType: "HASH",
+                                                  },
+                                                  {
+                                                      AttributeName: `index${indexNumber}SortKey`,
+                                                      KeyType: "RANGE",
+                                                  },
+                                              ],
+                                              Projection: {
+                                                  ProjectionType: {
+                                                      KeysOnly: "KEYS_ONLY",
+                                                      All: "ALL",
+                                                  }[indexDescription.projection],
+                                              },
+                                          };
                                       },
-                                  };
-                              },
-                          )
-                        : undefined,
-            });
-        }
+                                  )
+                                : undefined,
+                    });
+                } catch (error) {
+                    // A concurrent process may be racing to create this table. Try again...
+                    if (isDynamoResourceInUseError(error)) {
+                        retry();
+                    } else {
+                        throw error;
+                    }
+                }
+            }
 
-        if (!isTimeToLiveEnabled) {
-            await internalClient.UpdateTimeToLive(context.tracer.getTracer(), {
-                TableName: tableName,
-                TimeToLiveSpecification: {
-                    Enabled: true,
-                    AttributeName: "expirationTime",
-                },
-            });
-        }
+            if (!isTimeToLiveEnabled) {
+                try {
+                    await internalClient.UpdateTimeToLive(context.tracer.getTracer(), {
+                        TableName: tableName,
+                        TimeToLiveSpecification: {
+                            Enabled: true,
+                            AttributeName: "expirationTime",
+                        },
+                    });
+                } catch (error) {
+                    // A concurrent process may be racing to create this table. Try again...
+                    if (isDynamoValidationError(error)) {
+                        retry();
+                    } else {
+                        throw error;
+                    }
+                }
+            }
+        });
     }
 
     private _serializePartitionKey(
@@ -1106,11 +1129,15 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         const client = await this._getClient(context, false);
         const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
 
-        const serializedItem = await client.getItemIfExists(context.tracer.getTracer(), {
-            tableName: this._name,
-            key: {partitionKey, sortKey},
-            consistency,
-        });
+        const serializedItem = await client.getItemIfExists(
+            context.tracer.getTracer(),
+            context.dynamoBatchContext?.batchContext ?? null,
+            {
+                tableName: this._name,
+                key: {partitionKey, sortKey},
+                consistency,
+            },
+        );
         if (!serializedItem) return null;
 
         const item: any = {...key};
@@ -1202,18 +1229,22 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             }
         }
 
-        const serializedItem = await client.getItemIfExists(context.tracer.getTracer(), {
-            tableName: this._name,
-            key: {partitionKey, sortKey},
-            consistency,
-            projectionExpression:
-                projectionExpressionEntries.length !== 0
-                    ? projectionExpressionEntries.join(", ")
-                    : "partitionKey",
-            expressionAttributeNames: new Map(
-                mapIterable(expressionAttributeNames, ([key, value]) => [value, key]),
-            ),
-        });
+        const serializedItem = await client.getItemIfExists(
+            context.tracer.getTracer(),
+            context.dynamoBatchContext?.batchContext ?? null,
+            {
+                tableName: this._name,
+                key: {partitionKey, sortKey},
+                consistency,
+                projectionExpression:
+                    projectionExpressionEntries.length !== 0
+                        ? projectionExpressionEntries.join(", ")
+                        : "partitionKey",
+                expressionAttributeNames: new Map(
+                    mapIterable(expressionAttributeNames, ([key, value]) => [value, key]),
+                ),
+            },
+        );
         if (!serializedItem) return null;
 
         const item: any = {...key};
@@ -1605,11 +1636,15 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         const {partitionKey, sortKey, attributesSchema, serializedItem} = this._serializeItem(item);
 
         if (condition === undefined) {
-            return client.putItem(context.tracer.getTracer(), {
-                tableName: this._name,
-                key: {partitionKey, sortKey},
-                item: serializedItem,
-            });
+            return client.putItem(
+                context.tracer.getTracer(),
+                context.dynamoBatchContext?.batchContext ?? null,
+                {
+                    tableName: this._name,
+                    key: {partitionKey, sortKey},
+                    item: serializedItem,
+                },
+            );
         } else {
             const conditionCompilationContext = DynamoConditionExpressionCompilationContext.new();
             const conditionExpression = DynamoConditionExpression.from(condition);
@@ -1620,17 +1655,25 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
             const retryTransaction = getDynamoRetryTransactionIfExists(context);
 
-            return client.putItem(context.tracer.getTracer(), {
-                tableName: this._name,
-                key: {partitionKey, sortKey},
-                item: serializedItem,
-                conditionExpression: conditionExpressionString,
-                expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
-                expressionAttributeNames: new Map(
-                    conditionCompilationContext.iterateAttributeNames(),
-                ),
-                retryConditionCheckError: isConditionCheckErrorRetriable ? retryTransaction : null,
-            });
+            return client.putItem(
+                context.tracer.getTracer(),
+                context.dynamoBatchContext?.batchContext ?? null,
+                {
+                    tableName: this._name,
+                    key: {partitionKey, sortKey},
+                    item: serializedItem,
+                    conditionExpression: conditionExpressionString,
+                    expressionAttributeValues: new Map(
+                        conditionCompilationContext.iterateVariables(),
+                    ),
+                    expressionAttributeNames: new Map(
+                        conditionCompilationContext.iterateAttributeNames(),
+                    ),
+                    retryConditionCheckError: isConditionCheckErrorRetriable
+                        ? retryTransaction
+                        : null,
+                },
+            );
         }
     }
 
@@ -1791,10 +1834,14 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
 
         if (condition === undefined) {
-            return client.deleteItem(context.tracer.getTracer(), {
-                tableName: this._name,
-                key: {partitionKey, sortKey},
-            });
+            return client.deleteItem(
+                context.tracer.getTracer(),
+                context.dynamoBatchContext?.batchContext ?? null,
+                {
+                    tableName: this._name,
+                    key: {partitionKey, sortKey},
+                },
+            );
         } else {
             const conditionCompilationContext = DynamoConditionExpressionCompilationContext.new();
             const conditionExpression = DynamoConditionExpression.from(condition);
@@ -1805,16 +1852,24 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
             const retryTransaction = getDynamoRetryTransactionIfExists(context);
 
-            return client.deleteItem(context.tracer.getTracer(), {
-                tableName: this._name,
-                key: {partitionKey, sortKey},
-                conditionExpression: conditionExpressionString,
-                expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
-                expressionAttributeNames: new Map(
-                    conditionCompilationContext.iterateAttributeNames(),
-                ),
-                retryConditionCheckError: isConditionCheckErrorRetriable ? retryTransaction : null,
-            });
+            return client.deleteItem(
+                context.tracer.getTracer(),
+                context.dynamoBatchContext?.batchContext ?? null,
+                {
+                    tableName: this._name,
+                    key: {partitionKey, sortKey},
+                    conditionExpression: conditionExpressionString,
+                    expressionAttributeValues: new Map(
+                        conditionCompilationContext.iterateVariables(),
+                    ),
+                    expressionAttributeNames: new Map(
+                        conditionCompilationContext.iterateAttributeNames(),
+                    ),
+                    retryConditionCheckError: isConditionCheckErrorRetriable
+                        ? retryTransaction
+                        : null,
+                },
+            );
         }
     }
 

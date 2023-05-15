@@ -1,5 +1,9 @@
 import {AwsClient} from "aws4fetch";
-import {DynamoClient, DynamoReadConsistency} from "~/server/dynamo/internal/dynamo_client";
+import {
+    DynamoClient,
+    DynamoClientBatchContext,
+    DynamoReadConsistency,
+} from "~/server/dynamo/internal/dynamo_client";
 import {Context} from "~/shared/context/context";
 import {ContextModuleBase} from "~/shared/context/context_module_base";
 import {InternalError} from "~/shared/error/error";
@@ -152,4 +156,16 @@ export class DynamoContextModule<Modules extends {} = {}> extends ContextModuleB
             );
         });
     }
+}
+
+/**
+ * When this module exists in a context. Any calls to `getItem()`,
+ * `createOrReplaceItem()`, or `deleteItem()` in short succession on the
+ * context are batched.
+ *
+ * We batch at the action level so that unrelated requests do not share IO.
+ * It's an error to share IO across requests in Cloudflare Workers.
+ */
+export class DynamoBatchContextModule extends ContextModuleBase {
+    public readonly batchContext = new DynamoClientBatchContext();
 }

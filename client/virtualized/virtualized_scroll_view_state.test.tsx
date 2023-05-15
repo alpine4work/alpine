@@ -3468,7 +3468,7 @@ test("an item maintains its height when expanding and collapsing another item", 
     }
 });
 
-test.only("reproduce jump to reply scroll bug", () => {
+test("reproduce jump to reply scroll bug", () => {
     withRealVirtualizationWindowHeightForTest(() => {
         const itemCount = 1013;
 

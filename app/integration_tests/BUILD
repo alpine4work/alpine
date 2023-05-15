@@ -14,6 +14,8 @@ ts_playwright_tests(
         "documents/document_peek.spec.ts": ["webkit_mobile"],
         # We have not mobile optimized document comments yet.
         "documents/document_comments.spec.ts": ["webkit_mobile"],
+        # We have not mobile optimized inbox yet.
+        "inbox/inbox_chat.spec.ts": ["webkit_mobile"],
     },
     deps = [
         "//:node_modules/@types/node",

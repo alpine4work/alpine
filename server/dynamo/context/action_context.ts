@@ -5,6 +5,7 @@ import {
     SystemActorContextModule,
 } from "~/server/dynamo/context/actor_context_module";
 import {ProcessContextModulesBase} from "~/server/dynamo/context/process_context";
+import {DynamoBatchContextModule} from "~/server/dynamo/dynamo_context_module";
 import {CacheContextModule} from "~/shared/context/cache_context_module";
 import {Context} from "~/shared/context/context";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
@@ -21,6 +22,16 @@ export type ActionContextModulesBase = ProcessContextModulesBase & {
      * are not shared across actions.
      */
     cache: CacheContextModule;
+
+    /**
+     * Batch DynamoDB requests at the action level. Any calls to `getItem()`,
+     * `createOrReplaceItem()`, or `deleteItem()` in short succession on the
+     * context are batched.
+     *
+     * We batch at the action level so that unrelated requests do not share IO.
+     * It's an error to share IO across requests in Cloudflare Workers.
+     */
+    dynamoBatchContext: DynamoBatchContextModule;
 };
 
 /**

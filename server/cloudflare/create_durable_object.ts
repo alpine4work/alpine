@@ -19,6 +19,7 @@ import {
 import {unauthenticatedSessionError} from "~/server/dynamo/context/helpers/unauthenticated_session_error";
 import {NotificationsContextModule} from "~/server/dynamo/context/notifications_context_module";
 import {ProcessContext, ProcessContextModulesBase} from "~/server/dynamo/context/process_context";
+import {DynamoBatchContextModule} from "~/server/dynamo/dynamo_context_module";
 import {Queue} from "~/server/helpers/types/cloudflare_queues";
 import {createServerTracer} from "~/server/tracer/server_tracer";
 import {traceFetchResponse} from "~/server/tracer/trace_fetch_response";
@@ -208,6 +209,7 @@ export function createDurableObject<
                             // this request.
                             tracer: new TracerContextModule(span),
                             cache: new CacheContextModule(),
+                            dynamoBatchContext: new DynamoBatchContextModule(),
                             actor,
                         },
                         async actionContext => {

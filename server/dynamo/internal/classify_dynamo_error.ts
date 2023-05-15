@@ -36,6 +36,7 @@ export function classifyDynamoError(error: {
         errorCode = ErrorCode.FailedPrecondition;
     } else if (
         error.__type === "ResourceNotFoundException" ||
+        error.__type === "ResourceInUseException" ||
         error.__type === "TableNotFoundException" ||
         error.__type === "IndexNotFoundException" ||
         // Requests to DynamoDB should all be valid. An invalid request is the
