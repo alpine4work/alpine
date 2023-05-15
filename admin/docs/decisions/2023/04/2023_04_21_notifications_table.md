@@ -30,7 +30,7 @@ the technical solutions to implement the final product designs. Specifically the
     previous frozen notifications. The applications of the quantum inbox state right now:
 
     1.  When the user observes their inbox we put loud notifications at the top. No matter when the
-        loud notification was created. Then they freeze in place so if the user gets more
+        loud notification was created. Then they freeze in place. So if the user gets more
         notifications without addressing a loud notification then the loud notification “decays”,
         drifting to the bottom of the inbox as new stuff piles on top.
 
