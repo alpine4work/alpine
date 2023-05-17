@@ -1,11 +1,14 @@
 import {useRef} from "react";
 import {Box} from "~/client/design/box";
+import {useLocalTasksState} from "~/client/tasks/local_tasks_state";
 import {TaskRowView, TaskRowViewRef} from "~/client/tasks/task_row_view";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 
 export function TasksView() {
     const firstTaskRowRef = useRef<TaskRowViewRef>(null);
     const lastTaskRowRef = useRef<TaskRowViewRef>(null);
+
+    const [state, dispatch] = useLocalTasksState();
 
     return (
         <Box
