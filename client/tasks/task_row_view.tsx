@@ -1,15 +1,20 @@
-import {Key, Ref, forwardRef, useImperativeHandle, useRef} from "react";
+import {Ref, forwardRef, useImperativeHandle, useRef} from "react";
 import {Box} from "~/client/design/box";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
+import {LocalTask, LocalTasksAction} from "~/client/tasks/local_tasks_state";
 import {Spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {LocalTaskId} from "~/shared/id/types/id_types";
 import {colorSchemeVars, contentSchemaStyles, sprinkles} from "~/shared/styles/styles";
 
 const taskRowHeight: Spacing = "9";
 
-export type TaskRow = TaskInteractiveGhostRow | TaskDecorativeGhostRow;
+export type TaskRow = TaskNormalRow | TaskInteractiveGhostRow | TaskDecorativeGhostRow;
+
+export type TaskNormalRow = {
+    readonly type: "Normal";
+    readonly task: LocalTask;
+};
 
 export type TaskInteractiveGhostRow = {
     readonly type: "InteractiveGhost";
@@ -19,17 +24,6 @@ export type TaskInteractiveGhostRow = {
 export type TaskDecorativeGhostRow = {
     readonly type: "DecorativeGhost";
 };
-
-export function getTaskRowKey(row: TaskRow, index: number): Key {
-    switch (row.type) {
-        case "InteractiveGhost":
-            return row.ghostTaskId;
-        case "DecorativeGhost":
-            return index;
-        default:
-            throw exhaustive(row);
-    }
-}
 
 export type TaskRowViewRef = {
     focusStart(): void;
@@ -42,11 +36,13 @@ export {TaskRowViewForwardRef as TaskRowView};
 function TaskRowView(
     {
         row,
-        isFirstRow,
+        rowIndex,
+        dispatch,
         onPreviousRowFocusEnd,
     }: {
         row: TaskRow;
-        isFirstRow: boolean;
+        rowIndex: number;
+        dispatch: (action: LocalTasksAction) => void;
         onPreviousRowFocusEnd: () => void;
     },
     ref: Ref<TaskRowViewRef>,
@@ -119,7 +115,19 @@ function TaskRowView(
                 ) : (
                     <input
                         ref={nameInputRef}
-                        placeholder={isFirstRow ? "Click to add a task…" : undefined}
+                        placeholder={
+                            row.type === "InteractiveGhost"
+                                ? rowIndex === 0
+                                    ? "Click to add a task…"
+                                    : rowIndex === 1
+                                    ? "Press the enter key to add another task…"
+                                    : rowIndex === 2
+                                    ? "Press the tab key to convert a task into a subtask…"
+                                    : rowIndex === 3
+                                    ? "Keep adding tasks…"
+                                    : "Add a task…"
+                                : undefined
+                        }
                         style={contentSchemaStyles.paragraphFontSize}
                         className={sprinkles({
                             width: "full",
@@ -127,6 +135,16 @@ function TaskRowView(
                             paddingY: "2",
                             backgroundColor: "transparent",
                         })}
+                        value={row.type === "Normal" ? row.task.name : ""}
+                        onChange={event => {
+                            const name = event.currentTarget.value;
+
+                            if (row.type === "Normal") {
+                                dispatch({type: "UpdateTaskName", taskId: row.task.id, name});
+                            } else {
+                                dispatch({type: "CreateTaskFromGhost", name});
+                            }
+                        }}
                     />
                 )}
             </Box>

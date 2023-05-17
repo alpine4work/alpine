@@ -1,30 +1,44 @@
-import {useMemo, useRef} from "react";
+import {Key, useMemo, useRef} from "react";
 import {Box} from "~/client/design/box";
 import {useLocalTasksState} from "~/client/tasks/local_tasks_state";
-import {TaskRow, TaskRowView, TaskRowViewRef, getTaskRowKey} from "~/client/tasks/task_row_view";
+import {TaskRow, TaskRowView, TaskRowViewRef} from "~/client/tasks/task_row_view";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
+import {exhaustive} from "~/shared/helpers/control/exhaustive";
+
+// TODO(calebmer): Some stuff this view needs:
+//
+// - Delete in an empty task
+// - Arrow navigation
+// - Undo
+// - Select all
+//
+// Generally I should overview a list of document shortcuts and keyboard
+// shortcuts and incorporate all that make sense.
 
 export function TasksView() {
     const [state, dispatch] = useLocalTasksState();
 
     const tasks = useMemo(
         () =>
-            Array.from(state.taskById.values()).sort((task1, task2) =>
-                defaultCompareStrings(task1.orderKey, task2.orderKey),
+            Array.from(state.taskIdByOrderKey.values(), taskId =>
+                assertExists(state.taskById.get(taskId)),
             ),
-        [state.taskById],
+        [state.taskById, state.taskIdByOrderKey],
     );
 
     const taskRows = useMemo(() => {
         const taskRows: Array<TaskRow> = [];
 
+        for (const task of tasks) {
+            taskRows.push({type: "Normal", task});
+        }
+
         taskRows.push({type: "InteractiveGhost", ghostTaskId: state.ghostTaskId});
-        taskRows.push({type: "DecorativeGhost"});
-        taskRows.push({type: "DecorativeGhost"});
+        if (tasks.length <= 1) taskRows.push({type: "DecorativeGhost"});
+        if (tasks.length <= 0) taskRows.push({type: "DecorativeGhost"});
 
         return taskRows;
-    }, [state.ghostTaskId]);
+    }, [state.ghostTaskId, tasks]);
 
     const taskRowByIndexRef = useRef(new Map<number, TaskRowViewRef>());
 
@@ -73,7 +87,8 @@ export function TasksView() {
                     }}
                     key={getTaskRowKey(row, index)}
                     row={row}
-                    isFirstRow={index === 0}
+                    rowIndex={index}
+                    dispatch={dispatch}
                     onPreviousRowFocusEnd={() => {
                         if (index > 0) {
                             assertExists(taskRowByIndexRef.current.get(index - 1)).focusEnd();
@@ -83,4 +98,17 @@ export function TasksView() {
             ))}
         </Box>
     );
+}
+
+function getTaskRowKey(row: TaskRow, index: number): Key {
+    switch (row.type) {
+        case "Normal":
+            return row.task.id;
+        case "InteractiveGhost":
+            return row.ghostTaskId;
+        case "DecorativeGhost":
+            return index;
+        default:
+            throw exhaustive(row);
+    }
 }
