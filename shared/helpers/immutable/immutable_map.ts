@@ -184,6 +184,45 @@ export class ImmutableMap<Key extends string | number, Value> implements Readonl
     }
 
     /**
+     * Returns the entry after the provided key in the map. The key does not need
+     * to exist in the map.
+     */
+    public getEntryAfter(key: Key): [Key, Value] | undefined {
+        const iterator = this._tree.gt(key);
+        if (!iterator.valid) return undefined;
+        return [iterator.key!, iterator.value!];
+    }
+
+    /**
+     * Returns the entry before the provided key in the map. The key does not need
+     * to exist in the map.
+     */
+    public getEntryBefore(key: Key): [Key, Value] | undefined {
+        const iterator = this._tree.lt(key);
+        if (!iterator.valid) return undefined;
+        return [iterator.key!, iterator.value!];
+    }
+
+    /**
+     * Get the index of an entry in this immutable map by its key. If an entry
+     * doesn't exist for this key we return undefined.
+     */
+    public getIndexByKey(key: Key): number | undefined {
+        const iterator = this._tree.find(key);
+        return iterator.valid ? iterator.index : undefined;
+    }
+
+    /**
+     * Get an entry at the specific index in this immutable map. If an entry
+     * doesn't exist for this index we return undefined.
+     */
+    public getEntryByIndex(index: number): [Key, Value] | undefined {
+        const iterator = this._tree.at(index);
+        if (!iterator.valid) return undefined;
+        return [iterator.key!, iterator.value!];
+    }
+
+    /**
      * Returns a new iterator of all the keys in the map.
      *
      * Iterates in key order, not insertion order.

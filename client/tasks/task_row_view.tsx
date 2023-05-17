@@ -1,5 +1,6 @@
 import {Ref, forwardRef, useImperativeHandle, useRef} from "react";
 import {Box} from "~/client/design/box";
+import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {LocalTask, LocalTasksAction} from "~/client/tasks/local_tasks_state";
 import {Spacing} from "~/shared/design/spacing";
@@ -143,6 +144,29 @@ function TaskRowView(
                                 dispatch({type: "UpdateTaskName", taskId: row.task.id, name});
                             } else {
                                 dispatch({type: "CreateTaskFromGhost", name});
+                            }
+                        }}
+                        onKeyDown={event => {
+                            switch (event.key) {
+                                case "Enter": {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+
+                                    if (isModifiedKeyboardEvent(event)) break;
+
+                                    dispatch({
+                                        type: "SplitTaskFromName",
+                                        taskId:
+                                            row.type === "Normal" ? row.task.id : row.ghostTaskId,
+                                        nameSelectionStart: assertExists(
+                                            event.currentTarget.selectionStart,
+                                        ),
+                                        nameSelectionEnd: assertExists(
+                                            event.currentTarget.selectionEnd,
+                                        ),
+                                    });
+                                    break;
+                                }
                             }
                         }}
                     />

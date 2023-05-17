@@ -467,6 +467,9 @@ function doSomething(animal: Animal) {
 }
 ```
 
+Our `exhaustive()` helper will generate a TypeScript error if a new variant is added in the future
+and you forgot to handle it. Helping maintainability.
+
 **Why?** Classes fundamentally bundle data with behavior. With a class, you can't write a function
 on all your variants in a separate file. For large classes this can lead to bundle bloat. By putting
 the behavior for each of your variants in a single function and composing shared logic, it makes the
@@ -654,3 +657,62 @@ timeline example above, you could hardcode some mock state for Jest but it would
 and your state wouldn’t be located with the test which needs to reference the state to make
 assertions. A timeline component’s context does not have a reasonable implementation in a Jest unit
 test so you shouldn’t use context.
+
+### When handling the `keydown` event call `event.preventDefault()` and `event.stopPropagation()`
+
+If your code is handling the `keydown` event, call both `event.preventDefault()` and
+`event.stopPropagation()`.
+
+-   `event.preventDefault()` tells the browser to not perform its default action for the keypress.
+    (e.g. Browsers scroll the page down on space keypress by default.)
+-   `event.stopPropagation()` stops other event handlers in _our_ code from handling the keypress.
+    We install keyboard event listeners at the root `document` level for global keyboard shortcuts,
+    if you handle a keypress a global handler shouldn’t. (e.g. Peeks are closed by a global keyboard
+    listener when you press escape. If you close a menu inside a peek on escape it shouldn’t also
+    close the peek. It would if you don’t stop event propagation.)
+
+The `<GlobalKeyDownEvent>` component is what we recommend using for global keyboard shortcuts. This
+component respects `event.stopPropagation()`. Once any event handler calls this function, no other
+handler may respond to the event.
+
+**Why?** We recommend against `event.stopPropagation()` in general (see below). However, creating an
+abstraction that spans all `keydown` listeners in our app is impractical.
+
+Some keyboard shortcuts should be handled locally by the interactive element with focus. For
+example, when you focus a menu button pressing the down arrow key should open the menu. Some
+keyboard shortcuts should be handled globally. For example, in inbox when you press the down arrow
+key it should go to the next entry. If a local component handles a `keydown` event it should stop
+global handlers from also handling the `keydown` event. Using our examples: if a menu button in our
+inbox is focused then pressing down should open the menu button and not select the next entry in the
+inbox.
+
+So instead, we use the builtin browser API `event.stopPropagation()` to communicate across local and
+global `keydown` handlers.
+
+You should always call both `event.preventDefault()` and `event.stopPropagation()` because even if
+there isn’t a browser behavior (cancelled by `event.preventDefault()`) or app behavior (cancelled by
+`event.stopPropagation()`) triggered on the same keypress today, there may be one added tomorrow. Or
+in the case of browsers, there may be a new fancy browser with its own keyboard shortcuts.
+
+### Avoid `event.stopPropagation()` (unless you are handling a `keydown` event)
+
+Don’t use `event.stopPropagation()` unless you are handling a `keydown` event. If you are handling a
+`keydown` event always use `event.stopPropagation()`. See the above section for more context on our
+`keydown` event guidance.
+
+**Why?** For many events, parents depend on event propagation to implement some system level
+behavior. For example:
+
+-   A parent component may listen for a `mouseenter` event to apply a hover style or a tooltip
+-   A parent component may listen for a `focus` event to apply a focus within style
+-   A parent component may listen for a `click` event as a heuristic that a user is interacting with
+    their children
+
+Without extensively auditing code, it’s really hard to know what events your parent components
+depend on. Even if you happen to know that your parent component isn’t listening to a propagated
+event today, it might tomorrow.
+
+By adopting this recommendation we get the benefit that parent components can _reliably_ depend on
+event propagation. When writing a parent component you don’t have to wonder “what happens if a child
+stops propagation on this” since we have a shared style guide recommendation that child components
+shouldn’t stop event propagation in the first place.

@@ -1,7 +1,9 @@
 import {Key, useMemo, useRef} from "react";
 import {Box} from "~/client/design/box";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useLocalTasksState} from "~/client/tasks/local_tasks_state";
 import {TaskRow, TaskRowView, TaskRowViewRef} from "~/client/tasks/task_row_view";
+import {NotFoundError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 
@@ -9,6 +11,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive";
 //
 // - Delete in an empty task
 // - Arrow navigation
+// - Gradient for input overflow
 // - Undo
 // - Select all
 //
@@ -41,6 +44,38 @@ export function TasksView() {
     }, [state.ghostTaskId, tasks]);
 
     const taskRowByIndexRef = useRef(new Map<number, TaskRowViewRef>());
+
+    // If our start had a ref instructing us to focus a task, then consume that ref
+    // and focus the corresponding task.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        const focusTask = state.focusTaskRef.current;
+        if (!focusTask) return;
+        state.focusTaskRef.current = null;
+
+        let index: number;
+
+        // TODO(calebmer): It's hard to remember to always check for ghost tasks. Can
+        // we abstract this somehow?
+        if (focusTask.taskId === state.ghostTaskId) {
+            index = tasks.length;
+        } else {
+            const task = state.taskById.get(focusTask.taskId);
+            if (!task) throw new NotFoundError("Task not found");
+            index = assertExists(state.taskIdByOrderKey.getIndexByKey(task.orderKey));
+        }
+
+        if (focusTask.direction === "Start") {
+            assertExists(taskRowByIndexRef.current.get(index)).focusStart();
+        } else {
+            assertExists(taskRowByIndexRef.current.get(index)).focusEnd();
+        }
+    }, [
+        state.focusTaskRef,
+        state.ghostTaskId,
+        state.taskById,
+        state.taskIdByOrderKey,
+        tasks.length,
+    ]);
 
     return (
         <Box

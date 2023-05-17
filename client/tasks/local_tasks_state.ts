@@ -1,6 +1,6 @@
-import {useEffect, useReducer, useRef} from "react";
+import {MutableRefObject, useEffect, useReducer, useRef} from "react";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
-import {DataLossError, NotFoundError} from "~/shared/error/error";
+import {DataLossError, FailedPreconditionError, NotFoundError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
@@ -34,6 +34,13 @@ const LocalTasksStateSchema = Schema.object({
         deserialize: taskIdByOrderKey => ImmutableMap.from(taskIdByOrderKey),
     }),
     ghostTaskId: Schema.id<LocalTaskId>(),
+    focusTaskRef: Schema.object({current: Schema.value(null)}).transform<
+        MutableRefObject<{taskId: LocalTaskId; direction: "Start" | "End"} | null>
+    >({
+        // Don't serialize mutable ref value it should only be used in process.
+        serialize: () => ({current: null}),
+        deserialize: () => ({current: null}),
+    }),
 });
 
 function getInitialLocalTasksState(): LocalTasksState {
@@ -41,6 +48,7 @@ function getInitialLocalTasksState(): LocalTasksState {
         taskById: new Map(),
         taskIdByOrderKey: ImmutableMap.empty(),
         ghostTaskId: generateId(),
+        focusTaskRef: {current: null},
     };
 }
 
@@ -48,7 +56,8 @@ export type LocalTasksAction =
     | LocalTasksRestoreStateAction
     | LocalTasksResetStateAction
     | LocalTasksCreateTaskFromGhostAction
-    | LocalTasksUpdateTaskNameAction;
+    | LocalTasksUpdateTaskNameAction
+    | LocalTasksSplitTaskFromNameAction;
 
 type LocalTasksRestoreStateAction = {
     readonly type: "RestoreState";
@@ -68,6 +77,13 @@ type LocalTasksUpdateTaskNameAction = {
     readonly type: "UpdateTaskName";
     readonly taskId: LocalTaskId;
     readonly name: string;
+};
+
+type LocalTasksSplitTaskFromNameAction = {
+    readonly type: "SplitTaskFromName";
+    readonly taskId: LocalTaskId;
+    readonly nameSelectionStart: number;
+    readonly nameSelectionEnd: number;
 };
 
 function reduceLocalTasksState(
@@ -100,7 +116,7 @@ function reduceLocalTasksState(
 }
 
 function actuallyReduceLocalTasksState(
-    oldState: LocalTasksState,
+    state: LocalTasksState,
     action: LocalTasksAction,
 ): LocalTasksState {
     switch (action.type) {
@@ -123,7 +139,7 @@ function actuallyReduceLocalTasksState(
                     console.log(`Bad local tasks state:`, action.serializedStateString);
                 }
 
-                return oldState;
+                return state;
             }
         }
         case "ResetState": {
@@ -131,32 +147,140 @@ function actuallyReduceLocalTasksState(
         }
         case "CreateTaskFromGhost": {
             const task: LocalTask = {
-                id: oldState.ghostTaskId,
+                id: state.ghostTaskId,
                 name: action.name,
                 orderKey: generateOrderKeyBetween(
-                    oldState.taskIdByOrderKey.getLastEntry()?.[0] ?? null,
+                    state.taskIdByOrderKey.getLastEntry()?.[0] ?? null,
                     null,
                 ),
             };
 
-            const newTaskById = new Map(oldState.taskById);
+            const newTaskById = new Map(state.taskById);
             newTaskById.set(task.id, task);
 
-            const newTaskIdByOrderKey = oldState.taskIdByOrderKey.set(task.orderKey, task.id);
+            const newTaskIdByOrderKey = state.taskIdByOrderKey.set(task.orderKey, task.id);
 
             return {
-                ...oldState,
+                ...state,
                 taskById: newTaskById,
                 taskIdByOrderKey: newTaskIdByOrderKey,
                 ghostTaskId: generateId(),
             };
         }
         case "UpdateTaskName": {
-            const newTaskById = new Map(oldState.taskById);
+            if (action.taskId === state.ghostTaskId)
+                throw new FailedPreconditionError("Can't update ghost task name");
+
+            const newTaskById = new Map(state.taskById);
             const oldTask = newTaskById.get(action.taskId);
             if (!oldTask) throw new NotFoundError("Task not found");
             newTaskById.set(action.taskId, {...oldTask, name: action.name});
-            return {...oldState, taskById: newTaskById};
+            return {...state, taskById: newTaskById};
+        }
+        case "SplitTaskFromName": {
+            // If we are splitting a ghost task, then create the ghost task and move focus
+            // to the new ghost task.
+            if (action.taskId === state.ghostTaskId) {
+                state = actuallyReduceLocalTasksState(state, {
+                    type: "CreateTaskFromGhost",
+                    name: "",
+                });
+                return {
+                    ...state,
+                    focusTaskRef: {current: {taskId: state.ghostTaskId, direction: "Start"}},
+                };
+            }
+
+            const oldTask = state.taskById.get(action.taskId);
+            if (!oldTask) throw new NotFoundError("Task not found");
+
+            // If the selection is at the start of the name then add an empty task above
+            // and keep focus in the existing task.
+            if (action.nameSelectionStart === 0 && action.nameSelectionEnd === 0) {
+                const newSplitTask: LocalTask = {
+                    id: generateId(),
+                    name: "",
+                    orderKey: generateOrderKeyBetween(
+                        state.taskIdByOrderKey.getEntryBefore(oldTask.orderKey)?.[0] ?? null,
+                        oldTask.orderKey,
+                    ),
+                };
+
+                const newTaskById = new Map(state.taskById);
+                newTaskById.set(newSplitTask.id, newSplitTask);
+
+                const newTaskIdByOrderKey = state.taskIdByOrderKey.set(
+                    newSplitTask.orderKey,
+                    newSplitTask.id,
+                );
+
+                return {
+                    ...state,
+                    taskById: newTaskById,
+                    taskIdByOrderKey: newTaskIdByOrderKey,
+                };
+            }
+
+            // If the selection is at the end of the name then add an empty task below and
+            // move focus to that empty task.
+            if (
+                action.nameSelectionStart === oldTask.name.length - 1 &&
+                action.nameSelectionEnd === oldTask.name.length - 1
+            ) {
+                const newSplitTask: LocalTask = {
+                    id: generateId(),
+                    name: "",
+                    orderKey: generateOrderKeyBetween(
+                        oldTask.orderKey,
+                        state.taskIdByOrderKey.getEntryAfter(oldTask.orderKey)?.[0] ?? null,
+                    ),
+                };
+
+                const newTaskById = new Map(state.taskById);
+                newTaskById.set(newSplitTask.id, newSplitTask);
+
+                const newTaskIdByOrderKey = state.taskIdByOrderKey.set(
+                    newSplitTask.orderKey,
+                    newSplitTask.id,
+                );
+
+                return {
+                    ...state,
+                    taskById: newTaskById,
+                    taskIdByOrderKey: newTaskIdByOrderKey,
+                    focusTaskRef: {current: {taskId: newSplitTask.id, direction: "Start"}},
+                };
+            }
+
+            const newTask: LocalTask = {
+                ...oldTask,
+                name: oldTask.name.slice(0, action.nameSelectionStart),
+            };
+
+            const newSplitTask: LocalTask = {
+                id: generateId(),
+                name: oldTask.name.slice(action.nameSelectionEnd),
+                orderKey: generateOrderKeyBetween(
+                    oldTask.orderKey,
+                    state.taskIdByOrderKey.getEntryAfter(oldTask.orderKey)?.[0] ?? null,
+                ),
+            };
+
+            const newTaskById = new Map(state.taskById);
+            newTaskById.set(newTask.id, newTask);
+            newTaskById.set(newSplitTask.id, newSplitTask);
+
+            const newTaskIdByOrderKey = state.taskIdByOrderKey.set(
+                newSplitTask.orderKey,
+                newSplitTask.id,
+            );
+
+            return {
+                ...state,
+                taskById: newTaskById,
+                taskIdByOrderKey: newTaskIdByOrderKey,
+                focusTaskRef: {current: {taskId: newSplitTask.id, direction: "Start"}},
+            };
         }
         default:
             throw exhaustive(action);
