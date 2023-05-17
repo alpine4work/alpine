@@ -120,9 +120,9 @@ function TaskRowView(
                                 ? rowIndex === 0
                                     ? "Click to add a task…"
                                     : rowIndex === 1
-                                    ? "Press the enter key to add another task…"
+                                    ? "Press enter to add another task…"
                                     : rowIndex === 2
-                                    ? "Press the tab key to convert a task into a subtask…"
+                                    ? "Press tab to convert into a subtask…"
                                     : rowIndex === 3
                                     ? "Keep adding tasks…"
                                     : "Add a task…"
