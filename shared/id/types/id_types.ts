@@ -51,3 +51,7 @@ export type NotificationEventId = NominalIdType<"NotificationEvent">;
  * `getAccountIfExists()`.
  */
 export type ContentMentionAccountId = NominalIdType<"ContentMentionAccount"> | AccountId;
+
+// TODO(calebmer): All local task ids should be deleted when we build a real
+// backend implementation for tasks.
+export type LocalTaskId = NominalIdType<"LocalTask">;
