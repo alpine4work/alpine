@@ -27,7 +27,16 @@ export type TaskDecorativeGhostRow = {
 };
 
 export type TaskRowViewRef = {
-    focusStart(): void;
+    /**
+     * Focuses the first field in the task. The first field will always be the
+     * task name.
+     */
+    focusStart(nameSelectionIndex?: number): void;
+
+    /**
+     * Focuses the last field in the task. The last field may be the task name but
+     * may also be a different field.
+     */
     focusEnd(): void;
 };
 
@@ -38,11 +47,13 @@ function TaskRowView(
     {
         row,
         rowIndex,
+        nextTaskRow,
         dispatch,
         onPreviousRowFocusEnd,
     }: {
         row: TaskRow;
         rowIndex: number;
+        nextTaskRow: TaskRow | null;
         dispatch: (action: LocalTasksAction) => void;
         onPreviousRowFocusEnd: () => void;
     },
@@ -50,14 +61,14 @@ function TaskRowView(
 ) {
     const nameInputRef = useRef<HTMLInputElement>(null);
 
-    const focusStart = useEvent(() => {
+    const focusStart = useEvent((nameSelectionIndex: number = 0) => {
         if (row.type === "DecorativeGhost") {
             onPreviousRowFocusEnd();
             return;
         }
 
         const nameInputElement = assertExists(nameInputRef.current);
-        nameInputElement.setSelectionRange(0, 0);
+        nameInputElement.setSelectionRange(nameSelectionIndex, nameSelectionIndex);
         nameInputElement.focus();
     });
 
@@ -88,7 +99,7 @@ function TaskRowView(
                 // This is an affordance for mouse users, does not need to be usable
                 // by keyboard.
                 cursor="text"
-                onClick={focusStart}
+                onClick={() => focusStart()}
             />
             <Box
                 flexGrow="1"
@@ -111,7 +122,7 @@ function TaskRowView(
                         // This is an affordance for mouse users, does not need to be usable
                         // by keyboard.
                         cursor="text"
-                        onClick={focusStart}
+                        onClick={() => focusStart()}
                     />
                 ) : (
                     <input
@@ -147,24 +158,69 @@ function TaskRowView(
                             }
                         }}
                         onKeyDown={event => {
+                            const name = event.currentTarget.value;
+                            const selectionStart = assertExists(event.currentTarget.selectionStart);
+                            const selectionEnd = assertExists(event.currentTarget.selectionEnd);
+
                             switch (event.key) {
                                 case "Enter": {
                                     event.preventDefault();
                                     event.stopPropagation();
 
-                                    if (isModifiedKeyboardEvent(event)) break;
+                                    if (!isModifiedKeyboardEvent(event)) {
+                                        dispatch({
+                                            type: "SplitTaskFromName",
+                                            taskId:
+                                                row.type === "Normal"
+                                                    ? row.task.id
+                                                    : row.ghostTaskId,
+                                            nameSelectionStart: selectionStart,
+                                            nameSelectionEnd: selectionEnd,
+                                        });
+                                    }
+                                    break;
+                                }
+                                case "Backspace": {
+                                    if (selectionStart === 0 && selectionEnd === 0) {
+                                        event.preventDefault();
+                                        event.stopPropagation();
 
-                                    dispatch({
-                                        type: "SplitTaskFromName",
-                                        taskId:
-                                            row.type === "Normal" ? row.task.id : row.ghostTaskId,
-                                        nameSelectionStart: assertExists(
-                                            event.currentTarget.selectionStart,
-                                        ),
-                                        nameSelectionEnd: assertExists(
-                                            event.currentTarget.selectionEnd,
-                                        ),
-                                    });
+                                        // TODO(calebmer): If the task we're deleting has other fields (like comments
+                                        // and notes) we should probably popup a warning and ask "are you sure you want
+                                        // to delete"? The join behavior is great for quickly iterating on tasks but
+                                        // can be dangerous.
+                                        dispatch({
+                                            type: "JoinTaskFromName",
+                                            deleteTaskId:
+                                                row.type === "Normal"
+                                                    ? row.task.id
+                                                    : row.ghostTaskId,
+                                        });
+                                    }
+                                    break;
+                                }
+                                case "Delete": {
+                                    if (
+                                        selectionStart === name.length &&
+                                        selectionEnd === name.length
+                                    ) {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+
+                                        // TODO(calebmer): If the task we're deleting has other fields (like comments
+                                        // and notes) we should probably popup a warning and ask "are you sure you want
+                                        // to delete"? The join behavior is great for quickly iterating on tasks but
+                                        // can be dangerous.
+                                        if (nextTaskRow && nextTaskRow.type !== "DecorativeGhost") {
+                                            dispatch({
+                                                type: "JoinTaskFromName",
+                                                deleteTaskId:
+                                                    nextTaskRow.type === "Normal"
+                                                        ? nextTaskRow.task.id
+                                                        : nextTaskRow.ghostTaskId,
+                                            });
+                                        }
+                                    }
                                     break;
                                 }
                             }

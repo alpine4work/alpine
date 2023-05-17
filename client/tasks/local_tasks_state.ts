@@ -1,7 +1,9 @@
 import {MutableRefObject, useEffect, useReducer, useRef} from "react";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
+import {TaskRowViewRef} from "~/client/tasks/task_row_view";
 import {DataLossError, FailedPreconditionError, NotFoundError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every";
@@ -34,8 +36,8 @@ const LocalTasksStateSchema = Schema.object({
         deserialize: taskIdByOrderKey => ImmutableMap.from(taskIdByOrderKey),
     }),
     ghostTaskId: Schema.id<LocalTaskId>(),
-    focusTaskRef: Schema.object({current: Schema.value(null)}).transform<
-        MutableRefObject<{taskId: LocalTaskId; direction: "Start" | "End"} | null>
+    taskEffectRef: Schema.object({current: Schema.value(null)}).transform<
+        MutableRefObject<{taskId: LocalTaskId; effect: (view: TaskRowViewRef) => void} | null>
     >({
         // Don't serialize mutable ref value it should only be used in process.
         serialize: () => ({current: null}),
@@ -48,7 +50,7 @@ function getInitialLocalTasksState(): LocalTasksState {
         taskById: new Map(),
         taskIdByOrderKey: ImmutableMap.empty(),
         ghostTaskId: generateId(),
-        focusTaskRef: {current: null},
+        taskEffectRef: {current: null},
     };
 }
 
@@ -57,7 +59,8 @@ export type LocalTasksAction =
     | LocalTasksResetStateAction
     | LocalTasksCreateTaskFromGhostAction
     | LocalTasksUpdateTaskNameAction
-    | LocalTasksSplitTaskFromNameAction;
+    | LocalTasksSplitTaskFromNameAction
+    | LocalTasksJoinTaskFromNameAction;
 
 type LocalTasksRestoreStateAction = {
     readonly type: "RestoreState";
@@ -84,6 +87,11 @@ type LocalTasksSplitTaskFromNameAction = {
     readonly taskId: LocalTaskId;
     readonly nameSelectionStart: number;
     readonly nameSelectionEnd: number;
+};
+
+type LocalTasksJoinTaskFromNameAction = {
+    readonly type: "JoinTaskFromName";
+    readonly deleteTaskId: LocalTaskId;
 };
 
 function reduceLocalTasksState(
@@ -142,9 +150,11 @@ function actuallyReduceLocalTasksState(
                 return state;
             }
         }
+
         case "ResetState": {
             return getInitialLocalTasksState();
         }
+
         case "CreateTaskFromGhost": {
             const task: LocalTask = {
                 id: state.ghostTaskId,
@@ -167,6 +177,7 @@ function actuallyReduceLocalTasksState(
                 ghostTaskId: generateId(),
             };
         }
+
         case "UpdateTaskName": {
             if (action.taskId === state.ghostTaskId)
                 throw new FailedPreconditionError("Can't update ghost task name");
@@ -177,6 +188,19 @@ function actuallyReduceLocalTasksState(
             newTaskById.set(action.taskId, {...oldTask, name: action.name});
             return {...state, taskById: newTaskById};
         }
+
+        // When the enter key is pressed we dispatch this action to create a new task.
+        //
+        // Our task view uses paradigms from a text editor for ease of use. In a text
+        // editor the enter key is used to create newlines but more generically,
+        // depending on the selection, it is used to "split" content. If the cursor
+        // is in the middle of text it puts the text after the cursor on a newline.
+        //
+        // We could break this paradigm and only create tasks after the current task
+        // when the user hits enter. However, one nice property is if the user hits
+        // enter at the start of a task name it creates a task above instead of below!
+        // We believe making this behavior easy and intuitive is worth the slightly
+        // uncommon capability of being able to split tasks in half.
         case "SplitTaskFromName": {
             // If we are splitting a ghost task, then create the ghost task and move focus
             // to the new ghost task.
@@ -187,7 +211,12 @@ function actuallyReduceLocalTasksState(
                 });
                 return {
                     ...state,
-                    focusTaskRef: {current: {taskId: state.ghostTaskId, direction: "Start"}},
+                    taskEffectRef: {
+                        current: {
+                            taskId: state.ghostTaskId,
+                            effect: view => view.focusStart(),
+                        },
+                    },
                 };
             }
 
@@ -248,7 +277,12 @@ function actuallyReduceLocalTasksState(
                     ...state,
                     taskById: newTaskById,
                     taskIdByOrderKey: newTaskIdByOrderKey,
-                    focusTaskRef: {current: {taskId: newSplitTask.id, direction: "Start"}},
+                    taskEffectRef: {
+                        current: {
+                            taskId: newSplitTask.id,
+                            effect: view => view.focusStart(),
+                        },
+                    },
                 };
             }
 
@@ -279,9 +313,90 @@ function actuallyReduceLocalTasksState(
                 ...state,
                 taskById: newTaskById,
                 taskIdByOrderKey: newTaskIdByOrderKey,
-                focusTaskRef: {current: {taskId: newSplitTask.id, direction: "Start"}},
+                taskEffectRef: {
+                    current: {
+                        taskId: newSplitTask.id,
+                        effect: view => view.focusStart(),
+                    },
+                },
             };
         }
+
+        // When the backspace key is pressed at the start of a task name we
+        // dispatch this action to delete the task.
+        //
+        // Our task view uses paradigms from a text editor for ease of use. In a text
+        // editor when you're at the start of a line and hit backspace it deletes the
+        // line. If there was content on the line then that content is joined with the
+        // previous line. So more generically we call backspace "join".
+        //
+        // Because deleting tasks is so easy (backspace press at the start of the name
+        // input) and it's a little counter-intuitive we should probably have a warning
+        // when you're about to delete a task filled with content.
+        case "JoinTaskFromName": {
+            // You can't delete a ghost task. So move focus to the last entry instead.
+            if (action.deleteTaskId === state.ghostTaskId) {
+                const lastTaskEntry = state.taskIdByOrderKey.getLastEntry();
+                if (!lastTaskEntry) return state;
+
+                const lastTask = assertExists(state.taskById.get(lastTaskEntry[1]));
+
+                return {
+                    ...state,
+                    taskEffectRef: {
+                        current: {
+                            taskId: lastTask.id,
+                            // Focus the end of the name input as opposed to the last field in the task.
+                            // Since pressing backspace is following text editing paradigms.
+                            effect: view => view.focusStart(lastTask.name.length),
+                        },
+                    },
+                };
+            }
+
+            const oldDeleteTask = state.taskById.get(action.deleteTaskId);
+            if (!oldDeleteTask) throw new NotFoundError("Task not found");
+
+            const newTaskById = new Map(state.taskById);
+            newTaskById.delete(oldDeleteTask.id);
+
+            const newTaskIdByOrderKey = state.taskIdByOrderKey.delete(oldDeleteTask.orderKey);
+
+            const previousTaskEntry = state.taskIdByOrderKey.getEntryBefore(oldDeleteTask.orderKey);
+            if (!previousTaskEntry) {
+                return {
+                    ...state,
+                    taskById: newTaskById,
+                    taskIdByOrderKey: newTaskIdByOrderKey,
+                };
+            }
+
+            const oldPreviousTask = assertExists(state.taskById.get(previousTaskEntry[1]));
+
+            if (oldDeleteTask.name.length > 0) {
+                const newPreviousTask: LocalTask = {
+                    ...oldPreviousTask,
+                    name: oldPreviousTask.name + oldDeleteTask.name,
+                };
+
+                newTaskById.set(newPreviousTask.id, newPreviousTask);
+            }
+
+            return {
+                ...state,
+                taskById: newTaskById,
+                taskIdByOrderKey: newTaskIdByOrderKey,
+                taskEffectRef: {
+                    current: {
+                        taskId: oldPreviousTask.id,
+                        // Focus the name input where the join happened as opposed to the last field in
+                        // the task. Since pressing delete follows text editing paradigms.
+                        effect: view => view.focusStart(oldPreviousTask.name.length),
+                    },
+                },
+            };
+        }
+
         default:
             throw exhaustive(action);
     }

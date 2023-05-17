@@ -1,4 +1,4 @@
-import {Key, useMemo, useRef} from "react";
+import {Key, RefCallback, useMemo, useRef} from "react";
 import {Box} from "~/client/design/box";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useLocalTasksState} from "~/client/tasks/local_tasks_state";
@@ -6,12 +6,14 @@ import {TaskRow, TaskRowView, TaskRowViewRef} from "~/client/tasks/task_row_view
 import {NotFoundError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {LazyMap} from "~/shared/helpers/control/lazy_map";
 
 // TODO(calebmer): Some stuff this view needs:
 //
-// - Delete in an empty task
+// - Delete in an empty task (backspace and delete keys)
 // - Arrow navigation
 // - Gradient for input overflow
+// - Subtasks
 // - Undo
 // - Select all
 //
@@ -45,32 +47,40 @@ export function TasksView() {
 
     const taskRowByIndexRef = useRef(new Map<number, TaskRowViewRef>());
 
+    const taskRowByIndexRefCallbacks = useMemo(
+        () =>
+            new LazyMap<number, RefCallback<TaskRowViewRef>>(index => instance => {
+                if (instance !== null) {
+                    taskRowByIndexRef.current.set(index, instance);
+                } else {
+                    taskRowByIndexRef.current.delete(index);
+                }
+            }),
+        [],
+    );
+
     // If our start had a ref instructing us to focus a task, then consume that ref
     // and focus the corresponding task.
     useLayoutEffectWithoutServerSideWarning(() => {
-        const focusTask = state.focusTaskRef.current;
-        if (!focusTask) return;
-        state.focusTaskRef.current = null;
+        const taskEffect = state.taskEffectRef.current;
+        if (!taskEffect) return;
+        state.taskEffectRef.current = null;
 
         let index: number;
 
         // TODO(calebmer): It's hard to remember to always check for ghost tasks. Can
         // we abstract this somehow?
-        if (focusTask.taskId === state.ghostTaskId) {
+        if (taskEffect.taskId === state.ghostTaskId) {
             index = tasks.length;
         } else {
-            const task = state.taskById.get(focusTask.taskId);
+            const task = state.taskById.get(taskEffect.taskId);
             if (!task) throw new NotFoundError("Task not found");
             index = assertExists(state.taskIdByOrderKey.getIndexByKey(task.orderKey));
         }
 
-        if (focusTask.direction === "Start") {
-            assertExists(taskRowByIndexRef.current.get(index)).focusStart();
-        } else {
-            assertExists(taskRowByIndexRef.current.get(index)).focusEnd();
-        }
+        taskEffect.effect(assertExists(taskRowByIndexRef.current.get(index)));
     }, [
-        state.focusTaskRef,
+        state.taskEffectRef,
         state.ghostTaskId,
         state.taskById,
         state.taskIdByOrderKey,
@@ -113,16 +123,11 @@ export function TasksView() {
             />
             {taskRows.map((row, index) => (
                 <TaskRowView
-                    ref={instance => {
-                        if (instance !== null) {
-                            taskRowByIndexRef.current.set(index, instance);
-                        } else {
-                            taskRowByIndexRef.current.delete(index);
-                        }
-                    }}
+                    ref={taskRowByIndexRefCallbacks.get(index)}
                     key={getTaskRowKey(row, index)}
                     row={row}
                     rowIndex={index}
+                    nextTaskRow={index < taskRows.length - 1 ? taskRows[index + 1]! : null}
                     dispatch={dispatch}
                     onPreviousRowFocusEnd={() => {
                         if (index > 0) {
