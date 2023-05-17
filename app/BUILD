@@ -49,6 +49,7 @@ ts_project(
         "//client/rpc",
         "//client/spaces",
         "//client/spaces/layout",
+        "//client/tasks",
         "//client/tracer",
         "//client/virtualized",
         "//server/accounts",
