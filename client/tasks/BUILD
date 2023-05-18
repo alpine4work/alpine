@@ -8,11 +8,15 @@ ts_project(
     ],
     deps = [
         "//:node_modules/@types/react",
+        "//:node_modules/prosemirror-model",
+        "//:node_modules/prosemirror-state",
+        "//:node_modules/prosemirror-view",
         "//:node_modules/react",
         "//client/context",
         "//client/design",
         "//client/spaces",
         "//shared/helpers",
         "//shared/models",
+        "//shared/prosemirror",
     ],
 )

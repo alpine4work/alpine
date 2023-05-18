@@ -97,7 +97,7 @@ export function TasksView() {
                     const taskRowView = assertExists(
                         taskRowRefByIndex.get(taskRows.length - 1).current,
                     );
-                    taskRowView.focusTitleField({type: "End"});
+                    taskRowView.focusTitleEnd();
                 }
             }}
         >
@@ -113,16 +113,15 @@ export function TasksView() {
                 // by keyboard.
                 onClick={() => {
                     if (taskRows.length > 0) {
-                        assertExists(taskRowRefByIndex.get(0).current).focusTitleField();
+                        assertExists(taskRowRefByIndex.get(0).current).focusTitleStart();
                     }
                 }}
             />
-            {taskRows.map((row, index) => (
+            {taskRows.map((taskRow, index) => (
                 <TaskRowView
                     ref={taskRowRefByIndex.get(index)}
-                    key={getTaskRowKey(row, index)}
-                    row={row}
-                    rowIndex={index}
+                    key={getTaskRowKey(taskRow, index)}
+                    taskRow={taskRow}
                     nextTaskRow={index < taskRows.length - 1 ? taskRows[index + 1]! : null}
                     nextTaskRowRef={taskRowRefByIndex.get(index + 1)}
                     previousTaskRow={index > 0 ? taskRows[index - 1]! : null}

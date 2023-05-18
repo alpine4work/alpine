@@ -1,7 +1,14 @@
-import {MutableRefObject, useEffect, useReducer, useRef} from "react";
+import {Selection} from "prosemirror-state";
+import {Memo, MutableRefObject, useEffect, useReducer, useRef} from "react";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
 import {TaskRowViewRef} from "~/client/tasks/internal/task_row_view";
-import {DataLossError, FailedPreconditionError, NotFoundError} from "~/shared/error/error";
+import {
+    TaskTitle,
+    TaskTitleSchema,
+    assertTaskTitle,
+    emptyTaskTitle,
+} from "~/client/tasks/internal/task_title_schema";
+import {DataLossError, NotFoundError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
@@ -21,7 +28,7 @@ export type LocalTask = SchemaType<typeof LocalTaskSchema>;
 
 const LocalTaskSchema = Schema.object({
     id: Schema.id<LocalTaskId>(),
-    title: Schema.string.maxLength(512).singleLine(),
+    title: TaskTitleSchema,
     orderKey: OrderKeySchema,
 });
 
@@ -57,7 +64,6 @@ function getInitialLocalTasksState(): LocalTasksState {
 export type LocalTasksAction =
     | LocalTasksRestoreStateAction
     | LocalTasksResetStateAction
-    | LocalTasksCreateTaskFromGhostAction
     | LocalTasksUpdateTaskTitleAction
     | LocalTasksSplitTaskFromTitleAction
     | LocalTasksJoinTaskFromTitleAction;
@@ -71,22 +77,16 @@ type LocalTasksResetStateAction = {
     readonly type: "ResetState";
 };
 
-type LocalTasksCreateTaskFromGhostAction = {
-    readonly type: "CreateTaskFromGhost";
-    readonly title: string;
-};
-
 type LocalTasksUpdateTaskTitleAction = {
     readonly type: "UpdateTaskTitle";
     readonly taskId: LocalTaskId;
-    readonly title: string;
+    readonly title: TaskTitle;
 };
 
 type LocalTasksSplitTaskFromTitleAction = {
     readonly type: "SplitTaskFromTitle";
     readonly taskId: LocalTaskId;
-    readonly titleSelectionStart: number;
-    readonly titleSelectionEnd: number;
+    readonly titleSelection: Selection;
 };
 
 type LocalTasksJoinTaskFromTitleAction = {
@@ -155,37 +155,43 @@ function actuallyReduceLocalTasksState(
             return getInitialLocalTasksState();
         }
 
-        case "CreateTaskFromGhost": {
-            const task: LocalTask = {
-                id: state.ghostTaskId,
-                title: action.title,
-                orderKey: generateOrderKeyBetween(
-                    state.taskIdByOrderKey.getLastEntry()?.[0] ?? null,
-                    null,
-                ),
-            };
-
-            const newTaskById = new Map(state.taskById);
-            newTaskById.set(task.id, task);
-
-            const newTaskIdByOrderKey = state.taskIdByOrderKey.set(task.orderKey, task.id);
-
-            return {
-                ...state,
-                taskById: newTaskById,
-                taskIdByOrderKey: newTaskIdByOrderKey,
-                ghostTaskId: generateId(),
-            };
-        }
-
         case "UpdateTaskTitle": {
-            if (action.taskId === state.ghostTaskId)
-                throw new FailedPreconditionError("Can't update ghost task title");
+            // If we are updating the title of a ghost task then turn the ghost task into a
+            // real task and generate a new ghost task id.
+            if (action.taskId === state.ghostTaskId) {
+                const newTask: LocalTask = {
+                    id: state.ghostTaskId,
+                    title: action.title,
+                    orderKey: generateOrderKeyBetween(
+                        state.taskIdByOrderKey.getLastEntry()?.[0] ?? null,
+                        null,
+                    ),
+                };
+
+                const newTaskById = new Map(state.taskById);
+                newTaskById.set(newTask.id, newTask);
+
+                const newTaskIdByOrderKey = state.taskIdByOrderKey.set(
+                    newTask.orderKey,
+                    newTask.id,
+                );
+
+                return {
+                    ...state,
+                    taskById: newTaskById,
+                    taskIdByOrderKey: newTaskIdByOrderKey,
+                    ghostTaskId: generateId(),
+                };
+            }
 
             const newTaskById = new Map(state.taskById);
+
             const oldTask = newTaskById.get(action.taskId);
             if (!oldTask) throw new NotFoundError("Task not found");
-            newTaskById.set(action.taskId, {...oldTask, title: action.title});
+
+            const newTask = {...oldTask, title: action.title};
+            newTaskById.set(action.taskId, newTask);
+
             return {...state, taskById: newTaskById};
         }
 
@@ -205,16 +211,34 @@ function actuallyReduceLocalTasksState(
             // If we are splitting a ghost task, then create the ghost task and move focus
             // to the new ghost task.
             if (action.taskId === state.ghostTaskId) {
-                state = actuallyReduceLocalTasksState(state, {
-                    type: "CreateTaskFromGhost",
-                    title: "",
-                });
+                const newTask: LocalTask = {
+                    id: state.ghostTaskId,
+                    title: emptyTaskTitle,
+                    orderKey: generateOrderKeyBetween(
+                        state.taskIdByOrderKey.getLastEntry()?.[0] ?? null,
+                        null,
+                    ),
+                };
+
+                const newTaskById = new Map(state.taskById);
+                newTaskById.set(newTask.id, newTask);
+
+                const newTaskIdByOrderKey = state.taskIdByOrderKey.set(
+                    newTask.orderKey,
+                    newTask.id,
+                );
+
+                const newGhostTaskId = generateId<LocalTaskId>();
+
                 return {
                     ...state,
+                    taskById: newTaskById,
+                    taskIdByOrderKey: newTaskIdByOrderKey,
+                    ghostTaskId: newGhostTaskId,
                     taskEffectRef: {
                         current: {
-                            taskId: state.ghostTaskId,
-                            effect: view => view.focusTitleField(),
+                            taskId: newGhostTaskId,
+                            effect: view => view.focusTitleStart(),
                         },
                     },
                 };
@@ -225,10 +249,13 @@ function actuallyReduceLocalTasksState(
 
             // If the selection is at the start of the title then add an empty task above
             // and keep focus in the existing task.
-            if (action.titleSelectionStart === 0 && action.titleSelectionEnd === 0) {
+            if (
+                action.titleSelection.from === action.titleSelection.to &&
+                action.titleSelection.from === 0
+            ) {
                 const newSplitTask: LocalTask = {
                     id: generateId(),
-                    title: "",
+                    title: emptyTaskTitle,
                     orderKey: generateOrderKeyBetween(
                         state.taskIdByOrderKey.getEntryBefore(oldTask.orderKey)?.[0] ?? null,
                         oldTask.orderKey,
@@ -253,12 +280,12 @@ function actuallyReduceLocalTasksState(
             // If the selection is at the end of the title then add an empty task below and
             // move focus to that empty task.
             if (
-                action.titleSelectionStart === oldTask.title.length - 1 &&
-                action.titleSelectionEnd === oldTask.title.length - 1
+                action.titleSelection.from === action.titleSelection.to &&
+                action.titleSelection.from === oldTask.title.nodeSize - 2
             ) {
                 const newSplitTask: LocalTask = {
                     id: generateId(),
-                    title: "",
+                    title: emptyTaskTitle,
                     orderKey: generateOrderKeyBetween(
                         oldTask.orderKey,
                         state.taskIdByOrderKey.getEntryAfter(oldTask.orderKey)?.[0] ?? null,
@@ -280,7 +307,7 @@ function actuallyReduceLocalTasksState(
                     taskEffectRef: {
                         current: {
                             taskId: newSplitTask.id,
-                            effect: view => view.focusTitleField(),
+                            effect: view => view.focusTitleStart(),
                         },
                     },
                 };
@@ -288,12 +315,12 @@ function actuallyReduceLocalTasksState(
 
             const newTask: LocalTask = {
                 ...oldTask,
-                title: oldTask.title.slice(0, action.titleSelectionStart),
+                title: assertTaskTitle(oldTask.title.cut(0, action.titleSelection.from)),
             };
 
             const newSplitTask: LocalTask = {
                 id: generateId(),
-                title: oldTask.title.slice(action.titleSelectionEnd),
+                title: assertTaskTitle(oldTask.title.cut(action.titleSelection.to)),
                 orderKey: generateOrderKeyBetween(
                     oldTask.orderKey,
                     state.taskIdByOrderKey.getEntryAfter(oldTask.orderKey)?.[0] ?? null,
@@ -316,7 +343,7 @@ function actuallyReduceLocalTasksState(
                 taskEffectRef: {
                     current: {
                         taskId: newSplitTask.id,
-                        effect: view => view.focusTitleField(),
+                        effect: view => view.focusTitleStart(),
                     },
                 },
             };
@@ -346,11 +373,7 @@ function actuallyReduceLocalTasksState(
                     taskEffectRef: {
                         current: {
                             taskId: lastTask.id,
-                            effect: view =>
-                                view.focusTitleField({
-                                    type: "Index",
-                                    selectionIndex: lastTask.title.length,
-                                }),
+                            effect: view => view.focusTitleEnd(),
                         },
                     },
                 };
@@ -364,21 +387,39 @@ function actuallyReduceLocalTasksState(
 
             const newTaskIdByOrderKey = state.taskIdByOrderKey.delete(oldDeleteTask.orderKey);
 
+            // If there is no previous task pressing delete can not join back. If the task
+            // title is empty we will delete the task. This way if you have only one task
+            // you can still delete it.
             const previousTaskEntry = state.taskIdByOrderKey.getEntryBefore(oldDeleteTask.orderKey);
             if (!previousTaskEntry) {
+                if (oldDeleteTask.title.childCount > 0) return state;
+
+                const nextTaskEntry = state.taskIdByOrderKey.getEntryAfter(oldDeleteTask.orderKey);
+
                 return {
                     ...state,
                     taskById: newTaskById,
                     taskIdByOrderKey: newTaskIdByOrderKey,
+                    taskEffectRef: {
+                        current: {
+                            taskId: nextTaskEntry?.[1] ?? state.ghostTaskId,
+                            effect: view => view.focusTitleStart(),
+                        },
+                    },
                 };
             }
 
             const oldPreviousTask = assertExists(state.taskById.get(previousTaskEntry[1]));
 
-            if (oldDeleteTask.title.length > 0) {
+            if (oldDeleteTask.title.childCount > 0) {
                 const newPreviousTask: LocalTask = {
                     ...oldPreviousTask,
-                    title: oldPreviousTask.title + oldDeleteTask.title,
+                    title: assertTaskTitle(
+                        oldPreviousTask.title.type.create(
+                            null,
+                            oldPreviousTask.title.content.append(oldDeleteTask.title.content),
+                        ),
+                    ),
                 };
 
                 newTaskById.set(newPreviousTask.id, newPreviousTask);
@@ -391,11 +432,7 @@ function actuallyReduceLocalTasksState(
                 taskEffectRef: {
                     current: {
                         taskId: oldPreviousTask.id,
-                        effect: view =>
-                            view.focusTitleField({
-                                type: "Index",
-                                selectionIndex: oldPreviousTask.title.length,
-                            }),
+                        effect: view => view.focusTitlePos(oldPreviousTask.title.nodeSize - 2),
                     },
                 },
             };
@@ -406,7 +443,7 @@ function actuallyReduceLocalTasksState(
     }
 }
 
-export function useLocalTasksState(): [LocalTasksState, (action: LocalTasksAction) => void] {
+export function useLocalTasksState(): [LocalTasksState, Memo<(action: LocalTasksAction) => void>] {
     const [state, dispatch] = useReducer(reduceLocalTasksState, null, getInitialLocalTasksState);
 
     const hasInitiallyMountedRef = useRef(false);
@@ -430,5 +467,5 @@ export function useLocalTasksState(): [LocalTasksState, (action: LocalTasksActio
         reset: () => dispatch({type: "ResetState"}),
     }));
 
-    return [state, dispatch];
+    return [state, dispatch as Memo<(action: LocalTasksAction) => void>];
 }

@@ -1,23 +1,23 @@
-import {KeyboardEvent, Ref, RefObject, forwardRef, useImperativeHandle, useRef} from "react";
+import {Memo, Ref, RefObject, forwardRef, useCallback, useImperativeHandle, useRef} from "react";
 import {Box} from "~/client/design/box";
-import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event";
-import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {LocalTasksAction} from "~/client/tasks/internal/local_tasks_state";
-import {TaskInteractiveGhostRow, TaskNormalRow, TaskRow} from "~/client/tasks/internal/task_row";
+import {TaskRow} from "~/client/tasks/internal/task_row";
+import {
+    TaskRowTitleInput,
+    TaskRowTitleInputRef,
+    taskRowTitleInputHeight,
+} from "~/client/tasks/internal/task_row_title_input";
 import {Spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {colorSchemeVars, contentSchemaStyles, sprinkles} from "~/shared/styles/styles";
+import {colorSchemeVars} from "~/shared/styles/styles";
 
-const taskRowHeight: Spacing = "9";
-
-export type TaskRowViewTitleFieldSelection =
-    | {type: "Index"; selectionIndex: number}
-    | {type: "Coordinate"; selectionX: number}
-    | {type: "End"};
+const taskRowHeight: Spacing = taskRowTitleInputHeight;
 
 export type TaskRowViewRef = {
-    focusTitleField(selection?: TaskRowViewTitleFieldSelection): void;
+    focusTitleStart(): void;
+    focusTitleEnd(): void;
+    focusTitlePos(pos: number): void;
+    focusTitleCoord(left: number): void;
 };
 
 const TaskRowViewForwardRef = forwardRef(TaskRowView);
@@ -25,181 +25,83 @@ export {TaskRowViewForwardRef as TaskRowView};
 
 function TaskRowView(
     {
-        row,
-        rowIndex,
+        taskRow,
         nextTaskRow,
         nextTaskRowRef,
         previousTaskRow,
         previousTaskRowRef,
         dispatch,
     }: {
-        row: TaskRow;
-        rowIndex: number;
+        taskRow: TaskRow;
         nextTaskRow: TaskRow | null;
         nextTaskRowRef: RefObject<TaskRowViewRef>;
         previousTaskRow: TaskRow | null;
         previousTaskRowRef: RefObject<TaskRowViewRef>;
-        dispatch: (action: LocalTasksAction) => void;
+        dispatch: Memo<(action: LocalTasksAction) => void>;
     },
     ref: Ref<TaskRowViewRef>,
 ) {
-    const titleInputRef = useRef<HTMLInputElement>(null);
-    const titleInputMeasurementRef = useRef<HTMLDivElement>(null);
+    const titleInputRef = useRef<TaskRowTitleInputRef>(null);
 
-    const focusTitleField = useEvent(
-        (selection: TaskRowViewTitleFieldSelection = {type: "Index", selectionIndex: 0}) => {
-            // Since a decorative ghost row is not focusable, if we try focusing it instead
-            // move focus up to the previous row. We focus the end since that's how
-            // documents behave. Selection below text bounds at any position goes to the
-            // end of the text.
-            if (row.type === "DecorativeGhost") {
-                previousTaskRowRef.current?.focusTitleField({type: "End"});
+    const focusTitleStart = useCallback(() => {
+        // Since a decorative ghost row is not focusable, instead move focus up to the
+        // previous row. We focus the end since that's how documents behave, clicking
+        // out of bounds focuses the content's end.
+        if (taskRow.type === "DecorativeGhost") {
+            previousTaskRowRef.current?.focusTitleEnd();
+            return;
+        }
+
+        assertExists(titleInputRef.current).focusStart();
+    }, [previousTaskRowRef, taskRow.type]);
+
+    const focusTitleEnd = useCallback(() => {
+        // Since a decorative ghost row is not focusable, instead move focus up to the
+        // previous row. We focus the end since that's how documents behave, clicking
+        // out of bounds focuses the content's end.
+        if (taskRow.type === "DecorativeGhost") {
+            previousTaskRowRef.current?.focusTitleEnd();
+            return;
+        }
+
+        assertExists(titleInputRef.current).focusEnd();
+    }, [previousTaskRowRef, taskRow.type]);
+
+    const focusTitlePos = useCallback(
+        (pos: number) => {
+            // Since a decorative ghost row is not focusable, instead move focus up to the
+            // previous row. We focus the end since that's how documents behave, clicking
+            // out of bounds focuses the content's end.
+            if (taskRow.type === "DecorativeGhost") {
+                previousTaskRowRef.current?.focusTitleEnd();
                 return;
             }
 
-            const titleInputElement = assertExists(titleInputRef.current);
-
-            switch (selection.type) {
-                case "Index": {
-                    titleInputElement.setSelectionRange(
-                        selection.selectionIndex,
-                        selection.selectionIndex,
-                    );
-                    titleInputElement.focus();
-                    break;
-                }
-                case "Coordinate": {
-                    // NOCOMMIT
-                    titleInputElement.focus();
-                    break;
-                }
-                case "End": {
-                    titleInputElement.setSelectionRange(
-                        titleInputElement.value.length,
-                        titleInputElement.value.length,
-                    );
-                    titleInputElement.focus();
-                    break;
-                }
-                default:
-                    throw exhaustive(selection);
-            }
+            assertExists(titleInputRef.current).focusPos(pos);
         },
+        [previousTaskRowRef, taskRow.type],
     );
 
-    useImperativeHandle(ref, () => ({focusTitleField}), [focusTitleField]);
-
-    const handleTitleFieldKeyDown = (
-        row: TaskNormalRow | TaskInteractiveGhostRow,
-        event: KeyboardEvent<HTMLInputElement>,
-    ) => {
-        const title = event.currentTarget.value;
-        const selectionStart = assertExists(event.currentTarget.selectionStart);
-        const selectionEnd = assertExists(event.currentTarget.selectionEnd);
-
-        switch (event.key) {
-            case "Enter": {
-                event.preventDefault();
-                event.stopPropagation();
-
-                if (!isModifiedKeyboardEvent(event)) {
-                    dispatch({
-                        type: "SplitTaskFromTitle",
-                        taskId: row.type === "Normal" ? row.task.id : row.ghostTaskId,
-                        titleSelectionStart: selectionStart,
-                        titleSelectionEnd: selectionEnd,
-                    });
-                }
-                break;
+    const focusTitleCoord = useCallback(
+        (left: number) => {
+            // Since a decorative ghost row is not focusable, instead move focus up to the
+            // previous row. We focus the end since that's how documents behave, clicking
+            // out of bounds focuses the content's end.
+            if (taskRow.type === "DecorativeGhost") {
+                previousTaskRowRef.current?.focusTitleEnd();
+                return;
             }
-            case "Backspace": {
-                if (selectionStart === 0 && selectionEnd === 0) {
-                    event.preventDefault();
-                    event.stopPropagation();
 
-                    // TODO(calebmer): If the task we're deleting has other fields (like comments
-                    // and notes) we should probably popup a warning and ask "are you sure you want
-                    // to delete"? The join behavior is great for quickly iterating on tasks but
-                    // can be dangerous.
-                    dispatch({
-                        type: "JoinTaskFromTitle",
-                        deleteTaskId: row.type === "Normal" ? row.task.id : row.ghostTaskId,
-                    });
-                }
-                break;
-            }
-            case "Delete": {
-                if (selectionStart === title.length && selectionEnd === title.length) {
-                    event.preventDefault();
-                    event.stopPropagation();
+            assertExists(titleInputRef.current).focusCoord(left);
+        },
+        [previousTaskRowRef, taskRow.type],
+    );
 
-                    // TODO(calebmer): If the task we're deleting has other fields (like comments
-                    // and notes) we should probably popup a warning and ask "are you sure you want
-                    // to delete"? The join behavior is great for quickly iterating on tasks but
-                    // can be dangerous.
-                    if (nextTaskRow && nextTaskRow.type !== "DecorativeGhost") {
-                        dispatch({
-                            type: "JoinTaskFromTitle",
-                            deleteTaskId:
-                                nextTaskRow.type === "Normal"
-                                    ? nextTaskRow.task.id
-                                    : nextTaskRow.ghostTaskId,
-                        });
-                    }
-                }
-                break;
-            }
-            case "ArrowUp":
-            case "ArrowDown": {
-                event.preventDefault();
-                event.stopPropagation();
-
-                if (!isModifiedKeyboardEvent(event)) {
-                    const titleInputElement = assertExists(titleInputRef.current);
-
-                    // Get the X coordinate of the input's selection. We will maintain the X
-                    // position when moving up/down with arrow keys.
-                    //
-                    // NOTE(calebmer): Unfortunately we can't use `window.getSelection()` with an
-                    // `<input>` element so to figure out the X coordinate of our selection we need
-                    // to insert the text in our editor to a hidden `<div>` to get correct
-                    // measurements.
-                    const titleInputMeasurementElement = assertExists(
-                        titleInputMeasurementRef.current,
-                    );
-
-                    titleInputMeasurementElement.textContent = title.slice(0, selectionStart);
-
-                    const selectionX =
-                        titleInputMeasurementElement.getBoundingClientRect().right -
-                        // We don't scroll our measurement element, so adjust the X position by how
-                        // much the input has scrolled.
-                        titleInputElement.scrollLeft;
-
-                    titleInputMeasurementElement.textContent = "";
-
-                    // NOCOMMIT: If we are continuously arrowing up/down we should reuse an old
-                    // `selectionX`.
-                    if (event.key === "ArrowUp") {
-                        if (previousTaskRow && previousTaskRow.type !== "DecorativeGhost") {
-                            assertExists(previousTaskRowRef.current).focusTitleField({
-                                type: "Coordinate",
-                                selectionX,
-                            });
-                        }
-                    } else {
-                        if (nextTaskRow && nextTaskRow.type !== "DecorativeGhost") {
-                            assertExists(nextTaskRowRef.current).focusTitleField({
-                                type: "Coordinate",
-                                selectionX,
-                            });
-                        }
-                    }
-                }
-                break;
-            }
-        }
-    };
+    useImperativeHandle(
+        ref,
+        () => ({focusTitleStart, focusTitleEnd, focusTitlePos, focusTitleCoord}),
+        [focusTitleCoord, focusTitleEnd, focusTitlePos, focusTitleStart],
+    );
 
     return (
         <Box display="flex">
@@ -212,11 +114,12 @@ function TaskRowView(
                 // This is an affordance for mouse users, does not need to be usable
                 // by keyboard.
                 cursor="text"
-                onClick={() => focusTitleField()}
+                onClick={focusTitleStart}
             />
             <Box
                 position="relative"
                 flexGrow="1"
+                overflow="hidden"
                 style={{
                     // Draw the top and bottom border with a shadow so it:
                     //
@@ -225,7 +128,7 @@ function TaskRowView(
                     boxShadow: `0 -1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 -1px 0 0 ${colorSchemeVars["grey-5"]}`,
                 }}
             >
-                {row.type === "DecorativeGhost" ? (
+                {taskRow.type === "DecorativeGhost" ? (
                     <Box
                         width="full"
                         height={taskRowHeight}
@@ -236,62 +139,33 @@ function TaskRowView(
                         // This is an affordance for mouse users, does not need to be usable
                         // by keyboard.
                         cursor="text"
-                        onClick={() => focusTitleField()}
+                        onClick={focusTitleStart}
                     />
                 ) : (
-                    <>
-                        <Box
-                            // Element with identical styling to our `<input>`. We will imperatively add
-                            // text content to this element and use it to measure how wide the content is.
-                            ref={titleInputMeasurementRef}
-                            position="absolute"
-                            top="0"
-                            paddingY="2"
-                            style={{
-                                ...contentSchemaStyles.paragraphFontSize,
-                                opacity: 0,
-                                pointerEvents: "none",
-                            }}
-                        />
-                        <input
-                            ref={titleInputRef}
-                            placeholder={
-                                row.type === "InteractiveGhost"
-                                    ? rowIndex === 0
-                                        ? "Click to add a task…"
-                                        : rowIndex === 1
-                                        ? "Press enter to add another task…"
-                                        : rowIndex === 2
-                                        ? "Press tab to convert into a subtask…"
-                                        : rowIndex === 3
-                                        ? "Keep adding tasks…"
-                                        : "Add a task…"
-                                    : undefined
-                            }
-                            style={contentSchemaStyles.paragraphFontSize}
-                            className={sprinkles({
-                                width: "full",
-                                height: taskRowHeight,
-                                paddingY: "2",
-                                backgroundColor: "transparent",
-                            })}
-                            value={row.type === "Normal" ? row.task.title : ""}
-                            onChange={event => {
-                                const title = event.currentTarget.value;
-
-                                if (row.type === "Normal") {
-                                    dispatch({
-                                        type: "UpdateTaskTitle",
-                                        taskId: row.task.id,
-                                        title,
-                                    });
-                                } else {
-                                    dispatch({type: "CreateTaskFromGhost", title});
-                                }
-                            }}
-                            onKeyDown={event => handleTitleFieldKeyDown(row, event)}
-                        />
-                    </>
+                    <TaskRowTitleInput
+                        ref={titleInputRef}
+                        taskRow={taskRow}
+                        nextTaskRow={nextTaskRow}
+                        nextTaskRowRef={nextTaskRowRef}
+                        previousTaskRow={previousTaskRow}
+                        previousTaskRowRef={previousTaskRowRef}
+                        dispatch={dispatch}
+                    />
+                    // NOCOMMIT: Add back placeholders
+                    //
+                    //         placeholder={
+                    //             row.type === "InteractiveGhost"
+                    //                 ? rowIndex === 0
+                    //                     ? "Click to add a task…"
+                    //                     : rowIndex === 1
+                    //                     ? "Press enter to add another task…"
+                    //                     : rowIndex === 2
+                    //                     ? "Press tab to convert into a subtask…"
+                    //                     : rowIndex === 3
+                    //                     ? "Keep adding tasks…"
+                    //                     : "Add a task…"
+                    //                 : undefined
+                    //         }
                 )}
             </Box>
             <Box
@@ -302,11 +176,8 @@ function TaskRowView(
                 //
                 // This is an affordance for mouse users, does not need to be usable
                 // by keyboard.
-                //
-                // TODO(calebmer): When this has more fields focus should go to the last field,
-                // not the title input.
                 cursor="text"
-                onClick={() => focusTitleField({type: "End"})}
+                onClick={focusTitleEnd}
             />
         </Box>
     );
