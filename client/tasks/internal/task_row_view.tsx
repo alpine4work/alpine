@@ -39,6 +39,8 @@ function TaskRowView(
         nextTaskRowRef,
         previousTaskRow,
         previousTaskRowRef,
+        firstTaskRowRef,
+        lastTaskRowRef,
         taskGhostRowPlaceholder,
         lastArrowNavigationXRef,
         dispatch,
@@ -48,6 +50,8 @@ function TaskRowView(
         nextTaskRowRef: RefObject<TaskRowViewRef>;
         previousTaskRow: TaskRow | null;
         previousTaskRowRef: RefObject<TaskRowViewRef>;
+        firstTaskRowRef: RefObject<TaskRowViewRef>;
+        lastTaskRowRef: RefObject<TaskRowViewRef>;
         taskGhostRowPlaceholder: string;
         lastArrowNavigationXRef: MutableRefObject<{setTime: Date; x: number} | null>;
         dispatch: Memo<(action: LocalTasksAction) => void>;
@@ -162,6 +166,8 @@ function TaskRowView(
                         nextTaskRowRef={nextTaskRowRef}
                         previousTaskRow={previousTaskRow}
                         previousTaskRowRef={previousTaskRowRef}
+                        firstTaskRowRef={firstTaskRowRef}
+                        lastTaskRowRef={lastTaskRowRef}
                         taskGhostRowPlaceholder={taskGhostRowPlaceholder}
                         lastArrowNavigationXRef={lastArrowNavigationXRef}
                         dispatch={dispatch}

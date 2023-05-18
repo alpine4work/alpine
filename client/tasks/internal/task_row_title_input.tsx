@@ -11,6 +11,7 @@ import {
     useRef,
     useState,
 } from "react";
+import {isMac} from "~/client/helpers/browser/is_mac";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
@@ -67,6 +68,8 @@ function TaskRowTitleInput(
         nextTaskRowRef,
         previousTaskRow,
         previousTaskRowRef,
+        firstTaskRowRef,
+        lastTaskRowRef,
         taskGhostRowPlaceholder,
         lastArrowNavigationXRef,
         dispatch,
@@ -76,6 +79,8 @@ function TaskRowTitleInput(
         nextTaskRowRef: RefObject<TaskRowViewRef>;
         previousTaskRow: TaskRow | null;
         previousTaskRowRef: RefObject<TaskRowViewRef>;
+        firstTaskRowRef: RefObject<TaskRowViewRef>;
+        lastTaskRowRef: RefObject<TaskRowViewRef>;
         taskGhostRowPlaceholder: string;
         lastArrowNavigationXRef: MutableRefObject<{setTime: Date; x: number} | null>;
         dispatch: Memo<(action: LocalTasksAction) => void>;
@@ -160,7 +165,15 @@ function TaskRowTitleInput(
                 event.preventDefault();
                 event.stopPropagation();
 
-                if (!isModifiedKeyboardEvent(event)) {
+                if (isMac ? event.metaKey : event.ctrlKey) {
+                    firstTaskRowRef.current?.focusTitleStart();
+                } else if (event.altKey) {
+                    view.dispatch(
+                        view.state.tr
+                            .setSelection(Selection.atStart(view.state.doc))
+                            .scrollIntoView(),
+                    );
+                } else if (!isModifiedKeyboardEvent(event)) {
                     if (previousTaskRow && previousTaskRow.type !== "DecorativeGhost") {
                         const coords = view.coordsAtPos(view.state.selection.from);
                         const arrowNavigationX = lastArrowNavigationXRef.current?.x ?? coords.left;
@@ -181,7 +194,15 @@ function TaskRowTitleInput(
                 event.preventDefault();
                 event.stopPropagation();
 
-                if (!isModifiedKeyboardEvent(event)) {
+                if (isMac ? event.metaKey : event.ctrlKey) {
+                    lastTaskRowRef.current?.focusTitleEnd();
+                } else if (event.altKey) {
+                    view.dispatch(
+                        view.state.tr
+                            .setSelection(Selection.atEnd(view.state.doc))
+                            .scrollIntoView(),
+                    );
+                } else if (!isModifiedKeyboardEvent(event)) {
                     if (nextTaskRow && nextTaskRow.type !== "DecorativeGhost") {
                         const coords = view.coordsAtPos(view.state.selection.from);
                         const arrowNavigationX = lastArrowNavigationXRef.current?.x ?? coords.left;

@@ -196,6 +196,8 @@ export function TasksView() {
                     nextTaskRowRef={taskRowRefByIndex.get(index + 1)}
                     previousTaskRow={index > 0 ? taskRows[index - 1]! : null}
                     previousTaskRowRef={taskRowRefByIndex.get(index - 1)}
+                    firstTaskRowRef={taskRowRefByIndex.get(0)}
+                    lastTaskRowRef={taskRowRefByIndex.get(taskRows.length - 1)}
                     taskGhostRowPlaceholder={taskGhostRowPlaceholder}
                     lastArrowNavigationXRef={lastArrowNavigationXRef}
                     dispatch={dispatch}
