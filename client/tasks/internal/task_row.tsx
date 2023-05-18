@@ -5,6 +5,7 @@ export type TaskRow = TaskNormalRow | TaskInteractiveGhostRow | TaskDecorativeGh
 
 export type TaskNormalRow = {
     readonly type: "Normal";
+    readonly parentStack: ReadonlyArray<LocalTask>;
     readonly task: LocalTask;
 };
 

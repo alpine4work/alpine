@@ -112,7 +112,7 @@ function TaskRowTitleInput(
 
                 if (!isModifiedKeyboardEvent(event)) {
                     dispatch({
-                        type: "SplitTaskFromTitle",
+                        type: "SplitTaskTitle",
                         taskId,
                         titleSelection: view.state.selection,
                     });
@@ -132,7 +132,7 @@ function TaskRowTitleInput(
                     // to delete"? The join behavior is great for quickly iterating on tasks but
                     // can be dangerous.
                     dispatch({
-                        type: "JoinTaskFromTitle",
+                        type: "JoinTaskTitle",
                         deleteTaskId: taskId,
                     });
                 }
@@ -152,7 +152,7 @@ function TaskRowTitleInput(
                     // can be dangerous.
                     if (nextTaskRow && nextTaskRow.type !== "DecorativeGhost") {
                         dispatch({
-                            type: "JoinTaskFromTitle",
+                            type: "JoinTaskTitle",
                             deleteTaskId:
                                 nextTaskRow.type === "Normal"
                                     ? nextTaskRow.task.id
@@ -220,6 +220,31 @@ function TaskRowTitleInput(
                 }
                 break;
             }
+            case "Tab": {
+                if (event.shiftKey) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    if (taskRow.type === "Normal") {
+                        dispatch({
+                            type: "DedentTask",
+                            taskId: taskRow.task.id,
+                        });
+                    }
+                } else if (!isModifiedKeyboardEvent(event)) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    if (taskRow.type === "Normal" && previousTaskRow?.type === "Normal") {
+                        dispatch({
+                            type: "IndentTask",
+                            taskId: taskRow.task.id,
+                            previousTaskId: previousTaskRow.task.id,
+                        });
+                    }
+                }
+                break;
+            }
         }
     };
 
@@ -241,6 +266,20 @@ function TaskRowTitleInput(
 
         const view = new EditorView(containerElement, {
             state: initialTitleState,
+
+            attributes: {
+                // Title row inputs are focusable but are not a part of the tab order.
+                //
+                // TODO(calebmer): Figure out a paradigm for focusing the tasks view. When the
+                // user tabs into `<TasksView>` focus should go to the last focused task? If
+                // we're using a virtualized scroll view, though, and the last focused task is
+                // offscreen it's unclear whether we should scroll to it or focus a visible
+                // task or what.
+                //
+                // Once focus is in a single task the user can navigate it entirely with
+                // the keyboard.
+                tabindex: "-1",
+            },
 
             handleKeyDown: (view, event) => {
                 handleKeyDownRef.current(view, event);
@@ -440,6 +479,8 @@ function TaskRowTitleInput(
                     aria-placeholder={
                         taskRow.type === "InteractiveGhost" ? taskGhostRowPlaceholder : undefined
                     }
+                    // See why we set this attribute on `EditorView`.
+                    tabIndex={-1}
                     dangerouslySetInnerHTML={{
                         __html: serializeProsemirrorFragmentToHtml(titleState.doc.content),
                     }}

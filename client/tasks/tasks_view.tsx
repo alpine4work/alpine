@@ -2,19 +2,25 @@ import {Key, RefObject, useEffect, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {useLocalTasksState} from "~/client/tasks/internal/local_tasks_state";
+import {LocalTask, useLocalTasksState} from "~/client/tasks/internal/local_tasks_state";
 import {TaskRow} from "~/client/tasks/internal/task_row";
 import {TaskRowView, TaskRowViewRef} from "~/client/tasks/internal/task_row_view";
-import {NotFoundError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {LazyMap} from "~/shared/helpers/control/lazy_map";
+import {LocalTaskId} from "~/shared/id/types/id_types";
 
 // TODO(calebmer): Some stuff this view needs:
 //
 // - Subtasks
-// - Undo
+// - Arrow navigation not working quite right with subtasks
+// - Open/close button
+// - Drag to reorder
+// - Due date
+// - Assignee
+// - Drag selection should select multiple tasks
 // - Select all
+// - Undo
 //
 // Generally I should overview a list of document shortcuts and keyboard
 // shortcuts and incorporate all that make sense.
@@ -33,27 +39,32 @@ const taskGhostRowPlaceholderTutorial = [
 export function TasksView() {
     const [state, dispatch] = useLocalTasksState();
 
-    const tasks = useMemo(
-        () =>
-            Array.from(state.taskIdByOrderKey.values(), taskId =>
-                assertExists(state.taskById.get(taskId)),
-            ),
-        [state.taskById, state.taskIdByOrderKey],
-    );
-
-    const taskRows = useMemo(() => {
+    const {taskRows, normalTaskRowCount} = useMemo(() => {
         const taskRows: Array<TaskRow> = [];
 
-        for (const task of tasks) {
-            taskRows.push({type: "Normal", task});
+        const addTasks = (parentStack: ReadonlyArray<LocalTask>, taskId: LocalTaskId) => {
+            const task = assertExists(state.taskById.get(taskId));
+            taskRows.push({type: "Normal", parentStack, task});
+
+            parentStack = [...parentStack, task];
+
+            for (const taskId of task.childTaskIdByOrderKey.values()) {
+                addTasks(parentStack, taskId);
+            }
+        };
+
+        for (const taskId of state.rootTaskIdByOrderKey.values()) {
+            addTasks([], taskId);
         }
 
-        taskRows.push({type: "InteractiveGhost", ghostTaskId: state.ghostTaskId});
-        if (tasks.length <= 1) taskRows.push({type: "DecorativeGhost"});
-        if (tasks.length <= 0) taskRows.push({type: "DecorativeGhost"});
+        const normalTaskRowCount = taskRows.length;
 
-        return taskRows;
-    }, [state.ghostTaskId, tasks]);
+        taskRows.push({type: "InteractiveGhost", ghostTaskId: state.ghostTaskId});
+        if (normalTaskRowCount <= 1) taskRows.push({type: "DecorativeGhost"});
+        if (normalTaskRowCount <= 0) taskRows.push({type: "DecorativeGhost"});
+
+        return {taskRows, normalTaskRowCount};
+    }, [state.ghostTaskId, state.rootTaskIdByOrderKey, state.taskById]);
 
     const taskRowRefByIndex = useConstant(
         () => new LazyMap<number, RefObject<TaskRowViewRef>>(() => ({current: null})),
@@ -66,25 +77,26 @@ export function TasksView() {
         if (!taskEffect) return;
         state.taskEffectRef.current = null;
 
-        let index: number;
+        // NOCOMMIT: Reimplement
 
-        // TODO(calebmer): It's hard to remember to always check for ghost tasks. Can
-        // we abstract this somehow?
-        if (taskEffect.taskId === state.ghostTaskId) {
-            index = tasks.length;
-        } else {
-            const task = state.taskById.get(taskEffect.taskId);
-            if (!task) throw new NotFoundError("Task not found");
-            index = assertExists(state.taskIdByOrderKey.getIndexByKey(task.orderKey));
-        }
+        // let index: number;
 
-        taskEffect.effect(assertExists(taskRowRefByIndex.get(index).current));
+        // // TODO(calebmer): It's hard to remember to always check for ghost tasks. Can
+        // // we abstract this somehow?
+        // if (taskEffect.taskId === state.ghostTaskId) {
+        //     index = rootTasks.length;
+        // } else {
+        //     const task = state.taskById.get(taskEffect.taskId);
+        //     if (!task) throw new NotFoundError("Task not found");
+        //     index = assertExists(state.rootTaskIdByOrderKey.getIndexByKey(task.orderKey));
+        // }
+
+        // taskEffect.effect(assertExists(taskRowRefByIndex.get(index).current));
     }, [
         state.taskEffectRef,
         state.ghostTaskId,
         state.taskById,
-        state.taskIdByOrderKey,
-        tasks.length,
+        state.rootTaskIdByOrderKey,
         taskRowRefByIndex,
     ]);
 
@@ -95,18 +107,18 @@ export function TasksView() {
     const [
         shouldShowTaskGhostRowPlaceholderTutorial,
         setShouldShowTaskGhostRowPlaceholderTutorial,
-    ] = useState(tasks.length === 0);
+    ] = useState(normalTaskRowCount === 0);
 
     // If the user deletes all their tasks then show the placeholder
     // tutorial again.
-    if (tasks.length === 0 && !shouldShowTaskGhostRowPlaceholderTutorial) {
+    if (normalTaskRowCount === 0 && !shouldShowTaskGhostRowPlaceholderTutorial) {
         setShouldShowTaskGhostRowPlaceholderTutorial(true);
     }
 
     // Once we complete the tutorial we shouldn't show it again if the user starts
     // deleting tasks. Unless the user deletes all their tasks.
     if (
-        tasks.length >= taskGhostRowPlaceholderTutorial.length &&
+        normalTaskRowCount >= taskGhostRowPlaceholderTutorial.length &&
         shouldShowTaskGhostRowPlaceholderTutorial
     ) {
         setShouldShowTaskGhostRowPlaceholderTutorial(false);
@@ -114,8 +126,8 @@ export function TasksView() {
 
     const taskGhostRowPlaceholder =
         shouldShowTaskGhostRowPlaceholderTutorial &&
-        tasks.length < taskGhostRowPlaceholderTutorial.length
-            ? taskGhostRowPlaceholderTutorial[tasks.length]!
+        normalTaskRowCount < taskGhostRowPlaceholderTutorial.length
+            ? taskGhostRowPlaceholderTutorial[normalTaskRowCount]!
             : "Add a task…";
 
     /* ========================================================================== *\

@@ -138,6 +138,10 @@ function TaskRowView(
                 flexGrow="1"
                 overflow="hidden"
                 style={{
+                    // NOCOMMIT: Clicking this padding should select text input
+                    paddingLeft: `${
+                        1.5 * (taskRow.type === "Normal" ? taskRow.parentStack.length : 0)
+                    }rem`,
                     // Draw the top and bottom border with a shadow so it:
                     //
                     // 1. Doesn't add 2px to layout
