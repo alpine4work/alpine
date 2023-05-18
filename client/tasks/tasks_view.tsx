@@ -12,8 +12,6 @@ import {LazyMap} from "~/shared/helpers/control/lazy_map";
 
 // TODO(calebmer): Some stuff this view needs:
 //
-// - Modified arrow navigation
-// - Gradient for input overflow
 // - Subtasks
 // - Undo
 // - Select all

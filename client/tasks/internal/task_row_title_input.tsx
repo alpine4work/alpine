@@ -1,3 +1,4 @@
+import classNames from "classnames";
 import {EditorState, Selection, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {
@@ -385,15 +386,47 @@ function TaskRowTitleInput(
         [isInitialAppRender],
     );
 
+    // We initially consider ourselves to be fully scrolled to the left but not to
+    // the right. On server-render this will render a right gradient on the task in
+    // case it overflows.
+    const [isFullyScrolledLeft, setIsFullyScrolledLeft] = useState(true);
+    const [isFullyScrolledRight, setIsFullyScrolledRight] = useState(false);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (isInitialAppRender) return;
+
+        const viewElement = assertExists(viewRef.current).dom;
+
+        const update = () => {
+            setIsFullyScrolledLeft(viewElement.scrollLeft === 0);
+            setIsFullyScrolledRight(
+                viewElement.scrollLeft === viewElement.scrollWidth - viewElement.clientWidth,
+            );
+        };
+
+        update();
+
+        viewElement.addEventListener("scroll", update);
+        return () => {
+            viewElement.removeEventListener("scroll", update);
+        };
+    }, [isInitialAppRender]);
+
     return (
         <div
             ref={containerRef}
-            className={
-                titleState.doc.childCount === 0 ? taskRowTitleInputStyles.emptyClassName : undefined
-            }
-            // Reset scroll position when focus leaves the input.
+            className={classNames(
+                taskRowTitleInputStyles.containerClassName,
+                titleState.doc.childCount === 0 && taskRowTitleInputStyles.emptyContainerClassName,
+                !isFullyScrolledLeft &&
+                    taskRowTitleInputStyles.overflowGradientLeftContainerClassName,
+                !isFullyScrolledRight &&
+                    taskRowTitleInputStyles.overflowGradientRightContainerClassName,
+            )}
             onBlur={() => {
                 if (isInitialAppRender) return;
+
+                // Reset scroll position when focus leaves the input.
                 assertExists(viewRef.current).dom.scrollLeft = 0;
             }}
         >
