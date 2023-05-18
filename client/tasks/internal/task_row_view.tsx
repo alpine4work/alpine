@@ -2,30 +2,14 @@ import {KeyboardEvent, Ref, RefObject, forwardRef, useImperativeHandle, useRef} 
 import {Box} from "~/client/design/box";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {LocalTask, LocalTasksAction} from "~/client/tasks/internal/local_tasks_state";
+import {LocalTasksAction} from "~/client/tasks/internal/local_tasks_state";
+import {TaskInteractiveGhostRow, TaskNormalRow, TaskRow} from "~/client/tasks/internal/task_row";
 import {Spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {LocalTaskId} from "~/shared/id/types/id_types";
 import {colorSchemeVars, contentSchemaStyles, sprinkles} from "~/shared/styles/styles";
 
 const taskRowHeight: Spacing = "9";
-
-export type TaskRow = TaskNormalRow | TaskInteractiveGhostRow | TaskDecorativeGhostRow;
-
-export type TaskNormalRow = {
-    readonly type: "Normal";
-    readonly task: LocalTask;
-};
-
-export type TaskInteractiveGhostRow = {
-    readonly type: "InteractiveGhost";
-    readonly ghostTaskId: LocalTaskId;
-};
-
-export type TaskDecorativeGhostRow = {
-    readonly type: "DecorativeGhost";
-};
 
 export type TaskRowViewTitleFieldSelection =
     | {type: "Index"; selectionIndex: number}

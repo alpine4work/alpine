@@ -1,9 +1,10 @@
-import {Key, RefCallback, RefObject, useMemo, useRef} from "react";
+import {Key, RefObject, useMemo} from "react";
 import {Box} from "~/client/design/box";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useLocalTasksState} from "~/client/tasks/internal/local_tasks_state";
-import {TaskRow, TaskRowView, TaskRowViewRef} from "~/client/tasks/internal/task_row_view";
+import {TaskRow} from "~/client/tasks/internal/task_row";
+import {TaskRowView, TaskRowViewRef} from "~/client/tasks/internal/task_row_view";
 import {NotFoundError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
