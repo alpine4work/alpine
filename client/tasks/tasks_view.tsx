@@ -1,4 +1,4 @@
-import {Key, RefObject, useMemo} from "react";
+import {Key, RefObject, useMemo, useState} from "react";
 import {Box} from "~/client/design/box";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
@@ -21,6 +21,17 @@ import {LazyMap} from "~/shared/helpers/control/lazy_map";
 //
 // Generally I should overview a list of document shortcuts and keyboard
 // shortcuts and incorporate all that make sense.
+
+/**
+ * The first couple times you add tasks we show a short tutorial in the
+ * placeholder of the ghost row. These are the entries in that tutorial.
+ */
+const taskGhostRowPlaceholderTutorial = [
+    "Click to add a task…",
+    "Press enter to add another task…",
+    "Press tab to convert into a subtask…",
+    "Keep adding tasks…",
+];
 
 export function TasksView() {
     const [state, dispatch] = useLocalTasksState();
@@ -80,6 +91,32 @@ export function TasksView() {
         taskRowRefByIndex,
     ]);
 
+    const [
+        shouldShowTaskGhostRowPlaceholderTutorial,
+        setShouldShowTaskGhostRowPlaceholderTutorial,
+    ] = useState(tasks.length === 0);
+
+    // If the user deletes all their tasks then show the placeholder
+    // tutorial again.
+    if (tasks.length === 0 && !shouldShowTaskGhostRowPlaceholderTutorial) {
+        setShouldShowTaskGhostRowPlaceholderTutorial(true);
+    }
+
+    // Once we complete the tutorial we shouldn't show it again if the user starts
+    // deleting tasks. Unless the user deletes all their tasks.
+    if (
+        tasks.length >= taskGhostRowPlaceholderTutorial.length &&
+        shouldShowTaskGhostRowPlaceholderTutorial
+    ) {
+        setShouldShowTaskGhostRowPlaceholderTutorial(false);
+    }
+
+    const taskGhostRowPlaceholder =
+        shouldShowTaskGhostRowPlaceholderTutorial &&
+        tasks.length < taskGhostRowPlaceholderTutorial.length
+            ? taskGhostRowPlaceholderTutorial[tasks.length]!
+            : "Add a task…";
+
     return (
         <Box
             flexGrow="1"
@@ -126,6 +163,7 @@ export function TasksView() {
                     nextTaskRowRef={taskRowRefByIndex.get(index + 1)}
                     previousTaskRow={index > 0 ? taskRows[index - 1]! : null}
                     previousTaskRowRef={taskRowRefByIndex.get(index - 1)}
+                    taskGhostRowPlaceholder={taskGhostRowPlaceholder}
                     dispatch={dispatch}
                 />
             ))}

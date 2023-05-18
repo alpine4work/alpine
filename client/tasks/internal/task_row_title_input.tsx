@@ -22,7 +22,12 @@ import {Spacing} from "~/shared/design/spacing";
 import {UnimplementedError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
-import {contentSchemaStyles, hideScrollbarClassName, sprinkles} from "~/shared/styles/styles";
+import {
+    contentSchemaStyles,
+    hideScrollbarClassName,
+    sprinkles,
+    taskRowTitleInputStyles,
+} from "~/shared/styles/styles";
 
 export const taskRowTitleInputHeight: Spacing = "9";
 
@@ -33,16 +38,18 @@ export type TaskRowTitleInputRef = {
     focusCoord(left: number): void;
 };
 
-const editorClassName = `ProseMirror ${sprinkles({
+const taskRowTitleInputAriaLabel = "Title";
+
+const taskRowTitleInputClassName = `ProseMirror ${sprinkles({
     width: "full",
     height: taskRowTitleInputHeight,
     overflowY: "hidden",
     overflowX: "scroll",
     paddingY: "2",
     backgroundColor: "transparent",
-})} ${hideScrollbarClassName}`;
+})} ${hideScrollbarClassName} ${taskRowTitleInputStyles.placeholderClassName}`;
 
-const editorStyle: CSSProperties = {
+const taskRowTitleInputStyle: CSSProperties = {
     ...contentSchemaStyles.paragraphFontSize,
     // Turn off text wrapping. This component emulates a single-line input.
     // https://developer.mozilla.org/en-US/docs/Web/CSS/white-space
@@ -59,6 +66,7 @@ function TaskRowTitleInput(
         nextTaskRowRef,
         previousTaskRow,
         previousTaskRowRef,
+        taskGhostRowPlaceholder,
         dispatch,
     }: {
         taskRow: TaskNormalRow | TaskInteractiveGhostRow;
@@ -66,6 +74,7 @@ function TaskRowTitleInput(
         nextTaskRowRef: RefObject<TaskRowViewRef>;
         previousTaskRow: TaskRow | null;
         previousTaskRowRef: RefObject<TaskRowViewRef>;
+        taskGhostRowPlaceholder: string;
         dispatch: Memo<(action: LocalTasksAction) => void>;
     },
     ref: Ref<TaskRowTitleInputRef>,
@@ -253,8 +262,9 @@ function TaskRowTitleInput(
             },
         });
 
-        view.dom.className = editorClassName;
-        Object.assign(view.dom.style, editorStyle);
+        view.dom.ariaLabel = taskRowTitleInputAriaLabel;
+        view.dom.className = taskRowTitleInputClassName;
+        Object.assign(view.dom.style, taskRowTitleInputStyle);
 
         viewRef.current = view;
         return () => {
@@ -275,6 +285,19 @@ function TaskRowTitleInput(
         const view = assertExists(viewRef.current);
         view.updateState(titleState);
     }, [isInitialAppRender, titleState]);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        // Server-side render attaches this attribute differently.
+        if (isInitialAppRender) return;
+
+        const viewElement = assertExists(viewRef.current).dom;
+
+        if (taskRow.type === "Normal") {
+            viewElement.removeAttribute("aria-placeholder");
+        } else {
+            viewElement.setAttribute("aria-placeholder", taskGhostRowPlaceholder);
+        }
+    }, [isInitialAppRender, taskGhostRowPlaceholder, taskRow.type]);
 
     useImperativeHandle(
         ref,
@@ -350,6 +373,9 @@ function TaskRowTitleInput(
     return (
         <div
             ref={containerRef}
+            className={
+                titleState.doc.childCount === 0 ? taskRowTitleInputStyles.emptyClassName : undefined
+            }
             // Reset scroll position when focus leaves the input.
             onBlur={() => {
                 if (isInitialAppRender) return;
@@ -360,8 +386,12 @@ function TaskRowTitleInput(
                 // On server-side render serialize our title to HTML since we can't mount an
                 // `EditorView` until we are on the client.
                 <div
-                    className={editorClassName}
-                    style={editorStyle}
+                    className={taskRowTitleInputClassName}
+                    style={taskRowTitleInputStyle}
+                    aria-label={taskRowTitleInputAriaLabel}
+                    aria-placeholder={
+                        taskRow.type === "InteractiveGhost" ? taskGhostRowPlaceholder : undefined
+                    }
                     dangerouslySetInnerHTML={{
                         __html: serializeProsemirrorFragmentToHtml(titleState.doc.content),
                     }}

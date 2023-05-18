@@ -26,5 +26,6 @@ export * as modalStyles from "~/shared/styles/internal/modal.css";
 export * from "~/shared/styles/internal/overlay_animated.css";
 export * from "~/shared/styles/internal/peek.css";
 export * from "~/shared/styles/internal/sprinkles.css";
+export * as taskRowTitleInputStyles from "~/shared/styles/internal/task_row_title_input.css";
 export * as toastStyles from "~/shared/styles/internal/toast.css";
 export * from "~/shared/styles/internal/wiggle_animation.css";

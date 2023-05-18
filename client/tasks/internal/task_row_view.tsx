@@ -30,6 +30,7 @@ function TaskRowView(
         nextTaskRowRef,
         previousTaskRow,
         previousTaskRowRef,
+        taskGhostRowPlaceholder,
         dispatch,
     }: {
         taskRow: TaskRow;
@@ -37,6 +38,7 @@ function TaskRowView(
         nextTaskRowRef: RefObject<TaskRowViewRef>;
         previousTaskRow: TaskRow | null;
         previousTaskRowRef: RefObject<TaskRowViewRef>;
+        taskGhostRowPlaceholder: string;
         dispatch: Memo<(action: LocalTasksAction) => void>;
     },
     ref: Ref<TaskRowViewRef>,
@@ -149,23 +151,9 @@ function TaskRowView(
                         nextTaskRowRef={nextTaskRowRef}
                         previousTaskRow={previousTaskRow}
                         previousTaskRowRef={previousTaskRowRef}
+                        taskGhostRowPlaceholder={taskGhostRowPlaceholder}
                         dispatch={dispatch}
                     />
-                    // NOCOMMIT: Add back placeholders
-                    //
-                    //         placeholder={
-                    //             row.type === "InteractiveGhost"
-                    //                 ? rowIndex === 0
-                    //                     ? "Click to add a task…"
-                    //                     : rowIndex === 1
-                    //                     ? "Press enter to add another task…"
-                    //                     : rowIndex === 2
-                    //                     ? "Press tab to convert into a subtask…"
-                    //                     : rowIndex === 3
-                    //                     ? "Keep adding tasks…"
-                    //                     : "Add a task…"
-                    //                 : undefined
-                    //         }
                 )}
             </Box>
             <Box
