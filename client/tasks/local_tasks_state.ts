@@ -214,7 +214,7 @@ function actuallyReduceLocalTasksState(
                     taskEffectRef: {
                         current: {
                             taskId: state.ghostTaskId,
-                            effect: view => view.focusStart(),
+                            effect: view => view.focusNameField(),
                         },
                     },
                 };
@@ -280,7 +280,7 @@ function actuallyReduceLocalTasksState(
                     taskEffectRef: {
                         current: {
                             taskId: newSplitTask.id,
-                            effect: view => view.focusStart(),
+                            effect: view => view.focusNameField(),
                         },
                     },
                 };
@@ -316,7 +316,7 @@ function actuallyReduceLocalTasksState(
                 taskEffectRef: {
                     current: {
                         taskId: newSplitTask.id,
-                        effect: view => view.focusStart(),
+                        effect: view => view.focusNameField(),
                     },
                 },
             };
@@ -346,9 +346,11 @@ function actuallyReduceLocalTasksState(
                     taskEffectRef: {
                         current: {
                             taskId: lastTask.id,
-                            // Focus the end of the name input as opposed to the last field in the task.
-                            // Since pressing backspace is following text editing paradigms.
-                            effect: view => view.focusStart(lastTask.name.length),
+                            effect: view =>
+                                view.focusNameField({
+                                    type: "Index",
+                                    selectionIndex: lastTask.name.length,
+                                }),
                         },
                     },
                 };
@@ -389,9 +391,11 @@ function actuallyReduceLocalTasksState(
                 taskEffectRef: {
                     current: {
                         taskId: oldPreviousTask.id,
-                        // Focus the name input where the join happened as opposed to the last field in
-                        // the task. Since pressing delete follows text editing paradigms.
-                        effect: view => view.focusStart(oldPreviousTask.name.length),
+                        effect: view =>
+                            view.focusNameField({
+                                type: "Index",
+                                selectionIndex: oldPreviousTask.name.length,
+                            }),
                     },
                 },
             };

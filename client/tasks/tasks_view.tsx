@@ -1,5 +1,6 @@
-import {Key, RefCallback, useMemo, useRef} from "react";
+import {Key, RefCallback, RefObject, useMemo, useRef} from "react";
 import {Box} from "~/client/design/box";
+import {useConstant} from "~/client/helpers/lifecycle/use_constant";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useLocalTasksState} from "~/client/tasks/local_tasks_state";
 import {TaskRow, TaskRowView, TaskRowViewRef} from "~/client/tasks/task_row_view";
@@ -45,18 +46,8 @@ export function TasksView() {
         return taskRows;
     }, [state.ghostTaskId, tasks]);
 
-    const taskRowByIndexRef = useRef(new Map<number, TaskRowViewRef>());
-
-    const taskRowByIndexRefCallbacks = useMemo(
-        () =>
-            new LazyMap<number, RefCallback<TaskRowViewRef>>(index => instance => {
-                if (instance !== null) {
-                    taskRowByIndexRef.current.set(index, instance);
-                } else {
-                    taskRowByIndexRef.current.delete(index);
-                }
-            }),
-        [],
+    const taskRowRefByIndex = useConstant(
+        () => new LazyMap<number, RefObject<TaskRowViewRef>>(() => ({current: null})),
     );
 
     // If our start had a ref instructing us to focus a task, then consume that ref
@@ -78,13 +69,14 @@ export function TasksView() {
             index = assertExists(state.taskIdByOrderKey.getIndexByKey(task.orderKey));
         }
 
-        taskEffect.effect(assertExists(taskRowByIndexRef.current.get(index)));
+        taskEffect.effect(assertExists(taskRowRefByIndex.get(index).current));
     }, [
         state.taskEffectRef,
         state.ghostTaskId,
         state.taskById,
         state.taskIdByOrderKey,
         tasks.length,
+        taskRowRefByIndex,
     ]);
 
     return (
@@ -101,7 +93,10 @@ export function TasksView() {
             onClick={event => {
                 // Only handle clicks on the background not covered by content.
                 if (event.target === event.currentTarget && taskRows.length > 0) {
-                    assertExists(taskRowByIndexRef.current.get(taskRows.length - 1)).focusEnd();
+                    const taskRowView = assertExists(
+                        taskRowRefByIndex.get(taskRows.length - 1).current,
+                    );
+                    taskRowView.focusNameField({type: "End"});
                 }
             }}
         >
@@ -117,23 +112,21 @@ export function TasksView() {
                 // by keyboard.
                 onClick={() => {
                     if (taskRows.length > 0) {
-                        assertExists(taskRowByIndexRef.current.get(0)).focusStart();
+                        assertExists(taskRowRefByIndex.get(0).current).focusNameField();
                     }
                 }}
             />
             {taskRows.map((row, index) => (
                 <TaskRowView
-                    ref={taskRowByIndexRefCallbacks.get(index)}
+                    ref={taskRowRefByIndex.get(index)}
                     key={getTaskRowKey(row, index)}
                     row={row}
                     rowIndex={index}
                     nextTaskRow={index < taskRows.length - 1 ? taskRows[index + 1]! : null}
+                    nextTaskRowRef={taskRowRefByIndex.get(index + 1)}
+                    previousTaskRow={index > 0 ? taskRows[index - 1]! : null}
+                    previousTaskRowRef={taskRowRefByIndex.get(index - 1)}
                     dispatch={dispatch}
-                    onPreviousRowFocusEnd={() => {
-                        if (index > 0) {
-                            assertExists(taskRowByIndexRef.current.get(index - 1)).focusEnd();
-                        }
-                    }}
                 />
             ))}
         </Box>
