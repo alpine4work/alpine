@@ -96,7 +96,7 @@ export function TasksView() {
                     const taskRowView = assertExists(
                         taskRowRefByIndex.get(taskRows.length - 1).current,
                     );
-                    taskRowView.focusNameField({type: "End"});
+                    taskRowView.focusTitleField({type: "End"});
                 }
             }}
         >
@@ -112,7 +112,7 @@ export function TasksView() {
                 // by keyboard.
                 onClick={() => {
                     if (taskRows.length > 0) {
-                        assertExists(taskRowRefByIndex.get(0).current).focusNameField();
+                        assertExists(taskRowRefByIndex.get(0).current).focusTitleField();
                     }
                 }}
             />

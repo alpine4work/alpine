@@ -27,13 +27,13 @@ export type TaskDecorativeGhostRow = {
     readonly type: "DecorativeGhost";
 };
 
-export type TaskRowViewNameFieldSelection =
+export type TaskRowViewTitleFieldSelection =
     | {type: "Index"; selectionIndex: number}
     | {type: "Coordinate"; selectionX: number}
     | {type: "End"};
 
 export type TaskRowViewRef = {
-    focusNameField(selection?: TaskRowViewNameFieldSelection): void;
+    focusTitleField(selection?: TaskRowViewTitleFieldSelection): void;
 };
 
 const TaskRowViewForwardRef = forwardRef(TaskRowView);
@@ -59,42 +59,42 @@ function TaskRowView(
     },
     ref: Ref<TaskRowViewRef>,
 ) {
-    const nameInputRef = useRef<HTMLInputElement>(null);
-    const nameInputMeasurementRef = useRef<HTMLDivElement>(null);
+    const titleInputRef = useRef<HTMLInputElement>(null);
+    const titleInputMeasurementRef = useRef<HTMLDivElement>(null);
 
-    const focusNameField = useEvent(
-        (selection: TaskRowViewNameFieldSelection = {type: "Index", selectionIndex: 0}) => {
+    const focusTitleField = useEvent(
+        (selection: TaskRowViewTitleFieldSelection = {type: "Index", selectionIndex: 0}) => {
             // Since a decorative ghost row is not focusable, if we try focusing it instead
             // move focus up to the previous row. We focus the end since that's how
             // documents behave. Selection below text bounds at any position goes to the
             // end of the text.
             if (row.type === "DecorativeGhost") {
-                previousTaskRowRef.current?.focusNameField({type: "End"});
+                previousTaskRowRef.current?.focusTitleField({type: "End"});
                 return;
             }
 
-            const nameInputElement = assertExists(nameInputRef.current);
+            const titleInputElement = assertExists(titleInputRef.current);
 
             switch (selection.type) {
                 case "Index": {
-                    nameInputElement.setSelectionRange(
+                    titleInputElement.setSelectionRange(
                         selection.selectionIndex,
                         selection.selectionIndex,
                     );
-                    nameInputElement.focus();
+                    titleInputElement.focus();
                     break;
                 }
                 case "Coordinate": {
                     // NOCOMMIT
-                    nameInputElement.focus();
+                    titleInputElement.focus();
                     break;
                 }
                 case "End": {
-                    nameInputElement.setSelectionRange(
-                        nameInputElement.value.length,
-                        nameInputElement.value.length,
+                    titleInputElement.setSelectionRange(
+                        titleInputElement.value.length,
+                        titleInputElement.value.length,
                     );
-                    nameInputElement.focus();
+                    titleInputElement.focus();
                     break;
                 }
                 default:
@@ -103,13 +103,13 @@ function TaskRowView(
         },
     );
 
-    useImperativeHandle(ref, () => ({focusNameField}), [focusNameField]);
+    useImperativeHandle(ref, () => ({focusTitleField}), [focusTitleField]);
 
-    const handleNameFieldKeyDown = (
+    const handleTitleFieldKeyDown = (
         row: TaskNormalRow | TaskInteractiveGhostRow,
         event: KeyboardEvent<HTMLInputElement>,
     ) => {
-        const name = event.currentTarget.value;
+        const title = event.currentTarget.value;
         const selectionStart = assertExists(event.currentTarget.selectionStart);
         const selectionEnd = assertExists(event.currentTarget.selectionEnd);
 
@@ -120,10 +120,10 @@ function TaskRowView(
 
                 if (!isModifiedKeyboardEvent(event)) {
                     dispatch({
-                        type: "SplitTaskFromName",
+                        type: "SplitTaskFromTitle",
                         taskId: row.type === "Normal" ? row.task.id : row.ghostTaskId,
-                        nameSelectionStart: selectionStart,
-                        nameSelectionEnd: selectionEnd,
+                        titleSelectionStart: selectionStart,
+                        titleSelectionEnd: selectionEnd,
                     });
                 }
                 break;
@@ -138,14 +138,14 @@ function TaskRowView(
                     // to delete"? The join behavior is great for quickly iterating on tasks but
                     // can be dangerous.
                     dispatch({
-                        type: "JoinTaskFromName",
+                        type: "JoinTaskFromTitle",
                         deleteTaskId: row.type === "Normal" ? row.task.id : row.ghostTaskId,
                     });
                 }
                 break;
             }
             case "Delete": {
-                if (selectionStart === name.length && selectionEnd === name.length) {
+                if (selectionStart === title.length && selectionEnd === title.length) {
                     event.preventDefault();
                     event.stopPropagation();
 
@@ -155,7 +155,7 @@ function TaskRowView(
                     // can be dangerous.
                     if (nextTaskRow && nextTaskRow.type !== "DecorativeGhost") {
                         dispatch({
-                            type: "JoinTaskFromName",
+                            type: "JoinTaskFromTitle",
                             deleteTaskId:
                                 nextTaskRow.type === "Normal"
                                     ? nextTaskRow.task.id
@@ -171,7 +171,7 @@ function TaskRowView(
                 event.stopPropagation();
 
                 if (!isModifiedKeyboardEvent(event)) {
-                    const nameInputElement = assertExists(nameInputRef.current);
+                    const titleInputElement = assertExists(titleInputRef.current);
 
                     // Get the X coordinate of the input's selection. We will maintain the X
                     // position when moving up/down with arrow keys.
@@ -180,32 +180,32 @@ function TaskRowView(
                     // `<input>` element so to figure out the X coordinate of our selection we need
                     // to insert the text in our editor to a hidden `<div>` to get correct
                     // measurements.
-                    const nameInputMeasurementElement = assertExists(
-                        nameInputMeasurementRef.current,
+                    const titleInputMeasurementElement = assertExists(
+                        titleInputMeasurementRef.current,
                     );
 
-                    nameInputMeasurementElement.textContent = name.slice(0, selectionStart);
+                    titleInputMeasurementElement.textContent = title.slice(0, selectionStart);
 
                     const selectionX =
-                        nameInputMeasurementElement.getBoundingClientRect().right -
+                        titleInputMeasurementElement.getBoundingClientRect().right -
                         // We don't scroll our measurement element, so adjust the X position by how
                         // much the input has scrolled.
-                        nameInputElement.scrollLeft;
+                        titleInputElement.scrollLeft;
 
-                    nameInputMeasurementElement.textContent = "";
+                    titleInputMeasurementElement.textContent = "";
 
                     // NOCOMMIT: If we are continuously arrowing up/down we should reuse an old
                     // `selectionX`.
                     if (event.key === "ArrowUp") {
                         if (previousTaskRow && previousTaskRow.type !== "DecorativeGhost") {
-                            assertExists(previousTaskRowRef.current).focusNameField({
+                            assertExists(previousTaskRowRef.current).focusTitleField({
                                 type: "Coordinate",
                                 selectionX,
                             });
                         }
                     } else {
                         if (nextTaskRow && nextTaskRow.type !== "DecorativeGhost") {
-                            assertExists(nextTaskRowRef.current).focusNameField({
+                            assertExists(nextTaskRowRef.current).focusTitleField({
                                 type: "Coordinate",
                                 selectionX,
                             });
@@ -228,7 +228,7 @@ function TaskRowView(
                 // This is an affordance for mouse users, does not need to be usable
                 // by keyboard.
                 cursor="text"
-                onClick={() => focusNameField()}
+                onClick={() => focusTitleField()}
             />
             <Box
                 position="relative"
@@ -252,14 +252,14 @@ function TaskRowView(
                         // This is an affordance for mouse users, does not need to be usable
                         // by keyboard.
                         cursor="text"
-                        onClick={() => focusNameField()}
+                        onClick={() => focusTitleField()}
                     />
                 ) : (
                     <>
                         <Box
                             // Element with identical styling to our `<input>`. We will imperatively add
                             // text content to this element and use it to measure how wide the content is.
-                            ref={nameInputMeasurementRef}
+                            ref={titleInputMeasurementRef}
                             position="absolute"
                             top="0"
                             paddingY="2"
@@ -270,7 +270,7 @@ function TaskRowView(
                             }}
                         />
                         <input
-                            ref={nameInputRef}
+                            ref={titleInputRef}
                             placeholder={
                                 row.type === "InteractiveGhost"
                                     ? rowIndex === 0
@@ -291,17 +291,21 @@ function TaskRowView(
                                 paddingY: "2",
                                 backgroundColor: "transparent",
                             })}
-                            value={row.type === "Normal" ? row.task.name : ""}
+                            value={row.type === "Normal" ? row.task.title : ""}
                             onChange={event => {
-                                const name = event.currentTarget.value;
+                                const title = event.currentTarget.value;
 
                                 if (row.type === "Normal") {
-                                    dispatch({type: "UpdateTaskName", taskId: row.task.id, name});
+                                    dispatch({
+                                        type: "UpdateTaskTitle",
+                                        taskId: row.task.id,
+                                        title,
+                                    });
                                 } else {
-                                    dispatch({type: "CreateTaskFromGhost", name});
+                                    dispatch({type: "CreateTaskFromGhost", title});
                                 }
                             }}
-                            onKeyDown={event => handleNameFieldKeyDown(row, event)}
+                            onKeyDown={event => handleTitleFieldKeyDown(row, event)}
                         />
                     </>
                 )}
@@ -316,9 +320,9 @@ function TaskRowView(
                 // by keyboard.
                 //
                 // TODO(calebmer): When this has more fields focus should go to the last field,
-                // not the name input.
+                // not the title input.
                 cursor="text"
-                onClick={() => focusNameField({type: "End"})}
+                onClick={() => focusTitleField({type: "End"})}
             />
         </Box>
     );

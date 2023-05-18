@@ -21,7 +21,7 @@ export type LocalTask = SchemaType<typeof LocalTaskSchema>;
 
 const LocalTaskSchema = Schema.object({
     id: Schema.id<LocalTaskId>(),
-    name: Schema.string.maxLength(512).singleLine(),
+    title: Schema.string.maxLength(512).singleLine(),
     orderKey: OrderKeySchema,
 });
 
@@ -58,9 +58,9 @@ export type LocalTasksAction =
     | LocalTasksRestoreStateAction
     | LocalTasksResetStateAction
     | LocalTasksCreateTaskFromGhostAction
-    | LocalTasksUpdateTaskNameAction
-    | LocalTasksSplitTaskFromNameAction
-    | LocalTasksJoinTaskFromNameAction;
+    | LocalTasksUpdateTaskTitleAction
+    | LocalTasksSplitTaskFromTitleAction
+    | LocalTasksJoinTaskFromTitleAction;
 
 type LocalTasksRestoreStateAction = {
     readonly type: "RestoreState";
@@ -73,24 +73,24 @@ type LocalTasksResetStateAction = {
 
 type LocalTasksCreateTaskFromGhostAction = {
     readonly type: "CreateTaskFromGhost";
-    readonly name: string;
+    readonly title: string;
 };
 
-type LocalTasksUpdateTaskNameAction = {
-    readonly type: "UpdateTaskName";
+type LocalTasksUpdateTaskTitleAction = {
+    readonly type: "UpdateTaskTitle";
     readonly taskId: LocalTaskId;
-    readonly name: string;
+    readonly title: string;
 };
 
-type LocalTasksSplitTaskFromNameAction = {
-    readonly type: "SplitTaskFromName";
+type LocalTasksSplitTaskFromTitleAction = {
+    readonly type: "SplitTaskFromTitle";
     readonly taskId: LocalTaskId;
-    readonly nameSelectionStart: number;
-    readonly nameSelectionEnd: number;
+    readonly titleSelectionStart: number;
+    readonly titleSelectionEnd: number;
 };
 
-type LocalTasksJoinTaskFromNameAction = {
-    readonly type: "JoinTaskFromName";
+type LocalTasksJoinTaskFromTitleAction = {
+    readonly type: "JoinTaskFromTitle";
     readonly deleteTaskId: LocalTaskId;
 };
 
@@ -158,7 +158,7 @@ function actuallyReduceLocalTasksState(
         case "CreateTaskFromGhost": {
             const task: LocalTask = {
                 id: state.ghostTaskId,
-                name: action.name,
+                title: action.title,
                 orderKey: generateOrderKeyBetween(
                     state.taskIdByOrderKey.getLastEntry()?.[0] ?? null,
                     null,
@@ -178,14 +178,14 @@ function actuallyReduceLocalTasksState(
             };
         }
 
-        case "UpdateTaskName": {
+        case "UpdateTaskTitle": {
             if (action.taskId === state.ghostTaskId)
-                throw new FailedPreconditionError("Can't update ghost task name");
+                throw new FailedPreconditionError("Can't update ghost task title");
 
             const newTaskById = new Map(state.taskById);
             const oldTask = newTaskById.get(action.taskId);
             if (!oldTask) throw new NotFoundError("Task not found");
-            newTaskById.set(action.taskId, {...oldTask, name: action.name});
+            newTaskById.set(action.taskId, {...oldTask, title: action.title});
             return {...state, taskById: newTaskById};
         }
 
@@ -198,23 +198,23 @@ function actuallyReduceLocalTasksState(
         //
         // We could break this paradigm and only create tasks after the current task
         // when the user hits enter. However, one nice property is if the user hits
-        // enter at the start of a task name it creates a task above instead of below!
+        // enter at the start of a task title it creates a task above instead of below!
         // We believe making this behavior easy and intuitive is worth the slightly
         // uncommon capability of being able to split tasks in half.
-        case "SplitTaskFromName": {
+        case "SplitTaskFromTitle": {
             // If we are splitting a ghost task, then create the ghost task and move focus
             // to the new ghost task.
             if (action.taskId === state.ghostTaskId) {
                 state = actuallyReduceLocalTasksState(state, {
                     type: "CreateTaskFromGhost",
-                    name: "",
+                    title: "",
                 });
                 return {
                     ...state,
                     taskEffectRef: {
                         current: {
                             taskId: state.ghostTaskId,
-                            effect: view => view.focusNameField(),
+                            effect: view => view.focusTitleField(),
                         },
                     },
                 };
@@ -223,12 +223,12 @@ function actuallyReduceLocalTasksState(
             const oldTask = state.taskById.get(action.taskId);
             if (!oldTask) throw new NotFoundError("Task not found");
 
-            // If the selection is at the start of the name then add an empty task above
+            // If the selection is at the start of the title then add an empty task above
             // and keep focus in the existing task.
-            if (action.nameSelectionStart === 0 && action.nameSelectionEnd === 0) {
+            if (action.titleSelectionStart === 0 && action.titleSelectionEnd === 0) {
                 const newSplitTask: LocalTask = {
                     id: generateId(),
-                    name: "",
+                    title: "",
                     orderKey: generateOrderKeyBetween(
                         state.taskIdByOrderKey.getEntryBefore(oldTask.orderKey)?.[0] ?? null,
                         oldTask.orderKey,
@@ -250,15 +250,15 @@ function actuallyReduceLocalTasksState(
                 };
             }
 
-            // If the selection is at the end of the name then add an empty task below and
+            // If the selection is at the end of the title then add an empty task below and
             // move focus to that empty task.
             if (
-                action.nameSelectionStart === oldTask.name.length - 1 &&
-                action.nameSelectionEnd === oldTask.name.length - 1
+                action.titleSelectionStart === oldTask.title.length - 1 &&
+                action.titleSelectionEnd === oldTask.title.length - 1
             ) {
                 const newSplitTask: LocalTask = {
                     id: generateId(),
-                    name: "",
+                    title: "",
                     orderKey: generateOrderKeyBetween(
                         oldTask.orderKey,
                         state.taskIdByOrderKey.getEntryAfter(oldTask.orderKey)?.[0] ?? null,
@@ -280,7 +280,7 @@ function actuallyReduceLocalTasksState(
                     taskEffectRef: {
                         current: {
                             taskId: newSplitTask.id,
-                            effect: view => view.focusNameField(),
+                            effect: view => view.focusTitleField(),
                         },
                     },
                 };
@@ -288,12 +288,12 @@ function actuallyReduceLocalTasksState(
 
             const newTask: LocalTask = {
                 ...oldTask,
-                name: oldTask.name.slice(0, action.nameSelectionStart),
+                title: oldTask.title.slice(0, action.titleSelectionStart),
             };
 
             const newSplitTask: LocalTask = {
                 id: generateId(),
-                name: oldTask.name.slice(action.nameSelectionEnd),
+                title: oldTask.title.slice(action.titleSelectionEnd),
                 orderKey: generateOrderKeyBetween(
                     oldTask.orderKey,
                     state.taskIdByOrderKey.getEntryAfter(oldTask.orderKey)?.[0] ?? null,
@@ -316,13 +316,13 @@ function actuallyReduceLocalTasksState(
                 taskEffectRef: {
                     current: {
                         taskId: newSplitTask.id,
-                        effect: view => view.focusNameField(),
+                        effect: view => view.focusTitleField(),
                     },
                 },
             };
         }
 
-        // When the backspace key is pressed at the start of a task name we
+        // When the backspace key is pressed at the start of a task title we
         // dispatch this action to delete the task.
         //
         // Our task view uses paradigms from a text editor for ease of use. In a text
@@ -330,10 +330,10 @@ function actuallyReduceLocalTasksState(
         // line. If there was content on the line then that content is joined with the
         // previous line. So more generically we call backspace "join".
         //
-        // Because deleting tasks is so easy (backspace press at the start of the name
+        // Because deleting tasks is so easy (backspace press at the start of the title
         // input) and it's a little counter-intuitive we should probably have a warning
         // when you're about to delete a task filled with content.
-        case "JoinTaskFromName": {
+        case "JoinTaskFromTitle": {
             // You can't delete a ghost task. So move focus to the last entry instead.
             if (action.deleteTaskId === state.ghostTaskId) {
                 const lastTaskEntry = state.taskIdByOrderKey.getLastEntry();
@@ -347,9 +347,9 @@ function actuallyReduceLocalTasksState(
                         current: {
                             taskId: lastTask.id,
                             effect: view =>
-                                view.focusNameField({
+                                view.focusTitleField({
                                     type: "Index",
-                                    selectionIndex: lastTask.name.length,
+                                    selectionIndex: lastTask.title.length,
                                 }),
                         },
                     },
@@ -375,10 +375,10 @@ function actuallyReduceLocalTasksState(
 
             const oldPreviousTask = assertExists(state.taskById.get(previousTaskEntry[1]));
 
-            if (oldDeleteTask.name.length > 0) {
+            if (oldDeleteTask.title.length > 0) {
                 const newPreviousTask: LocalTask = {
                     ...oldPreviousTask,
-                    name: oldPreviousTask.name + oldDeleteTask.name,
+                    title: oldPreviousTask.title + oldDeleteTask.title,
                 };
 
                 newTaskById.set(newPreviousTask.id, newPreviousTask);
@@ -392,9 +392,9 @@ function actuallyReduceLocalTasksState(
                     current: {
                         taskId: oldPreviousTask.id,
                         effect: view =>
-                            view.focusNameField({
+                            view.focusTitleField({
                                 type: "Index",
-                                selectionIndex: oldPreviousTask.name.length,
+                                selectionIndex: oldPreviousTask.title.length,
                             }),
                     },
                 },
