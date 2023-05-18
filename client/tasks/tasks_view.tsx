@@ -1,4 +1,4 @@
-import {Key, RefObject, useMemo, useState} from "react";
+import {Key, RefObject, useEffect, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
@@ -12,8 +12,7 @@ import {LazyMap} from "~/shared/helpers/control/lazy_map";
 
 // TODO(calebmer): Some stuff this view needs:
 //
-// - Delete in an empty task (backspace and delete keys)
-// - Arrow navigation
+// - Modified arrow navigation
 // - Gradient for input overflow
 // - Subtasks
 // - Undo
@@ -91,6 +90,10 @@ export function TasksView() {
         taskRowRefByIndex,
     ]);
 
+    /* ========================================================================== *\
+     *                      Ghost row placeholder tutorial                        *
+    \* ========================================================================== */
+
     const [
         shouldShowTaskGhostRowPlaceholderTutorial,
         setShouldShowTaskGhostRowPlaceholderTutorial,
@@ -116,6 +119,36 @@ export function TasksView() {
         tasks.length < taskGhostRowPlaceholderTutorial.length
             ? taskGhostRowPlaceholderTutorial[tasks.length]!
             : "Add a task…";
+
+    /* ========================================================================== *\
+     *                            Arrow key navigation                            *
+    \* ========================================================================== */
+
+    const lastArrowNavigationXRef = useRef<{setTime: Date; x: number} | null>(null);
+
+    // Clear the last arrow navigation X position whenever the user's caret moves
+    // somewhere else.
+    useEffect(() => {
+        const clearLastArrowNavigationX = () => {
+            if (
+                lastArrowNavigationXRef.current &&
+                // If we just set this ref, don't clear it. We're processing browser events
+                // that happened because of the arrow navigation.
+                new Date().getTime() - lastArrowNavigationXRef.current.setTime.getTime() > 10
+            ) {
+                lastArrowNavigationXRef.current = null;
+            }
+        };
+
+        document.addEventListener("focus", clearLastArrowNavigationX);
+        document.addEventListener("blur", clearLastArrowNavigationX);
+        document.addEventListener("selectionchange", clearLastArrowNavigationX);
+        return () => {
+            document.removeEventListener("focus", clearLastArrowNavigationX);
+            document.removeEventListener("blur", clearLastArrowNavigationX);
+            document.removeEventListener("selectionchange", clearLastArrowNavigationX);
+        };
+    }, []);
 
     return (
         <Box
@@ -164,6 +197,7 @@ export function TasksView() {
                     previousTaskRow={index > 0 ? taskRows[index - 1]! : null}
                     previousTaskRowRef={taskRowRefByIndex.get(index - 1)}
                     taskGhostRowPlaceholder={taskGhostRowPlaceholder}
+                    lastArrowNavigationXRef={lastArrowNavigationXRef}
                     dispatch={dispatch}
                 />
             ))}

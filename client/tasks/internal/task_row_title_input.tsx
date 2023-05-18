@@ -3,6 +3,7 @@ import {EditorView} from "prosemirror-view";
 import {
     CSSProperties,
     Memo,
+    MutableRefObject,
     Ref,
     RefObject,
     forwardRef,
@@ -67,6 +68,7 @@ function TaskRowTitleInput(
         previousTaskRow,
         previousTaskRowRef,
         taskGhostRowPlaceholder,
+        lastArrowNavigationXRef,
         dispatch,
     }: {
         taskRow: TaskNormalRow | TaskInteractiveGhostRow;
@@ -75,6 +77,7 @@ function TaskRowTitleInput(
         previousTaskRow: TaskRow | null;
         previousTaskRowRef: RefObject<TaskRowViewRef>;
         taskGhostRowPlaceholder: string;
+        lastArrowNavigationXRef: MutableRefObject<{setTime: Date; x: number} | null>;
         dispatch: Memo<(action: LocalTasksAction) => void>;
     },
     ref: Ref<TaskRowTitleInputRef>,
@@ -153,55 +156,46 @@ function TaskRowTitleInput(
                 }
                 break;
             }
-            case "ArrowUp":
+            case "ArrowUp": {
+                event.preventDefault();
+                event.stopPropagation();
+
+                if (!isModifiedKeyboardEvent(event)) {
+                    if (previousTaskRow && previousTaskRow.type !== "DecorativeGhost") {
+                        const coords = view.coordsAtPos(view.state.selection.from);
+                        const arrowNavigationX = lastArrowNavigationXRef.current?.x ?? coords.left;
+
+                        assertExists(previousTaskRowRef.current).focusTitleCoord(arrowNavigationX);
+
+                        // Set `lastArrowNavigationXRef` after a microtask so that the `focus` and
+                        // `selectionchange` events which clear the ref can fire first.
+                        lastArrowNavigationXRef.current = {
+                            setTime: new Date(),
+                            x: arrowNavigationX,
+                        };
+                    }
+                }
+                break;
+            }
             case "ArrowDown": {
-                // NOCOMMIT
+                event.preventDefault();
+                event.stopPropagation();
 
-                // event.preventDefault();
-                // event.stopPropagation();
+                if (!isModifiedKeyboardEvent(event)) {
+                    if (nextTaskRow && nextTaskRow.type !== "DecorativeGhost") {
+                        const coords = view.coordsAtPos(view.state.selection.from);
+                        const arrowNavigationX = lastArrowNavigationXRef.current?.x ?? coords.left;
 
-                // if (!isModifiedKeyboardEvent(event)) {
-                //     const titleInputElement = assertExists(titleInputRef.current);
+                        assertExists(nextTaskRowRef.current).focusTitleCoord(arrowNavigationX);
 
-                //     // Get the X coordinate of the input's selection. We will maintain the X
-                //     // position when moving up/down with arrow keys.
-                //     //
-                //     // NOTE(calebmer): Unfortunately we can't use `window.getSelection()` with an
-                //     // `<input>` element so to figure out the X coordinate of our selection we need
-                //     // to insert the text in our editor to a hidden `<div>` to get correct
-                //     // measurements.
-                //     const titleInputMeasurementElement = assertExists(
-                //         titleInputMeasurementRef.current,
-                //     );
-
-                //     titleInputMeasurementElement.textContent = title.slice(0, selectionStart);
-
-                //     const selectionX =
-                //         titleInputMeasurementElement.getBoundingClientRect().right -
-                //         // We don't scroll our measurement element, so adjust the X position by how
-                //         // much the input has scrolled.
-                //         titleInputElement.scrollLeft;
-
-                //     titleInputMeasurementElement.textContent = "";
-
-                //     // NOCOMMIT: If we are continuously arrowing up/down we should reuse an old
-                //     // `selectionX`.
-                //     if (event.key === "ArrowUp") {
-                //         if (previousTaskRow && previousTaskRow.type !== "DecorativeGhost") {
-                //             assertExists(previousTaskRowRef.current).focusTitleField({
-                //                 type: "Coordinate",
-                //                 selectionX,
-                //             });
-                //         }
-                //     } else {
-                //         if (nextTaskRow && nextTaskRow.type !== "DecorativeGhost") {
-                //             assertExists(nextTaskRowRef.current).focusTitleField({
-                //                 type: "Coordinate",
-                //                 selectionX,
-                //             });
-                //         }
-                //     }
-                // }
+                        // Set `lastArrowNavigationXRef` after a microtask so that the `focus` and
+                        // `selectionchange` events which clear the ref can fire first.
+                        lastArrowNavigationXRef.current = {
+                            setTime: new Date(),
+                            x: arrowNavigationX,
+                        };
+                    }
+                }
                 break;
             }
         }

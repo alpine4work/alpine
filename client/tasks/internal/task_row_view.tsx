@@ -1,4 +1,13 @@
-import {Memo, Ref, RefObject, forwardRef, useCallback, useImperativeHandle, useRef} from "react";
+import {
+    Memo,
+    MutableRefObject,
+    Ref,
+    RefObject,
+    forwardRef,
+    useCallback,
+    useImperativeHandle,
+    useRef,
+} from "react";
 import {Box} from "~/client/design/box";
 import {LocalTasksAction} from "~/client/tasks/internal/local_tasks_state";
 import {TaskRow} from "~/client/tasks/internal/task_row";
@@ -31,6 +40,7 @@ function TaskRowView(
         previousTaskRow,
         previousTaskRowRef,
         taskGhostRowPlaceholder,
+        lastArrowNavigationXRef,
         dispatch,
     }: {
         taskRow: TaskRow;
@@ -39,6 +49,7 @@ function TaskRowView(
         previousTaskRow: TaskRow | null;
         previousTaskRowRef: RefObject<TaskRowViewRef>;
         taskGhostRowPlaceholder: string;
+        lastArrowNavigationXRef: MutableRefObject<{setTime: Date; x: number} | null>;
         dispatch: Memo<(action: LocalTasksAction) => void>;
     },
     ref: Ref<TaskRowViewRef>,
@@ -152,6 +163,7 @@ function TaskRowView(
                         previousTaskRow={previousTaskRow}
                         previousTaskRowRef={previousTaskRowRef}
                         taskGhostRowPlaceholder={taskGhostRowPlaceholder}
+                        lastArrowNavigationXRef={lastArrowNavigationXRef}
                         dispatch={dispatch}
                     />
                 )}
