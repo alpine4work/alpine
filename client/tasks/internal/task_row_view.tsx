@@ -2,7 +2,7 @@ import {KeyboardEvent, Ref, RefObject, forwardRef, useImperativeHandle, useRef} 
 import {Box} from "~/client/design/box";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {LocalTask, LocalTasksAction} from "~/client/tasks/local_tasks_state";
+import {LocalTask, LocalTasksAction} from "~/client/tasks/internal/local_tasks_state";
 import {Spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";

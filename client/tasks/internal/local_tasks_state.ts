@@ -1,6 +1,6 @@
 import {MutableRefObject, useEffect, useReducer, useRef} from "react";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
-import {TaskRowViewRef} from "~/client/tasks/task_row_view";
+import {TaskRowViewRef} from "~/client/tasks/internal/task_row_view";
 import {DataLossError, FailedPreconditionError, NotFoundError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
