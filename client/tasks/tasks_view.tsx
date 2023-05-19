@@ -5,6 +5,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {LocalTask, useLocalTasksState} from "~/client/tasks/internal/local_tasks_state";
 import {TaskRow} from "~/client/tasks/internal/task_row";
 import {TaskRowView, TaskRowViewRef} from "~/client/tasks/internal/task_row_view";
+import {NotFoundError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {LazyMap} from "~/shared/helpers/control/lazy_map";
@@ -13,6 +14,7 @@ import {LocalTaskId} from "~/shared/id/types/id_types";
 // TODO(calebmer): Some stuff this view needs:
 //
 // - Subtasks
+// - Shift-tab on a task that's about to move keeps it in place
 // - Arrow navigation not working quite right with subtasks
 // - Open/close button
 // - Drag to reorder
@@ -39,11 +41,13 @@ const taskGhostRowPlaceholderTutorial = [
 export function TasksView() {
     const [state, dispatch] = useLocalTasksState();
 
-    const {taskRows, normalTaskRowCount} = useMemo(() => {
+    const {taskRows, taskRowIndexById, normalTaskRowCount} = useMemo(() => {
         const taskRows: Array<TaskRow> = [];
+        const taskRowIndexById = new Map<LocalTaskId, number>();
 
         const addTasks = (parentStack: ReadonlyArray<LocalTask>, taskId: LocalTaskId) => {
             const task = assertExists(state.taskById.get(taskId));
+            taskRowIndexById.set(task.id, taskRows.length);
             taskRows.push({type: "Normal", parentStack, task});
 
             parentStack = [...parentStack, task];
@@ -63,7 +67,7 @@ export function TasksView() {
         if (normalTaskRowCount <= 1) taskRows.push({type: "DecorativeGhost"});
         if (normalTaskRowCount <= 0) taskRows.push({type: "DecorativeGhost"});
 
-        return {taskRows, normalTaskRowCount};
+        return {taskRows, taskRowIndexById, normalTaskRowCount};
     }, [state.ghostTaskId, state.rootTaskIdByOrderKey, state.taskById]);
 
     const taskRowRefByIndex = useConstant(
@@ -77,27 +81,27 @@ export function TasksView() {
         if (!taskEffect) return;
         state.taskEffectRef.current = null;
 
-        // NOCOMMIT: Reimplement
+        let index: number;
 
-        // let index: number;
+        // TODO(calebmer): It's hard to remember to always check for ghost tasks. Can
+        // we abstract this somehow?
+        if (taskEffect.taskId === state.ghostTaskId) {
+            index = normalTaskRowCount;
+        } else {
+            const taskRowIndex = taskRowIndexById.get(taskEffect.taskId);
+            if (taskRowIndex === undefined) throw new NotFoundError("Task not found");
+            index = taskRowIndex;
+        }
 
-        // // TODO(calebmer): It's hard to remember to always check for ghost tasks. Can
-        // // we abstract this somehow?
-        // if (taskEffect.taskId === state.ghostTaskId) {
-        //     index = rootTasks.length;
-        // } else {
-        //     const task = state.taskById.get(taskEffect.taskId);
-        //     if (!task) throw new NotFoundError("Task not found");
-        //     index = assertExists(state.rootTaskIdByOrderKey.getIndexByKey(task.orderKey));
-        // }
-
-        // taskEffect.effect(assertExists(taskRowRefByIndex.get(index).current));
+        taskEffect.effect(assertExists(taskRowRefByIndex.get(index).current));
     }, [
         state.taskEffectRef,
         state.ghostTaskId,
         state.taskById,
         state.rootTaskIdByOrderKey,
         taskRowRefByIndex,
+        normalTaskRowCount,
+        taskRowIndexById,
     ]);
 
     /* ========================================================================== *\
@@ -163,6 +167,8 @@ export function TasksView() {
     return (
         <Box
             flexGrow="1"
+            overflowX="hidden"
+            overflowY="scroll"
             backgroundColor="grey-0"
             // Create an illusion that our tasks view is a text editor that extends into
             // the margins by giving the margin a text cursor and making it clickable
