@@ -1,5 +1,5 @@
 import classNames from "classnames";
-import {EditorState, Selection, TextSelection} from "prosemirror-state";
+import {AllSelection, EditorState, Selection, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {
     CSSProperties,
@@ -37,6 +37,7 @@ export const taskRowTitleInputHeight: Spacing = "9";
 export type TaskRowTitleInputRef = {
     focusStart(): void;
     focusEnd(): void;
+    focusAll(): void;
     focusPos(pos: number): void;
     focusCoord(left: number): void;
 };
@@ -381,6 +382,20 @@ function TaskRowTitleInput(
                 const view = assertExists(viewRef.current);
 
                 const selection = Selection.atEnd(view.state.doc);
+
+                view.focus();
+                view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
+            },
+            focusAll: () => {
+                if (isInitialAppRender) {
+                    throw new UnimplementedError(
+                        "Focusing during initial app render is not implemented",
+                    );
+                }
+
+                const view = assertExists(viewRef.current);
+
+                const selection = new AllSelection(view.state.doc);
 
                 view.focus();
                 view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());

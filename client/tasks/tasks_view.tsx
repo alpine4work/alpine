@@ -5,11 +5,13 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {LocalTask, useLocalTasksState} from "~/client/tasks/internal/local_tasks_state";
 import {TaskRow} from "~/client/tasks/internal/task_row";
 import {TaskRowView, TaskRowViewRef} from "~/client/tasks/internal/task_row_view";
+import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
 import {NotFoundError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {LazyMap} from "~/shared/helpers/control/lazy_map";
 import {LocalTaskId} from "~/shared/id/types/id_types";
+import {tasksViewStyles} from "~/shared/styles/styles";
 
 // TODO(calebmer): Some stuff this view needs:
 //
@@ -172,36 +174,55 @@ export function TasksView() {
             backgroundColor="grey-0"
             // Create an illusion that our tasks view is a text editor that extends into
             // the margins by giving the margin a text cursor and making it clickable
-            // which puts focus in the task.
+            // which puts focus in the task. A double click selects the task text.
             //
             // This is an affordance for mouse users, does not need to be usable
             // by keyboard.
-            cursor="text"
-            onClick={event => {
-                // Only handle clicks on the background not covered by content.
-                if (event.target === event.currentTarget && taskRows.length > 0) {
-                    const taskRowView = assertExists(
-                        taskRowRefByIndex.get(taskRows.length - 1).current,
-                    );
-                    taskRowView.focusTitleEnd();
-                }
-            }}
+            className={tasksViewStyles.textCursorNotInheritedClassName}
+            {...useOutOfBoundsClickSelection({
+                onSelect: event => {
+                    // Only handle clicks on the background not covered by content.
+                    if (event.target === event.currentTarget && taskRows.length > 0) {
+                        assertExists(
+                            taskRowRefByIndex.get(taskRows.length - 1).current,
+                        ).focusTitleEnd();
+                    }
+                },
+                onSelectAll: event => {
+                    // Only handle clicks on the background not covered by content.
+                    if (event.target === event.currentTarget && taskRows.length > 0) {
+                        assertExists(
+                            taskRowRefByIndex.get(taskRows.length - 1).current,
+                        ).focusTitleAll();
+                    }
+                },
+            })}
         >
             <Box
                 height="9"
                 width="full"
-                cursor="text"
                 // Create an illusion that our tasks view is a text editor that extends into
                 // the margins by giving the margin a text cursor and making it clickable
-                // which puts focus in the task.
+                // which puts focus in the task. A double click selects the task text.
                 //
                 // This is an affordance for mouse users, does not need to be usable
                 // by keyboard.
-                onClick={() => {
-                    if (taskRows.length > 0) {
-                        assertExists(taskRowRefByIndex.get(0).current).focusTitleStart();
-                    }
-                }}
+                //
+                // Use an inline style for this cursor so it has higher specificity than the
+                // child selector in `tasksViewStyles.textCursorNotInheritedClassName`.
+                style={{cursor: "text"}}
+                {...useOutOfBoundsClickSelection({
+                    onSelect: () => {
+                        if (taskRows.length > 0) {
+                            assertExists(taskRowRefByIndex.get(0).current).focusTitleStart();
+                        }
+                    },
+                    onSelectAll: () => {
+                        if (taskRows.length > 0) {
+                            assertExists(taskRowRefByIndex.get(0).current).focusTitleAll();
+                        }
+                    },
+                })}
             />
             {taskRows.map((taskRow, index) => (
                 <TaskRowView
