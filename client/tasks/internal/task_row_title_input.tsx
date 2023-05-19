@@ -268,6 +268,12 @@ function TaskRowTitleInput(
         const view = new EditorView(containerElement, {
             state: initialTitleState,
 
+            // We add this prop to `prosemirror-view` with a patch. With this prop when the
+            // editor is focused we place focus where the browser places focus. So if the
+            // user clicks into the editor focus goes to where the user clicked. Not to the
+            // selection currently in state.
+            shouldUseDOMSelectionOnFocus: true,
+
             attributes: {
                 // Title row inputs are focusable but are not a part of the tab order.
                 //

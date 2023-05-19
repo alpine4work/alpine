@@ -1,50 +1,193 @@
 diff --git a/dist/index.cjs b/dist/index.cjs
-index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..0ae2e8b32429af645d09276ec9e39cd2cdb05175 100644
+index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..4699b767958faddb22fe8f4979e7dc42d52e260d 100644
 --- a/dist/index.cjs
 +++ b/dist/index.cjs
-@@ -3888,6 +3888,20 @@ handlers.focus = function (view) {
+@@ -3888,9 +3888,33 @@ handlers.focus = function (view) {
      view.dom.classList.add("ProseMirror-focused");
      view.domObserver.start();
      view.focused = true;
+-    setTimeout(function () {
+-      if (view.docView && view.hasFocus() && !view.domObserver.currentSelection.eq(view.domSelection())) selectionToDOM(view);
+-    }, 20);
 +
-+    // When focus is returned to the view, always serialize our selection from
-+    // state back to the DOM. Otherwise we're seeing Chrome sometimes reset the
-+    // selection.
-+    //
-+    // To reproduce the bug which caused us to add this in Chrome:
-+    //
-+    // 1. Highlight some text
-+    // 2. Open the link input
-+    // 3. Hit escape to close the link input
-+    //
-+    // Without this, Chrome restores focus to the beginning of the editor.
-+    selectionToDOM(view);
++    if (view.shouldUseDOMSelectionOnFocus) {
++      // NOTE(calebmer): When the user clicks into the editor, provide a
++      // configuration option to use the new selection from the browser instead
++      // of restoring the selection from state.
++      var newSel = selectionFromDOM(view);
++      if (newSel && !view.state.selection.eq(newSel)) {
++        view.dispatch(view.state.tr.setSelection(newSel));
++      }
++    } else {
++      // NOTE(calebmer): When focus is returned to the view, always serialize our
++      // selection from state back to the DOM. Otherwise we're seeing Chrome
++      // sometimes reset the selection.
++      //
++      // To reproduce the bug which caused us to add this in Chrome:
++      //
++      // 1. Highlight some text
++      // 2. Open the link input
++      // 3. Hit escape to close the link input
++      //
++      // Without this, Chrome restores focus to the beginning of the editor.
++      selectionToDOM(view);
 +
-     setTimeout(function () {
-       if (view.docView && view.hasFocus() && !view.domObserver.currentSelection.eq(view.domSelection())) selectionToDOM(view);
-     }, 20);
++      setTimeout(function () {
++        if (view.docView && view.hasFocus() && !view.domObserver.currentSelection.eq(view.domSelection())) selectionToDOM(view);
++      }, 20);
++    }
+   }
+ };
+ 
+@@ -5392,6 +5416,8 @@ var EditorView = function () {
+     this.domObserver.start();
+     initInput(this);
+     this.updatePluginViews();
++
++    this.shouldUseDOMSelectionOnFocus = props.shouldUseDOMSelectionOnFocus || false;
+   }
+ 
+   _createClass(EditorView, [{
+diff --git a/dist/index.d.ts b/dist/index.d.ts
+index 52ee8840c754562f9ae4d9891f61682035b092e7..6b018a3266f292542ff5cfb7133f09288e4100fa 100644
+--- a/dist/index.d.ts
++++ b/dist/index.d.ts
+@@ -831,6 +831,11 @@ interface DirectEditorProps extends EditorProps {
+     the view instance as its `this` binding.
+     */
+     dispatchTransaction?: (tr: Transaction) => void;
++
++    // NOTE(calebmer): When the user clicks into the editor, provide a
++    // configuration option to use the new selection from the browser instead
++    // of restoring the selection from state.
++    shouldUseDOMSelectionOnFocus?: boolean;
+ }
+ 
+ export { DOMEventMap, Decoration, DecorationAttrs, DecorationSet, DecorationSource, DirectEditorProps, EditorProps, EditorView, MarkViewConstructor, NodeView, NodeViewConstructor };
 diff --git a/dist/index.js b/dist/index.js
-index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..6e262f2ed5efdb2ebc0936c70ffdaea210674b7a 100644
+index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..0a87255f9d74911e40d92052ffeded2af6e7f32c 100644
 --- a/dist/index.js
 +++ b/dist/index.js
-@@ -3460,6 +3460,20 @@ handlers.focus = view => {
+@@ -3460,10 +3460,34 @@ handlers.focus = view => {
          view.dom.classList.add("ProseMirror-focused");
          view.domObserver.start();
          view.focused = true;
+-        setTimeout(() => {
+-            if (view.docView && view.hasFocus() && !view.domObserver.currentSelection.eq(view.domSelection()))
+-                selectionToDOM(view);
+-        }, 20);
 +
-+        // When focus is returned to the view, always serialize our selection from
-+        // state back to the DOM. Otherwise we're seeing Chrome sometimes reset the
-+        // selection.
-+        //
-+        // To reproduce the bug which caused us to add this in Chrome:
-+        //
-+        // 1. Highlight some text
-+        // 2. Open the link input
-+        // 3. Hit escape to close the link input
-+        //
-+        // Without this, Chrome restores focus to the beginning of the editor.
-+        selectionToDOM(view);
++        if (view.shouldUseDOMSelectionOnFocus) {
++            // NOTE(calebmer): When the user clicks into the editor, provide a
++            // configuration option to use the new selection from the browser instead
++            // of restoring the selection from state.
++            let newSel = selectionFromDOM(view);
++            if (newSel && !view.state.selection.eq(newSel)) {
++              view.dispatch(view.state.tr.setSelection(newSel));
++            }
++        } else {      
++            // NOTE(calebmer): When focus is returned to the view, always serialize our
++            // selection from state back to the DOM. Otherwise we're seeing Chrome
++            // sometimes reset the selection.
++            //
++            // To reproduce the bug which caused us to add this in Chrome:
++            //
++            // 1. Highlight some text
++            // 2. Open the link input
++            // 3. Hit escape to close the link input
++            //
++            // Without this, Chrome restores focus to the beginning of the editor.
++            selectionToDOM(view);
 +
-         setTimeout(() => {
-             if (view.docView && view.hasFocus() && !view.domObserver.currentSelection.eq(view.domSelection()))
-                 selectionToDOM(view);
++            setTimeout(() => {
++                if (view.docView && view.hasFocus() && !view.domObserver.currentSelection.eq(view.domSelection()))
++                    selectionToDOM(view);
++            }, 20);
++        }
+     }
+ };
+ handlers.blur = (view, _event) => {
+@@ -4879,6 +4903,8 @@ class EditorView {
+         this.domObserver.start();
+         initInput(this);
+         this.updatePluginViews();
++
++        this.shouldUseDOMSelectionOnFocus = props.shouldUseDOMSelectionOnFocus || false;
+     }
+     /**
+     Holds `true` when a
+diff --git a/src/index.ts b/src/index.ts
+index f28002967d6ff175430efdd8c2389924211c35ce..e09d52229006e05c17000a1b72f43e1e40a00d2e 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -57,6 +57,8 @@ export class EditorView {
+   /// [space is eaten issue](https://github.com/ProseMirror/prosemirror/issues/651)
+   /// @internal
+   requiresGeckoHackNode: boolean = false
++  /// @internal
++  shouldUseDOMSelectionOnFocus: boolean
+ 
+   /// The view's current [state](#state.EditorState).
+   public state: EditorState
+@@ -90,6 +92,8 @@ export class EditorView {
+     this.domObserver.start()
+     initInput(this)
+     this.updatePluginViews()
++
++    this.shouldUseDOMSelectionOnFocus = props.shouldUseDOMSelectionOnFocus || false
+   }
+ 
+   /// An editable DOM node containing the document. (You probably
+@@ -734,4 +738,9 @@ export interface DirectEditorProps extends EditorProps {
+   /// [applied](#state.EditorState.apply). The callback will be bound to have
+   /// the view instance as its `this` binding.
+   dispatchTransaction?: (tr: Transaction) => void
++
++  // NOTE(calebmer): When the user clicks into the editor, provide a
++  // configuration option to use the new selection from the browser instead
++  // of restoring the selection from state.
++  shouldUseDOMSelectionOnFocus?: boolean
+ }
+diff --git a/src/input.ts b/src/input.ts
+index d5d66205262a462451dc19cb9213dab20e2ce02a..6e1ceb7002f6998b83c617a0eb48380383365eab 100644
+--- a/src/input.ts
++++ b/src/input.ts
+@@ -714,10 +714,34 @@ handlers.focus = view => {
+     view.dom.classList.add("ProseMirror-focused")
+     view.domObserver.start()
+     view.focused = true
+-    setTimeout(() => {
+-      if (view.docView && view.hasFocus() && !view.domObserver.currentSelection.eq(view.domSelection()))
+-        selectionToDOM(view)
+-    }, 20)
++
++    if (view.shouldUseDOMSelectionOnFocus) {
++      // NOTE(calebmer): When the user clicks into the editor, provide a
++      // configuration option to use the new selection from the browser instead
++      // of restoring the selection from state.
++      let newSel = selectionFromDOM(view)
++      if (newSel && !view.state.selection.eq(newSel)) {
++        view.dispatch(view.state.tr.setSelection(newSel))
++      }
++    } else {
++      // NOTE(calebmer): When focus is returned to the view, always serialize our
++      // selection from state back to the DOM. Otherwise we're seeing Chrome
++      // sometimes reset the selection.
++      //
++      // To reproduce the bug which caused us to add this in Chrome:
++      //
++      // 1. Highlight some text
++      // 2. Open the link input
++      // 3. Hit escape to close the link input
++      //
++      // Without this, Chrome restores focus to the beginning of the editor.
++      selectionToDOM(view)
++
++      setTimeout(() => {
++        if (view.docView && view.hasFocus() && !view.domObserver.currentSelection.eq(view.domSelection()))
++          selectionToDOM(view)
++      }, 20)
++    }
+   }
+ }
+ 
