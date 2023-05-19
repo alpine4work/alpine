@@ -307,9 +307,16 @@ function TaskRowCloseButton({
             alignItems="center"
             position="relative"
             overflow="hidden"
-            border={isOpen ? (isPressed ? "grey-40" : "grey-30") : "transparent"}
+            border={
+                isOpen
+                    ? isPressed
+                        ? // Darken border on press regardless of whether we are in light or dark mode.
+                          {light: "grey-40", dark: "grey-20"}
+                        : "grey-30"
+                    : undefined
+            }
             backgroundColor={!isOpen ? "theme-50-const" : undefined}
-            color={isOpen ? "grey-text" : "grey-0"}
+            color={isOpen ? "grey-text" : "grey-0-const"}
         >
             {isPressed && !isOpen && (
                 // For accent buttons, instead of choosing a darker background color shade when

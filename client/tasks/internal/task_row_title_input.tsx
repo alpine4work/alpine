@@ -485,7 +485,7 @@ function TaskRowTitleInput(
                     tasksStyles.titleInputOverflowGradientRightContainerClassName,
                 sprinkles({
                     color:
-                        taskRow.type === "Normal" && !taskRow.task.isOpen ? "grey-50" : "grey-text",
+                        taskRow.type === "Normal" && !taskRow.task.isOpen ? "grey-60" : "grey-text",
                 }),
             )}
             onBlur={() => {
