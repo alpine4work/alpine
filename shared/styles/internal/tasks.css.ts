@@ -3,19 +3,35 @@ import {spacing} from "~/shared/design/spacing";
 import {colorSchemeVars} from "~/shared/styles/internal/color_scheme.css";
 import {inputPlaceholderColor} from "~/shared/styles/internal/input_placeholder_color.css";
 
-export const containerClassName = style({
+export const textCursorNotInheritedClassName = style({
+    cursor: "text",
+});
+
+globalStyle(`${textCursorNotInheritedClassName} > *`, {
+    cursor: "initial",
+});
+
+export const noPointerEventsNotInheritedClassName = style({
+    pointerEvents: "none",
+});
+
+globalStyle(`${noPointerEventsNotInheritedClassName} > *`, {
+    pointerEvents: "initial",
+});
+
+export const titleInputContainerClassName = style({
     position: "relative",
     zIndex: 0,
 });
 
-export const emptyContainerClassName = style({});
+export const titleInputEmptyContainerClassName = style({});
 
-export const placeholderClassName = style({
+export const titleInputPlaceholderClassName = style({
     position: "relative",
     zIndex: 0,
 });
 
-globalStyle(`${emptyContainerClassName} > ${placeholderClassName}::before`, {
+globalStyle(`${titleInputEmptyContainerClassName} > ${titleInputPlaceholderClassName}::before`, {
     // The `/ ""` is screen reader alt text. So screen readers don't read the
     // placeholder content.
     //
@@ -29,7 +45,7 @@ globalStyle(`${emptyContainerClassName} > ${placeholderClassName}::before`, {
     zIndex: -10,
 });
 
-export const overflowGradientLeftContainerClassName = style({
+export const titleInputOverflowGradientLeftContainerClassName = style({
     selectors: {
         "&::before": {
             content: '""',
@@ -45,7 +61,7 @@ export const overflowGradientLeftContainerClassName = style({
     },
 });
 
-export const overflowGradientRightContainerClassName = style({
+export const titleInputOverflowGradientRightContainerClassName = style({
     selectors: {
         "&::after": {
             content: '""',

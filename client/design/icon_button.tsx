@@ -12,6 +12,7 @@ import {
 } from "react";
 import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";
 import {Box} from "~/client/design/box";
+import {buttonPressedOverlayOpacity} from "~/client/design/button";
 import {FocusRing} from "~/client/design/focus_ring";
 import {OverlayPlacement} from "~/client/design/overlay";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
@@ -385,8 +386,9 @@ function IconButton(
                                 inset: "0",
                                 backgroundColor: "grey-dark",
                                 pointerEvents: "none",
+                                borderRadius: "full",
                             })}
-                            style={{opacity: 0.2}}
+                            style={{opacity: buttonPressedOverlayOpacity}}
                         />
                     )}
                     <IconContext.Provider

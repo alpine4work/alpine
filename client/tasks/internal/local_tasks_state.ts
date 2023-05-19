@@ -8,7 +8,7 @@ import {
     assertTaskTitle,
     emptyTaskTitle,
 } from "~/client/tasks/internal/task_title_schema";
-import {DataLossError, NotFoundError} from "~/shared/error/error";
+import {DataLossError, FailedPreconditionError, NotFoundError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
@@ -39,6 +39,7 @@ const LocalTaskIdByOrderKeySchema = Schema.map(OrderKeySchema, Schema.id<LocalTa
 
 const LocalTaskSchema = Schema.object({
     id: Schema.id<LocalTaskId>(),
+    isOpen: Schema.boolean.default(true),
     title: TaskTitleSchema,
     orderKey: OrderKeySchema,
     parentTaskId: Schema.id<LocalTaskId>().nullable(),
@@ -73,6 +74,7 @@ export type LocalTasksAction =
     | LocalTasksRestoreStateAction
     | LocalTasksResetStateAction
     | LocalTasksUpdateTaskTitleAction
+    | LocalTasksUpdateTaskIsOpenAction
     | LocalTasksSplitTaskTitleAction
     | LocalTasksJoinTaskTitleAction
     | LocalTasksIndentTaskAction
@@ -91,6 +93,12 @@ type LocalTasksUpdateTaskTitleAction = {
     readonly type: "UpdateTaskTitle";
     readonly taskId: LocalTaskId;
     readonly title: TaskTitle;
+};
+
+type LocalTasksUpdateTaskIsOpenAction = {
+    readonly type: "UpdateTaskIsOpen";
+    readonly taskId: LocalTaskId;
+    readonly isOpen: boolean;
 };
 
 type LocalTasksSplitTaskTitleAction = {
@@ -216,6 +224,7 @@ function actuallyReduceLocalTasksState(
             if (action.taskId === state.ghostTaskId) {
                 const newTask: LocalTask = {
                     id: state.ghostTaskId,
+                    isOpen: true,
                     title: action.title,
                     orderKey: generateOrderKeyBetween(
                         state.rootTaskIdByOrderKey.getLastEntry()?.[0] ?? null,
@@ -252,6 +261,22 @@ function actuallyReduceLocalTasksState(
             return {...state, taskById: newTaskById};
         }
 
+        case "UpdateTaskIsOpen": {
+            if (action.taskId === state.ghostTaskId) {
+                throw new FailedPreconditionError("Can't open or close a ghost task");
+            }
+
+            const newTaskById = new Map(state.taskById);
+
+            const oldTask = newTaskById.get(action.taskId);
+            if (!oldTask) throw new NotFoundError("Task not found");
+
+            const newTask = {...oldTask, isOpen: action.isOpen};
+            newTaskById.set(action.taskId, newTask);
+
+            return {...state, taskById: newTaskById};
+        }
+
         // When the enter key is pressed we dispatch this action to create a new task.
         //
         // Our task view uses paradigms from a text editor for ease of use. In a text
@@ -270,6 +295,7 @@ function actuallyReduceLocalTasksState(
             if (action.taskId === state.ghostTaskId) {
                 const newTask: LocalTask = {
                     id: state.ghostTaskId,
+                    isOpen: true,
                     title: emptyTaskTitle,
                     orderKey: generateOrderKeyBetween(
                         state.rootTaskIdByOrderKey.getLastEntry()?.[0] ?? null,
@@ -315,6 +341,7 @@ function actuallyReduceLocalTasksState(
                 if (oldTask.parentTaskId === null) {
                     const newSplitTask: LocalTask = {
                         id: generateId(),
+                        isOpen: true,
                         title: emptyTaskTitle,
                         orderKey: generateOrderKeyBetween(
                             state.rootTaskIdByOrderKey.getEntryBefore(oldTask.orderKey)?.[0] ??
@@ -343,6 +370,7 @@ function actuallyReduceLocalTasksState(
 
                     const newSplitTask: LocalTask = {
                         id: generateId(),
+                        isOpen: true,
                         title: emptyTaskTitle,
                         orderKey: generateOrderKeyBetween(
                             oldParentTask.childTaskIdByOrderKey.getEntryBefore(
@@ -394,6 +422,7 @@ function actuallyReduceLocalTasksState(
 
                 const newSplitTask: LocalTask = {
                     id: generateId(),
+                    isOpen: true,
                     title: assertTaskTitle(oldTask.title.cut(action.titleSelection.to)),
                     orderKey: generateOrderKeyBetween(
                         null,
@@ -441,6 +470,7 @@ function actuallyReduceLocalTasksState(
 
                 const newSplitTask: LocalTask = {
                     id: generateId(),
+                    isOpen: true,
                     title: assertTaskTitle(oldTask.title.cut(action.titleSelection.to)),
                     orderKey: generateOrderKeyBetween(
                         oldTask.orderKey,
@@ -487,6 +517,7 @@ function actuallyReduceLocalTasksState(
 
                 const newSplitTask: LocalTask = {
                     id: generateId(),
+                    isOpen: true,
                     title: assertTaskTitle(oldTask.title.cut(action.titleSelection.to)),
                     orderKey: generateOrderKeyBetween(
                         oldTask.orderKey,

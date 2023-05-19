@@ -29,7 +29,7 @@ import {
     contentSchemaStyles,
     hideScrollbarClassName,
     sprinkles,
-    taskRowTitleInputStyles,
+    tasksStyles,
 } from "~/shared/styles/styles";
 
 export const taskRowTitleInputHeight: Spacing = "9";
@@ -51,7 +51,7 @@ const taskRowTitleInputClassName = `ProseMirror ${sprinkles({
     overflowX: "scroll",
     paddingY: "2",
     backgroundColor: "transparent",
-})} ${hideScrollbarClassName} ${taskRowTitleInputStyles.placeholderClassName}`;
+})} ${hideScrollbarClassName} ${tasksStyles.titleInputPlaceholderClassName}`;
 
 const taskRowTitleInputStyle: CSSProperties = {
     ...contentSchemaStyles.paragraphFontSize,
@@ -454,7 +454,8 @@ function TaskRowTitleInput(
         const update = () => {
             setIsFullyScrolledLeft(viewElement.scrollLeft === 0);
             setIsFullyScrolledRight(
-                viewElement.scrollLeft === viewElement.scrollWidth - viewElement.clientWidth,
+                Math.ceil(viewElement.scrollLeft + viewElement.clientWidth) >=
+                    viewElement.scrollWidth,
             );
         };
 
@@ -470,12 +471,16 @@ function TaskRowTitleInput(
         <div
             ref={containerRef}
             className={classNames(
-                taskRowTitleInputStyles.containerClassName,
-                titleState.doc.childCount === 0 && taskRowTitleInputStyles.emptyContainerClassName,
+                tasksStyles.titleInputContainerClassName,
+                titleState.doc.childCount === 0 && tasksStyles.titleInputEmptyContainerClassName,
                 !isFullyScrolledLeft &&
-                    taskRowTitleInputStyles.overflowGradientLeftContainerClassName,
+                    tasksStyles.titleInputOverflowGradientLeftContainerClassName,
                 !isFullyScrolledRight &&
-                    taskRowTitleInputStyles.overflowGradientRightContainerClassName,
+                    tasksStyles.titleInputOverflowGradientRightContainerClassName,
+                sprinkles({
+                    color:
+                        taskRow.type === "Normal" && !taskRow.task.isOpen ? "grey-50" : "grey-text",
+                }),
             )}
             onBlur={() => {
                 if (isInitialAppRender) return;

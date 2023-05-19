@@ -14,6 +14,8 @@ import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 import {Sprinkles, spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
 
+export const buttonPressedOverlayOpacity = 0.2;
+
 const ButtonForwardRef = forwardRef(Button);
 export {ButtonForwardRef as Button};
 
@@ -332,7 +334,7 @@ function Button(
                             backgroundColor: "grey-dark",
                             pointerEvents: "none",
                         })}
-                        style={{opacity: 0.2}}
+                        style={{opacity: buttonPressedOverlayOpacity}}
                     />
                 )}
                 {shouldShowPendingSpinner && !iconChild && (

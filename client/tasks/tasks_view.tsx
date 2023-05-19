@@ -11,12 +11,12 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {LazyMap} from "~/shared/helpers/control/lazy_map";
 import {LocalTaskId} from "~/shared/id/types/id_types";
-import {tasksViewStyles} from "~/shared/styles/styles";
+import {tasksStyles} from "~/shared/styles/styles";
 
 // TODO(calebmer): Some stuff this view needs:
 //
-// - Subtasks
-// - Shift-tab on a task that's about to move keeps it in place
+// - Subtask expand/collapse
+// - Shift-tab on a task that's about to move keeps it in place then animate
 // - Arrow navigation not working quite right with subtasks
 // - Open/close button
 // - Drag to reorder
@@ -178,7 +178,7 @@ export function TasksView() {
             //
             // This is an affordance for mouse users, does not need to be usable
             // by keyboard.
-            className={tasksViewStyles.textCursorNotInheritedClassName}
+            className={tasksStyles.textCursorNotInheritedClassName}
             {...useOutOfBoundsClickSelection({
                 onSelect: event => {
                     // Only handle clicks on the background not covered by content.
@@ -209,7 +209,7 @@ export function TasksView() {
                 // by keyboard.
                 //
                 // Use an inline style for this cursor so it has higher specificity than the
-                // child selector in `tasksViewStyles.textCursorNotInheritedClassName`.
+                // child selector in `tasksStyles.textCursorNotInheritedClassName`.
                 style={{cursor: "text"}}
                 {...useOutOfBoundsClickSelection({
                     onSelect: () => {

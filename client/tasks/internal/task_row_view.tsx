@@ -1,3 +1,4 @@
+import {CaretDown, Check} from "phosphor-react";
 import {
     Memo,
     MutableRefObject,
@@ -8,7 +9,10 @@ import {
     useImperativeHandle,
     useRef,
 } from "react";
+import {usePress} from "react-aria";
 import {Box} from "~/client/design/box";
+import {buttonPressedOverlayOpacity} from "~/client/design/button";
+import {IconButton} from "~/client/design/icon_button";
 import {LocalTasksAction} from "~/client/tasks/internal/local_tasks_state";
 import {TaskRow} from "~/client/tasks/internal/task_row";
 import {
@@ -17,9 +21,10 @@ import {
     taskRowTitleInputHeight,
 } from "~/client/tasks/internal/task_row_title_input";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
-import {Spacing} from "~/shared/design/spacing";
+import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {colorSchemeVars} from "~/shared/styles/styles";
+import {LocalTaskId} from "~/shared/id/types/id_types";
+import {colorSchemeVars, sprinkles, tasksStyles} from "~/shared/styles/styles";
 
 const taskRowHeight: Spacing = taskRowTitleInputHeight;
 
@@ -168,9 +173,14 @@ function TaskRowView(
             >
                 <Box
                     flexShrink="0"
+                    display="flex"
+                    justifyContent="flex-end"
+                    alignItems="center"
                     style={{
                         width: `${
-                            1.5 * (taskRow.type === "Normal" ? taskRow.parentStack.length : 0)
+                            parseRemLengthNumber(spacing["5"]) +
+                            parseRemLengthNumber(spacing["6"]) +
+                            2 * (taskRow.type === "Normal" ? taskRow.parentStack.length : 0)
                         }rem`,
                     }}
                     // Create an illusion that the text editor extends into the margins by giving
@@ -179,12 +189,52 @@ function TaskRowView(
                     //
                     // This is an affordance for mouse users, does not need to be usable
                     // by keyboard.
-                    cursor="text"
+                    className={tasksStyles.textCursorNotInheritedClassName}
                     {...useOutOfBoundsClickSelection({
-                        onSelect: focusTitleStart,
-                        onSelectAll: focusTitleAll,
+                        onSelect: event => {
+                            // Only handle clicks on the background not covered by content.
+                            if (event.target === event.currentTarget) {
+                                focusTitleStart();
+                            }
+                        },
+                        onSelectAll: event => {
+                            // Only handle clicks on the background not covered by content.
+                            if (event.target === event.currentTarget) {
+                                focusTitleAll();
+                            }
+                        },
                     })}
-                />
+                >
+                    <Box
+                        width="5"
+                        paddingRight="1"
+                        className={tasksStyles.noPointerEventsNotInheritedClassName}
+                    >
+                        {taskRow.type === "Normal" &&
+                            taskRow.task.childTaskIdByOrderKey.size > 0 && (
+                                <IconButton
+                                    size="xs"
+                                    // TODO(calebmer): Description could be expand
+                                    description="Collapse subtasks"
+                                >
+                                    <CaretDown />
+                                </IconButton>
+                            )}
+                    </Box>
+                    <Box
+                        width="6"
+                        paddingRight="2"
+                        className={tasksStyles.noPointerEventsNotInheritedClassName}
+                    >
+                        {taskRow.type === "Normal" && (
+                            <TaskRowCloseButton
+                                taskId={taskRow.task.id}
+                                isOpen={taskRow.task.isOpen}
+                                dispatch={dispatch}
+                            />
+                        )}
+                    </Box>
+                </Box>
                 <Box flexGrow="1" overflow="hidden">
                     {taskRow.type === "DecorativeGhost" ? (
                         <TaskDecorativeGhostRowView
@@ -223,6 +273,66 @@ function TaskRowView(
                     onSelectAll: focusTitleAll,
                 })}
             />
+        </Box>
+    );
+}
+
+function TaskRowCloseButton({
+    taskId,
+    isOpen,
+    dispatch,
+}: {
+    taskId: LocalTaskId;
+    isOpen: boolean;
+    dispatch: Memo<(action: LocalTasksAction) => void>;
+}) {
+    const {isPressed, pressProps} = usePress({
+        onPress: () => {
+            dispatch({
+                type: "UpdateTaskIsOpen",
+                taskId,
+                isOpen: !isOpen,
+            });
+        },
+    });
+
+    return (
+        <Box
+            {...pressProps}
+            width="4"
+            height="4"
+            borderRadius="full"
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+            position="relative"
+            overflow="hidden"
+            border={isOpen ? (isPressed ? "grey-40" : "grey-30") : "transparent"}
+            backgroundColor={!isOpen ? "theme-50-const" : undefined}
+            color={isOpen ? "grey-text" : "grey-0"}
+        >
+            {isPressed && !isOpen && (
+                // For accent buttons, instead of choosing a darker background color shade when
+                // pressed we add a black overlay at a lowered opacity. We accomplish this with
+                // an overlay element since such a color is not in our color scheme.
+                //
+                // Darker shades in our color scheme are more saturated. We want the effect of a
+                // button being physically pressed down.
+                //
+                // When we added this there was a happy accident. The text color also got
+                // darker! This is more fitting for the physical analogy of a button being
+                // pressed down.
+                <span
+                    className={sprinkles({
+                        position: "absolute",
+                        inset: "0",
+                        backgroundColor: "grey-dark",
+                        pointerEvents: "none",
+                    })}
+                    style={{opacity: buttonPressedOverlayOpacity}}
+                />
+            )}
+            {!isOpen && <Check weight="bold" size={addRemLengths(spacing["2"], spacing["0.5"])} />}
         </Box>
     );
 }
