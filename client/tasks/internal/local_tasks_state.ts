@@ -15,7 +15,11 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every";
 import {iterableSome} from "~/shared/helpers/iterable/iterable_some";
-import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key";
+import {
+    OrderKey,
+    generateOrderKeyBetween,
+    generateOrderKeysBetween,
+} from "~/shared/helpers/sort/order_key";
 import {generateId} from "~/shared/id/id";
 import {LocalTaskId} from "~/shared/id/types/id_types";
 import {OrderKeySchema} from "~/shared/schema/order_key_schema";
@@ -431,7 +435,7 @@ function actuallyReduceLocalTasksState(
 
             // If the task has some children then creating a new task puts that new task as
             // the first child to avoid jumping around in the scroll position.
-            if (oldTask.childTaskIdByOrderKey.size > 0) {
+            if (oldTask.isExpanded && oldTask.childTaskIdByOrderKey.size > 0) {
                 const newTaskById = new Map(state.taskById);
 
                 let newTask: LocalTask = oldTask;
@@ -454,7 +458,7 @@ function actuallyReduceLocalTasksState(
                     title: assertTaskTitle(oldTask.title.cut(action.titleSelection.to)),
                     orderKey: generateOrderKeyBetween(
                         null,
-                        oldTask.childTaskIdByOrderKey.getEntryAfter(oldTask.orderKey)?.[0] ?? null,
+                        oldTask.childTaskIdByOrderKey.getFirstEntry()?.[0] ?? null,
                     ),
                     parentTaskId: oldTask.id,
                     childTaskIdByOrderKey: ImmutableMap.empty(),
@@ -601,7 +605,7 @@ function actuallyReduceLocalTasksState(
                 if (!lastRootTaskEntry) return state;
 
                 let lastTask = assertExists(state.taskById.get(lastRootTaskEntry[1]));
-                while (lastTask.childTaskIdByOrderKey.size > 0) {
+                while (lastTask.isExpanded && lastTask.childTaskIdByOrderKey.size > 0) {
                     const lastChildTaskEntry = lastTask.childTaskIdByOrderKey.getLastEntry()!;
                     lastTask = assertExists(state.taskById.get(lastChildTaskEntry[1]));
                 }
@@ -639,7 +643,10 @@ function actuallyReduceLocalTasksState(
 
                     // If the task has children then the actual previous task, visually, is the
                     // last child task.
-                    while (oldPreviousTask.childTaskIdByOrderKey.size > 0) {
+                    while (
+                        oldPreviousTask.isExpanded &&
+                        oldPreviousTask.childTaskIdByOrderKey.size > 0
+                    ) {
                         const lastChildTaskEntry: [OrderKey, LocalTaskId] =
                             oldPreviousTask.childTaskIdByOrderKey.getLastEntry()!;
                         oldPreviousTask = assertExists(state.taskById.get(lastChildTaskEntry[1]));
@@ -668,7 +675,10 @@ function actuallyReduceLocalTasksState(
 
                     // If the task has children then the actual previous task, visually, is the
                     // last child task.
-                    while (oldPreviousTask.childTaskIdByOrderKey.size > 0) {
+                    while (
+                        oldPreviousTask.isExpanded &&
+                        oldPreviousTask.childTaskIdByOrderKey.size > 0
+                    ) {
                         const lastChildTaskEntry: [OrderKey, LocalTaskId] =
                             oldPreviousTask.childTaskIdByOrderKey.getLastEntry()!;
                         oldPreviousTask = assertExists(state.taskById.get(lastChildTaskEntry[1]));
@@ -680,7 +690,12 @@ function actuallyReduceLocalTasksState(
             // title is empty we will delete the task. This way if you have only one task
             // you can still delete it.
             if (!oldPreviousTask) {
-                if (oldDeleteTask.title.childCount > 0) return state;
+                if (
+                    oldDeleteTask.title.childCount > 0 ||
+                    oldDeleteTask.childTaskIdByOrderKey.size > 0
+                ) {
+                    return state;
+                }
 
                 const nextTaskEntry = state.rootTaskIdByOrderKey.getEntryAfter(
                     oldDeleteTask.orderKey,
@@ -699,7 +714,20 @@ function actuallyReduceLocalTasksState(
                 };
             }
 
-            if (oldDeleteTask.title.childCount > 0) {
+            if (
+                oldDeleteTask.title.childCount > 0 ||
+                oldDeleteTask.childTaskIdByOrderKey.size > 0
+            ) {
+                const oldDeleteTaskChildTaskIds = Array.from(
+                    oldDeleteTask.childTaskIdByOrderKey.values(),
+                );
+
+                const oldDeleteTaskChildTaskOrderKeys = generateOrderKeysBetween(
+                    oldPreviousTask.childTaskIdByOrderKey.getLastEntry()?.[0] ?? null,
+                    null,
+                    oldDeleteTaskChildTaskIds.length,
+                );
+
                 const newPreviousTask: LocalTask = {
                     ...oldPreviousTask,
                     title: assertTaskTitle(
@@ -708,9 +736,28 @@ function actuallyReduceLocalTasksState(
                             oldPreviousTask.title.content.append(oldDeleteTask.title.content),
                         ),
                     ),
+                    childTaskIdByOrderKey: oldDeleteTaskChildTaskIds.reduce(
+                        (childTaskIdByOrderKey, childTaskId, index) =>
+                            childTaskIdByOrderKey.set(
+                                oldDeleteTaskChildTaskOrderKeys[index]!,
+                                childTaskId,
+                            ),
+                        oldPreviousTask.childTaskIdByOrderKey,
+                    ),
                 };
 
                 newTaskById.set(newPreviousTask.id, newPreviousTask);
+
+                for (const childTaskId of oldDeleteTaskChildTaskIds) {
+                    const oldChildTask = assertExists(newTaskById.get(childTaskId));
+
+                    const newChildTask: LocalTask = {
+                        ...oldChildTask,
+                        parentTaskId: newPreviousTask.id,
+                    };
+
+                    newTaskById.set(newChildTask.id, newChildTask);
+                }
             }
 
             return {
@@ -785,6 +832,9 @@ function actuallyReduceLocalTasksState(
                         newOrderKey,
                         newTask.id,
                     ),
+                    // Make sure the task we are indenting into is expanded so we don't lose
+                    // the task.
+                    isExpanded: true,
                 };
 
                 newTaskById.set(newTask.id, newTask);
