@@ -220,7 +220,7 @@ export const quoteBlockClassName = style({
 // In the ordered list case, numbers are easier to understand than letters or
 // roman numerals.
 
-const listItemIndentation = spacing["8"];
+export const listItemIndentation = spacing["8"];
 export const listItemIndentationVar: CssVarFunction = createVar();
 
 const bulletListItemBulletSize = spacing["1.5"];

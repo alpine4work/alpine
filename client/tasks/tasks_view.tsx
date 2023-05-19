@@ -15,7 +15,7 @@ import {tasksStyles} from "~/shared/styles/styles";
 
 // TODO(calebmer): Some stuff this view needs:
 //
-// - Subtask expand/collapse
+// - Indenting into collapsed task? Enter on a collapsed task?
 // - Shift-tab on a task that's about to move keeps it in place then animate
 // - Arrow navigation not working quite right with subtasks
 // - Open/close button
@@ -52,10 +52,12 @@ export function TasksView() {
             taskRowIndexById.set(task.id, taskRows.length);
             taskRows.push({type: "Normal", parentStack, task});
 
-            parentStack = [...parentStack, task];
+            if (task.isExpanded) {
+                parentStack = [...parentStack, task];
 
-            for (const taskId of task.childTaskIdByOrderKey.values()) {
-                addTasks(parentStack, taskId);
+                for (const taskId of task.childTaskIdByOrderKey.values()) {
+                    addTasks(parentStack, taskId);
+                }
             }
         };
 

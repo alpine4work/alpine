@@ -1,4 +1,4 @@
-import {CaretDown, Check} from "phosphor-react";
+import {CaretRight, Check} from "phosphor-react";
 import {
     Memo,
     MutableRefObject,
@@ -24,7 +24,7 @@ import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_b
 import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {LocalTaskId} from "~/shared/id/types/id_types";
-import {colorSchemeVars, sprinkles, tasksStyles} from "~/shared/styles/styles";
+import {colorSchemeVars, contentSchemaStyles, sprinkles, tasksStyles} from "~/shared/styles/styles";
 
 const taskRowHeight: Spacing = taskRowTitleInputHeight;
 
@@ -180,7 +180,8 @@ function TaskRowView(
                         width: `${
                             parseRemLengthNumber(spacing["5"]) +
                             parseRemLengthNumber(spacing["6"]) +
-                            2 * (taskRow.type === "Normal" ? taskRow.parentStack.length : 0)
+                            parseRemLengthNumber(contentSchemaStyles.listItemIndentation) *
+                                (taskRow.type === "Normal" ? taskRow.parentStack.length : 0)
                         }rem`,
                     }}
                     // Create an illusion that the text editor extends into the margins by giving
@@ -214,10 +215,27 @@ function TaskRowView(
                             taskRow.task.childTaskIdByOrderKey.size > 0 && (
                                 <IconButton
                                     size="xs"
-                                    // TODO(calebmer): Description could be expand
-                                    description="Collapse subtasks"
+                                    description={
+                                        taskRow.task.isExpanded
+                                            ? "Collapse subtasks"
+                                            : "Expand subtasks"
+                                    }
+                                    onPress={() => {
+                                        dispatch({
+                                            type: "UpdateTaskIsExpanded",
+                                            taskId: taskRow.task.id,
+                                            isExpanded: !taskRow.task.isExpanded,
+                                        });
+                                    }}
                                 >
-                                    <CaretDown />
+                                    <CaretRight
+                                        style={{
+                                            transform: taskRow.task.isExpanded
+                                                ? "rotate(90deg)"
+                                                : "rotate(0deg)",
+                                            transition: "transform 100ms ease",
+                                        }}
+                                    />
                                 </IconButton>
                             )}
                     </Box>

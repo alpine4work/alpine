@@ -44,6 +44,7 @@ const LocalTaskSchema = Schema.object({
     orderKey: OrderKeySchema,
     parentTaskId: Schema.id<LocalTaskId>().nullable(),
     childTaskIdByOrderKey: LocalTaskIdByOrderKeySchema,
+    isExpanded: Schema.boolean.default(true),
 });
 
 export type LocalTasksState = SchemaType<typeof LocalTasksStateSchema>;
@@ -75,6 +76,7 @@ export type LocalTasksAction =
     | LocalTasksResetStateAction
     | LocalTasksUpdateTaskTitleAction
     | LocalTasksUpdateTaskIsOpenAction
+    | LocalTasksUpdateTaskIsExpandedAction
     | LocalTasksSplitTaskTitleAction
     | LocalTasksJoinTaskTitleAction
     | LocalTasksIndentTaskAction
@@ -99,6 +101,12 @@ type LocalTasksUpdateTaskIsOpenAction = {
     readonly type: "UpdateTaskIsOpen";
     readonly taskId: LocalTaskId;
     readonly isOpen: boolean;
+};
+
+type LocalTasksUpdateTaskIsExpandedAction = {
+    readonly type: "UpdateTaskIsExpanded";
+    readonly taskId: LocalTaskId;
+    readonly isExpanded: boolean;
 };
 
 type LocalTasksSplitTaskTitleAction = {
@@ -232,6 +240,7 @@ function actuallyReduceLocalTasksState(
                     ),
                     parentTaskId: null,
                     childTaskIdByOrderKey: ImmutableMap.empty(),
+                    isExpanded: true,
                 };
 
                 const newTaskById = new Map(state.taskById);
@@ -277,6 +286,22 @@ function actuallyReduceLocalTasksState(
             return {...state, taskById: newTaskById};
         }
 
+        case "UpdateTaskIsExpanded": {
+            if (action.taskId === state.ghostTaskId) {
+                throw new FailedPreconditionError("Can't expand or collapse a ghost task");
+            }
+
+            const newTaskById = new Map(state.taskById);
+
+            const oldTask = newTaskById.get(action.taskId);
+            if (!oldTask) throw new NotFoundError("Task not found");
+
+            const newTask = {...oldTask, isExpanded: action.isExpanded};
+            newTaskById.set(action.taskId, newTask);
+
+            return {...state, taskById: newTaskById};
+        }
+
         // When the enter key is pressed we dispatch this action to create a new task.
         //
         // Our task view uses paradigms from a text editor for ease of use. In a text
@@ -303,6 +328,7 @@ function actuallyReduceLocalTasksState(
                     ),
                     parentTaskId: null,
                     childTaskIdByOrderKey: ImmutableMap.empty(),
+                    isExpanded: true,
                 };
 
                 const newTaskById = new Map(state.taskById);
@@ -350,6 +376,7 @@ function actuallyReduceLocalTasksState(
                         ),
                         parentTaskId: null,
                         childTaskIdByOrderKey: ImmutableMap.empty(),
+                        isExpanded: true,
                     };
 
                     const newTaskById = new Map(state.taskById);
@@ -380,6 +407,7 @@ function actuallyReduceLocalTasksState(
                         ),
                         parentTaskId: oldTask.parentTaskId,
                         childTaskIdByOrderKey: ImmutableMap.empty(),
+                        isExpanded: true,
                     };
 
                     const newParentTask: LocalTask = {
@@ -430,6 +458,7 @@ function actuallyReduceLocalTasksState(
                     ),
                     parentTaskId: oldTask.id,
                     childTaskIdByOrderKey: ImmutableMap.empty(),
+                    isExpanded: true,
                 };
 
                 newTask = {
@@ -478,6 +507,7 @@ function actuallyReduceLocalTasksState(
                     ),
                     parentTaskId: null,
                     childTaskIdByOrderKey: ImmutableMap.empty(),
+                    isExpanded: true,
                 };
 
                 newTaskById.set(newSplitTask.id, newSplitTask);
@@ -526,6 +556,7 @@ function actuallyReduceLocalTasksState(
                     ),
                     parentTaskId: oldTask.parentTaskId,
                     childTaskIdByOrderKey: ImmutableMap.empty(),
+                    isExpanded: true,
                 };
 
                 const newParentTask: LocalTask = {
