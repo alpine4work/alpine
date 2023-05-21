@@ -1,11 +1,9 @@
-import {Selection} from "prosemirror-state";
 import {Memo, MutableRefObject, useEffect, useReducer, useRef} from "react";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
 import {TaskRowViewRef} from "~/client/tasks/internal/task_row_view";
 import {
     TaskTitle,
     TaskTitleSchema,
-    assertTaskTitle,
     emptyTaskTitle,
 } from "~/client/tasks/internal/task_title_schema";
 import {DataLossError, FailedPreconditionError, NotFoundError} from "~/shared/error/error";
@@ -15,11 +13,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every";
 import {iterableSome} from "~/shared/helpers/iterable/iterable_some";
-import {
-    OrderKey,
-    generateOrderKeyBetween,
-    generateOrderKeysBetween,
-} from "~/shared/helpers/sort/order_key";
+import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key";
 import {generateId} from "~/shared/id/id";
 import {LocalTaskId} from "~/shared/id/types/id_types";
 import {OrderKeySchema} from "~/shared/schema/order_key_schema";
@@ -81,8 +75,9 @@ export type LocalTasksAction =
     | LocalTasksUpdateTaskTitleAction
     | LocalTasksUpdateTaskIsOpenAction
     | LocalTasksUpdateTaskIsExpandedAction
-    | LocalTasksSplitTaskTitleAction
-    | LocalTasksJoinTaskTitleAction
+    | LocalTasksCreateTaskBelowAction
+    | LocalTasksCreateTaskAboveAction
+    | LocalTasksDeleteTaskAndAllSubtasksTitleAction
     | LocalTasksIndentTaskAction
     | LocalTasksDedentTaskAction;
 
@@ -113,15 +108,19 @@ type LocalTasksUpdateTaskIsExpandedAction = {
     readonly isExpanded: boolean;
 };
 
-type LocalTasksSplitTaskTitleAction = {
-    readonly type: "SplitTaskTitle";
+type LocalTasksCreateTaskBelowAction = {
+    readonly type: "CreateTaskBelow";
     readonly taskId: LocalTaskId;
-    readonly titleSelection: Selection;
 };
 
-type LocalTasksJoinTaskTitleAction = {
-    readonly type: "JoinTaskTitle";
-    readonly deleteTaskId: LocalTaskId;
+type LocalTasksCreateTaskAboveAction = {
+    readonly type: "CreateTaskAbove";
+    readonly taskId: LocalTaskId;
+};
+
+type LocalTasksDeleteTaskAndAllSubtasksTitleAction = {
+    readonly type: "DeleteTaskAndAllSubtasks";
+    readonly taskId: LocalTaskId;
 };
 
 type LocalTasksIndentTaskAction = {
@@ -306,21 +305,9 @@ function actuallyReduceLocalTasksState(
             return {...state, taskById: newTaskById};
         }
 
-        // When the enter key is pressed we dispatch this action to create a new task.
-        //
-        // Our task view uses paradigms from a text editor for ease of use. In a text
-        // editor the enter key is used to create newlines but more generically,
-        // depending on the selection, it is used to "split" content. If the cursor
-        // is in the middle of text it puts the text after the cursor on a newline.
-        //
-        // We could break this paradigm and only create tasks after the current task
-        // when the user hits enter. However, one nice property is if the user hits
-        // enter at the start of a task title it creates a task above instead of below!
-        // We believe making this behavior easy and intuitive is worth the slightly
-        // uncommon capability of being able to split tasks in half.
-        case "SplitTaskTitle": {
-            // If we are splitting a ghost task, then create the ghost task and move focus
-            // to the new ghost task.
+        case "CreateTaskBelow": {
+            // If we are create a new task below a ghost task, then convert the ghost task
+            // to a real task and move focus to the new ghost task.
             if (action.taskId === state.ghostTaskId) {
                 const newTask: LocalTask = {
                     id: state.ghostTaskId,
@@ -359,166 +346,70 @@ function actuallyReduceLocalTasksState(
                 };
             }
 
-            const oldTask = state.taskById.get(action.taskId);
-            if (!oldTask) throw new NotFoundError("Task not found");
-
-            // If the selection is at the start of the title then add an empty task above
-            // and keep focus in the existing task.
-            if (
-                action.titleSelection.from === action.titleSelection.to &&
-                action.titleSelection.from === 0
-            ) {
-                if (oldTask.parentTaskId === null) {
-                    const newSplitTask: LocalTask = {
-                        id: generateId(),
-                        isOpen: true,
-                        title: emptyTaskTitle,
-                        orderKey: generateOrderKeyBetween(
-                            state.rootTaskIdByOrderKey.getEntryBefore(oldTask.orderKey)?.[0] ??
-                                null,
-                            oldTask.orderKey,
-                        ),
-                        parentTaskId: null,
-                        childTaskIdByOrderKey: ImmutableMap.empty(),
-                        isExpanded: true,
-                    };
-
-                    const newTaskById = new Map(state.taskById);
-                    newTaskById.set(newSplitTask.id, newSplitTask);
-
-                    const newRootTaskIdByOrderKey = state.rootTaskIdByOrderKey.set(
-                        newSplitTask.orderKey,
-                        newSplitTask.id,
-                    );
-
-                    return {
-                        ...state,
-                        taskById: newTaskById,
-                        rootTaskIdByOrderKey: newRootTaskIdByOrderKey,
-                    };
-                } else {
-                    const oldParentTask = assertExists(state.taskById.get(oldTask.parentTaskId));
-
-                    const newSplitTask: LocalTask = {
-                        id: generateId(),
-                        isOpen: true,
-                        title: emptyTaskTitle,
-                        orderKey: generateOrderKeyBetween(
-                            oldParentTask.childTaskIdByOrderKey.getEntryBefore(
-                                oldTask.orderKey,
-                            )?.[0] ?? null,
-                            oldTask.orderKey,
-                        ),
-                        parentTaskId: oldTask.parentTaskId,
-                        childTaskIdByOrderKey: ImmutableMap.empty(),
-                        isExpanded: true,
-                    };
-
-                    const newParentTask: LocalTask = {
-                        ...oldParentTask,
-                        childTaskIdByOrderKey: oldParentTask.childTaskIdByOrderKey.set(
-                            newSplitTask.orderKey,
-                            newSplitTask.id,
-                        ),
-                    };
-
-                    const newTaskById = new Map(state.taskById);
-                    newTaskById.set(newSplitTask.id, newSplitTask);
-                    newTaskById.set(newParentTask.id, newParentTask);
-
-                    return {
-                        ...state,
-                        taskById: newTaskById,
-                    };
-                }
-            }
+            const oldAfterTask = state.taskById.get(action.taskId);
+            if (!oldAfterTask) throw new NotFoundError("Task not found");
 
             // If the task has some children then creating a new task puts that new task as
             // the first child to avoid jumping around in the scroll position.
-            if (oldTask.isExpanded && oldTask.childTaskIdByOrderKey.size > 0) {
+            if (oldAfterTask.isExpanded && oldAfterTask.childTaskIdByOrderKey.size > 0) {
                 const newTaskById = new Map(state.taskById);
 
-                let newTask: LocalTask = oldTask;
-
-                if (
-                    action.titleSelection.from !== action.titleSelection.to ||
-                    action.titleSelection.from !== oldTask.title.nodeSize - 2
-                ) {
-                    newTask = {
-                        ...oldTask,
-                        title: assertTaskTitle(oldTask.title.cut(0, action.titleSelection.from)),
-                    };
-
-                    newTaskById.set(newTask.id, newTask);
-                }
-
-                const newSplitTask: LocalTask = {
+                const newTask: LocalTask = {
                     id: generateId(),
                     isOpen: true,
-                    title: assertTaskTitle(oldTask.title.cut(action.titleSelection.to)),
+                    title: emptyTaskTitle,
                     orderKey: generateOrderKeyBetween(
                         null,
-                        oldTask.childTaskIdByOrderKey.getFirstEntry()?.[0] ?? null,
+                        oldAfterTask.childTaskIdByOrderKey.getFirstEntry()?.[0] ?? null,
                     ),
-                    parentTaskId: oldTask.id,
+                    parentTaskId: oldAfterTask.id,
                     childTaskIdByOrderKey: ImmutableMap.empty(),
                     isExpanded: true,
                 };
 
-                newTask = {
-                    ...newTask,
-                    childTaskIdByOrderKey: newTask.childTaskIdByOrderKey.set(
-                        newSplitTask.orderKey,
-                        newSplitTask.id,
+                const newAfterTask: LocalTask = {
+                    ...oldAfterTask,
+                    childTaskIdByOrderKey: oldAfterTask.childTaskIdByOrderKey.set(
+                        newTask.orderKey,
+                        newTask.id,
                     ),
                 };
 
-                newTaskById.set(newSplitTask.id, newSplitTask);
                 newTaskById.set(newTask.id, newTask);
+                newTaskById.set(newAfterTask.id, newAfterTask);
 
                 return {
                     ...state,
                     taskById: newTaskById,
                     taskEffectRef: {
                         current: {
-                            taskId: newSplitTask.id,
+                            taskId: newTask.id,
                             effect: view => view.focusTitleStart(),
                         },
                     },
                 };
-            } else if (oldTask.parentTaskId === null) {
+            } else if (oldAfterTask.parentTaskId === null) {
                 const newTaskById = new Map(state.taskById);
 
-                if (
-                    action.titleSelection.from !== action.titleSelection.to ||
-                    action.titleSelection.from !== oldTask.title.nodeSize - 2
-                ) {
-                    const newTask: LocalTask = {
-                        ...oldTask,
-                        title: assertTaskTitle(oldTask.title.cut(0, action.titleSelection.from)),
-                    };
-
-                    newTaskById.set(newTask.id, newTask);
-                }
-
-                const newSplitTask: LocalTask = {
+                const newTask: LocalTask = {
                     id: generateId(),
                     isOpen: true,
-                    title: assertTaskTitle(oldTask.title.cut(action.titleSelection.to)),
+                    title: emptyTaskTitle,
                     orderKey: generateOrderKeyBetween(
-                        oldTask.orderKey,
-                        state.rootTaskIdByOrderKey.getEntryAfter(oldTask.orderKey)?.[0] ?? null,
+                        oldAfterTask.orderKey,
+                        state.rootTaskIdByOrderKey.getEntryAfter(oldAfterTask.orderKey)?.[0] ??
+                            null,
                     ),
                     parentTaskId: null,
                     childTaskIdByOrderKey: ImmutableMap.empty(),
                     isExpanded: true,
                 };
 
-                newTaskById.set(newSplitTask.id, newSplitTask);
+                newTaskById.set(newTask.id, newTask);
 
                 const newRootTaskIdByOrderKey = state.rootTaskIdByOrderKey.set(
-                    newSplitTask.orderKey,
-                    newSplitTask.id,
+                    newTask.orderKey,
+                    newTask.id,
                 );
 
                 return {
@@ -527,38 +418,27 @@ function actuallyReduceLocalTasksState(
                     rootTaskIdByOrderKey: newRootTaskIdByOrderKey,
                     taskEffectRef: {
                         current: {
-                            taskId: newSplitTask.id,
+                            taskId: newTask.id,
                             effect: view => view.focusTitleStart(),
                         },
                     },
                 };
             } else {
-                const oldParentTask = assertExists(state.taskById.get(oldTask.parentTaskId));
+                const oldParentTask = assertExists(state.taskById.get(oldAfterTask.parentTaskId));
 
                 const newTaskById = new Map(state.taskById);
 
-                if (
-                    action.titleSelection.from !== action.titleSelection.to ||
-                    action.titleSelection.from !== oldTask.title.nodeSize - 2
-                ) {
-                    const newTask: LocalTask = {
-                        ...oldTask,
-                        title: assertTaskTitle(oldTask.title.cut(0, action.titleSelection.from)),
-                    };
-
-                    newTaskById.set(newTask.id, newTask);
-                }
-
-                const newSplitTask: LocalTask = {
+                const newTask: LocalTask = {
                     id: generateId(),
                     isOpen: true,
-                    title: assertTaskTitle(oldTask.title.cut(action.titleSelection.to)),
+                    title: emptyTaskTitle,
                     orderKey: generateOrderKeyBetween(
-                        oldTask.orderKey,
-                        oldParentTask.childTaskIdByOrderKey.getEntryAfter(oldTask.orderKey)?.[0] ??
-                            null,
+                        oldAfterTask.orderKey,
+                        oldParentTask.childTaskIdByOrderKey.getEntryAfter(
+                            oldAfterTask.orderKey,
+                        )?.[0] ?? null,
                     ),
-                    parentTaskId: oldTask.parentTaskId,
+                    parentTaskId: oldAfterTask.parentTaskId,
                     childTaskIdByOrderKey: ImmutableMap.empty(),
                     isExpanded: true,
                 };
@@ -566,12 +446,12 @@ function actuallyReduceLocalTasksState(
                 const newParentTask: LocalTask = {
                     ...oldParentTask,
                     childTaskIdByOrderKey: oldParentTask.childTaskIdByOrderKey.set(
-                        newSplitTask.orderKey,
-                        newSplitTask.id,
+                        newTask.orderKey,
+                        newTask.id,
                     ),
                 };
 
-                newTaskById.set(newSplitTask.id, newSplitTask);
+                newTaskById.set(newTask.id, newTask);
                 newTaskById.set(newParentTask.id, newParentTask);
 
                 return {
@@ -579,7 +459,7 @@ function actuallyReduceLocalTasksState(
                     taskById: newTaskById,
                     taskEffectRef: {
                         current: {
-                            taskId: newSplitTask.id,
+                            taskId: newTask.id,
                             effect: view => view.focusTitleStart(),
                         },
                     },
@@ -587,20 +467,114 @@ function actuallyReduceLocalTasksState(
             }
         }
 
-        // When the backspace key is pressed at the start of a task title we
-        // dispatch this action to delete the task.
-        //
-        // Our task view uses paradigms from a text editor for ease of use. In a text
-        // editor when you're at the start of a line and hit backspace it deletes the
-        // line. If there was content on the line then that content is joined with the
-        // previous line. So more generically we call backspace "join".
-        //
-        // Because deleting tasks is so easy (backspace press at the start of the title
-        // input) and it's a little counter-intuitive we should probably have a warning
-        // when you're about to delete a task filled with content.
-        case "JoinTaskTitle": {
+        case "CreateTaskAbove": {
+            // If we are create a new task above a ghost task, then convert the ghost task
+            // to a real task and keep focus in that ghost task.
+            if (action.taskId === state.ghostTaskId) {
+                const newTask: LocalTask = {
+                    id: state.ghostTaskId,
+                    isOpen: true,
+                    title: emptyTaskTitle,
+                    orderKey: generateOrderKeyBetween(
+                        state.rootTaskIdByOrderKey.getLastEntry()?.[0] ?? null,
+                        null,
+                    ),
+                    parentTaskId: null,
+                    childTaskIdByOrderKey: ImmutableMap.empty(),
+                    isExpanded: true,
+                };
+
+                const newTaskById = new Map(state.taskById);
+                newTaskById.set(newTask.id, newTask);
+
+                const newRootTaskIdByOrderKey = state.rootTaskIdByOrderKey.set(
+                    newTask.orderKey,
+                    newTask.id,
+                );
+
+                const newGhostTaskId = generateId<LocalTaskId>();
+
+                return {
+                    ...state,
+                    taskById: newTaskById,
+                    rootTaskIdByOrderKey: newRootTaskIdByOrderKey,
+                    ghostTaskId: newGhostTaskId,
+                };
+            }
+
+            const oldBeforeTask = state.taskById.get(action.taskId);
+            if (!oldBeforeTask) throw new NotFoundError("Task not found");
+
+            if (oldBeforeTask.parentTaskId === null) {
+                const newTaskById = new Map(state.taskById);
+
+                const newTask: LocalTask = {
+                    id: generateId(),
+                    isOpen: true,
+                    title: emptyTaskTitle,
+                    orderKey: generateOrderKeyBetween(
+                        state.rootTaskIdByOrderKey.getEntryBefore(oldBeforeTask.orderKey)?.[0] ??
+                            null,
+                        oldBeforeTask.orderKey,
+                    ),
+                    parentTaskId: null,
+                    childTaskIdByOrderKey: ImmutableMap.empty(),
+                    isExpanded: true,
+                };
+
+                newTaskById.set(newTask.id, newTask);
+
+                const newRootTaskIdByOrderKey = state.rootTaskIdByOrderKey.set(
+                    newTask.orderKey,
+                    newTask.id,
+                );
+
+                return {
+                    ...state,
+                    taskById: newTaskById,
+                    rootTaskIdByOrderKey: newRootTaskIdByOrderKey,
+                };
+            } else {
+                const oldParentTask = assertExists(state.taskById.get(oldBeforeTask.parentTaskId));
+
+                const newTaskById = new Map(state.taskById);
+
+                const newTask: LocalTask = {
+                    id: generateId(),
+                    isOpen: true,
+                    title: emptyTaskTitle,
+                    orderKey: generateOrderKeyBetween(
+                        oldParentTask.childTaskIdByOrderKey.getEntryBefore(
+                            oldBeforeTask.orderKey,
+                        )?.[0] ?? null,
+                        oldBeforeTask.orderKey,
+                    ),
+                    parentTaskId: oldBeforeTask.parentTaskId,
+                    childTaskIdByOrderKey: ImmutableMap.empty(),
+                    isExpanded: true,
+                };
+
+                const newParentTask: LocalTask = {
+                    ...oldParentTask,
+                    childTaskIdByOrderKey: oldParentTask.childTaskIdByOrderKey.set(
+                        newTask.orderKey,
+                        newTask.id,
+                    ),
+                };
+
+                newTaskById.set(newTask.id, newTask);
+                newTaskById.set(newParentTask.id, newParentTask);
+
+                return {
+                    ...state,
+                    taskById: newTaskById,
+                };
+            }
+        }
+
+        case "DeleteTaskAndAllSubtasks": {
             // You can't delete a ghost task. So move focus to the last entry instead.
-            if (action.deleteTaskId === state.ghostTaskId) {
+            if (action.taskId === state.ghostTaskId) {
                 const lastRootTaskEntry = state.rootTaskIdByOrderKey.getLastEntry();
                 if (!lastRootTaskEntry) return state;
 
@@ -621,44 +595,75 @@ function actuallyReduceLocalTasksState(
                 };
             }
 
-            const oldDeleteTask = state.taskById.get(action.deleteTaskId);
-            if (!oldDeleteTask) throw new NotFoundError("Task not found");
+            const oldTask = state.taskById.get(action.taskId);
+            if (!oldTask) throw new NotFoundError("Task not found");
 
             const newTaskById = new Map(state.taskById);
             let newRootTaskIdByOrderKey = state.rootTaskIdByOrderKey;
 
-            newTaskById.delete(oldDeleteTask.id);
+            const deleteAll = (task: LocalTask) => {
+                newTaskById.delete(task.id);
 
-            let oldPreviousTask: LocalTask | null;
-            if (oldDeleteTask.parentTaskId === null) {
-                newRootTaskIdByOrderKey = newRootTaskIdByOrderKey.delete(oldDeleteTask.orderKey);
+                for (const childTaskId of task.childTaskIdByOrderKey.values()) {
+                    const childTask = assertExists(state.taskById.get(childTaskId));
+                    deleteAll(childTask);
+                }
+            };
+
+            deleteAll(oldTask);
+
+            if (oldTask.parentTaskId === null) {
+                newRootTaskIdByOrderKey = newRootTaskIdByOrderKey.delete(oldTask.orderKey);
 
                 const previousTaskEntry = state.rootTaskIdByOrderKey.getEntryBefore(
-                    oldDeleteTask.orderKey,
+                    oldTask.orderKey,
                 );
                 if (!previousTaskEntry) {
-                    oldPreviousTask = null;
+                    const nextTaskEntry = state.rootTaskIdByOrderKey.getEntryAfter(
+                        oldTask.orderKey,
+                    );
+
+                    return {
+                        ...state,
+                        taskById: newTaskById,
+                        rootTaskIdByOrderKey: newRootTaskIdByOrderKey,
+                        taskEffectRef: {
+                            current: {
+                                taskId: nextTaskEntry?.[1] ?? state.ghostTaskId,
+                                effect: view => view.focusTitleStart(),
+                            },
+                        },
+                    };
                 } else {
-                    oldPreviousTask = assertExists(state.taskById.get(previousTaskEntry[1]));
+                    let previousTask = assertExists(state.taskById.get(previousTaskEntry[1]));
 
                     // If the task has children then the actual previous task, visually, is the
                     // last child task.
-                    while (
-                        oldPreviousTask.isExpanded &&
-                        oldPreviousTask.childTaskIdByOrderKey.size > 0
-                    ) {
+                    while (previousTask.isExpanded && previousTask.childTaskIdByOrderKey.size > 0) {
                         const lastChildTaskEntry: [OrderKey, LocalTaskId] =
-                            oldPreviousTask.childTaskIdByOrderKey.getLastEntry()!;
-                        oldPreviousTask = assertExists(state.taskById.get(lastChildTaskEntry[1]));
+                            previousTask.childTaskIdByOrderKey.getLastEntry()!;
+                        previousTask = assertExists(state.taskById.get(lastChildTaskEntry[1]));
                     }
+
+                    return {
+                        ...state,
+                        taskById: newTaskById,
+                        rootTaskIdByOrderKey: newRootTaskIdByOrderKey,
+                        taskEffectRef: {
+                            current: {
+                                taskId: previousTask.id,
+                                effect: view => view.focusTitleEnd(),
+                            },
+                        },
+                    };
                 }
             } else {
-                const oldParentTask = assertExists(state.taskById.get(oldDeleteTask.parentTaskId));
+                const oldParentTask = assertExists(state.taskById.get(oldTask.parentTaskId));
 
                 const newParentTask: LocalTask = {
                     ...oldParentTask,
                     childTaskIdByOrderKey: oldParentTask.childTaskIdByOrderKey.delete(
-                        oldDeleteTask.orderKey,
+                        oldTask.orderKey,
                     ),
                 };
                 newTaskById.set(newParentTask.id, newParentTask);
@@ -666,111 +671,44 @@ function actuallyReduceLocalTasksState(
                 // If there is no previous task at this level then pressing delete will join
                 // with the parent task.
                 const previousTaskEntry = oldParentTask.childTaskIdByOrderKey.getEntryBefore(
-                    oldDeleteTask.orderKey,
+                    oldTask.orderKey,
                 );
                 if (!previousTaskEntry) {
-                    oldPreviousTask = newParentTask;
+                    return {
+                        ...state,
+                        taskById: newTaskById,
+                        rootTaskIdByOrderKey: newRootTaskIdByOrderKey,
+                        taskEffectRef: {
+                            current: {
+                                taskId: newParentTask.id,
+                                effect: view => view.focusTitleEnd(),
+                            },
+                        },
+                    };
                 } else {
-                    oldPreviousTask = assertExists(state.taskById.get(previousTaskEntry[1]));
+                    let previousTask = assertExists(state.taskById.get(previousTaskEntry[1]));
 
                     // If the task has children then the actual previous task, visually, is the
                     // last child task.
-                    while (
-                        oldPreviousTask.isExpanded &&
-                        oldPreviousTask.childTaskIdByOrderKey.size > 0
-                    ) {
+                    while (previousTask.isExpanded && previousTask.childTaskIdByOrderKey.size > 0) {
                         const lastChildTaskEntry: [OrderKey, LocalTaskId] =
-                            oldPreviousTask.childTaskIdByOrderKey.getLastEntry()!;
-                        oldPreviousTask = assertExists(state.taskById.get(lastChildTaskEntry[1]));
+                            previousTask.childTaskIdByOrderKey.getLastEntry()!;
+                        previousTask = assertExists(state.taskById.get(lastChildTaskEntry[1]));
                     }
-                }
-            }
 
-            // If there is no previous task pressing delete can not join back. If the task
-            // title is empty we will delete the task. This way if you have only one task
-            // you can still delete it.
-            if (!oldPreviousTask) {
-                if (
-                    oldDeleteTask.title.childCount > 0 ||
-                    oldDeleteTask.childTaskIdByOrderKey.size > 0
-                ) {
-                    return state;
-                }
-
-                const nextTaskEntry = state.rootTaskIdByOrderKey.getEntryAfter(
-                    oldDeleteTask.orderKey,
-                );
-
-                return {
-                    ...state,
-                    taskById: newTaskById,
-                    rootTaskIdByOrderKey: newRootTaskIdByOrderKey,
-                    taskEffectRef: {
-                        current: {
-                            taskId: nextTaskEntry?.[1] ?? state.ghostTaskId,
-                            effect: view => view.focusTitleStart(),
+                    return {
+                        ...state,
+                        taskById: newTaskById,
+                        rootTaskIdByOrderKey: newRootTaskIdByOrderKey,
+                        taskEffectRef: {
+                            current: {
+                                taskId: previousTask.id,
+                                effect: view => view.focusTitleEnd(),
+                            },
                         },
-                    },
-                };
-            }
-
-            if (
-                oldDeleteTask.title.childCount > 0 ||
-                oldDeleteTask.childTaskIdByOrderKey.size > 0
-            ) {
-                const oldDeleteTaskChildTaskIds = Array.from(
-                    oldDeleteTask.childTaskIdByOrderKey.values(),
-                );
-
-                const oldDeleteTaskChildTaskOrderKeys = generateOrderKeysBetween(
-                    oldPreviousTask.childTaskIdByOrderKey.getLastEntry()?.[0] ?? null,
-                    null,
-                    oldDeleteTaskChildTaskIds.length,
-                );
-
-                const newPreviousTask: LocalTask = {
-                    ...oldPreviousTask,
-                    title: assertTaskTitle(
-                        oldPreviousTask.title.type.create(
-                            null,
-                            oldPreviousTask.title.content.append(oldDeleteTask.title.content),
-                        ),
-                    ),
-                    childTaskIdByOrderKey: oldDeleteTaskChildTaskIds.reduce(
-                        (childTaskIdByOrderKey, childTaskId, index) =>
-                            childTaskIdByOrderKey.set(
-                                oldDeleteTaskChildTaskOrderKeys[index]!,
-                                childTaskId,
-                            ),
-                        oldPreviousTask.childTaskIdByOrderKey,
-                    ),
-                };
-
-                newTaskById.set(newPreviousTask.id, newPreviousTask);
-
-                for (const childTaskId of oldDeleteTaskChildTaskIds) {
-                    const oldChildTask = assertExists(newTaskById.get(childTaskId));
-
-                    const newChildTask: LocalTask = {
-                        ...oldChildTask,
-                        parentTaskId: newPreviousTask.id,
                     };
-
-                    newTaskById.set(newChildTask.id, newChildTask);
                 }
             }
-
-            return {
-                ...state,
-                taskById: newTaskById,
-                rootTaskIdByOrderKey: newRootTaskIdByOrderKey,
-                taskEffectRef: {
-                    current: {
-                        taskId: oldPreviousTask.id,
-                        effect: view => view.focusTitlePos(oldPreviousTask!.title.nodeSize - 2),
-                    },
-                },
-            };
         }
 
         case "IndentTask": {

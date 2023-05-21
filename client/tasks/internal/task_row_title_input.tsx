@@ -112,54 +112,48 @@ function TaskRowTitleInput(
                 event.stopPropagation();
 
                 if (!isModifiedKeyboardEvent(event)) {
-                    dispatch({
-                        type: "SplitTaskTitle",
-                        taskId,
-                        titleSelection: view.state.selection,
-                    });
-                }
-                break;
-            }
-            case "Backspace": {
-                if (
-                    view.state.selection.from === view.state.selection.to &&
-                    view.state.selection.from === 0
-                ) {
-                    event.preventDefault();
-                    event.stopPropagation();
-
-                    // TODO(calebmer): If the task we're deleting has other fields (like comments
-                    // and notes) we should probably popup a warning and ask "are you sure you want
-                    // to delete"? The join behavior is great for quickly iterating on tasks but
-                    // can be dangerous.
-                    dispatch({
-                        type: "JoinTaskTitle",
-                        deleteTaskId: taskId,
-                    });
-                }
-                break;
-            }
-            case "Delete": {
-                if (
-                    view.state.selection.from === view.state.selection.to &&
-                    view.state.selection.from === view.state.doc.nodeSize - 2
-                ) {
-                    event.preventDefault();
-                    event.stopPropagation();
-
-                    // TODO(calebmer): If the task we're deleting has other fields (like comments
-                    // and notes) we should probably popup a warning and ask "are you sure you want
-                    // to delete"? The join behavior is great for quickly iterating on tasks but
-                    // can be dangerous.
-                    if (nextTaskRow && nextTaskRow.type !== "DecorativeGhost") {
+                    if (
+                        taskRow.type === "Normal" &&
+                        view.state.selection.from === view.state.selection.to &&
+                        view.state.selection.from === 0
+                    ) {
                         dispatch({
-                            type: "JoinTaskTitle",
-                            deleteTaskId:
-                                nextTaskRow.type === "Normal"
-                                    ? nextTaskRow.task.id
-                                    : nextTaskRow.ghostTaskId,
+                            type: "CreateTaskAbove",
+                            taskId,
+                        });
+                    } else {
+                        dispatch({
+                            type: "CreateTaskBelow",
+                            taskId,
                         });
                     }
+                }
+                break;
+            }
+            // TODO(calebmer): What should the behavior of the delete button be?
+            case "Backspace": {
+                if (
+                    view.state.doc.childCount === 0 &&
+                    // Cmd-backspace always deletes the task when its title is empty regardless of
+                    // what other content it contains.
+                    ((isMac ? event.metaKey : event.ctrlKey) ||
+                        taskRow.type !== "Normal" ||
+                        taskRow.task.childTaskIdByOrderKey.size === 0)
+                ) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    // TODO(calebmer): If the task we're deleting has other fields (like comments
+                    // and notes) we should probably popup a warning and ask "are you sure you want
+                    // to delete"? The join behavior is great for quickly iterating on tasks but
+                    // can be dangerous.
+                    //
+                    // TODO(calebmer): Should we actually delete subtasks? Maybe we should give
+                    // users an option to leave subtasks?
+                    dispatch({
+                        type: "DeleteTaskAndAllSubtasks",
+                        taskId,
+                    });
                 }
                 break;
             }

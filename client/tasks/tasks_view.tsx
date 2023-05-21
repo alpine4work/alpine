@@ -15,8 +15,6 @@ import {tasksStyles} from "~/shared/styles/styles";
 
 // TODO(calebmer): Some stuff this view needs:
 //
-// - Rewrite enter/delete logic. Text editing paradigm not holding up
-// - Indenting into collapsed task? Enter on a collapsed task?
 // - Shift-tab on a task that's about to move keeps it in place then animate
 // - Drag to reorder
 // - Due date
