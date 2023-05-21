@@ -22,7 +22,7 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
-import {spacing} from "~/shared/design/spacing";
+import {parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {generateId} from "~/shared/id/id";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
@@ -155,7 +155,7 @@ function ContentEditorCommentInput({
         shouldFocusNextRenderRef.current = false;
 
         const editor = assertExists(editorRef.current);
-        editor.focus();
+        editor.focus({preventScroll: true});
     }, [shouldShowConfirmCloseDialog]);
 
     const sendComment = async () => {
@@ -203,8 +203,14 @@ function ContentEditorCommentInput({
         <>
             <Box
                 width="96"
-                style={{minHeight: messageInputMinHeight}}
-                padding="3"
+                style={{
+                    minHeight: `${
+                        parseRemLengthNumber(messageInputMinHeight) -
+                        parseRemLengthNumber(spacing["1"])
+                    }rem`,
+                }}
+                paddingX="3"
+                paddingY="2"
                 display="flex"
                 overflowX="hidden"
                 color="grey-text"
@@ -261,7 +267,7 @@ function ContentEditorCommentInput({
                 })}
             >
                 <Box display="flex" alignItems="flex-end">
-                    <Box paddingY="0.5">
+                    <Box paddingY="1">
                         <AccountAvatar account={currentAccount} size="7" />
                     </Box>
                 </Box>
@@ -270,6 +276,7 @@ function ContentEditorCommentInput({
                         flexGrow="1"
                         overflowX="hidden"
                         marginX="2"
+                        marginY="0.5"
                         backgroundColor="grey-5"
                         borderRadius={messageViewBubbleBorderRadius}
                     >
@@ -297,7 +304,7 @@ function ContentEditorCommentInput({
                     </Box>
                 </FocusRing>
                 <Box display="flex" alignItems="flex-end">
-                    <Box paddingY="0.5">
+                    <Box paddingY="1">
                         <IconButton
                             ref={sendButtonRef}
                             variant="accent"

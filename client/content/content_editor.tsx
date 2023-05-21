@@ -100,7 +100,7 @@ function unwrap(
 
 export type ContentEditorRef = {
     isFocused(): boolean;
-    focus(): void;
+    focus(options?: FocusOptions): void;
     blur(): void;
 
     /**
@@ -395,9 +395,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                 const view = assertExists(viewRef.current);
                 return document.activeElement === view.dom;
             },
-            focus: () => {
+            focus: (options?: FocusOptions) => {
                 const view = assertExists(viewRef.current);
-                (view.dom as HTMLDivElement).focus();
+                (view.dom as HTMLDivElement).focus(options);
             },
             blur: () => {
                 const view = assertExists(viewRef.current);
