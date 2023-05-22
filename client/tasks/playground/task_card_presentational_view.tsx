@@ -9,6 +9,8 @@ import {useClientInfo} from "~/client/remix/client_info_context";
 import {TaskTitle} from "~/client/tasks/internal/task_title_schema";
 import {TaskStatus, TaskStatusButton} from "~/client/tasks/playground/task_status_button";
 import {parseRemLengthNumber, spacing} from "~/shared/design/spacing";
+import {ThemeColor} from "~/shared/design/theme_colors";
+import {LocalTaskCollectionId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
 import {contentSchemaStyles} from "~/shared/styles/styles";
@@ -18,12 +20,18 @@ import {contentSchemaStyles} from "~/shared/styles/styles";
 // [x] Title
 // [x] Open/close button
 // [x] Assignee field
-// [ ] Due date field
-// [ ] Collections field
+// [x] Due date field
+// [x] Collections field
 // [ ] Custom fields
 // [ ] Subtasks
 // [ ] Open detail interaction
 // [ ] Mark as in progress
+
+export type LocalTaskCollection = {
+    readonly id: LocalTaskCollectionId;
+    readonly name: string;
+    readonly color: ThemeColor;
+};
 
 /**
  * The card is a dense non-editable presentation of a task for easy
@@ -36,12 +44,14 @@ export function TaskCardPresentationalView({
     title,
     assignee,
     dueTime,
+    collections,
 }: {
     status: TaskStatus;
     onStatusChange: (status: TaskStatus) => void;
     title: TaskTitle;
     assignee: AccountModel | null;
     dueTime: Date | null;
+    collections: ReadonlyArray<LocalTaskCollection>;
 }) {
     const {timeZone} = useClientInfo();
     const currentTime = useCurrentTimeRoundedToHour();
@@ -51,7 +61,7 @@ export function TaskCardPresentationalView({
 
         if (assignee) {
             fieldElements.push(
-                <Box display="flex" alignItems="center" gap="2" maxWidth="32">
+                <Box display="flex" alignItems="center" gap="2" maxWidth="32" paddingRight="2">
                     <Box position="relative" width="4" height="4">
                         <Box position="absolute" top="-0.5" left="-0.5">
                             <AccountAvatar size="5" account={assignee} />
@@ -94,6 +104,7 @@ export function TaskCardPresentationalView({
                     alignItems="center"
                     gap="1"
                     color={status === "Open" && dayDifference >= 1 ? "red-60" : "grey-60"}
+                    paddingRight="2"
                 >
                     <CalendarBlank size={spacing["4"]} />
                     <Box fontStyle="truncate">{dueTimeText}</Box>
@@ -101,8 +112,34 @@ export function TaskCardPresentationalView({
             );
         }
 
+        for (const collection of collections) {
+            fieldElements.push(
+                <Box
+                    backgroundColor="grey-5"
+                    height="5"
+                    paddingRight="1.5"
+                    paddingY="0.5"
+                    marginY="-0.5"
+                    marginLeft="-0.5"
+                    borderRadius="base"
+                    display="flex"
+                    alignItems="center"
+                >
+                    <Box width="5" display="flex" justifyContent="center">
+                        <Box
+                            width="1.5"
+                            height="1.5"
+                            borderRadius="full"
+                            backgroundColor={`${collection.color}-50-const`}
+                        />
+                    </Box>
+                    <Box>{collection.name}</Box>
+                </Box>,
+            );
+        }
+
         return fieldElements;
-    }, [assignee, currentTime, dueTime, status, timeZone]);
+    }, [assignee, collections, currentTime, dueTime, status, timeZone]);
 
     return (
         <Box
@@ -112,10 +149,10 @@ export function TaskCardPresentationalView({
             backgroundColor="grey-0"
             boxShadow="elevation-5"
             borderRadius="lg"
-            padding="5"
+            padding="4"
             display="flex"
             flexDirection="column"
-            gap="5"
+            gap="4"
         >
             <Box
                 display="flex"
@@ -160,7 +197,7 @@ export function TaskCardPresentationalView({
                 />
             </Box>
             {fieldElements.length > 0 && (
-                <Box display="flex" flexWrap="wrap" columnGap="5" rowGap="3">
+                <Box display="flex" flexWrap="wrap" columnGap="3" rowGap="3">
                     {fieldElements.map((node, index) => cloneElement(node, {key: index}))}
                 </Box>
             )}

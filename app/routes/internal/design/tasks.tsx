@@ -5,10 +5,13 @@ import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
 // NOCOMMIT: Should not be in an internal directory
 // eslint-disable-next-line no-internal-imports
 import {createSimpleTaskTitle} from "~/client/tasks/internal/task_title_schema";
-import {TaskCardPresentationalView} from "~/client/tasks/playground/task_card_presentational_view";
+import {
+    LocalTaskCollection,
+    TaskCardPresentationalView,
+} from "~/client/tasks/playground/task_card_presentational_view";
 import {noop} from "~/shared/helpers/control/noop";
 import {assertId} from "~/shared/id/id";
-import {AccountId} from "~/shared/id/types/id_types";
+import {AccountId, LocalTaskCollectionId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
 import {sprinkles} from "~/shared/styles/styles";
 
@@ -41,6 +44,18 @@ const account4 = new AccountModel({
     name: "Roman Roy",
     createdTime: new Date("2023-05-22T17:30:24.653Z"),
 });
+
+const kitchenTaskCollection: LocalTaskCollection = {
+    id: assertId<LocalTaskCollectionId>("vxydptp0bf9zxnwm2gx38h2k7r"),
+    name: "Kitchen",
+    color: "blue",
+};
+
+const bathroomTaskCollection: LocalTaskCollection = {
+    id: assertId<LocalTaskCollectionId>("vxydptp0bf9zxnwm2gx38h2k7r"),
+    name: "Bathroom",
+    color: "orange",
+};
 
 export default function TasksDesignPlaygroundRoute() {
     const currentTime = useCurrentTimeRoundedToHour();
@@ -106,6 +121,7 @@ export default function TasksDesignPlaygroundRoute() {
                         )}
                         assignee={account4}
                         dueTime={subDays(currentTime, 1)}
+                        collections={[kitchenTaskCollection]}
                     />
                     <TaskCardPresentationalView
                         status="Open"
@@ -113,6 +129,7 @@ export default function TasksDesignPlaygroundRoute() {
                         title={createSimpleTaskTitle("Sort, wash, dry, and fold clothes")}
                         assignee={null}
                         dueTime={addDays(currentTime, 7)}
+                        collections={[kitchenTaskCollection, bathroomTaskCollection]}
                     />
                 </Box>
                 <Box width="full" maxWidth="96" display="flex" flexDirection="column" gap="4">
@@ -122,6 +139,7 @@ export default function TasksDesignPlaygroundRoute() {
                         title={createSimpleTaskTitle("Vacuum and mop floors")}
                         assignee={account2}
                         dueTime={null}
+                        collections={[]}
                     />
                 </Box>
             </Box>
@@ -154,6 +172,7 @@ export default function TasksDesignPlaygroundRoute() {
                         )}
                         assignee={account3}
                         dueTime={currentTime}
+                        collections={[kitchenTaskCollection]}
                     />
                     <TaskCardPresentationalView
                         status="Open"
@@ -161,6 +180,7 @@ export default function TasksDesignPlaygroundRoute() {
                         title={createSimpleTaskTitle("Clean windows and mirrors")}
                         assignee={account3}
                         dueTime={addDays(currentTime, 1)}
+                        collections={[bathroomTaskCollection, kitchenTaskCollection]}
                     />
                     <TaskCardPresentationalView
                         status="Open"
@@ -170,6 +190,7 @@ export default function TasksDesignPlaygroundRoute() {
                         )}
                         assignee={null}
                         dueTime={null}
+                        collections={[kitchenTaskCollection]}
                     />
                     <TaskCardPresentationalView
                         status="Closed"
@@ -177,6 +198,7 @@ export default function TasksDesignPlaygroundRoute() {
                         title={createSimpleTaskTitle("Tidy up the living room")}
                         assignee={null}
                         dueTime={subDays(currentTime, 7)}
+                        collections={[]}
                     />
                     <TaskCardPresentationalView
                         status="Closed"
@@ -184,6 +206,7 @@ export default function TasksDesignPlaygroundRoute() {
                         title={createSimpleTaskTitle("Declutter and organize")}
                         assignee={null}
                         dueTime={null}
+                        collections={[]}
                     />
                     <TaskCardPresentationalView
                         status="Open"
@@ -193,6 +216,7 @@ export default function TasksDesignPlaygroundRoute() {
                         )}
                         assignee={account1}
                         dueTime={subYears(currentTime, 2)}
+                        collections={[]}
                     />
                 </Box>
             </Box>

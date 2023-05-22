@@ -55,3 +55,4 @@ export type ContentMentionAccountId = NominalIdType<"ContentMentionAccount"> | A
 // TODO(calebmer): All local task ids should be deleted when we build a real
 // backend implementation for tasks.
 export type LocalTaskId = NominalIdType<"LocalTask">;
+export type LocalTaskCollectionId = NominalIdType<"LocalTaskCollection">;
