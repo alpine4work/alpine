@@ -1,16 +1,20 @@
+import {UserCircle} from "phosphor-react";
 import {useMemo} from "react";
+import {AccountAvatar} from "~/client/accounts/account_avatar";
+import {AccountShortName} from "~/client/accounts/account_short_name";
 import {Box} from "~/client/design/box";
 import {TaskTitle} from "~/client/tasks/internal/task_title_schema";
 import {TaskStatus, TaskStatusButton} from "~/client/tasks/playground/task_status_button";
-import {parseRemLengthNumber} from "~/shared/design/spacing";
+import {parseRemLengthNumber, spacing} from "~/shared/design/spacing";
+import {AccountModel} from "~/shared/models/account_model";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
-import {contentSchemaStyles} from "~/shared/styles/styles";
+import {colorSchemeVars, contentSchemaStyles, sprinkles} from "~/shared/styles/styles";
 
 // TODO(calebmer): Needs:
 //
 // [x] Title
 // [x] Open/close button
-// [ ] Assignee field
+// [x] Assignee field
 // [ ] Due date field
 // [ ] Collections field
 // [ ] Custom fields
@@ -21,19 +25,23 @@ export function TaskCardPresentationalView({
     status,
     onStatusChange,
     title,
+    assignee,
 }: {
     status: TaskStatus;
     onStatusChange: (status: TaskStatus) => void;
     title: TaskTitle;
+    assignee: AccountModel | null;
 }) {
     return (
         <Box
             width="full"
             maxWidth="96"
-            minHeight="24"
             boxShadow="elevation-10"
-            borderRadius="md"
+            borderRadius="lg"
             padding="5"
+            display="flex"
+            flexDirection="column"
+            gap="5"
         >
             <Box
                 display="flex"
@@ -77,6 +85,31 @@ export function TaskCardPresentationalView({
                     )}
                 />
             </Box>
+            {assignee && (
+                <Box display="flex" alignItems="center" gap="3" maxWidth="32">
+                    <Box position="relative" width="4" height="4">
+                        {assignee ? (
+                            <Box position="absolute" top="-1" left="-1">
+                                <AccountAvatar size="6" account={assignee} />
+                            </Box>
+                        ) : (
+                            <UserCircle
+                                size={spacing["7"]}
+                                color={colorSchemeVars["grey-20"]}
+                                weight="thin"
+                                className={sprinkles({
+                                    position: "absolute",
+                                    left: "-1.5",
+                                    top: "-1.5",
+                                })}
+                            />
+                        )}
+                    </Box>
+                    <Box fontStyle="truncate" color="grey-60">
+                        <AccountShortName account={assignee} tooltipPlacement="bottom" />
+                    </Box>
+                </Box>
+            )}
         </Box>
     );
 }
