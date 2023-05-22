@@ -17,6 +17,11 @@ import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object";
 import {omitObject} from "~/shared/helpers/object/omit_object";
 import {quote} from "~/shared/helpers/string/quote";
+import {ExhaustiveStep} from "~/shared/prosemirror/prosemirror_exhaustive_step";
+import {
+    AddMarksAfterRemoveAllStep,
+    RemoveAllMarksStep,
+} from "~/shared/prosemirror/remove_all_marks_step";
 import {Schema, SchemaDeserializationError, UnionSchema} from "~/shared/schema/schema";
 
 declare module "prosemirror-model" {
@@ -515,21 +520,55 @@ export function createSchemaForProsemirrorSchema(schema: ProsemirrorSchema) {
             }),
         });
 
-        const StepSchema = UnionSchema._new(
-            {
-                attr: AttrStepSchema,
-                addMark: AddMarkStepSchema,
-                removeMark: RemoveMarkStepSchema,
-                addNodeMark: AddNodeMarkStepSchema,
-                removeNodeMark: RemoveNodeMarkStepSchema,
-                replace: ReplaceStepSchema,
-                replaceAround: ReplaceAroundStepSchema,
-            },
-            {
-                getType: step => assertExists(step.jsonID) as any,
-                serializedTypeKey: "stepType",
-            },
-        ) as UnionSchema<any> as UnionSchema<Step>;
+        const RemoveAllMarksStepSchema = Schema.object({
+            stepType: Schema.value("removeAllMarks"),
+            mark: MarkUnionSchema,
+        }).transform<RemoveAllMarksStep>({
+            deserialize: value => new RemoveAllMarksStep(value.mark),
+            serialize: value => ({
+                stepType: "removeAllMarks",
+                mark: value.mark,
+            }),
+        });
+
+        const AddMarksAfterRemoveAllStepSchema = Schema.object({
+            stepType: Schema.value("addMarksAfterRemoveAll"),
+            mark: MarkUnionSchema,
+            ranges: Schema.array(
+                Schema.object({
+                    from: Schema.integer.min(0),
+                    to: Schema.integer.min(0),
+                }),
+            ),
+        }).transform<AddMarksAfterRemoveAllStep>({
+            deserialize: value => new AddMarksAfterRemoveAllStep(value.mark, value.ranges),
+            serialize: value => ({
+                stepType: "addMarksAfterRemoveAll",
+                mark: value.mark,
+                ranges: value.ranges,
+            }),
+        });
+
+        const stepSchemas: {
+            [Key in ExhaustiveStep["jsonID"]]: Schema<
+                Omit<ExhaustiveStep & {jsonID: Key}, "jsonID">
+            >;
+        } = {
+            attr: AttrStepSchema,
+            addMark: AddMarkStepSchema,
+            removeMark: RemoveMarkStepSchema,
+            addNodeMark: AddNodeMarkStepSchema,
+            removeNodeMark: RemoveNodeMarkStepSchema,
+            replace: ReplaceStepSchema,
+            replaceAround: ReplaceAroundStepSchema,
+            removeAllMarks: RemoveAllMarksStepSchema,
+            addMarksAfterRemoveAll: AddMarksAfterRemoveAllStepSchema,
+        };
+
+        const StepSchema = UnionSchema._new(stepSchemas, {
+            getType: step => assertExists((step as any).jsonID),
+            serializedTypeKey: "stepType",
+        }) as UnionSchema<any> as UnionSchema<Step>;
 
         return StepSchema;
     };

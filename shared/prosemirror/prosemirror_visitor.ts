@@ -56,7 +56,9 @@ export function visitProsemirrorStep(rootStep: Step, visitor: ProsemirrorVisitor
         case "addMark":
         case "removeMark":
         case "addNodeMark":
-        case "removeNodeMark": {
+        case "removeNodeMark":
+        case "removeAllMarks":
+        case "addMarksAfterRemoveAll": {
             visitor.visitMark?.(step.mark);
             break;
         }

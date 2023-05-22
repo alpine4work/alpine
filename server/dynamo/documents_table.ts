@@ -1608,6 +1608,10 @@ export async function updateDocumentContent(
      */
     newSteps: ReadonlyArray<Step>;
     /**
+     * The inverted steps of the returned `newSteps`.
+     */
+    newInvertedSteps: ReadonlyArray<Step>;
+    /**
      * If the client passed in a `version` that was not equal to the actual version
      * of the document, then this function will have loaded steps between the
      * client provided `version` and the actual document version and used those
@@ -1860,11 +1864,13 @@ export async function updateDocumentContent(
             newVersion: internalDocument.version + steps.length,
             newContent,
             newSteps: steps,
+            newInvertedSteps: invertedSteps,
             conflictingSteps,
         };
     });
 
-    const {oldVersion, newVersion, newContent, newSteps, conflictingSteps} = result;
+    const {oldVersion, newVersion, newContent, newSteps, newInvertedSteps, conflictingSteps} =
+        result;
 
     const lastVersionToTriggerSnapshot =
         Math.floor(newVersion / updateDocumentSnapshotAfterStepCount) *
@@ -1885,6 +1891,7 @@ export async function updateDocumentContent(
     return {
         newVersion,
         newSteps,
+        newInvertedSteps,
         conflictingSteps,
     };
 }
@@ -2115,6 +2122,16 @@ export async function getUpdateDocumentContentResult({
                 case "replace":
                 case "replaceAround": {
                     addRangeToValidate(step.from, step.to);
+                    break;
+                }
+                case "removeAllMarks": {
+                    // Remove valid marks does not affect the validity of the document's structure.
+                    break;
+                }
+                case "addMarksAfterRemoveAll": {
+                    for (const range of step.ranges) {
+                        addRangeToValidate(range.from, range.to);
+                    }
                     break;
                 }
                 default:

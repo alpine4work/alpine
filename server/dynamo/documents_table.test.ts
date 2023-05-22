@@ -66,6 +66,7 @@ import {
     decodeDocumentCommentRoomKey,
     encodeDocumentCommentRoomKey,
 } from "~/shared/models/document_model";
+import {RemoveAllMarksStep} from "~/shared/prosemirror/remove_all_marks_step";
 
 jest.useFakeTimers();
 
@@ -6505,6 +6506,345 @@ describe("Comments", () => {
                 session4.account,
                 session6.account,
             ]);
+        });
+    });
+
+    test("can resolve a comment thread", async () => {
+        const document = await createDocument(context.action(session1), {
+            spaceId: space.id,
+            content: emptyDocumentContent,
+        });
+
+        await updateDocumentContent(context.action(session1), {
+            id: document.id,
+            version: 0,
+            steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+            clientId: generateId(),
+        });
+
+        const commentThreadId = generateId<DocumentCommentThreadId>();
+
+        expect(massageDocument(await getDocument(context.action(session1), document.id))).toEqual({
+            version: 1,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("Hello, world!")]),
+                ])
+                .toJSON(),
+        });
+
+        await updateDocumentContent(context.action(session1), {
+            id: document.id,
+            version: 1,
+            steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            clientId: generateId(),
+            createCommentThreads: [
+                {
+                    commentThreadId,
+                    initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                },
+            ],
+        });
+
+        expect(massageDocument(await getDocument(context.action(session1), document.id))).toEqual({
+            version: 2,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [
+                        schema.text("Hello, "),
+                        schema.text("world", [schema.mark("comment", {commentThreadId})]),
+                        schema.text("!"),
+                    ]),
+                ])
+                .toJSON(),
+        });
+
+        await updateDocumentContent(context.action(session1), {
+            id: document.id,
+            version: 2,
+            steps: [new RemoveAllMarksStep(schema.mark("comment", {commentThreadId}))],
+            clientId: generateId(),
+        });
+
+        expect(massageDocument(await getDocument(context.action(session1), document.id))).toEqual({
+            version: 3,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("Hello, world!")]),
+                ])
+                .toJSON(),
+        });
+    });
+
+    test("can resolve a comment thread with multiple references", async () => {
+        const document = await createDocument(context.action(session1), {
+            spaceId: space.id,
+            content: emptyDocumentContent,
+        });
+
+        await updateDocumentContent(context.action(session1), {
+            id: document.id,
+            version: 0,
+            steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+            clientId: generateId(),
+        });
+
+        const commentThreadId = generateId<DocumentCommentThreadId>();
+
+        expect(massageDocument(await getDocument(context.action(session1), document.id))).toEqual({
+            version: 1,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("Hello, world!")]),
+                ])
+                .toJSON(),
+        });
+
+        await updateDocumentContent(context.action(session1), {
+            id: document.id,
+            version: 1,
+            steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            clientId: generateId(),
+            createCommentThreads: [
+                {
+                    commentThreadId,
+                    initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                },
+            ],
+        });
+
+        await updateDocumentContent(context.action(session1), {
+            id: document.id,
+            version: 2,
+            steps: [new AddMarkStep(3, 8, schema.mark("comment", {commentThreadId}))],
+            clientId: generateId(),
+        });
+
+        expect(massageDocument(await getDocument(context.action(session1), document.id))).toEqual({
+            version: 3,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [
+                        schema.text("Hello", [schema.mark("comment", {commentThreadId})]),
+                        schema.text(", "),
+                        schema.text("world", [schema.mark("comment", {commentThreadId})]),
+                        schema.text("!"),
+                    ]),
+                ])
+                .toJSON(),
+        });
+
+        await updateDocumentContent(context.action(session1), {
+            id: document.id,
+            version: 3,
+            steps: [new RemoveAllMarksStep(schema.mark("comment", {commentThreadId}))],
+            clientId: generateId(),
+        });
+
+        expect(massageDocument(await getDocument(context.action(session1), document.id))).toEqual({
+            version: 4,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("Hello, world!")]),
+                ])
+                .toJSON(),
+        });
+    });
+
+    test("can invert comment thread resolution", async () => {
+        const document = await createDocument(context.action(session1), {
+            spaceId: space.id,
+            content: emptyDocumentContent,
+        });
+
+        await updateDocumentContent(context.action(session1), {
+            id: document.id,
+            version: 0,
+            steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+            clientId: generateId(),
+        });
+
+        const commentThreadId = generateId<DocumentCommentThreadId>();
+
+        expect(massageDocument(await getDocument(context.action(session1), document.id))).toEqual({
+            version: 1,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("Hello, world!")]),
+                ])
+                .toJSON(),
+        });
+
+        await updateDocumentContent(context.action(session1), {
+            id: document.id,
+            version: 1,
+            steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            clientId: generateId(),
+            createCommentThreads: [
+                {
+                    commentThreadId,
+                    initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                },
+            ],
+        });
+
+        expect(massageDocument(await getDocument(context.action(session1), document.id))).toEqual({
+            version: 2,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [
+                        schema.text("Hello, "),
+                        schema.text("world", [schema.mark("comment", {commentThreadId})]),
+                        schema.text("!"),
+                    ]),
+                ])
+                .toJSON(),
+        });
+
+        const {newInvertedSteps} = await updateDocumentContent(context.action(session1), {
+            id: document.id,
+            version: 2,
+            steps: [new RemoveAllMarksStep(schema.mark("comment", {commentThreadId}))],
+            clientId: generateId(),
+        });
+
+        expect(massageDocument(await getDocument(context.action(session1), document.id))).toEqual({
+            version: 3,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("Hello, world!")]),
+                ])
+                .toJSON(),
+        });
+
+        await updateDocumentContent(context.action(session1), {
+            id: document.id,
+            version: 3,
+            steps: newInvertedSteps,
+            clientId: generateId(),
+        });
+
+        expect(massageDocument(await getDocument(context.action(session1), document.id))).toEqual({
+            version: 4,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [
+                        schema.text("Hello, "),
+                        schema.text("world", [schema.mark("comment", {commentThreadId})]),
+                        schema.text("!"),
+                    ]),
+                ])
+                .toJSON(),
+        });
+    });
+
+    test("can invert comment thread resolution with multiple references", async () => {
+        const document = await createDocument(context.action(session1), {
+            spaceId: space.id,
+            content: emptyDocumentContent,
+        });
+
+        await updateDocumentContent(context.action(session1), {
+            id: document.id,
+            version: 0,
+            steps: [new ReplaceStep(3, 3, textSlice("Hello, world!"))],
+            clientId: generateId(),
+        });
+
+        const commentThreadId = generateId<DocumentCommentThreadId>();
+
+        expect(massageDocument(await getDocument(context.action(session1), document.id))).toEqual({
+            version: 1,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("Hello, world!")]),
+                ])
+                .toJSON(),
+        });
+
+        await updateDocumentContent(context.action(session1), {
+            id: document.id,
+            version: 1,
+            steps: [new AddMarkStep(10, 15, schema.mark("comment", {commentThreadId}))],
+            clientId: generateId(),
+            createCommentThreads: [
+                {
+                    commentThreadId,
+                    initialCommentContent: createSimpleMessageContent("Test message content 1"),
+                },
+            ],
+        });
+
+        await updateDocumentContent(context.action(session1), {
+            id: document.id,
+            version: 2,
+            steps: [new AddMarkStep(3, 8, schema.mark("comment", {commentThreadId}))],
+            clientId: generateId(),
+        });
+
+        expect(massageDocument(await getDocument(context.action(session1), document.id))).toEqual({
+            version: 3,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [
+                        schema.text("Hello", [schema.mark("comment", {commentThreadId})]),
+                        schema.text(", "),
+                        schema.text("world", [schema.mark("comment", {commentThreadId})]),
+                        schema.text("!"),
+                    ]),
+                ])
+                .toJSON(),
+        });
+
+        const {newInvertedSteps} = await updateDocumentContent(context.action(session1), {
+            id: document.id,
+            version: 3,
+            steps: [new RemoveAllMarksStep(schema.mark("comment", {commentThreadId}))],
+            clientId: generateId(),
+        });
+
+        expect(massageDocument(await getDocument(context.action(session1), document.id))).toEqual({
+            version: 4,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("Hello, world!")]),
+                ])
+                .toJSON(),
+        });
+
+        await updateDocumentContent(context.action(session1), {
+            id: document.id,
+            version: 4,
+            steps: newInvertedSteps,
+            clientId: generateId(),
+        });
+
+        expect(massageDocument(await getDocument(context.action(session1), document.id))).toEqual({
+            version: 5,
+            content: schema
+                .node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [
+                        schema.text("Hello", [schema.mark("comment", {commentThreadId})]),
+                        schema.text(", "),
+                        schema.text("world", [schema.mark("comment", {commentThreadId})]),
+                        schema.text("!"),
+                    ]),
+                ])
+                .toJSON(),
         });
     });
 

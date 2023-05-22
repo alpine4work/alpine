@@ -7,6 +7,10 @@ import {
     ReplaceAroundStep,
     ReplaceStep,
 } from "prosemirror-transform";
+import {
+    AddMarksAfterRemoveAllStep,
+    RemoveAllMarksStep,
+} from "~/shared/prosemirror/remove_all_marks_step";
 
 /**
  * `Step`s have a `jsonID` property used when serializing to/from JSON. This
@@ -20,4 +24,6 @@ export type ExhaustiveStep =
     | (AddNodeMarkStep & {jsonID: "addNodeMark"})
     | (RemoveNodeMarkStep & {jsonID: "removeNodeMark"})
     | (ReplaceStep & {jsonID: "replace"})
-    | (ReplaceAroundStep & {jsonID: "replaceAround"});
+    | (ReplaceAroundStep & {jsonID: "replaceAround"})
+    | (RemoveAllMarksStep & {jsonID: "removeAllMarks"})
+    | (AddMarksAfterRemoveAllStep & {jsonID: "addMarksAfterRemoveAll"});

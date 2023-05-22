@@ -1997,6 +1997,67 @@ export const dynamoGeneratedSchemaDescription: Lazy<{
                                                                 "optional": true
                                                             }
                                                         }
+                                                    },
+                                                    "removeAllMarks": {
+                                                        "type": "Object",
+                                                        "propertySchemaByKey": {
+                                                            "stepType": {
+                                                                "valueSchema": {
+                                                                    "type": "Value",
+                                                                    "value": "removeAllMarks"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "mark": {
+                                                                "valueSchema": {
+                                                                    "type": "Reference",
+                                                                    "reuseReferenceId": "c49d0f16"
+                                                                },
+                                                                "optional": false
+                                                            }
+                                                        }
+                                                    },
+                                                    "addMarksAfterRemoveAll": {
+                                                        "type": "Object",
+                                                        "propertySchemaByKey": {
+                                                            "stepType": {
+                                                                "valueSchema": {
+                                                                    "type": "Value",
+                                                                    "value": "addMarksAfterRemoveAll"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "mark": {
+                                                                "valueSchema": {
+                                                                    "type": "Reference",
+                                                                    "reuseReferenceId": "c49d0f16"
+                                                                },
+                                                                "optional": false
+                                                            },
+                                                            "ranges": {
+                                                                "valueSchema": {
+                                                                    "type": "Array",
+                                                                    "itemSchema": {
+                                                                        "type": "Object",
+                                                                        "propertySchemaByKey": {
+                                                                            "from": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Integer"
+                                                                                },
+                                                                                "optional": false
+                                                                            },
+                                                                            "to": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Integer"
+                                                                                },
+                                                                                "optional": false
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                },
+                                                                "optional": false
+                                                            }
+                                                        }
                                                     }
                                                 },
                                                 "referenceId": "0673e937"
