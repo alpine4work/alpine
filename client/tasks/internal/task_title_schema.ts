@@ -43,3 +43,9 @@ const taskTitleSchemas = createSchemaForProsemirrorSchema(TaskTitleProsemirrorSc
 export const TaskTitleSchema = taskTitleSchemas.TopNodeType as Schema<any> as Schema<TaskTitle>;
 
 export const emptyTaskTitle = TaskTitleProsemirrorSchema.node("doc", {}, []) as TaskTitle;
+
+export function createSimpleTaskTitle(text: string): TaskTitle {
+    return assertTaskTitle(
+        TaskTitleProsemirrorSchema.node("doc", {}, [TaskTitleProsemirrorSchema.text(text)]),
+    );
+}
