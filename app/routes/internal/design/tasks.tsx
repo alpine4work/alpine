@@ -1,4 +1,6 @@
+import {addDays, subDays, subYears} from "date-fns";
 import {Box} from "~/client/design/box";
+import {useCurrentTimeRoundedToHour} from "~/client/helpers/use_current_time_rounded_to_hour";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
 // NOCOMMIT: Should not be in an internal directory
 // eslint-disable-next-line no-internal-imports
@@ -41,18 +43,18 @@ const account4 = new AccountModel({
 });
 
 export default function TasksDesignPlaygroundRoute() {
+    const currentTime = useCurrentTimeRoundedToHour();
+
     return (
         <main
             className={sprinkles({
-                backgroundColor: "grey-0",
                 display: "flex",
                 flexDirection: "column",
                 padding: "24",
                 gap: "64",
             })}
-            style={{minHeight: "100%"}}
         >
-            <Box border="grey-10" borderRadius="md">
+            <Box backgroundColor="grey-0" border="grey-10" borderRadius="md">
                 <Box paddingX="5">
                     <Box height="9" display="flex" alignItems="center" borderBottom="grey-5">
                         Task row 1
@@ -103,12 +105,14 @@ export default function TasksDesignPlaygroundRoute() {
                             "Clean the kitchen: Wash the dishes, wipe down countertops, clean appliances (such as the oven and refrigerator), and sweep or mop the floor",
                         )}
                         assignee={account4}
+                        dueTime={subDays(currentTime, 1)}
                     />
                     <TaskCardPresentationalView
                         status="Open"
                         onStatusChange={noop}
                         title={createSimpleTaskTitle("Sort, wash, dry, and fold clothes")}
                         assignee={null}
+                        dueTime={addDays(currentTime, 7)}
                     />
                 </Box>
                 <Box width="full" maxWidth="96" display="flex" flexDirection="column" gap="4">
@@ -117,11 +121,13 @@ export default function TasksDesignPlaygroundRoute() {
                         onStatusChange={noop}
                         title={createSimpleTaskTitle("Vacuum and mop floors")}
                         assignee={account2}
+                        dueTime={null}
                     />
                 </Box>
             </Box>
             <Box display="flex" justifyContent="space-between" gap="4">
                 <Box
+                    backgroundColor="grey-0"
                     flexShrink="0"
                     width="192"
                     style={{height: "56rem"}}
@@ -131,7 +137,15 @@ export default function TasksDesignPlaygroundRoute() {
                 >
                     Task detail
                 </Box>
-                <Box flexGrow="1" display="flex" flexDirection="column" gap="4">
+                <Box
+                    flexGrow="1"
+                    overflow="hidden"
+                    padding="1"
+                    margin="-1"
+                    display="flex"
+                    flexDirection="column"
+                    gap="4"
+                >
                     <TaskCardPresentationalView
                         status="Closed"
                         onStatusChange={noop}
@@ -139,12 +153,14 @@ export default function TasksDesignPlaygroundRoute() {
                             "Clean out the fridge: Remove expired items and wipe shelves",
                         )}
                         assignee={account3}
+                        dueTime={currentTime}
                     />
                     <TaskCardPresentationalView
                         status="Open"
                         onStatusChange={noop}
                         title={createSimpleTaskTitle("Clean windows and mirrors")}
                         assignee={account3}
+                        dueTime={addDays(currentTime, 1)}
                     />
                     <TaskCardPresentationalView
                         status="Open"
@@ -153,12 +169,21 @@ export default function TasksDesignPlaygroundRoute() {
                             "Deep clean the kitchen: Remove all items from the countertops and wipe them down. Scrub the sink, faucet, and stovetop using appropriate cleaners. Clean the oven, inside and out, by following the manufacturer's instructions. Sweep and mop the floor, paying attention to corners and hard-to-reach areas",
                         )}
                         assignee={null}
+                        dueTime={null}
                     />
                     <TaskCardPresentationalView
                         status="Closed"
                         onStatusChange={noop}
                         title={createSimpleTaskTitle("Tidy up the living room")}
                         assignee={null}
+                        dueTime={subDays(currentTime, 7)}
+                    />
+                    <TaskCardPresentationalView
+                        status="Closed"
+                        onStatusChange={noop}
+                        title={createSimpleTaskTitle("Declutter and organize")}
+                        assignee={null}
+                        dueTime={null}
                     />
                     <TaskCardPresentationalView
                         status="Open"
@@ -167,6 +192,7 @@ export default function TasksDesignPlaygroundRoute() {
                             "Remember to take breaks and reward yourself for your hard work!",
                         )}
                         assignee={account1}
+                        dueTime={subYears(currentTime, 2)}
                     />
                 </Box>
             </Box>

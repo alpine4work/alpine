@@ -1,14 +1,17 @@
-import {UserCircle} from "phosphor-react";
-import {useMemo} from "react";
+import {differenceInDays} from "date-fns";
+import {CalendarBlank} from "phosphor-react";
+import {cloneElement, useMemo} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
 import {Box} from "~/client/design/box";
+import {useCurrentTimeRoundedToHour} from "~/client/helpers/use_current_time_rounded_to_hour";
+import {useClientInfo} from "~/client/remix/client_info_context";
 import {TaskTitle} from "~/client/tasks/internal/task_title_schema";
 import {TaskStatus, TaskStatusButton} from "~/client/tasks/playground/task_status_button";
 import {parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {AccountModel} from "~/shared/models/account_model";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
-import {colorSchemeVars, contentSchemaStyles, sprinkles} from "~/shared/styles/styles";
+import {contentSchemaStyles} from "~/shared/styles/styles";
 
 // TODO(calebmer): Needs:
 //
@@ -20,23 +23,94 @@ import {colorSchemeVars, contentSchemaStyles, sprinkles} from "~/shared/styles/s
 // [ ] Custom fields
 // [ ] Subtasks
 // [ ] Open detail interaction
+// [ ] Mark as in progress
 
+/**
+ * The card is a dense non-editable presentation of a task for easy
+ * reading/skimming. By removing the need to edit on this surface we can
+ * optimize for reading.
+ */
 export function TaskCardPresentationalView({
     status,
     onStatusChange,
     title,
     assignee,
+    dueTime,
 }: {
     status: TaskStatus;
     onStatusChange: (status: TaskStatus) => void;
     title: TaskTitle;
     assignee: AccountModel | null;
+    dueTime: Date | null;
 }) {
+    const {timeZone} = useClientInfo();
+    const currentTime = useCurrentTimeRoundedToHour();
+
+    const fieldElements = useMemo(() => {
+        const fieldElements = [];
+
+        if (assignee) {
+            fieldElements.push(
+                <Box display="flex" alignItems="center" gap="2" maxWidth="32">
+                    <Box position="relative" width="4" height="4">
+                        <Box position="absolute" top="-0.5" left="-0.5">
+                            <AccountAvatar size="5" account={assignee} />
+                        </Box>
+                    </Box>
+                    <Box fontStyle="truncate" color="grey-60">
+                        <AccountShortName account={assignee} tooltipPlacement="bottom" />
+                    </Box>
+                </Box>,
+            );
+        }
+
+        if (dueTime) {
+            const dayDifference = differenceInDays(currentTime, dueTime);
+
+            let dueTimeText: string;
+            if (dayDifference === 0) {
+                dueTimeText = "Today";
+            } else if (dayDifference === 1) {
+                dueTimeText = "Yesterday";
+            } else if (dayDifference === -1) {
+                dueTimeText = "Tomorrow";
+            } else {
+                const isCurrentYear = currentTime.getFullYear() === dueTime.getFullYear();
+
+                const formatter = new Intl.DateTimeFormat("en-US", {
+                    timeZone,
+                    calendar: "iso8601",
+                    year: !isCurrentYear ? "numeric" : undefined,
+                    month: "short",
+                    day: "numeric",
+                });
+
+                dueTimeText = formatter.format(dueTime);
+            }
+
+            fieldElements.push(
+                <Box
+                    display="flex"
+                    alignItems="center"
+                    gap="1"
+                    color={status === "Open" && dayDifference >= 1 ? "red-60" : "grey-60"}
+                >
+                    <CalendarBlank size={spacing["4"]} />
+                    <Box fontStyle="truncate">{dueTimeText}</Box>
+                </Box>,
+            );
+        }
+
+        return fieldElements;
+    }, [assignee, currentTime, dueTime, status, timeZone]);
+
     return (
         <Box
             width="full"
             maxWidth="96"
-            boxShadow="elevation-10"
+            overflow="hidden"
+            backgroundColor="grey-0"
+            boxShadow="elevation-5"
             borderRadius="lg"
             padding="5"
             display="flex"
@@ -45,7 +119,7 @@ export function TaskCardPresentationalView({
         >
             <Box
                 display="flex"
-                gap="3"
+                gap="2"
                 // Extra margin on the right to balance margin on the left from status button.
                 paddingRight="3"
             >
@@ -85,29 +159,9 @@ export function TaskCardPresentationalView({
                     )}
                 />
             </Box>
-            {assignee && (
-                <Box display="flex" alignItems="center" gap="3" maxWidth="32">
-                    <Box position="relative" width="4" height="4">
-                        {assignee ? (
-                            <Box position="absolute" top="-1" left="-1">
-                                <AccountAvatar size="6" account={assignee} />
-                            </Box>
-                        ) : (
-                            <UserCircle
-                                size={spacing["7"]}
-                                color={colorSchemeVars["grey-20"]}
-                                weight="thin"
-                                className={sprinkles({
-                                    position: "absolute",
-                                    left: "-1.5",
-                                    top: "-1.5",
-                                })}
-                            />
-                        )}
-                    </Box>
-                    <Box fontStyle="truncate" color="grey-60">
-                        <AccountShortName account={assignee} tooltipPlacement="bottom" />
-                    </Box>
+            {fieldElements.length > 0 && (
+                <Box display="flex" flexWrap="wrap" columnGap="5" rowGap="3">
+                    {fieldElements.map((node, index) => cloneElement(node, {key: index}))}
                 </Box>
             )}
         </Box>

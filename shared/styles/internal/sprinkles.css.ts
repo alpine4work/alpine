@@ -175,6 +175,8 @@ const responsiveProperties = defineProperties({
             baseline: "baseline",
         },
         gap: spacing,
+        rowGap: spacing,
+        columnGap: spacing,
         paddingTop: spacing,
         paddingBottom: spacing,
         paddingLeft: spacing,
