@@ -107,7 +107,14 @@ export function TaskCardPresentationalView({
                     paddingRight="2"
                 >
                     <CalendarBlank size={spacing["4"]} />
-                    <Box fontStyle="truncate">{dueTimeText}</Box>
+                    <Box
+                        fontStyle="truncate"
+                        // A little extra padding before collections which have a solid color which
+                        // makes them look visually closer.
+                        paddingRight="0.5"
+                    >
+                        {dueTimeText}
+                    </Box>
                 </Box>,
             );
         }
