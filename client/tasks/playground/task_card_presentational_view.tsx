@@ -7,9 +7,11 @@ import {Box} from "~/client/design/box";
 import {useCurrentTimeRoundedToHour} from "~/client/helpers/use_current_time_rounded_to_hour";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {TaskTitle} from "~/client/tasks/internal/task_title_schema";
+import {formatTaskDueTime} from "~/client/tasks/playground/internal/format_task_due_time";
+import {TaskCollectionChip} from "~/client/tasks/playground/internal/task_collection_chip";
 import {LocalTaskCollection} from "~/client/tasks/playground/local_task_collection";
 import {TaskStatus, TaskStatusButton} from "~/client/tasks/playground/task_status_button";
-import {parseRemLengthNumber, spacing} from "~/shared/design/spacing";
+import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {AccountModel} from "~/shared/models/account_model";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
 import {contentSchemaStyles} from "~/shared/styles/styles";
@@ -68,45 +70,31 @@ export function TaskCardPresentationalView({
         }
 
         if (dueTime) {
-            const dayDifference = differenceInDays(currentTime, dueTime);
-
-            let dueTimeText: string;
-            if (dayDifference === 0) {
-                dueTimeText = "Today";
-            } else if (dayDifference === 1) {
-                dueTimeText = "Yesterday";
-            } else if (dayDifference === -1) {
-                dueTimeText = "Tomorrow";
-            } else {
-                const isCurrentYear = currentTime.getFullYear() === dueTime.getFullYear();
-
-                const formatter = new Intl.DateTimeFormat("en-US", {
-                    timeZone,
-                    calendar: "iso8601",
-                    year: !isCurrentYear ? "numeric" : undefined,
-                    month: "short",
-                    day: "numeric",
-                });
-
-                dueTimeText = formatter.format(dueTime);
-            }
-
             fieldElements.push(
                 <Box
                     display="flex"
                     alignItems="center"
                     gap="1"
-                    color={status === "Open" && dayDifference >= 1 ? "red-60" : "grey-60"}
-                    paddingRight="2"
+                    color={
+                        status === "Open" && differenceInDays(currentTime, dueTime) >= 1
+                            ? "red-60"
+                            : "grey-60"
+                    }
+                    style={{
+                        paddingRight: addRemLengths(
+                            spacing["2"],
+                            // A little extra padding to offset the negative margin of collection chips.
+                            spacing["0.5"],
+                        ),
+                    }}
                 >
                     <CalendarBlank size={spacing["4"]} />
-                    <Box
-                        fontStyle="truncate"
-                        // A little extra padding before collections which have a solid color which
-                        // makes them look visually closer.
-                        paddingRight="0.5"
-                    >
-                        {dueTimeText}
+                    <Box fontStyle="truncate">
+                        {formatTaskDueTime({
+                            timeZone,
+                            currentTime,
+                            dueTime,
+                        })}
                     </Box>
                 </Box>,
             );
@@ -114,26 +102,8 @@ export function TaskCardPresentationalView({
 
         for (const collection of collections) {
             fieldElements.push(
-                <Box
-                    backgroundColor="grey-5"
-                    height="5"
-                    paddingRight="1.5"
-                    paddingY="0.5"
-                    marginY="-0.5"
-                    marginLeft="-0.5"
-                    borderRadius="base"
-                    display="flex"
-                    alignItems="center"
-                >
-                    <Box width="5" display="flex" justifyContent="center">
-                        <Box
-                            width="1.5"
-                            height="1.5"
-                            borderRadius="full"
-                            backgroundColor={`${collection.color}-50-const`}
-                        />
-                    </Box>
-                    <Box>{collection.name}</Box>
+                <Box marginY="-0.5" marginLeft="-0.5">
+                    <TaskCollectionChip collection={collection} />
                 </Box>,
             );
         }
@@ -196,7 +166,7 @@ export function TaskCardPresentationalView({
                 />
             </Box>
             {fieldElements.length > 0 && (
-                <Box display="flex" flexWrap="wrap" columnGap="3" rowGap="3">
+                <Box display="flex" flexWrap="wrap" gap="3">
                     {fieldElements.map((node, index) => cloneElement(node, {key: index}))}
                 </Box>
             )}
