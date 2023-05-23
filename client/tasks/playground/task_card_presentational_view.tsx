@@ -7,10 +7,9 @@ import {Box} from "~/client/design/box";
 import {useCurrentTimeRoundedToHour} from "~/client/helpers/use_current_time_rounded_to_hour";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {TaskTitle} from "~/client/tasks/internal/task_title_schema";
+import {LocalTaskCollection} from "~/client/tasks/playground/local_task_collection";
 import {TaskStatus, TaskStatusButton} from "~/client/tasks/playground/task_status_button";
 import {parseRemLengthNumber, spacing} from "~/shared/design/spacing";
-import {ThemeColor} from "~/shared/design/theme_colors";
-import {LocalTaskCollectionId} from "~/shared/id/types/id_types";
 import {AccountModel} from "~/shared/models/account_model";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
 import {contentSchemaStyles} from "~/shared/styles/styles";
@@ -26,12 +25,6 @@ import {contentSchemaStyles} from "~/shared/styles/styles";
 // [ ] Subtasks
 // [ ] Open detail interaction
 // [ ] Mark as in progress
-
-export type LocalTaskCollection = {
-    readonly id: LocalTaskCollectionId;
-    readonly name: string;
-    readonly color: ThemeColor;
-};
 
 /**
  * The card is a dense non-editable presentation of a task for easy
@@ -177,7 +170,6 @@ export function TaskCardPresentationalView({
                 </Box>
                 <Box
                     flexGrow="1"
-                    fontSize="100"
                     color={status === "Closed" ? "grey-60" : "grey-text"}
                     style={{
                         overflow: "hidden",

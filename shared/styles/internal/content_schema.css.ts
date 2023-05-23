@@ -134,7 +134,7 @@ export const paragraphFontSize: {
     lineHeight: RemLength;
 } = {
     ...fontSizes["100"],
-    // We use a 1.5x line height for paragraph content.
+    // We use an ~1.5x line height for paragraph content.
     lineHeight: "1.25rem",
 };
 
@@ -144,7 +144,7 @@ export const paragraphClassName = style({
     ...paragraphFontSize,
     // Make sure this node always takes up space even if it is empty. Important
     // when we are rendering placeholders in `<ContentView>`.
-    minHeight: "1.25rem",
+    minHeight: paragraphFontSize.lineHeight,
     marginTop: paragraphMargin,
     marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.

@@ -10,9 +10,11 @@ export type TaskStatus = "Open" | "Closed";
 export function TaskStatusButton({
     status,
     onStatusChange,
+    size = "4",
 }: {
     status: TaskStatus;
     onStatusChange: (status: TaskStatus) => void;
+    size?: "4" | "5";
 }) {
     const {isPressed, pressProps} = usePress({
         onPress: () => {
@@ -23,8 +25,8 @@ export function TaskStatusButton({
     return (
         <Box
             {...pressProps}
-            width="4"
-            height="4"
+            width={size}
+            height={size}
             borderRadius="full"
             display="flex"
             justifyContent="center"
@@ -64,7 +66,10 @@ export function TaskStatusButton({
                 />
             )}
             {status === "Closed" && (
-                <Check weight="bold" size={addRemLengths(spacing["2"], spacing["0.5"])} />
+                <Check
+                    weight="bold"
+                    size={size === "5" ? spacing["3"] : addRemLengths(spacing["2"], spacing["0.5"])}
+                />
             )}
         </Box>
     );

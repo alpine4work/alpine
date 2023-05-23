@@ -1,14 +1,15 @@
 import {addDays, subDays, subYears} from "date-fns";
+import {useState} from "react";
 import {Box} from "~/client/design/box";
 import {useCurrentTimeRoundedToHour} from "~/client/helpers/use_current_time_rounded_to_hour";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
 // NOCOMMIT: Should not be in an internal directory
 // eslint-disable-next-line no-internal-imports
-import {createSimpleTaskTitle} from "~/client/tasks/internal/task_title_schema";
-import {
-    LocalTaskCollection,
-    TaskCardPresentationalView,
-} from "~/client/tasks/playground/task_card_presentational_view";
+import {TaskTitle, createSimpleTaskTitle} from "~/client/tasks/internal/task_title_schema";
+import {LocalTaskCollection} from "~/client/tasks/playground/local_task_collection";
+import {TaskCardPresentationalView} from "~/client/tasks/playground/task_card_presentational_view";
+import {TaskDetailPresentationalView} from "~/client/tasks/playground/task_detail_presentational_view";
+import {TaskStatus} from "~/client/tasks/playground/task_status_button";
 import {noop} from "~/shared/helpers/control/noop";
 import {assertId} from "~/shared/id/id";
 import {AccountId, LocalTaskCollectionId} from "~/shared/id/types/id_types";
@@ -149,11 +150,19 @@ export default function TasksDesignPlaygroundRoute() {
                     flexShrink="0"
                     width="192"
                     style={{height: "56rem"}}
-                    padding="24"
-                    border="grey-10"
-                    borderRadius="md"
+                    boxShadow="elevation-5"
+                    borderRadius="lg"
+                    overflow="hidden"
                 >
-                    Task detail
+                    <TaskDetailDemoView
+                        initialStatus="Open"
+                        initialTitle={createSimpleTaskTitle(
+                            "Clean the kitchen: Wash the dishes, wipe down countertops, clean appliances (such as the oven and refrigerator), and sweep or mop the floor",
+                        )}
+                        initialAssignee={account4}
+                        initialDueTime={currentTime}
+                        initialCollections={[kitchenTaskCollection]}
+                    />
                 </Box>
                 <Box
                     flexGrow="1"
@@ -221,5 +230,36 @@ export default function TasksDesignPlaygroundRoute() {
                 </Box>
             </Box>
         </main>
+    );
+}
+
+function TaskDetailDemoView({
+    initialStatus,
+    initialTitle,
+    initialAssignee,
+    initialDueTime,
+    initialCollections,
+}: {
+    initialStatus: TaskStatus;
+    initialTitle: TaskTitle;
+    initialAssignee: AccountModel;
+    initialDueTime: Date | null;
+    initialCollections: ReadonlyArray<LocalTaskCollection>;
+}) {
+    const [status, setStatus] = useState(initialStatus);
+    const [title] = useState(initialTitle);
+    const [assignee] = useState(initialAssignee);
+    const [dueTime] = useState(initialDueTime);
+    const [collections] = useState(initialCollections);
+
+    return (
+        <TaskDetailPresentationalView
+            status={status}
+            onStatusChange={setStatus}
+            title={title}
+            assignee={assignee}
+            dueTime={dueTime}
+            collections={collections}
+        />
     );
 }
