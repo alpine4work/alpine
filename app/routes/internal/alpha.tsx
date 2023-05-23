@@ -4,6 +4,7 @@ import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {Spacer} from "~/client/design/spacer";
 import {TextInput} from "~/client/design/text_input";
+import {useClientInfo} from "~/client/remix/client_info_context";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
 import {
@@ -45,17 +46,18 @@ export async function loader({context}: LoaderArgs) {
 
 export default function AlphaManagementPage() {
     const context = useAppContext();
+    const {locale} = useClientInfo();
     const {configuration, requests: loadedRequests} = useLoaderDataWithSchema(LoaderSchema);
 
     const dateTimeFormatter = useMemo(() => {
-        return new Intl.DateTimeFormat("en-US", {
+        return new Intl.DateTimeFormat(locale, {
             year: "numeric",
             month: "short",
             day: "numeric",
             hour: "numeric",
             minute: "numeric",
         });
-    }, []);
+    }, [locale]);
 
     const [decidedEmailAddresses, setDecidedEmailAddresses] = useState<ReadonlySet<string>>(
         new Set(),

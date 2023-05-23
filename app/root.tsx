@@ -191,11 +191,11 @@ export default function Root({error}: {error?: unknown}) {
         >
             <IconContext.Provider value={{color: "currentColor", size: spacing["5"]}}>
                 <AppContextProvider value={context}>
-                    <ClientInfoContextProvider
-                        initialClientInfo={loaderData?.clientInfo ?? defaultClientInfo}
-                    >
-                        <CurrentTimeContextProvider initialTime={initialTime}>
-                            <AppInitialRenderContextProvider>
+                    <AppInitialRenderContextProvider>
+                        <ClientInfoContextProvider
+                            initialClientInfo={loaderData?.clientInfo ?? defaultClientInfo}
+                        >
+                            <CurrentTimeContextProvider initialTime={initialTime}>
                                 <IsMobileContextProvider>
                                     <WaitForNavigationContextProvider>
                                         <RootNavigationContextProvider>
@@ -211,9 +211,9 @@ export default function Root({error}: {error?: unknown}) {
                                         </RootNavigationContextProvider>
                                     </WaitForNavigationContextProvider>
                                 </IsMobileContextProvider>
-                            </AppInitialRenderContextProvider>
-                        </CurrentTimeContextProvider>
-                    </ClientInfoContextProvider>
+                            </CurrentTimeContextProvider>
+                        </ClientInfoContextProvider>
+                    </AppInitialRenderContextProvider>
                 </AppContextProvider>
             </IconContext.Provider>
         </UpdateMetaTitleContextProvider>

@@ -539,7 +539,7 @@ function InboxEntryLatestMessagePreview({
     } | null;
 }) {
     const currentTime = useCurrentTimeRoundedToHour();
-    const {timeZone} = useClientInfo();
+    const {timeZone, locale} = useClientInfo();
 
     const isMobile = useIsMobile();
     const contentViewScale =
@@ -599,7 +599,7 @@ function InboxEntryLatestMessagePreview({
                 <Box flexShrink="0" style={contentSchemaStyles.paragraphFontSize} marginLeft="0.5">
                     {useMemo(() => {
                         if (differenceInHours(currentTime, time) < 24) {
-                            const formatter = new Intl.DateTimeFormat("en-US", {
+                            const formatter = new Intl.DateTimeFormat(locale, {
                                 timeZone,
                                 calendar: "iso8601",
                                 hour: "numeric",
@@ -611,7 +611,7 @@ function InboxEntryLatestMessagePreview({
                                 .format(time)
                                 .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
                         } else {
-                            const formatter = new Intl.DateTimeFormat("en-US", {
+                            const formatter = new Intl.DateTimeFormat(locale, {
                                 timeZone,
                                 calendar: "iso8601",
                                 month: "short",
@@ -622,7 +622,7 @@ function InboxEntryLatestMessagePreview({
                                 .format(time)
                                 .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
                         }
-                    }, [currentTime, time, timeZone])}
+                    }, [currentTime, locale, time, timeZone])}
                 </Box>
             </Box>
         </Box>

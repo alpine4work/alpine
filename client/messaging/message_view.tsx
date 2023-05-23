@@ -160,7 +160,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     roomDisplayedCreatedTime?: Date;
     marginX?: Spacing;
 }) {
-    const {timeZone} = useClientInfo();
+    const {timeZone, locale} = useClientInfo();
     const currentTime = useCurrentTimeRoundedToHour();
 
     const shouldMergeWithPreviousMessage: boolean =
@@ -605,7 +605,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
         const isCurrentYear = currentTime.getFullYear() === message.createdTime.getFullYear();
 
-        const formatter = new Intl.DateTimeFormat("en-US", {
+        const formatter = new Intl.DateTimeFormat(locale, {
             timeZone,
             calendar: "iso8601",
             year: !isCurrentYear ? "numeric" : undefined,
@@ -639,6 +639,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     }, [
         currentTime,
         isFirstMessage,
+        locale,
         message.createdTime,
         previousMessage,
         roomDisplayedCreatedTime,

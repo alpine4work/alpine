@@ -73,6 +73,7 @@ export function ChatAccountPicker({
     onUpdateSelectedAccounts,
     shouldShowPendingSpinner,
     suggestedChats,
+    withMobileLayout,
 }: {
     selectedAccounts: ReadonlyArray<AccountModel>;
     onUpdateSelectedAccounts: (
@@ -80,6 +81,7 @@ export function ChatAccountPicker({
     ) => void;
     shouldShowPendingSpinner: boolean;
     suggestedChats: ReadonlyArray<ChatModel>;
+    withMobileLayout: boolean;
 }) {
     const {currentAccount} = useSpaceContext();
     const allUnsortedAccounts = useExpensivelyLoadAllSpaceAccounts() ?? emptyArray;
@@ -464,7 +466,7 @@ export function ChatAccountPicker({
                 <Box
                     data-testid="ChatAccountPickerInput"
                     // Border radius for the focus ring
-                    borderTopRadius={{desktop: "md"}}
+                    borderTopRadius={!withMobileLayout ? "md" : undefined}
                     display="flex"
                     alignItems="flex-start"
                 >

@@ -1,4 +1,5 @@
 import {useMemo} from "react";
+import {useClientInfo} from "~/client/remix/client_info_context";
 
 /**
  * Format a number as a human readable string. In English adds thousands
@@ -19,14 +20,16 @@ export function PrettyNumber({
     label?: string;
     pluralLabel?: string;
 }) {
+    const {locale} = useClientInfo();
+
     const prettyNumber = useMemo(() => {
-        const formatter = new Intl.NumberFormat("en-US", {
+        const formatter = new Intl.NumberFormat(locale, {
             notation: "standard",
             style: "decimal",
         });
 
         return formatter.format(number);
-    }, [number]);
+    }, [locale, number]);
 
     return (
         <>

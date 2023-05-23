@@ -155,6 +155,7 @@ export default function NewChatRoute({withMobileLayout}: {withMobileLayout?: boo
                         onUpdateSelectedAccounts={setSelectedAccounts}
                         shouldShowPendingSpinner={shouldShowAccountPickerPendingSpinner}
                         suggestedChats={loaderData.suggestedChats}
+                        withMobileLayout={withMobileLayout}
                     />
                 </Box>
                 <NewChatMessagingView selectedChat={loaderData.selectedChat} />

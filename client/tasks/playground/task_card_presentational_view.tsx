@@ -1,4 +1,4 @@
-import {differenceInDays} from "date-fns";
+import {CalendarDate} from "@internationalized/date";
 import {CalendarBlank} from "phosphor-react";
 import {cloneElement, useMemo} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
@@ -7,7 +7,7 @@ import {Box} from "~/client/design/box";
 import {useCurrentTimeRoundedToHour} from "~/client/helpers/use_current_time_rounded_to_hour";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {TaskTitle} from "~/client/tasks/internal/task_title_schema";
-import {formatTaskDueTime} from "~/client/tasks/playground/internal/format_task_due_time";
+import {formatTaskDueDate} from "~/client/tasks/playground/internal/format_task_due_date";
 import {TaskCollectionChip} from "~/client/tasks/playground/internal/task_collection_chip";
 import {LocalTaskCollection} from "~/client/tasks/playground/local_task_collection";
 import {TaskStatus, TaskStatusButton} from "~/client/tasks/playground/task_status_button";
@@ -38,17 +38,17 @@ export function TaskCardPresentationalView({
     onStatusChange,
     title,
     assignee,
-    dueTime,
+    dueDate,
     collections,
 }: {
     status: TaskStatus;
     onStatusChange: (status: TaskStatus) => void;
     title: TaskTitle;
     assignee: AccountModel | null;
-    dueTime: Date | null;
+    dueDate: CalendarDate | null;
     collections: ReadonlyArray<LocalTaskCollection>;
 }) {
-    const {timeZone} = useClientInfo();
+    const {timeZone, locale} = useClientInfo();
     const currentTime = useCurrentTimeRoundedToHour();
 
     const fieldElements = useMemo(() => {
@@ -69,17 +69,20 @@ export function TaskCardPresentationalView({
             );
         }
 
-        if (dueTime) {
+        if (dueDate) {
+            const {isAfterDueDate, dueDateString} = formatTaskDueDate({
+                timeZone,
+                locale,
+                currentTime,
+                dueDate,
+            });
+
             fieldElements.push(
                 <Box
                     display="flex"
                     alignItems="center"
                     gap="1"
-                    color={
-                        status === "Open" && differenceInDays(currentTime, dueTime) >= 1
-                            ? "red-60"
-                            : "grey-60"
-                    }
+                    color={status === "Open" && isAfterDueDate ? "red-60" : "grey-60"}
                     style={{
                         paddingRight: addRemLengths(
                             spacing["2"],
@@ -89,13 +92,7 @@ export function TaskCardPresentationalView({
                     }}
                 >
                     <CalendarBlank size={spacing["4"]} />
-                    <Box fontStyle="truncate">
-                        {formatTaskDueTime({
-                            timeZone,
-                            currentTime,
-                            dueTime,
-                        })}
-                    </Box>
+                    <Box fontStyle="truncate">{dueDateString}</Box>
                 </Box>,
             );
         }
@@ -109,7 +106,7 @@ export function TaskCardPresentationalView({
         }
 
         return fieldElements;
-    }, [assignee, collections, currentTime, dueTime, status, timeZone]);
+    }, [assignee, collections, currentTime, dueDate, locale, status, timeZone]);
 
     return (
         <Box

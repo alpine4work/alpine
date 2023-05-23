@@ -1,21 +1,17 @@
-import {differenceInDays} from "date-fns";
-import {CalendarBlank} from "phosphor-react";
-import {ReactNode, useMemo} from "react";
+import {CalendarDate} from "@internationalized/date";
+import {ReactNode, useId, useMemo} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
-import {useCurrentTimeRoundedToHour} from "~/client/helpers/use_current_time_rounded_to_hour";
-import {useClientInfo} from "~/client/remix/client_info_context";
 import {TaskTitle} from "~/client/tasks/internal/task_title_schema";
-import {formatTaskDueTime} from "~/client/tasks/playground/internal/format_task_due_time";
 import {TaskCollectionChip} from "~/client/tasks/playground/internal/task_collection_chip";
+import {TaskDetailDueDateField} from "~/client/tasks/playground/internal/task_detail_due_date_field";
 import {TaskDetailTitleInput} from "~/client/tasks/playground/internal/task_detail_title_input";
 import {LocalTaskCollection} from "~/client/tasks/playground/local_task_collection";
 import {TaskStatus, TaskStatusButton} from "~/client/tasks/playground/task_status_button";
-import {spacing} from "~/shared/design/spacing";
 import {AccountModel} from "~/shared/models/account_model";
-import {fontSizes} from "~/shared/styles/styles";
+import {fontSizes, sprinkles} from "~/shared/styles/styles";
 
 // TODO(calebmer): Needs:
 //
@@ -37,7 +33,8 @@ export function TaskDetailPresentationalView({
     title,
     onTitleChange,
     assignee,
-    dueTime,
+    dueDate,
+    onDueDateChange,
     collections,
 }: {
     status: TaskStatus;
@@ -45,12 +42,10 @@ export function TaskDetailPresentationalView({
     title: TaskTitle;
     onTitleChange: (title: TaskTitle) => void;
     assignee: AccountModel | null;
-    dueTime: Date | null;
+    dueDate: CalendarDate | null;
+    onDueDateChange: (dueDate: CalendarDate | null) => void;
     collections: ReadonlyArray<LocalTaskCollection>;
 }) {
-    const {timeZone} = useClientInfo();
-    const currentTime = useCurrentTimeRoundedToHour();
-
     return (
         <Box minHeight="full" display="flex">
             <Box
@@ -84,7 +79,11 @@ export function TaskDetailPresentationalView({
                             paddingRight="4"
                             color={status === "Closed" ? "grey-60" : "grey-text"}
                         >
-                            <TaskDetailTitleInput title={title} onTitleChange={onTitleChange} />
+                            <TaskDetailTitleInput
+                                title={title}
+                                onTitleChange={onTitleChange}
+                                placeholder="Untitled"
+                            />
                         </Box>
                     </FocusRing>
                 </Box>
@@ -108,40 +107,18 @@ export function TaskDetailPresentationalView({
                         ),
                         [assignee],
                     )}
-                    {useMemo(
-                        () => (
-                            <TaskDetailViewField label="Due date">
-                                {dueTime && (
-                                    <Box
-                                        display="flex"
-                                        alignItems="center"
-                                        gap="1"
-                                        color={
-                                            status === "Open" &&
-                                            differenceInDays(currentTime, dueTime) >= 1
-                                                ? "red-60"
-                                                : undefined
-                                        }
-                                    >
-                                        <CalendarBlank size={spacing["4"]} />
-                                        <Box
-                                            fontStyle="truncate"
-                                            // A little extra padding before collections which have a solid color which
-                                            // makes them look visually closer.
-                                            paddingRight="0.5"
-                                        >
-                                            {formatTaskDueTime({
-                                                timeZone,
-                                                currentTime,
-                                                dueTime,
-                                            })}
-                                        </Box>
-                                    </Box>
-                                )}
-                            </TaskDetailViewField>
-                        ),
-                        [currentTime, dueTime, status, timeZone],
-                    )}
+                    <TaskDetailViewField label="Due date">
+                        {({"aria-labelledby": ariaLabelledBy}) =>
+                            dueDate && (
+                                <TaskDetailDueDateField
+                                    status={status}
+                                    dueDate={dueDate}
+                                    onDueDateChange={onDueDateChange}
+                                    aria-labelledby={ariaLabelledBy}
+                                />
+                            )
+                        }
+                    </TaskDetailViewField>
                     {useMemo(
                         () => (
                             <TaskDetailViewField label="Collections">
@@ -162,13 +139,31 @@ export function TaskDetailPresentationalView({
     );
 }
 
-function TaskDetailViewField({label, children}: {label: string; children?: ReactNode}) {
+function TaskDetailViewField({
+    label,
+    children,
+}: {
+    label: string;
+    children?: ReactNode | ((props: {"aria-labelledby": string}) => ReactNode);
+}) {
+    const labelId = useId();
+
     return (
         <Box display="flex" gap="5">
-            <Box width="24" color="grey-50" textAlign="right">
+            <label
+                id={labelId}
+                className={sprinkles({
+                    display: "block",
+                    width: "24",
+                    color: "grey-50",
+                    textAlign: "right",
+                })}
+            >
                 {label}
+            </label>
+            <Box>
+                {typeof children === "function" ? children({"aria-labelledby": labelId}) : children}
             </Box>
-            <Box>{children}</Box>
         </Box>
     );
 }

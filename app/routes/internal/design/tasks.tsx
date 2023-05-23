@@ -1,7 +1,8 @@
-import {addDays, subDays, subYears} from "date-fns";
-import {useState} from "react";
+import {CalendarDate, parseAbsolute, toCalendarDate} from "@internationalized/date";
+import {useMemo, useState} from "react";
 import {Box} from "~/client/design/box";
 import {useCurrentTimeRoundedToHour} from "~/client/helpers/use_current_time_rounded_to_hour";
+import {useClientInfo} from "~/client/remix/client_info_context";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
 // NOCOMMIT: Should not be in an internal directory
 // eslint-disable-next-line no-internal-imports
@@ -59,7 +60,12 @@ const bathroomTaskCollection: LocalTaskCollection = {
 };
 
 export default function TasksDesignPlaygroundRoute() {
+    const {timeZone} = useClientInfo();
     const currentTime = useCurrentTimeRoundedToHour();
+    const currentDate = useMemo(
+        () => toCalendarDate(parseAbsolute(currentTime.toISOString(), timeZone)),
+        [currentTime, timeZone],
+    );
 
     return (
         <main
@@ -121,7 +127,7 @@ export default function TasksDesignPlaygroundRoute() {
                             "Clean the kitchen: Wash the dishes, wipe down countertops, clean appliances (such as the oven and refrigerator), and sweep or mop the floor",
                         )}
                         assignee={account4}
-                        dueTime={subDays(currentTime, 1)}
+                        dueDate={currentDate.copy().subtract({days: 1})}
                         collections={[kitchenTaskCollection]}
                     />
                     <TaskCardPresentationalView
@@ -129,7 +135,7 @@ export default function TasksDesignPlaygroundRoute() {
                         onStatusChange={noop}
                         title={createSimpleTaskTitle("Sort, wash, dry, and fold clothes")}
                         assignee={null}
-                        dueTime={addDays(currentTime, 7)}
+                        dueDate={currentDate.copy().add({days: 7})}
                         collections={[kitchenTaskCollection, bathroomTaskCollection]}
                     />
                 </Box>
@@ -139,7 +145,7 @@ export default function TasksDesignPlaygroundRoute() {
                         onStatusChange={noop}
                         title={createSimpleTaskTitle("Vacuum and mop floors")}
                         assignee={account2}
-                        dueTime={null}
+                        dueDate={null}
                         collections={[]}
                     />
                 </Box>
@@ -160,7 +166,7 @@ export default function TasksDesignPlaygroundRoute() {
                             "Clean the kitchen: Wash the dishes, wipe down countertops, clean appliances (such as the oven and refrigerator), and sweep or mop the floor",
                         )}
                         initialAssignee={account4}
-                        initialDueTime={currentTime}
+                        initialDueDate={currentDate}
                         initialCollections={[kitchenTaskCollection]}
                     />
                 </Box>
@@ -180,7 +186,7 @@ export default function TasksDesignPlaygroundRoute() {
                             "Clean out the fridge: Remove expired items and wipe shelves",
                         )}
                         assignee={account3}
-                        dueTime={currentTime}
+                        dueDate={currentDate}
                         collections={[kitchenTaskCollection]}
                     />
                     <TaskCardPresentationalView
@@ -188,7 +194,7 @@ export default function TasksDesignPlaygroundRoute() {
                         onStatusChange={noop}
                         title={createSimpleTaskTitle("Clean windows and mirrors")}
                         assignee={account3}
-                        dueTime={addDays(currentTime, 1)}
+                        dueDate={currentDate.copy().add({days: 1})}
                         collections={[bathroomTaskCollection, kitchenTaskCollection]}
                     />
                     <TaskCardPresentationalView
@@ -198,7 +204,7 @@ export default function TasksDesignPlaygroundRoute() {
                             "Deep clean the kitchen: Remove all items from the countertops and wipe them down. Scrub the sink, faucet, and stovetop using appropriate cleaners. Clean the oven, inside and out, by following the manufacturer's instructions. Sweep and mop the floor, paying attention to corners and hard-to-reach areas",
                         )}
                         assignee={null}
-                        dueTime={null}
+                        dueDate={null}
                         collections={[kitchenTaskCollection]}
                     />
                     <TaskCardPresentationalView
@@ -206,7 +212,7 @@ export default function TasksDesignPlaygroundRoute() {
                         onStatusChange={noop}
                         title={createSimpleTaskTitle("Tidy up the living room")}
                         assignee={null}
-                        dueTime={subDays(currentTime, 7)}
+                        dueDate={currentDate.copy().subtract({days: 7})}
                         collections={[]}
                     />
                     <TaskCardPresentationalView
@@ -214,7 +220,7 @@ export default function TasksDesignPlaygroundRoute() {
                         onStatusChange={noop}
                         title={createSimpleTaskTitle("Declutter and organize")}
                         assignee={null}
-                        dueTime={null}
+                        dueDate={null}
                         collections={[]}
                     />
                     <TaskCardPresentationalView
@@ -224,7 +230,7 @@ export default function TasksDesignPlaygroundRoute() {
                             "Remember to take breaks and reward yourself for your hard work!",
                         )}
                         assignee={account1}
-                        dueTime={subYears(currentTime, 2)}
+                        dueDate={currentDate.copy().subtract({years: 2})}
                         collections={[]}
                     />
                 </Box>
@@ -237,19 +243,19 @@ function TaskDetailDemoView({
     initialStatus,
     initialTitle,
     initialAssignee,
-    initialDueTime,
+    initialDueDate,
     initialCollections,
 }: {
     initialStatus: TaskStatus;
     initialTitle: TaskTitle;
     initialAssignee: AccountModel;
-    initialDueTime: Date | null;
+    initialDueDate: CalendarDate | null;
     initialCollections: ReadonlyArray<LocalTaskCollection>;
 }) {
     const [status, setStatus] = useState(initialStatus);
     const [title, setTitle] = useState(initialTitle);
     const [assignee] = useState(initialAssignee);
-    const [dueTime] = useState(initialDueTime);
+    const [dueDate, setDueDate] = useState(initialDueDate);
     const [collections] = useState(initialCollections);
 
     return (
@@ -259,7 +265,8 @@ function TaskDetailDemoView({
             title={title}
             onTitleChange={setTitle}
             assignee={assignee}
-            dueTime={dueTime}
+            dueDate={dueDate}
+            onDueDateChange={setDueDate}
             collections={collections}
         />
     );

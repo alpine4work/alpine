@@ -151,13 +151,31 @@ function FocusRing(
                 // to mouse we'd like to keep the ring.
                 (isVisibleFromAnyFocus || isFocusVisible());
 
-            const update = () => {
-                if (isActive()) {
-                    currentActiveElement = targetElement;
-                    setIsActive(true);
-                } else {
-                    if (currentActiveElement === targetElement) currentActiveElement = null;
-                    setIsActive(false);
+            let isFocusWithin = targetElement.contains(document.activeElement);
+
+            const update = (event?: FocusEvent) => {
+                const nextIsFocusWithin = targetElement.contains(
+                    event?.type === "focusout"
+                        ? (event.relatedTarget as Node | null)
+                        : document.activeElement,
+                );
+
+                // Only update our active state if focus is moving in or out of the target
+                // element. Not if focus is moving within sub-elements of the target element.
+                //
+                // This way if we have an input (like a date input) comprised of multiple
+                // focusable segments, clicking in then keyboard navigating doesn't show the
+                // focus ring.
+                if (isFocusWithin !== nextIsFocusWithin) {
+                    isFocusWithin = nextIsFocusWithin;
+
+                    if (isActive()) {
+                        currentActiveElement = targetElement;
+                        setIsActive(true);
+                    } else {
+                        if (currentActiveElement === targetElement) currentActiveElement = null;
+                        setIsActive(false);
+                    }
                 }
             };
 

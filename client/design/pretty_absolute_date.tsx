@@ -11,13 +11,13 @@ import {useClientInfo} from "~/client/remix/client_info_context";
  * a relative style like "5 days ago".
  */
 export function PrettyAbsoluteDate({date, placement}: {date: Date; placement?: OverlayPlacement}) {
-    const {timeZone} = useClientInfo();
+    const {timeZone, locale} = useClientInfo();
     const currentTime = useCurrentTimeRoundedToHour();
 
     const formattedDate = useMemo(() => {
         const isCurrentYear = currentTime.getFullYear() === date.getFullYear();
 
-        const formatter = new Intl.DateTimeFormat("en-US", {
+        const formatter = new Intl.DateTimeFormat(locale, {
             timeZone,
             calendar: "iso8601",
             year: !isCurrentYear ? "numeric" : undefined,
@@ -32,7 +32,7 @@ export function PrettyAbsoluteDate({date, placement}: {date: Date; placement?: O
             .format(date)
             .replace(/, (\d+:\d+)/, " at $1")
             .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
-    }, [currentTime, date, timeZone]);
+    }, [currentTime, date, locale, timeZone]);
 
     return (
         <Tooltip content={<PrettyAbsoluteDateTooltipContent date={date} />} placement={placement}>
@@ -45,10 +45,10 @@ export function PrettyAbsoluteDate({date, placement}: {date: Date; placement?: O
  * The tooltip content of a `<PrettyAbsoluteDate>`.
  */
 export function PrettyAbsoluteDateTooltipContent({date}: {date: Date}) {
-    const {timeZone} = useClientInfo();
+    const {timeZone, locale} = useClientInfo();
 
     const formattedDate = useMemo(() => {
-        const formatter = new Intl.DateTimeFormat("en-US", {
+        const formatter = new Intl.DateTimeFormat(locale, {
             timeZone,
             calendar: "iso8601",
             weekday: "long",
@@ -63,7 +63,7 @@ export function PrettyAbsoluteDateTooltipContent({date}: {date: Date}) {
         return formatter
             .format(date)
             .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
-    }, [date, timeZone]);
+    }, [date, locale, timeZone]);
 
     return <>{formattedDate}</>;
 }

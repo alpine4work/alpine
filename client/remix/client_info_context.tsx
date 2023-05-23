@@ -1,5 +1,6 @@
 import Cookies from "js-cookie";
 import {ReactNode, createContext, useContext, useEffect, useState} from "react";
+import {I18nProvider} from "react-aria";
 import {mobileMaxScreenWidth} from "~/shared/design/spacing";
 import {InternalError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
@@ -22,6 +23,7 @@ export const defaultClientInfo: ClientInfo = {
      * [1]: https://www.browserstack.com/guide/ideal-screen-sizes-for-responsive-design
      */
     screenWidth: 1920,
+
     /**
      * The default screen height we use when server-side rendering when we don't
      * know what the user's actual screen height is. 1080px is the height of the
@@ -31,11 +33,18 @@ export const defaultClientInfo: ClientInfo = {
      * [1]: https://www.browserstack.com/guide/ideal-screen-sizes-for-responsive-design
      */
     screenHeight: 1080,
+
     /**
      * We use the New York time zone when we haven't gotten the client's actual
      * time zone since that's where our company is based.
      */
     timeZone: defaultTimeZone,
+
+    /**
+     * We use English as the default locale when we haven't gotten the client's
+     * actual locale since we are a US company.
+     */
+    locale: "en-US",
 };
 
 /**
@@ -59,11 +68,14 @@ export const defaultMobileClientInfo: ClientInfo = {
     screenHeight: 1366,
 };
 
-const clientInfo = new Lazy(() => ({
-    screenWidth: window.screen.width,
-    screenHeight: window.screen.height,
-    timeZone: getCurrentTimeZone(),
-}));
+const clientInfo = new Lazy(
+    (): ClientInfo => ({
+        screenWidth: window.screen.width,
+        screenHeight: window.screen.height,
+        timeZone: getCurrentTimeZone(),
+        locale: "en-US",
+    }),
+);
 
 /**
  * Get the current client info without listening for changes.
@@ -128,5 +140,15 @@ export function ClientInfoContextProvider({
         }
     }, []);
 
-    return <ClientInfoContext.Provider value={clientInfo}>{children}</ClientInfoContext.Provider>;
+    return (
+        <ClientInfoContext.Provider value={clientInfo}>
+            <I18nProvider
+                // Also render `react-aria`'s `I18nProvider` so that `react-aria` hooks get the
+                // correct locale.
+                locale={clientInfo.locale}
+            >
+                {children}
+            </I18nProvider>
+        </ClientInfoContext.Provider>
+    );
 }
