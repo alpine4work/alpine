@@ -1,15 +1,17 @@
 import {CalendarDate} from "@internationalized/date";
-import {ReactNode, useId, useMemo} from "react";
+import {ReactNode, useId, useMemo, useRef} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
+import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element";
 import {TaskTitle} from "~/client/tasks/internal/task_title_schema";
 import {TaskCollectionChip} from "~/client/tasks/playground/internal/task_collection_chip";
 import {TaskDetailDueDateField} from "~/client/tasks/playground/internal/task_detail_due_date_field";
 import {TaskDetailTitleInput} from "~/client/tasks/playground/internal/task_detail_title_input";
 import {LocalTaskCollection} from "~/client/tasks/playground/local_task_collection";
 import {TaskStatus, TaskStatusButton} from "~/client/tasks/playground/task_status_button";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {AccountModel} from "~/shared/models/account_model";
 import {fontSizes, sprinkles} from "~/shared/styles/styles";
 
@@ -147,6 +149,7 @@ function TaskDetailViewField({
     children?: ReactNode | ((props: {"aria-labelledby": string}) => ReactNode);
 }) {
     const labelId = useId();
+    const valueRef = useRef<HTMLDivElement>(null);
 
     return (
         <Box display="flex" gap="5">
@@ -158,10 +161,17 @@ function TaskDetailViewField({
                     color: "grey-50",
                     textAlign: "right",
                 })}
+                // As an affordance for mouse users, when the label is clicked we focus
+                // the first element in the input.
+                onClick={() => {
+                    getNextFocusableElementIfExists(null, {
+                        withinElement: assertExists(valueRef.current),
+                    })?.focus();
+                }}
             >
                 {label}
             </label>
-            <Box>
+            <Box ref={valueRef}>
                 {typeof children === "function" ? children({"aria-labelledby": labelId}) : children}
             </Box>
         </Box>
