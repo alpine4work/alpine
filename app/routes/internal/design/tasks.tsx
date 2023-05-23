@@ -247,7 +247,7 @@ function TaskDetailDemoView({
     initialCollections: ReadonlyArray<LocalTaskCollection>;
 }) {
     const [status, setStatus] = useState(initialStatus);
-    const [title] = useState(initialTitle);
+    const [title, setTitle] = useState(initialTitle);
     const [assignee] = useState(initialAssignee);
     const [dueTime] = useState(initialDueTime);
     const [collections] = useState(initialCollections);
@@ -257,6 +257,7 @@ function TaskDetailDemoView({
             status={status}
             onStatusChange={setStatus}
             title={title}
+            onTitleChange={setTitle}
             assignee={assignee}
             dueTime={dueTime}
             collections={collections}

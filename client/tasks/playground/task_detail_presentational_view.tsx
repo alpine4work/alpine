@@ -4,21 +4,22 @@ import {ReactNode, useMemo} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
 import {Box} from "~/client/design/box";
+import {FocusRing} from "~/client/design/focus_ring";
 import {useCurrentTimeRoundedToHour} from "~/client/helpers/use_current_time_rounded_to_hour";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {TaskTitle} from "~/client/tasks/internal/task_title_schema";
 import {formatTaskDueTime} from "~/client/tasks/playground/internal/format_task_due_time";
 import {TaskCollectionChip} from "~/client/tasks/playground/internal/task_collection_chip";
+import {TaskDetailTitleInput} from "~/client/tasks/playground/internal/task_detail_title_input";
 import {LocalTaskCollection} from "~/client/tasks/playground/local_task_collection";
 import {TaskStatus, TaskStatusButton} from "~/client/tasks/playground/task_status_button";
 import {spacing} from "~/shared/design/spacing";
 import {AccountModel} from "~/shared/models/account_model";
-import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
 import {fontSizes} from "~/shared/styles/styles";
 
 // TODO(calebmer): Needs:
 //
-// [ ] Title
+// [x] Title
 // [x] Open/close button
 // [ ] Assignee field
 // [ ] Due date field
@@ -34,6 +35,7 @@ export function TaskDetailPresentationalView({
     status,
     onStatusChange,
     title,
+    onTitleChange,
     assignee,
     dueTime,
     collections,
@@ -41,6 +43,7 @@ export function TaskDetailPresentationalView({
     status: TaskStatus;
     onStatusChange: (status: TaskStatus) => void;
     title: TaskTitle;
+    onTitleChange: (title: TaskTitle) => void;
     assignee: AccountModel | null;
     dueTime: Date | null;
     collections: ReadonlyArray<LocalTaskCollection>;
@@ -59,36 +62,32 @@ export function TaskDetailPresentationalView({
                 gap="7"
                 borderRight="grey-10"
             >
-                {useMemo(
-                    () => (
-                        <Box display="flex" gap="4">
-                            <Box
-                                flexShrink="0"
-                                display="flex"
-                                alignItems="center"
-                                style={{height: fontSizes["300"].lineHeight}}
-                            >
-                                <TaskStatusButton
-                                    size="5"
-                                    status={status}
-                                    onStatusChange={onStatusChange}
-                                />
-                            </Box>
-                            <Box
-                                flexGrow="1"
-                                fontSize="300"
-                                // Some extra padding to visually balance the title with the left-aligned
-                                // status button.
-                                paddingRight="4"
-                                color={status === "Closed" ? "grey-60" : "grey-text"}
-                                dangerouslySetInnerHTML={{
-                                    __html: serializeProsemirrorFragmentToHtml(title.content),
-                                }}
-                            />
+                <Box display="flex" gap="4">
+                    <Box
+                        flexShrink="0"
+                        display="flex"
+                        alignItems="center"
+                        style={{height: fontSizes["300"].lineHeight}}
+                    >
+                        <TaskStatusButton
+                            size="5"
+                            status={status}
+                            onStatusChange={onStatusChange}
+                        />
+                    </Box>
+                    <FocusRing isVisibleWhenFocusWithin>
+                        <Box
+                            flexGrow="1"
+                            fontSize="300"
+                            // Some extra padding to visually balance the title with the left-aligned
+                            // status button.
+                            paddingRight="4"
+                            color={status === "Closed" ? "grey-60" : "grey-text"}
+                        >
+                            <TaskDetailTitleInput title={title} onTitleChange={onTitleChange} />
                         </Box>
-                    ),
-                    [onStatusChange, status, title],
-                )}
+                    </FocusRing>
+                </Box>
                 <Box display="flex" flexDirection="column" gap="5">
                     {useMemo(
                         () => (
