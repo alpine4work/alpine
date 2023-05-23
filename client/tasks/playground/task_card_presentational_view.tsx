@@ -4,7 +4,7 @@ import {cloneElement, useMemo} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
 import {Box} from "~/client/design/box";
-import {useCurrentTimeRoundedToHour} from "~/client/helpers/use_current_time_rounded_to_hour";
+import {useCurrentDate} from "~/client/helpers/use_current_time_rounded_to_hour";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {TaskTitle} from "~/client/tasks/internal/task_title_schema";
 import {formatTaskDueDate} from "~/client/tasks/playground/internal/format_task_due_date";
@@ -49,7 +49,7 @@ export function TaskCardPresentationalView({
     collections: ReadonlyArray<LocalTaskCollection>;
 }) {
     const {timeZone, locale} = useClientInfo();
-    const currentTime = useCurrentTimeRoundedToHour();
+    const currentDate = useCurrentDate();
 
     const fieldElements = useMemo(() => {
         const fieldElements = [];
@@ -73,7 +73,7 @@ export function TaskCardPresentationalView({
             const {isAfterDueDate, dueDateString} = formatTaskDueDate({
                 timeZone,
                 locale,
-                currentTime,
+                currentDate,
                 dueDate,
             });
 
@@ -106,7 +106,7 @@ export function TaskCardPresentationalView({
         }
 
         return fieldElements;
-    }, [assignee, collections, currentTime, dueDate, locale, status, timeZone]);
+    }, [assignee, collections, currentDate, dueDate, locale, status, timeZone]);
 
     return (
         <Box

@@ -1,21 +1,20 @@
-import {CalendarDate, parseAbsolute, toCalendarDate} from "@internationalized/date";
+import {CalendarDate} from "@internationalized/date";
 import {TimeZone} from "~/shared/helpers/date/time_zone";
 
 export function formatTaskDueDate({
     timeZone,
     locale,
-    currentTime,
+    currentDate,
     dueDate,
 }: {
     timeZone: TimeZone;
     locale: string;
-    currentTime: Date;
+    currentDate: CalendarDate;
     dueDate: CalendarDate;
 }): {
     isAfterDueDate: boolean;
     dueDateString: string;
 } {
-    const currentDate = toCalendarDate(parseAbsolute(currentTime.toISOString(), timeZone));
     const currentDateComparedWithDueDate = currentDate.compare(dueDate);
 
     const isAfterDueDate = currentDateComparedWithDueDate > 0;

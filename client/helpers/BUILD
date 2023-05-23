@@ -7,6 +7,7 @@ ts_project(
         "//client:__subpackages__",
     ],
     deps = [
+        "//:node_modules/@internationalized/date",
         "//:node_modules/@react-aria/ssr",
         "//:node_modules/@react-types/shared",
         "//:node_modules/@types/color",

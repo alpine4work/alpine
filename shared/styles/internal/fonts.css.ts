@@ -120,6 +120,21 @@ export const fontStyles = {
         fontStyle: "normal",
         fontFeatureSettings: '"calt" off',
     },
+    // `extra-bold` and `ultra-bold` usually refer to the same thing but since
+    // our bold weight starts at 600 we use `ultra-bold` as an intermediate value
+    // to catch up.
+    "ultra-bold": {
+        fontFamily: interFontFamily,
+        fontWeight: 800,
+        fontStyle: "normal",
+        fontFeatureSettings: '"calt" off',
+    },
+    black: {
+        fontFamily: interFontFamily,
+        fontWeight: 900,
+        fontStyle: "normal",
+        fontFeatureSettings: '"calt" off',
+    },
     code: {
         fontFamily: firaCodeFontFamily,
         fontWeight: 400,

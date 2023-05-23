@@ -110,16 +110,14 @@ export function TaskDetailPresentationalView({
                         [assignee],
                     )}
                     <TaskDetailViewField label="Due date">
-                        {({"aria-labelledby": ariaLabelledBy}) =>
-                            dueDate && (
-                                <TaskDetailDueDateField
-                                    status={status}
-                                    dueDate={dueDate}
-                                    onDueDateChange={onDueDateChange}
-                                    aria-labelledby={ariaLabelledBy}
-                                />
-                            )
-                        }
+                        {({"aria-labelledby": ariaLabelledBy}) => (
+                            <TaskDetailDueDateField
+                                status={status}
+                                dueDate={dueDate}
+                                onDueDateChange={onDueDateChange}
+                                aria-labelledby={ariaLabelledBy}
+                            />
+                        )}
                     </TaskDetailViewField>
                     {useMemo(
                         () => (

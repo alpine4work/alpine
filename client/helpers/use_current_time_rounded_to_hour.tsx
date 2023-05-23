@@ -1,7 +1,10 @@
+import {CalendarDate, parseAbsolute, toCalendarDate} from "@internationalized/date";
 import {ReactNode, createContext, useContext, useEffect, useState} from "react";
+import {useClientInfo} from "~/client/remix/client_info_context";
 import {InternalError} from "~/shared/error/error";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {defaultTimeZone} from "~/shared/helpers/date/time_zone";
 
 /**
  * Round the provided date to the start of the current hour.
@@ -10,9 +13,16 @@ export function roundDateToHour(time: Date): Date {
     return new Date(time.getFullYear(), time.getMonth(), time.getDate(), time.getHours(), 0, 0, 0);
 }
 
-const CurrentTimeContext = createContext<Date | null>(null);
+const CurrentTimeContext = createContext<{
+    readonly currentTimeRoundedToHour: Date;
+    readonly currentDate: CalendarDate;
+} | null>(null);
 
 const currentTimeForTest = typeof jest !== "undefined" ? roundDateToHour(new Date()) : null;
+const currentDateForTest =
+    typeof jest !== "undefined"
+        ? toCalendarDate(parseAbsolute(currentTimeForTest!.toISOString(), defaultTimeZone))
+        : null;
 
 /**
  * Return the current time rounded to the start of the current hour. This hook
@@ -20,10 +30,10 @@ const currentTimeForTest = typeof jest !== "undefined" ? roundDateToHour(new Dat
  *
  * Works with server-side rendering. The initial time comes from the server.
  */
-export function useCurrentTimeRoundedToHour() {
-    const currentTime = useContext(CurrentTimeContext);
+export function useCurrentTimeRoundedToHour(): Date {
+    const context = useContext(CurrentTimeContext);
 
-    if (currentTime === null) {
+    if (context === null) {
         // In Jest tests use a dummy value instead of requiring a root
         // context provider.
         if (typeof jest !== "undefined") {
@@ -35,7 +45,31 @@ export function useCurrentTimeRoundedToHour() {
         );
     }
 
-    return currentTime;
+    return context.currentTimeRoundedToHour;
+}
+
+/**
+ * Return the current date. This hook will update and re-render when the
+ * day changes.
+ *
+ * Works with server-side rendering. The initial time comes from the server.
+ */
+export function useCurrentDate(): CalendarDate {
+    const context = useContext(CurrentTimeContext);
+
+    if (context === null) {
+        // In Jest tests use a dummy value instead of requiring a root
+        // context provider.
+        if (typeof jest !== "undefined") {
+            return assertExists(currentDateForTest);
+        }
+
+        throw new InternalError(
+            "Expected component to be rendered inside a `<CurrentTimeContextProvider>`",
+        );
+    }
+
+    return context.currentDate;
 }
 
 export function CurrentTimeContextProvider({
@@ -45,9 +79,15 @@ export function CurrentTimeContextProvider({
     initialTime: Date;
     children?: ReactNode;
 }) {
-    const [currentTimeRoundedToHour, setCurrentTimeRoundedToHour] = useState(() =>
-        roundDateToHour(initialTime),
-    );
+    const {timeZone} = useClientInfo();
+
+    const [state, setState] = useState(() => {
+        const currentTimeRoundedToHour = roundDateToHour(initialTime);
+        const currentDate = toCalendarDate(
+            parseAbsolute(currentTimeRoundedToHour.toISOString(), timeZone),
+        );
+        return {currentTimeRoundedToHour, currentDate};
+    });
 
     useEffect(() => {
         let timeout: Timeout;
@@ -63,7 +103,12 @@ export function CurrentTimeContextProvider({
             const msToNextHour = nextHourTime.getTime() - currentTime.getTime() + 5 * 1000;
 
             timeout = createTimeout(() => {
-                setCurrentTimeRoundedToHour(roundDateToHour(new Date()));
+                const currentTimeRoundedToHour = roundDateToHour(initialTime);
+                const currentDate = toCalendarDate(
+                    parseAbsolute(currentTimeRoundedToHour.toISOString(), timeZone),
+                );
+
+                setState({currentTimeRoundedToHour, currentDate});
 
                 // Schedule a timeout for an hour from now...
                 schedule();
@@ -75,11 +120,7 @@ export function CurrentTimeContextProvider({
         return () => {
             timeout.clear();
         };
-    }, []);
+    }, [initialTime, timeZone]);
 
-    return (
-        <CurrentTimeContext.Provider value={currentTimeRoundedToHour}>
-            {children}
-        </CurrentTimeContext.Provider>
-    );
+    return <CurrentTimeContext.Provider value={state}>{children}</CurrentTimeContext.Provider>;
 }

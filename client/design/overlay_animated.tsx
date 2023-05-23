@@ -37,6 +37,8 @@ function OverlayAnimated(
     {
         isVisible = false,
         disableAnimation = false,
+        disableAnimationIn = false,
+        disableAnimationOut = false,
         overlay: originalOverlay,
         ...props
     }: OverlayProps & {
@@ -47,6 +49,20 @@ function OverlayAnimated(
          * Defaults to `false`.
          */
         disableAnimation?: boolean;
+
+        /**
+         * `disableAnimation` but only disables the fade in animation.
+         *
+         * Defaults to `false`.
+         */
+        disableAnimationIn?: boolean;
+
+        /**
+         * `disableAnimation` but only disables the fade out animation.
+         *
+         * Defaults to `false`.
+         */
+        disableAnimationOut?: boolean;
     },
     ref: Ref<OverlayRef>,
 ) {
@@ -54,7 +70,11 @@ function OverlayAnimated(
 
     let state: OverlayAnimatedState;
 
-    if (disableAnimation) {
+    if (
+        disableAnimation ||
+        (disableAnimationIn && isVisible) ||
+        (disableAnimationOut && !isVisible)
+    ) {
         const disabledState: OverlayAnimatedState = {
             isVisible,
             isAnimating: false,

@@ -1,8 +1,7 @@
-import {CalendarDate, parseAbsolute, toCalendarDate} from "@internationalized/date";
-import {useMemo, useState} from "react";
+import {CalendarDate} from "@internationalized/date";
+import {useState} from "react";
 import {Box} from "~/client/design/box";
-import {useCurrentTimeRoundedToHour} from "~/client/helpers/use_current_time_rounded_to_hour";
-import {useClientInfo} from "~/client/remix/client_info_context";
+import {useCurrentDate} from "~/client/helpers/use_current_time_rounded_to_hour";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
 // NOCOMMIT: Should not be in an internal directory
 // eslint-disable-next-line no-internal-imports
@@ -60,12 +59,7 @@ const bathroomTaskCollection: LocalTaskCollection = {
 };
 
 export default function TasksDesignPlaygroundRoute() {
-    const {timeZone} = useClientInfo();
-    const currentTime = useCurrentTimeRoundedToHour();
-    const currentDate = useMemo(
-        () => toCalendarDate(parseAbsolute(currentTime.toISOString(), timeZone)),
-        [currentTime, timeZone],
-    );
+    const currentDate = useCurrentDate();
 
     return (
         <main
