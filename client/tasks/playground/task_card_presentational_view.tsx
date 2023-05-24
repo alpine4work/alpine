@@ -56,7 +56,23 @@ export function TaskCardPresentationalView({
 
         if (assignee) {
             fieldElements.push(
-                <Box display="flex" alignItems="center" gap="2" maxWidth="32" paddingRight="2">
+                <Box
+                    display="flex"
+                    alignItems="center"
+                    gap="2"
+                    maxWidth="32"
+                    style={{
+                        paddingRight: !dueDate
+                            ? addRemLengths(
+                                  spacing["2"],
+                                  // A little extra padding to offset the negative margin of collection chips.
+                                  // Only when the next field is collections. If we have a due date the extra
+                                  // padding will be added there.
+                                  spacing["0.5"],
+                              )
+                            : spacing["2"],
+                    }}
+                >
                     <Box position="relative" width="4" height="4">
                         <Box position="absolute" top="-0.5" left="-0.5">
                             <AccountAvatar size="5" account={assignee} />

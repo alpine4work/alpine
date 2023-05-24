@@ -21,7 +21,7 @@ import {fontSizes, sprinkles, tasksStyles} from "~/shared/styles/styles";
 // [x] Title
 // [x] Open/close button
 // [ ] Assignee field
-// [ ] Due date field
+// [x] Due date field
 // [ ] Collections field
 // [ ] Custom fields
 // [ ] Subtasks

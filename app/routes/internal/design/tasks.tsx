@@ -58,6 +58,12 @@ const bathroomTaskCollection: LocalTaskCollection = {
     color: "orange",
 };
 
+const bedroomTaskCollection: LocalTaskCollection = {
+    id: assertId<LocalTaskCollectionId>("3144bjax5nacr3j1hwq4aj78ag"),
+    name: "Bedroom",
+    color: "pink",
+};
+
 export default function TasksDesignPlaygroundRoute() {
     const currentDate = useCurrentDate();
 
@@ -216,6 +222,14 @@ export default function TasksDesignPlaygroundRoute() {
                         assignee={null}
                         dueDate={null}
                         collections={[]}
+                    />
+                    <TaskCardPresentationalView
+                        status="Open"
+                        onStatusChange={noop}
+                        title={createSimpleTaskTitle("Organize your closet")}
+                        assignee={account2}
+                        dueDate={null}
+                        collections={[bedroomTaskCollection]}
                     />
                     <TaskCardPresentationalView
                         status="Open"
