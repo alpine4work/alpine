@@ -25,7 +25,6 @@ import {fontSizes, sprinkles, tasksStyles} from "~/shared/styles/styles";
 // [ ] Collections field
 // [ ] Custom fields
 // [ ] Subtasks
-// [ ] Open detail interaction
 // [ ] Notes
 // [ ] Comments
 // [ ] Activity
@@ -135,6 +134,7 @@ export function TaskDetailPresentationalView({
                         [collections],
                     )}
                 </Box>
+                <Box marginTop="2" borderTop="grey-5"></Box>
             </Box>
         </Box>
     );
