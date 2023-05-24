@@ -131,6 +131,7 @@ const responsiveProperties = defineProperties({
             inline: "inline",
             flex: "flex",
             "inline-flex": "inline-flex",
+            grid: "grid",
         },
         top: spacingWithNegatives,
         bottom: spacingWithNegatives,

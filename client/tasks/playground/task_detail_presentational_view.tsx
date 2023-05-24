@@ -18,7 +18,7 @@ import {AccountModel} from "~/shared/accounts/account_model";
 import {Spacing, assertSpacing} from "~/shared/design/spacing";
 import {UnimplementedError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles";
+import {sprinkles} from "~/shared/styles/styles";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema";
 import {TaskTitle} from "~/shared/tasks/task_title_schema";
 
@@ -104,57 +104,14 @@ export function TaskDetailPresentationalView({
                         placeholder="Untitled task"
                     />
                 </Box>
-                <Box paddingX={padding} display="flex" flexDirection="column" gap="5">
-                    {useMemo(
-                        () => (
-                            <TaskDetailViewField label="Assignee">
-                                {assignee && (
-                                    <Box display="flex" alignItems="center" gap="2">
-                                        <Box position="relative" width="4" height="4">
-                                            <Box position="absolute" top="-0.5" left="-0.5">
-                                                <AccountAvatar size="5" account={assignee} />
-                                            </Box>
-                                        </Box>
-                                        <Box fontStyle="truncate">
-                                            <AccountShortName account={assignee} />
-                                        </Box>
-                                    </Box>
-                                )}
-                            </TaskDetailViewField>
-                        ),
-                        [assignee],
-                    )}
-                    <TaskDetailViewField label="Due date">
-                        {({"aria-labelledby": ariaLabelledBy}) => (
-                            // TODO(calebmer): Should due date be visible or hidden by default? It is good
-                            // for personal workflows but I'd wager unnecessary in many team workflows. If
-                            // anything I imagine due dates can be harmful in team workflows!
-                            //
-                            // Maybe we do something like: Show due date by default in personal views but
-                            // not in team views.
-                            <TaskDetailDueDateField
-                                status={status}
-                                dueDate={dueDate}
-                                onDueDateChange={onDueDateChange}
-                                aria-labelledby={ariaLabelledBy}
-                            />
-                        )}
-                    </TaskDetailViewField>
-                    {useMemo(
-                        () => (
-                            <TaskDetailViewField label="Collections">
-                                <Box display="flex" flexWrap="wrap" gap="3">
-                                    {collections.map(collection => (
-                                        <Box key={collection.id} marginY="-0.5" marginLeft="-0.5">
-                                            <TaskCollectionChip collection={collection} />
-                                        </Box>
-                                    ))}
-                                </Box>
-                            </TaskDetailViewField>
-                        ),
-                        [collections],
-                    )}
-                </Box>
+                <TaskDetailViewDenseFields
+                    status={status}
+                    assignee={assignee}
+                    dueDate={dueDate}
+                    onDueDateChange={onDueDateChange}
+                    collections={collections}
+                    padding={padding}
+                />
                 <TaskDetailNotesField
                     notesContent={notesContent}
                     onNotesContentChange={onNotesContentChange}
@@ -165,7 +122,7 @@ export function TaskDetailPresentationalView({
                         Subtasks
                     </Box>
                     <Box>
-                        <Box paddingX={padding}>
+                        {/* <Box paddingX={padding}>
                             <Box
                                 height="9"
                                 fontSize="100"
@@ -176,8 +133,8 @@ export function TaskDetailPresentationalView({
                             >
                                 Add a subtask…
                             </Box>
-                        </Box>
-                        {/* <Box paddingX={padding}>
+                        </Box> */}
+                        <Box paddingX={padding}>
                             <Box
                                 height="9"
                                 fontSize="100"
@@ -264,10 +221,90 @@ export function TaskDetailPresentationalView({
                             >
                                 Task row 8
                             </Box>
-                        </Box> */}
+                        </Box>
                     </Box>
                 </Box>
             </Box>
+        </Box>
+    );
+}
+
+function TaskDetailViewDenseFields({
+    status,
+    assignee,
+    dueDate,
+    onDueDateChange,
+    collections,
+    padding,
+}: {
+    status: TaskStatus;
+    assignee: AccountModel | null;
+    dueDate: CalendarDate | null;
+    onDueDateChange: (dueDate: CalendarDate | null) => void;
+    collections: ReadonlyArray<LocalTaskCollection>;
+    padding: Spacing;
+}) {
+    return (
+        <Box
+            paddingX={padding}
+            display="grid"
+            flexDirection="column"
+            gap="5"
+            style={{
+                gridTemplateColumns: "auto 1fr",
+                gridTemplateRows: "repeat(3, auto)",
+                gridAutoFlow: "row dense",
+            }}
+        >
+            {useMemo(
+                () => (
+                    <TaskDetailViewField label="Assignee">
+                        {assignee && (
+                            <Box display="flex" alignItems="center" gap="2">
+                                <Box position="relative" width="4" height="4">
+                                    <Box position="absolute" top="-0.5" left="-0.5">
+                                        <AccountAvatar size="5" account={assignee} />
+                                    </Box>
+                                </Box>
+                                <Box fontStyle="truncate">
+                                    <AccountShortName account={assignee} />
+                                </Box>
+                            </Box>
+                        )}
+                    </TaskDetailViewField>
+                ),
+                [assignee],
+            )}
+            <TaskDetailViewField label="Due date">
+                {({"aria-labelledby": ariaLabelledBy}) => (
+                    // TODO(calebmer): Should due date be visible or hidden by default? It is good
+                    // for personal workflows but I'd wager unnecessary in many team workflows. If
+                    // anything I imagine due dates can be harmful in team workflows!
+                    //
+                    // Maybe we do something like: Show due date by default in personal views but
+                    // not in team views.
+                    <TaskDetailDueDateField
+                        status={status}
+                        dueDate={dueDate}
+                        onDueDateChange={onDueDateChange}
+                        aria-labelledby={ariaLabelledBy}
+                    />
+                )}
+            </TaskDetailViewField>
+            {useMemo(
+                () => (
+                    <TaskDetailViewField label="Collections">
+                        <Box display="flex" flexWrap="wrap" gap="3">
+                            {collections.map(collection => (
+                                <Box key={collection.id} marginY="-0.5" marginLeft="-0.5">
+                                    <TaskCollectionChip collection={collection} />
+                                </Box>
+                            ))}
+                        </Box>
+                    </TaskDetailViewField>
+                ),
+                [collections],
+            )}
         </Box>
     );
 }
@@ -283,13 +320,14 @@ function TaskDetailViewField({
     const valueRef = useRef<HTMLDivElement>(null);
 
     return (
-        <Box display="flex" gap="5">
+        <>
             <label
                 id={labelId}
                 className={sprinkles({
                     display: "block",
+                    maxWidth: "24",
+                    fontStyle: "truncate",
                     color: "grey-60",
-                    width: "16",
                 })}
                 // As an affordance for mouse users, when the label is clicked we focus
                 // the first element in the input.
@@ -304,6 +342,6 @@ function TaskDetailViewField({
             <Box ref={valueRef}>
                 {typeof children === "function" ? children({"aria-labelledby": labelId}) : children}
             </Box>
-        </Box>
+        </>
     );
 }
