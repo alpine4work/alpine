@@ -7,7 +7,7 @@ import {useRemPx} from "~/client/design/helpers/use_rem_px";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {AccountModel} from "~/shared/accounts/account_model";
 import {convertRemLengthToPx} from "~/shared/design/spacing";
-import {DocumentContentReferences} from "~/shared/documents/document_model";
+import {DocumentContentReferences} from "~/shared/documents/document_content_references";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {AccountId, DocumentCommentThreadId} from "~/shared/id/types/id_types";
 import {colorSchemeVars, contentSchemaStyles} from "~/shared/styles/styles";

@@ -10,12 +10,9 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useStore} from "~/client/helpers/store/use_store";
 import {MemoObject} from "~/client/helpers/types/memo_object";
 import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_protocol";
+import {DocumentContentWithReferences} from "~/shared/documents/document_content_references";
 import {DocumentContent} from "~/shared/documents/document_content_schema";
-import {
-    DocumentCommentModel,
-    DocumentContentWithReferences,
-    DocumentModel,
-} from "~/shared/documents/document_model";
+import {DocumentCommentModel, DocumentModel} from "~/shared/documents/document_model";
 import {Lazy} from "~/shared/helpers/control/lazy";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
 import {DocumentCommentThreadId, WebSocketConnectionId} from "~/shared/id/types/id_types";

@@ -2,12 +2,9 @@ import {
     WebSocketProtocolEventType,
     defineWebSocketProtocol,
 } from "~/shared/cloudflare/web_socket_protocol";
+import {DocumentContentReferencesSchema} from "~/shared/documents/document_content_references";
 import {DocumentContentStepSchema} from "~/shared/documents/document_content_schema";
-import {
-    DocumentCommentModel,
-    DocumentCommentThreadModel,
-    DocumentContentReferencesSchema,
-} from "~/shared/documents/document_model";
+import {DocumentCommentModel, DocumentCommentThreadModel} from "~/shared/documents/document_model";
 import {ErrorSchema} from "~/shared/error/error_schema";
 import {
     ContentEditorClientId,

@@ -41,12 +41,12 @@ import {
 } from "~/client/virtualized/virtualized_scroll_view";
 import {VirtualizedTree} from "~/client/virtualized/virtualized_tree";
 import {Spacing, addRemLengths, spacing} from "~/shared/design/spacing";
+import {DocumentContentWithReferences} from "~/shared/documents/document_content_references";
 import {UncheckedDocumentContentSchema} from "~/shared/documents/document_content_schema";
 import {
     DocumentCommentModel,
     DocumentCommentRoomKey,
     DocumentCommentThreadModel,
-    DocumentContentWithReferences,
     decodeDocumentCommentRoomKey,
 } from "~/shared/documents/document_model";
 import {OutOfRangeError} from "~/shared/error/error";

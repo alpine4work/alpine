@@ -19,6 +19,7 @@ import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test
 import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
 import {emptyContentReferences} from "~/shared/content/content_references";
 import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol";
+import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references";
 import {
     emptyDocumentContent,
     DocumentContentProsemirrorSchema as schema,
@@ -27,7 +28,6 @@ import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
     DocumentModel,
-    emptyDocumentContentReferences,
 } from "~/shared/documents/document_model";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error";
 import {wait} from "~/shared/helpers/async/wait";

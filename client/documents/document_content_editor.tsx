@@ -35,6 +35,7 @@ import {useResizeObserver} from "~/client/helpers/use_resize_observer";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context";
 import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing";
+import {DocumentContentWithReferences} from "~/shared/documents/document_content_references";
 import {
     DocumentContent,
     DocumentContentProsemirrorSchema,
@@ -42,7 +43,6 @@ import {
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
-    DocumentContentWithReferences,
     DocumentModel,
 } from "~/shared/documents/document_model";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate";

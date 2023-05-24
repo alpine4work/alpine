@@ -9,10 +9,8 @@ import {documentCommentThreadPreviewHeight} from "~/client/documents/document_sh
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {convertRemLengthToPx, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
-import {
-    DocumentCommentThreadModel,
-    DocumentContentReferences,
-} from "~/shared/documents/document_model";
+import {DocumentContentReferences} from "~/shared/documents/document_content_references";
+import {DocumentCommentThreadModel} from "~/shared/documents/document_model";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {safe, safeAlphanumericString, safeNumber} from "~/shared/helpers/string/safe_string";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types";

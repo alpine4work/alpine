@@ -4,11 +4,12 @@ import {
     getInitialDocumentContentEditorState,
     reduceDocumentContentEditorState,
 } from "~/client/documents/internal/document_content_editor_web_socket_client";
+import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references";
 import {
     assertDocumentContent,
     DocumentContentProsemirrorSchema as schema,
 } from "~/shared/documents/document_content_schema";
-import {DocumentModel, emptyDocumentContentReferences} from "~/shared/documents/document_model";
+import {DocumentModel} from "~/shared/documents/document_model";
 import {generateId} from "~/shared/id/id";
 import {ContentEditorClientId} from "~/shared/id/types/id_types";
 

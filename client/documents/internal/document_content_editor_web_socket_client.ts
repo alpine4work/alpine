@@ -19,14 +19,13 @@ import {
     DocumentCollaborationPresenceState,
     DocumentCollaborationProtocol,
 } from "~/shared/documents/document_collaboration_protocol";
-import {DocumentContent, isDocumentContent} from "~/shared/documents/document_content_schema";
 import {
-    DocumentCommentModel,
     DocumentContentReferences,
     DocumentContentWithReferences,
-    DocumentModel,
     mergeDocumentContentReferences,
-} from "~/shared/documents/document_model";
+} from "~/shared/documents/document_content_references";
+import {DocumentContent, isDocumentContent} from "~/shared/documents/document_content_schema";
+import {DocumentCommentModel, DocumentModel} from "~/shared/documents/document_model";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
