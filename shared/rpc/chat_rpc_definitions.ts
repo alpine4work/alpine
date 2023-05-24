@@ -1,6 +1,6 @@
-import {MessageContentSchema} from "~/shared/content/message_content_schema";
+import {ChatMessageModel} from "~/shared/chat/chat_model";
 import {ChatId} from "~/shared/id/types/id_types";
-import {ChatMessageModel} from "~/shared/models/chat_model";
+import {MessageContentSchema} from "~/shared/messaging/message_content_schema";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc";
 import {Schema} from "~/shared/schema/schema";
 

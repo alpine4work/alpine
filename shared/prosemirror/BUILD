@@ -5,6 +5,7 @@ ts_project(
     test_deps = [
         "//:node_modules/prosemirror-schema-basic",
         "//shared/content",
+        "//shared/forum",
     ],
     visibility = ["//visibility:public"],
     deps = [

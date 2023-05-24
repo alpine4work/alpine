@@ -25,7 +25,6 @@ ts_project(
         "//shared/helpers",
         "//shared/id",
         "//shared/messaging",
-        "//shared/models",
         "//shared/styles",
     ],
 )

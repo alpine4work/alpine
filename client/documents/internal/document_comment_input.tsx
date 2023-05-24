@@ -12,12 +12,12 @@ import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages";
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view";
 import {Spacing} from "~/shared/design/spacing";
-import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol";
 import {
     DocumentCommentModel,
     DocumentCommentRoomKey,
     DocumentCommentThreadModel,
-} from "~/shared/models/document_model";
+} from "~/shared/documents/document_model";
+import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol";
 
 export function DocumentCommentInput({
     viewRef,

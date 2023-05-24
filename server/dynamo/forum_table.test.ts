@@ -16,22 +16,22 @@ import {
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
 import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
+import {emptyContentReferences} from "~/shared/content/content_references";
+import {InvalidArgumentError, NotFoundError, PermissionDeniedError} from "~/shared/error/error";
+import {
+    PostContentProsemirrorSchema,
+    assertPostContent,
+    createSimplePostContent,
+} from "~/shared/forum/post_content_schema";
+import {PostContentWithReferences} from "~/shared/forum/post_model";
+import {assert} from "~/shared/helpers/control/assert";
+import {generateId} from "~/shared/id/id";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
     createSimpleMessageContent,
     emptyMessageContent,
-} from "~/shared/content/message_content_schema";
-import {
-    PostContentProsemirrorSchema,
-    assertPostContent,
-    createSimplePostContent,
-} from "~/shared/content/post_content_schema";
-import {InvalidArgumentError, NotFoundError, PermissionDeniedError} from "~/shared/error/error";
-import {assert} from "~/shared/helpers/control/assert";
-import {generateId} from "~/shared/id/id";
-import {emptyContentReferences} from "~/shared/models/content_references";
-import {PostContentWithReferences} from "~/shared/models/post_model";
+} from "~/shared/messaging/message_content_schema";
 
 const context = createTestContext();
 const space = createTestSpace(context);

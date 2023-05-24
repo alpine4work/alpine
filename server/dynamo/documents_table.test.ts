@@ -38,12 +38,13 @@ import {
     emptyDocumentContent,
     isDocumentContent,
     DocumentContentProsemirrorSchema as schema,
-} from "~/shared/content/document_content_schema";
+} from "~/shared/documents/document_content_schema";
 import {
-    MessageContentProsemirrorSchema,
-    assertMessageContent,
-    createSimpleMessageContent,
-} from "~/shared/content/message_content_schema";
+    DocumentCommentRoomKey,
+    DocumentModel,
+    decodeDocumentCommentRoomKey,
+    encodeDocumentCommentRoomKey,
+} from "~/shared/documents/document_model";
 import {
     DataLossError,
     FailedPreconditionError,
@@ -61,11 +62,10 @@ import {
     DocumentId,
 } from "~/shared/id/types/id_types";
 import {
-    DocumentCommentRoomKey,
-    DocumentModel,
-    decodeDocumentCommentRoomKey,
-    encodeDocumentCommentRoomKey,
-} from "~/shared/models/document_model";
+    MessageContentProsemirrorSchema,
+    assertMessageContent,
+    createSimpleMessageContent,
+} from "~/shared/messaging/message_content_schema";
 import {RemoveAllMarksStep} from "~/shared/prosemirror/remove_all_marks_step";
 
 jest.useFakeTimers();

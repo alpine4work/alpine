@@ -9,12 +9,12 @@ import {messageViewMarginY} from "~/client/messaging/message_view";
 import {MessagingView, MessagingViewRef} from "~/client/messaging/messaging_view";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view";
+import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol";
 import {spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit";
-import {ChatMessageModel, ChatModel} from "~/shared/models/chat_model";
 import {getChatMessagesFromEnd, getChatMessagesFromStart} from "~/shared/rpc/chat_rpc_definitions";
 import {sprinkles} from "~/shared/styles/styles";
 

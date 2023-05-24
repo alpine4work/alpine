@@ -14,12 +14,12 @@ import {getAccount} from "~/server/dynamo/accounts_table";
 import {selectChatForAccounts} from "~/server/dynamo/chat_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
+import {AccountModel} from "~/shared/accounts/account_model";
+import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {isObject} from "~/shared/helpers/object/is_object";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types";
-import {AccountModel} from "~/shared/models/account_model";
-import {ChatMessageModel, ChatModel} from "~/shared/models/chat_model";
 import {Schema} from "~/shared/schema/schema";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 
@@ -81,7 +81,7 @@ export async function loader({request, context: _context, params}: LoaderArgs) {
     );
 }
 
-export default function NewChatRoute({withMobileLayout}: {withMobileLayout?: boolean}) {
+export default function NewChatRoute({withMobileLayout = false}: {withMobileLayout?: boolean}) {
     const loaderData = useLoaderDataWithSchema(LoaderSchema);
 
     const location = useLocation();

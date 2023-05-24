@@ -181,6 +181,7 @@ def ts_lint_and_format_test(
             "//:.prettierignore",
         ]),
         size = "small",
+        tags = ["format"],
     )
 
     _ts_typings(
@@ -219,6 +220,7 @@ def ts_lint_and_format_test(
             ":{}_deps_typings".format(name),
         ]),
         size = "small",
+        tags = ["lint"],
     )
 
 def ts_typecheck_test(

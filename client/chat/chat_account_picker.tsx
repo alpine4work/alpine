@@ -32,6 +32,8 @@ import {joinPrettyConjunctionList} from "~/client/design/pretty_conjunction_list
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts";
+import {AccountModel} from "~/shared/accounts/account_model";
+import {ChatModel} from "~/shared/chat/chat_model";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length";
 import {emptyArray} from "~/shared/helpers/array/empty_array";
@@ -41,8 +43,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {assertId} from "~/shared/id/id";
 import {AccountId, ChatId} from "~/shared/id/types/id_types";
-import {AccountModel} from "~/shared/models/account_model";
-import {ChatModel} from "~/shared/models/chat_model";
 import {
     backgroundColorVar,
     colorSchemeVars,

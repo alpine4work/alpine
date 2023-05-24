@@ -2,7 +2,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "content",
-    test_deps = [],
+    test_deps = ["//shared/documents"],
     visibility = ["//visibility:public"],
     deps = [
         "//:node_modules/@vanilla-extract/dynamic",
@@ -11,6 +11,7 @@ ts_project(
         "//:node_modules/phosphor-react",
         "//:node_modules/prosemirror-model",
         "//:node_modules/prosemirror-transform",
+        "//shared/accounts",
         "//shared/design",
         "//shared/helpers",
         "//shared/prosemirror",

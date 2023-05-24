@@ -12,7 +12,7 @@ import {
 } from "~/server/dynamo/forum_table";
 import {testMessagingImplementation} from "~/server/dynamo/test_helpers/jest/test_messaging_implementation";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
-import {createSimplePostContent} from "~/shared/content/post_content_schema";
+import {createSimplePostContent} from "~/shared/forum/post_content_schema";
 import {generateId} from "~/shared/id/id";
 import {PostId} from "~/shared/id/types/id_types";
 

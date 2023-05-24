@@ -1,8 +1,8 @@
 import {useMemo} from "react";
 import {OverlayPlacement} from "~/client/design/overlay";
 import {Tooltip} from "~/client/design/tooltip";
-import {useCurrentTimeRoundedToHour} from "~/client/helpers/use_current_time_rounded_to_hour";
 import {useClientInfo} from "~/client/remix/client_info_context";
+import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour";
 
 /**
  * Render a date in a human readable form.

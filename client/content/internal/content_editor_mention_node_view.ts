@@ -2,8 +2,8 @@ import classNames from "classnames";
 import {NodeViewConstructor} from "prosemirror-view";
 import {getContentMentionText} from "~/client/accounts/get_content_mention_text";
 import {getContentEditorReferences} from "~/client/content/content_editor_state";
+import {AccountModel} from "~/shared/accounts/account_model";
 import {ContentMention} from "~/shared/content/content_mention";
-import {AccountModel} from "~/shared/models/account_model";
 import {contentSchemaStyles} from "~/shared/styles/styles";
 
 const {mentionClassName, currentAccountMentionClassName, mentionAtClassName, mentionTextClassName} =

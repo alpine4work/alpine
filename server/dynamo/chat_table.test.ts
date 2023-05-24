@@ -19,14 +19,17 @@ import {SessionActionContext} from "~/server/dynamo/context/action_context";
 import {getSpacesTableForTest} from "~/server/dynamo/spaces_table";
 import {testMessagingImplementation} from "~/server/dynamo/test_helpers/jest/test_messaging_implementation";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
-import {MessageContent, createSimpleMessageContent} from "~/shared/content/message_content_schema";
+import {ChatMessageModel} from "~/shared/chat/chat_model";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
 import {generateId} from "~/shared/id/id";
 import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types";
-import {ChatMessageModel} from "~/shared/models/chat_model";
+import {
+    MessageContent,
+    createSimpleMessageContent,
+} from "~/shared/messaging/message_content_schema";
 
 const context = createTestContext();
 

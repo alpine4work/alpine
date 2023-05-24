@@ -1,9 +1,14 @@
-import {Node} from "prosemirror-model";
-import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/content/document_content_schema";
+import {Node, Schema as ProsemirrorSchema} from "prosemirror-model";
 import {
+    ContentNodes,
     getContentSnippet,
     setMaxLineGraphemeCountForTest,
 } from "~/shared/content/get_content_snippet";
+import {
+    DocumentContentProsemirrorSchema,
+    DocumentWithoutTitleContentProsemirrorSchema as schema,
+} from "~/shared/documents/document_content_schema";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types";
 import {generateId} from "~/shared/id/id";
 
 // NOTE(calebmer): These tests were written with the constant 237. Instead of
@@ -14,6 +19,18 @@ setMaxLineGraphemeCountForTest(237);
 const node = schema.node.bind(schema);
 const mark = schema.mark.bind(schema);
 const text = schema.text.bind(schema);
+
+// `DocumentContent` has a superset of all possible content nodes so we use
+// that to make sure `ContentNodes` covers everything.
+type DocumentContentNodes = typeof DocumentContentProsemirrorSchema extends ProsemirrorSchema<
+    infer Nodes,
+    any
+>
+    ? Exclude<Nodes, "text">
+    : never;
+
+// Make sure that `ContentNodes` covers everything in `DocumentContentNodes`.
+assertEqualTypes<ContentNodes, DocumentContentNodes>();
 
 function expectSnippet(
     {pos, lines}: {pos: number; lines: number},

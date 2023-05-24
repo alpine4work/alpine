@@ -5,11 +5,11 @@ import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile";
 import {Box} from "~/client/design/box";
 import {useRemPx} from "~/client/design/helpers/use_rem_px";
 import {useClientInfo} from "~/client/remix/client_info_context";
+import {AccountModel} from "~/shared/accounts/account_model";
 import {convertRemLengthToPx} from "~/shared/design/spacing";
+import {DocumentContentReferences} from "~/shared/documents/document_model";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {AccountId, DocumentCommentThreadId} from "~/shared/id/types/id_types";
-import {AccountModel} from "~/shared/models/account_model";
-import {DocumentContentReferences} from "~/shared/models/document_model";
 import {colorSchemeVars, contentSchemaStyles} from "~/shared/styles/styles";
 
 export type DocumentContentEditorSideDecoration = {

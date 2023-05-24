@@ -15,22 +15,22 @@ import {
     massageInboxEntriesQuery,
 } from "~/server/dynamo/test_helpers/jest/notifications_table_test_helpers";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
-import {createSimpleMessageContent} from "~/shared/content/message_content_schema";
+import {emptyContentReferences} from "~/shared/content/content_references";
+import {ProcessContextModule} from "~/shared/context/process_context_module";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error";
+import {ChannelPreviewModel} from "~/shared/forum/channel_model";
 import {
     PostContentProsemirrorSchema,
     assertPostContent,
     emptyPostContent,
-} from "~/shared/content/post_content_schema";
-import {ProcessContextModule} from "~/shared/context/process_context_module";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error";
-import {ChannelPreviewModel} from "~/shared/models/channel_model";
-import {emptyContentReferences} from "~/shared/models/content_references";
+} from "~/shared/forum/post_content_schema";
+import {PostModel, emptyPostContentWithReferences} from "~/shared/forum/post_model";
+import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema";
 import {
     InboxChannelPostsEntryModel,
     InboxModel,
     InboxPostCommentsEntryModel,
-} from "~/shared/models/inbox_model";
-import {PostModel, emptyPostContentWithReferences} from "~/shared/models/post_model";
+} from "~/shared/notifications/inbox_model";
 
 const context = createTestContext();
 

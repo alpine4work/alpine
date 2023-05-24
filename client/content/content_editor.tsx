@@ -41,10 +41,11 @@ import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_prio
 import {useNavigate} from "~/client/remix/use_navigate";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts";
+import {ContentWithReferences} from "~/shared/content/content_references";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema";
-import {documentFallbackTitle} from "~/shared/content/document_fallback_title";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty";
 import {ThemeColor} from "~/shared/design/theme_colors";
+import {documentFallbackTitle} from "~/shared/documents/document_fallback_title";
 import {UnimplementedError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -52,7 +53,6 @@ import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol";
 import {generateId} from "~/shared/id/id";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
-import {ContentWithReferences} from "~/shared/models/content_references";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range";
 import {

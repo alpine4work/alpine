@@ -15,8 +15,8 @@ import {spacing} from "~/shared/design/spacing";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types";
 import {UnimplementedError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
-import {InboxModel} from "~/shared/models/inbox_model";
-import {SpaceModel} from "~/shared/models/space_model";
+import {InboxModel} from "~/shared/notifications/inbox_model";
+import {SpaceModel} from "~/shared/spaces/space_model";
 
 // TODO(calebmer): Keyboard shortcuts for everything in top bar
 

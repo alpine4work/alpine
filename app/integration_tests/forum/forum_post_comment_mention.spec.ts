@@ -4,7 +4,7 @@ import {createChannel, createPost} from "~/server/dynamo/forum_table";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
 import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
-import {createSimplePostContent} from "~/shared/content/post_content_schema";
+import {createSimplePostContent} from "~/shared/forum/post_content_schema";
 
 const modifier = process.platform === "darwin" ? "Meta" : "Control";
 

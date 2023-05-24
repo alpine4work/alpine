@@ -25,8 +25,14 @@ import {
     DocumentContentSchema,
     DocumentContentStepSchema,
     isDocumentContent,
-} from "~/shared/content/document_content_schema";
-import {MessageContent, MessageContentSchema} from "~/shared/content/message_content_schema";
+} from "~/shared/documents/document_content_schema";
+import {
+    DocumentCommentModel,
+    DocumentCommentThreadModel,
+    DocumentModel,
+    DocumentPreviewModel,
+    getDocumentContentTitleWithoutFallback,
+} from "~/shared/documents/document_model";
 import {
     DataLossError,
     FailedPreconditionError,
@@ -63,14 +69,8 @@ import {
     SpaceId,
 } from "~/shared/id/types/id_types";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema";
-import {
-    DocumentCommentModel,
-    DocumentCommentThreadModel,
-    DocumentModel,
-    DocumentPreviewModel,
-    getDocumentContentTitleWithoutFallback,
-} from "~/shared/models/document_model";
-import {MessagePayloadSchema} from "~/shared/models/message_model";
+import {MessageContent, MessageContentSchema} from "~/shared/messaging/message_content_schema";
+import {MessagePayloadSchema} from "~/shared/messaging/message_model";
 import {ExhaustiveStep} from "~/shared/prosemirror/prosemirror_exhaustive_step";
 import {visitProsemirrorNode, visitProsemirrorStep} from "~/shared/prosemirror/prosemirror_visitor";
 import {Schema} from "~/shared/schema/schema";

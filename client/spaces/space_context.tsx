@@ -1,10 +1,10 @@
 import {Memo, ReactNode, createContext, useContext, useMemo} from "react";
 import {useWebSocket} from "~/client/cloudflare/use_web_socket";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
-import {MyAccountEvent, MyAccountProtocol} from "~/shared/accounts/my_account_protocol";
+import {AccountModel} from "~/shared/accounts/account_model";
 import {InternalError} from "~/shared/error/error";
-import {AccountModel} from "~/shared/models/account_model";
-import {SpaceModel} from "~/shared/models/space_model";
+import {MyAccountEvent, MyAccountProtocol} from "~/shared/notifications/my_account_protocol";
+import {SpaceModel} from "~/shared/spaces/space_model";
 
 const SpaceContext = createContext<{
     readonly space: SpaceModel;

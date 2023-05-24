@@ -12,12 +12,12 @@ import {
     massageInboxEntriesQuery,
 } from "~/server/dynamo/test_helpers/jest/notifications_table_test_helpers";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
-import {createSimpleMessageContent} from "~/shared/content/message_content_schema";
+import {AccountModel} from "~/shared/accounts/account_model";
+import {emptyContentReferences} from "~/shared/content/content_references";
 import {ProcessContextModule} from "~/shared/context/process_context_module";
 import {PermissionDeniedError} from "~/shared/error/error";
-import {AccountModel} from "~/shared/models/account_model";
-import {emptyContentReferences} from "~/shared/models/content_references";
-import {InboxChatEntryModel} from "~/shared/models/inbox_model";
+import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema";
+import {InboxChatEntryModel} from "~/shared/notifications/inbox_model";
 
 const context = createTestContext();
 

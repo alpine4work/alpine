@@ -28,23 +28,26 @@ import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
 import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
 import {authorizeSpaceAccess, expensivelyGetAllSpaceAccounts} from "~/server/dynamo/spaces_table";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint";
+import {AccountModel} from "~/shared/accounts/account_model";
+import {ChatModel} from "~/shared/chat/chat_model";
 import {getContentSnippet} from "~/shared/content/get_content_snippet";
 import {
-    MessageContent,
-    MessageContentSchema,
-    assertMessageContent,
-} from "~/shared/content/message_content_schema";
-import {
-    PostContent,
-    PostContentSchema,
-    assertPostContent,
-} from "~/shared/content/post_content_schema";
+    DocumentCommentModel,
+    DocumentCommentThreadModel,
+    DocumentModel,
+} from "~/shared/documents/document_model";
 import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,
 } from "~/shared/dynamo/dynamo_general_realtime_types";
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings";
 import {CancelledError, NotFoundError} from "~/shared/error/error";
+import {
+    PostContent,
+    PostContentSchema,
+    assertPostContent,
+} from "~/shared/forum/post_content_schema";
+import {PostModel} from "~/shared/forum/post_model";
 import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
@@ -67,14 +70,12 @@ import {
     PostId,
     SpaceId,
 } from "~/shared/id/types/id_types";
-import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/messaging/messaging_shared_styles";
-import {AccountModel} from "~/shared/models/account_model";
-import {ChatModel} from "~/shared/models/chat_model";
 import {
-    DocumentCommentModel,
-    DocumentCommentThreadModel,
-    DocumentModel,
-} from "~/shared/models/document_model";
+    MessageContent,
+    MessageContentSchema,
+    assertMessageContent,
+} from "~/shared/messaging/message_content_schema";
+import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/messaging/messaging_shared_styles";
 import {
     InboxChannelPostsEntryModel,
     InboxChatEntryModel,
@@ -85,8 +86,7 @@ import {
     InboxItemModelSchema,
     InboxModel,
     InboxPostCommentsEntryModel,
-} from "~/shared/models/inbox_model";
-import {PostModel} from "~/shared/models/post_model";
+} from "~/shared/notifications/inbox_model";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 
 /**

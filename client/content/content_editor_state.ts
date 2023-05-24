@@ -17,6 +17,12 @@ import {
     openKeyboardHighlightFloaterMetaKey,
     openKeyboardLinkFloaterMetaKey,
 } from "~/client/content/internal/content_editor_plugin_keymap";
+import {AccountModel} from "~/shared/accounts/account_model";
+import {
+    ContentReferences,
+    ContentWithReferences,
+    mergeContentReferences,
+} from "~/shared/content/content_references";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema";
 import {InternalError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
@@ -24,12 +30,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {generateId, isId} from "~/shared/id/id";
 import {ContentEditorClientId, DocumentCommentThreadId} from "~/shared/id/types/id_types";
-import {AccountModel} from "~/shared/models/account_model";
-import {
-    ContentReferences,
-    ContentWithReferences,
-    mergeContentReferences,
-} from "~/shared/models/content_references";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range";
 
 export const createCommentThreadMetaKey = "createCommentThread";

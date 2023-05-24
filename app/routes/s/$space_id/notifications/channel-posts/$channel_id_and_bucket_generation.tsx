@@ -9,10 +9,10 @@ import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtual
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
 import {InvalidArgumentError} from "~/shared/error/error";
+import {PostModel} from "~/shared/forum/post_model";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {isId} from "~/shared/id/id";
 import {ChannelId, SpaceId} from "~/shared/id/types/id_types";
-import {PostModel} from "~/shared/models/post_model";
 import {getInboxChannelPostsEntryPosts} from "~/shared/rpc/notifications_rpc_definitions";
 import {Schema} from "~/shared/schema/schema";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";

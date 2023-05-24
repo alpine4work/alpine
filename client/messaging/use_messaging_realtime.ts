@@ -5,12 +5,12 @@ import {MessageList} from "~/client/messaging/message_list";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {MessageModel} from "~/shared/messaging/message_model";
 import {
     BackfillMessagesProcedure,
     BackfillMessagesProcedureOutput,
     MessagingRealtimeEvent,
 } from "~/shared/messaging/messaging_realtime_protocol";
-import {MessageModel} from "~/shared/models/message_model";
 
 /**
  * Sets up a realtime connection for the provided post. Making sure comments

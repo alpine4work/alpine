@@ -34,11 +34,17 @@ import {usePromise} from "~/client/helpers/use_promise";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context";
+import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing";
 import {
     DocumentContent,
     DocumentContentProsemirrorSchema,
-} from "~/shared/content/document_content_schema";
-import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing";
+} from "~/shared/documents/document_content_schema";
+import {
+    DocumentCommentModel,
+    DocumentCommentThreadModel,
+    DocumentContentWithReferences,
+    DocumentModel,
+} from "~/shared/documents/document_model";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
 import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint";
@@ -53,12 +59,9 @@ import {clamp} from "~/shared/helpers/number/clamp";
 import {assertId} from "~/shared/id/id";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types";
 import {
-    DocumentCommentModel,
-    DocumentCommentThreadModel,
-    DocumentContentWithReferences,
-    DocumentModel,
-} from "~/shared/models/document_model";
-import {MessageContentWithReferences, OptimisticMessageModel} from "~/shared/models/message_model";
+    MessageContentWithReferences,
+    OptimisticMessageModel,
+} from "~/shared/messaging/message_model";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer";
 import {colorSchemeVars, contentSchemaStyles, spinAnimationClassName} from "~/shared/styles/styles";
 

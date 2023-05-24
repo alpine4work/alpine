@@ -9,6 +9,7 @@ import {
     getMessageBubbleMarginLeft,
     messageViewMarginY,
 } from "~/client/messaging/message_view";
+import {AccountModel} from "~/shared/accounts/account_model";
 import {easeInOutSin} from "~/shared/design/easing";
 import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -16,7 +17,6 @@ import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
 import {AccountId, WebSocketConnectionId} from "~/shared/id/types/id_types";
 import {MessagingTypingState} from "~/shared/messaging/messaging_realtime_protocol";
 import {messageViewBubbleBorderRadius} from "~/shared/messaging/messaging_shared_styles";
-import {AccountModel} from "~/shared/models/account_model";
 
 export const messagingTypingIndicatorsMinHeight = "3.875rem";
 

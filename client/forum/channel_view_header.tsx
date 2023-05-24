@@ -5,7 +5,7 @@ import {PostListChannelHeader} from "~/client/forum/post_list";
 import {postListViewMarginX, postListViewMarginY} from "~/client/forum/post_list_view";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
-import {PostModel} from "~/shared/models/post_model";
+import {PostModel} from "~/shared/forum/post_model";
 import {sprinkles} from "~/shared/styles/styles";
 
 export const channelViewHeaderMinHeight = postEditorInlineMinHeight;

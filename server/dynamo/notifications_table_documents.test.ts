@@ -15,20 +15,20 @@ import {
     massageInboxEntriesQuery,
 } from "~/server/dynamo/test_helpers/jest/notifications_table_test_helpers";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
+import {emptyContentReferences} from "~/shared/content/content_references";
+import {ProcessContextModule} from "~/shared/context/process_context_module";
 import {
     DocumentContentProsemirrorSchema,
     emptyDocumentContent,
-} from "~/shared/content/document_content_schema";
-import {createSimpleMessageContent} from "~/shared/content/message_content_schema";
-import {ProcessContextModule} from "~/shared/context/process_context_module";
+} from "~/shared/documents/document_content_schema";
+import {DocumentPreviewModel} from "~/shared/documents/document_model";
 import {generateId} from "~/shared/id/id";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
-import {emptyContentReferences} from "~/shared/models/content_references";
-import {DocumentPreviewModel} from "~/shared/models/document_model";
+import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema";
 import {
     InboxDocumentCommentThreadEntryModel,
     InboxDocumentNewCommentThreadsEntryModel,
-} from "~/shared/models/inbox_model";
+} from "~/shared/notifications/inbox_model";
 
 const context = createTestContext();
 

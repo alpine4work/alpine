@@ -5,8 +5,8 @@ import {ChannelViewAside} from "~/client/forum/channel_view_aside";
 import {ChannelViewTopBar} from "~/client/forum/channel_view_top_bar";
 import {PostListView} from "~/client/forum/post_list_view";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
-import {ChannelModel} from "~/shared/models/channel_model";
-import {PostModel} from "~/shared/models/post_model";
+import {ChannelModel} from "~/shared/forum/channel_model";
+import {PostModel} from "~/shared/forum/post_model";
 import {getChannelPosts} from "~/shared/rpc/forum_rpc_definitions";
 
 export function ChannelView({

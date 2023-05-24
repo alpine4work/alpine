@@ -1,5 +1,5 @@
+import {AccountModel} from "~/shared/accounts/account_model";
 import {assert} from "~/shared/helpers/control/assert";
-import {AccountModel} from "~/shared/models/account_model";
 
 /**
  * Parse an account name into smaller pieces. We use this to summarize an

@@ -9,18 +9,18 @@ import {
     DeleteMessageFunction,
     UpdateMessageContentFunction,
 } from "~/server/messaging/messaging_implementation";
-import {MessageContent} from "~/shared/content/message_content_schema";
 import {AsyncMutex} from "~/shared/helpers/async/async_mutex";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {AccountId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema";
+import {MessageContent} from "~/shared/messaging/message_content_schema";
+import {MessageModel} from "~/shared/messaging/message_model";
 import {
     MessagingRealtimeEvent,
     MessagingTypingState,
 } from "~/shared/messaging/messaging_realtime_protocol";
-import {MessageModel} from "~/shared/models/message_model";
 
 export const messagingRealtimeBackfillMessagesBeforeFlushTestCheckpoint =
     new TestCheckpoint<AccountId>();

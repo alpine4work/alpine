@@ -19,8 +19,8 @@ import {spacing} from "~/shared/design/spacing";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {MessageContentWithReferences} from "~/shared/messaging/message_model";
 import {messageViewBubbleBorderRadius} from "~/shared/messaging/messaging_shared_styles";
-import {MessageContentWithReferences} from "~/shared/models/message_model";
 import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
 
 export type MessageViewEditorRef = {

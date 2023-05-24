@@ -11,7 +11,6 @@ import {ModalDialog} from "~/client/design/modal_dialog";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date";
 import {Tooltip} from "~/client/design/tooltip";
-import {useCurrentTimeRoundedToHour} from "~/client/helpers/use_current_time_rounded_to_hour";
 import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/message_delete_confirmation_dialog";
 import {MessageViewActions} from "~/client/messaging/internal/message_view_actions";
 import {
@@ -23,11 +22,9 @@ import {MessageEditing} from "~/client/messaging/message_editing";
 import {MessageList} from "~/client/messaging/message_list";
 import {useIsPeekAnimatingOpen} from "~/client/peek/peek_stack";
 import {useClientInfo} from "~/client/remix/client_info_context";
+import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour";
+import {emptyContentReferences} from "~/shared/content/content_references";
 import {getContentSnippet} from "~/shared/content/get_content_snippet";
-import {
-    MessageContentProsemirrorSchema,
-    assertMessageContent,
-} from "~/shared/content/message_content_schema";
 import {
     RemLength,
     Spacing,
@@ -40,18 +37,21 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis";
 import {
-    messageViewBubbleBorderRadius,
-    messageViewBubblePaddingX,
-    messageViewBubblePaddingY,
-    minMessageViewTimestampDividerElapsedMinutes,
-} from "~/shared/messaging/messaging_shared_styles";
-import {emptyContentReferences} from "~/shared/models/content_references";
+    MessageContentProsemirrorSchema,
+    assertMessageContent,
+} from "~/shared/messaging/message_content_schema";
 import {
     MessageContentWithReferences,
     MessageModel,
     MessageModelBase,
     OptimisticMessageModel,
-} from "~/shared/models/message_model";
+} from "~/shared/messaging/message_model";
+import {
+    messageViewBubbleBorderRadius,
+    messageViewBubblePaddingX,
+    messageViewBubblePaddingY,
+    minMessageViewTimestampDividerElapsedMinutes,
+} from "~/shared/messaging/messaging_shared_styles";
 import {
     colorSchemeVars,
     contentSchemaStyles,

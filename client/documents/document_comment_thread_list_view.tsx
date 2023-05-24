@@ -40,8 +40,15 @@ import {
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view";
 import {VirtualizedTree} from "~/client/virtualized/virtualized_tree";
-import {UncheckedDocumentContentSchema} from "~/shared/content/document_content_schema";
 import {Spacing, addRemLengths, spacing} from "~/shared/design/spacing";
+import {UncheckedDocumentContentSchema} from "~/shared/documents/document_content_schema";
+import {
+    DocumentCommentModel,
+    DocumentCommentRoomKey,
+    DocumentCommentThreadModel,
+    DocumentContentWithReferences,
+    decodeDocumentCommentRoomKey,
+} from "~/shared/documents/document_model";
 import {OutOfRangeError} from "~/shared/error/error";
 import {wait} from "~/shared/helpers/async/wait";
 import {assert} from "~/shared/helpers/control/assert";
@@ -50,14 +57,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types";
-import {
-    DocumentCommentModel,
-    DocumentCommentRoomKey,
-    DocumentCommentThreadModel,
-    DocumentContentWithReferences,
-    decodeDocumentCommentRoomKey,
-} from "~/shared/models/document_model";
-import {OptimisticMessageModel} from "~/shared/models/message_model";
+import {OptimisticMessageModel} from "~/shared/messaging/message_model";
 import {Schema} from "~/shared/schema/schema";
 import {sprinkles} from "~/shared/styles/styles";
 

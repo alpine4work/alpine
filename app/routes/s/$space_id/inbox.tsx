@@ -18,7 +18,7 @@ import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64";
 import {assert} from "~/shared/helpers/control/assert";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable";
 import {SpaceId} from "~/shared/id/types/id_types";
-import {InboxEntryModelSchema} from "~/shared/models/inbox_model";
+import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 
 export type LoaderData = SchemaType<typeof LoaderSchema>;

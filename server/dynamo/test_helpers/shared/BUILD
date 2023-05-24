@@ -18,7 +18,6 @@ ts_project(
         "//server/dynamo",
         "//shared/context",
         "//shared/helpers",
-        "//shared/models",
         "//shared/tracer",
     ],
 )

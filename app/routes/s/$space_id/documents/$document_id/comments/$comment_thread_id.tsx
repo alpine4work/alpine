@@ -12,13 +12,13 @@ import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
 import {getDocumentAndCommentThreadsWithInitialComments} from "~/server/dynamo/documents_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
     DocumentModel,
-} from "~/shared/models/document_model";
+} from "~/shared/documents/document_model";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types";
 import {Schema} from "~/shared/schema/schema";
 
 const LoaderSchema = Schema.object({

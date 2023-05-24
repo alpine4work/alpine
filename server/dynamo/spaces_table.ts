@@ -9,6 +9,7 @@ import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
 import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
+import {AccountModel} from "~/shared/accounts/account_model";
 import {ContextCache} from "~/shared/context/cache_context_module";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
@@ -18,10 +19,9 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array";
 import {getMaxId, getMinId} from "~/shared/id/id";
 import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types";
-import {AccountModel} from "~/shared/models/account_model";
-import {SpaceModel} from "~/shared/models/space_model";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 import {Schema} from "~/shared/schema/schema";
+import {SpaceModel} from "~/shared/spaces/space_model";
 
 const SpacesTable = DynamoTableSchema.new({
     name: "Spaces",

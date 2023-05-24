@@ -8,7 +8,7 @@ import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
     createSimpleDocumentContent,
-} from "~/shared/content/document_content_schema";
+} from "~/shared/documents/document_content_schema";
 
 const context = createTestContext();
 const server = createTestServer(context);

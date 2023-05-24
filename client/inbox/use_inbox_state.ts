@@ -14,7 +14,7 @@ import {
 } from "~/shared/dynamo/dynamo_general_realtime_types";
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {InboxEntryModel} from "~/shared/models/inbox_model";
+import {InboxEntryModel} from "~/shared/notifications/inbox_model";
 import {
     backfillInboxEntries,
     getInboxEntries,

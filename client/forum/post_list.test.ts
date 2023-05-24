@@ -1,16 +1,16 @@
 import {PostList, PostListItem} from "~/client/forum/post_list";
 import {MessageList} from "~/client/messaging/message_list";
-import {emptyMessageContent} from "~/shared/content/message_content_schema";
-import {createSimplePostContent} from "~/shared/content/post_content_schema";
+import {AccountModel} from "~/shared/accounts/account_model";
+import {emptyContentReferences} from "~/shared/content/content_references";
+import {ChannelModel, ChannelPreviewModel} from "~/shared/forum/channel_model";
+import {createSimplePostContent} from "~/shared/forum/post_content_schema";
+import {PostModel} from "~/shared/forum/post_model";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length";
 import {shuffleArray} from "~/shared/helpers/array/shuffle_array";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {generateId} from "~/shared/id/id";
 import {ChannelId, SpaceId} from "~/shared/id/types/id_types";
-import {AccountModel} from "~/shared/models/account_model";
-import {ChannelModel, ChannelPreviewModel} from "~/shared/models/channel_model";
-import {emptyContentReferences} from "~/shared/models/content_references";
-import {PostModel} from "~/shared/models/post_model";
+import {emptyMessageContent} from "~/shared/messaging/message_content_schema";
 
 const spaceId = generateId<SpaceId>();
 const channelId = generateId<ChannelId>();

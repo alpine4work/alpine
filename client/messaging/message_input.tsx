@@ -26,25 +26,25 @@ import {
 } from "~/client/messaging/message_view";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
-import {MessageContent} from "~/shared/content/message_content_schema";
 import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable";
 import {generateId} from "~/shared/id/id";
+import {MessageContent} from "~/shared/messaging/message_content_schema";
+import {
+    MessageContentWithReferences,
+    MessageModel,
+    OptimisticMessageModel,
+    emptyMessageContentWithReferences,
+} from "~/shared/messaging/message_model";
 import {
     messageInputMinHeight,
     messageViewBubbleBorderRadius,
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
 } from "~/shared/messaging/messaging_shared_styles";
-import {
-    MessageContentWithReferences,
-    MessageModel,
-    OptimisticMessageModel,
-    emptyMessageContentWithReferences,
-} from "~/shared/models/message_model";
 import {contentViewStyles, sprinkles} from "~/shared/styles/styles";
 
 export function MessageInput<RoomKey extends string, Message extends MessageModel<RoomKey>>({

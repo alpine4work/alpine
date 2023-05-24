@@ -54,7 +54,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {generateId} from "~/shared/id/id";
 import {PeekId} from "~/shared/id/types/id_types";
-import {InboxEntryModel} from "~/shared/models/inbox_model";
+import {InboxEntryModel} from "~/shared/notifications/inbox_model";
 import {
     convertPeekPathToSpacePath,
     convertSpacePathToPeekPath,

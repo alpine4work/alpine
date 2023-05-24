@@ -17,15 +17,15 @@ import {
     messagingRealtimeBackfillMessagesBeforeFlushTestCheckpoint,
     messagingRealtimeCreateMessageBeforeSendTestCheckpoint,
 } from "~/server/messaging/messaging_realtime_connection";
-import {createSimpleMessageContent} from "~/shared/content/message_content_schema";
+import {emptyContentReferences} from "~/shared/content/content_references";
 import {UnimplementedError} from "~/shared/error/error";
 import {SpaceId} from "~/shared/id/types/id_types";
+import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema";
+import {MessageContentWithReferences, MessageModel} from "~/shared/messaging/message_model";
 import {
     MessagingRealtimeEvent,
     MessagingRealtimeProcedures,
 } from "~/shared/messaging/messaging_realtime_protocol";
-import {emptyContentReferences} from "~/shared/models/content_references";
-import {MessageContentWithReferences, MessageModel} from "~/shared/models/message_model";
 import {TracerSpan} from "~/shared/tracer/tracer_span";
 
 export type TestMessagingRealtimeConnectionProcedures<Message extends MessageModel> = {

@@ -4,7 +4,7 @@ import {createDocument} from "~/server/dynamo/documents_table";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
 import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
-import {emptyDocumentContent} from "~/shared/content/document_content_schema";
+import {emptyDocumentContent} from "~/shared/documents/document_content_schema";
 import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";

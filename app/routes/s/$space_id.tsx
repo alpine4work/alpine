@@ -11,13 +11,13 @@ import {getInbox} from "~/server/dynamo/notifications_table";
 import {getSpaceWithOptimisticSessionAccountId} from "~/server/dynamo/spaces_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
+import {AccountModel} from "~/shared/accounts/account_model";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {SpaceId} from "~/shared/id/types/id_types";
-import {AccountModel} from "~/shared/models/account_model";
-import {InboxModel} from "~/shared/models/inbox_model";
-import {SpaceModel} from "~/shared/models/space_model";
+import {InboxModel} from "~/shared/notifications/inbox_model";
 import {Schema} from "~/shared/schema/schema";
+import {SpaceModel} from "~/shared/spaces/space_model";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 
 export const LoaderSchema = Schema.object({

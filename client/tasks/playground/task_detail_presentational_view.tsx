@@ -12,8 +12,8 @@ import {TaskDetailDueDateField} from "~/client/tasks/playground/internal/task_de
 import {TaskDetailTitleInput} from "~/client/tasks/playground/internal/task_detail_title_input";
 import {LocalTaskCollection} from "~/client/tasks/playground/local_task_collection";
 import {TaskStatus, TaskStatusButton} from "~/client/tasks/playground/task_status_button";
+import {AccountModel} from "~/shared/accounts/account_model";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {AccountModel} from "~/shared/models/account_model";
 import {fontSizes, sprinkles, tasksStyles} from "~/shared/styles/styles";
 
 // TODO(calebmer): Needs:

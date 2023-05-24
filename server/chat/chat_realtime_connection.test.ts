@@ -10,10 +10,10 @@ import {
     testMessagingRealtimeImplementation,
 } from "~/server/dynamo/test_helpers/jest/test_messaging_realtime_implementation";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
+import {ChatMessageModel} from "~/shared/chat/chat_model";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {generateId} from "~/shared/id/id";
 import {ChatId} from "~/shared/id/types/id_types";
-import {ChatMessageModel} from "~/shared/models/chat_model";
 
 const context = createTestContext();
 

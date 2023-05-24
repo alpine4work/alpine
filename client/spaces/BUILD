@@ -20,7 +20,7 @@ ts_project(
         "//shared/accounts",
         "//shared/error",
         "//shared/helpers",
-        "//shared/models",
         "//shared/rpc",
+        "//shared/spaces",
     ],
 )

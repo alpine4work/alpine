@@ -12,17 +12,17 @@ import {
 } from "~/server/dynamo/documents_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
-import {emptyDocumentContent} from "~/shared/content/document_content_schema";
-import {FailedPreconditionError} from "~/shared/error/error";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
-import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types";
+import {emptyDocumentContent} from "~/shared/documents/document_content_schema";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
     DocumentModel,
     emptyDocumentContentReferences,
     getDocumentContentTitle,
-} from "~/shared/models/document_model";
+} from "~/shared/documents/document_model";
+import {FailedPreconditionError} from "~/shared/error/error";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
+import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types";
 import {Schema} from "~/shared/schema/schema";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 

@@ -5,8 +5,8 @@ import {SpaceRouteScrollView} from "~/client/spaces/space_route_scroll_view";
 import {getDocument} from "~/server/dynamo/documents_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
+import {DocumentModel} from "~/shared/documents/document_model";
 import {DocumentId} from "~/shared/id/types/id_types";
-import {DocumentModel} from "~/shared/models/document_model";
 import {Schema} from "~/shared/schema/schema";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 

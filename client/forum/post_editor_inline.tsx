@@ -12,10 +12,10 @@ import {useResizeObserver} from "~/client/helpers/use_resize_observer";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
 import {RemLength} from "~/shared/design/spacing";
+import {ChannelModel} from "~/shared/forum/channel_model";
+import {PostModel, emptyPostContentWithReferences} from "~/shared/forum/post_model";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {ChannelModel} from "~/shared/models/channel_model";
-import {PostModel, emptyPostContentWithReferences} from "~/shared/models/post_model";
 import {createPost} from "~/shared/rpc/forum_rpc_definitions";
 import {sprinkles} from "~/shared/styles/styles";
 

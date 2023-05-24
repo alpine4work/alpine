@@ -62,6 +62,7 @@ import {
     spacing,
 } from "~/shared/design/spacing";
 import {InternalError} from "~/shared/error/error";
+import {PostCommentModel, PostModel} from "~/shared/forum/post_model";
 import {wait} from "~/shared/helpers/async/wait";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -69,7 +70,6 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
 import {clamp} from "~/shared/helpers/number/clamp";
 import {PostId} from "~/shared/id/types/id_types";
-import {PostCommentModel, PostModel} from "~/shared/models/post_model";
 import {getPostCommentsFromEnd, getPostCommentsFromStart} from "~/shared/rpc/forum_rpc_definitions";
 import {spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
 

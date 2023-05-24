@@ -28,13 +28,13 @@ import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts";
+import {AccountModel} from "~/shared/accounts/account_model";
 import {ContentMention} from "~/shared/content/content_mention";
 import {spacing} from "~/shared/design/spacing";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {AccountModel} from "~/shared/models/account_model";
 import {overlayFadeOutAnimationDurationMs, spinAnimationClassName} from "~/shared/styles/styles";
 
 export function ContentEditorMentionFloater({

@@ -11,9 +11,9 @@ import {tooltipDelayMs} from "~/client/design/tooltip";
 import {defaultTooltipOffset} from "~/client/design/tooltip";
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {useCurrentTimeRoundedToHour} from "~/client/helpers/use_current_time_rounded_to_hour";
 import {inboxEntryViewMinHeight, inboxEntryWidth} from "~/client/inbox/inbox_entry_view";
 import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge";
+import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour";
 import {useNavigate} from "~/client/remix/use_navigate";
 import {
     SpaceLayoutTopBarInboxOverlay,
@@ -30,9 +30,11 @@ import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {Lazy} from "~/shared/helpers/control/lazy";
-import {InboxEntryModel, InboxModel} from "~/shared/models/inbox_model";
-import {getInboxWithStrongReadConsistency} from "~/shared/rpc/accounts_rpc_definitions";
-import {getInboxEntries} from "~/shared/rpc/notifications_rpc_definitions";
+import {InboxEntryModel, InboxModel} from "~/shared/notifications/inbox_model";
+import {
+    getInboxEntries,
+    getInboxWithStrongReadConsistency,
+} from "~/shared/rpc/notifications_rpc_definitions";
 import {
     backgroundColorVar,
     greyElevatedClassName,

@@ -39,8 +39,8 @@ import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_
 import {IconButton} from "~/client/design/icon_button";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
 import {Spacer} from "~/client/design/spacer";
-import {useCurrentDate} from "~/client/helpers/use_current_time_rounded_to_hour";
 import {useClientInfo} from "~/client/remix/client_info_context";
+import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour";
 import {formatTaskDueDate} from "~/client/tasks/playground/internal/format_task_due_date";
 import {TaskStatus} from "~/client/tasks/playground/task_status_button";
 import {spacing} from "~/shared/design/spacing";

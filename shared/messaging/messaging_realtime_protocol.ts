@@ -1,9 +1,9 @@
-import {MessageContent, MessageContentSchema} from "~/shared/content/message_content_schema";
+import {AccountModel} from "~/shared/accounts/account_model";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types";
 import {WebSocketConnectionId} from "~/shared/id/types/id_types";
 import {MessageChange, MessageChangeSchema} from "~/shared/messaging/message_change_schema";
-import {AccountModel} from "~/shared/models/account_model";
-import {MessageModel} from "~/shared/models/message_model";
+import {MessageContent, MessageContentSchema} from "~/shared/messaging/message_content_schema";
+import {MessageModel} from "~/shared/messaging/message_model";
 import {ObjectSchemaConfigType, Schema, SchemaType, UnionSchema} from "~/shared/schema/schema";
 
 export type MessagingTypingState = SchemaType<typeof MessagingTypingStateSchema>;

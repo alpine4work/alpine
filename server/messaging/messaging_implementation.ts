@@ -1,8 +1,8 @@
 import {SessionActionContext} from "~/server/dynamo/context/action_context";
-import {MessageContent} from "~/shared/content/message_content_schema";
+import {AccountModel} from "~/shared/accounts/account_model";
 import {MessageChange} from "~/shared/messaging/message_change_schema";
-import {AccountModel} from "~/shared/models/account_model";
-import {MessageModel, MessagePayloadModel} from "~/shared/models/message_model";
+import {MessageContent} from "~/shared/messaging/message_content_schema";
+import {MessageModel, MessagePayloadModel} from "~/shared/messaging/message_model";
 
 /**
  * Creates the model class for a message based on known data. Does not actually

@@ -13,7 +13,7 @@ import {RemLength, convertRemLengthToPx, spacing} from "~/shared/design/spacing"
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
-import {MessageModel} from "~/shared/models/message_model";
+import {MessageModel} from "~/shared/messaging/message_model";
 
 export function useScrollToNewMessages<Message extends MessageModel>({
     viewRef,

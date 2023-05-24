@@ -16,11 +16,6 @@ import {
     UpdateMessageContentFunction,
 } from "~/server/messaging/messaging_implementation";
 import {
-    MessageContentProsemirrorSchema,
-    assertMessageContent,
-    createSimpleMessageContent,
-} from "~/shared/content/message_content_schema";
-import {
     FailedPreconditionError,
     InternalError,
     InvalidArgumentError,
@@ -31,7 +26,12 @@ import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {SpaceId} from "~/shared/id/types/id_types";
 import {MessageChange} from "~/shared/messaging/message_change_schema";
-import {MessageModel} from "~/shared/models/message_model";
+import {
+    MessageContentProsemirrorSchema,
+    assertMessageContent,
+    createSimpleMessageContent,
+} from "~/shared/messaging/message_content_schema";
+import {MessageModel} from "~/shared/messaging/message_model";
 
 /**
  * Wherever we want to create some space for conversation in our product we use

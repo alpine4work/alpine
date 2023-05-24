@@ -1,3 +1,4 @@
+import {ChatMessageModel} from "~/shared/chat/chat_model";
 import {
     WebSocketProtocolEventType,
     defineWebSocketProtocol,
@@ -6,7 +7,6 @@ import {
     createMessagingRealtimeEventSchemas,
     createMessagingRealtimeProcedureSchemas,
 } from "~/shared/messaging/messaging_realtime_protocol";
-import {ChatMessageModel} from "~/shared/models/chat_model";
 
 export type ChatRealtimeEvent = WebSocketProtocolEventType<typeof ChatRealtimeProtocol>;
 

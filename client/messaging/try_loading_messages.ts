@@ -4,7 +4,7 @@ import {messageViewMinHeight} from "~/client/messaging/message_view";
 import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_scroll_view_state";
 import {convertRemLengthToPx} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
-import {MessageModel} from "~/shared/models/message_model";
+import {MessageModel} from "~/shared/messaging/message_model";
 
 /**
  * Helper function for loading messages in a given range for a messaging view.

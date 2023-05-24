@@ -8,7 +8,7 @@ import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard";
 import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/message_delete_confirmation_dialog";
 import {MessageEditing} from "~/client/messaging/message_editing";
 import {useSpaceContext} from "~/client/spaces/space_context";
-import {MessageContentPayloadModel, MessageModel} from "~/shared/models/message_model";
+import {MessageContentPayloadModel, MessageModel} from "~/shared/messaging/message_model";
 
 export function MessageViewActions<RoomKey extends string>({
     messageNoun,

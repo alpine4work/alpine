@@ -27,6 +27,13 @@ import {
     DocumentCollaborationPresenceState,
     DocumentCollaborationProtocol,
 } from "~/shared/documents/document_collaboration_protocol";
+import {
+    DocumentCommentModel,
+    DocumentCommentRoomKey,
+    DocumentCommentThreadModel,
+    decodeDocumentCommentRoomKey,
+    encodeDocumentCommentRoomKey,
+} from "~/shared/documents/document_model";
 import {FailedPreconditionError, InternalError, NotFoundError} from "~/shared/error/error";
 import {AsyncMutex} from "~/shared/helpers/async/async_mutex";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises";
@@ -38,13 +45,6 @@ import {
     DocumentId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types";
-import {
-    DocumentCommentModel,
-    DocumentCommentRoomKey,
-    DocumentCommentThreadModel,
-    decodeDocumentCommentRoomKey,
-    encodeDocumentCommentRoomKey,
-} from "~/shared/models/document_model";
 import {TracerSpan} from "~/shared/tracer/tracer_span";
 
 export const documentCollaborationConnectionBeforeBackfillMessagesTestCheckpoint =

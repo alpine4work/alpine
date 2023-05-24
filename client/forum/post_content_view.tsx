@@ -16,16 +16,16 @@ import {MessageList} from "~/client/messaging/message_list";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context";
 import {useSpaceContext} from "~/client/spaces/space_context";
-import {wait} from "~/shared/helpers/async/wait";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
-import {AccountId} from "~/shared/id/types/id_types";
-import {AccountModel} from "~/shared/models/account_model";
+import {AccountModel} from "~/shared/accounts/account_model";
 import {
     PostCommentModel,
     PostModel,
     maxPostPreviewCommentAuthorCount,
-} from "~/shared/models/post_model";
+} from "~/shared/forum/post_model";
+import {wait} from "~/shared/helpers/async/wait";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
+import {AccountId} from "~/shared/id/types/id_types";
 import {getPostCommentAuthors} from "~/shared/rpc/forum_rpc_definitions";
 import {sprinkles} from "~/shared/styles/styles";
 

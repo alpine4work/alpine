@@ -20,7 +20,7 @@ import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
-import {InboxEntryModel} from "~/shared/models/inbox_model";
+import {InboxEntryModel} from "~/shared/notifications/inbox_model";
 import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles";
 
 const spaceLayoutTopBarInboxOverlayHeaderHeight: Spacing = "9";

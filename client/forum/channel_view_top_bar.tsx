@@ -20,9 +20,9 @@ import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
 import {addRemLengths, spacing} from "~/shared/design/spacing";
+import {ChannelModel} from "~/shared/forum/channel_model";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {ChannelModel} from "~/shared/models/channel_model";
-import {MessageContentWithReferences} from "~/shared/models/message_model";
+import {MessageContentWithReferences} from "~/shared/messaging/message_model";
 import {updateChannelDescription, updateChannelName} from "~/shared/rpc/forum_rpc_definitions";
 import {sprinkles} from "~/shared/styles/styles";
 

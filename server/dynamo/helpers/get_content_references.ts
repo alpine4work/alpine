@@ -2,13 +2,13 @@ import {Node} from "prosemirror-model";
 import {Step} from "prosemirror-transform";
 import {getAccountIfExists} from "~/server/dynamo/accounts_table";
 import {ActionContext} from "~/server/dynamo/context/action_context";
+import {AccountModel} from "~/shared/accounts/account_model";
 import {ContentMention} from "~/shared/content/content_mention";
+import {ContentReferences} from "~/shared/content/content_references";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types";
-import {AccountModel} from "~/shared/models/account_model";
-import {ContentReferences} from "~/shared/models/content_references";
 import {
     ProsemirrorVisitor,
     visitProsemirrorNode,

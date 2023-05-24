@@ -48,6 +48,7 @@ import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit";
+import {MessageContentWithReferences, MessageModel} from "~/shared/messaging/message_model";
 import {
     BackfillMessagesProcedure,
     CreateMessageProcedure,
@@ -57,7 +58,6 @@ import {
     StopTypingInMessageInputProcedure,
     UpdateMessageContentProcedure,
 } from "~/shared/messaging/messaging_realtime_protocol";
-import {MessageContentWithReferences, MessageModel} from "~/shared/models/message_model";
 import {ClientInfo} from "~/shared/remix/client_info";
 import {sprinkles} from "~/shared/styles/styles";
 

@@ -3,11 +3,11 @@ import {Mark, Node} from "prosemirror-model";
 import {useState} from "react";
 import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
+import {emptyContentReferences} from "~/shared/content/content_references";
 import {
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
-} from "~/shared/content/document_content_schema";
-import {emptyContentReferences} from "~/shared/models/content_references";
+} from "~/shared/documents/document_content_schema";
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
 

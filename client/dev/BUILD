@@ -10,9 +10,9 @@ ts_project(
         "//:node_modules/@types/react",
         "//:node_modules/react",
         "//client/helpers",
+        "//shared/accounts",
         "//shared/helpers",
         "//shared/id",
-        "//shared/models",
         "//shared/schema",
     ],
 )

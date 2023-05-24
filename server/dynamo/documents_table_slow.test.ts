@@ -22,11 +22,11 @@ import {
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
 import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
+import {ProcessContextModule} from "~/shared/context/process_context_module";
 import {
     emptyDocumentContent,
     DocumentContentProsemirrorSchema as schema,
-} from "~/shared/content/document_content_schema";
-import {ProcessContextModule} from "~/shared/context/process_context_module";
+} from "~/shared/documents/document_content_schema";
 import {assert} from "~/shared/helpers/control/assert";
 import {generateId} from "~/shared/id/id";
 

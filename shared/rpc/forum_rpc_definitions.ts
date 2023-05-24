@@ -1,8 +1,8 @@
-import {MessageContentSchema} from "~/shared/content/message_content_schema";
-import {PostContentSchema} from "~/shared/content/post_content_schema";
+import {AccountModel} from "~/shared/accounts/account_model";
+import {PostContentSchema} from "~/shared/forum/post_content_schema";
+import {PostCommentModel, PostModel} from "~/shared/forum/post_model";
 import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types";
-import {AccountModel} from "~/shared/models/account_model";
-import {PostCommentModel, PostModel} from "~/shared/models/post_model";
+import {MessageContentSchema} from "~/shared/messaging/message_content_schema";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc";
 import {Schema} from "~/shared/schema/schema";
 

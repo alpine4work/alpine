@@ -1,6 +1,6 @@
 import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name";
 import {ContentMention, missingAccountContentMentionName} from "~/shared/content/content_mention";
-import {ContentReferences} from "~/shared/models/content_references";
+import {ContentReferences} from "~/shared/content/content_references";
 
 /**
  * Get the text to display for a content mention.

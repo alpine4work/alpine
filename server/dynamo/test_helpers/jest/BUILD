@@ -12,6 +12,5 @@ ts_project(
         "//shared/content",
         "//shared/context",
         "//shared/helpers",
-        "//shared/models",
     ],
 )

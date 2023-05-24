@@ -6,12 +6,16 @@ ts_project(
     visibility = ["//visibility:public"],
     deps = [
         ":all_rpc_definitions",
+        "//shared/accounts",
+        "//shared/alpha",
+        "//shared/chat",
         "//shared/context",
         "//shared/documents",
         "//shared/dynamo",
         "//shared/error",
+        "//shared/forum",
         "//shared/helpers",
-        "//shared/models",
+        "//shared/notifications",
         "//shared/schema",
     ],
 )

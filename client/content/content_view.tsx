@@ -7,12 +7,12 @@ import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_
 import {Tooltip} from "~/client/design/tooltip";
 import {useNavigate} from "~/client/remix/use_navigate";
 import {useSpaceContext} from "~/client/spaces/space_context";
+import {ContentWithReferences} from "~/shared/content/content_references";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
-import {ContentWithReferences} from "~/shared/models/content_references";
 import {
     ElementHtmlGenerator,
     ProsemirrorHtmlSerializationDecoration,

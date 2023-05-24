@@ -6,13 +6,13 @@ import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
 import {Id} from "~/shared/id/id";
 import {WebSocketConnectionId} from "~/shared/id/types/id_types";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema";
-import {MessagingTypingState} from "~/shared/messaging/messaging_realtime_protocol";
 import {
     MessageModel,
     OptimisticMessageModel,
     areMessagePayloadModelsEqual,
     getLastChangedMessage,
-} from "~/shared/models/message_model";
+} from "~/shared/messaging/message_model";
+import {MessagingTypingState} from "~/shared/messaging/messaging_realtime_protocol";
 
 export type MessageListItem<Message extends MessageModel> =
     | MessageListLoadedItem<Message>

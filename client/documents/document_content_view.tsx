@@ -1,6 +1,6 @@
 import {ContentView} from "~/client/content/content_view";
 import {Spacing} from "~/shared/design/spacing";
-import {DocumentModel} from "~/shared/models/document_model";
+import {DocumentModel} from "~/shared/documents/document_model";
 import {sprinkles} from "~/shared/styles/styles";
 
 // TODO(calebmer): Get side decorations for comments working here.

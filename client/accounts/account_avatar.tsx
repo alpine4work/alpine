@@ -2,8 +2,8 @@ import GraphemeSplitter from "grapheme-splitter";
 import {useMemo} from "react";
 import {parseAccountName} from "~/client/accounts/internal/parse_account_name";
 import {Box} from "~/client/design/box";
+import {AccountModel} from "~/shared/accounts/account_model";
 import {Spacing} from "~/shared/design/spacing";
-import {AccountModel} from "~/shared/models/account_model";
 
 /**
  * A circular image representing the account.

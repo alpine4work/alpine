@@ -1,17 +1,17 @@
 import {SessionItem, getAccountsTableForTest} from "~/server/dynamo/accounts_table";
 import {getSpacesTableForTest} from "~/server/dynamo/spaces_table";
 import {TestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
-import {
-    MessageContentProsemirrorSchema,
-    assertMessageContent,
-} from "~/shared/content/message_content_schema";
+import {AccountModel} from "~/shared/accounts/account_model";
 import {DynamoGeneralRealtimeIndexQueryResult} from "~/shared/dynamo/dynamo_general_realtime_types";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {generateId} from "~/shared/id/id";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types";
-import {AccountModel} from "~/shared/models/account_model";
-import {InboxEntryModel} from "~/shared/models/inbox_model";
+import {
+    MessageContentProsemirrorSchema,
+    assertMessageContent,
+} from "~/shared/messaging/message_content_schema";
+import {InboxEntryModel} from "~/shared/notifications/inbox_model";
 
 // Notification table test helpers can only be used in Jest.
 assert(typeof jest !== "undefined");

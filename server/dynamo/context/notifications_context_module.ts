@@ -19,7 +19,7 @@ import {assert} from "~/shared/helpers/control/assert";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {isId} from "~/shared/id/id";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types";
-import {InboxItemModelSchema} from "~/shared/models/inbox_model";
+import {InboxItemModelSchema} from "~/shared/notifications/inbox_model";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer";
 import {TracerPropagationContextSchema} from "~/shared/tracer/tracer_propagation_context_schema";

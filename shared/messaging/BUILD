@@ -4,11 +4,11 @@ ts_project(
     name = "messaging",
     visibility = ["//visibility:public"],
     deps = [
+        "//shared/accounts",
         "//shared/content",
         "//shared/design",
         "//shared/error",
         "//shared/id",
-        "//shared/models",
         "//shared/schema",
     ],
 )

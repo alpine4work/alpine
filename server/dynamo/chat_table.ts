@@ -13,7 +13,8 @@ import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/internal
 import {getNotificationMessageContentSnippet} from "~/server/dynamo/notifications_table";
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint";
-import {MessageContent, MessageContentSchema} from "~/shared/content/message_content_schema";
+import {AccountModel} from "~/shared/accounts/account_model";
+import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model";
 import {
     DataLossError,
     FailedPreconditionError,
@@ -38,9 +39,8 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_str
 import {decodeIdInto, encodeId, generateId} from "~/shared/id/id";
 import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema";
-import {AccountModel} from "~/shared/models/account_model";
-import {ChatMessageModel, ChatModel} from "~/shared/models/chat_model";
-import {MessagePayloadSchema} from "~/shared/models/message_model";
+import {MessageContent, MessageContentSchema} from "~/shared/messaging/message_content_schema";
+import {MessagePayloadSchema} from "~/shared/messaging/message_model";
 import {Schema} from "~/shared/schema/schema";
 
 const ChatTable = DynamoTableSchema.new({

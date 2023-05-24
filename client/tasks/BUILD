@@ -20,7 +20,6 @@ ts_project(
         "//client/design",
         "//client/spaces",
         "//shared/helpers",
-        "//shared/models",
         "//shared/prosemirror",
     ],
 )

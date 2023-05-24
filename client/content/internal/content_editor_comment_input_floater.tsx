@@ -26,13 +26,13 @@ import {parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {generateId} from "~/shared/id/id";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
+import {emptyMessageContentWithReferences} from "~/shared/messaging/message_model";
 import {
     messageInputMinHeight,
     messageViewBubbleBorderRadius,
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
 } from "~/shared/messaging/messaging_shared_styles";
-import {emptyMessageContentWithReferences} from "~/shared/models/message_model";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range";
 import {
     greyElevatedClassName,

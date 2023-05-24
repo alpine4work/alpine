@@ -14,10 +14,10 @@ import {
     UpdateMessageContentFunction,
 } from "~/server/messaging/messaging_implementation";
 import {MessagingRealtimeConnection} from "~/server/messaging/messaging_realtime_connection";
+import {ChatMessageModel} from "~/shared/chat/chat_model";
 import {ChatRealtimeEvent, ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {ChatId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types";
-import {ChatMessageModel} from "~/shared/models/chat_model";
 
 export class ChatRealtimeConnection {
     private readonly _connection: MessagingRealtimeConnection<ChatId, ChatMessageModel>;

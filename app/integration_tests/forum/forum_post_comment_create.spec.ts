@@ -4,8 +4,8 @@ import {createChannel, createPost, createPostComment} from "~/server/dynamo/foru
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
 import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
-import {createSimpleMessageContent} from "~/shared/content/message_content_schema";
-import {createSimplePostContent} from "~/shared/content/post_content_schema";
+import {createSimplePostContent} from "~/shared/forum/post_content_schema";
+import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema";
 
 const context = createTestContext();
 const server = createTestServer(context);

@@ -13,7 +13,7 @@ import {useNavigate} from "~/client/remix/use_navigate";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {InboxEntryModel} from "~/shared/models/inbox_model";
+import {InboxEntryModel} from "~/shared/notifications/inbox_model";
 import {archiveInboxEntry, unarchiveInboxEntry} from "~/shared/rpc/notifications_rpc_definitions";
 
 export function InboxViewTopBar({

@@ -3,13 +3,13 @@ import {ContentEditorState} from "~/client/content/content_editor_state";
 import {useShowToast} from "~/client/design/toast";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
-import {MessageContent} from "~/shared/content/message_content_schema";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {omitObject} from "~/shared/helpers/object/omit_object";
+import {MessageContent} from "~/shared/messaging/message_content_schema";
 import {
     MessageContentPayloadModel,
     MessageContentWithReferences,
-} from "~/shared/models/message_model";
+} from "~/shared/messaging/message_model";
 
 export type MessageEditingState<RoomKey extends string> =
     | {

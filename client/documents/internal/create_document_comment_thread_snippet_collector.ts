@@ -1,6 +1,6 @@
 import {Node, ResolvedPos} from "prosemirror-model";
-import {DocumentContent} from "~/shared/content/document_content_schema";
 import {getContentSnippet} from "~/shared/content/get_content_snippet";
+import {DocumentContent} from "~/shared/documents/document_content_schema";
 import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";

@@ -8,6 +8,7 @@ import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/d
 import {authorizeSpaceAccess, isAccountMemberOfSpace} from "~/server/dynamo/spaces_table";
 import {EmailAddress} from "~/server/emails/email_address";
 import {FromEmailAddress} from "~/server/emails/from_email_address";
+import {AccountModel} from "~/shared/accounts/account_model";
 import {ContextCache} from "~/shared/context/cache_context_module";
 import {
     FailedPreconditionError,
@@ -22,7 +23,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {generateId} from "~/shared/id/id";
 import {AccountId, ContentMentionAccountId, SessionId, SpaceId} from "~/shared/id/types/id_types";
-import {AccountModel} from "~/shared/models/account_model";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 import {Schema} from "~/shared/schema/schema";
 

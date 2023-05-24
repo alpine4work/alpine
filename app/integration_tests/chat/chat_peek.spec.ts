@@ -4,7 +4,7 @@ import {createDocument} from "~/server/dynamo/documents_table";
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
 import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
-import {createSimpleDocumentContent} from "~/shared/content/document_content_schema";
+import {createSimpleDocumentContent} from "~/shared/documents/document_content_schema";
 
 const context = createTestContext();
 const server = createTestServer(context);

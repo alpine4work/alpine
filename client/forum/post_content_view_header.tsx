@@ -3,7 +3,7 @@ import {useHover} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {Box} from "~/client/design/box";
 import {PrettyAbsoluteDate} from "~/client/design/pretty_absolute_date";
-import {PostModel} from "~/shared/models/post_model";
+import {PostModel} from "~/shared/forum/post_model";
 import {sprinkles} from "~/shared/styles/styles";
 
 export function PostContentViewHeader({

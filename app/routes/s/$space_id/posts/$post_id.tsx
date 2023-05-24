@@ -8,8 +8,8 @@ import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
 import {getPostAndInitialComments} from "~/server/dynamo/forum_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
+import {PostCommentModel, PostModel} from "~/shared/forum/post_model";
 import {PostId} from "~/shared/id/types/id_types";
-import {PostCommentModel, PostModel} from "~/shared/models/post_model";
 import {Schema} from "~/shared/schema/schema";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 

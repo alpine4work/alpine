@@ -1,6 +1,5 @@
 import GraphemeSplitter from "grapheme-splitter";
-import {Node, Schema as ProsemirrorSchema, ResolvedPos} from "prosemirror-model";
-import {DocumentContentProsemirrorSchema} from "~/shared/content/document_content_schema";
+import {Node, ResolvedPos} from "prosemirror-model";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 
@@ -338,14 +337,19 @@ function consumeLinesOfText(
     };
 }
 
-// `DocumentContent` has a superset of all possible content nodes so we use
-// that to construct our `ContentNodes` type.
-type ContentNodes = typeof DocumentContentProsemirrorSchema extends ProsemirrorSchema<
-    infer Nodes,
-    any
->
-    ? Exclude<Nodes, "text">
-    : never;
+export type ContentNodes =
+    | "doc"
+    | "title"
+    | "paragraph"
+    | "quoteBlock"
+    | "codeBlock"
+    | "unorderedListItem"
+    | "orderedListItem"
+    | "checkListItem"
+    | "break"
+    | "heading"
+    | "divider"
+    | "mention";
 
 /**
  * Does the provided node cause a line break? If it does then we can consider

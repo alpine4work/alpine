@@ -4,13 +4,13 @@ import {Mapping, StepMap} from "prosemirror-transform";
 import {useMemo} from "react";
 import {ContentEditorPhantomSelection} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
-import {DocumentContent} from "~/shared/content/document_content_schema";
 import {defaultThemeColor, themeColors} from "~/shared/design/theme_colors";
 import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_protocol";
+import {DocumentContent} from "~/shared/documents/document_content_schema";
+import {DocumentContentWithReferences} from "~/shared/documents/document_model";
 import {Lazy} from "~/shared/helpers/control/lazy";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
 import {WebSocketConnectionId} from "~/shared/id/types/id_types";
-import {DocumentContentWithReferences} from "~/shared/models/document_model";
 
 export function useDocumentContentEditorPhantomSelections({
     editorState,

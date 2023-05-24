@@ -11,9 +11,9 @@ import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
 import {getChatAndInitialMessages} from "~/server/dynamo/chat_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
+import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model";
 import {assert} from "~/shared/helpers/control/assert";
 import {ChatId} from "~/shared/id/types/id_types";
-import {ChatMessageModel, ChatModel} from "~/shared/models/chat_model";
 import {Schema} from "~/shared/schema/schema";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
 

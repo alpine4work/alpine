@@ -17,24 +17,24 @@ import {
 import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
 import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
 import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
+import {emptyContentReferences} from "~/shared/content/content_references";
+import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol";
 import {
     emptyDocumentContent,
     DocumentContentProsemirrorSchema as schema,
-} from "~/shared/content/document_content_schema";
-import {createSimpleMessageContent} from "~/shared/content/message_content_schema";
-import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error";
-import {wait} from "~/shared/helpers/async/wait";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
-import {generateId} from "~/shared/id/id";
-import {ContentEditorClientId, DocumentCommentThreadId} from "~/shared/id/types/id_types";
-import {emptyContentReferences} from "~/shared/models/content_references";
+} from "~/shared/documents/document_content_schema";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
     DocumentModel,
     emptyDocumentContentReferences,
-} from "~/shared/models/document_model";
+} from "~/shared/documents/document_model";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error";
+import {wait} from "~/shared/helpers/async/wait";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
+import {generateId} from "~/shared/id/id";
+import {ContentEditorClientId, DocumentCommentThreadId} from "~/shared/id/types/id_types";
+import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema";
 
 const context = createTestContext();
 const {connectForTest} = DocumentCollaborationDurableObject.test(context);

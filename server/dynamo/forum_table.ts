@@ -21,12 +21,7 @@ import {
     getNotificationPostContentSnippet,
 } from "~/server/dynamo/notifications_table";
 import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
-import {
-    MessageContent,
-    MessageContentSchema,
-    emptyMessageContent,
-} from "~/shared/content/message_content_schema";
-import {PostContent, PostContentSchema} from "~/shared/content/post_content_schema";
+import {AccountModel} from "~/shared/accounts/account_model";
 import {ContextCache} from "~/shared/context/cache_context_module";
 import {
     DataLossError,
@@ -36,6 +31,13 @@ import {
     PermissionDeniedError,
 } from "~/shared/error/error";
 import {errorDisplayMessage} from "~/shared/error/error_display_message";
+import {ChannelModel, ChannelPreviewModel} from "~/shared/forum/channel_model";
+import {PostContent, PostContentSchema} from "~/shared/forum/post_content_schema";
+import {
+    PostCommentModel,
+    PostModel,
+    maxPostPreviewCommentAuthorCount,
+} from "~/shared/forum/post_model";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
@@ -58,14 +60,12 @@ import {
     SpaceId,
 } from "~/shared/id/types/id_types";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema";
-import {AccountModel} from "~/shared/models/account_model";
-import {ChannelModel, ChannelPreviewModel} from "~/shared/models/channel_model";
-import {MessagePayloadSchema} from "~/shared/models/message_model";
 import {
-    PostCommentModel,
-    PostModel,
-    maxPostPreviewCommentAuthorCount,
-} from "~/shared/models/post_model";
+    MessageContent,
+    MessageContentSchema,
+    emptyMessageContent,
+} from "~/shared/messaging/message_content_schema";
+import {MessagePayloadSchema} from "~/shared/messaging/message_model";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 import {Schema} from "~/shared/schema/schema";
 

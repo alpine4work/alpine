@@ -11,12 +11,13 @@ import {
 } from "~/server/dynamo/documents_table";
 import {getContentReferencesForSteps} from "~/server/dynamo/helpers/get_content_references";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint";
-import {DocumentContent, isDocumentContent} from "~/shared/content/document_content_schema";
-import {MessageContent} from "~/shared/content/message_content_schema";
+import {AccountModel} from "~/shared/accounts/account_model";
 import {
     DocumentCollaborationEvent,
     DocumentCollaborationPresenceState,
 } from "~/shared/documents/document_collaboration_protocol";
+import {DocumentContent, isDocumentContent} from "~/shared/documents/document_content_schema";
+import {DocumentCommentThreadModel} from "~/shared/documents/document_model";
 import {FailedPreconditionError, InternalError, InvalidArgumentError} from "~/shared/error/error";
 import {isSystemError} from "~/shared/error/is_system_error_code";
 import {AsyncMutex} from "~/shared/helpers/async/async_mutex";
@@ -36,8 +37,7 @@ import {
     SpaceId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types";
-import {AccountModel} from "~/shared/models/account_model";
-import {DocumentCommentThreadModel} from "~/shared/models/document_model";
+import {MessageContent} from "~/shared/messaging/message_content_schema";
 import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema";
 import {
     ProsemirrorVisitor,

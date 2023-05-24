@@ -12,12 +12,12 @@ import {
 import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {StableRandom} from "~/shared/helpers/number/stable_random";
+import {MessageModel, MessageModelBase} from "~/shared/messaging/message_model";
 import {
     messageViewBubbleBorderRadius,
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
 } from "~/shared/messaging/messaging_shared_styles";
-import {MessageModel, MessageModelBase} from "~/shared/models/message_model";
 import {
     contentSchemaStyles,
     fontSizes,

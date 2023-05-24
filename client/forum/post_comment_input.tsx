@@ -7,15 +7,15 @@ import {MessageList, MessageListItem} from "~/client/messaging/message_list";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages";
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view";
-import {MessageContent} from "~/shared/content/message_content_schema";
+import {PostCommentModel, PostModel} from "~/shared/forum/post_model";
+import {PostRealtimeEvent, PostRealtimeProtocol} from "~/shared/forum/post_realtime_protocol";
 import {cast} from "~/shared/helpers/control/cast";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {pickObject} from "~/shared/helpers/object/pick_object";
 import {PostId} from "~/shared/id/types/id_types";
+import {MessageContent} from "~/shared/messaging/message_content_schema";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol";
 import {messageInputMinHeight} from "~/shared/messaging/messaging_shared_styles";
-import {PostCommentModel, PostModel} from "~/shared/models/post_model";
-import {PostRealtimeEvent, PostRealtimeProtocol} from "~/shared/posts/post_realtime_protocol";
 
 export const postCommentInputMinHeight = messageInputMinHeight;
 

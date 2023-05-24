@@ -462,6 +462,6 @@ function handleQueue(batch: MessageBatch, env: AppWorkerEnv, executionContext: E
 export default {fetch: handleFetch, queue: handleQueue};
 
 export {DocumentCollaborationDurableObject} from "~/server/documents/document_collaboration_durable_object";
-export {PostRealtimeDurableObject} from "~/server/posts/post_realtime_durable_object";
+export {PostRealtimeDurableObject} from "~/server/forum/post_realtime_durable_object";
 export {ChatRealtimeDurableObject} from "~/server/chat/chat_realtime_durable_object";
-export {MyAccountDurableObject} from "~/server/accounts/my_account_durable_object";
+export {MyAccountDurableObject} from "~/server/notifications/my_account_durable_object";

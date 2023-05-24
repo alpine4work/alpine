@@ -2,8 +2,12 @@ import {
     WebSocketProtocolEventType,
     defineWebSocketProtocol,
 } from "~/shared/cloudflare/web_socket_protocol";
-import {DocumentContentStepSchema} from "~/shared/content/document_content_schema";
-import {MessageContentSchema} from "~/shared/content/message_content_schema";
+import {DocumentContentStepSchema} from "~/shared/documents/document_content_schema";
+import {
+    DocumentCommentModel,
+    DocumentCommentThreadModel,
+    DocumentContentReferencesSchema,
+} from "~/shared/documents/document_model";
 import {ErrorSchema} from "~/shared/error/error_schema";
 import {
     ContentEditorClientId,
@@ -11,15 +15,11 @@ import {
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types";
 import {MessageChangeSchema} from "~/shared/messaging/message_change_schema";
+import {MessageContentSchema} from "~/shared/messaging/message_content_schema";
 import {
     MessagingTypingStateSchema,
     createMessagingRealtimeEventSchemas,
 } from "~/shared/messaging/messaging_realtime_protocol";
-import {
-    DocumentCommentModel,
-    DocumentCommentThreadModel,
-    DocumentContentReferencesSchema,
-} from "~/shared/models/document_model";
 import {ProsemirrorSelectionSchema} from "~/shared/prosemirror/prosemirror_selection_schema";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 

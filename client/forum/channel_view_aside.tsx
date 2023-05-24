@@ -1,7 +1,7 @@
 import {ContentView} from "~/client/content/content_view";
 import {Box} from "~/client/design/box";
 import {postListViewMarginY} from "~/client/forum/post_list_view";
-import {ChannelModel} from "~/shared/models/channel_model";
+import {ChannelModel} from "~/shared/forum/channel_model";
 import {sprinkles} from "~/shared/styles/styles";
 
 export function ChannelViewAside({channel}: {channel: ChannelModel}) {

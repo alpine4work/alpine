@@ -9,10 +9,10 @@ import {PrettyNumber} from "~/client/design/pretty_number";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {Tooltip, TooltipProps} from "~/client/design/tooltip";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
+import {AccountModel} from "~/shared/accounts/account_model";
 import {addRemLengths, negateRemLength, spacing} from "~/shared/design/spacing";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
-import {AccountModel} from "~/shared/models/account_model";
 import {backgroundColorVar, spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
 
 export type AccountAvatarPileSize = "4" | "6" | "12";

@@ -13,13 +13,20 @@ import {
 import {AppContext} from "~/client/context/app_context";
 import {Store} from "~/client/helpers/store/store";
 import {ValueStore} from "~/client/helpers/store/value_store";
+import {AccountModel} from "~/shared/accounts/account_model";
 import {WebSocketProtocolProceduresType} from "~/shared/cloudflare/web_socket_protocol";
-import {DocumentContent, isDocumentContent} from "~/shared/content/document_content_schema";
-import {MessageContent} from "~/shared/content/message_content_schema";
 import {
     DocumentCollaborationPresenceState,
     DocumentCollaborationProtocol,
 } from "~/shared/documents/document_collaboration_protocol";
+import {DocumentContent, isDocumentContent} from "~/shared/documents/document_content_schema";
+import {
+    DocumentCommentModel,
+    DocumentContentReferences,
+    DocumentContentWithReferences,
+    DocumentModel,
+    mergeDocumentContentReferences,
+} from "~/shared/documents/document_model";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
@@ -34,16 +41,9 @@ import {
     DocumentId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types";
+import {MessageContent} from "~/shared/messaging/message_content_schema";
+import {MessageContentWithReferences} from "~/shared/messaging/message_model";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol";
-import {AccountModel} from "~/shared/models/account_model";
-import {
-    DocumentCommentModel,
-    DocumentContentReferences,
-    DocumentContentWithReferences,
-    DocumentModel,
-    mergeDocumentContentReferences,
-} from "~/shared/models/document_model";
-import {MessageContentWithReferences} from "~/shared/models/message_model";
 import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema";
 
 export type DocumentContentEditorState = {

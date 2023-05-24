@@ -7,10 +7,10 @@ import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtual
 import {getChannel} from "~/server/dynamo/forum_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
+import {ChannelModel} from "~/shared/forum/channel_model";
+import {PostModel} from "~/shared/forum/post_model";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {ChannelId} from "~/shared/id/types/id_types";
-import {ChannelModel} from "~/shared/models/channel_model";
-import {PostModel} from "~/shared/models/post_model";
 import {getChannelPosts} from "~/shared/rpc/forum_rpc_definitions";
 import {Schema} from "~/shared/schema/schema";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";

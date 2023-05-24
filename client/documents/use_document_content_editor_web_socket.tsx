@@ -9,17 +9,17 @@ import {
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useStore} from "~/client/helpers/store/use_store";
 import {MemoObject} from "~/client/helpers/types/memo_object";
-import {DocumentContent} from "~/shared/content/document_content_schema";
 import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_protocol";
-import {Lazy} from "~/shared/helpers/control/lazy";
-import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
-import {DocumentCommentThreadId, WebSocketConnectionId} from "~/shared/id/types/id_types";
-import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol";
+import {DocumentContent} from "~/shared/documents/document_content_schema";
 import {
     DocumentCommentModel,
     DocumentContentWithReferences,
     DocumentModel,
-} from "~/shared/models/document_model";
+} from "~/shared/documents/document_model";
+import {Lazy} from "~/shared/helpers/control/lazy";
+import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
+import {DocumentCommentThreadId, WebSocketConnectionId} from "~/shared/id/types/id_types";
+import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol";
 
 export type SubscribeToCommentThreadEventsFunction = Memo<
     (

@@ -5,8 +5,8 @@ import {DocumentCollaborationContentManager} from "~/server/documents/document_c
 import {ActionContext, SessionActionContext} from "~/server/dynamo/context/action_context";
 import {ProcessContext} from "~/server/dynamo/context/process_context";
 import {authorizeDocumentAccess, getDocument} from "~/server/dynamo/documents_table";
-import {DocumentContent} from "~/shared/content/document_content_schema";
 import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol";
+import {DocumentContent} from "~/shared/documents/document_content_schema";
 import {NotFoundError} from "~/shared/error/error";
 import {DocumentId, SpaceId} from "~/shared/id/types/id_types";
 import {Schema} from "~/shared/schema/schema";
