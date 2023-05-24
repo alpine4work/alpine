@@ -1,5 +1,5 @@
 import {globalStyle, style} from "@vanilla-extract/css";
-import {spacing} from "~/shared/design/spacing";
+import {addRemLengths, mobilePlatformMediaQuery, spacing} from "~/shared/design/spacing";
 import {colorSchemeVars} from "~/shared/styles/internal/color_scheme.css";
 import {inputPlaceholderColor} from "~/shared/styles/internal/input_placeholder_color.css";
 
@@ -73,6 +73,32 @@ export const titleInputOverflowGradientRightContainerClassName = style({
             right: 0,
             width: spacing["3"],
             background: `linear-gradient(to left, ${colorSchemeVars["grey-0"]}, transparent)`,
+        },
+    },
+});
+
+const assigneeDetailViewFieldLabelDesktopWidth = "3.25rem";
+const assigneeDetailViewFieldLabelMobileWidth = "3.2rem";
+
+const statusButtonAndMarginWidth = addRemLengths(spacing["5"], spacing["4"]);
+
+// NOTE(calebmer): Really small detail: Align the left edge of the first field
+// in a task detail view with the task title (which is indented by the status
+// button). The first field should always be the "Assignee" field so we can
+// hardcode the width of that text.
+//
+// We right align field labels with their values to help scan the values which
+// means there's margin on the left of the label. By making the margin left of
+// the label consistent with the margin left of the title this whitespace looks
+// more intentional and systematic.
+export const detailViewFieldWidthClassName = style({
+    width: addRemLengths(statusButtonAndMarginWidth, assigneeDetailViewFieldLabelDesktopWidth),
+    "@media": {
+        [mobilePlatformMediaQuery]: {
+            width: addRemLengths(
+                statusButtonAndMarginWidth,
+                assigneeDetailViewFieldLabelMobileWidth,
+            ),
         },
     },
 });

@@ -1,4 +1,5 @@
 import {CalendarDate} from "@internationalized/date";
+import classNames from "classnames";
 import {ReactNode, useId, useMemo, useRef} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
@@ -13,7 +14,7 @@ import {LocalTaskCollection} from "~/client/tasks/playground/local_task_collecti
 import {TaskStatus, TaskStatusButton} from "~/client/tasks/playground/task_status_button";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {AccountModel} from "~/shared/models/account_model";
-import {fontSizes, sprinkles} from "~/shared/styles/styles";
+import {fontSizes, sprinkles, tasksStyles} from "~/shared/styles/styles";
 
 // TODO(calebmer): Needs:
 //
@@ -153,12 +154,14 @@ function TaskDetailViewField({
         <Box display="flex" gap="5">
             <label
                 id={labelId}
-                className={sprinkles({
-                    display: "block",
-                    width: "24",
-                    color: "grey-50",
-                    textAlign: "right",
-                })}
+                className={classNames(
+                    tasksStyles.detailViewFieldWidthClassName,
+                    sprinkles({
+                        display: "block",
+                        color: "grey-50",
+                        textAlign: "right",
+                    }),
+                )}
                 // As an affordance for mouse users, when the label is clicked we focus
                 // the first element in the input.
                 onClick={() => {
