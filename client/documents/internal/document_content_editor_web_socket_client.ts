@@ -40,8 +40,10 @@ import {
     DocumentId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types";
-import {MessageContent} from "~/shared/messaging/message_content_schema";
-import {MessageContentWithReferences} from "~/shared/messaging/message_model";
+import {
+    MessageContent,
+    MessageContentWithReferences,
+} from "~/shared/messaging/message_content_schema";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol";
 import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema";
 

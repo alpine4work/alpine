@@ -49,7 +49,8 @@ import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit";
-import {MessageContentWithReferences, MessageModel} from "~/shared/messaging/message_model";
+import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema";
+import {MessageModel} from "~/shared/messaging/message_model";
 import {
     BackfillMessagesProcedure,
     CreateMessageProcedure,

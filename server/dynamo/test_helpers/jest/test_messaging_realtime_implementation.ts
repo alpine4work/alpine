@@ -20,8 +20,11 @@ import {
 import {emptyContentReferences} from "~/shared/content/content_references";
 import {UnimplementedError} from "~/shared/error/error";
 import {SpaceId} from "~/shared/id/types/id_types";
-import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema";
-import {MessageContentWithReferences, MessageModel} from "~/shared/messaging/message_model";
+import {
+    MessageContentWithReferences,
+    createSimpleMessageContent,
+} from "~/shared/messaging/message_content_schema";
+import {MessageModel} from "~/shared/messaging/message_model";
 import {
     MessagingRealtimeEvent,
     MessagingRealtimeProcedures,

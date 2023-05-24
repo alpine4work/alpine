@@ -58,10 +58,8 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {clamp} from "~/shared/helpers/number/clamp";
 import {assertId} from "~/shared/id/id";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types";
-import {
-    MessageContentWithReferences,
-    OptimisticMessageModel,
-} from "~/shared/messaging/message_model";
+import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema";
+import {OptimisticMessageModel} from "~/shared/messaging/message_model";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer";
 import {colorSchemeVars, contentSchemaStyles, spinAnimationClassName} from "~/shared/styles/styles";
 

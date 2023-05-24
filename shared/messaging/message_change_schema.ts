@@ -1,5 +1,5 @@
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {MessageContentWithReferencesSchema} from "~/shared/messaging/message_model";
+import {MessageContentWithReferencesSchema} from "~/shared/messaging/message_content_schema";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 
 export type MessageChange = SchemaType<typeof MessageChangeSchema>;

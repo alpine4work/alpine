@@ -1,11 +1,12 @@
 import {Node, Schema as ProsemirrorSchema} from "prosemirror-model";
+import {ContentReferencesSchema, emptyContentReferences} from "~/shared/content/content_references";
 import {
     contentBaseProsemirrorSchemaSpec,
     createProsemirrorSchemaSpec,
 } from "~/shared/content/content_schema";
 import {assert} from "~/shared/helpers/control/assert";
 import {createSchemaForProsemirrorSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema";
-import {Schema} from "~/shared/schema/schema";
+import {Schema, SchemaType} from "~/shared/schema/schema";
 
 const messageContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
     nodes: {
@@ -49,3 +50,15 @@ export const MessageContentSchema =
 export const emptyMessageContent = MessageContentProsemirrorSchema.node("doc", {}, [
     MessageContentProsemirrorSchema.node("paragraph"),
 ]) as MessageContent;
+
+export type MessageContentWithReferences = SchemaType<typeof MessageContentWithReferencesSchema>;
+
+export const MessageContentWithReferencesSchema = Schema.object({
+    doc: MessageContentSchema,
+    references: ContentReferencesSchema,
+});
+
+export const emptyMessageContentWithReferences: MessageContentWithReferences = {
+    doc: emptyMessageContent,
+    references: emptyContentReferences,
+};

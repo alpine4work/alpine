@@ -12,12 +12,12 @@ import {
 } from "~/server/dynamo/documents_table";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
+import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references";
 import {emptyDocumentContent} from "~/shared/documents/document_content_schema";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
     DocumentModel,
-    emptyDocumentContentReferences,
     getDocumentContentTitle,
 } from "~/shared/documents/document_model";
 import {FailedPreconditionError} from "~/shared/error/error";

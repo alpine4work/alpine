@@ -1,21 +1,11 @@
 import {AccountModel} from "~/shared/accounts/account_model";
-import {ContentReferencesSchema, emptyContentReferences} from "~/shared/content/content_references";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {Id} from "~/shared/id/id";
-import {MessageContentSchema, emptyMessageContent} from "~/shared/messaging/message_content_schema";
+import {
+    MessageContentSchema,
+    MessageContentWithReferencesSchema,
+} from "~/shared/messaging/message_content_schema";
 import {Schema, SchemaType} from "~/shared/schema/schema";
-
-export type MessageContentWithReferences = SchemaType<typeof MessageContentWithReferencesSchema>;
-
-export const MessageContentWithReferencesSchema = Schema.object({
-    doc: MessageContentSchema,
-    references: ContentReferencesSchema,
-});
-
-export const emptyMessageContentWithReferences: MessageContentWithReferences = {
-    doc: emptyMessageContent,
-    references: emptyContentReferences,
-};
 
 export type MessageRoomKeyType<Message extends MessageModelBase> = Message extends MessageModel<
     infer RoomKey

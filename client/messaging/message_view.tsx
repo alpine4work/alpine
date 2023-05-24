@@ -38,10 +38,10 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis";
 import {
     MessageContentProsemirrorSchema,
+    MessageContentWithReferences,
     assertMessageContent,
 } from "~/shared/messaging/message_content_schema";
 import {
-    MessageContentWithReferences,
     MessageModel,
     MessageModelBase,
     OptimisticMessageModel,

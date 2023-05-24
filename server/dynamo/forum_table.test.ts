@@ -20,10 +20,10 @@ import {emptyContentReferences} from "~/shared/content/content_references";
 import {InvalidArgumentError, NotFoundError, PermissionDeniedError} from "~/shared/error/error";
 import {
     PostContentProsemirrorSchema,
+    PostContentWithReferences,
     assertPostContent,
     createSimplePostContent,
 } from "~/shared/forum/post_content_schema";
-import {PostContentWithReferences} from "~/shared/forum/post_model";
 import {assert} from "~/shared/helpers/control/assert";
 import {generateId} from "~/shared/id/id";
 import {

@@ -1,5 +1,5 @@
 import {ChannelId, SpaceId} from "~/shared/id/types/id_types";
-import {MessageContentWithReferencesSchema} from "~/shared/messaging/message_model";
+import {MessageContentWithReferencesSchema} from "~/shared/messaging/message_content_schema";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 import {Model} from "~/shared/schema/model/model";
 import {Schema} from "~/shared/schema/schema";

@@ -23,8 +23,9 @@ import {
     PostContentProsemirrorSchema,
     assertPostContent,
     emptyPostContent,
+    emptyPostContentWithReferences,
 } from "~/shared/forum/post_content_schema";
-import {PostModel, emptyPostContentWithReferences} from "~/shared/forum/post_model";
+import {PostModel} from "~/shared/forum/post_model";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema";
 import {
     InboxChannelPostsEntryModel,

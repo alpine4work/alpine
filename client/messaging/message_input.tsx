@@ -32,13 +32,12 @@ import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable";
 import {generateId} from "~/shared/id/id";
-import {MessageContent} from "~/shared/messaging/message_content_schema";
 import {
+    MessageContent,
     MessageContentWithReferences,
-    MessageModel,
-    OptimisticMessageModel,
     emptyMessageContentWithReferences,
-} from "~/shared/messaging/message_model";
+} from "~/shared/messaging/message_content_schema";
+import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model";
 import {
     messageInputMinHeight,
     messageViewBubbleBorderRadius,

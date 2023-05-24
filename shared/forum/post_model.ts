@@ -1,23 +1,10 @@
 import {AccountModel} from "~/shared/accounts/account_model";
-import {ContentReferencesSchema, emptyContentReferences} from "~/shared/content/content_references";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model";
-import {PostContentSchema, emptyPostContent} from "~/shared/forum/post_content_schema";
+import {PostContentWithReferencesSchema} from "~/shared/forum/post_content_schema";
 import {PostId, SpaceId} from "~/shared/id/types/id_types";
 import {MessageModel, MessagePayloadModelSchema} from "~/shared/messaging/message_model";
 import {Model} from "~/shared/schema/model/model";
-import {Schema, SchemaType} from "~/shared/schema/schema";
-
-export type PostContentWithReferences = SchemaType<typeof PostContentWithReferencesSchema>;
-
-export const PostContentWithReferencesSchema = Schema.object({
-    doc: PostContentSchema,
-    references: ContentReferencesSchema,
-});
-
-export const emptyPostContentWithReferences: PostContentWithReferences = {
-    doc: emptyPostContent,
-    references: emptyContentReferences,
-};
+import {Schema} from "~/shared/schema/schema";
 
 export const maxPostPreviewCommentAuthorCount = 5;
 

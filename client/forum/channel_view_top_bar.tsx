@@ -22,7 +22,7 @@ import {isContentEmpty} from "~/shared/content/is_content_empty";
 import {addRemLengths, spacing} from "~/shared/design/spacing";
 import {ChannelModel} from "~/shared/forum/channel_model";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {MessageContentWithReferences} from "~/shared/messaging/message_model";
+import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema";
 import {updateChannelDescription, updateChannelName} from "~/shared/rpc/forum_rpc_definitions";
 import {sprinkles} from "~/shared/styles/styles";
 
