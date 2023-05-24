@@ -12,6 +12,7 @@ import {
 import {assert} from "~/shared/helpers/control/assert";
 import {lerp} from "~/shared/helpers/number/lerp";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
+import {omitObject} from "~/shared/helpers/object/omit_object";
 import {borderRadius} from "~/shared/styles/internal/border_radius.css";
 import {
     CssVarFunction,
@@ -29,7 +30,7 @@ import {
     extrapolateHighlightRawColorWithoutBounds,
 } from "~/shared/styles/internal/helpers/extrapolate_highlight_color";
 import {RawColor, parseRawColor, printRawColor} from "~/shared/styles/internal/helpers/raw_color";
-import {inputPlaceholderColor} from "~/shared/styles/internal/input_placeholder_color.css";
+import {inputPlaceholderStyles} from "~/shared/styles/internal/input_placeholder.css";
 import {peekContainerClassName} from "~/shared/styles/internal/peek.css";
 
 // TODO(calebmer): Running list of style tweaks to explore.
@@ -722,7 +723,8 @@ globalStyle(`${emptyTitleClassName} > ${titleClassName}[data-placeholder]::befor
     // fallback without the `/ ""`.
     content: ["attr(data-placeholder)", 'attr(data-placeholder) / ""'],
     pointerEvents: "none",
-    color: inputPlaceholderColor,
+    // Uses a bold font weight for the title.
+    ...omitObject(inputPlaceholderStyles, ["fontWeight"]),
     position: "absolute",
     // Reset the `text-fill-color` set by blobs so that we can see the placeholder.
     // @ts-expect-error
@@ -742,7 +744,7 @@ globalStyle(`${emptyBodyClassName} > ${paragraphClassName}[data-placeholder]::be
     // fallback without the `/ ""`.
     content: ["attr(data-placeholder)", 'attr(data-placeholder) / ""'],
     pointerEvents: "none",
-    color: inputPlaceholderColor,
+    ...inputPlaceholderStyles,
     position: "absolute",
     // Make sure placeholder is rendered underneath cursor.
     zIndex: -10,

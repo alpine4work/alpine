@@ -1,7 +1,8 @@
 import {globalStyle, style} from "@vanilla-extract/css";
-import {addRemLengths, mobilePlatformMediaQuery, spacing} from "~/shared/design/spacing";
+import {spacing} from "~/shared/design/spacing";
+import {omitObject} from "~/shared/helpers/object/omit_object";
 import {colorSchemeVars} from "~/shared/styles/internal/color_scheme.css";
-import {inputPlaceholderColor} from "~/shared/styles/internal/input_placeholder_color.css";
+import {inputPlaceholderStyles} from "~/shared/styles/internal/input_placeholder.css";
 
 export const textCursorNotInheritedClassName = style({
     cursor: "text",
@@ -39,7 +40,8 @@ globalStyle(`${titleInputEmptyContainerClassName} > ${titleInputPlaceholderClass
     // fallback without the `/ ""`.
     content: ["attr(aria-placeholder)", 'attr(aria-placeholder) / ""'],
     pointerEvents: "none",
-    color: inputPlaceholderColor,
+    // Uses a bold font weight for the title.
+    ...omitObject(inputPlaceholderStyles, ["fontWeight"]),
     position: "absolute",
     // Make sure placeholder is rendered underneath cursor.
     zIndex: -10,
@@ -73,32 +75,6 @@ export const titleInputOverflowGradientRightContainerClassName = style({
             right: 0,
             width: spacing["3"],
             background: `linear-gradient(to left, ${colorSchemeVars["grey-0"]}, transparent)`,
-        },
-    },
-});
-
-const assigneeDetailViewFieldLabelDesktopWidth = "3.25rem";
-const assigneeDetailViewFieldLabelMobileWidth = "3.2rem";
-
-const statusButtonAndMarginWidth = addRemLengths(spacing["5"], spacing["4"]);
-
-// NOTE(calebmer): Really small detail: Align the left edge of the first field
-// in a task detail view with the task title (which is indented by the status
-// button). The first field should always be the "Assignee" field so we can
-// hardcode the width of that text.
-//
-// We right align field labels with their values to help scan the values which
-// means there's margin on the left of the label. By making the margin left of
-// the label consistent with the margin left of the title this whitespace looks
-// more intentional and systematic.
-export const detailViewFieldWidthClassName = style({
-    width: addRemLengths(statusButtonAndMarginWidth, assigneeDetailViewFieldLabelDesktopWidth),
-    "@media": {
-        [mobilePlatformMediaQuery]: {
-            width: addRemLengths(
-                statusButtonAndMarginWidth,
-                assigneeDetailViewFieldLabelMobileWidth,
-            ),
         },
     },
 });

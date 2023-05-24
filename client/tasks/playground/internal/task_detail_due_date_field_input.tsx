@@ -6,7 +6,7 @@ import {DateFieldState, DateFieldStateOptions, DateSegment, useDateFieldState} f
 import {Box} from "~/client/design/box";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {spacing} from "~/shared/design/spacing";
-import {sprinkles} from "~/shared/styles/styles";
+import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles";
 
 export function TaskDetailDueDateFieldInput({
     dueDate,
@@ -30,10 +30,6 @@ export function TaskDetailDueDateFieldInput({
 
     const state = useDateFieldState(datePickerProps);
 
-    const isPlaceholder = state.segments.every(
-        segment => !segment.isEditable || segment.isPlaceholder,
-    );
-
     const ref = useRef<HTMLDivElement>(null);
     const {fieldProps} = useDateField(datePickerProps, state, ref);
 
@@ -42,7 +38,7 @@ export function TaskDetailDueDateFieldInput({
             display="flex"
             alignItems="center"
             gap="1"
-            color={isPlaceholder ? "grey-50" : "grey-text"}
+            color="grey-text"
             cursor="text"
             onPointerDown={event => {
                 if (event.target === event.currentTarget) {
@@ -80,8 +76,11 @@ function TaskDetailDueDateFieldInputSegment({
             })}
             ref={ref}
             backgroundColor={isFocused ? "theme-selection" : undefined}
-            color={segment.isPlaceholder ? "grey-50" : undefined}
-            style={{...segmentProps.style, fontVariantNumeric: "tabular-nums"}}
+            style={{
+                ...segmentProps.style,
+                fontVariantNumeric: "tabular-nums",
+                ...(segment.isPlaceholder ? inputPlaceholderStyles : {}),
+            }}
         >
             {segment.text}
         </Box>

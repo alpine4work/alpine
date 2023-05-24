@@ -9,7 +9,7 @@ import {globalStyle} from "@vanilla-extract/css";
 import {mobilePlatformMediaQuery, remPxByPlatform} from "~/shared/design/spacing";
 import {colorSchemeVars} from "~/shared/styles/internal/color_scheme.css";
 import {fontSizes, fontStyles} from "~/shared/styles/internal/fonts.css";
-import {inputPlaceholderColor} from "~/shared/styles/internal/input_placeholder_color.css";
+import {inputPlaceholderStyles} from "~/shared/styles/internal/input_placeholder.css";
 import {backgroundColorVar} from "~/shared/styles/internal/sprinkles.css";
 
 globalStyle(":root", {
@@ -61,9 +61,7 @@ globalStyle("code, kbd, samp, pre", {
     ...fontStyles.code,
 });
 
-globalStyle("::placeholder", {
-    color: inputPlaceholderColor,
-});
+globalStyle("::placeholder", inputPlaceholderStyles);
 
 globalStyle("::selection", {
     background: colorSchemeVars["theme-selection"],

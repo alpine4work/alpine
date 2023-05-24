@@ -2,25 +2,30 @@ import classNames from "classnames";
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {useRef, useState} from "react";
+import {FocusRing} from "~/client/design/focus_ring";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
+import {TaskStatus} from "~/client/tasks/playground/task_status_button";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
-import {sprinkles, tasksStyles} from "~/shared/styles/styles";
+import {fontSizes, sprinkles, tasksStyles} from "~/shared/styles/styles";
 import {TaskTitle, assertTaskTitle} from "~/shared/tasks/task_title_schema";
 
 const taskDetailTitleInputAriaLabel = "Title";
 
 const taskDetailTitleInputClassName = `ProseMirror ${sprinkles({
     fontSize: "300",
+    fontStyle: "semi-bold",
 })} ${tasksStyles.titleInputPlaceholderClassName}`;
 
 export function TaskDetailTitleInput({
+    status,
     title,
     onTitleChange,
     placeholder,
 }: {
+    status: TaskStatus;
     title: TaskTitle;
     onTitleChange: (title: TaskTitle) => void;
     placeholder?: string;
@@ -119,25 +124,32 @@ export function TaskDetailTitleInput({
     }, [isInitialAppRender, placeholder]);
 
     return (
-        <div
-            ref={containerRef}
-            className={classNames(
-                tasksStyles.titleInputContainerClassName,
-                titleState.doc.childCount === 0 && tasksStyles.titleInputEmptyContainerClassName,
-            )}
-        >
-            {isInitialAppRender && (
-                // On server-side render serialize our title to HTML since we can't mount an
-                // `EditorView` until we are on the client.
-                <div
-                    className={taskDetailTitleInputClassName}
-                    aria-label={taskDetailTitleInputAriaLabel}
-                    aria-placeholder={placeholder}
-                    dangerouslySetInnerHTML={{
-                        __html: serializeProsemirrorFragmentToHtml(titleState.doc.content),
-                    }}
-                />
-            )}
-        </div>
+        <FocusRing isVisibleWhenFocusWithin>
+            <div
+                ref={containerRef}
+                className={classNames(
+                    tasksStyles.titleInputContainerClassName,
+                    titleState.doc.childCount === 0 &&
+                        tasksStyles.titleInputEmptyContainerClassName,
+                    sprinkles({
+                        color: status === "Closed" ? "grey-60" : "grey-text",
+                    }),
+                )}
+                style={{minHeight: fontSizes["300"].lineHeight}}
+            >
+                {isInitialAppRender && (
+                    // On server-side render serialize our title to HTML since we can't mount an
+                    // `EditorView` until we are on the client.
+                    <div
+                        className={taskDetailTitleInputClassName}
+                        aria-label={taskDetailTitleInputAriaLabel}
+                        aria-placeholder={placeholder}
+                        dangerouslySetInnerHTML={{
+                            __html: serializeProsemirrorFragmentToHtml(titleState.doc.content),
+                        }}
+                    />
+                )}
+            </div>
+        </FocusRing>
     );
 }

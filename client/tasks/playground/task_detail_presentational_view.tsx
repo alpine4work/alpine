@@ -1,11 +1,13 @@
 import {CalendarDate} from "@internationalized/date";
-import classNames from "classnames";
+import {DotsThree} from "phosphor-react";
 import {ReactNode, useId, useMemo, useRef} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
 import {Box} from "~/client/design/box";
-import {FocusRing} from "~/client/design/focus_ring";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element";
+import {IconButton} from "~/client/design/icon_button";
+import {MenuButton} from "~/client/design/menu_button";
+import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {TaskCollectionChip} from "~/client/tasks/playground/internal/task_collection_chip";
 import {TaskDetailDueDateField} from "~/client/tasks/playground/internal/task_detail_due_date_field";
 import {TaskDetailNotesField} from "~/client/tasks/playground/internal/task_detail_notes_field";
@@ -13,8 +15,10 @@ import {TaskDetailTitleInput} from "~/client/tasks/playground/internal/task_deta
 import {LocalTaskCollection} from "~/client/tasks/playground/local_task_collection";
 import {TaskStatus, TaskStatusButton} from "~/client/tasks/playground/task_status_button";
 import {AccountModel} from "~/shared/accounts/account_model";
+import {Spacing, assertSpacing} from "~/shared/design/spacing";
+import {UnimplementedError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {fontSizes, sprinkles} from "~/shared/styles/styles";
+import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema";
 import {TaskTitle} from "~/shared/tasks/task_title_schema";
 
@@ -27,7 +31,7 @@ import {TaskTitle} from "~/shared/tasks/task_title_schema";
 // [ ] Collections field
 // [ ] Custom fields
 // [ ] Subtasks
-// [ ] Notes
+// [x] Notes
 // [ ] Comments
 // [ ] Activity
 
@@ -54,49 +58,53 @@ export function TaskDetailPresentationalView({
     notesContent: TaskNotesContentWithReferences;
     onNotesContentChange: (notesContent: TaskNotesContentWithReferences) => void;
 }) {
+    const isMobile = useIsMobile();
+    const padding: Spacing = isMobile ? "3" : "5";
+
     return (
         <Box minHeight="full" display="flex">
             <Box
                 flexGrow="1"
                 maxWidth="160"
-                paddingY="5"
+                paddingY={padding}
                 display="flex"
                 flexDirection="column"
                 gap="10"
+                position="relative"
                 borderRight="grey-10"
             >
-                <Box paddingX="5" display="flex" gap="4">
+                <Box paddingX={padding} display="flex" flexDirection="column" gap="3">
+                    <TaskStatusButton size="5" status={status} onStatusChange={onStatusChange} />
                     <Box
-                        flexShrink="0"
-                        display="flex"
-                        alignItems="center"
-                        style={{height: fontSizes["300"].lineHeight}}
+                        position="absolute"
+                        top={assertSpacing(`${parseInt(padding, 10) - 2}`)}
+                        right={assertSpacing(`${parseInt(padding, 10) - 2}`)}
                     >
-                        <TaskStatusButton
-                            size="5"
-                            status={status}
-                            onStatusChange={onStatusChange}
-                        />
-                    </Box>
-                    <FocusRing isVisibleWhenFocusWithin>
-                        <Box
-                            flexGrow="1"
-                            fontSize="300"
-                            fontStyle="semi-bold"
-                            // Some extra padding to visually balance the title with the left-aligned
-                            // status button.
-                            paddingRight="4"
-                            color={status === "Closed" ? "grey-60" : "grey-text"}
+                        <MenuButton
+                            actions={[
+                                {
+                                    label: "Copy link",
+                                    pressErrorTitle: "Couldn’t copy task link",
+                                    onPress: async () => {
+                                        // NOCOMMIT
+                                        throw new UnimplementedError("TODO");
+                                    },
+                                },
+                            ]}
                         >
-                            <TaskDetailTitleInput
-                                title={title}
-                                onTitleChange={onTitleChange}
-                                placeholder="Untitled task"
-                            />
-                        </Box>
-                    </FocusRing>
+                            <IconButton description="More" withoutTooltip={true}>
+                                <DotsThree />
+                            </IconButton>
+                        </MenuButton>
+                    </Box>
+                    <TaskDetailTitleInput
+                        status={status}
+                        title={title}
+                        onTitleChange={onTitleChange}
+                        placeholder="Untitled task"
+                    />
                 </Box>
-                <Box paddingX="5" display="flex" flexDirection="column" gap="5">
+                <Box paddingX={padding} display="flex" flexDirection="column" gap="5">
                     {useMemo(
                         () => (
                             <TaskDetailViewField label="Assignee">
@@ -150,13 +158,26 @@ export function TaskDetailPresentationalView({
                 <TaskDetailNotesField
                     notesContent={notesContent}
                     onNotesContentChange={onNotesContentChange}
+                    padding={padding}
                 />
                 <Box>
-                    <Box paddingX="5" paddingBottom="1.5" color="grey-50">
+                    <Box paddingX={padding} paddingBottom="1.5" color="grey-60">
                         Subtasks
                     </Box>
                     <Box>
-                        <Box paddingX="5">
+                        <Box paddingX={padding}>
+                            <Box
+                                height="9"
+                                fontSize="100"
+                                display="flex"
+                                alignItems="center"
+                                borderY="grey-5"
+                                style={inputPlaceholderStyles}
+                            >
+                                Add a subtask…
+                            </Box>
+                        </Box>
+                        {/* <Box paddingX={padding}>
                             <Box
                                 height="9"
                                 fontSize="100"
@@ -167,7 +188,7 @@ export function TaskDetailPresentationalView({
                                 Task row 1
                             </Box>
                         </Box>
-                        <Box paddingX="5">
+                        <Box paddingX={padding}>
                             <Box
                                 height="9"
                                 fontSize="100"
@@ -178,7 +199,7 @@ export function TaskDetailPresentationalView({
                                 Task row 2
                             </Box>
                         </Box>
-                        <Box paddingX="5">
+                        <Box paddingX={padding}>
                             <Box
                                 height="9"
                                 fontSize="100"
@@ -189,7 +210,7 @@ export function TaskDetailPresentationalView({
                                 Task row 3
                             </Box>
                         </Box>
-                        <Box paddingX="5">
+                        <Box paddingX={padding}>
                             <Box
                                 height="9"
                                 fontSize="100"
@@ -200,7 +221,7 @@ export function TaskDetailPresentationalView({
                                 Task row 4
                             </Box>
                         </Box>
-                        <Box paddingX="5">
+                        <Box paddingX={padding}>
                             <Box
                                 height="9"
                                 fontSize="100"
@@ -211,7 +232,7 @@ export function TaskDetailPresentationalView({
                                 Task row 5
                             </Box>
                         </Box>
-                        <Box paddingX="5">
+                        <Box paddingX={padding}>
                             <Box
                                 height="9"
                                 fontSize="100"
@@ -222,7 +243,7 @@ export function TaskDetailPresentationalView({
                                 Task row 6
                             </Box>
                         </Box>
-                        <Box paddingX="5">
+                        <Box paddingX={padding}>
                             <Box
                                 height="9"
                                 fontSize="100"
@@ -233,7 +254,7 @@ export function TaskDetailPresentationalView({
                                 Task row 7
                             </Box>
                         </Box>
-                        <Box paddingX="5">
+                        <Box paddingX={padding}>
                             <Box
                                 height="9"
                                 fontSize="100"
@@ -243,7 +264,7 @@ export function TaskDetailPresentationalView({
                             >
                                 Task row 8
                             </Box>
-                        </Box>
+                        </Box> */}
                     </Box>
                 </Box>
             </Box>
@@ -265,16 +286,11 @@ function TaskDetailViewField({
         <Box display="flex" gap="5">
             <label
                 id={labelId}
-                className={classNames(
-                    // NOCOMMIT
-                    // tasksStyles.detailViewFieldWidthClassName,
-                    sprinkles({
-                        display: "block",
-                        color: "grey-50",
-                        textAlign: "left",
-                        width: "16",
-                    }),
-                )}
+                className={sprinkles({
+                    display: "block",
+                    color: "grey-60",
+                    width: "16",
+                })}
                 // As an affordance for mouse users, when the label is clicked we focus
                 // the first element in the input.
                 onClick={() => {

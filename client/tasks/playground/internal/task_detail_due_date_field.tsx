@@ -63,7 +63,9 @@ export function TaskDetailDueDateField({
                     alignItems="center"
                     gap="1"
                     color={
-                        status === "Open" && formattedDueDate.isAfterDueDate ? "red-60" : undefined
+                        status === "Open" && formattedDueDate.isAfterDueDate
+                            ? "red-60"
+                            : "grey-text"
                     }
                     cursor="text"
                     onClick={() => {

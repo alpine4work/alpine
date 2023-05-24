@@ -38,6 +38,7 @@ let currentActiveElement: HTMLElement | null = null;
 function FocusRing(
     {
         offset,
+        insetX,
         isVisible = false,
         isDisabled = false,
         shouldIgnoreFocusEvents = false,
@@ -58,6 +59,14 @@ function FocusRing(
          * Setting to `inset` will render the focus ring inside of the element.
          */
         offset?: Spacing | "border" | "inset";
+
+        /**
+         * How far in on the X axis we should inset our focus ring?
+         *
+         * This will be subtracted from `offset`. So the true offset on the X axis is
+         * `offset - insetX`.
+         */
+        insetX?: Spacing;
 
         /**
          * Is the focus ring always visible regardless of whether the target
@@ -225,7 +234,7 @@ function FocusRing(
             sameHeight={true}
             overlay={
                 <Box pointerEvents="none" position="relative" zIndex={overlayZIndex}>
-                    <FocusRingBox offset={offset} targetRef={targetRef} />
+                    <FocusRingBox offset={offset} insetX={insetX} targetRef={targetRef} />
                 </Box>
             }
             children={useElementWithRef(children, mergedTargetRef)}
@@ -236,9 +245,11 @@ function FocusRing(
 
 function FocusRingBox({
     offset = "0.5",
+    insetX = "0",
     targetRef,
 }: {
     offset?: Spacing | "border" | "inset";
+    insetX?: Spacing;
     targetRef: RefObject<HTMLElement | null>;
 }) {
     const ringRef = useRef<HTMLDivElement>(null);
@@ -247,15 +258,20 @@ function FocusRingBox({
 
     // Overlay must be focused to render so we know we're on the client and
     // `window` should exist.
-    let ringOffsetPx = useSpacingPx(offset !== "border" && offset !== "inset" ? offset : "0");
+    let ringOffsetBasePx = useSpacingPx(offset !== "border" && offset !== "inset" ? offset : "0");
 
     // If we are using a border ring offset, we want the focus ring to render on
     // top of the element's 1px border.
-    if (offset === "border") ringOffsetPx = -1;
+    if (offset === "border") ringOffsetBasePx = -1;
 
     // If we are using an inset offset, we want the focus ring to render entirely
     // inside the element.
-    if (offset === "inset") ringOffsetPx = -ringWidthPx;
+    if (offset === "inset") ringOffsetBasePx = -ringWidthPx;
+
+    const ringInsetXPx = useSpacingPx(insetX);
+
+    const ringOffsetXPx = ringOffsetBasePx - ringInsetXPx;
+    const ringOffsetYPx = ringOffsetBasePx;
 
     useLayoutEffect(() => {
         const run = () => {
@@ -295,7 +311,7 @@ function FocusRingBox({
 
             if (typeof ringStyle.borderTopLeftRadius === "number") {
                 ringRef.current.style.borderTopLeftRadius = `${
-                    ringStyle.borderTopLeftRadius + ringOffsetPx + ringWidthPx
+                    ringStyle.borderTopLeftRadius + ringOffsetBasePx + ringWidthPx
                 }px`;
             } else {
                 ringRef.current.style.borderTopLeftRadius = ringStyle.borderTopLeftRadius;
@@ -303,7 +319,7 @@ function FocusRingBox({
 
             if (typeof ringStyle.borderTopRightRadius === "number") {
                 ringRef.current.style.borderTopRightRadius = `${
-                    ringStyle.borderTopRightRadius + ringOffsetPx + ringWidthPx
+                    ringStyle.borderTopRightRadius + ringOffsetBasePx + ringWidthPx
                 }px`;
             } else {
                 ringRef.current.style.borderTopRightRadius = ringStyle.borderTopRightRadius;
@@ -311,7 +327,7 @@ function FocusRingBox({
 
             if (typeof ringStyle.borderBottomLeftRadius === "number") {
                 ringRef.current.style.borderBottomLeftRadius = `${
-                    ringStyle.borderBottomLeftRadius + ringOffsetPx + ringWidthPx
+                    ringStyle.borderBottomLeftRadius + ringOffsetBasePx + ringWidthPx
                 }px`;
             } else {
                 ringRef.current.style.borderBottomLeftRadius = ringStyle.borderBottomLeftRadius;
@@ -319,7 +335,7 @@ function FocusRingBox({
 
             if (typeof ringStyle.borderBottomRightRadius === "number") {
                 ringRef.current.style.borderBottomRightRadius = `${
-                    ringStyle.borderBottomRightRadius + ringOffsetPx + ringWidthPx
+                    ringStyle.borderBottomRightRadius + ringOffsetBasePx + ringWidthPx
                 }px`;
             } else {
                 ringRef.current.style.borderBottomRightRadius = ringStyle.borderBottomRightRadius;
@@ -335,18 +351,18 @@ function FocusRingBox({
         return () => {
             isCancelled = true;
         };
-    }, [ringOffsetPx, targetRef]);
+    }, [ringOffsetBasePx, targetRef]);
 
     return (
         <Box
             ref={ringRef}
             border="theme-30-const"
             style={{
-                width: `calc(100% + ${ringWidthPx * 2 + ringOffsetPx * 2}px)`,
-                height: `calc(100% + ${ringWidthPx * 2 + ringOffsetPx * 2}px)`,
-                transform: `translate(-${ringWidthPx + ringOffsetPx}px, -${
-                    ringWidthPx + ringOffsetPx
-                }px)`,
+                width: `calc(100% + ${ringWidthPx * 2 + ringOffsetXPx * 2}px)`,
+                height: `calc(100% + ${ringWidthPx * 2 + ringOffsetYPx * 2}px)`,
+                transform: `translate(${-(ringWidthPx + ringOffsetXPx)}px, ${-(
+                    ringWidthPx + ringOffsetYPx
+                )}px)`,
                 borderWidth: ringWidthPx,
             }}
         />
