@@ -82,6 +82,15 @@ export const spacing = {
     "320": "80rem",
 } as const;
 
+export function isSpacing(string: string): string is Spacing {
+    return string in spacing;
+}
+
+export function assertSpacing(string: string): Spacing {
+    assert(isSpacing(string));
+    return string;
+}
+
 export type RemLength = `${number}rem` | `-${number}rem`;
 
 /**

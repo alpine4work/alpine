@@ -1,11 +1,6 @@
 import {Memo, MutableRefObject, useEffect, useReducer, useRef} from "react";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
 import {TaskRowViewRef} from "~/client/tasks/internal/task_row_view";
-import {
-    TaskTitle,
-    TaskTitleSchema,
-    emptyTaskTitle,
-} from "~/client/tasks/internal/task_title_schema";
 import {DataLossError, FailedPreconditionError, NotFoundError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -18,6 +13,7 @@ import {generateId} from "~/shared/id/id";
 import {LocalTaskId} from "~/shared/id/types/id_types";
 import {OrderKeySchema} from "~/shared/schema/order_key_schema";
 import {Schema, SchemaType} from "~/shared/schema/schema";
+import {TaskTitle, TaskTitleSchema, emptyTaskTitle} from "~/shared/tasks/task_title_schema";
 
 // TODO(calebmer): We store state locally for our task prototype. Once we land
 // on an interaction experience we like, this should all be moved to a

@@ -5,10 +5,10 @@ import {useRef, useState} from "react";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
-import {TaskTitle, assertTaskTitle} from "~/client/tasks/internal/task_title_schema";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
 import {sprinkles, tasksStyles} from "~/shared/styles/styles";
+import {TaskTitle, assertTaskTitle} from "~/shared/tasks/task_title_schema";
 
 const taskDetailTitleInputAriaLabel = "Title";
 

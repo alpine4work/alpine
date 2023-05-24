@@ -6,15 +6,17 @@ import {AccountShortName} from "~/client/accounts/account_short_name";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element";
-import {TaskTitle} from "~/client/tasks/internal/task_title_schema";
 import {TaskCollectionChip} from "~/client/tasks/playground/internal/task_collection_chip";
 import {TaskDetailDueDateField} from "~/client/tasks/playground/internal/task_detail_due_date_field";
+import {TaskDetailNotesField} from "~/client/tasks/playground/internal/task_detail_notes_field";
 import {TaskDetailTitleInput} from "~/client/tasks/playground/internal/task_detail_title_input";
 import {LocalTaskCollection} from "~/client/tasks/playground/local_task_collection";
 import {TaskStatus, TaskStatusButton} from "~/client/tasks/playground/task_status_button";
 import {AccountModel} from "~/shared/accounts/account_model";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {fontSizes, sprinkles, tasksStyles} from "~/shared/styles/styles";
+import {fontSizes, sprinkles} from "~/shared/styles/styles";
+import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema";
+import {TaskTitle} from "~/shared/tasks/task_title_schema";
 
 // TODO(calebmer): Needs:
 //
@@ -38,6 +40,8 @@ export function TaskDetailPresentationalView({
     dueDate,
     onDueDateChange,
     collections,
+    notesContent,
+    onNotesContentChange,
 }: {
     status: TaskStatus;
     onStatusChange: (status: TaskStatus) => void;
@@ -47,19 +51,21 @@ export function TaskDetailPresentationalView({
     dueDate: CalendarDate | null;
     onDueDateChange: (dueDate: CalendarDate | null) => void;
     collections: ReadonlyArray<LocalTaskCollection>;
+    notesContent: TaskNotesContentWithReferences;
+    onNotesContentChange: (notesContent: TaskNotesContentWithReferences) => void;
 }) {
     return (
         <Box minHeight="full" display="flex">
             <Box
                 flexGrow="1"
                 maxWidth="160"
-                padding="7"
+                paddingY="5"
                 display="flex"
                 flexDirection="column"
-                gap="7"
+                gap="10"
                 borderRight="grey-10"
             >
-                <Box display="flex" gap="4">
+                <Box paddingX="5" display="flex" gap="4">
                     <Box
                         flexShrink="0"
                         display="flex"
@@ -76,6 +82,7 @@ export function TaskDetailPresentationalView({
                         <Box
                             flexGrow="1"
                             fontSize="300"
+                            fontStyle="semi-bold"
                             // Some extra padding to visually balance the title with the left-aligned
                             // status button.
                             paddingRight="4"
@@ -84,12 +91,12 @@ export function TaskDetailPresentationalView({
                             <TaskDetailTitleInput
                                 title={title}
                                 onTitleChange={onTitleChange}
-                                placeholder="Untitled"
+                                placeholder="Untitled task"
                             />
                         </Box>
                     </FocusRing>
                 </Box>
-                <Box display="flex" flexDirection="column" gap="5">
+                <Box paddingX="5" display="flex" flexDirection="column" gap="5">
                     {useMemo(
                         () => (
                             <TaskDetailViewField label="Assignee">
@@ -111,6 +118,12 @@ export function TaskDetailPresentationalView({
                     )}
                     <TaskDetailViewField label="Due date">
                         {({"aria-labelledby": ariaLabelledBy}) => (
+                            // TODO(calebmer): Should due date be visible or hidden by default? It is good
+                            // for personal workflows but I'd wager unnecessary in many team workflows. If
+                            // anything I imagine due dates can be harmful in team workflows!
+                            //
+                            // Maybe we do something like: Show due date by default in personal views but
+                            // not in team views.
                             <TaskDetailDueDateField
                                 status={status}
                                 dueDate={dueDate}
@@ -134,7 +147,105 @@ export function TaskDetailPresentationalView({
                         [collections],
                     )}
                 </Box>
-                <Box marginTop="2" borderTop="grey-5"></Box>
+                <TaskDetailNotesField
+                    notesContent={notesContent}
+                    onNotesContentChange={onNotesContentChange}
+                />
+                <Box>
+                    <Box paddingX="5" paddingBottom="1.5" color="grey-50">
+                        Subtasks
+                    </Box>
+                    <Box>
+                        <Box paddingX="5">
+                            <Box
+                                height="9"
+                                fontSize="100"
+                                display="flex"
+                                alignItems="center"
+                                borderY="grey-5"
+                            >
+                                Task row 1
+                            </Box>
+                        </Box>
+                        <Box paddingX="5">
+                            <Box
+                                height="9"
+                                fontSize="100"
+                                display="flex"
+                                alignItems="center"
+                                borderBottom="grey-5"
+                            >
+                                Task row 2
+                            </Box>
+                        </Box>
+                        <Box paddingX="5">
+                            <Box
+                                height="9"
+                                fontSize="100"
+                                display="flex"
+                                alignItems="center"
+                                borderBottom="grey-5"
+                            >
+                                Task row 3
+                            </Box>
+                        </Box>
+                        <Box paddingX="5">
+                            <Box
+                                height="9"
+                                fontSize="100"
+                                display="flex"
+                                alignItems="center"
+                                borderBottom="grey-5"
+                            >
+                                Task row 4
+                            </Box>
+                        </Box>
+                        <Box paddingX="5">
+                            <Box
+                                height="9"
+                                fontSize="100"
+                                display="flex"
+                                alignItems="center"
+                                borderBottom="grey-5"
+                            >
+                                Task row 5
+                            </Box>
+                        </Box>
+                        <Box paddingX="5">
+                            <Box
+                                height="9"
+                                fontSize="100"
+                                display="flex"
+                                alignItems="center"
+                                borderBottom="grey-5"
+                            >
+                                Task row 6
+                            </Box>
+                        </Box>
+                        <Box paddingX="5">
+                            <Box
+                                height="9"
+                                fontSize="100"
+                                display="flex"
+                                alignItems="center"
+                                borderBottom="grey-5"
+                            >
+                                Task row 7
+                            </Box>
+                        </Box>
+                        <Box paddingX="5">
+                            <Box
+                                height="9"
+                                fontSize="100"
+                                display="flex"
+                                alignItems="center"
+                                borderBottom="grey-5"
+                            >
+                                Task row 8
+                            </Box>
+                        </Box>
+                    </Box>
+                </Box>
             </Box>
         </Box>
     );
@@ -155,11 +266,13 @@ function TaskDetailViewField({
             <label
                 id={labelId}
                 className={classNames(
-                    tasksStyles.detailViewFieldWidthClassName,
+                    // NOCOMMIT
+                    // tasksStyles.detailViewFieldWidthClassName,
                     sprinkles({
                         display: "block",
                         color: "grey-50",
-                        textAlign: "right",
+                        textAlign: "left",
+                        width: "16",
                     }),
                 )}
                 // As an affordance for mouse users, when the label is clicked we focus

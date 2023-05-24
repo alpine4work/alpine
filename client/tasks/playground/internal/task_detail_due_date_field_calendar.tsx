@@ -226,12 +226,12 @@ function TaskDetailDueDateFieldCalendarGrid({
                         <th key={index}>
                             <div
                                 className={sprinkles({
-                                    width: "6",
-                                    height: "6",
+                                    width: "7",
+                                    height: "7",
                                     display: "flex",
                                     justifyContent: "center",
                                     alignItems: "center",
-                                    fontSize: "50",
+                                    fontSize: "75",
                                     fontStyle: "semi-bold",
                                     color: "grey-60",
                                 })}
@@ -296,9 +296,9 @@ function TaskDetailDueDateFieldCalendarCell({
                 <div
                     // Put border radius on a nested `<div>` so entire parent is clickable.
                     className={sprinkles({
-                        width: "6",
-                        height: "6",
-                        fontSize: "50",
+                        width: "7",
+                        height: "7",
+                        fontSize: "75",
                         fontStyle: isCurrentDate && !isDimmed ? "ultra-bold" : undefined,
                         borderRadius: "full",
                         backgroundColor: isSelected

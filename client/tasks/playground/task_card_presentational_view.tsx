@@ -6,7 +6,6 @@ import {AccountShortName} from "~/client/accounts/account_short_name";
 import {Box} from "~/client/design/box";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour";
-import {TaskTitle} from "~/client/tasks/internal/task_title_schema";
 import {formatTaskDueDate} from "~/client/tasks/playground/internal/format_task_due_date";
 import {TaskCollectionChip} from "~/client/tasks/playground/internal/task_collection_chip";
 import {LocalTaskCollection} from "~/client/tasks/playground/local_task_collection";
@@ -15,6 +14,7 @@ import {AccountModel} from "~/shared/accounts/account_model";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
 import {contentSchemaStyles} from "~/shared/styles/styles";
+import {TaskTitle} from "~/shared/tasks/task_title_schema";
 
 // TODO(calebmer): Needs:
 //

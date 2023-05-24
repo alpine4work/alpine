@@ -20,7 +20,6 @@ import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_prio
 import {LocalTasksAction} from "~/client/tasks/internal/local_tasks_state";
 import {TaskInteractiveGhostRow, TaskNormalRow, TaskRow} from "~/client/tasks/internal/task_row";
 import {TaskRowViewRef} from "~/client/tasks/internal/task_row_view";
-import {assertTaskTitle, emptyTaskTitle} from "~/client/tasks/internal/task_title_schema";
 import {Spacing} from "~/shared/design/spacing";
 import {UnimplementedError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -31,6 +30,7 @@ import {
     sprinkles,
     tasksStyles,
 } from "~/shared/styles/styles";
+import {assertTaskTitle, emptyTaskTitle} from "~/shared/tasks/task_title_schema";
 
 export const taskRowTitleInputHeight: Spacing = "9";
 

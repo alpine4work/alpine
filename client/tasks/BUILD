@@ -21,5 +21,6 @@ ts_project(
         "//client/spaces",
         "//shared/helpers",
         "//shared/prosemirror",
+        "//shared/tasks",
     ],
 )

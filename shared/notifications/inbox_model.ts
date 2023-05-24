@@ -2,7 +2,7 @@ import {To} from "history";
 import {AccountModel} from "~/shared/accounts/account_model";
 import {DocumentPreviewModel} from "~/shared/documents/document_model";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model";
-import {PostContentWithReferencesSchema} from "~/shared/forum/post_model";
+import {PostContentWithReferencesSchema} from "~/shared/forum/post_content_schema";
 import {
     AccountId,
     ChannelId,
@@ -12,7 +12,7 @@ import {
     PostId,
     SpaceId,
 } from "~/shared/id/types/id_types";
-import {MessageContentWithReferencesSchema} from "~/shared/messaging/message_model";
+import {MessageContentWithReferencesSchema} from "~/shared/messaging/message_content_schema";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema";
 import {Model} from "~/shared/schema/model/model";
 import {Schema, SchemaType} from "~/shared/schema/schema";

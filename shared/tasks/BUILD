@@ -1,7 +1,7 @@
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
-    name = "accounts",
+    name = "tasks",
     visibility = ["//visibility:public"],
     deps = [
         "//shared/error",

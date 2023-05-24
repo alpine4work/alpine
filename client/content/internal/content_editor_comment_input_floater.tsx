@@ -26,7 +26,7 @@ import {parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {generateId} from "~/shared/id/id";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
-import {emptyMessageContentWithReferences} from "~/shared/messaging/message_model";
+import {emptyMessageContentWithReferences} from "~/shared/messaging/message_content_schema";
 import {
     messageInputMinHeight,
     messageViewBubbleBorderRadius,
