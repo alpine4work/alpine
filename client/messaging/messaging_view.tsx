@@ -35,6 +35,7 @@ import {
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages";
+import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewItem,
@@ -364,8 +365,11 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     },
     ref: Ref<MessagingViewRef>,
 ) {
+    const isMobile = useIsMobile();
     const context = useAppContext();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
+
+    const padding: Spacing = isMobile ? "3" : "5";
 
     const [messagesWithoutHeader, setMessages] = useState(() => {
         const messages = MessageList.new<Message>({
@@ -582,6 +586,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         getMessageUrl,
                         roomDisplayedCreatedTime,
                         shouldAddMarginTop: index === 0,
+                        marginX: padding,
                     });
                 }
             }
@@ -594,6 +599,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             messageEditing,
             messageNoun,
             messageStartOfSentenceNoun,
+            padding,
             randomSeedForShimmer,
             roomDisplayedCreatedTime,
             state,
@@ -657,6 +663,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         );
                 }}
                 restoreStateRef={inputRestoreStateRef}
+                marginX={padding}
             />
         </div>
     );

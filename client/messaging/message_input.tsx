@@ -277,7 +277,11 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
             flexShrink="0"
             borderTop={!withoutBorderTop ? "grey-10" : undefined}
             style={{
-                minHeight: messageInputMinHeight,
+                // Remove one pixel so that our layout of the input without the border top is
+                // the same side-by-side with the layout of an input with the border top.
+                minHeight: withoutBorderTop
+                    ? `calc(${messageInputMinHeight} - 1px)`
+                    : messageInputMinHeight,
                 // Remove one pixel from top to make space for a border.
                 paddingTop: `calc(${spacing["3"]} - 1px)`,
                 paddingBottom: spacing["3"],

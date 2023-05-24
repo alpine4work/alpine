@@ -7,6 +7,7 @@ import {MessageList, MessageListItem} from "~/client/messaging/message_list";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages";
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view";
+import {Spacing} from "~/shared/design/spacing";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model";
 import {PostRealtimeEvent, PostRealtimeProtocol} from "~/shared/forum/post_realtime_protocol";
 import {cast} from "~/shared/helpers/control/cast";
@@ -34,6 +35,7 @@ export function PostCommentInput({
     replyingToPostComment,
     onClearReplyingToPostComment,
     onJumpToPostComment,
+    padding,
     isStickyPositioned,
 }: {
     post: PostModel;
@@ -47,6 +49,7 @@ export function PostCommentInput({
     replyingToPostComment: PostCommentModel | null;
     onClearReplyingToPostComment: () => void;
     onJumpToPostComment: (postComment: PostCommentModel) => void;
+    padding: Spacing;
     isStickyPositioned?: boolean;
 }) {
     const context = useAppContext();
@@ -153,6 +156,7 @@ export function PostCommentInput({
             }}
             messageEditing={postCommentEditing}
             replyingToMessage={replyingToPostComment}
+            marginX={padding}
             onClearReplyingToMessage={onClearReplyingToPostComment}
             onJumpToMessage={onJumpToPostComment}
             onShowTypingIndicator={() => {

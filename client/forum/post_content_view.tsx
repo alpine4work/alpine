@@ -17,6 +17,7 @@ import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {AccountModel} from "~/shared/accounts/account_model";
+import {Spacing, assertSpacing} from "~/shared/design/spacing";
 import {
     PostCommentModel,
     PostModel,
@@ -35,6 +36,7 @@ export function PostContentView({
     post,
     postComments,
     postCommentsState,
+    padding,
     shouldShowChannel,
     onEditPost,
     onTogglePostComments,
@@ -43,6 +45,7 @@ export function PostContentView({
     post: PostModel;
     postComments: MessageList<PostCommentModel>;
     postCommentsState: PostCommentsState;
+    padding: Spacing;
     shouldShowChannel: boolean;
     onEditPost: () => void;
     onTogglePostComments: () => void;
@@ -52,9 +55,13 @@ export function PostContentView({
 
     return (
         <Box style={{minHeight: postContentViewMinHeight}}>
-            <Box position="relative" paddingTop="5" paddingX="5">
+            <Box position="relative" paddingTop={padding} paddingX={padding}>
                 <PostContentViewHeader post={post} shouldShowChannel={shouldShowChannel} />
-                <Box position="absolute" top="2" right="2">
+                <Box
+                    position="absolute"
+                    top={assertSpacing(`${parseInt(padding, 10) - 2}`)}
+                    right={assertSpacing(`${parseInt(padding, 10) - 2}`)}
+                >
                     <MenuButton
                         actions={[
                             {
@@ -86,13 +93,17 @@ export function PostContentView({
             </Box>
             <ContentView
                 content={post.content}
-                className={sprinkles({paddingX: "3", paddingY: "5"})}
+                className={sprinkles({
+                    paddingX: assertSpacing(`${parseInt(padding, 10) - 2}`),
+                    paddingY: padding,
+                })}
                 contentUpdatedTime={post.contentUpdatedTime}
             />
             <PostContentViewFooter
                 post={post}
                 postComments={postComments}
                 postCommentsState={postCommentsState}
+                padding={padding}
                 onTogglePostComments={onTogglePostComments}
                 onLoadInitialPostComments={onLoadInitialPostComments}
             />
@@ -104,19 +115,21 @@ function PostContentViewFooter({
     post,
     postComments,
     postCommentsState,
+    padding,
     onTogglePostComments,
     onLoadInitialPostComments,
 }: {
     post: PostModel;
     postComments: MessageList<PostCommentModel>;
     postCommentsState: PostCommentsState;
+    padding: Spacing;
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
 }) {
     return (
         <Box
             data-testid={`PostContentViewFooter:${post.id}`}
-            marginX="5"
+            marginX={padding}
             borderTop="grey-5"
             borderBottom={
                 postCommentsState !== "Closed" && postComments.getItemCount() > 0

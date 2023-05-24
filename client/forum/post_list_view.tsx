@@ -248,6 +248,8 @@ function PostListView(
     const hasAside = !withMobileLayout && !!aside;
     const hasMargin = !withMobileLayout || hasAside;
 
+    const padding: Spacing = isMobile ? "3" : "5";
+
     const [postsWithoutChannelHeader, setPosts] = useState(() => {
         let posts: PostList;
         switch (initialPostsResult.type) {
@@ -739,6 +741,7 @@ function PostListView(
                                             post={item.post}
                                             postComments={item.postComments}
                                             postCommentsState={item.postCommentsState}
+                                            padding={padding}
                                             // If we are rendering in the context of a channel, don't render the channel
                                             // in posts.
                                             shouldShowChannel={
@@ -814,6 +817,7 @@ function PostListView(
                                             ? highlightPostComment.shouldHighlightRef
                                             : null
                                     }
+                                    marginX={padding}
                                     onJumpToMessage={handleJumpToPostComment}
                                     onReplyToMessage={() => {
                                         if (item.postComment.isOptimistic) return;
@@ -1082,6 +1086,7 @@ function PostListView(
                                 );
                             }}
                             onJumpToPostComment={handleJumpToPostComment}
+                            padding={padding}
                             isStickyPositioned={true}
                         />
                     );
@@ -1149,7 +1154,7 @@ function PostListView(
                                                         className={sprinkles({
                                                             width: "full",
                                                             height: "full",
-                                                            paddingX: "5",
+                                                            paddingX: padding,
                                                             backgroundColor: "grey-0",
                                                             borderBottomRadius: hasMargin
                                                                 ? "md"
@@ -1253,8 +1258,8 @@ function PostListView(
                                                             className={sprinkles({
                                                                 position: "absolute",
                                                                 top: "0",
-                                                                left: "5",
-                                                                right: "5",
+                                                                left: padding,
+                                                                right: padding,
                                                                 borderTop: "grey-5",
                                                             })}
                                                         />
@@ -1454,11 +1459,11 @@ function PostListView(
                                         flex: postViewFlex,
                                     }}
                                 >
-                                    <PostShimmer parentHasMargin={hasMargin} />
+                                    <PostShimmer padding={padding} parentHasMargin={hasMargin} />
                                     <Spacer space={postListViewMarginY} />
-                                    <PostShimmer parentHasMargin={hasMargin} />
+                                    <PostShimmer padding={padding} parentHasMargin={hasMargin} />
                                     <Spacer space={postListViewMarginY} />
-                                    <PostShimmer parentHasMargin={hasMargin} />
+                                    <PostShimmer padding={padding} parentHasMargin={hasMargin} />
                                     <div
                                         className={sprinkles({
                                             display: "flex",
@@ -1495,6 +1500,7 @@ function PostListView(
             posts,
             hasMargin,
             hasAside,
+            padding,
             channelHeader?.channel.id,
             isSingleMobileLayoutPostWithPinnedCommentInput,
             loadInitialPostComments,
@@ -1708,6 +1714,7 @@ function PostListView(
                                         },
                                     );
                                 }}
+                                padding={padding}
                                 onJumpToPostComment={handleJumpToPostComment}
                             />
                         );

@@ -7,11 +7,12 @@ import {Box} from "~/client/design/box";
 import {PrettyConjunctionList} from "~/client/design/pretty_conjunction_list";
 import {messageViewMarginY} from "~/client/messaging/message_view";
 import {MessagingView, MessagingViewRef} from "~/client/messaging/messaging_view";
+import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol";
-import {spacing} from "~/shared/design/spacing";
+import {Spacing, spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit";
@@ -43,41 +44,43 @@ export function ChatView({
 }
 
 function ChatViewTopBar({chat}: {chat: ChatModel}) {
+    const isMobile = useIsMobile();
     const {currentAccount} = useSpaceContext();
     assert(chat.accounts.length > 0);
     const otherChatAccounts = chat.accounts.filter(account => account.id !== currentAccount.id);
+
+    const padding: Spacing = isMobile ? "3" : "5";
 
     return (
         <Box
             data-testid="ChatViewTopBar"
             flexShrink="0"
             borderBottom="grey-10"
-            height="12"
-            display="flex"
-            alignItems="center"
-            paddingX="5"
-            gap="2"
+            paddingX={padding}
+            paddingY="3"
         >
-            <Box paddingX="0.5">
-                <AccountAvatarPile
-                    size="6"
-                    previewAccounts={otherChatAccounts.slice(0, 4)}
-                    accountCount={otherChatAccounts.length}
-                    getAllAccounts={() => otherChatAccounts}
-                />
+            <Box height="6" display="flex" alignItems="center" gap="2">
+                <Box paddingX="0.5">
+                    <AccountAvatarPile
+                        size="6"
+                        previewAccounts={otherChatAccounts.slice(0, 4)}
+                        accountCount={otherChatAccounts.length}
+                        getAllAccounts={() => otherChatAccounts}
+                    />
+                </Box>
+                <h1
+                    className={sprinkles({
+                        fontStyle: "truncate-semi-bold",
+                        fontSize: "200",
+                    })}
+                >
+                    <PrettyConjunctionList
+                        list={otherChatAccounts.map(account => (
+                            <AccountShortName key={account.id} account={account} />
+                        ))}
+                    />
+                </h1>
             </Box>
-            <h1
-                className={sprinkles({
-                    fontStyle: "truncate-semi-bold",
-                    fontSize: "200",
-                })}
-            >
-                <PrettyConjunctionList
-                    list={otherChatAccounts.map(account => (
-                        <AccountShortName key={account.id} account={account} />
-                    ))}
-                />
-            </h1>
         </Box>
     );
 }

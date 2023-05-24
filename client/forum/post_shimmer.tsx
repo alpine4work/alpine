@@ -1,8 +1,15 @@
 import {Box} from "~/client/design/box";
 import {postContentViewMinHeight} from "~/client/forum/post_content_view";
+import {Spacing} from "~/shared/design/spacing";
 import {fontSizes, pulseAnimationClassName} from "~/shared/styles/styles";
 
-export function PostShimmer({parentHasMargin}: {parentHasMargin: boolean}) {
+export function PostShimmer({
+    padding,
+    parentHasMargin,
+}: {
+    padding: Spacing;
+    parentHasMargin: boolean;
+}) {
     return (
         <Box
             backgroundColor="grey-0"
@@ -12,7 +19,7 @@ export function PostShimmer({parentHasMargin}: {parentHasMargin: boolean}) {
             display="flex"
             flexDirection="column"
         >
-            <Box paddingX="5" paddingTop="5" display="flex" alignItems="center">
+            <Box paddingX={padding} paddingTop={padding} display="flex" alignItems="center">
                 <Box
                     className={pulseAnimationClassName}
                     flexShrink="0"
@@ -54,7 +61,13 @@ export function PostShimmer({parentHasMargin}: {parentHasMargin: boolean}) {
                 </Box>
             </Box>
             <Box flexGrow="1" />
-            <Box marginX="5" borderTop="grey-5" height="12" display="flex" alignItems="center">
+            <Box
+                marginX={padding}
+                borderTop="grey-5"
+                height="12"
+                display="flex"
+                alignItems="center"
+            >
                 <Box flexGrow="1" />
                 <Box
                     className={pulseAnimationClassName}
