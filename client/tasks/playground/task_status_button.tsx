@@ -37,11 +37,11 @@ export function TaskStatusButton({
         <MenuButton
             actions={[
                 {
-                    label: "Open",
+                    label: "Todo",
                     isSelected: status === "Open" && assignee?.status !== "Active",
                     disabledReason:
                         assignee && assignee.status === "Active"
-                            ? "Only the assignee can change which of their tasks are active"
+                            ? "Only the assignee can change which of their tasks are in progress"
                             : undefined,
                     icon: ({isDisabled}) => (
                         <Box
@@ -58,11 +58,11 @@ export function TaskStatusButton({
                     },
                 },
                 {
-                    label: "Active",
+                    label: "In progress",
                     isSelected: status === "Open" && assignee?.status === "Active",
                     disabledReason:
                         assignee && assignee.status === "Inactive"
-                            ? "Only the assignee can change which of their tasks are active"
+                            ? "Only the assignee can change which of their tasks are in progress"
                             : undefined,
                     icon: ({isDisabled}) => (
                         <Box
@@ -106,7 +106,7 @@ export function TaskStatusButton({
                     onPress: () => {},
                 },
                 {
-                    label: "Closed",
+                    label: "Done",
                     isSelected: status === "Closed",
                     icon: (
                         <Box

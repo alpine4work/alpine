@@ -294,7 +294,7 @@ export default function TasksDesignPlaygroundRoute() {
             padding="16"
         >
             <Box fontSize="200" fontStyle="semi-bold">
-                Active tasks
+                In progress tasks
             </Box>
             <Spacer space="3" />
             <Box display="flex" gap={cardGap}>
@@ -310,8 +310,7 @@ export default function TasksDesignPlaygroundRoute() {
                     alignItems="center"
                 >
                     <Box width="48" textAlign="center" color="grey-50">
-                        Mark tasks you’re currently working on as active and they’ll be available
-                        here
+                        Mark tasks you’re currently working on as in progress
                     </Box>
                 </Box>
                 <Box
