@@ -48,9 +48,9 @@ export function TaskStatusButton({
                             width="4"
                             height="4"
                             borderRadius="full"
-                            border="grey-50"
+                            border="grey-40"
                             backgroundColor={{light: "grey-0", dark: "grey-5"}}
-                            style={{opacity: isDisabled ? 0.5 : undefined}}
+                            style={{opacity: isDisabled ? 0.7 : undefined}}
                         />
                     ),
                     onPress: () => {
@@ -70,9 +70,9 @@ export function TaskStatusButton({
                             width="4"
                             height="4"
                             borderRadius="full"
-                            border="grey-50"
+                            border="grey-40"
                             backgroundColor={{light: "grey-0", dark: "grey-5"}}
-                            style={{opacity: isDisabled ? 0.5 : undefined}}
+                            style={{opacity: isDisabled ? 0.7 : undefined}}
                         >
                             <Box
                                 position="absolute"
@@ -150,8 +150,8 @@ export function TaskStatusButton({
                                 ? isPressed
                                     ? // We want the border to get darker when pressed whether we are in light mode
                                       // or dark mode.
-                                      {light: "grey-70", dark: "grey-40"}
-                                    : "grey-50"
+                                      {light: "grey-50", dark: "grey-30"}
+                                    : "grey-40"
                                 : undefined,
                         backgroundColor: status === "Closed" ? "theme-50-const" : undefined,
                         color: status === "Open" ? "grey-text" : "grey-0-const",
