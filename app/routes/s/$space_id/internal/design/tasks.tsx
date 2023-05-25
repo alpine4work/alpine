@@ -310,8 +310,7 @@ export default function TasksDesignPlaygroundRoute() {
                     alignItems="center"
                 >
                     <Box width="48" textAlign="center" color="grey-50">
-                        Mark tasks you’re currently working on as active and they’ll be available
-                        here
+                        Mark tasks you’re currently working on as active
                     </Box>
                 </Box>
                 <Box
