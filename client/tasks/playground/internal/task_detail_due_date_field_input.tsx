@@ -34,24 +34,32 @@ export function TaskDetailDueDateFieldInput({
     const {fieldProps} = useDateField(datePickerProps, state, ref);
 
     return (
-        <Box
-            display="flex"
-            alignItems="center"
-            gap="1"
-            color="grey-text"
-            cursor="text"
-            onPointerDown={event => {
-                if (event.target === event.currentTarget) {
-                    // Don't unfocus field segments when clicking on icon or margin.
-                    event.preventDefault();
-                }
-            }}
-        >
-            <CalendarBlank size={spacing["4"]} className={sprinkles({pointerEvents: "none"})} />
-            <Box {...fieldProps} ref={ref} display="flex">
-                {state.segments.map((segment, i) => (
-                    <TaskDetailDueDateFieldInputSegment key={i} state={state} segment={segment} />
-                ))}
+        <Box height="4">
+            <Box
+                // Inline flex so the clickable range doesn't extend beyond the
+                // input's contents.
+                display="inline-flex"
+                alignItems="center"
+                gap="1"
+                color="grey-text"
+                cursor="text"
+                onPointerDown={event => {
+                    if (event.target === event.currentTarget) {
+                        // Don't unfocus field segments when clicking on icon or margin.
+                        event.preventDefault();
+                    }
+                }}
+            >
+                <CalendarBlank size={spacing["4"]} className={sprinkles({pointerEvents: "none"})} />
+                <Box {...fieldProps} ref={ref} display="inline-flex">
+                    {state.segments.map((segment, i) => (
+                        <TaskDetailDueDateFieldInputSegment
+                            key={i}
+                            state={state}
+                            segment={segment}
+                        />
+                    ))}
+                </Box>
             </Box>
         </Box>
     );

@@ -641,6 +641,8 @@ export const mentionClassName = style({
     position: "relative",
 });
 
+export const currentAccountMentionBackgroundOpacity = 0.6;
+
 export const currentAccountMentionClassName = style({
     color: colorSchemeVars["theme-60"],
     selectors: {
@@ -655,7 +657,7 @@ export const currentAccountMentionClassName = style({
             left: `-${spacing["0.5"]}`,
             right: `-${spacing["0.5"]}`,
             backgroundColor: colorSchemeVars["theme-10"],
-            opacity: 0.6,
+            opacity: currentAccountMentionBackgroundOpacity,
             borderRadius: borderRadius["base"],
         },
         [`${darkColorSchemeSelector} &`]: {

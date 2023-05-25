@@ -285,9 +285,9 @@ export default function TasksDesignPlaygroundRoute() {
                     gap: "64",
                 })}
             >
+                {taskDetailViewNextToCardViews}
                 {taskRowViews}
                 {taskCardViews}
-                {taskDetailViewNextToCardViews}
                 {emptyTaskDetailView}
             </Box>
         </SpaceRouteScrollView>

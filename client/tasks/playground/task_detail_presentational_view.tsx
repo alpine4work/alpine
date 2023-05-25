@@ -1,5 +1,5 @@
 import {CalendarDate} from "@internationalized/date";
-import {DotsThree} from "phosphor-react";
+import {CaretDown, DotsThree, Fire, FireSimple, Hourglass} from "phosphor-react";
 import {ReactNode, useId, useMemo, useRef} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
@@ -7,15 +7,17 @@ import {Box} from "~/client/design/box";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element";
 import {IconButton} from "~/client/design/icon_button";
 import {MenuButton} from "~/client/design/menu_button";
+import {Spacer} from "~/client/design/spacer";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {TaskCollectionChip} from "~/client/tasks/playground/internal/task_collection_chip";
+import {TaskDetailAssigneeStatusButton} from "~/client/tasks/playground/internal/task_detail_assignee_status_button";
 import {TaskDetailDueDateField} from "~/client/tasks/playground/internal/task_detail_due_date_field";
 import {TaskDetailNotesField} from "~/client/tasks/playground/internal/task_detail_notes_field";
 import {TaskDetailTitleInput} from "~/client/tasks/playground/internal/task_detail_title_input";
 import {LocalTaskCollection} from "~/client/tasks/playground/local_task_collection";
 import {TaskStatus, TaskStatusButton} from "~/client/tasks/playground/task_status_button";
 import {AccountModel} from "~/shared/accounts/account_model";
-import {Spacing, assertSpacing} from "~/shared/design/spacing";
+import {Spacing, assertSpacing, spacing} from "~/shared/design/spacing";
 import {UnimplementedError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {sprinkles} from "~/shared/styles/styles";
@@ -30,10 +32,12 @@ import {TaskTitle} from "~/shared/tasks/task_title_schema";
 // [x] Due date field
 // [ ] Collections field
 // [ ] Custom fields
+// [ ] Mark as in progress
 // [ ] Subtasks
 // [x] Notes
 // [ ] Comments
 // [ ] Activity
+// [ ] Dark mode pass
 
 export function TaskDetailPresentationalView({
     status,
@@ -260,8 +264,8 @@ function TaskDetailViewDenseFields({
                 () => (
                     <TaskDetailViewField label="Assignee">
                         {assignee && (
-                            <Box display="flex" alignItems="center" gap="2">
-                                <Box position="relative" width="4" height="4">
+                            <Box display="flex" alignItems="center" height="4">
+                                <Box position="relative" width="4" height="4" marginRight="2">
                                     <Box position="absolute" top="-0.5" left="-0.5">
                                         <AccountAvatar size="5" account={assignee} />
                                     </Box>
@@ -269,6 +273,8 @@ function TaskDetailViewDenseFields({
                                 <Box fontStyle="truncate">
                                     <AccountShortName account={assignee} />
                                 </Box>
+                                <Spacer space="4" />
+                                <TaskDetailAssigneeStatusButton />
                             </Box>
                         )}
                     </TaskDetailViewField>

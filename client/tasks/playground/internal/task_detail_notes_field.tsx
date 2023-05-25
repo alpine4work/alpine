@@ -37,7 +37,7 @@ export function TaskDetailNotesField({
                 className={sprinkles({
                     display: "inline-block",
                     paddingX: padding,
-                    paddingBottom: "1.5",
+                    paddingBottom: "1",
                     color: "grey-60",
                 })}
                 // Affordance for mouse users. Clicking on a label focuses the editor.

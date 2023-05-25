@@ -27,6 +27,7 @@ import {TaskTitle} from "~/shared/tasks/task_title_schema";
 // [ ] Subtasks
 // [ ] Open detail interaction
 // [ ] Mark as in progress
+// [ ] Dark mode pass
 
 /**
  * The card is a dense non-editable presentation of a task for easy
