@@ -1,15 +1,20 @@
 import {CalendarDate} from "@internationalized/date";
 import {useState} from "react";
 import {Box} from "~/client/design/box";
+import {Spacer} from "~/client/design/spacer";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
 import {SpaceRouteScrollView} from "~/client/spaces/space_route_scroll_view";
 import {LocalTaskCollection} from "~/client/tasks/playground/local_task_collection";
-import {TaskCardPresentationalView} from "~/client/tasks/playground/task_card_presentational_view";
+import {
+    TaskCardPresentationalView,
+    taskCardViewMaxWidth,
+} from "~/client/tasks/playground/task_card_presentational_view";
 import {TaskDetailPresentationalView} from "~/client/tasks/playground/task_detail_presentational_view";
 import {TaskAssignee, TaskStatus} from "~/client/tasks/playground/task_status_button";
 import {AccountModel} from "~/shared/accounts/account_model";
 import {emptyContentReferences} from "~/shared/content/content_references";
+import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {noop} from "~/shared/helpers/control/noop";
 import {assertId} from "~/shared/id/id";
 import {AccountId, LocalTaskCollectionId} from "~/shared/id/types/id_types";
@@ -275,6 +280,58 @@ export default function TasksDesignPlaygroundRoute() {
         </Box>
     );
 
+    const cardGap: Spacing = "3";
+    const cardWidth = `calc(${(1 / 3) * 100}% - ${
+        parseRemLengthNumber(spacing[cardGap]) * (2 / 3)
+    }rem)`;
+
+    const emptyActiveTasksWidget = (
+        <Box
+            backgroundColor="grey-0"
+            boxShadow="elevation-5"
+            borderRadius="xl"
+            overflow="hidden"
+            padding="16"
+        >
+            <Box fontSize="200" fontStyle="semi-bold">
+                Active tasks
+            </Box>
+            <Spacer space="3" />
+            <Box display="flex" gap={cardGap}>
+                <Box
+                    height="24"
+                    maxWidth={taskCardViewMaxWidth}
+                    border="grey-5"
+                    borderRadius="lg"
+                    style={{width: cardWidth}}
+                    padding="4"
+                    display="flex"
+                    justifyContent="center"
+                    alignItems="center"
+                >
+                    <Box width="48" textAlign="center" color="grey-50">
+                        Mark tasks you’re currently working on as active and they’ll be available
+                        here
+                    </Box>
+                </Box>
+                <Box
+                    height="24"
+                    maxWidth={taskCardViewMaxWidth}
+                    border="grey-5"
+                    borderRadius="lg"
+                    style={{width: cardWidth}}
+                />
+                <Box
+                    height="24"
+                    maxWidth={taskCardViewMaxWidth}
+                    border="grey-5"
+                    borderRadius="lg"
+                    style={{width: cardWidth}}
+                />
+            </Box>
+        </Box>
+    );
+
     return (
         <SpaceRouteScrollView>
             <Box
@@ -285,10 +342,11 @@ export default function TasksDesignPlaygroundRoute() {
                     gap: "64",
                 })}
             >
-                {taskDetailViewNextToCardViews}
                 {taskRowViews}
                 {taskCardViews}
+                {taskDetailViewNextToCardViews}
                 {emptyTaskDetailView}
+                {emptyActiveTasksWidget}
             </Box>
         </SpaceRouteScrollView>
     );

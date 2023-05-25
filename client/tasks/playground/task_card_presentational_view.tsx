@@ -32,6 +32,8 @@ import {TaskTitle} from "~/shared/tasks/task_title_schema";
 // [ ] Mark as in progress
 // [ ] Dark mode pass
 
+export const taskCardViewMaxWidth = "96";
+
 /**
  * The card is a dense non-editable presentation of a task for easy
  * reading/skimming. By removing the need to edit on this surface we can
@@ -131,7 +133,7 @@ export function TaskCardPresentationalView({
     return (
         <Box
             width="full"
-            maxWidth="96"
+            maxWidth={taskCardViewMaxWidth}
             overflow="hidden"
             backgroundColor="grey-0"
             boxShadow="elevation-5"
