@@ -72,208 +72,223 @@ const bedroomTaskCollection: LocalTaskCollection = {
 export default function TasksDesignPlaygroundRoute() {
     const currentDate = useCurrentDate();
 
+    const taskRowViews = (
+        <Box backgroundColor="grey-0" border="grey-10" borderRadius="md">
+            <Box paddingX="5">
+                <Box height="9" display="flex" alignItems="center" borderBottom="grey-5">
+                    Task row 1
+                </Box>
+            </Box>
+            <Box paddingX="5">
+                <Box height="9" display="flex" alignItems="center" borderBottom="grey-5">
+                    Task row 2
+                </Box>
+            </Box>
+            <Box paddingX="5">
+                <Box height="9" display="flex" alignItems="center" borderBottom="grey-5">
+                    Task row 3
+                </Box>
+            </Box>
+            <Box paddingX="5">
+                <Box height="9" display="flex" alignItems="center" borderBottom="grey-5">
+                    Task row 4
+                </Box>
+            </Box>
+            <Box paddingX="5">
+                <Box height="9" display="flex" alignItems="center" borderBottom="grey-5">
+                    Task row 5
+                </Box>
+            </Box>
+            <Box paddingX="5">
+                <Box height="9" display="flex" alignItems="center" borderBottom="grey-5">
+                    Task row 6
+                </Box>
+            </Box>
+            <Box paddingX="5">
+                <Box height="9" display="flex" alignItems="center" borderBottom="grey-5">
+                    Task row 7
+                </Box>
+            </Box>
+            <Box paddingX="5">
+                <Box height="9" display="flex" alignItems="center">
+                    Task row 8
+                </Box>
+            </Box>
+        </Box>
+    );
+
+    const taskCardViews = (
+        <Box display="flex" gap="4">
+            <Box width="full" maxWidth="96" display="flex" flexDirection="column" gap="4">
+                <TaskCardPresentationalView
+                    status="Open"
+                    onStatusChange={noop}
+                    title={createSimpleTaskTitle(
+                        "Clean the kitchen: Wash the dishes, wipe down countertops, clean appliances (such as the oven and refrigerator), and sweep or mop the floor",
+                    )}
+                    assignee={account4}
+                    dueDate={currentDate.copy().subtract({days: 1})}
+                    collections={[kitchenTaskCollection]}
+                />
+                <TaskCardPresentationalView
+                    status="Open"
+                    onStatusChange={noop}
+                    title={createSimpleTaskTitle("Sort, wash, dry, and fold clothes")}
+                    assignee={null}
+                    dueDate={currentDate.copy().add({days: 7})}
+                    collections={[kitchenTaskCollection, bathroomTaskCollection]}
+                />
+            </Box>
+            <Box width="full" maxWidth="96" display="flex" flexDirection="column" gap="4">
+                <TaskCardPresentationalView
+                    status="Closed"
+                    onStatusChange={noop}
+                    title={createSimpleTaskTitle("Vacuum and mop floors")}
+                    assignee={account2}
+                    dueDate={null}
+                    collections={[]}
+                />
+            </Box>
+        </Box>
+    );
+
+    const taskDetailViewNextToCardViews = (
+        <Box display="flex" justifyContent="space-between" gap="4">
+            <Box
+                backgroundColor="grey-0"
+                flexShrink="0"
+                width="192"
+                style={{height: "56rem"}}
+                boxShadow="elevation-5"
+                borderRadius="lg"
+                overflow="hidden"
+            >
+                <TaskDetailDemoView
+                    initialStatus="Open"
+                    initialTitle={createSimpleTaskTitle(
+                        "Clean the kitchen: Wash the dishes, wipe down countertops, clean appliances (such as the oven and refrigerator), and sweep or mop the floor",
+                    )}
+                    initialAssignee={account4}
+                    initialDueDate={currentDate}
+                    initialCollections={[kitchenTaskCollection]}
+                    initialNotesContent={{
+                        doc: createSimpleTaskNotesContent(
+                            "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc rhoncus ex et ex pulvinar viverra. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Nam volutpat at lectus non cursus. Proin quis eros nulla. Donec turpis ante, egestas eget elementum eget, mollis eu nibh. Praesent ligula ipsum, malesuada non mauris sed, egestas pulvinar ipsum. Donec ut nulla eget ex efficitur varius tincidunt eu augue. Donec sit amet risus id nisl sodales varius. Suspendisse ligula magna, venenatis id porta non, ullamcorper vestibulum justo. Fusce facilisis purus vitae augue gravida, eleifend dictum metus varius. Phasellus lacinia vestibulum ex. Donec a pulvinar orci.",
+                        ),
+                        references: emptyContentReferences,
+                    }}
+                />
+            </Box>
+            <Box
+                flexGrow="1"
+                overflow="hidden"
+                padding="1"
+                margin="-1"
+                display="flex"
+                flexDirection="column"
+                gap="4"
+            >
+                <TaskCardPresentationalView
+                    status="Closed"
+                    onStatusChange={noop}
+                    title={createSimpleTaskTitle(
+                        "Clean out the fridge: Remove expired items and wipe shelves",
+                    )}
+                    assignee={account3}
+                    dueDate={currentDate}
+                    collections={[kitchenTaskCollection]}
+                />
+                <TaskCardPresentationalView
+                    status="Open"
+                    onStatusChange={noop}
+                    title={createSimpleTaskTitle("Clean windows and mirrors")}
+                    assignee={account3}
+                    dueDate={currentDate.copy().add({days: 1})}
+                    collections={[bathroomTaskCollection, kitchenTaskCollection]}
+                />
+                <TaskCardPresentationalView
+                    status="Open"
+                    onStatusChange={noop}
+                    title={createSimpleTaskTitle(
+                        "Deep clean the kitchen: Remove all items from the countertops and wipe them down. Scrub the sink, faucet, and stovetop using appropriate cleaners. Clean the oven, inside and out, by following the manufacturer's instructions. Sweep and mop the floor, paying attention to corners and hard-to-reach areas",
+                    )}
+                    assignee={null}
+                    dueDate={null}
+                    collections={[kitchenTaskCollection]}
+                />
+                <TaskCardPresentationalView
+                    status="Closed"
+                    onStatusChange={noop}
+                    title={createSimpleTaskTitle("Tidy up the living room")}
+                    assignee={null}
+                    dueDate={currentDate.copy().subtract({days: 7})}
+                    collections={[]}
+                />
+                <TaskCardPresentationalView
+                    status="Closed"
+                    onStatusChange={noop}
+                    title={createSimpleTaskTitle("Declutter and organize")}
+                    assignee={null}
+                    dueDate={null}
+                    collections={[]}
+                />
+                <TaskCardPresentationalView
+                    status="Open"
+                    onStatusChange={noop}
+                    title={createSimpleTaskTitle("Organize your closet")}
+                    assignee={account2}
+                    dueDate={null}
+                    collections={[bedroomTaskCollection]}
+                />
+                <TaskCardPresentationalView
+                    status="Open"
+                    onStatusChange={noop}
+                    title={createSimpleTaskTitle(
+                        "Remember to take breaks and reward yourself for your hard work!",
+                    )}
+                    assignee={account1}
+                    dueDate={currentDate.copy().subtract({years: 2})}
+                    collections={[]}
+                />
+            </Box>
+        </Box>
+    );
+
+    const emptyTaskDetailView = (
+        <Box
+            backgroundColor="grey-0"
+            flexShrink="0"
+            width="192"
+            style={{height: "56rem"}}
+            boxShadow="elevation-5"
+            borderRadius="lg"
+            overflow="hidden"
+        >
+            <TaskDetailDemoView
+                initialStatus="Open"
+                initialTitle={emptyTaskTitle}
+                initialAssignee={null}
+                initialDueDate={null}
+                initialCollections={[]}
+                initialNotesContent={emptyTaskNotesContentWithReferences}
+            />
+        </Box>
+    );
+
     return (
         <SpaceRouteScrollView>
             <Box
                 className={sprinkles({
                     display: "flex",
-                    // NOCOMMIT: Reversed while building the detail view
-                    flexDirection: "column-reverse",
+                    flexDirection: "column",
                     padding: "24",
                     gap: "64",
                 })}
             >
-                <Box backgroundColor="grey-0" border="grey-10" borderRadius="md">
-                    <Box paddingX="5">
-                        <Box height="9" display="flex" alignItems="center" borderBottom="grey-5">
-                            Task row 1
-                        </Box>
-                    </Box>
-                    <Box paddingX="5">
-                        <Box height="9" display="flex" alignItems="center" borderBottom="grey-5">
-                            Task row 2
-                        </Box>
-                    </Box>
-                    <Box paddingX="5">
-                        <Box height="9" display="flex" alignItems="center" borderBottom="grey-5">
-                            Task row 3
-                        </Box>
-                    </Box>
-                    <Box paddingX="5">
-                        <Box height="9" display="flex" alignItems="center" borderBottom="grey-5">
-                            Task row 4
-                        </Box>
-                    </Box>
-                    <Box paddingX="5">
-                        <Box height="9" display="flex" alignItems="center" borderBottom="grey-5">
-                            Task row 5
-                        </Box>
-                    </Box>
-                    <Box paddingX="5">
-                        <Box height="9" display="flex" alignItems="center" borderBottom="grey-5">
-                            Task row 6
-                        </Box>
-                    </Box>
-                    <Box paddingX="5">
-                        <Box height="9" display="flex" alignItems="center" borderBottom="grey-5">
-                            Task row 7
-                        </Box>
-                    </Box>
-                    <Box paddingX="5">
-                        <Box height="9" display="flex" alignItems="center">
-                            Task row 8
-                        </Box>
-                    </Box>
-                </Box>
-                <Box display="flex" gap="4">
-                    <Box width="full" maxWidth="96" display="flex" flexDirection="column" gap="4">
-                        <TaskCardPresentationalView
-                            status="Open"
-                            onStatusChange={noop}
-                            title={createSimpleTaskTitle(
-                                "Clean the kitchen: Wash the dishes, wipe down countertops, clean appliances (such as the oven and refrigerator), and sweep or mop the floor",
-                            )}
-                            assignee={account4}
-                            dueDate={currentDate.copy().subtract({days: 1})}
-                            collections={[kitchenTaskCollection]}
-                        />
-                        <TaskCardPresentationalView
-                            status="Open"
-                            onStatusChange={noop}
-                            title={createSimpleTaskTitle("Sort, wash, dry, and fold clothes")}
-                            assignee={null}
-                            dueDate={currentDate.copy().add({days: 7})}
-                            collections={[kitchenTaskCollection, bathroomTaskCollection]}
-                        />
-                    </Box>
-                    <Box width="full" maxWidth="96" display="flex" flexDirection="column" gap="4">
-                        <TaskCardPresentationalView
-                            status="Closed"
-                            onStatusChange={noop}
-                            title={createSimpleTaskTitle("Vacuum and mop floors")}
-                            assignee={account2}
-                            dueDate={null}
-                            collections={[]}
-                        />
-                    </Box>
-                </Box>
-                <Box display="flex" justifyContent="space-between" gap="4">
-                    <Box
-                        backgroundColor="grey-0"
-                        flexShrink="0"
-                        width="192"
-                        style={{height: "56rem"}}
-                        boxShadow="elevation-5"
-                        borderRadius="lg"
-                        overflow="hidden"
-                    >
-                        <TaskDetailDemoView
-                            initialStatus="Open"
-                            initialTitle={createSimpleTaskTitle(
-                                "Clean the kitchen: Wash the dishes, wipe down countertops, clean appliances (such as the oven and refrigerator), and sweep or mop the floor",
-                            )}
-                            initialAssignee={account4}
-                            initialDueDate={currentDate}
-                            initialCollections={[kitchenTaskCollection]}
-                            initialNotesContent={{
-                                doc: createSimpleTaskNotesContent(
-                                    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc rhoncus ex et ex pulvinar viverra. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Nam volutpat at lectus non cursus. Proin quis eros nulla. Donec turpis ante, egestas eget elementum eget, mollis eu nibh. Praesent ligula ipsum, malesuada non mauris sed, egestas pulvinar ipsum. Donec ut nulla eget ex efficitur varius tincidunt eu augue. Donec sit amet risus id nisl sodales varius. Suspendisse ligula magna, venenatis id porta non, ullamcorper vestibulum justo. Fusce facilisis purus vitae augue gravida, eleifend dictum metus varius. Phasellus lacinia vestibulum ex. Donec a pulvinar orci.",
-                                ),
-                                references: emptyContentReferences,
-                            }}
-                        />
-                    </Box>
-                    <Box
-                        flexGrow="1"
-                        overflow="hidden"
-                        padding="1"
-                        margin="-1"
-                        display="flex"
-                        flexDirection="column"
-                        gap="4"
-                    >
-                        <TaskCardPresentationalView
-                            status="Closed"
-                            onStatusChange={noop}
-                            title={createSimpleTaskTitle(
-                                "Clean out the fridge: Remove expired items and wipe shelves",
-                            )}
-                            assignee={account3}
-                            dueDate={currentDate}
-                            collections={[kitchenTaskCollection]}
-                        />
-                        <TaskCardPresentationalView
-                            status="Open"
-                            onStatusChange={noop}
-                            title={createSimpleTaskTitle("Clean windows and mirrors")}
-                            assignee={account3}
-                            dueDate={currentDate.copy().add({days: 1})}
-                            collections={[bathroomTaskCollection, kitchenTaskCollection]}
-                        />
-                        <TaskCardPresentationalView
-                            status="Open"
-                            onStatusChange={noop}
-                            title={createSimpleTaskTitle(
-                                "Deep clean the kitchen: Remove all items from the countertops and wipe them down. Scrub the sink, faucet, and stovetop using appropriate cleaners. Clean the oven, inside and out, by following the manufacturer's instructions. Sweep and mop the floor, paying attention to corners and hard-to-reach areas",
-                            )}
-                            assignee={null}
-                            dueDate={null}
-                            collections={[kitchenTaskCollection]}
-                        />
-                        <TaskCardPresentationalView
-                            status="Closed"
-                            onStatusChange={noop}
-                            title={createSimpleTaskTitle("Tidy up the living room")}
-                            assignee={null}
-                            dueDate={currentDate.copy().subtract({days: 7})}
-                            collections={[]}
-                        />
-                        <TaskCardPresentationalView
-                            status="Closed"
-                            onStatusChange={noop}
-                            title={createSimpleTaskTitle("Declutter and organize")}
-                            assignee={null}
-                            dueDate={null}
-                            collections={[]}
-                        />
-                        <TaskCardPresentationalView
-                            status="Open"
-                            onStatusChange={noop}
-                            title={createSimpleTaskTitle("Organize your closet")}
-                            assignee={account2}
-                            dueDate={null}
-                            collections={[bedroomTaskCollection]}
-                        />
-                        <TaskCardPresentationalView
-                            status="Open"
-                            onStatusChange={noop}
-                            title={createSimpleTaskTitle(
-                                "Remember to take breaks and reward yourself for your hard work!",
-                            )}
-                            assignee={account1}
-                            dueDate={currentDate.copy().subtract({years: 2})}
-                            collections={[]}
-                        />
-                    </Box>
-                </Box>
-                <Box
-                    backgroundColor="grey-0"
-                    flexShrink="0"
-                    width="192"
-                    style={{height: "56rem"}}
-                    boxShadow="elevation-5"
-                    borderRadius="lg"
-                    overflow="hidden"
-                >
-                    <TaskDetailDemoView
-                        initialStatus="Open"
-                        initialTitle={emptyTaskTitle}
-                        initialAssignee={null}
-                        initialDueDate={null}
-                        initialCollections={[]}
-                        initialNotesContent={emptyTaskNotesContentWithReferences}
-                    />
-                </Box>
+                {taskRowViews}
+                {taskCardViews}
+                {taskDetailViewNextToCardViews}
+                {emptyTaskDetailView}
             </Box>
         </SpaceRouteScrollView>
     );
