@@ -7,7 +7,7 @@ import {SpaceRouteScrollView} from "~/client/spaces/space_route_scroll_view";
 import {LocalTaskCollection} from "~/client/tasks/playground/local_task_collection";
 import {TaskCardPresentationalView} from "~/client/tasks/playground/task_card_presentational_view";
 import {TaskDetailPresentationalView} from "~/client/tasks/playground/task_detail_presentational_view";
-import {TaskStatus} from "~/client/tasks/playground/task_status_button";
+import {TaskAssignee, TaskStatus} from "~/client/tasks/playground/task_status_button";
 import {AccountModel} from "~/shared/accounts/account_model";
 import {emptyContentReferences} from "~/shared/content/content_references";
 import {noop} from "~/shared/helpers/control/noop";
@@ -126,8 +126,8 @@ export default function TasksDesignPlaygroundRoute() {
                     title={createSimpleTaskTitle(
                         "Clean the kitchen: Wash the dishes, wipe down countertops, clean appliances (such as the oven and refrigerator), and sweep or mop the floor",
                     )}
-                    assignee={account4}
-                    dueDate={currentDate.copy().subtract({days: 1})}
+                    assignee={{account: account4, status: "Active"}}
+                    dueDate={currentDate.subtract({days: 1})}
                     collections={[kitchenTaskCollection]}
                 />
                 <TaskCardPresentationalView
@@ -135,7 +135,7 @@ export default function TasksDesignPlaygroundRoute() {
                     onStatusChange={noop}
                     title={createSimpleTaskTitle("Sort, wash, dry, and fold clothes")}
                     assignee={null}
-                    dueDate={currentDate.copy().add({days: 7})}
+                    dueDate={currentDate.add({days: 7})}
                     collections={[kitchenTaskCollection, bathroomTaskCollection]}
                 />
             </Box>
@@ -144,7 +144,7 @@ export default function TasksDesignPlaygroundRoute() {
                     status="Closed"
                     onStatusChange={noop}
                     title={createSimpleTaskTitle("Vacuum and mop floors")}
-                    assignee={account2}
+                    assignee={{account: account2, status: "Inactive"}}
                     dueDate={null}
                     collections={[]}
                 />
@@ -168,7 +168,7 @@ export default function TasksDesignPlaygroundRoute() {
                     initialTitle={createSimpleTaskTitle(
                         "Clean the kitchen: Wash the dishes, wipe down countertops, clean appliances (such as the oven and refrigerator), and sweep or mop the floor",
                     )}
-                    initialAssignee={account4}
+                    initialAssignee={{account: account4, status: "Inactive"}}
                     initialDueDate={currentDate}
                     initialCollections={[kitchenTaskCollection]}
                     initialNotesContent={{
@@ -194,7 +194,7 @@ export default function TasksDesignPlaygroundRoute() {
                     title={createSimpleTaskTitle(
                         "Clean out the fridge: Remove expired items and wipe shelves",
                     )}
-                    assignee={account3}
+                    assignee={{account: account3, status: "Inactive"}}
                     dueDate={currentDate}
                     collections={[kitchenTaskCollection]}
                 />
@@ -202,8 +202,8 @@ export default function TasksDesignPlaygroundRoute() {
                     status="Open"
                     onStatusChange={noop}
                     title={createSimpleTaskTitle("Clean windows and mirrors")}
-                    assignee={account3}
-                    dueDate={currentDate.copy().add({days: 1})}
+                    assignee={{account: account3, status: "Active"}}
+                    dueDate={currentDate.add({days: 1})}
                     collections={[bathroomTaskCollection, kitchenTaskCollection]}
                 />
                 <TaskCardPresentationalView
@@ -221,7 +221,7 @@ export default function TasksDesignPlaygroundRoute() {
                     onStatusChange={noop}
                     title={createSimpleTaskTitle("Tidy up the living room")}
                     assignee={null}
-                    dueDate={currentDate.copy().subtract({days: 7})}
+                    dueDate={currentDate.subtract({days: 7})}
                     collections={[]}
                 />
                 <TaskCardPresentationalView
@@ -236,7 +236,7 @@ export default function TasksDesignPlaygroundRoute() {
                     status="Open"
                     onStatusChange={noop}
                     title={createSimpleTaskTitle("Organize your closet")}
-                    assignee={account2}
+                    assignee={{account: account2, status: "Inactive"}}
                     dueDate={null}
                     collections={[bedroomTaskCollection]}
                 />
@@ -246,8 +246,8 @@ export default function TasksDesignPlaygroundRoute() {
                     title={createSimpleTaskTitle(
                         "Remember to take breaks and reward yourself for your hard work!",
                     )}
-                    assignee={account1}
-                    dueDate={currentDate.copy().subtract({years: 2})}
+                    assignee={{account: account1, status: "Inactive"}}
+                    dueDate={currentDate.subtract({years: 2})}
                     collections={[]}
                 />
             </Box>
@@ -304,7 +304,7 @@ function TaskDetailDemoView({
 }: {
     initialStatus: TaskStatus;
     initialTitle: TaskTitle;
-    initialAssignee: AccountModel | null;
+    initialAssignee: TaskAssignee | null;
     initialDueDate: CalendarDate | null;
     initialCollections: ReadonlyArray<LocalTaskCollection>;
     initialNotesContent: TaskNotesContentWithReferences;

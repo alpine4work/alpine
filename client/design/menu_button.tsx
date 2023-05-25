@@ -1,5 +1,5 @@
 import {setInteractionModality} from "@react-aria/interactions";
-import {SpinnerGap} from "phosphor-react";
+import {Check, IconContext, SpinnerGap} from "phosphor-react";
 import React, {
     ReactElement,
     ReactNode,
@@ -45,6 +45,7 @@ import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {
+    colorSchemeVars,
     overlayAnimateContainerClassName,
     overlayAnimateFadeOutClassName,
     overlayFadeOutAnimationDurationMs,
@@ -67,6 +68,16 @@ type MenuStandardAction = {
      * internally, as the key for our actions.
      */
     readonly label: string;
+
+    /**
+     * An optional icon element rendered next to the action label.
+     */
+    readonly icon?: ReactNode | ((props: {isDisabled: boolean}) => ReactNode);
+
+    /**
+     * Render a checkmark next to this action since it is already selected.
+     */
+    readonly isSelected?: boolean;
 
     /**
      * Is this action disabled? If so, for what reason? We will display the reason
@@ -766,10 +777,13 @@ const MenuItem = forwardRef(function MenuItem(
                         : "right"
                 }
                 content={action.disabledReason}
+                offset="3"
+                // If the user presses a disabled button, keep showing the tooltip.
+                isVisibleAfterPress={true}
             >
                 {({skipHoverDelay}) => (
                     <MenuStandardButton
-                        menuItemRef={ref}
+                        ref={ref}
                         menuItemId={id}
                         action={action}
                         isFadingOut={isFadingOut}
@@ -783,7 +797,7 @@ const MenuItem = forwardRef(function MenuItem(
     } else {
         return (
             <MenuStandardButton
-                menuItemRef={ref}
+                ref={ref}
                 menuItemId={id}
                 action={action}
                 isFadingOut={isFadingOut}
@@ -794,23 +808,24 @@ const MenuItem = forwardRef(function MenuItem(
     }
 });
 
-function MenuStandardButton({
-    menuItemRef,
-    menuItemId,
-    action,
-    isFadingOut,
-    onCloseWithAnimation,
-    onCloseWithoutAnimation,
-    skipTooltipHoverDelay,
-}: {
-    menuItemRef: Ref<HTMLDivElement>;
-    menuItemId: string;
-    action: MenuStandardAction;
-    isFadingOut: boolean;
-    onCloseWithAnimation: () => void;
-    onCloseWithoutAnimation: () => void;
-    skipTooltipHoverDelay?: () => void;
-}) {
+const MenuStandardButton = forwardRef(function MenuStandardButton(
+    {
+        menuItemId,
+        action,
+        isFadingOut,
+        onCloseWithAnimation,
+        onCloseWithoutAnimation,
+        skipTooltipHoverDelay,
+    }: {
+        menuItemId: string;
+        action: MenuStandardAction;
+        isFadingOut: boolean;
+        onCloseWithAnimation: () => void;
+        onCloseWithoutAnimation: () => void;
+        skipTooltipHoverDelay?: () => void;
+    },
+    ref: Ref<HTMLDivElement>,
+) {
     const showToast = useShowToast();
     const [pendingState, setPendingState] = useState<
         | {isPending: false; shouldShowPendingSpinner: false}
@@ -918,7 +933,7 @@ function MenuStandardButton({
         <FocusRing offset="0">
             <Box
                 {...mergeProps(hoverProps, pressProps)}
-                ref={menuItemRef}
+                ref={ref}
                 id={menuItemId}
                 role="menuitem"
                 // Each item in the menu has `tabindex` set to -1. (Even disabled items
@@ -928,13 +943,13 @@ function MenuStandardButton({
                 tabIndex={-1}
                 width="32"
                 paddingX="2"
-                paddingY="1"
+                paddingY={action.icon ? "1.5" : "1"}
                 borderRadius="base"
                 // NOTE(calebmer): We don't have a red destructive menu item style because it
                 // seems silly to call attention to the destructive action with color.
                 color={isVisuallyDisabled ? "grey-40" : "grey-text"}
                 backgroundColor={
-                    isPressed
+                    isPressed && !isVisuallyDisabled
                         ? {light: "grey-10", dark: "grey-20"}
                         : isHovered
                         ? {light: "grey-5", dark: "grey-10"}
@@ -947,18 +962,49 @@ function MenuStandardButton({
                 display="flex"
                 alignItems="center"
             >
+                {action.icon && (
+                    <Box flexShrink="0" width="4" height="4" marginRight="2">
+                        <IconContext.Provider
+                            value={{
+                                color: isVisuallyDisabled
+                                    ? colorSchemeVars["grey-40"]
+                                    : isPressed
+                                    ? colorSchemeVars["grey-text"]
+                                    : colorSchemeVars["grey-70"],
+                                size: spacing["4"],
+                                weight: "regular",
+                            }}
+                        >
+                            {typeof action.icon === "function"
+                                ? action.icon({isDisabled})
+                                : action.icon}
+                        </IconContext.Provider>
+                    </Box>
+                )}
                 <Box flexGrow="1" fontStyle="truncate">
                     {action.label}
                 </Box>
+                {action.isSelected && (
+                    <Box flexShrink="0" marginLeft="2">
+                        <Check
+                            size={spacing["3"]}
+                            color={
+                                isPressed
+                                    ? colorSchemeVars["grey-text"]
+                                    : colorSchemeVars["grey-70"]
+                            }
+                        />
+                    </Box>
+                )}
                 {pendingState.shouldShowPendingSpinner && (
-                    <Box flexShrink="0" paddingLeft="2">
+                    <Box flexShrink="0" marginLeft="2">
                         <SpinnerGap className={spinAnimationClassName} size={spacing["4"]} />
                     </Box>
                 )}
             </Box>
         </FocusRing>
     );
-}
+});
 
 function MenuCustomButton({
     menuItemRef,

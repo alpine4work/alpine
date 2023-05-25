@@ -246,7 +246,7 @@ function ContentEditorHighlightSelectorButton({
             fallbackPlacements={[]}
             // The hover bounding box for our button is larger than the button itself so
             // we want to show the tooltip when a child is focused.
-            visibleWhenFocusWithin={true}
+            isVisibleWhenFocusWithin={true}
             content={description}
         >
             <Box

@@ -1,5 +1,5 @@
 import {CalendarDate} from "@internationalized/date";
-import {CaretDown, DotsThree, Fire, FireSimple, Hourglass} from "phosphor-react";
+import {DotsThree} from "phosphor-react";
 import {ReactNode, useId, useMemo, useRef} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
@@ -7,17 +7,19 @@ import {Box} from "~/client/design/box";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element";
 import {IconButton} from "~/client/design/icon_button";
 import {MenuButton} from "~/client/design/menu_button";
-import {Spacer} from "~/client/design/spacer";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {TaskCollectionChip} from "~/client/tasks/playground/internal/task_collection_chip";
-import {TaskDetailAssigneeStatusButton} from "~/client/tasks/playground/internal/task_detail_assignee_status_button";
 import {TaskDetailDueDateField} from "~/client/tasks/playground/internal/task_detail_due_date_field";
 import {TaskDetailNotesField} from "~/client/tasks/playground/internal/task_detail_notes_field";
 import {TaskDetailTitleInput} from "~/client/tasks/playground/internal/task_detail_title_input";
 import {LocalTaskCollection} from "~/client/tasks/playground/local_task_collection";
-import {TaskStatus, TaskStatusButton} from "~/client/tasks/playground/task_status_button";
+import {
+    TaskAssignee,
+    TaskStatus,
+    TaskStatusButton,
+} from "~/client/tasks/playground/task_status_button";
 import {AccountModel} from "~/shared/accounts/account_model";
-import {Spacing, assertSpacing, spacing} from "~/shared/design/spacing";
+import {Spacing, assertSpacing} from "~/shared/design/spacing";
 import {UnimplementedError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {sprinkles} from "~/shared/styles/styles";
@@ -55,7 +57,7 @@ export function TaskDetailPresentationalView({
     onStatusChange: (status: TaskStatus) => void;
     title: TaskTitle;
     onTitleChange: (title: TaskTitle) => void;
-    assignee: AccountModel | null;
+    assignee: TaskAssignee | null;
     dueDate: CalendarDate | null;
     onDueDateChange: (dueDate: CalendarDate | null) => void;
     collections: ReadonlyArray<LocalTaskCollection>;
@@ -78,7 +80,12 @@ export function TaskDetailPresentationalView({
                 borderRight="grey-10"
             >
                 <Box paddingX={padding} display="flex" flexDirection="column" gap="3">
-                    <TaskStatusButton size="5" status={status} onStatusChange={onStatusChange} />
+                    <TaskStatusButton
+                        size="5"
+                        assignee={assignee}
+                        status={status}
+                        onStatusChange={onStatusChange}
+                    />
                     <Box
                         position="absolute"
                         top={assertSpacing(`${parseInt(padding, 10) - 2}`)}
@@ -110,7 +117,7 @@ export function TaskDetailPresentationalView({
                 </Box>
                 <TaskDetailViewDenseFields
                     status={status}
-                    assignee={assignee}
+                    assigneeAccount={assignee?.account ?? null}
                     dueDate={dueDate}
                     onDueDateChange={onDueDateChange}
                     collections={collections}
@@ -235,14 +242,14 @@ export function TaskDetailPresentationalView({
 
 function TaskDetailViewDenseFields({
     status,
-    assignee,
+    assigneeAccount,
     dueDate,
     onDueDateChange,
     collections,
     padding,
 }: {
     status: TaskStatus;
-    assignee: AccountModel | null;
+    assigneeAccount: AccountModel | null;
     dueDate: CalendarDate | null;
     onDueDateChange: (dueDate: CalendarDate | null) => void;
     collections: ReadonlyArray<LocalTaskCollection>;
@@ -263,23 +270,21 @@ function TaskDetailViewDenseFields({
             {useMemo(
                 () => (
                     <TaskDetailViewField label="Assignee">
-                        {assignee && (
-                            <Box display="flex" alignItems="center" height="4">
-                                <Box position="relative" width="4" height="4" marginRight="2">
+                        {assigneeAccount && (
+                            <Box display="flex" alignItems="center" gap="2">
+                                <Box position="relative" width="4" height="4">
                                     <Box position="absolute" top="-0.5" left="-0.5">
-                                        <AccountAvatar size="5" account={assignee} />
+                                        <AccountAvatar size="5" account={assigneeAccount} />
                                     </Box>
                                 </Box>
                                 <Box fontStyle="truncate">
-                                    <AccountShortName account={assignee} />
+                                    <AccountShortName account={assigneeAccount} />
                                 </Box>
-                                <Spacer space="4" />
-                                <TaskDetailAssigneeStatusButton />
                             </Box>
                         )}
                     </TaskDetailViewField>
                 ),
-                [assignee],
+                [assigneeAccount],
             )}
             <TaskDetailViewField label="Due date">
                 {({"aria-labelledby": ariaLabelledBy}) => (

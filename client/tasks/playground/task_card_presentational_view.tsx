@@ -9,8 +9,11 @@ import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour";
 import {formatTaskDueDate} from "~/client/tasks/playground/internal/format_task_due_date";
 import {TaskCollectionChip} from "~/client/tasks/playground/internal/task_collection_chip";
 import {LocalTaskCollection} from "~/client/tasks/playground/local_task_collection";
-import {TaskStatus, TaskStatusButton} from "~/client/tasks/playground/task_status_button";
-import {AccountModel} from "~/shared/accounts/account_model";
+import {
+    TaskAssignee,
+    TaskStatus,
+    TaskStatusButton,
+} from "~/client/tasks/playground/task_status_button";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
 import {contentSchemaStyles} from "~/shared/styles/styles";
@@ -45,7 +48,7 @@ export function TaskCardPresentationalView({
     status: TaskStatus;
     onStatusChange: (status: TaskStatus) => void;
     title: TaskTitle;
-    assignee: AccountModel | null;
+    assignee: TaskAssignee | null;
     dueDate: CalendarDate | null;
     collections: ReadonlyArray<LocalTaskCollection>;
 }) {
@@ -76,11 +79,11 @@ export function TaskCardPresentationalView({
                 >
                     <Box position="relative" width="4" height="4">
                         <Box position="absolute" top="-0.5" left="-0.5">
-                            <AccountAvatar size="5" account={assignee} />
+                            <AccountAvatar size="5" account={assignee.account} />
                         </Box>
                     </Box>
                     <Box fontStyle="truncate" color="grey-60">
-                        <AccountShortName account={assignee} tooltipPlacement="bottom" />
+                        <AccountShortName account={assignee.account} tooltipPlacement="bottom" />
                     </Box>
                 </Box>,
             );
@@ -150,7 +153,11 @@ export function TaskCardPresentationalView({
                     alignItems="center"
                     style={{height: contentSchemaStyles.paragraphFontSize.lineHeight}}
                 >
-                    <TaskStatusButton status={status} onStatusChange={onStatusChange} />
+                    <TaskStatusButton
+                        assignee={assignee}
+                        status={status}
+                        onStatusChange={onStatusChange}
+                    />
                 </Box>
                 <Box
                     flexGrow="1"

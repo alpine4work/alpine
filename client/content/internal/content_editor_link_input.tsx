@@ -160,7 +160,7 @@ function ContentEditorLinkInputClearButton({
         <Tooltip
             placement="top"
             fallbackPlacements={[]}
-            visibleWhenFocusWithin={true}
+            isVisibleWhenFocusWithin={true}
             content={description}
         >
             <Box {...hoverProps} paddingY="1.5">

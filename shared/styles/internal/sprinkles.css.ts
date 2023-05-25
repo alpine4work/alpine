@@ -197,13 +197,14 @@ const responsiveProperties = defineProperties({
         borderBottomLeftRadius: borderRadius,
         borderBottomRightRadius: borderRadius,
         borderWidth: {
-            // Use a triple selector so that this border width overrides the border width
-            // of a `colorProperties` border with a condition. Border width in
-            // `colorProperties` with condition has a specificity of 2. One for the
-            // selector and one for the condition. So triple selector beats it.
-            none: {selectors: {"&&&": {borderWidth: 0}}},
-            base: {selectors: {"&&&": {borderWidth: 1}}},
-            thick: {selectors: {"&&&": {borderWidth: 2}}},
+            // Use a quadruple selector so that this border width overrides the border
+            // width of a `colorProperties` border with a condition. Border width in
+            // `colorProperties` with condition has a specificity of 3. One for the
+            // selector and two for the condition (in light mode we have `:root:not(...)`
+            // as the condition). So quadruple selector beats it.
+            none: {selectors: {"&&&&": {borderWidth: 0}}},
+            base: {selectors: {"&&&&": {borderWidth: 1}}},
+            thick: {selectors: {"&&&&": {borderWidth: 2}}},
         },
     },
     shorthands: {

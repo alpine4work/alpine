@@ -61,7 +61,7 @@ export type TooltipState =
           readonly isFadingIn: false;
           readonly isFadingOut: false;
           readonly isDisabled: false;
-          readonly hadPointerDownWhileHovered: false;
+          readonly hadHidingPointerDownWhileHovered: false;
       }
     // Tooltip is disabled.
     | {
@@ -70,7 +70,7 @@ export type TooltipState =
           readonly isFadingIn: false;
           readonly isFadingOut: false;
           readonly isDisabled: true;
-          readonly hadPointerDownWhileHovered: false;
+          readonly hadHidingPointerDownWhileHovered: false;
       }
     // Tooltip is fading in but we no longer have hover/focus so once the fade in
     // is done we will immediately transition to fading out.
@@ -80,7 +80,7 @@ export type TooltipState =
           readonly isFadingIn: true;
           readonly isFadingOut: false;
           readonly isDisabled: false;
-          readonly hadPointerDownWhileHovered: false;
+          readonly hadHidingPointerDownWhileHovered: false;
       }
     // Tooltip is fading out.
     | {
@@ -89,7 +89,7 @@ export type TooltipState =
           readonly isFadingIn: false;
           readonly isFadingOut: true;
           readonly isDisabled: false;
-          readonly hadPointerDownWhileHovered: false;
+          readonly hadHidingPointerDownWhileHovered: false;
       }
     // Tooltip is fading out and disabled.
     | {
@@ -98,7 +98,7 @@ export type TooltipState =
           readonly isFadingIn: false;
           readonly isFadingOut: true;
           readonly isDisabled: true;
-          readonly hadPointerDownWhileHovered: false;
+          readonly hadHidingPointerDownWhileHovered: false;
       }
     // Tooltip is hovered.
     | {
@@ -107,7 +107,7 @@ export type TooltipState =
           readonly isFadingIn: false;
           readonly isFadingOut: false;
           readonly isDisabled: false;
-          readonly hadPointerDownWhileHovered: false;
+          readonly hadHidingPointerDownWhileHovered: false;
       }
     // Tooltip is focused.
     | {
@@ -116,7 +116,7 @@ export type TooltipState =
           readonly isFadingIn: false;
           readonly isFadingOut: false;
           readonly isDisabled: false;
-          readonly hadPointerDownWhileHovered: false;
+          readonly hadHidingPointerDownWhileHovered: false;
       }
     // Tooltip is hovered and focused.
     | {
@@ -125,7 +125,7 @@ export type TooltipState =
           readonly isFadingIn: false;
           readonly isFadingOut: false;
           readonly isDisabled: false;
-          readonly hadPointerDownWhileHovered: false;
+          readonly hadHidingPointerDownWhileHovered: false;
       }
     // Tooltip is hovered and disabled.
     | {
@@ -134,7 +134,7 @@ export type TooltipState =
           readonly isFadingIn: false;
           readonly isFadingOut: false;
           readonly isDisabled: true;
-          readonly hadPointerDownWhileHovered: false;
+          readonly hadHidingPointerDownWhileHovered: false;
       }
     // Tooltip is focused and disabled.
     | {
@@ -143,7 +143,7 @@ export type TooltipState =
           readonly isFadingIn: false;
           readonly isFadingOut: false;
           readonly isDisabled: true;
-          readonly hadPointerDownWhileHovered: false;
+          readonly hadHidingPointerDownWhileHovered: false;
       }
     // Tooltip is hovered and focused and disabled.
     | {
@@ -152,7 +152,7 @@ export type TooltipState =
           readonly isFadingIn: false;
           readonly isFadingOut: false;
           readonly isDisabled: true;
-          readonly hadPointerDownWhileHovered: false;
+          readonly hadHidingPointerDownWhileHovered: false;
       }
     // Tooltip is hovered and fading in.
     | {
@@ -161,7 +161,7 @@ export type TooltipState =
           readonly isFadingIn: true;
           readonly isFadingOut: false;
           readonly isDisabled: false;
-          readonly hadPointerDownWhileHovered: false;
+          readonly hadHidingPointerDownWhileHovered: false;
       }
     // Tooltip is focused and fading in.
     | {
@@ -170,7 +170,7 @@ export type TooltipState =
           readonly isFadingIn: true;
           readonly isFadingOut: false;
           readonly isDisabled: false;
-          readonly hadPointerDownWhileHovered: false;
+          readonly hadHidingPointerDownWhileHovered: false;
       }
     // Tooltip is hovered and focused and fading in.
     | {
@@ -179,7 +179,7 @@ export type TooltipState =
           readonly isFadingIn: true;
           readonly isFadingOut: false;
           readonly isDisabled: false;
-          readonly hadPointerDownWhileHovered: false;
+          readonly hadHidingPointerDownWhileHovered: false;
       }
     // Tooltip is hovered and fading out.
     // Can only fade out while hovered when disabled.
@@ -189,7 +189,7 @@ export type TooltipState =
           readonly isFadingIn: false;
           readonly isFadingOut: true;
           readonly isDisabled: true;
-          readonly hadPointerDownWhileHovered: false;
+          readonly hadHidingPointerDownWhileHovered: false;
       }
     // Tooltip is focused and fading out.
     // Can only fade out while focused when disabled.
@@ -199,7 +199,7 @@ export type TooltipState =
           readonly isFadingIn: false;
           readonly isFadingOut: true;
           readonly isDisabled: true;
-          readonly hadPointerDownWhileHovered: false;
+          readonly hadHidingPointerDownWhileHovered: false;
       }
     // Tooltip is hovered and focused and fading out.
     // Can only fade out while hovered and focused when disabled.
@@ -209,7 +209,7 @@ export type TooltipState =
           readonly isFadingIn: false;
           readonly isFadingOut: true;
           readonly isDisabled: true;
-          readonly hadPointerDownWhileHovered: false;
+          readonly hadHidingPointerDownWhileHovered: false;
       }
     // Tooltip has been clicked while hovered.
     // This will hide the tooltip without animating it.
@@ -219,7 +219,7 @@ export type TooltipState =
           readonly isFadingIn: false;
           readonly isFadingOut: false;
           readonly isDisabled: false;
-          readonly hadPointerDownWhileHovered: true;
+          readonly hadHidingPointerDownWhileHovered: true;
       }
     // Tooltip has been clicked while hovered and focused.
     // This will hide the tooltip without animating it.
@@ -229,7 +229,7 @@ export type TooltipState =
           readonly isFadingIn: false;
           readonly isFadingOut: false;
           readonly isDisabled: false;
-          readonly hadPointerDownWhileHovered: true;
+          readonly hadHidingPointerDownWhileHovered: true;
       }
     // Tooltip has been clicked while hovered and disabled.
     // This will hide the tooltip without animating it.
@@ -239,7 +239,7 @@ export type TooltipState =
           readonly isFadingIn: false;
           readonly isFadingOut: false;
           readonly isDisabled: true;
-          readonly hadPointerDownWhileHovered: true;
+          readonly hadHidingPointerDownWhileHovered: true;
       }
     // Tooltip has been clicked while hovered, focused, and disabled.
     // This will hide the tooltip without animating it.
@@ -249,7 +249,7 @@ export type TooltipState =
           readonly isFadingIn: false;
           readonly isFadingOut: false;
           readonly isDisabled: true;
-          readonly hadPointerDownWhileHovered: true;
+          readonly hadHidingPointerDownWhileHovered: true;
       };
 
 type TooltipChildrenProps = {
@@ -326,7 +326,14 @@ export type TooltipProps = {
      *
      * Defaults to `false`.
      */
-    visibleWhenFocusWithin?: boolean;
+    isVisibleWhenFocusWithin?: boolean;
+
+    /**
+     * Do we show the tooltip after the user has clicked the target?
+     *
+     * Defaults to `false` which hides the tooltip after a click.
+     */
+    isVisibleAfterPress?: boolean;
 
     /**
      * The element our tooltip content will be rendered to point to. Must provide
@@ -366,7 +373,8 @@ function Tooltip(
         placement = "top",
         fallbackPlacements,
         offset = defaultTooltipOffset,
-        visibleWhenFocusWithin = false,
+        isVisibleWhenFocusWithin = false,
+        isVisibleAfterPress = false,
         children: actualChildren,
         targetElement,
         onStateChange: _onStateChange,
@@ -414,7 +422,7 @@ function Tooltip(
         isFadingIn: false,
         isFadingOut: false,
         isDisabled,
-        hadPointerDownWhileHovered: false,
+        hadHidingPointerDownWhileHovered: false,
     });
 
     // When disabled prop changes, update our state. Importantly when we disable a
@@ -425,7 +433,10 @@ function Tooltip(
                 if (state.isDisabled) return state;
 
                 // When we disable a visible tooltip we want to fade it out.
-                if ((state.isHovered || state.isFocused) && !state.hadPointerDownWhileHovered) {
+                if (
+                    (state.isHovered || state.isFocused) &&
+                    !state.hadHidingPointerDownWhileHovered
+                ) {
                     return {
                         ...state,
                         isFadingIn: false,
@@ -444,7 +455,10 @@ function Tooltip(
             setState((state): TooltipState => {
                 if (!state.isDisabled) return state;
 
-                if ((state.isHovered || state.isFocused) && !state.hadPointerDownWhileHovered) {
+                if (
+                    (state.isHovered || state.isFocused) &&
+                    !state.hadHidingPointerDownWhileHovered
+                ) {
                     if (state.isFadingOut) {
                         return {
                             ...state,
@@ -473,7 +487,7 @@ function Tooltip(
         if (
             (!state.isHovered && !state.isFocused) ||
             state.isDisabled ||
-            state.hadPointerDownWhileHovered
+            state.hadHidingPointerDownWhileHovered
         ) {
             // We don't want to release our tooltip from the coordination context
             // until both its fade-in and fade-out animation have finished.
@@ -616,7 +630,7 @@ function Tooltip(
                                     isHovered: false,
                                     isFadingIn: false,
                                     isFadingOut: false,
-                                    hadPointerDownWhileHovered: false,
+                                    hadHidingPointerDownWhileHovered: false,
                                 };
                             } else if (!state.isFadingIn) {
                                 return {
@@ -624,20 +638,20 @@ function Tooltip(
                                     isHovered: false,
                                     isFadingIn: false,
                                     isFadingOut,
-                                    hadPointerDownWhileHovered: false,
+                                    hadHidingPointerDownWhileHovered: false,
                                 };
                             } else {
                                 return {
                                     ...state,
                                     isHovered: false,
-                                    hadPointerDownWhileHovered: false,
+                                    hadHidingPointerDownWhileHovered: false,
                                 };
                             }
                         } else if (state.isFocused) {
                             return {
                                 ...state,
                                 isHovered: false,
-                                hadPointerDownWhileHovered: false,
+                                hadHidingPointerDownWhileHovered: false,
                             };
                         } else {
                             throw exhaustive(state);
@@ -673,6 +687,8 @@ function Tooltip(
             // If the user clicks on the target, dismiss the tooltip without animation
             // until the mouse moves off the target element and back.
             function handlePointerDown() {
+                if (isVisibleAfterPress) return;
+
                 setState((state): TooltipState => {
                     if (!state.isHovered) {
                         return state;
@@ -681,14 +697,14 @@ function Tooltip(
                             ...state,
                             isFadingIn: false,
                             isFadingOut: false,
-                            hadPointerDownWhileHovered: true,
+                            hadHidingPointerDownWhileHovered: true,
                         };
                     }
                 });
             }
 
             function handleFocusIn(event: FocusEvent) {
-                if (!visibleWhenFocusWithin && event.target !== targetElement) return;
+                if (!isVisibleWhenFocusWithin && event.target !== targetElement) return;
 
                 if (isFocusVisible()) {
                     // If there is a visible tooltip that will fade out soon, cancel the fade out
@@ -717,7 +733,7 @@ function Tooltip(
             }
 
             function handleFocusOut(event: FocusEvent) {
-                if (!visibleWhenFocusWithin && event.target !== targetElement) return;
+                if (!isVisibleWhenFocusWithin && event.target !== targetElement) return;
 
                 const updateState = ({isFadingOut}: {isFadingOut: boolean}) => {
                     setState(state => {
@@ -809,7 +825,8 @@ function Tooltip(
             tooltipSymbolAboutToFadeOutRef,
             getHasActiveTooltipSymbol,
             tooltipSymbol,
-            visibleWhenFocusWithin,
+            isVisibleAfterPress,
+            isVisibleWhenFocusWithin,
         ],
     );
 
@@ -856,6 +873,7 @@ function Tooltip(
                         className={overlayAnimateContainerClassName}
                     >
                         <Box
+                            maxWidth="48"
                             paddingX="1.5"
                             paddingY="0.5"
                             fontSize="50"
