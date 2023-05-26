@@ -24,6 +24,7 @@ import {TaskTitle} from "~/shared/tasks/task_title_schema";
 
 export type TaskGridPresentationalViewRef = {
     focusTaskRowTitleStart(index: number): void;
+    focusTaskRowTitleEnd(index: number): void;
 };
 
 const TaskGridPresentationalViewForwardRef = forwardRef(TaskGridPresentationalView) as <Task>(
@@ -50,6 +51,7 @@ type TaskGridPresentationalViewProps<TaskRow> = {
     createTaskChildAndFocus: (taskRow: TaskRow) => void;
     nestTaskAndExpandParentRow: (parentTaskRow: TaskRow, childTaskRow: TaskRow) => void;
     unnestTaskIfNestedRow: (childTaskRow: TaskRow) => void;
+    deleteTaskAndAllChildrenAndFocusPreviousRow: (taskRow: TaskRow) => void;
 };
 
 function TaskGridPresentationalView<TaskRow>(
@@ -71,6 +73,7 @@ function TaskGridPresentationalView<TaskRow>(
         createTaskChildAndFocus,
         nestTaskAndExpandParentRow,
         unnestTaskIfNestedRow,
+        deleteTaskAndAllChildrenAndFocusPreviousRow,
     }: TaskGridPresentationalViewProps<TaskRow>,
     ref: Ref<TaskGridPresentationalViewRef>,
 ) {
@@ -83,6 +86,7 @@ function TaskGridPresentationalView<TaskRow>(
         () => ({
             focusTaskRowTitleStart: index =>
                 taskRowRefByIndex.get(index).current?.focusTitleStart(),
+            focusTaskRowTitleEnd: index => taskRowRefByIndex.get(index).current?.focusTitleEnd(),
         }),
         [taskRowRefByIndex],
     );
@@ -147,6 +151,9 @@ function TaskGridPresentationalView<TaskRow>(
                             }
                         }}
                         unnestTaskIfNestedRow={() => unnestTaskIfNestedRow(taskRow)}
+                        deleteTaskAndAllChildrenAndFocusPreviousRow={() =>
+                            deleteTaskAndAllChildrenAndFocusPreviousRow(taskRow)
+                        }
                         focusNextTaskTitleCoord={coord => {
                             coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
 

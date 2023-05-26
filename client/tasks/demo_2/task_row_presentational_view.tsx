@@ -79,6 +79,7 @@ function TaskRowPresentationalView(
         createTaskChildAndFocus,
         nestWithPreviousTaskRowIfExistsAndExpand,
         unnestTaskIfNestedRow,
+        deleteTaskAndAllChildrenAndFocusPreviousRow,
         focusNextTaskTitleCoord,
         focusPreviousTaskTitleCoord,
         focusFirstTaskTitleStart,
@@ -99,6 +100,7 @@ function TaskRowPresentationalView(
         createTaskChildAndFocus: () => void;
         nestWithPreviousTaskRowIfExistsAndExpand: () => void;
         unnestTaskIfNestedRow: () => void;
+        deleteTaskAndAllChildrenAndFocusPreviousRow: () => void;
         focusNextTaskTitleCoord: (coord: number) => void;
         focusPreviousTaskTitleCoord: (coord: number) => void;
         focusFirstTaskTitleStart: () => void;
@@ -246,6 +248,9 @@ function TaskRowPresentationalView(
                             nestWithPreviousTaskRowIfExistsAndExpand
                         }
                         unnestTaskIfNestedRow={unnestTaskIfNestedRow}
+                        deleteTaskAndAllChildrenAndFocusPreviousRow={
+                            deleteTaskAndAllChildrenAndFocusPreviousRow
+                        }
                         focusNextTaskTitleCoord={focusNextTaskTitleCoord}
                         focusPreviousTaskTitleCoord={focusPreviousTaskTitleCoord}
                         focusFirstTaskTitleStart={focusFirstTaskTitleStart}

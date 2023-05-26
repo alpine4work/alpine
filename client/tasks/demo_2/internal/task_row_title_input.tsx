@@ -70,6 +70,7 @@ function TaskRowTitleInput(
         createTaskChildAndFocus,
         nestWithPreviousTaskRowIfExistsAndExpand,
         unnestTaskIfNestedRow,
+        deleteTaskAndAllChildrenAndFocusPreviousRow,
         focusNextTaskTitleCoord,
         focusPreviousTaskTitleCoord,
         focusFirstTaskTitleStart,
@@ -86,6 +87,7 @@ function TaskRowTitleInput(
         createTaskChildAndFocus: () => void;
         nestWithPreviousTaskRowIfExistsAndExpand: () => void;
         unnestTaskIfNestedRow: () => void;
+        deleteTaskAndAllChildrenAndFocusPreviousRow: () => void;
         focusNextTaskTitleCoord: (coord: number) => void;
         focusPreviousTaskTitleCoord: (coord: number) => void;
         focusFirstTaskTitleStart: () => void;
@@ -127,6 +129,27 @@ function TaskRowTitleInput(
                     } else {
                         createTaskBelowAndFocus();
                     }
+                }
+                break;
+            }
+            case "Backspace": {
+                if (
+                    view.state.doc.childCount === 0 &&
+                    // Cmd-backspace always deletes the task when its title is empty regardless of
+                    // what other content it contains.
+                    ((isMac ? event.metaKey : event.ctrlKey) || childTaskCount === 0)
+                ) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    // TODO(calebmer): If the task we're deleting has other fields (like comments
+                    // and notes) we should probably popup a warning and ask "are you sure you want
+                    // to delete"? The join behavior is great for quickly iterating on tasks but
+                    // can be dangerous.
+                    //
+                    // TODO(calebmer): Should we actually delete subtasks? Maybe we should give
+                    // users an option to leave subtasks?
+                    deleteTaskAndAllChildrenAndFocusPreviousRow();
                 }
                 break;
             }
