@@ -68,6 +68,7 @@ function TaskRowPresentationalView(
         onStatusChange,
         title,
         onTitleChange,
+        titlePlaceholder,
         assignee,
         childTaskCount,
         areChildTasksCollapsed,
@@ -85,10 +86,11 @@ function TaskRowPresentationalView(
         focusFirstTaskTitleStart,
         focusLastTaskTitleEnd,
     }: {
-        status: TaskStatus;
+        status: TaskStatus | null;
         onStatusChange: (status: TaskStatus) => void;
         title: TaskTitle;
         onTitleChange: (title: TaskTitle) => void;
+        titlePlaceholder?: string;
         assignee: TaskAssignee | null;
         childTaskCount: number;
         areChildTasksCollapsed: boolean;
@@ -226,11 +228,13 @@ function TaskRowPresentationalView(
                         paddingRight="2"
                         className={tasksStyles.pointerEventsNoneNotInheritedClassName}
                     >
-                        <TaskStatusButton
-                            status={status}
-                            onStatusChange={onStatusChange}
-                            assignee={assignee}
-                        />
+                        {status !== null && (
+                            <TaskStatusButton
+                                status={status}
+                                onStatusChange={onStatusChange}
+                                assignee={assignee}
+                            />
+                        )}
                     </Box>
                 </Box>
                 <Box flexGrow="1" overflow="hidden">
@@ -239,6 +243,7 @@ function TaskRowPresentationalView(
                         status={status}
                         title={title}
                         onTitleChange={onTitleChange}
+                        placeholder={titlePlaceholder}
                         childTaskCount={childTaskCount}
                         areChildTasksCollapsed={areChildTasksCollapsed}
                         createTaskAbove={createTaskAbove}

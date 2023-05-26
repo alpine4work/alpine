@@ -76,7 +76,7 @@ function TaskRowTitleInput(
         focusFirstTaskTitleStart,
         focusLastTaskTitleEnd,
     }: {
-        status: TaskStatus;
+        status: TaskStatus | null;
         title: TaskTitle;
         onTitleChange: (title: TaskTitle) => void;
         placeholder?: string;

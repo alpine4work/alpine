@@ -424,6 +424,7 @@ function TaskGridDemoView({
             ref={gridViewRef}
             taskRowCount={taskRows.length}
             getTaskRow={index => taskRows[index]!}
+            nextTaskKey={state.nextId}
             getTaskKey={({task}) => task.id}
             getTaskStatus={({task}) => task.status}
             onTaskStatusChange={({task: {id: taskId}}, status) => {
@@ -631,6 +632,36 @@ function TaskGridDemoView({
                     }),
                 );
             }}
+            createTaskAtEnd={title => {
+                setState(state =>
+                    produce(state, state => {
+                        state.tasks.push({
+                            id: state.nextId++,
+                            title: castDraft(title),
+                            status: "Open",
+                            areChildTasksCollapsed: false,
+                            childTasks: [],
+                        });
+                    }),
+                );
+            }}
+            createTaskAtEndAndFocusGhost={title => {
+                setState(state =>
+                    produce(state, state => {
+                        state.tasks.push({
+                            id: state.nextId++,
+                            title: castDraft(title),
+                            status: "Open",
+                            areChildTasksCollapsed: false,
+                            childTasks: [],
+                        });
+
+                        state.effectRef = new MutableRefObjectClass(gridView =>
+                            gridView.focusGhostTaskRow(),
+                        );
+                    }),
+                );
+            }}
             nestTaskAndExpandParentRow={({task: {id: parentTaskId}}, {task: {id: childTaskId}}) => {
                 setState(state =>
                     produce(state, state => {
@@ -732,7 +763,11 @@ function TaskGridDemoView({
                                     tasks.splice(taskIndex, 1);
 
                                     if (!isTaskCollapsed) {
-                                        if (taskRowIndex === 0) {
+                                        if (tasks === state.tasks && tasks.length === 0) {
+                                            state.effectRef = new MutableRefObjectClass(gridView =>
+                                                gridView.focusGhostTaskRow(),
+                                            );
+                                        } else if (taskRowIndex === 0) {
                                             state.effectRef = new MutableRefObjectClass(gridView =>
                                                 gridView.focusTaskRowTitleStart(0),
                                             );
