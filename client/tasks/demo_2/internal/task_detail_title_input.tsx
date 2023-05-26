@@ -1,7 +1,7 @@
 import classNames from "classnames";
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
-import {useRef, useState} from "react";
+import {useCallback, useRef, useState} from "react";
 import {FocusRing} from "~/client/design/focus_ring";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
@@ -32,7 +32,11 @@ export function TaskDetailTitleInput({
 }) {
     const isInitialAppRender = useIsInitialAppRender();
     const containerRef = useRef<HTMLDivElement>(null);
-    const viewRef = useRef<EditorView | null>(null);
+
+    const viewRef = useRef<
+        | {isReady: false; callbacks: Array<(view: EditorView) => void>}
+        | {isReady: true; view: EditorView}
+    >({isReady: false, callbacks: []});
 
     const [titleState, setTitleState] = useState(() => EditorState.create({doc: title}));
 
@@ -78,8 +82,8 @@ export function TaskDetailTitleInput({
                 runWithImmediatePriority(() => {
                     setTitleState(newTitleState);
 
-                    // We only need to send this update to our parent if the doc changed. Selection
-                    // changes do nothing.
+                    // We only need to send this update to our parent if the doc changed. Otherwise
+                    // we have a selection change.
                     if (oldTitleState.doc !== newTitleState.doc) {
                         onTitleChangeRef.current(assertTaskTitle(newTitleState.doc));
                     }
@@ -90,9 +94,20 @@ export function TaskDetailTitleInput({
         view.dom.ariaLabel = taskDetailTitleInputAriaLabel;
         view.dom.className = taskDetailTitleInputClassName;
 
-        viewRef.current = view;
+        // Update `viewRef` and call any callbacks that were waiting for the view to
+        // be ready.
+        {
+            const callbacks = !viewRef.current.isReady ? viewRef.current.callbacks : [];
+
+            viewRef.current = {isReady: true, view};
+
+            for (const callback of callbacks) {
+                callback(view);
+            }
+        }
+
         return () => {
-            viewRef.current = null;
+            viewRef.current = {isReady: false, callbacks: []};
             view.destroy();
         };
 
@@ -103,25 +118,27 @@ export function TaskDetailTitleInput({
 
     // Update our `EditorView`'s `EditorState` whenever it changes.
     useLayoutEffectWithoutServerSideWarning(() => {
-        // Wait for the client-side rerender before mounting our editor.
-        if (isInitialAppRender) return;
-
-        const view = assertExists(viewRef.current);
-        view.updateState(titleState);
+        if (!viewRef.current.isReady) return;
+        viewRef.current.view.updateState(titleState);
     }, [isInitialAppRender, titleState]);
 
-    useLayoutEffectWithoutServerSideWarning(() => {
-        // Server-side render attaches this attribute differently.
-        if (isInitialAppRender) return;
-
-        const viewElement = assertExists(viewRef.current).dom;
-
-        if (!placeholder) {
-            viewElement.removeAttribute("aria-placeholder");
+    const runWhenViewIsReady = useCallback((run: (view: EditorView) => void) => {
+        if (viewRef.current.isReady) {
+            run(viewRef.current.view);
         } else {
-            viewElement.setAttribute("aria-placeholder", placeholder);
+            viewRef.current.callbacks.push(run);
         }
-    }, [isInitialAppRender, placeholder]);
+    }, []);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        runWhenViewIsReady(view => {
+            if (!placeholder) {
+                view.dom.removeAttribute("aria-placeholder");
+            } else {
+                view.dom.setAttribute("aria-placeholder", placeholder);
+            }
+        });
+    }, [placeholder, runWhenViewIsReady]);
 
     return (
         <FocusRing isVisibleWhenFocusWithin>

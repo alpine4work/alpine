@@ -5,7 +5,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {LocalTask, useLocalTasksState} from "~/client/tasks/demo_1/internal/local_tasks_state";
 import {TaskRow} from "~/client/tasks/demo_1/internal/task_row";
 import {TaskRowView, TaskRowViewRef} from "~/client/tasks/demo_1/internal/task_row_view";
-import {useOutOfBoundsClickSelection} from "~/client/tasks/demo_1/internal/use_out_of_bounds_click_selection";
+import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
 import {NotFoundError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";

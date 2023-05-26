@@ -12,11 +12,11 @@ globalStyle(`${textCursorNotInheritedClassName} > *`, {
     cursor: "initial",
 });
 
-export const noPointerEventsNotInheritedClassName = style({
+export const pointerEventsNoneNotInheritedClassName = style({
     pointerEvents: "none",
 });
 
-globalStyle(`${noPointerEventsNotInheritedClassName} > *`, {
+globalStyle(`${pointerEventsNoneNotInheritedClassName} > *`, {
     pointerEvents: "initial",
 });
 

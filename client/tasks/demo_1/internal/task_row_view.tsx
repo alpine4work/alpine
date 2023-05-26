@@ -19,8 +19,8 @@ import {
     TaskRowTitleInput,
     TaskRowTitleInputRef,
     taskRowTitleInputHeight,
-} from "~/client/tasks/demo_1/internal/task_row_title_input";
-import {useOutOfBoundsClickSelection} from "~/client/tasks/demo_1/internal/use_out_of_bounds_click_selection";
+} from "~/client/tasks/demo_1/internal/task_row_title_input_old";
+import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
 import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {LocalTaskId} from "~/shared/id/types/id_types";
@@ -209,7 +209,7 @@ function TaskRowView(
                     <Box
                         width="5"
                         paddingRight="1"
-                        className={tasksStyles.noPointerEventsNotInheritedClassName}
+                        className={tasksStyles.pointerEventsNoneNotInheritedClassName}
                     >
                         {taskRow.type === "Normal" &&
                             taskRow.task.childTaskIdByOrderKey.size > 0 && (
@@ -242,7 +242,7 @@ function TaskRowView(
                     <Box
                         width="6"
                         paddingRight="2"
-                        className={tasksStyles.noPointerEventsNotInheritedClassName}
+                        className={tasksStyles.pointerEventsNoneNotInheritedClassName}
                     >
                         {taskRow.type === "Normal" && (
                             <TaskRowCloseButton
