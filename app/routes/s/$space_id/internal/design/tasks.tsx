@@ -1,5 +1,5 @@
 import {CalendarDate} from "@internationalized/date";
-import {useState} from "react";
+import {Key, useState} from "react";
 import {Box} from "~/client/design/box";
 import {Spacer} from "~/client/design/spacer";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour";
@@ -11,12 +11,11 @@ import {
     taskCardViewMaxWidth,
 } from "~/client/tasks/demo_2/task_card_presentational_view";
 import {TaskDetailPresentationalView} from "~/client/tasks/demo_2/task_detail_presentational_view";
-import {TaskRowPresentationalView} from "~/client/tasks/demo_2/task_row_presentational_view";
+import {TaskGridPresentationalView} from "~/client/tasks/demo_2/task_grid_presentational_view";
 import {TaskAssignee, TaskStatus} from "~/client/tasks/demo_2/task_status_button";
 import {AccountModel} from "~/shared/accounts/account_model";
 import {emptyContentReferences} from "~/shared/content/content_references";
 import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
-import {emptyArray} from "~/shared/helpers/array/empty_array";
 import {noop} from "~/shared/helpers/control/noop";
 import {assertId} from "~/shared/id/id";
 import {AccountId, LocalTaskCollectionId} from "~/shared/id/types/id_types";
@@ -81,14 +80,18 @@ export default function TasksDesignPlaygroundRoute() {
 
     const taskRowViews = (
         <Box backgroundColor="grey-0" border="grey-10" borderRadius="md" paddingY="5">
-            <TaskRowDemoView initialStatus="Open" initialTitle={createSimpleTaskTitle("Test 1")} />
-            <TaskRowDemoView initialStatus="Open" initialTitle={createSimpleTaskTitle("Test 2")} />
-            <TaskRowDemoView initialStatus="Open" initialTitle={createSimpleTaskTitle("Test 3")} />
-            <TaskRowDemoView initialStatus="Open" initialTitle={createSimpleTaskTitle("Test 4")} />
-            <TaskRowDemoView initialStatus="Open" initialTitle={createSimpleTaskTitle("Test 5")} />
-            <TaskRowDemoView initialStatus="Open" initialTitle={createSimpleTaskTitle("Test 6")} />
-            <TaskRowDemoView initialStatus="Open" initialTitle={createSimpleTaskTitle("Test 7")} />
-            <TaskRowDemoView initialStatus="Open" initialTitle={createSimpleTaskTitle("Test 8")} />
+            <TaskGridDemoView
+                initialTasks={[
+                    {key: 1, status: "Open", title: createSimpleTaskTitle("Test 1")},
+                    {key: 2, status: "Open", title: createSimpleTaskTitle("Test 2")},
+                    {key: 3, status: "Open", title: createSimpleTaskTitle("Test 3")},
+                    {key: 4, status: "Open", title: createSimpleTaskTitle("Test 4")},
+                    {key: 5, status: "Open", title: createSimpleTaskTitle("Test 5")},
+                    {key: 6, status: "Open", title: createSimpleTaskTitle("Test 6")},
+                    {key: 7, status: "Open", title: createSimpleTaskTitle("Test 7")},
+                    {key: 8, status: "Open", title: createSimpleTaskTitle("Test 8")},
+                ]}
+            />
         </Box>
     );
 
@@ -321,24 +324,33 @@ export default function TasksDesignPlaygroundRoute() {
     );
 }
 
-function TaskRowDemoView({
-    initialStatus,
-    initialTitle,
-}: {
-    initialStatus: TaskStatus;
-    initialTitle: TaskTitle;
-}) {
-    const [status, setStatus] = useState(initialStatus);
-    const [title, setTitle] = useState(initialTitle);
+type TaskGridDemoTask = {
+    readonly key: Key;
+    readonly title: TaskTitle;
+    readonly status: TaskStatus;
+};
+
+function TaskGridDemoView({initialTasks}: {initialTasks: Array<TaskGridDemoTask>}) {
+    const [tasks, setTasks] = useState(initialTasks);
 
     return (
-        <TaskRowPresentationalView
-            status={status}
-            onStatusChange={setStatus}
-            title={title}
-            onTitleChange={setTitle}
-            assignee={null}
-            cells={emptyArray}
+        <TaskGridPresentationalView<TaskGridDemoTask>
+            taskCount={tasks.length}
+            getTask={index => tasks[index]!}
+            getKey={task => task.key}
+            getStatus={task => task.status}
+            onStatusChange={({key: taskKey}, status) =>
+                setTasks(tasks =>
+                    tasks.map(task => (task.key === taskKey ? {...task, status} : task)),
+                )
+            }
+            getTitle={task => task.title}
+            onTitleChange={({key: taskKey}, title) =>
+                setTasks(tasks =>
+                    tasks.map(task => (task.key === taskKey ? {...task, title} : task)),
+                )
+            }
+            getAssignee={task => null}
         />
     );
 }

@@ -10,6 +10,8 @@ import {
     useRef,
     useState,
 } from "react";
+import {isMac} from "~/client/helpers/browser/is_mac";
+import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
@@ -31,8 +33,7 @@ export type TaskRowTitleInputRef = {
     focusStart(): void;
     focusEnd(): void;
     focusAll(): void;
-    focusPos(pos: number): void;
-    focusCoord(left: number): void;
+    focusCoord(coord: number): void;
 };
 
 const taskRowTitleInputAriaLabel = "Title";
@@ -62,11 +63,19 @@ function TaskRowTitleInput(
         title,
         onTitleChange,
         placeholder,
+        onFocusNextTitleCoord,
+        onFocusPreviousTitleCoord,
+        onFocusFirstTitleStart,
+        onFocusLastTitleEnd,
     }: {
         status: TaskStatus;
         title: TaskTitle;
         onTitleChange: (title: TaskTitle) => void;
         placeholder?: string;
+        onFocusNextTitleCoord: (coord: number) => void;
+        onFocusPreviousTitleCoord: (coord: number) => void;
+        onFocusFirstTitleStart: () => void;
+        onFocusLastTitleEnd: () => void;
     },
     ref: Ref<TaskRowTitleInputRef>,
 ) {
@@ -87,11 +96,54 @@ function TaskRowTitleInput(
         setTitleState(EditorState.create({doc: title}));
     }
 
+    const handleKeyDown = (view: EditorView, event: KeyboardEvent) => {
+        switch (event.key) {
+            case "ArrowUp": {
+                event.preventDefault();
+                event.stopPropagation();
+
+                if (isMac ? event.metaKey : event.ctrlKey) {
+                    onFocusFirstTitleStart();
+                } else if (event.altKey) {
+                    view.dispatch(
+                        view.state.tr
+                            .setSelection(Selection.atStart(view.state.doc))
+                            .scrollIntoView(),
+                    );
+                } else if (!isModifiedKeyboardEvent(event)) {
+                    const coords = view.coordsAtPos(view.state.selection.from);
+                    onFocusPreviousTitleCoord(coords.left);
+                }
+                break;
+            }
+            case "ArrowDown": {
+                event.preventDefault();
+                event.stopPropagation();
+
+                if (isMac ? event.metaKey : event.ctrlKey) {
+                    onFocusLastTitleEnd();
+                } else if (event.altKey) {
+                    view.dispatch(
+                        view.state.tr
+                            .setSelection(Selection.atEnd(view.state.doc))
+                            .scrollIntoView(),
+                    );
+                } else if (!isModifiedKeyboardEvent(event)) {
+                    const coords = view.coordsAtPos(view.state.selection.from);
+                    onFocusNextTitleCoord(coords.left);
+                }
+                break;
+            }
+        }
+    };
+
     const titleStateRef = useRef(titleState);
     const onTitleChangeRef = useRef(onTitleChange);
+    const handleKeyDownRef = useRef(handleKeyDown);
     useLayoutEffectWithoutServerSideWarning(() => {
         titleStateRef.current = titleState;
         onTitleChangeRef.current = onTitleChange;
+        handleKeyDownRef.current = handleKeyDown;
     });
 
     useLayoutEffectWithoutServerSideWarning(() => {
@@ -122,6 +174,11 @@ function TaskRowTitleInput(
                 // Once focus is in a single task the user can navigate it entirely with
                 // the keyboard.
                 tabindex: "-1",
+            },
+
+            handleKeyDown: (view, event) => {
+                handleKeyDownRef.current(view, event);
+                return event.defaultPrevented;
             },
 
             dispatchTransaction: transaction => {
@@ -240,23 +297,15 @@ function TaskRowTitleInput(
                     view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
                 });
             },
-            focusPos: (pos: number) => {
-                runWhenViewIsReady(view => {
-                    const selection = new TextSelection(view.state.doc.resolve(pos));
-
-                    view.focus();
-                    view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
-                });
-            },
-            focusCoord: (left: number) => {
+            focusCoord: (coord: number) => {
                 runWhenViewIsReady(view => {
                     const rect = view.dom.getBoundingClientRect();
                     const top = rect.top + rect.height / 2;
-                    const posResult = view.posAtCoords({left, top});
+                    const posResult = view.posAtCoords({left: coord, top});
 
                     const selection = posResult
                         ? new TextSelection(view.state.doc.resolve(posResult.pos))
-                        : left > rect.right
+                        : coord > rect.right
                         ? Selection.atEnd(view.state.doc)
                         : Selection.atStart(view.state.doc);
 

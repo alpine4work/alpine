@@ -1,18 +1,5 @@
-// TODO(calebmer): Needs:
-//
-// [ ] Title
-// [ ] Open/close button
-// [ ] Assignee field
-// [ ] Due date field
-// [ ] Collections field
-// [ ] Custom fields
-// [ ] Mark as in progress
-// [ ] Subtasks
-// [ ] Open detail interaction
-// [ ] Dark mode pass
-
 import {CalendarDate} from "@internationalized/date";
-import {useRef} from "react";
+import {Ref, forwardRef, useCallback, useImperativeHandle, useRef} from "react";
 import {Box} from "~/client/design/box";
 import {
     TaskRowTitleInput,
@@ -25,6 +12,19 @@ import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {colorSchemeVars, tasksStyles} from "~/shared/styles/styles";
 import {TaskTitle} from "~/shared/tasks/task_title_schema";
+
+// TODO(calebmer): Needs:
+//
+// [x] Title
+// [x] Open/close button
+// [ ] Assignee field
+// [ ] Due date field
+// [ ] Collections field
+// [ ] Custom fields
+// [ ] Mark as in progress
+// [ ] Subtasks
+// [ ] Open detail interaction
+// [ ] Dark mode pass
 
 export const taskRowViewHeight: Spacing = "9";
 
@@ -50,34 +50,65 @@ export type TaskRowViewCollectionsCell = {
     readonly collections: ReadonlyArray<LocalTaskCollection>;
 };
 
-export function TaskRowPresentationalView({
-    status,
-    onStatusChange,
-    title,
-    onTitleChange,
-    assignee,
-    cells,
-}: {
-    status: TaskStatus;
-    onStatusChange: (status: TaskStatus) => void;
-    title: TaskTitle;
-    onTitleChange: (title: TaskTitle) => void;
-    assignee: TaskAssignee | null;
-    cells: ReadonlyArray<TaskRowViewCell>;
-}) {
+export type TaskRowPresentationalViewRef = {
+    focusTitleStart(): void;
+    focusTitleEnd(): void;
+    focusTitleAll(): void;
+    focusTitleCoord(coord: number): void;
+};
+
+const TaskRowPresentationalViewForwardRef = forwardRef(TaskRowPresentationalView);
+export {TaskRowPresentationalViewForwardRef as TaskRowPresentationalView};
+
+function TaskRowPresentationalView(
+    {
+        status,
+        onStatusChange,
+        title,
+        onTitleChange,
+        assignee,
+        cells,
+        onFocusNextTitleCoord,
+        onFocusPreviousTitleCoord,
+        onFocusFirstTitleStart,
+        onFocusLastTitleEnd,
+    }: {
+        status: TaskStatus;
+        onStatusChange: (status: TaskStatus) => void;
+        title: TaskTitle;
+        onTitleChange: (title: TaskTitle) => void;
+        assignee: TaskAssignee | null;
+        cells: ReadonlyArray<TaskRowViewCell>;
+        onFocusNextTitleCoord: (coord: number) => void;
+        onFocusPreviousTitleCoord: (coord: number) => void;
+        onFocusFirstTitleStart: () => void;
+        onFocusLastTitleEnd: () => void;
+    },
+    ref: Ref<TaskRowPresentationalViewRef>,
+) {
     const titleInputRef = useRef<TaskRowTitleInputRef>(null);
 
-    const focusTitleStart = () => {
+    const focusTitleStart = useCallback(() => {
         assertExists(titleInputRef.current).focusStart();
-    };
+    }, []);
 
-    const focusTitleEnd = () => {
+    const focusTitleEnd = useCallback(() => {
         assertExists(titleInputRef.current).focusEnd();
-    };
+    }, []);
 
-    const focusTitleAll = () => {
+    const focusTitleAll = useCallback(() => {
         assertExists(titleInputRef.current).focusAll();
-    };
+    }, []);
+
+    const focusTitleCoord = useCallback((left: number) => {
+        assertExists(titleInputRef.current).focusCoord(left);
+    }, []);
+
+    useImperativeHandle(
+        ref,
+        () => ({focusTitleStart, focusTitleEnd, focusTitleAll, focusTitleCoord}),
+        [focusTitleAll, focusTitleCoord, focusTitleEnd, focusTitleStart],
+    );
 
     return (
         <Box height={taskRowViewHeight} display="flex">
@@ -159,6 +190,10 @@ export function TaskRowPresentationalView({
                         status={status}
                         title={title}
                         onTitleChange={onTitleChange}
+                        onFocusNextTitleCoord={onFocusNextTitleCoord}
+                        onFocusPreviousTitleCoord={onFocusPreviousTitleCoord}
+                        onFocusFirstTitleStart={onFocusFirstTitleStart}
+                        onFocusLastTitleEnd={onFocusLastTitleEnd}
                     />
                 </Box>
             </Box>
