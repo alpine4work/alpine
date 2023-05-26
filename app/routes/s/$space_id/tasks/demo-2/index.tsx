@@ -1,5 +1,5 @@
-import {Box} from "~/client/design/box";
+import {TasksNotepadView} from "~/client/tasks/demo_2/tasks_notepad_view";
 
 export default function TasksRoute() {
-    return <Box>Hello, world!</Box>;
+    return <TasksNotepadView />;
 }
