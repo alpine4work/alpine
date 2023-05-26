@@ -1,5 +1,5 @@
 import {Box} from "~/client/design/box";
-import {LocalTaskCollection} from "~/client/tasks/playground/local_task_collection";
+import {LocalTaskCollection} from "~/client/tasks/demo-2/local_task_collection";
 
 export function TaskCollectionChip({collection}: {collection: LocalTaskCollection}) {
     return (
