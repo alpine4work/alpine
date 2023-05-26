@@ -63,19 +63,23 @@ function TaskRowTitleInput(
         title,
         onTitleChange,
         placeholder,
-        onFocusNextTitleCoord,
-        onFocusPreviousTitleCoord,
-        onFocusFirstTitleStart,
-        onFocusLastTitleEnd,
+        createTaskAbove,
+        createTaskBelowAndFocus,
+        focusNextTaskTitleCoord,
+        focusPreviousTaskTitleCoord,
+        focusFirstTaskTitleStart,
+        focusLastTaskTitleEnd,
     }: {
         status: TaskStatus;
         title: TaskTitle;
         onTitleChange: (title: TaskTitle) => void;
         placeholder?: string;
-        onFocusNextTitleCoord: (coord: number) => void;
-        onFocusPreviousTitleCoord: (coord: number) => void;
-        onFocusFirstTitleStart: () => void;
-        onFocusLastTitleEnd: () => void;
+        createTaskAbove: () => void;
+        createTaskBelowAndFocus: () => void;
+        focusNextTaskTitleCoord: (coord: number) => void;
+        focusPreviousTaskTitleCoord: (coord: number) => void;
+        focusFirstTaskTitleStart: () => void;
+        focusLastTaskTitleEnd: () => void;
     },
     ref: Ref<TaskRowTitleInputRef>,
 ) {
@@ -98,12 +102,28 @@ function TaskRowTitleInput(
 
     const handleKeyDown = (view: EditorView, event: KeyboardEvent) => {
         switch (event.key) {
+            case "Enter": {
+                event.preventDefault();
+                event.stopPropagation();
+
+                if (!isModifiedKeyboardEvent(event)) {
+                    if (
+                        view.state.selection.from === view.state.selection.to &&
+                        view.state.selection.from === 0
+                    ) {
+                        createTaskAbove();
+                    } else {
+                        createTaskBelowAndFocus();
+                    }
+                }
+                break;
+            }
             case "ArrowUp": {
                 event.preventDefault();
                 event.stopPropagation();
 
                 if (isMac ? event.metaKey : event.ctrlKey) {
-                    onFocusFirstTitleStart();
+                    focusFirstTaskTitleStart();
                 } else if (event.altKey) {
                     view.dispatch(
                         view.state.tr
@@ -112,7 +132,7 @@ function TaskRowTitleInput(
                     );
                 } else if (!isModifiedKeyboardEvent(event)) {
                     const coords = view.coordsAtPos(view.state.selection.from);
-                    onFocusPreviousTitleCoord(coords.left);
+                    focusPreviousTaskTitleCoord(coords.left);
                 }
                 break;
             }
@@ -121,7 +141,7 @@ function TaskRowTitleInput(
                 event.stopPropagation();
 
                 if (isMac ? event.metaKey : event.ctrlKey) {
-                    onFocusLastTitleEnd();
+                    focusLastTaskTitleEnd();
                 } else if (event.altKey) {
                     view.dispatch(
                         view.state.tr
@@ -130,7 +150,7 @@ function TaskRowTitleInput(
                     );
                 } else if (!isModifiedKeyboardEvent(event)) {
                     const coords = view.coordsAtPos(view.state.selection.from);
-                    onFocusNextTitleCoord(coords.left);
+                    focusNextTaskTitleCoord(coords.left);
                 }
                 break;
             }

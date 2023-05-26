@@ -68,10 +68,12 @@ function TaskRowPresentationalView(
         onTitleChange,
         assignee,
         cells,
-        onFocusNextTitleCoord,
-        onFocusPreviousTitleCoord,
-        onFocusFirstTitleStart,
-        onFocusLastTitleEnd,
+        createTaskAbove,
+        createTaskBelowAndFocus,
+        focusNextTaskTitleCoord,
+        focusPreviousTaskTitleCoord,
+        focusFirstTaskTitleStart,
+        focusLastTaskTitleEnd,
     }: {
         status: TaskStatus;
         onStatusChange: (status: TaskStatus) => void;
@@ -79,10 +81,12 @@ function TaskRowPresentationalView(
         onTitleChange: (title: TaskTitle) => void;
         assignee: TaskAssignee | null;
         cells: ReadonlyArray<TaskRowViewCell>;
-        onFocusNextTitleCoord: (coord: number) => void;
-        onFocusPreviousTitleCoord: (coord: number) => void;
-        onFocusFirstTitleStart: () => void;
-        onFocusLastTitleEnd: () => void;
+        createTaskAbove: () => void;
+        createTaskBelowAndFocus: () => void;
+        focusNextTaskTitleCoord: (coord: number) => void;
+        focusPreviousTaskTitleCoord: (coord: number) => void;
+        focusFirstTaskTitleStart: () => void;
+        focusLastTaskTitleEnd: () => void;
     },
     ref: Ref<TaskRowPresentationalViewRef>,
 ) {
@@ -190,10 +194,12 @@ function TaskRowPresentationalView(
                         status={status}
                         title={title}
                         onTitleChange={onTitleChange}
-                        onFocusNextTitleCoord={onFocusNextTitleCoord}
-                        onFocusPreviousTitleCoord={onFocusPreviousTitleCoord}
-                        onFocusFirstTitleStart={onFocusFirstTitleStart}
-                        onFocusLastTitleEnd={onFocusLastTitleEnd}
+                        createTaskAbove={createTaskAbove}
+                        createTaskBelowAndFocus={createTaskBelowAndFocus}
+                        focusNextTaskTitleCoord={focusNextTaskTitleCoord}
+                        focusPreviousTaskTitleCoord={focusPreviousTaskTitleCoord}
+                        focusFirstTaskTitleStart={focusFirstTaskTitleStart}
+                        focusLastTaskTitleEnd={focusLastTaskTitleEnd}
                     />
                 </Box>
             </Box>

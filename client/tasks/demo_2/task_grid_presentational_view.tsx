@@ -1,4 +1,15 @@
-import {Key, createRef, useEffect, useRef} from "react";
+import {
+    Key,
+    PropsWithoutRef,
+    ReactElement,
+    Ref,
+    RefAttributes,
+    createRef,
+    forwardRef,
+    useEffect,
+    useImperativeHandle,
+    useRef,
+} from "react";
 import {Box} from "~/client/design/box";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
 import {
@@ -11,27 +22,54 @@ import {emptyArray} from "~/shared/helpers/array/empty_array";
 import {LazyMap} from "~/shared/helpers/control/lazy_map";
 import {TaskTitle} from "~/shared/tasks/task_title_schema";
 
-export function TaskGridPresentationalView<Task>({
-    taskCount,
-    getTask,
-    getKey,
-    getStatus,
-    onStatusChange,
-    getTitle,
-    onTitleChange,
-    getAssignee,
-}: {
+export type TaskGridPresentationalViewRef = {
+    focusTaskTitleStart(index: number): void;
+};
+
+const TaskGridPresentationalViewForwardRef = forwardRef(TaskGridPresentationalView) as <Task>(
+    props: PropsWithoutRef<TaskGridPresentationalViewProps<Task>> &
+        RefAttributes<TaskGridPresentationalViewRef>,
+) => ReactElement;
+export {TaskGridPresentationalViewForwardRef as TaskGridPresentationalView};
+
+type TaskGridPresentationalViewProps<Task> = {
     taskCount: number;
     getTask: (index: number) => Task;
-    getKey: (task: Task) => Key;
-    getStatus: (task: Task) => TaskStatus;
-    onStatusChange: (task: Task, status: TaskStatus) => void;
-    getTitle: (task: Task) => TaskTitle;
-    onTitleChange: (task: Task, title: TaskTitle) => void;
-    getAssignee: (task: Task) => TaskAssignee | null;
-}) {
+    getTaskKey: (task: Task) => Key;
+    getTaskStatus: (task: Task) => TaskStatus;
+    onTaskStatusChange: (task: Task, status: TaskStatus) => void;
+    getTaskTitle: (task: Task) => TaskTitle;
+    onTaskTitleChange: (task: Task, title: TaskTitle) => void;
+    getTaskAssignee: (task: Task) => TaskAssignee | null;
+    createTaskAbove: (task: Task) => void;
+    createTaskBelowAndFocus: (task: Task) => void;
+};
+
+function TaskGridPresentationalView<Task>(
+    {
+        taskCount,
+        getTask,
+        getTaskKey,
+        getTaskStatus,
+        onTaskStatusChange,
+        getTaskTitle,
+        onTaskTitleChange,
+        getTaskAssignee,
+        createTaskAbove,
+        createTaskBelowAndFocus,
+    }: TaskGridPresentationalViewProps<Task>,
+    ref: Ref<TaskGridPresentationalViewRef>,
+) {
     const taskRefByIndex = useConstant(
         new LazyMap(() => createRef<TaskRowPresentationalViewRef>()),
+    );
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            focusTaskTitleStart: index => taskRefByIndex.get(index).current?.focusTitleStart(),
+        }),
+        [taskRefByIndex],
     );
 
     const lastArrowNavigationCoordRef = useRef<{setTime: Date; coord: number} | null>(null);
@@ -66,15 +104,17 @@ export function TaskGridPresentationalView<Task>({
                 const task = getTask(index);
                 return (
                     <TaskRowPresentationalView
-                        key={getKey(task)}
+                        key={getTaskKey(task)}
                         ref={taskRefByIndex.get(index)}
-                        status={getStatus(task)}
-                        onStatusChange={status => onStatusChange(task, status)}
-                        title={getTitle(task)}
-                        onTitleChange={title => onTitleChange(task, title)}
-                        assignee={getAssignee(task)}
+                        status={getTaskStatus(task)}
+                        onStatusChange={status => onTaskStatusChange(task, status)}
+                        title={getTaskTitle(task)}
+                        onTitleChange={title => onTaskTitleChange(task, title)}
+                        assignee={getTaskAssignee(task)}
                         cells={emptyArray}
-                        onFocusNextTitleCoord={coord => {
+                        createTaskAbove={() => createTaskAbove(task)}
+                        createTaskBelowAndFocus={() => createTaskBelowAndFocus(task)}
+                        focusNextTaskTitleCoord={coord => {
                             coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
 
                             taskRefByIndex.get(index + 1)?.current?.focusTitleCoord(coord);
@@ -84,7 +124,7 @@ export function TaskGridPresentationalView<Task>({
                                 coord,
                             };
                         }}
-                        onFocusPreviousTitleCoord={coord => {
+                        focusPreviousTaskTitleCoord={coord => {
                             coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
 
                             taskRefByIndex.get(index - 1)?.current?.focusTitleCoord(coord);
@@ -94,10 +134,10 @@ export function TaskGridPresentationalView<Task>({
                                 coord,
                             };
                         }}
-                        onFocusFirstTitleStart={() => {
+                        focusFirstTaskTitleStart={() => {
                             taskRefByIndex.get(0).current?.focusTitleStart();
                         }}
-                        onFocusLastTitleEnd={() => {
+                        focusLastTaskTitleEnd={() => {
                             taskRefByIndex.get(taskCount - 1).current?.focusTitleEnd();
                         }}
                     />

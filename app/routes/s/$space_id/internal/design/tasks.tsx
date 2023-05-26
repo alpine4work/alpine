@@ -1,7 +1,8 @@
 import {CalendarDate} from "@internationalized/date";
-import {Key, useState} from "react";
+import {Key, MutableRefObject, useRef, useState} from "react";
 import {Box} from "~/client/design/box";
 import {Spacer} from "~/client/design/spacer";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
 import {SpaceRouteScrollView} from "~/client/spaces/space_route_scroll_view";
@@ -11,11 +12,16 @@ import {
     taskCardViewMaxWidth,
 } from "~/client/tasks/demo_2/task_card_presentational_view";
 import {TaskDetailPresentationalView} from "~/client/tasks/demo_2/task_detail_presentational_view";
-import {TaskGridPresentationalView} from "~/client/tasks/demo_2/task_grid_presentational_view";
+import {
+    TaskGridPresentationalView,
+    TaskGridPresentationalViewRef,
+} from "~/client/tasks/demo_2/task_grid_presentational_view";
 import {TaskAssignee, TaskStatus} from "~/client/tasks/demo_2/task_status_button";
 import {AccountModel} from "~/shared/accounts/account_model";
 import {emptyContentReferences} from "~/shared/content/content_references";
 import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
+import {assert} from "~/shared/helpers/control/assert";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {noop} from "~/shared/helpers/control/noop";
 import {assertId} from "~/shared/id/id";
 import {AccountId, LocalTaskCollectionId} from "~/shared/id/types/id_types";
@@ -82,14 +88,14 @@ export default function TasksDesignPlaygroundRoute() {
         <Box backgroundColor="grey-0" border="grey-10" borderRadius="md" paddingY="5">
             <TaskGridDemoView
                 initialTasks={[
-                    {key: 1, status: "Open", title: createSimpleTaskTitle("Test 1")},
-                    {key: 2, status: "Open", title: createSimpleTaskTitle("Test 2")},
-                    {key: 3, status: "Open", title: createSimpleTaskTitle("Test 3")},
-                    {key: 4, status: "Open", title: createSimpleTaskTitle("Test 4")},
-                    {key: 5, status: "Open", title: createSimpleTaskTitle("Test 5")},
-                    {key: 6, status: "Open", title: createSimpleTaskTitle("Test 6")},
-                    {key: 7, status: "Open", title: createSimpleTaskTitle("Test 7")},
-                    {key: 8, status: "Open", title: createSimpleTaskTitle("Test 8")},
+                    {status: "Open", title: createSimpleTaskTitle("Test 1")},
+                    {status: "Open", title: createSimpleTaskTitle("Test 2")},
+                    {status: "Open", title: createSimpleTaskTitle("Test 3")},
+                    {status: "Open", title: createSimpleTaskTitle("Test 4")},
+                    {status: "Open", title: createSimpleTaskTitle("Test 5")},
+                    {status: "Open", title: createSimpleTaskTitle("Test 6")},
+                    {status: "Open", title: createSimpleTaskTitle("Test 7")},
+                    {status: "Open", title: createSimpleTaskTitle("Test 8")},
                 ]}
             />
         </Box>
@@ -325,32 +331,109 @@ export default function TasksDesignPlaygroundRoute() {
 }
 
 type TaskGridDemoTask = {
-    readonly key: Key;
+    readonly id: Key;
     readonly title: TaskTitle;
     readonly status: TaskStatus;
 };
 
-function TaskGridDemoView({initialTasks}: {initialTasks: Array<TaskGridDemoTask>}) {
-    const [tasks, setTasks] = useState(initialTasks);
+function TaskGridDemoView({
+    initialTasks,
+}: {
+    initialTasks: Array<{
+        title: TaskTitle;
+        status: TaskStatus;
+    }>;
+}) {
+    const gridViewRef = useRef<TaskGridPresentationalViewRef>(null);
+
+    const [state, setState] = useState<{
+        nextId: number;
+        tasks: ReadonlyArray<TaskGridDemoTask>;
+        effectRef: MutableRefObject<((gridView: TaskGridPresentationalViewRef) => void) | null>;
+    }>({
+        nextId: initialTasks.length,
+        tasks: initialTasks.map((task, index) => ({id: index, ...task})),
+        effectRef: {current: null},
+    });
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (!state.effectRef.current) return;
+        const effect = state.effectRef.current;
+        state.effectRef.current = null;
+        effect(assertExists(gridViewRef.current));
+    }, [state.effectRef]);
+
+    assert(
+        new Set(state.tasks.map(task => task.id)).size === state.tasks.length,
+        "Task IDs must be unique",
+    );
 
     return (
         <TaskGridPresentationalView<TaskGridDemoTask>
-            taskCount={tasks.length}
-            getTask={index => tasks[index]!}
-            getKey={task => task.key}
-            getStatus={task => task.status}
-            onStatusChange={({key: taskKey}, status) =>
-                setTasks(tasks =>
-                    tasks.map(task => (task.key === taskKey ? {...task, status} : task)),
-                )
+            ref={gridViewRef}
+            taskCount={state.tasks.length}
+            getTask={index => state.tasks[index]!}
+            getTaskKey={task => task.id}
+            getTaskStatus={task => task.status}
+            onTaskStatusChange={({id: taskId}, status) =>
+                setState(state => ({
+                    ...state,
+                    tasks: state.tasks.map(task => (task.id === taskId ? {...task, status} : task)),
+                }))
             }
-            getTitle={task => task.title}
-            onTitleChange={({key: taskKey}, title) =>
-                setTasks(tasks =>
-                    tasks.map(task => (task.key === taskKey ? {...task, title} : task)),
-                )
+            getTaskTitle={task => task.title}
+            onTaskTitleChange={({id: taskId}, title) =>
+                setState(state => ({
+                    ...state,
+                    tasks: state.tasks.map(task => (task.id === taskId ? {...task, title} : task)),
+                }))
             }
-            getAssignee={task => null}
+            getTaskAssignee={task => null}
+            createTaskAbove={({id: taskId}) =>
+                setState(state => {
+                    const tasks: Array<TaskGridDemoTask> = [];
+
+                    for (const task of state.tasks) {
+                        if (task.id === taskId) {
+                            tasks.push({id: state.nextId, title: emptyTaskTitle, status: "Open"});
+                        }
+
+                        tasks.push(task);
+                    }
+
+                    return {
+                        ...state,
+                        nextId: state.nextId + 1,
+                        tasks,
+                    };
+                })
+            }
+            createTaskBelowAndFocus={({id: taskId}) =>
+                setState(state => {
+                    const tasks: Array<TaskGridDemoTask> = [];
+
+                    let index: number | null = null;
+
+                    for (const task of state.tasks) {
+                        tasks.push(task);
+
+                        if (task.id === taskId) {
+                            index = tasks.length;
+                            tasks.push({id: state.nextId, title: emptyTaskTitle, status: "Open"});
+                        }
+                    }
+
+                    return {
+                        ...state,
+                        nextId: state.nextId + 1,
+                        tasks,
+                        effectRef:
+                            index !== null
+                                ? {current: gridView => gridView.focusTaskTitleStart(index!)}
+                                : state.effectRef,
+                    };
+                })
+            }
         />
     );
 }
