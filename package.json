@@ -108,6 +108,7 @@
         "html-entities": "^2.3.3",
         "html-minifier": "^4.0.0",
         "html-tags": "^3.2.0",
+        "immer": "^10.0.2",
         "is-ci": "^3.0.1",
         "is-port-reachable": "^3.1.0",
         "jest": "^28.1.3",

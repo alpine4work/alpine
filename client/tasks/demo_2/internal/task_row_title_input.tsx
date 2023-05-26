@@ -63,8 +63,13 @@ function TaskRowTitleInput(
         title,
         onTitleChange,
         placeholder,
+        childTaskCount,
+        areChildTasksCollapsed,
         createTaskAbove,
         createTaskBelowAndFocus,
+        createTaskChildAndFocus,
+        nestWithPreviousTaskRowIfExistsAndExpand,
+        unnestTaskIfNestedRow,
         focusNextTaskTitleCoord,
         focusPreviousTaskTitleCoord,
         focusFirstTaskTitleStart,
@@ -74,8 +79,13 @@ function TaskRowTitleInput(
         title: TaskTitle;
         onTitleChange: (title: TaskTitle) => void;
         placeholder?: string;
+        childTaskCount: number;
+        areChildTasksCollapsed: boolean;
         createTaskAbove: () => void;
         createTaskBelowAndFocus: () => void;
+        createTaskChildAndFocus: () => void;
+        nestWithPreviousTaskRowIfExistsAndExpand: () => void;
+        unnestTaskIfNestedRow: () => void;
         focusNextTaskTitleCoord: (coord: number) => void;
         focusPreviousTaskTitleCoord: (coord: number) => void;
         focusFirstTaskTitleStart: () => void;
@@ -112,6 +122,8 @@ function TaskRowTitleInput(
                         view.state.selection.from === 0
                     ) {
                         createTaskAbove();
+                    } else if (childTaskCount > 0 && !areChildTasksCollapsed) {
+                        createTaskChildAndFocus();
                     } else {
                         createTaskBelowAndFocus();
                     }
@@ -151,6 +163,20 @@ function TaskRowTitleInput(
                 } else if (!isModifiedKeyboardEvent(event)) {
                     const coords = view.coordsAtPos(view.state.selection.from);
                     focusNextTaskTitleCoord(coords.left);
+                }
+                break;
+            }
+            case "Tab": {
+                if (event.shiftKey) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    unnestTaskIfNestedRow();
+                } else if (!isModifiedKeyboardEvent(event)) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    nestWithPreviousTaskRowIfExistsAndExpand();
                 }
                 break;
             }

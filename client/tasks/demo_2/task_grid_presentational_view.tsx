@@ -23,7 +23,7 @@ import {LazyMap} from "~/shared/helpers/control/lazy_map";
 import {TaskTitle} from "~/shared/tasks/task_title_schema";
 
 export type TaskGridPresentationalViewRef = {
-    focusTaskTitleStart(index: number): void;
+    focusTaskRowTitleStart(index: number): void;
 };
 
 const TaskGridPresentationalViewForwardRef = forwardRef(TaskGridPresentationalView) as <Task>(
@@ -32,44 +32,59 @@ const TaskGridPresentationalViewForwardRef = forwardRef(TaskGridPresentationalVi
 ) => ReactElement;
 export {TaskGridPresentationalViewForwardRef as TaskGridPresentationalView};
 
-type TaskGridPresentationalViewProps<Task> = {
-    taskCount: number;
-    getTask: (index: number) => Task;
-    getTaskKey: (task: Task) => Key;
-    getTaskStatus: (task: Task) => TaskStatus;
-    onTaskStatusChange: (task: Task, status: TaskStatus) => void;
-    getTaskTitle: (task: Task) => TaskTitle;
-    onTaskTitleChange: (task: Task, title: TaskTitle) => void;
-    getTaskAssignee: (task: Task) => TaskAssignee | null;
-    createTaskAbove: (task: Task) => void;
-    createTaskBelowAndFocus: (task: Task) => void;
+type TaskGridPresentationalViewProps<TaskRow> = {
+    taskRowCount: number;
+    getTaskRow: (index: number) => TaskRow;
+    getTaskKey: (taskRow: TaskRow) => Key;
+    getTaskStatus: (taskRow: TaskRow) => TaskStatus;
+    onTaskStatusChange: (taskRow: TaskRow, status: TaskStatus) => void;
+    getTaskTitle: (taskRow: TaskRow) => TaskTitle;
+    onTaskTitleChange: (taskRow: TaskRow, title: TaskTitle) => void;
+    getTaskAssignee: (taskRow: TaskRow) => TaskAssignee | null;
+    getTaskChildTaskCount: (taskRow: TaskRow) => number;
+    getTaskAreChildTasksCollapsed: (taskRow: TaskRow) => boolean;
+    onAreChildTasksCollapsedToggle: (taskRow: TaskRow) => void;
+    getTaskRowIndentation: (taskRow: TaskRow) => number;
+    createTaskAbove: (taskRow: TaskRow) => void;
+    createTaskBelowAndFocus: (taskRow: TaskRow) => void;
+    createTaskChildAndFocus: (taskRow: TaskRow) => void;
+    nestTaskAndExpandParentRow: (parentTaskRow: TaskRow, childTaskRow: TaskRow) => void;
+    unnestTaskIfNestedRow: (childTaskRow: TaskRow) => void;
 };
 
-function TaskGridPresentationalView<Task>(
+function TaskGridPresentationalView<TaskRow>(
     {
-        taskCount,
-        getTask,
+        taskRowCount,
+        getTaskRow,
         getTaskKey,
         getTaskStatus,
         onTaskStatusChange,
         getTaskTitle,
         onTaskTitleChange,
         getTaskAssignee,
+        getTaskChildTaskCount,
+        getTaskAreChildTasksCollapsed,
+        onAreChildTasksCollapsedToggle,
+        getTaskRowIndentation,
         createTaskAbove,
         createTaskBelowAndFocus,
-    }: TaskGridPresentationalViewProps<Task>,
+        createTaskChildAndFocus,
+        nestTaskAndExpandParentRow,
+        unnestTaskIfNestedRow,
+    }: TaskGridPresentationalViewProps<TaskRow>,
     ref: Ref<TaskGridPresentationalViewRef>,
 ) {
-    const taskRefByIndex = useConstant(
+    const taskRowRefByIndex = useConstant(
         new LazyMap(() => createRef<TaskRowPresentationalViewRef>()),
     );
 
     useImperativeHandle(
         ref,
         () => ({
-            focusTaskTitleStart: index => taskRefByIndex.get(index).current?.focusTitleStart(),
+            focusTaskRowTitleStart: index =>
+                taskRowRefByIndex.get(index).current?.focusTitleStart(),
         }),
-        [taskRefByIndex],
+        [taskRowRefByIndex],
     );
 
     const lastArrowNavigationCoordRef = useRef<{setTime: Date; coord: number} | null>(null);
@@ -100,24 +115,42 @@ function TaskGridPresentationalView<Task>(
 
     return (
         <Box>
-            {createArrayWithLength(taskCount, index => {
-                const task = getTask(index);
+            {createArrayWithLength(taskRowCount, index => {
+                const taskRow = getTaskRow(index);
+                const taskRowIndentation = getTaskRowIndentation(taskRow);
                 return (
                     <TaskRowPresentationalView
-                        key={getTaskKey(task)}
-                        ref={taskRefByIndex.get(index)}
-                        status={getTaskStatus(task)}
-                        onStatusChange={status => onTaskStatusChange(task, status)}
-                        title={getTaskTitle(task)}
-                        onTitleChange={title => onTaskTitleChange(task, title)}
-                        assignee={getTaskAssignee(task)}
+                        key={getTaskKey(taskRow)}
+                        ref={taskRowRefByIndex.get(index)}
+                        status={getTaskStatus(taskRow)}
+                        onStatusChange={status => onTaskStatusChange(taskRow, status)}
+                        title={getTaskTitle(taskRow)}
+                        onTitleChange={title => onTaskTitleChange(taskRow, title)}
+                        assignee={getTaskAssignee(taskRow)}
+                        childTaskCount={getTaskChildTaskCount(taskRow)}
+                        areChildTasksCollapsed={getTaskAreChildTasksCollapsed(taskRow)}
+                        onAreChildTasksCollapsedToggle={() =>
+                            onAreChildTasksCollapsedToggle(taskRow)
+                        }
+                        indentation={taskRowIndentation}
                         cells={emptyArray}
-                        createTaskAbove={() => createTaskAbove(task)}
-                        createTaskBelowAndFocus={() => createTaskBelowAndFocus(task)}
+                        createTaskAbove={() => createTaskAbove(taskRow)}
+                        createTaskBelowAndFocus={() => createTaskBelowAndFocus(taskRow)}
+                        createTaskChildAndFocus={() => createTaskChildAndFocus(taskRow)}
+                        nestWithPreviousTaskRowIfExistsAndExpand={() => {
+                            for (let taskRowIndex = index - 1; taskRowIndex >= 0; taskRowIndex--) {
+                                const parentTaskRow = getTaskRow(taskRowIndex);
+                                if (getTaskRowIndentation(parentTaskRow) === taskRowIndentation) {
+                                    nestTaskAndExpandParentRow(parentTaskRow, taskRow);
+                                    break;
+                                }
+                            }
+                        }}
+                        unnestTaskIfNestedRow={() => unnestTaskIfNestedRow(taskRow)}
                         focusNextTaskTitleCoord={coord => {
                             coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
 
-                            taskRefByIndex.get(index + 1)?.current?.focusTitleCoord(coord);
+                            taskRowRefByIndex.get(index + 1)?.current?.focusTitleCoord(coord);
 
                             lastArrowNavigationCoordRef.current = {
                                 setTime: new Date(),
@@ -127,7 +160,7 @@ function TaskGridPresentationalView<Task>(
                         focusPreviousTaskTitleCoord={coord => {
                             coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
 
-                            taskRefByIndex.get(index - 1)?.current?.focusTitleCoord(coord);
+                            taskRowRefByIndex.get(index - 1)?.current?.focusTitleCoord(coord);
 
                             lastArrowNavigationCoordRef.current = {
                                 setTime: new Date(),
@@ -135,10 +168,10 @@ function TaskGridPresentationalView<Task>(
                             };
                         }}
                         focusFirstTaskTitleStart={() => {
-                            taskRefByIndex.get(0).current?.focusTitleStart();
+                            taskRowRefByIndex.get(0).current?.focusTitleStart();
                         }}
                         focusLastTaskTitleEnd={() => {
-                            taskRefByIndex.get(taskCount - 1).current?.focusTitleEnd();
+                            taskRowRefByIndex.get(taskRowCount - 1).current?.focusTitleEnd();
                         }}
                     />
                 );

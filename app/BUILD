@@ -31,6 +31,7 @@ ts_project(
         "//:node_modules/@types/mjml-react",
         "//:node_modules/@types/react",
         "//:node_modules/cookie",
+        "//:node_modules/immer",
         "//:node_modules/mjml-react",
         "//:node_modules/react",
         "//:node_modules/react-router",

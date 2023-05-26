@@ -1,6 +1,8 @@
 import {CalendarDate} from "@internationalized/date";
+import {CaretRight} from "phosphor-react";
 import {Ref, forwardRef, useCallback, useImperativeHandle, useRef} from "react";
 import {Box} from "~/client/design/box";
+import {IconButton} from "~/client/design/icon_button";
 import {
     TaskRowTitleInput,
     TaskRowTitleInputRef,
@@ -10,7 +12,7 @@ import {TaskAssignee, TaskStatus, TaskStatusButton} from "~/client/tasks/demo_2/
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
 import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {colorSchemeVars, tasksStyles} from "~/shared/styles/styles";
+import {colorSchemeVars, contentSchemaStyles, tasksStyles} from "~/shared/styles/styles";
 import {TaskTitle} from "~/shared/tasks/task_title_schema";
 
 // TODO(calebmer): Needs:
@@ -67,9 +69,16 @@ function TaskRowPresentationalView(
         title,
         onTitleChange,
         assignee,
+        childTaskCount,
+        areChildTasksCollapsed,
+        onAreChildTasksCollapsedToggle,
+        indentation,
         cells,
         createTaskAbove,
         createTaskBelowAndFocus,
+        createTaskChildAndFocus,
+        nestWithPreviousTaskRowIfExistsAndExpand,
+        unnestTaskIfNestedRow,
         focusNextTaskTitleCoord,
         focusPreviousTaskTitleCoord,
         focusFirstTaskTitleStart,
@@ -80,9 +89,16 @@ function TaskRowPresentationalView(
         title: TaskTitle;
         onTitleChange: (title: TaskTitle) => void;
         assignee: TaskAssignee | null;
+        childTaskCount: number;
+        areChildTasksCollapsed: boolean;
+        onAreChildTasksCollapsedToggle: () => void;
+        indentation: number;
         cells: ReadonlyArray<TaskRowViewCell>;
         createTaskAbove: () => void;
         createTaskBelowAndFocus: () => void;
+        createTaskChildAndFocus: () => void;
+        nestWithPreviousTaskRowIfExistsAndExpand: () => void;
+        unnestTaskIfNestedRow: () => void;
         focusNextTaskTitleCoord: (coord: number) => void;
         focusPreviousTaskTitleCoord: (coord: number) => void;
         focusFirstTaskTitleStart: () => void;
@@ -151,7 +167,10 @@ function TaskRowPresentationalView(
                     alignItems="center"
                     style={{
                         width: `${
-                            parseRemLengthNumber(spacing["5"]) + parseRemLengthNumber(spacing["6"])
+                            parseRemLengthNumber(spacing["5"]) +
+                            parseRemLengthNumber(spacing["6"]) +
+                            parseRemLengthNumber(contentSchemaStyles.listItemIndentation) *
+                                indentation
                         }rem`,
                     }}
                     // Create an illusion that the text editor extends into the margins by giving
@@ -177,6 +196,30 @@ function TaskRowPresentationalView(
                     })}
                 >
                     <Box
+                        width="5"
+                        paddingRight="1"
+                        className={tasksStyles.pointerEventsNoneNotInheritedClassName}
+                    >
+                        {childTaskCount > 0 && (
+                            <IconButton
+                                size="xs"
+                                description={
+                                    areChildTasksCollapsed ? "Expand subtasks" : "Collapse subtasks"
+                                }
+                                onPress={onAreChildTasksCollapsedToggle}
+                            >
+                                <CaretRight
+                                    style={{
+                                        transform: areChildTasksCollapsed
+                                            ? "rotate(0deg)"
+                                            : "rotate(90deg)",
+                                        transition: "transform 100ms ease",
+                                    }}
+                                />
+                            </IconButton>
+                        )}
+                    </Box>
+                    <Box
                         width="6"
                         paddingRight="2"
                         className={tasksStyles.pointerEventsNoneNotInheritedClassName}
@@ -194,8 +237,15 @@ function TaskRowPresentationalView(
                         status={status}
                         title={title}
                         onTitleChange={onTitleChange}
+                        childTaskCount={childTaskCount}
+                        areChildTasksCollapsed={areChildTasksCollapsed}
                         createTaskAbove={createTaskAbove}
                         createTaskBelowAndFocus={createTaskBelowAndFocus}
+                        createTaskChildAndFocus={createTaskChildAndFocus}
+                        nestWithPreviousTaskRowIfExistsAndExpand={
+                            nestWithPreviousTaskRowIfExistsAndExpand
+                        }
+                        unnestTaskIfNestedRow={unnestTaskIfNestedRow}
                         focusNextTaskTitleCoord={focusNextTaskTitleCoord}
                         focusPreviousTaskTitleCoord={focusPreviousTaskTitleCoord}
                         focusFirstTaskTitleStart={focusFirstTaskTitleStart}
