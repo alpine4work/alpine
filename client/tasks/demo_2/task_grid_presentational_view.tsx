@@ -15,13 +15,16 @@ import {useConstant} from "~/client/helpers/lifecycle/use_constant";
 import {
     TaskRowPresentationalView,
     TaskRowPresentationalViewRef,
+    taskRowViewHeight,
 } from "~/client/tasks/demo_2/task_row_presentational_view";
 import {TaskAssignee, TaskStatus} from "~/client/tasks/demo_2/task_status_button";
+import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length";
 import {emptyArray} from "~/shared/helpers/array/empty_array";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {LazyMap} from "~/shared/helpers/control/lazy_map";
 import {noop} from "~/shared/helpers/control/noop";
+import {colorSchemeVars} from "~/shared/styles/styles";
 import {TaskTitle, emptyTaskTitle} from "~/shared/tasks/task_title_schema";
 
 export type TaskGridPresentationalViewRef = {
@@ -37,6 +40,7 @@ const TaskGridPresentationalViewForwardRef = forwardRef(TaskGridPresentationalVi
 export {TaskGridPresentationalViewForwardRef as TaskGridPresentationalView};
 
 type TaskGridPresentationalViewProps<TaskRow> = {
+    taskGhostRowPlaceholder?: string;
     taskRowCount: number;
     getTaskRow: (index: number) => TaskRow;
     nextTaskKey: Key;
@@ -62,6 +66,7 @@ type TaskGridPresentationalViewProps<TaskRow> = {
 
 function TaskGridPresentationalView<TaskRow>(
     {
+        taskGhostRowPlaceholder = "Add a task…",
         taskRowCount,
         getTaskRow,
         nextTaskKey,
@@ -208,7 +213,7 @@ function TaskGridPresentationalView<TaskRow>(
             onStatusChange={noop}
             title={emptyTaskTitle}
             onTitleChange={title => createTaskAtEnd(title)}
-            titlePlaceholder="Add a task…"
+            titlePlaceholder={taskGhostRowPlaceholder}
             assignee={null}
             childTaskCount={0}
             areChildTasksCollapsed={false}
@@ -256,5 +261,41 @@ function TaskGridPresentationalView<TaskRow>(
         />,
     );
 
-    return <Box>{taskRows}</Box>;
+    const decorativeGhostTaskRow = (
+        <Box
+            paddingX="5"
+            height={taskRowViewHeight}
+            // Create an illusion that the text editor extends into the margins by giving
+            // the margin a text cursor and making it clickable putting focus in the task.
+            // A double click selects the task text.
+            //
+            // This is an affordance for mouse users, does not need to be usable
+            // by keyboard.
+            cursor="text"
+            {...useOutOfBoundsClickSelection({
+                onSelect: () => ghostTaskRowRef.current?.focusTitleEnd(),
+                onSelectAll: () => ghostTaskRowRef.current?.focusTitleEnd(),
+            })}
+        >
+            <Box
+                width="full"
+                height="full"
+                style={{
+                    // Draw the top and bottom border with a shadow so it:
+                    //
+                    // 1. Doesn't add 2px to layout
+                    // 2. Adjacent borders share the same space so we don't get 2px dividers
+                    boxShadow: `0 -1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 -1px 0 0 ${colorSchemeVars["grey-5"]}`,
+                }}
+            />
+        </Box>
+    );
+
+    return (
+        <Box>
+            {taskRows}
+            {taskRowCount <= 0 && decorativeGhostTaskRow}
+            {taskRowCount <= 1 && decorativeGhostTaskRow}
+        </Box>
+    );
 }

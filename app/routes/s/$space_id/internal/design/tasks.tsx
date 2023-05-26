@@ -352,6 +352,17 @@ class MutableRefObjectClass<Value> {
     }
 }
 
+/**
+ * The first couple times you add tasks we show a short tutorial in the
+ * placeholder of the ghost row. These are the entries in that tutorial.
+ */
+const taskGhostRowPlaceholderTutorial = [
+    "Click to add a task…",
+    "Press enter to add another task…",
+    "Press tab to convert into a subtask…",
+    "Keep adding tasks…",
+];
+
 function TaskGridDemoView({
     initialTasks,
 }: {
@@ -419,9 +430,36 @@ function TaskGridDemoView({
         effect(assertExists(gridViewRef.current));
     }, [state.effectRef]);
 
+    const [
+        shouldShowTaskGhostRowPlaceholderTutorial,
+        setShouldShowTaskGhostRowPlaceholderTutorial,
+    ] = useState(taskRows.length === 0);
+
+    // If the user deletes all their tasks then show the placeholder
+    // tutorial again.
+    if (taskRows.length === 0 && !shouldShowTaskGhostRowPlaceholderTutorial) {
+        setShouldShowTaskGhostRowPlaceholderTutorial(true);
+    }
+
+    // Once we complete the tutorial we shouldn't show it again if the user starts
+    // deleting tasks. Unless the user deletes all their tasks.
+    if (
+        taskRows.length >= taskGhostRowPlaceholderTutorial.length &&
+        shouldShowTaskGhostRowPlaceholderTutorial
+    ) {
+        setShouldShowTaskGhostRowPlaceholderTutorial(false);
+    }
+
+    const taskGhostRowPlaceholder =
+        shouldShowTaskGhostRowPlaceholderTutorial &&
+        taskRows.length < taskGhostRowPlaceholderTutorial.length
+            ? taskGhostRowPlaceholderTutorial[taskRows.length]!
+            : undefined;
+
     return (
         <TaskGridPresentationalView<{indentation: number; task: TaskGridDemoTask}>
             ref={gridViewRef}
+            taskGhostRowPlaceholder={taskGhostRowPlaceholder}
             taskRowCount={taskRows.length}
             getTaskRow={index => taskRows[index]!}
             nextTaskKey={state.nextId}
