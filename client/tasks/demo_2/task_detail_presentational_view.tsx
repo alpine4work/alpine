@@ -8,12 +8,12 @@ import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_
 import {IconButton} from "~/client/design/icon_button";
 import {MenuButton} from "~/client/design/menu_button";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
-import {TaskCollectionChip} from "~/client/tasks/demo-2/internal/task_collection_chip";
-import {TaskDetailDueDateField} from "~/client/tasks/demo-2/internal/task_detail_due_date_field";
-import {TaskDetailNotesField} from "~/client/tasks/demo-2/internal/task_detail_notes_field";
-import {TaskDetailTitleInput} from "~/client/tasks/demo-2/internal/task_detail_title_input";
-import {LocalTaskCollection} from "~/client/tasks/demo-2/local_task_collection";
-import {TaskAssignee, TaskStatus, TaskStatusButton} from "~/client/tasks/demo-2/task_status_button";
+import {TaskCollectionChip} from "~/client/tasks/demo_2/internal/task_collection_chip";
+import {TaskDetailDueDateField} from "~/client/tasks/demo_2/internal/task_detail_due_date_field";
+import {TaskDetailNotesField} from "~/client/tasks/demo_2/internal/task_detail_notes_field";
+import {TaskDetailTitleInput} from "~/client/tasks/demo_2/internal/task_detail_title_input";
+import {LocalTaskCollection} from "~/client/tasks/demo_2/local_task_collection";
+import {TaskAssignee, TaskStatus, TaskStatusButton} from "~/client/tasks/demo_2/task_status_button";
 import {AccountModel} from "~/shared/accounts/account_model";
 import {Spacing, assertSpacing} from "~/shared/design/spacing";
 import {UnimplementedError} from "~/shared/error/error";

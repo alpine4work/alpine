@@ -7,10 +7,10 @@ import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_
 import {OverlayAnimated} from "~/client/design/overlay_animated";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour";
-import {formatTaskDueDate} from "~/client/tasks/demo-2/internal/format_task_due_date";
-import {TaskDetailDueDateFieldCalendar} from "~/client/tasks/demo-2/internal/task_detail_due_date_field_calendar";
-import {TaskDetailDueDateFieldInput} from "~/client/tasks/demo-2/internal/task_detail_due_date_field_input";
-import {TaskStatus} from "~/client/tasks/demo-2/task_status_button";
+import {formatTaskDueDate} from "~/client/tasks/demo_2/internal/format_task_due_date";
+import {TaskDetailDueDateFieldCalendar} from "~/client/tasks/demo_2/internal/task_detail_due_date_field_calendar";
+import {TaskDetailDueDateFieldInput} from "~/client/tasks/demo_2/internal/task_detail_due_date_field_input";
+import {TaskStatus} from "~/client/tasks/demo_2/task_status_button";
 import {spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 

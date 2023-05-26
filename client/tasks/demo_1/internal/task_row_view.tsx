@@ -13,14 +13,14 @@ import {usePress} from "react-aria";
 import {Box} from "~/client/design/box";
 import {buttonPressedOverlayOpacity} from "~/client/design/button";
 import {IconButton} from "~/client/design/icon_button";
-import {LocalTasksAction} from "~/client/tasks/demo-1/internal/local_tasks_state";
-import {TaskRow} from "~/client/tasks/demo-1/internal/task_row";
+import {LocalTasksAction} from "~/client/tasks/demo_1/internal/local_tasks_state";
+import {TaskRow} from "~/client/tasks/demo_1/internal/task_row";
 import {
     TaskRowTitleInput,
     TaskRowTitleInputRef,
     taskRowTitleInputHeight,
-} from "~/client/tasks/demo-1/internal/task_row_title_input";
-import {useOutOfBoundsClickSelection} from "~/client/tasks/demo-1/internal/use_out_of_bounds_click_selection";
+} from "~/client/tasks/demo_1/internal/task_row_title_input";
+import {useOutOfBoundsClickSelection} from "~/client/tasks/demo_1/internal/use_out_of_bounds_click_selection";
 import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {LocalTaskId} from "~/shared/id/types/id_types";

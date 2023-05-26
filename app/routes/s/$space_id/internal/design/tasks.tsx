@@ -5,13 +5,13 @@ import {Spacer} from "~/client/design/spacer";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
 import {SpaceRouteScrollView} from "~/client/spaces/space_route_scroll_view";
-import {LocalTaskCollection} from "~/client/tasks/demo-2/local_task_collection";
+import {LocalTaskCollection} from "~/client/tasks/demo_2/local_task_collection";
 import {
     TaskCardPresentationalView,
     taskCardViewMaxWidth,
-} from "~/client/tasks/demo-2/task_card_presentational_view";
-import {TaskDetailPresentationalView} from "~/client/tasks/demo-2/task_detail_presentational_view";
-import {TaskAssignee, TaskStatus} from "~/client/tasks/demo-2/task_status_button";
+} from "~/client/tasks/demo_2/task_card_presentational_view";
+import {TaskDetailPresentationalView} from "~/client/tasks/demo_2/task_detail_presentational_view";
+import {TaskAssignee, TaskStatus} from "~/client/tasks/demo_2/task_status_button";
 import {AccountModel} from "~/shared/accounts/account_model";
 import {emptyContentReferences} from "~/shared/content/content_references";
 import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing";

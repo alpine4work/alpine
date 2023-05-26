@@ -17,13 +17,13 @@ import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keybo
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
-import {LocalTasksAction} from "~/client/tasks/demo-1/internal/local_tasks_state";
+import {LocalTasksAction} from "~/client/tasks/demo_1/internal/local_tasks_state";
 import {
     TaskInteractiveGhostRow,
     TaskNormalRow,
     TaskRow,
-} from "~/client/tasks/demo-1/internal/task_row";
-import {TaskRowViewRef} from "~/client/tasks/demo-1/internal/task_row_view";
+} from "~/client/tasks/demo_1/internal/task_row";
+import {TaskRowViewRef} from "~/client/tasks/demo_1/internal/task_row_view";
 import {Spacing} from "~/shared/design/spacing";
 import {UnimplementedError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
