@@ -13,7 +13,7 @@ import {usePress} from "react-aria";
 import {Box} from "~/client/design/box";
 import {buttonPressedOverlayOpacity} from "~/client/design/button";
 import {IconButton} from "~/client/design/icon_button";
-import {LocalTasksAction} from "~/client/tasks/demo_1/internal/local_tasks_state";
+import {LocalTasksAction} from "~/client/tasks/demo_1/internal/local_tasks_state_old";
 import {TaskRow} from "~/client/tasks/demo_1/internal/task_row";
 import {
     TaskRowTitleInput,

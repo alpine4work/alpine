@@ -1,4 +1,4 @@
-import {LocalTask} from "~/client/tasks/demo_1/internal/local_tasks_state";
+import {LocalTask} from "~/client/tasks/demo_1/internal/local_tasks_state_old";
 import {LocalTaskId} from "~/shared/id/types/id_types";
 
 export type TaskRow = TaskNormalRow | TaskInteractiveGhostRow | TaskDecorativeGhostRow;

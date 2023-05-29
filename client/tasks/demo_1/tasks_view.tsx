@@ -2,7 +2,7 @@ import {Key, RefObject, useEffect, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {LocalTask, useLocalTasksState} from "~/client/tasks/demo_1/internal/local_tasks_state";
+import {LocalTask, useLocalTasksState} from "~/client/tasks/demo_1/internal/local_tasks_state_old";
 import {TaskRow} from "~/client/tasks/demo_1/internal/task_row";
 import {TaskRowView, TaskRowViewRef} from "~/client/tasks/demo_1/internal/task_row_view";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";

@@ -17,7 +17,7 @@ import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keybo
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
-import {LocalTasksAction} from "~/client/tasks/demo_1/internal/local_tasks_state";
+import {LocalTasksAction} from "~/client/tasks/demo_1/internal/local_tasks_state_old";
 import {
     TaskInteractiveGhostRow,
     TaskNormalRow,
