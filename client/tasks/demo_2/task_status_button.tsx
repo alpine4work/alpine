@@ -145,15 +145,13 @@ export function TaskStatusButton({
                         justifyContent: "center",
                         alignItems: "center",
                         overflow: "hidden",
-                        border:
-                            status === "Open"
-                                ? isPressed
-                                    ? // We want the border to get darker when pressed whether we are in light mode
-                                      // or dark mode.
-                                      {light: "grey-50", dark: "grey-30"}
-                                    : "grey-40"
+                        border: status === "Open" ? "grey-40" : undefined,
+                        backgroundColor:
+                            status === "Closed"
+                                ? "theme-50-const"
+                                : isPressed
+                                ? "grey-5"
                                 : undefined,
-                        backgroundColor: status === "Closed" ? "theme-50-const" : undefined,
                         color: status === "Open" ? "grey-text" : "grey-0-const",
                     })}
                 >
