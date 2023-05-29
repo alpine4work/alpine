@@ -85,6 +85,7 @@ function TaskRowPresentationalView(
         focusPreviousTaskTitleCoord,
         focusFirstTaskTitleStart,
         focusLastTaskTitleEnd,
+        withoutPaddingLeft,
     }: {
         status: TaskStatus | null;
         onStatusChange: (status: TaskStatus) => void;
@@ -107,6 +108,7 @@ function TaskRowPresentationalView(
         focusPreviousTaskTitleCoord: (coord: number) => void;
         focusFirstTaskTitleStart: () => void;
         focusLastTaskTitleEnd: () => void;
+        withoutPaddingLeft?: boolean;
     },
     ref: Ref<TaskRowPresentationalViewRef>,
 ) {
@@ -132,6 +134,84 @@ function TaskRowPresentationalView(
         ref,
         () => ({focusTitleStart, focusTitleEnd, focusTitleAll, focusTitleCoord}),
         [focusTitleAll, focusTitleCoord, focusTitleEnd, focusTitleStart],
+    );
+
+    // Small naming note: The whitespace area outside of the task row border we
+    // call "margin" and the whitespace area inside the task row border we
+    // call "padding". Similar to the CSS box model.
+    const paddingLeftNode = (
+        <Box
+            flexShrink="0"
+            display="flex"
+            justifyContent="flex-end"
+            alignItems="center"
+            style={{
+                width: `${
+                    parseRemLengthNumber(spacing["5"]) +
+                    parseRemLengthNumber(spacing["6"]) +
+                    parseRemLengthNumber(contentSchemaStyles.listItemIndentation) * indentation
+                }rem`,
+            }}
+            // Create an illusion that the text editor extends into the margins by giving
+            // the margin a text cursor and making it clickable putting focus in the task.
+            // A double click selects the task text.
+            //
+            // This is an affordance for mouse users, does not need to be usable
+            // by keyboard.
+            className={tasksStyles.textCursorNotInheritedClassName}
+            {...useOutOfBoundsClickSelection({
+                onSelect: event => {
+                    // Only handle clicks on the background not covered by content.
+                    if (event.target === event.currentTarget) {
+                        focusTitleStart();
+                    }
+                },
+                onSelectAll: event => {
+                    // Only handle clicks on the background not covered by content.
+                    if (event.target === event.currentTarget) {
+                        focusTitleAll();
+                    }
+                },
+            })}
+        >
+            <Box
+                width="5"
+                paddingRight="1"
+                className={tasksStyles.pointerEventsNoneNotInheritedClassName}
+            >
+                {childTaskCount > 0 && (
+                    <IconButton
+                        size="xs"
+                        description={
+                            areChildTasksCollapsed ? "Expand subtasks" : "Collapse subtasks"
+                        }
+                        onPress={onAreChildTasksCollapsedToggle}
+                    >
+                        <CaretRight
+                            style={{
+                                transform: areChildTasksCollapsed
+                                    ? "rotate(0deg)"
+                                    : "rotate(90deg)",
+                                transition: "transform 100ms ease",
+                            }}
+                        />
+                    </IconButton>
+                )}
+            </Box>
+            <Box
+                width="6"
+                paddingRight="2"
+                className={tasksStyles.pointerEventsNoneNotInheritedClassName}
+            >
+                {status !== null && (
+                    <TaskStatusButton
+                        status={status}
+                        onStatusChange={onStatusChange}
+                        assignee={assignee}
+                    />
+                )}
+            </Box>
+        </Box>
     );
 
     return (
@@ -164,79 +244,7 @@ function TaskRowPresentationalView(
                     boxShadow: `0 -1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 -1px 0 0 ${colorSchemeVars["grey-5"]}`,
                 }}
             >
-                <Box
-                    flexShrink="0"
-                    display="flex"
-                    justifyContent="flex-end"
-                    alignItems="center"
-                    style={{
-                        width: `${
-                            parseRemLengthNumber(spacing["5"]) +
-                            parseRemLengthNumber(spacing["6"]) +
-                            parseRemLengthNumber(contentSchemaStyles.listItemIndentation) *
-                                indentation
-                        }rem`,
-                    }}
-                    // Create an illusion that the text editor extends into the margins by giving
-                    // the margin a text cursor and making it clickable putting focus in the task.
-                    // A double click selects the task text.
-                    //
-                    // This is an affordance for mouse users, does not need to be usable
-                    // by keyboard.
-                    className={tasksStyles.textCursorNotInheritedClassName}
-                    {...useOutOfBoundsClickSelection({
-                        onSelect: event => {
-                            // Only handle clicks on the background not covered by content.
-                            if (event.target === event.currentTarget) {
-                                focusTitleStart();
-                            }
-                        },
-                        onSelectAll: event => {
-                            // Only handle clicks on the background not covered by content.
-                            if (event.target === event.currentTarget) {
-                                focusTitleAll();
-                            }
-                        },
-                    })}
-                >
-                    <Box
-                        width="5"
-                        paddingRight="1"
-                        className={tasksStyles.pointerEventsNoneNotInheritedClassName}
-                    >
-                        {childTaskCount > 0 && (
-                            <IconButton
-                                size="xs"
-                                description={
-                                    areChildTasksCollapsed ? "Expand subtasks" : "Collapse subtasks"
-                                }
-                                onPress={onAreChildTasksCollapsedToggle}
-                            >
-                                <CaretRight
-                                    style={{
-                                        transform: areChildTasksCollapsed
-                                            ? "rotate(0deg)"
-                                            : "rotate(90deg)",
-                                        transition: "transform 100ms ease",
-                                    }}
-                                />
-                            </IconButton>
-                        )}
-                    </Box>
-                    <Box
-                        width="6"
-                        paddingRight="2"
-                        className={tasksStyles.pointerEventsNoneNotInheritedClassName}
-                    >
-                        {status !== null && (
-                            <TaskStatusButton
-                                status={status}
-                                onStatusChange={onStatusChange}
-                                assignee={assignee}
-                            />
-                        )}
-                    </Box>
-                </Box>
+                {!withoutPaddingLeft && paddingLeftNode}
                 <Box flexGrow="1" overflow="hidden">
                     <TaskRowTitleInput
                         ref={titleInputRef}

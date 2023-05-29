@@ -209,6 +209,9 @@ function TaskGridPresentationalView<TaskRow>(
         <TaskRowPresentationalView
             key={nextTaskKey}
             ref={ghostTaskRowRef}
+            // If there are no task rows, the padding just makes our ghost row placeholder
+            // look misaligned. So remove it.
+            withoutPaddingLeft={taskRowCount === 0}
             status={null}
             onStatusChange={noop}
             title={emptyTaskTitle}
