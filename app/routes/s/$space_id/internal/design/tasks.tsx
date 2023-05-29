@@ -22,7 +22,7 @@ import {useTaskGhostRowPlaceholderTutorial} from "~/client/tasks/demo_2/use_task
 import {AccountModel} from "~/shared/accounts/account_model";
 import {emptyContentReferences} from "~/shared/content/content_references";
 import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
-import {InvalidArgumentError, NotFoundError} from "~/shared/error/error";
+import {InvalidArgumentError, NotFoundError, UnimplementedError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {noop} from "~/shared/helpers/control/noop";
@@ -428,7 +428,8 @@ function TaskGridDemoView({
             taskGhostRowPlaceholder={taskGhostRowPlaceholder}
             taskRowCount={taskRows.length}
             getTaskRow={index => taskRows[index]!}
-            ghostTaskKey={state.nextId}
+            topGhostTaskKey={null}
+            bottomGhostTaskKey={state.nextId}
             getTaskKey={({task}) => task.id}
             getTaskStatus={({task}) => task.status}
             onTaskStatusChange={({task: {id: taskId}}, status) => {
@@ -636,7 +637,7 @@ function TaskGridDemoView({
                     }),
                 );
             }}
-            createTaskAtEndFromGhost={title => {
+            createTaskAtEndFromBottomGhost={title => {
                 setState(state =>
                     produce(state, state => {
                         state.tasks.push({
@@ -649,7 +650,7 @@ function TaskGridDemoView({
                     }),
                 );
             }}
-            createTaskAtEndFromGhostAndFocusNewGhost={title => {
+            createTaskAtEndFromBottomGhostAndFocusNewGhost={title => {
                 setState(state =>
                     produce(state, state => {
                         state.tasks.push({
@@ -661,9 +662,19 @@ function TaskGridDemoView({
                         });
 
                         state.effectRef = new MutableRefObjectClass(gridView =>
-                            gridView.focusGhostTaskRow(),
+                            gridView.focusEnd(),
                         );
                     }),
+                );
+            }}
+            createTaskAtStartFromTopGhostWithoutNewGhost={() => {
+                throw new UnimplementedError(
+                    "`topGhostTaskRowKey` is unsupported in task grid view demo",
+                );
+            }}
+            createTaskAtStartFromTopGhostAndFocus={() => {
+                throw new UnimplementedError(
+                    "`topGhostTaskRowKey` is unsupported in task grid view demo",
                 );
             }}
             nestTaskAndExpandParentRow={({task: {id: parentTaskId}}, {task: {id: childTaskId}}) => {
@@ -769,7 +780,7 @@ function TaskGridDemoView({
                                     if (!isTaskCollapsed) {
                                         if (tasks === state.tasks && tasks.length === 0) {
                                             state.effectRef = new MutableRefObjectClass(gridView =>
-                                                gridView.focusGhostTaskRow(),
+                                                gridView.focusEnd(),
                                             );
                                         } else if (taskRowIndex === 0) {
                                             state.effectRef = new MutableRefObjectClass(gridView =>

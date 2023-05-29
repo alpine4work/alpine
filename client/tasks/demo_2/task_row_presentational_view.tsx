@@ -203,12 +203,14 @@ function TaskRowPresentationalView(
                 paddingRight="2"
                 className={tasksStyles.pointerEventsNoneNotInheritedClassName}
             >
-                {status !== null && (
+                {status !== null ? (
                     <TaskStatusButton
                         status={status}
                         onStatusChange={onStatusChange}
                         assignee={assignee}
                     />
+                ) : (
+                    <Box width="4" height="4" borderRadius="full" border="grey-10" />
                 )}
             </Box>
         </Box>

@@ -12,7 +12,10 @@ import {
 } from "~/client/tasks/demo_2/task_grid_presentational_view";
 import {useTaskGhostRowPlaceholderTutorial} from "~/client/tasks/demo_2/use_task_ghost_row_placeholder_tutorial";
 import {OrderKey} from "~/shared/helpers/sort/order_key";
+import {generateId} from "~/shared/id/id";
 import {LocalTaskId} from "~/shared/id/types/id_types";
+
+// TODO(calebmer): Ghost at the top of the grid?
 
 const TaskNotepadGridViewForwardRef = forwardRef(TaskNotepadGridView);
 export {TaskNotepadGridViewForwardRef as TaskNotepadGridView};
@@ -48,9 +51,67 @@ function TaskNotepadGridView(
         [notepadPage, state.database],
     );
 
-    const taskIds = useMemo(() => new Set(tasks.map(([, task]) => task.id)), [tasks]);
-
     const [expandedTaskIds, setExpandedTaskIds] = useState<ReadonlySet<LocalTaskId>>(new Set());
+
+    const {taskRowIds, taskRows} = useMemo(() => {
+        const taskRowIds = new Set<LocalTaskId>();
+
+        const taskRows: Array<{
+            position: TaskNotepadGridViewRowPosition;
+            parentPosition: TaskNotepadGridViewRowPosition | null;
+            task: LocalTask;
+        }> = [];
+
+        const addChildTasks = (
+            parentPosition: TaskNotepadGridViewRowPosition | null,
+            indentation: number,
+            parentTask: LocalTask,
+        ) => {
+            for (const [orderKey, childTaskId] of parentTask.childTaskIdByOrderKey) {
+                const childTask = state.database.getTask(childTaskId);
+
+                taskRowIds.add(childTask.id);
+
+                const position: TaskNotepadGridViewRowPosition = {
+                    isRoot: false,
+                    indentation: indentation,
+                    parentTask: {id: parentTask.id, orderKey},
+                };
+
+                taskRows.push({
+                    position,
+                    parentPosition,
+                    task: childTask,
+                });
+
+                if (expandedTaskIds.has(childTask.id)) {
+                    addChildTasks(position, indentation + 1, childTask);
+                }
+            }
+        };
+
+        for (const [orderKey, task] of tasks) {
+            taskRowIds.add(task.id);
+
+            const position: TaskNotepadGridViewRowPosition = {
+                isRoot: true,
+                indentation: 0,
+                notepad: {page: notepadPage, orderKey},
+            };
+
+            taskRows.push({
+                position,
+                parentPosition: null,
+                task,
+            });
+
+            if (expandedTaskIds.has(task.id)) {
+                addChildTasks(position, 1, task);
+            }
+        }
+
+        return {taskRowIds, taskRows};
+    }, [expandedTaskIds, notepadPage, state.database, tasks]);
 
     // Remove any `expandedTaskIds` that do not exist in `taskIds`. If we a delete
     // a task this is how we update our expanded task IDs set.
@@ -63,62 +124,19 @@ function TaskNotepadGridView(
             let newExpandedTaskIds: Set<LocalTaskId> | null = null;
 
             for (const taskId of expandedTaskIds) {
-                if (!taskIds.has(taskId)) {
+                if (!taskRowIds.has(taskId)) {
                     if (!newExpandedTaskIds) newExpandedTaskIds = new Set(expandedTaskIds);
                     newExpandedTaskIds.delete(taskId);
                 }
             }
 
             return newExpandedTaskIds;
-        }, [expandedTaskIds, taskIds]);
+        }, [expandedTaskIds, taskRowIds]);
 
         if (newExpandedTaskIds) {
             setExpandedTaskIds(newExpandedTaskIds);
         }
     }
-
-    const taskRows = useMemo(() => {
-        const taskRows: Array<{
-            position: TaskNotepadGridViewRowPosition;
-            task: LocalTask;
-        }> = [];
-
-        const addChildTasks = (indentation: number, parentTask: LocalTask) => {
-            for (const [orderKey, childTaskId] of parentTask.childTaskIdByOrderKey) {
-                const childTask = state.database.getTask(childTaskId);
-
-                taskRows.push({
-                    position: {
-                        isRoot: false,
-                        indentation: indentation,
-                        parentTask: {id: parentTask.id, orderKey},
-                    },
-                    task: childTask,
-                });
-
-                if (expandedTaskIds.has(childTask.id)) {
-                    addChildTasks(indentation + 1, childTask);
-                }
-            }
-        };
-
-        for (const [orderKey, task] of tasks) {
-            taskRows.push({
-                position: {
-                    isRoot: true,
-                    indentation: 0,
-                    notepad: {page: notepadPage, orderKey},
-                },
-                task,
-            });
-
-            if (expandedTaskIds.has(task.id)) {
-                addChildTasks(1, task);
-            }
-        }
-
-        return taskRows;
-    }, [expandedTaskIds, notepadPage, state.database, tasks]);
 
     const taskRowsRef = useRef(taskRows);
     useLayoutEffectWithoutServerSideWarning(() => {
@@ -127,59 +145,47 @@ function TaskNotepadGridView(
 
     const {taskGhostRowPlaceholder} = useTaskGhostRowPlaceholderTutorial(taskRows.length);
 
+    // Only show the top ghost row if the component mounts with tasks. Once the top
+    // ghost row is consumed it doesn't come back until the component is
+    // mounted again.
+    const [topTaskGhostRowId, setTopTaskGhostRowId] = useState(() =>
+        taskRows.length >= 3 ? generateId<LocalTaskId>() : null,
+    );
+
+    if (taskRows.length < 1 && topTaskGhostRowId) setTopTaskGhostRowId(null);
+
+    const [bottomTaskGhostRowId, setBottomTaskGhostRowId] = useState(() =>
+        generateId<LocalTaskId>(),
+    );
+
     return (
-        <TaskGridPresentationalView<{position: TaskNotepadGridViewRowPosition; task: LocalTask}>
+        <TaskGridPresentationalView<{
+            position: TaskNotepadGridViewRowPosition;
+            parentPosition: TaskNotepadGridViewRowPosition | null;
+            task: LocalTask;
+        }>
             ref={useMergedRefs(ref, gridViewRef)}
             taskGhostRowPlaceholder={taskGhostRowPlaceholder}
             taskRowCount={taskRows.length}
             getTaskRow={index => taskRows[index]!}
-            ghostTaskKey={state.ghostTaskId}
+            topGhostTaskKey={topTaskGhostRowId}
+            bottomGhostTaskKey={bottomTaskGhostRowId}
             getTaskKey={({task}) => task.id}
             getTaskStatus={({task}) => task.status}
             onTaskStatusChange={({task: {id: taskId}}, status) => {
-                setState(state =>
-                    produce(state, state => {
-                        const loop = (tasks: Draft<ReadonlyArray<TaskGridDemoTask>>) => {
-                            for (const task of tasks) {
-                                if (task.id === taskId) {
-                                    task.status = status;
-                                    return true;
-                                }
-
-                                if (loop(task.childTasks)) return true;
-                            }
-
-                            return false;
-                        };
-
-                        if (!loop(state.tasks)) {
-                            throw new NotFoundError("Task not found");
-                        }
-                    }),
-                );
+                dispatch({
+                    type: "UpdateTaskStatus",
+                    taskId,
+                    status,
+                });
             }}
             getTaskTitle={({task}) => task.title}
             onTaskTitleChange={({task: {id: taskId}}, title) => {
-                setState(state =>
-                    produce(state, state => {
-                        const loop = (tasks: Draft<ReadonlyArray<TaskGridDemoTask>>) => {
-                            for (const task of tasks) {
-                                if (task.id === taskId) {
-                                    task.title = castDraft(title);
-                                    return true;
-                                }
-
-                                if (loop(task.childTasks)) return true;
-                            }
-
-                            return false;
-                        };
-
-                        if (!loop(state.tasks)) {
-                            throw new NotFoundError("Task not found");
-                        }
-                    }),
-                );
+                dispatch({
+                    type: "UpdateTaskTitle",
+                    taskId,
+                    title,
+                });
             }}
             getTaskAssignee={() => null}
             getTaskChildTaskCount={({task}) => task.childTaskIdByOrderKey.size}
@@ -207,7 +213,10 @@ function TaskNotepadGridView(
                     ...position,
                     side: "Below",
                     onLayoutEffect: taskId => {
+                        // TODO(calebmer): A production implementation probably shouldn't do an
+                        // O(n) loop here.
                         const index = taskRowsRef.current.findIndex(({task}) => task.id === taskId);
+
                         if (index >= 0) gridViewRef.current?.focusTaskRowTitleStart(index);
                     },
                 });
@@ -217,170 +226,114 @@ function TaskNotepadGridView(
                     type: "CreateTask",
                     parentTask: {id: taskId, side: "Above"},
                     onLayoutEffect: taskId => {
+                        // TODO(calebmer): A production implementation probably shouldn't do an
+                        // O(n) loop here.
                         const index = taskRowsRef.current.findIndex(({task}) => task.id === taskId);
+
                         if (index >= 0) gridViewRef.current?.focusTaskRowTitleStart(index);
                     },
                 });
             }}
-            createTaskAtEndFromGhost={title => {
+            createTaskAtEndFromBottomGhost={title => {
+                // Generate a new ghost row...
+                setBottomTaskGhostRowId(generateId<LocalTaskId>());
+
                 dispatch({
                     type: "CreateTask",
-                    taskId: state.ghostTaskId,
+                    taskId: bottomTaskGhostRowId,
                     title,
                     notepad: {page: notepadPage, side: "Below"},
                 });
             }}
-            createTaskAtEndFromGhostAndFocusNewGhost={title => {
+            createTaskAtEndFromBottomGhostAndFocusNewGhost={title => {
+                // Generate a new ghost row...
+                setBottomTaskGhostRowId(generateId<LocalTaskId>());
+
                 dispatch({
                     type: "CreateTask",
-                    taskId: state.ghostTaskId,
+                    taskId: bottomTaskGhostRowId,
                     title,
                     notepad: {page: notepadPage, side: "Below"},
                     onLayoutEffect: () => {
-                        gridViewRef.current?.focusGhostTaskRow();
+                        gridViewRef.current?.focusEnd();
+                    },
+                });
+            }}
+            createTaskAtStartFromTopGhostWithoutNewGhost={title => {
+                if (!topTaskGhostRowId) return;
+
+                // Don't create a new top ghost row.
+                setTopTaskGhostRowId(null);
+
+                dispatch({
+                    type: "CreateTask",
+                    taskId: topTaskGhostRowId,
+                    title,
+                    notepad: {page: notepadPage, side: "Above"},
+                });
+            }}
+            createTaskAtStartFromTopGhostAndFocus={title => {
+                dispatch({
+                    type: "CreateTask",
+                    title,
+                    notepad: {page: notepadPage, side: "Above"},
+                    onLayoutEffect: taskId => {
+                        // TODO(calebmer): A production implementation probably shouldn't do an
+                        // O(n) loop here.
+                        const index = taskRowsRef.current.findIndex(({task}) => task.id === taskId);
+
+                        if (index >= 0) gridViewRef.current?.focusTaskRowTitleStart(index);
                     },
                 });
             }}
             nestTaskAndExpandParentRow={({task: {id: parentTaskId}}, {task: {id: childTaskId}}) => {
-                setState(state =>
-                    produce(state, state => {
-                        if (parentTaskId === childTaskId) {
-                            throw new InvalidArgumentError("Can't nest task under itself");
-                        }
+                dispatch({
+                    type: "NestTask",
+                    parentTaskId,
+                    childTaskId,
+                });
 
-                        const loop1 = (
-                            tasks: Draft<ReadonlyArray<TaskGridDemoTask>>,
-                        ): Draft<TaskGridDemoTask> | null => {
-                            for (let taskIndex = 0; taskIndex < tasks.length; taskIndex++) {
-                                const task = tasks[taskIndex]!;
-
-                                if (task.id === childTaskId) {
-                                    tasks.splice(taskIndex, 1);
-                                    return task;
-                                }
-
-                                const childTask = loop1(task.childTasks);
-                                if (childTask) return childTask;
-                            }
-
-                            return null;
-                        };
-
-                        const childTask = loop1(state.tasks);
-                        if (!childTask) {
-                            throw new NotFoundError("Child task not found");
-                        }
-
-                        const loop2 = (tasks: Draft<ReadonlyArray<TaskGridDemoTask>>) => {
-                            for (let taskIndex = 0; taskIndex < tasks.length; taskIndex++) {
-                                const task = tasks[taskIndex]!;
-
-                                if (task.id === parentTaskId) {
-                                    task.areChildTasksCollapsed = false;
-                                    task.childTasks.push(childTask);
-                                    return true;
-                                }
-
-                                if (loop2(task.childTasks)) return true;
-                            }
-
-                            return false;
-                        };
-
-                        if (!loop2(state.tasks)) {
-                            throw new NotFoundError("Parent task not found");
-                        }
-                    }),
-                );
+                setExpandedTaskIds(expandedTaskIds => {
+                    const newExpandedTaskIds = new Set(expandedTaskIds);
+                    newExpandedTaskIds.add(parentTaskId);
+                    return newExpandedTaskIds;
+                });
             }}
-            unnestTaskIfNestedRow={({task: {id: childTaskId}}) => {
-                setState(state =>
-                    produce(state, state => {
-                        const loop = (
-                            parent: {
-                                tasks: Draft<ReadonlyArray<TaskGridDemoTask>>;
-                                taskIndex: number;
-                            } | null,
-                            tasks: Draft<ReadonlyArray<TaskGridDemoTask>>,
-                        ) => {
-                            for (let taskIndex = 0; taskIndex < tasks.length; taskIndex++) {
-                                const task = tasks[taskIndex]!;
-
-                                if (task.id === childTaskId) {
-                                    if (parent) {
-                                        tasks.splice(taskIndex, 1);
-                                        parent.tasks.splice(parent.taskIndex + 1, 0, task);
-                                    }
-                                    return true;
-                                }
-
-                                if (loop({tasks, taskIndex}, task.childTasks)) return true;
-                            }
-
-                            return false;
-                        };
-
-                        if (!loop(null, state.tasks)) {
-                            throw new NotFoundError("Task not found");
-                        }
-                    }),
-                );
+            unnestTaskIfNestedRow={({parentPosition, task: {id: childTaskId}}) => {
+                if (parentPosition) {
+                    if (parentPosition.isRoot) {
+                        dispatch({
+                            type: "UnnestTaskToNotepad",
+                            notepadPage: parentPosition.notepad.page,
+                            belowOrderKey: parentPosition.notepad.orderKey,
+                            childTaskId,
+                        });
+                    } else {
+                        dispatch({
+                            type: "UnnestTaskToParentTask",
+                            parentTaskId: parentPosition.parentTask.id,
+                            belowOrderKey: parentPosition.parentTask.orderKey,
+                            childTaskId,
+                        });
+                    }
+                }
             }}
             deleteTaskAndAllChildrenAndFocusPreviousRow={({task: {id: taskId}}) => {
-                setState(state =>
-                    produce(state, state => {
-                        let taskRowIndex: number = 0;
+                // TODO(calebmer): A production implementation probably shouldn't do an
+                // O(n) loop here.
+                const oldIndex = taskRowsRef.current.findIndex(({task}) => task.id === taskId);
 
-                        const loop = (
-                            isTaskCollapsed: boolean,
-                            tasks: Draft<ReadonlyArray<TaskGridDemoTask>>,
-                        ) => {
-                            for (let taskIndex = 0; taskIndex < tasks.length; taskIndex++) {
-                                const task = tasks[taskIndex]!;
-
-                                if (task.id === taskId) {
-                                    tasks.splice(taskIndex, 1);
-
-                                    if (!isTaskCollapsed) {
-                                        if (tasks === state.tasks && tasks.length === 0) {
-                                            state.effectRef = new MutableRefObjectClass(gridView =>
-                                                gridView.focusGhostTaskRow(),
-                                            );
-                                        } else if (taskRowIndex === 0) {
-                                            state.effectRef = new MutableRefObjectClass(gridView =>
-                                                gridView.focusTaskRowTitleStart(0),
-                                            );
-                                        } else {
-                                            const focusTaskRowIndex = taskRowIndex - 1;
-                                            state.effectRef = new MutableRefObjectClass(gridView =>
-                                                gridView.focusTaskRowTitleEnd(focusTaskRowIndex),
-                                            );
-                                        }
-                                    }
-
-                                    return true;
-                                }
-
-                                if (!isTaskCollapsed) taskRowIndex++;
-
-                                if (
-                                    loop(
-                                        isTaskCollapsed || task.areChildTasksCollapsed,
-                                        task.childTasks,
-                                    )
-                                ) {
-                                    return true;
-                                }
-                            }
-
-                            return false;
-                        };
-
-                        if (!loop(false, state.tasks)) {
-                            throw new NotFoundError("Task not found");
+                dispatch({
+                    type: "DeleteTaskAndAllChildren",
+                    taskId,
+                    onLayoutEffect: () => {
+                        if (taskRowsRef.current.length === 0 || oldIndex === 0) {
+                            gridViewRef.current?.focusStart();
+                        } else {
+                            gridViewRef.current?.focusTaskRowTitleEnd(oldIndex - 1);
                         }
-                    }),
-                );
+                    },
+                });
             }}
         />
     );

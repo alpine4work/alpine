@@ -2,6 +2,7 @@ import {Memo, MutableRefObject, useEffect, useReducer, useRef} from "react";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
+import {TaskStatus} from "~/client/tasks/demo_2/task_status_button";
 import {
     DataLossError,
     FailedPreconditionError,
@@ -15,6 +16,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
+import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
 import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key";
 import {generateId} from "~/shared/id/id";
 import {LocalTaskId} from "~/shared/id/types/id_types";
@@ -296,6 +298,254 @@ class LocalTasksDatabase {
             task,
         ] as const;
     }
+
+    public updateTaskTitle(taskId: LocalTaskId, title: TaskTitle) {
+        return new LocalTasksDatabase({
+            taskById: this._taskById.update(taskId, task => {
+                if (!task) throw new NotFoundError("Task not found");
+                return {...task, title};
+            }),
+            notepadPageCount: this._notepadPageCount,
+            taskIdByOrderKeyByNotepadPage: this._taskIdByOrderKeyByNotepadPage,
+        });
+    }
+
+    public updateTaskStatus(taskId: LocalTaskId, status: TaskStatus) {
+        return new LocalTasksDatabase({
+            taskById: this._taskById.update(taskId, task => {
+                if (!task) throw new NotFoundError("Task not found");
+                return {...task, status};
+            }),
+            notepadPageCount: this._notepadPageCount,
+            taskIdByOrderKeyByNotepadPage: this._taskIdByOrderKeyByNotepadPage,
+        });
+    }
+
+    public nestTask(parentTaskId: LocalTaskId, childTaskId: LocalTaskId) {
+        if (parentTaskId === childTaskId)
+            throw new InvalidArgumentError("Can't nest task under itself");
+
+        let taskById = this._taskById;
+        let taskIdByOrderKeyByNotepadPage = this._taskIdByOrderKeyByNotepadPage;
+
+        let childTask = taskById.get(childTaskId);
+        if (!childTask) throw new NotFoundError("Child task not found");
+
+        taskById = deleteTaskInParentTask(taskById, childTask);
+
+        taskIdByOrderKeyByNotepadPage = deleteTaskInTaskIdByOrderKeyByNotepadPage(
+            taskIdByOrderKeyByNotepadPage,
+            childTaskId,
+        );
+
+        let parentTask = taskById.get(parentTaskId);
+        if (!parentTask) throw new NotFoundError("Parent task not found");
+
+        childTask = {
+            ...childTask,
+            parentTaskId: parentTask.id,
+        };
+
+        parentTask = {
+            ...parentTask,
+            childTaskIdByOrderKey: parentTask.childTaskIdByOrderKey.set(
+                generateOrderKeyBetween(
+                    parentTask.childTaskIdByOrderKey.getLastEntry()?.[0] ?? null,
+                    null,
+                ),
+                childTaskId,
+            ),
+        };
+
+        taskById = taskById.set(childTask.id, childTask);
+        taskById = taskById.set(parentTask.id, parentTask);
+
+        return new LocalTasksDatabase({
+            taskById,
+            notepadPageCount: this._notepadPageCount,
+            taskIdByOrderKeyByNotepadPage,
+        });
+    }
+
+    public unnestTaskToNotepad(
+        notepadPage: number,
+        belowOrderKey: OrderKey,
+        childTaskId: LocalTaskId,
+    ) {
+        let taskById = this._taskById;
+        let taskIdByOrderKeyByNotepadPage = this._taskIdByOrderKeyByNotepadPage;
+
+        let childTask = taskById.get(childTaskId);
+        if (!childTask) throw new NotFoundError("Child task not found");
+
+        taskById = deleteTaskInParentTask(taskById, childTask);
+
+        taskIdByOrderKeyByNotepadPage = deleteTaskInTaskIdByOrderKeyByNotepadPage(
+            taskIdByOrderKeyByNotepadPage,
+            childTaskId,
+        );
+
+        childTask = {
+            ...childTask,
+            parentTaskId: null,
+        };
+
+        taskById = taskById.set(childTask.id, childTask);
+
+        this._validateNotepadPage(notepadPage);
+
+        let taskIdByOrderKey =
+            taskIdByOrderKeyByNotepadPage.get(notepadPage) ?? ImmutableMap.empty();
+
+        taskIdByOrderKey = taskIdByOrderKey.set(
+            generateOrderKeyBetween(
+                belowOrderKey,
+                taskIdByOrderKey.getEntryAfter(belowOrderKey)?.[0] ?? null,
+            ),
+            childTask.id,
+        );
+
+        taskIdByOrderKeyByNotepadPage = taskIdByOrderKeyByNotepadPage.set(
+            notepadPage,
+            taskIdByOrderKey,
+        );
+
+        return new LocalTasksDatabase({
+            taskById,
+            notepadPageCount: this._notepadPageCount,
+            taskIdByOrderKeyByNotepadPage,
+        });
+    }
+
+    public unnestTaskToParentTask(
+        parentTaskId: LocalTaskId,
+        belowOrderKey: OrderKey,
+        childTaskId: LocalTaskId,
+    ) {
+        let taskById = this._taskById;
+        let taskIdByOrderKeyByNotepadPage = this._taskIdByOrderKeyByNotepadPage;
+
+        let childTask = taskById.get(childTaskId);
+        if (!childTask) throw new NotFoundError("Child task not found");
+
+        taskById = deleteTaskInParentTask(taskById, childTask);
+
+        taskIdByOrderKeyByNotepadPage = deleteTaskInTaskIdByOrderKeyByNotepadPage(
+            taskIdByOrderKeyByNotepadPage,
+            childTaskId,
+        );
+
+        childTask = {
+            ...childTask,
+            parentTaskId,
+        };
+
+        taskById = taskById.set(childTask.id, childTask);
+
+        let parentTask = taskById.get(parentTaskId);
+        if (!parentTask) throw new NotFoundError("Parent task not found");
+
+        parentTask = {
+            ...parentTask,
+            childTaskIdByOrderKey: parentTask.childTaskIdByOrderKey.set(
+                generateOrderKeyBetween(
+                    belowOrderKey,
+                    parentTask.childTaskIdByOrderKey.getEntryAfter(belowOrderKey)?.[0] ?? null,
+                ),
+                childTask.id,
+            ),
+        };
+
+        taskById = taskById.set(parentTask.id, parentTask);
+
+        return new LocalTasksDatabase({
+            taskById,
+            notepadPageCount: this._notepadPageCount,
+            taskIdByOrderKeyByNotepadPage,
+        });
+    }
+
+    public deleteTaskAndAllChildren(taskId: LocalTaskId) {
+        let taskById = this._taskById;
+        let taskIdByOrderKeyByNotepadPage = this._taskIdByOrderKeyByNotepadPage;
+
+        const deleteTask = (taskId: LocalTaskId, shouldDeleteFromParent: boolean) => {
+            const [task, _taskById] = taskById.getAndDelete(taskId);
+            taskById = _taskById;
+
+            if (!task) throw new NotFoundError("Task not found");
+
+            if (shouldDeleteFromParent) {
+                taskById = deleteTaskInParentTask(taskById, task);
+            }
+
+            taskIdByOrderKeyByNotepadPage = deleteTaskInTaskIdByOrderKeyByNotepadPage(
+                taskIdByOrderKeyByNotepadPage,
+                taskId,
+            );
+
+            for (const childTaskId of task.childTaskIdByOrderKey.values()) {
+                deleteTask(childTaskId, false);
+            }
+        };
+
+        deleteTask(taskId, true);
+
+        return new LocalTasksDatabase({
+            taskById,
+            notepadPageCount: this._notepadPageCount,
+            taskIdByOrderKeyByNotepadPage,
+        });
+    }
+}
+
+function deleteTaskInParentTask(taskById: ImmutableMap<LocalTaskId, LocalTask>, task: LocalTask) {
+    if (task.parentTaskId) {
+        let parentTask = taskById.get(task.parentTaskId);
+        if (!parentTask) throw new NotFoundError("Parent task not found");
+
+        parentTask = {
+            ...parentTask,
+            // TODO(calebmer): In a production implementation we should have a reverse
+            // index since a scan could be expensive.
+            childTaskIdByOrderKey: reduceIterable(
+                parentTask.childTaskIdByOrderKey.entries(),
+                (childTaskIdByOrderKey, [orderKey, otherTaskId]) =>
+                    otherTaskId === task.id
+                        ? childTaskIdByOrderKey.delete(orderKey)
+                        : childTaskIdByOrderKey,
+                parentTask.childTaskIdByOrderKey,
+            ),
+        };
+
+        taskById = taskById.set(parentTask.id, parentTask);
+    }
+
+    return taskById;
+}
+
+function deleteTaskInTaskIdByOrderKeyByNotepadPage(
+    taskIdByOrderKeyByNotepadPage: ImmutableMap<number, ImmutableMap<OrderKey, LocalTaskId>>,
+    taskId: LocalTaskId,
+) {
+    // TODO(calebmer): In a production implementation we should have a reverse
+    // index since a scan could be expensive.
+    for (const [notepadPage, oldTaskIdByOrderKey] of taskIdByOrderKeyByNotepadPage) {
+        let newTaskIdByOrderKey = oldTaskIdByOrderKey;
+
+        for (const [orderKey, otherTaskId] of oldTaskIdByOrderKey) {
+            if (otherTaskId === taskId) newTaskIdByOrderKey = newTaskIdByOrderKey.delete(orderKey);
+        }
+
+        if (oldTaskIdByOrderKey !== newTaskIdByOrderKey) {
+            taskIdByOrderKeyByNotepadPage = taskIdByOrderKeyByNotepadPage.set(
+                notepadPage,
+                newTaskIdByOrderKey,
+            );
+        }
+    }
+
+    return taskIdByOrderKeyByNotepadPage;
 }
 
 type LocalTasksDatabaseCreateTaskOptions = {
@@ -363,7 +613,6 @@ export type LocalTasksState = SchemaType<typeof LocalTasksStateSchema>;
 
 const LocalTasksStateSchema = Schema.object({
     database: LocalTasksDatabaseSchema,
-    ghostTaskId: Schema.id<LocalTaskId>(),
     layoutEffectRef: Schema.object({current: Schema.value(null)}).transform<
         MutableRefObject<(() => void) | null>
     >({
@@ -376,7 +625,6 @@ const LocalTasksStateSchema = Schema.object({
 function getInitialLocalTasksState(): LocalTasksState {
     return {
         database: LocalTasksDatabase.empty,
-        ghostTaskId: generateId(),
         layoutEffectRef: {current: null},
     };
 }
@@ -385,7 +633,13 @@ export type LocalTasksAction =
     | LocalTasksRestoreStateAction
     | LocalTasksResetStateAction
     | LocalTasksCreateNotepadPageAction
-    | LocalTasksCreateTaskAction;
+    | LocalTasksCreateTaskAction
+    | LocalTasksUpdateTaskTitleAction
+    | LocalTasksUpdateTaskStatusAction
+    | LocalTasksDeleteTaskAndAllChildrenAction
+    | LocalTasksNestTaskAction
+    | LocalTasksUnnestTaskToParentTaskAction
+    | LocalTasksUnnestTaskToNotepadAction;
 
 type LocalTasksRestoreStateAction = {
     readonly type: "RestoreState";
@@ -403,6 +657,44 @@ type LocalTasksCreateNotepadPageAction = {
 type LocalTasksCreateTaskAction = LocalTasksDatabaseCreateTaskOptions & {
     readonly type: "CreateTask";
     readonly onLayoutEffect?: (taskId: LocalTaskId) => void;
+};
+
+type LocalTasksUpdateTaskTitleAction = {
+    readonly type: "UpdateTaskTitle";
+    readonly taskId: LocalTaskId;
+    readonly title: TaskTitle;
+};
+
+type LocalTasksUpdateTaskStatusAction = {
+    readonly type: "UpdateTaskStatus";
+    readonly taskId: LocalTaskId;
+    readonly status: TaskStatus;
+};
+
+type LocalTasksDeleteTaskAndAllChildrenAction = {
+    readonly type: "DeleteTaskAndAllChildren";
+    readonly taskId: LocalTaskId;
+    readonly onLayoutEffect?: () => void;
+};
+
+type LocalTasksNestTaskAction = {
+    readonly type: "NestTask";
+    readonly parentTaskId: LocalTaskId;
+    readonly childTaskId: LocalTaskId;
+};
+
+type LocalTasksUnnestTaskToParentTaskAction = {
+    readonly type: "UnnestTaskToParentTask";
+    readonly parentTaskId: LocalTaskId;
+    readonly belowOrderKey: OrderKey;
+    readonly childTaskId: LocalTaskId;
+};
+
+type LocalTasksUnnestTaskToNotepadAction = {
+    readonly type: "UnnestTaskToNotepad";
+    readonly notepadPage: number;
+    readonly belowOrderKey: OrderKey;
+    readonly childTaskId: LocalTaskId;
 };
 
 function reduceLocalTasksState(state: LocalTasksState, action: LocalTasksAction): LocalTasksState {
@@ -449,10 +741,64 @@ function reduceLocalTasksState(state: LocalTasksState, action: LocalTasksAction)
             return {
                 ...state,
                 database,
-                ghostTaskId: task.id === state.ghostTaskId ? generateId() : state.ghostTaskId,
                 layoutEffectRef: onLayoutEffect
                     ? {current: () => onLayoutEffect(task.id)}
                     : state.layoutEffectRef,
+            };
+        }
+
+        case "UpdateTaskTitle": {
+            return {
+                ...state,
+                database: state.database.updateTaskTitle(action.taskId, action.title),
+            };
+        }
+
+        case "UpdateTaskStatus": {
+            return {
+                ...state,
+                database: state.database.updateTaskStatus(action.taskId, action.status),
+            };
+        }
+
+        case "DeleteTaskAndAllChildren": {
+            const {taskId, onLayoutEffect} = action;
+
+            return {
+                ...state,
+                database: state.database.deleteTaskAndAllChildren(taskId),
+                layoutEffectRef: onLayoutEffect
+                    ? {current: () => onLayoutEffect()}
+                    : state.layoutEffectRef,
+            };
+        }
+
+        case "NestTask": {
+            return {
+                ...state,
+                database: state.database.nestTask(action.parentTaskId, action.childTaskId),
+            };
+        }
+
+        case "UnnestTaskToParentTask": {
+            return {
+                ...state,
+                database: state.database.unnestTaskToParentTask(
+                    action.parentTaskId,
+                    action.belowOrderKey,
+                    action.childTaskId,
+                ),
+            };
+        }
+
+        case "UnnestTaskToNotepad": {
+            return {
+                ...state,
+                database: state.database.unnestTaskToNotepad(
+                    action.notepadPage,
+                    action.belowOrderKey,
+                    action.childTaskId,
+                ),
             };
         }
 

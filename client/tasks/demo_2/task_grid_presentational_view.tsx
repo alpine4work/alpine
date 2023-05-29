@@ -2,6 +2,7 @@ import {
     Key,
     PropsWithoutRef,
     ReactElement,
+    ReactNode,
     Ref,
     RefAttributes,
     createRef,
@@ -19,7 +20,6 @@ import {
 } from "~/client/tasks/demo_2/task_row_presentational_view";
 import {TaskAssignee, TaskStatus} from "~/client/tasks/demo_2/task_status_button";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length";
 import {emptyArray} from "~/shared/helpers/array/empty_array";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {LazyMap} from "~/shared/helpers/control/lazy_map";
@@ -30,7 +30,8 @@ import {TaskTitle, emptyTaskTitle} from "~/shared/tasks/task_title_schema";
 export type TaskGridPresentationalViewRef = {
     focusTaskRowTitleStart(index: number): void;
     focusTaskRowTitleEnd(index: number): void;
-    focusGhostTaskRow(): void;
+    focusStart(): void;
+    focusEnd(): void;
 };
 
 const TaskGridPresentationalViewForwardRef = forwardRef(TaskGridPresentationalView) as <Task>(
@@ -43,7 +44,8 @@ type TaskGridPresentationalViewProps<TaskRow> = {
     taskGhostRowPlaceholder?: string;
     taskRowCount: number;
     getTaskRow: (index: number) => TaskRow;
-    ghostTaskKey: Key;
+    topGhostTaskKey: Key | null;
+    bottomGhostTaskKey: Key;
     getTaskKey: (taskRow: TaskRow) => Key;
     getTaskStatus: (taskRow: TaskRow) => TaskStatus;
     onTaskStatusChange: (taskRow: TaskRow, status: TaskStatus) => void;
@@ -57,8 +59,10 @@ type TaskGridPresentationalViewProps<TaskRow> = {
     createTaskAbove: (taskRow: TaskRow) => void;
     createTaskBelowAndFocus: (taskRow: TaskRow) => void;
     createTaskChildAtStartAndFocus: (taskRow: TaskRow) => void;
-    createTaskAtEndFromGhost: (title: TaskTitle) => void;
-    createTaskAtEndFromGhostAndFocusNewGhost: (title: TaskTitle) => void;
+    createTaskAtEndFromBottomGhost: (title: TaskTitle) => void;
+    createTaskAtEndFromBottomGhostAndFocusNewGhost: (title: TaskTitle) => void;
+    createTaskAtStartFromTopGhostWithoutNewGhost: (title: TaskTitle) => void;
+    createTaskAtStartFromTopGhostAndFocus: (title: TaskTitle) => void;
     nestTaskAndExpandParentRow: (parentTaskRow: TaskRow, childTaskRow: TaskRow) => void;
     unnestTaskIfNestedRow: (childTaskRow: TaskRow) => void;
     deleteTaskAndAllChildrenAndFocusPreviousRow: (taskRow: TaskRow) => void;
@@ -69,7 +73,8 @@ function TaskGridPresentationalView<TaskRow>(
         taskGhostRowPlaceholder = "Add a task…",
         taskRowCount,
         getTaskRow,
-        ghostTaskKey,
+        topGhostTaskKey,
+        bottomGhostTaskKey,
         getTaskKey,
         getTaskStatus,
         onTaskStatusChange,
@@ -83,15 +88,18 @@ function TaskGridPresentationalView<TaskRow>(
         createTaskAbove,
         createTaskBelowAndFocus,
         createTaskChildAtStartAndFocus,
-        createTaskAtEndFromGhost,
-        createTaskAtEndFromGhostAndFocusNewGhost,
+        createTaskAtEndFromBottomGhost,
+        createTaskAtEndFromBottomGhostAndFocusNewGhost,
+        createTaskAtStartFromTopGhostWithoutNewGhost,
+        createTaskAtStartFromTopGhostAndFocus,
         nestTaskAndExpandParentRow,
         unnestTaskIfNestedRow,
         deleteTaskAndAllChildrenAndFocusPreviousRow,
     }: TaskGridPresentationalViewProps<TaskRow>,
     ref: Ref<TaskGridPresentationalViewRef>,
 ) {
-    const ghostTaskRowRef = useRef<TaskRowPresentationalViewRef>(null);
+    const topGhostTaskRowRef = useRef<TaskRowPresentationalViewRef>(null);
+    const bottomGhostTaskRowRef = useRef<TaskRowPresentationalViewRef>(null);
 
     const taskRowRefByIndex = useConstant(
         new LazyMap(() => createRef<TaskRowPresentationalViewRef>()),
@@ -103,7 +111,17 @@ function TaskGridPresentationalView<TaskRow>(
             focusTaskRowTitleStart: index =>
                 taskRowRefByIndex.get(index).current?.focusTitleStart(),
             focusTaskRowTitleEnd: index => taskRowRefByIndex.get(index).current?.focusTitleEnd(),
-            focusGhostTaskRow: () => assertExists(ghostTaskRowRef.current).focusTitleStart(),
+            focusStart: () => {
+                const taskRow =
+                    topGhostTaskRowRef.current ??
+                    taskRowRefByIndex.get(0).current ??
+                    assertExists(bottomGhostTaskRowRef.current);
+
+                taskRow.focusTitleStart();
+            },
+            focusEnd: () => {
+                assertExists(bottomGhostTaskRowRef.current).focusTitleEnd();
+            },
         }),
         [taskRowRefByIndex],
     );
@@ -134,10 +152,69 @@ function TaskGridPresentationalView<TaskRow>(
         };
     }, []);
 
-    const taskRows = createArrayWithLength(taskRowCount, index => {
+    const taskRows: Array<ReactNode> = [];
+
+    if (topGhostTaskKey !== null && taskRowCount >= 1) {
+        taskRows.push(
+            <TaskRowPresentationalView
+                key={topGhostTaskKey}
+                ref={topGhostTaskRowRef}
+                status={null}
+                onStatusChange={noop}
+                title={emptyTaskTitle}
+                onTitleChange={title => createTaskAtStartFromTopGhostWithoutNewGhost(title)}
+                titlePlaceholder="Add a task…"
+                assignee={null}
+                childTaskCount={0}
+                areChildTasksCollapsed={false}
+                onAreChildTasksCollapsedToggle={noop}
+                indentation={0}
+                cells={emptyArray}
+                createTaskAbove={() => createTaskAtStartFromTopGhostAndFocus(emptyTaskTitle)}
+                createTaskBelowAndFocus={() =>
+                    createTaskAtStartFromTopGhostAndFocus(emptyTaskTitle)
+                }
+                createTaskChildAtStartAndFocus={() =>
+                    createTaskAtStartFromTopGhostAndFocus(emptyTaskTitle)
+                }
+                nestWithPreviousTaskRowIfExistsAndExpand={noop}
+                unnestTaskIfNestedRow={noop}
+                deleteTaskAndAllChildrenAndFocusPreviousRow={noop}
+                focusNextTaskTitleCoord={coord => {
+                    coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
+
+                    taskRowRefByIndex.get(0)?.current?.focusTitleCoord(coord);
+
+                    lastArrowNavigationCoordRef.current = {
+                        setTime: new Date(),
+                        coord,
+                    };
+                }}
+                focusPreviousTaskTitleCoord={coord => {
+                    coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
+
+                    // No previous task...
+
+                    lastArrowNavigationCoordRef.current = {
+                        setTime: new Date(),
+                        coord,
+                    };
+                }}
+                focusFirstTaskTitleStart={() => {
+                    topGhostTaskRowRef.current?.focusTitleStart();
+                }}
+                focusLastTaskTitleEnd={() => {
+                    bottomGhostTaskRowRef.current?.focusTitleEnd();
+                }}
+            />,
+        );
+    }
+
+    for (let index = 0; index < taskRowCount; index++) {
         const taskRow = getTaskRow(index);
         const taskRowIndentation = getTaskRowIndentation(taskRow);
-        return (
+
+        taskRows.push(
             <TaskRowPresentationalView
                 key={getTaskKey(taskRow)}
                 ref={taskRowRefByIndex.get(index)}
@@ -171,7 +248,7 @@ function TaskGridPresentationalView<TaskRow>(
                     coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
 
                     if (index >= taskRowCount - 1) {
-                        ghostTaskRowRef.current?.focusTitleCoord(coord);
+                        bottomGhostTaskRowRef.current?.focusTitleCoord(coord);
                     } else {
                         taskRowRefByIndex.get(index + 1)?.current?.focusTitleCoord(coord);
                     }
@@ -184,7 +261,11 @@ function TaskGridPresentationalView<TaskRow>(
                 focusPreviousTaskTitleCoord={coord => {
                     coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
 
-                    taskRowRefByIndex.get(index - 1)?.current?.focusTitleCoord(coord);
+                    if (index === 0) {
+                        topGhostTaskRowRef.current?.focusTitleCoord(coord);
+                    } else {
+                        taskRowRefByIndex.get(index - 1)?.current?.focusTitleCoord(coord);
+                    }
 
                     lastArrowNavigationCoordRef.current = {
                         setTime: new Date(),
@@ -192,30 +273,32 @@ function TaskGridPresentationalView<TaskRow>(
                     };
                 }}
                 focusFirstTaskTitleStart={() => {
-                    if (taskRowCount === 0) {
-                        ghostTaskRowRef.current?.focusTitleEnd();
+                    if (topGhostTaskRowRef.current) {
+                        topGhostTaskRowRef.current.focusTitleStart();
+                    } else if (taskRowCount === 0) {
+                        bottomGhostTaskRowRef.current?.focusTitleStart();
                     } else {
                         taskRowRefByIndex.get(0).current?.focusTitleStart();
                     }
                 }}
                 focusLastTaskTitleEnd={() => {
-                    ghostTaskRowRef.current?.focusTitleEnd();
+                    bottomGhostTaskRowRef.current?.focusTitleEnd();
                 }}
-            />
+            />,
         );
-    });
+    }
 
     taskRows.push(
         <TaskRowPresentationalView
-            key={ghostTaskKey}
-            ref={ghostTaskRowRef}
+            key={bottomGhostTaskKey}
+            ref={bottomGhostTaskRowRef}
             // If there are no task rows, the padding just makes our ghost row placeholder
             // look misaligned. So remove it.
             withoutPaddingLeft={taskRowCount === 0}
             status={null}
             onStatusChange={noop}
             title={emptyTaskTitle}
-            onTitleChange={title => createTaskAtEndFromGhost(title)}
+            onTitleChange={title => createTaskAtEndFromBottomGhost(title)}
             titlePlaceholder={taskGhostRowPlaceholder}
             assignee={null}
             childTaskCount={0}
@@ -223,10 +306,12 @@ function TaskGridPresentationalView<TaskRow>(
             onAreChildTasksCollapsedToggle={noop}
             indentation={0}
             cells={emptyArray}
-            createTaskAbove={() => createTaskAtEndFromGhostAndFocusNewGhost(emptyTaskTitle)}
-            createTaskBelowAndFocus={() => createTaskAtEndFromGhostAndFocusNewGhost(emptyTaskTitle)}
+            createTaskAbove={() => createTaskAtEndFromBottomGhostAndFocusNewGhost(emptyTaskTitle)}
+            createTaskBelowAndFocus={() =>
+                createTaskAtEndFromBottomGhostAndFocusNewGhost(emptyTaskTitle)
+            }
             createTaskChildAtStartAndFocus={() =>
-                createTaskAtEndFromGhostAndFocusNewGhost(emptyTaskTitle)
+                createTaskAtEndFromBottomGhostAndFocusNewGhost(emptyTaskTitle)
             }
             nestWithPreviousTaskRowIfExistsAndExpand={noop}
             unnestTaskIfNestedRow={noop}
@@ -254,14 +339,16 @@ function TaskGridPresentationalView<TaskRow>(
                 };
             }}
             focusFirstTaskTitleStart={() => {
-                if (taskRowCount === 0) {
-                    ghostTaskRowRef.current?.focusTitleEnd();
+                if (topGhostTaskRowRef.current) {
+                    topGhostTaskRowRef.current.focusTitleStart();
+                } else if (taskRowCount === 0) {
+                    bottomGhostTaskRowRef.current?.focusTitleEnd();
                 } else {
                     taskRowRefByIndex.get(0).current?.focusTitleStart();
                 }
             }}
             focusLastTaskTitleEnd={() => {
-                ghostTaskRowRef.current?.focusTitleEnd();
+                bottomGhostTaskRowRef.current?.focusTitleEnd();
             }}
         />,
     );
@@ -278,8 +365,8 @@ function TaskGridPresentationalView<TaskRow>(
             // by keyboard.
             cursor="text"
             {...useOutOfBoundsClickSelection({
-                onSelect: () => ghostTaskRowRef.current?.focusTitleEnd(),
-                onSelectAll: () => ghostTaskRowRef.current?.focusTitleEnd(),
+                onSelect: () => bottomGhostTaskRowRef.current?.focusTitleEnd(),
+                onSelectAll: () => bottomGhostTaskRowRef.current?.focusTitleEnd(),
             })}
         >
             <Box
@@ -299,8 +386,8 @@ function TaskGridPresentationalView<TaskRow>(
     return (
         <Box>
             {taskRows}
-            {taskRowCount <= 0 && decorativeGhostTaskRow}
-            {taskRowCount <= 1 && decorativeGhostTaskRow}
+            {taskRows.length <= 1 && decorativeGhostTaskRow}
+            {taskRows.length <= 2 && decorativeGhostTaskRow}
         </Box>
     );
 }
