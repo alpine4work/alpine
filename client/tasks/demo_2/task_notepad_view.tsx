@@ -1,11 +1,17 @@
 import {useState} from "react";
 import {Box} from "~/client/design/box";
+import {useLocalTasksState} from "~/client/tasks/demo_2/internal/local_tasks_state";
 import {TaskNotepadPaginator} from "~/client/tasks/demo_2/internal/task_notepad_paginator";
 import {taskCardViewMaxWidth} from "~/client/tasks/demo_2/task_card_presentational_view";
 import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
+import {clamp} from "~/shared/helpers/number/clamp";
 
 export function TaskNotepadView() {
-    const [page, setPage] = useState(3);
+    const [state, dispatch] = useLocalTasksState();
+    const [page, setPage] = useState(state.database.getNotepadPageCount());
+
+    const clampedPage = clamp(1, page, state.database.getNotepadPageCount());
+    if (clampedPage !== page) setPage(clampedPage);
 
     return (
         <Box flexGrow="1" overflowX="hidden" overflowY="scroll" backgroundColor="grey-0">
@@ -14,7 +20,15 @@ export function TaskNotepadView() {
                 <Box fontSize="100" fontStyle="semi-bold">
                     Notepad
                 </Box>
-                <TaskNotepadPaginator page={page} onPageChange={setPage} pageCount={5} />
+                <TaskNotepadPaginator
+                    page={page}
+                    onPageChange={setPage}
+                    pageCount={state.database.getNotepadPageCount()}
+                    onPageCreate={() => {
+                        dispatch({type: "CreateNotepadPage"});
+                        setPage(state.database.getNotepadPageCount() + 1);
+                    }}
+                />
             </Box>
         </Box>
     );

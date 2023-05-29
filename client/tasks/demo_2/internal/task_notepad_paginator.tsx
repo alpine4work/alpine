@@ -14,10 +14,12 @@ export function TaskNotepadPaginator({
     page,
     onPageChange,
     pageCount,
+    onPageCreate,
 }: {
     page: number;
     onPageChange: (page: number) => void;
     pageCount: number;
+    onPageCreate: () => void;
 }) {
     return (
         <Box display="flex" alignItems="center" gap="5">
@@ -51,7 +53,13 @@ export function TaskNotepadPaginator({
                     <CaretRight size={spacing["3"]} />
                 </IconButton>
             </Box>
-            <Button variant="neutral" icon={<Plus />} height="6" paddingX="2">
+            <Button
+                variant="neutral"
+                icon={<Plus />}
+                height="6"
+                paddingX="2"
+                onPress={onPageCreate}
+            >
                 New page
             </Button>
         </Box>
