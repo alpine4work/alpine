@@ -73,6 +73,10 @@ const properties = defineProperties({
         textAlign: {left: "left", center: "center", right: "right", justify: "justify"},
         fontSize: fontSizes,
         fontStyle: fontStyles,
+        opacity: {
+            "0": 0,
+            "100": 100,
+        },
     },
 });
 

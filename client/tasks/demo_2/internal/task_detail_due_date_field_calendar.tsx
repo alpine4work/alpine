@@ -129,7 +129,7 @@ export function TaskDetailDueDateFieldCalendar({
         <Box {...calendarDomProps} padding="3" paddingBottom="2">
             <Box display="flex" paddingBottom="3">
                 <IconButton
-                    variant="quiet-on-grey-5-dark-background"
+                    variant="quiet-above-grey-5-dark-background"
                     size="xs"
                     withoutTooltip
                     description={assertExists(prevButtonProps["aria-label"])}
@@ -149,7 +149,7 @@ export function TaskDetailDueDateFieldCalendar({
                     {monthDateFormatter.format(actualStartDate.add({months: 1}).toDate(timeZone))}
                 </Box>
                 <IconButton
-                    variant="quiet-on-grey-5-dark-background"
+                    variant="quiet-above-grey-5-dark-background"
                     size="xs"
                     withoutTooltip
                     description={assertExists(nextButtonProps["aria-label"])}
@@ -186,7 +186,7 @@ export function TaskDetailDueDateFieldCalendar({
                 justifyContent="flex-end"
             >
                 <Button
-                    variant="quiet-above-dark-grey-5-background"
+                    variant="quiet-above-grey-5-dark-background"
                     height="5"
                     paddingX="2"
                     onPress={() => onDueDateChange(null)}

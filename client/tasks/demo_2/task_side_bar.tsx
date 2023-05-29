@@ -4,7 +4,7 @@ import {Box} from "~/client/design/box";
 import {spacing} from "~/shared/design/spacing";
 import {colorSchemeVars} from "~/shared/styles/styles";
 
-export function TasksSideBar() {
+export function TaskSideBar() {
     return (
         <Box
             width="64"
@@ -15,8 +15,8 @@ export function TasksSideBar() {
             overflowY="scroll"
         >
             <Box padding="2" display="flex" flexDirection="column">
-                <TasksSideBarNavigationItem icon={<Notepad />} label="Notepad" isSelected={true} />
-                <TasksSideBarNavigationItem
+                <TaskSideBarNavigationItem icon={<Notepad />} label="Notepad" isSelected={true} />
+                <TaskSideBarNavigationItem
                     label="Planner"
                     icon={<CalendarBlank />}
                     isSelected={false}
@@ -26,7 +26,7 @@ export function TasksSideBar() {
     );
 }
 
-function TasksSideBarNavigationItem({
+function TaskSideBarNavigationItem({
     label,
     icon,
     isSelected,

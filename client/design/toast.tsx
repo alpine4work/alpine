@@ -308,7 +308,7 @@ function ToastView({
             </Box>
             <Box flexShrink="0" padding="1.5" paddingLeft="0">
                 <IconButton
-                    variant="quiet-on-grey-5-dark-background"
+                    variant="quiet-above-grey-5-dark-background"
                     size="xs"
                     description="Dismiss alert"
                     withoutTooltip={true}

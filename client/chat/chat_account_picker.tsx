@@ -419,7 +419,7 @@ export function ChatAccountPicker({
                     <Box paddingRight="1">
                         <IconButton
                             size="xs"
-                            variant="quiet-on-grey-5-background"
+                            variant="quiet-above-grey-5-background"
                             // The user focuses the pill as a whole and hits the delete key to delete using
                             // the keyboard.
                             disableKeyboardFocus={true}

@@ -31,8 +31,8 @@ export {IconButtonForwardRef as IconButton};
 type IconButtonVariant =
     | "accent"
     | "quiet"
-    | "quiet-on-grey-5-background"
-    | "quiet-on-grey-5-dark-background";
+    | "quiet-above-grey-5-background"
+    | "quiet-above-grey-5-dark-background";
 
 type IconButtonSize = "base" | "md" | "sm" | "xs";
 
@@ -246,7 +246,7 @@ function IconButton(
                   backgroundColor: undefined,
                   color: "grey-30",
               },
-        "quiet-on-grey-5-background": !isDisabled
+        "quiet-above-grey-5-background": !isDisabled
             ? {
                   backgroundColor: isPressed ? "grey-20" : isHovered ? "grey-10" : undefined,
                   color: isPressed ? "grey-text" : "grey-70",
@@ -255,7 +255,7 @@ function IconButton(
                   backgroundColor: undefined,
                   color: "grey-30",
               },
-        "quiet-on-grey-5-dark-background": !isDisabled
+        "quiet-above-grey-5-dark-background": !isDisabled
             ? {
                   backgroundColor: isPressed
                       ? {light: "grey-10", dark: "grey-20"}

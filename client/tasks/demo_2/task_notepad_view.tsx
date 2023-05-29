@@ -1,16 +1,26 @@
+import {useState} from "react";
 import {Box} from "~/client/design/box";
+import {TaskNotepadPaginator} from "~/client/tasks/demo_2/internal/task_notepad_paginator";
 import {taskCardViewMaxWidth} from "~/client/tasks/demo_2/task_card_presentational_view";
 import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 
-export function TasksNotepadView() {
+export function TaskNotepadView() {
+    const [page, setPage] = useState(3);
+
     return (
         <Box flexGrow="1" overflowX="hidden" overflowY="scroll" backgroundColor="grey-0">
-            <TasksNotepadViewActiveSection />
+            {/* <TaskNotepadViewActiveSection /> */}
+            <Box padding="5" display="flex" alignItems="center" justifyContent="space-between">
+                <Box fontSize="100" fontStyle="semi-bold">
+                    Notepad
+                </Box>
+                <TaskNotepadPaginator page={page} onPageChange={setPage} pageCount={5} />
+            </Box>
         </Box>
     );
 }
 
-function TasksNotepadViewActiveSection() {
+function TaskNotepadViewActiveSection() {
     const cardGap: Spacing = "3";
     const cardWidth = `calc(${(1 / 3) * 100}% - ${
         parseRemLengthNumber(spacing[cardGap]) * (2 / 3)
