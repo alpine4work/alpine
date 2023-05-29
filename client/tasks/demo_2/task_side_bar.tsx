@@ -1,4 +1,4 @@
-import {CalendarBlank, IconContext, Notepad} from "phosphor-react";
+import {CalendarCheck, IconContext, Notepad} from "phosphor-react";
 import {ReactNode} from "react";
 import {Box} from "~/client/design/box";
 import {spacing} from "~/shared/design/spacing";
@@ -18,7 +18,7 @@ export function TaskSideBar() {
                 <TaskSideBarNavigationItem icon={<Notepad />} label="Notepad" isSelected={true} />
                 <TaskSideBarNavigationItem
                     label="Planner"
-                    icon={<CalendarBlank />}
+                    icon={<CalendarCheck />}
                     isSelected={false}
                 />
             </Box>
