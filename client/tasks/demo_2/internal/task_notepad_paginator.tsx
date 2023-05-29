@@ -11,15 +11,15 @@ import {clamp} from "~/shared/helpers/number/clamp";
 import {sprinkles} from "~/shared/styles/styles";
 
 export function TaskNotepadPaginator({
-    page,
-    onPageChange,
-    pageCount,
-    onPageCreate,
+    notepadPage,
+    onNotepadPageChange,
+    notepadPageCount,
+    onNotepadPageCreate,
 }: {
-    page: number;
-    onPageChange: (page: number) => void;
-    pageCount: number;
-    onPageCreate: () => void;
+    notepadPage: number;
+    onNotepadPageChange: (page: number) => void;
+    notepadPageCount: number;
+    onNotepadPageCreate: () => void;
 }) {
     return (
         <Box display="flex" alignItems="center" gap="5">
@@ -27,28 +27,28 @@ export function TaskNotepadPaginator({
                 <IconButton
                     size="sm"
                     description="Previous page"
-                    isDisabled={page <= 1}
-                    onPress={() => onPageChange(page - 1)}
+                    isDisabled={notepadPage <= 1}
+                    onPress={() => onNotepadPageChange(notepadPage - 1)}
                 >
                     <CaretLeft size={spacing["3"]} />
                 </IconButton>
                 <Box color="grey-70">
                     Page{" "}
                     <TaskNotepadPaginatorPageInput
-                        page={page}
-                        onPageChange={onPageChange}
-                        pageCount={pageCount}
+                        notepadPage={notepadPage}
+                        onNotepadPageChange={onNotepadPageChange}
+                        notepadPageCount={notepadPageCount}
                     />{" "}
                     of{" "}
                     <Box display="inline" style={{fontVariantNumeric: "tabular-nums"}}>
-                        {pageCount}
+                        {notepadPageCount}
                     </Box>
                 </Box>
                 <IconButton
                     size="sm"
                     description="Next page"
-                    isDisabled={page >= pageCount}
-                    onPress={() => onPageChange(page + 1)}
+                    isDisabled={notepadPage >= notepadPageCount}
+                    onPress={() => onNotepadPageChange(notepadPage + 1)}
                 >
                     <CaretRight size={spacing["3"]} />
                 </IconButton>
@@ -58,7 +58,7 @@ export function TaskNotepadPaginator({
                 icon={<Plus />}
                 height="6"
                 paddingX="2"
-                onPress={onPageCreate}
+                onPress={onNotepadPageCreate}
             >
                 New page
             </Button>
@@ -67,13 +67,13 @@ export function TaskNotepadPaginator({
 }
 
 function TaskNotepadPaginatorPageInput({
-    page,
-    onPageChange,
-    pageCount,
+    notepadPage,
+    onNotepadPageChange,
+    notepadPageCount,
 }: {
-    page: number;
-    onPageChange: (page: number) => void;
-    pageCount: number;
+    notepadPage: number;
+    onNotepadPageChange: (page: number) => void;
+    notepadPageCount: number;
 }) {
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -99,9 +99,9 @@ function TaskNotepadPaginatorPageInput({
     const updatePage = (newState: typeof state) => {
         if (newState.isFocused && /\d+/.test(newState.value)) {
             const valueNumber = parseInt(newState.value, 10);
-            const newPage = clamp(1, valueNumber, pageCount);
-            if (newPage !== page) {
-                onPageChange(newPage);
+            const newNotepadPage = clamp(1, valueNumber, notepadPageCount);
+            if (newNotepadPage !== notepadPage) {
+                onNotepadPageChange(newNotepadPage);
             }
         }
     };
@@ -113,8 +113,8 @@ function TaskNotepadPaginatorPageInput({
         assertExists(inputRef.current).select();
     }, [state]);
 
-    const inputValue = state.isFocused ? state.value : String(page);
-    const inputPlaceholder = String(pageCount);
+    const inputValue = state.isFocused ? state.value : String(notepadPage);
+    const inputPlaceholder = String(notepadPageCount);
 
     return (
         <Box display="inline-block" position="relative">
@@ -152,7 +152,7 @@ function TaskNotepadPaginatorPageInput({
                         if (!state.isFocused) {
                             setState({
                                 isFocused: true,
-                                value: String(page),
+                                value: String(notepadPage),
                                 shouldSelectRef: {current: false},
                             });
                         }
@@ -184,7 +184,7 @@ function TaskNotepadPaginatorPageInput({
                                     const valueNumber = parseInt(state.value, 10);
                                     setStateAndUpdatePage({
                                         isFocused: true,
-                                        value: String(clamp(1, valueNumber + 1, pageCount)),
+                                        value: String(clamp(1, valueNumber + 1, notepadPageCount)),
                                         shouldSelectRef: {current: true},
                                     });
                                 }
@@ -198,7 +198,7 @@ function TaskNotepadPaginatorPageInput({
                                     const valueNumber = parseInt(state.value, 10);
                                     setStateAndUpdatePage({
                                         isFocused: true,
-                                        value: String(clamp(1, valueNumber - 1, pageCount)),
+                                        value: String(clamp(1, valueNumber - 1, notepadPageCount)),
                                         shouldSelectRef: {current: true},
                                     });
                                 }

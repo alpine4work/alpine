@@ -1,35 +1,60 @@
-import {useState} from "react";
+import {useRef, useState} from "react";
 import {Box} from "~/client/design/box";
 import {useLocalTasksState} from "~/client/tasks/demo_2/internal/local_tasks_state";
+import {TaskNotepadGridView} from "~/client/tasks/demo_2/internal/task_notepad_grid_view";
 import {TaskNotepadPaginator} from "~/client/tasks/demo_2/internal/task_notepad_paginator";
 import {taskCardViewMaxWidth} from "~/client/tasks/demo_2/task_card_presentational_view";
+import {TaskGridPresentationalViewRef} from "~/client/tasks/demo_2/task_grid_presentational_view";
+import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
 import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {clamp} from "~/shared/helpers/number/clamp";
+import {tasksStyles} from "~/shared/styles/styles";
 
 export function TaskNotepadView() {
+    const gridViewRef = useRef<TaskGridPresentationalViewRef>(null);
     const [state, dispatch] = useLocalTasksState();
-    const [page, setPage] = useState(state.database.getNotepadPageCount());
+    const [notepadPage, setNotepadPage] = useState(state.database.getNotepadPageCount());
 
-    const clampedPage = clamp(1, page, state.database.getNotepadPageCount());
-    if (clampedPage !== page) setPage(clampedPage);
+    const clampedNotepadPage = clamp(1, notepadPage, state.database.getNotepadPageCount());
+    if (clampedNotepadPage !== notepadPage) setNotepadPage(clampedNotepadPage);
 
     return (
-        <Box flexGrow="1" overflowX="hidden" overflowY="scroll" backgroundColor="grey-0">
+        <Box
+            flexGrow="1"
+            overflowX="hidden"
+            overflowY="scroll"
+            backgroundColor="grey-0"
+            className={tasksStyles.textCursorNotInheritedClassName}
+            {...useOutOfBoundsClickSelection({
+                onSelect: event => {
+                    // Only select from clicks on area without children.
+                    if (event.target !== event.currentTarget) return;
+                    assertExists(gridViewRef.current).focusGhostTaskRow();
+                },
+                onSelectAll: event => {
+                    // Only select from clicks on area without children.
+                    if (event.target !== event.currentTarget) return;
+                    assertExists(gridViewRef.current).focusGhostTaskRow();
+                },
+            })}
+        >
             {/* <TaskNotepadViewActiveSection /> */}
             <Box padding="5" display="flex" alignItems="center" justifyContent="space-between">
                 <Box fontSize="100" fontStyle="semi-bold">
                     Notepad
                 </Box>
                 <TaskNotepadPaginator
-                    page={page}
-                    onPageChange={setPage}
-                    pageCount={state.database.getNotepadPageCount()}
-                    onPageCreate={() => {
+                    notepadPage={notepadPage}
+                    onNotepadPageChange={setNotepadPage}
+                    notepadPageCount={state.database.getNotepadPageCount()}
+                    onNotepadPageCreate={() => {
                         dispatch({type: "CreateNotepadPage"});
-                        setPage(state.database.getNotepadPageCount() + 1);
+                        setNotepadPage(state.database.getNotepadPageCount() + 1);
                     }}
                 />
             </Box>
+            <TaskNotepadGridView ref={gridViewRef} state={state} notepadPage={notepadPage} />
         </Box>
     );
 }

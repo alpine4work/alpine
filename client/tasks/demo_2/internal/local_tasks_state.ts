@@ -1,11 +1,20 @@
 import {Memo, useEffect, useReducer, useRef} from "react";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
-import {DataLossError} from "~/shared/error/error";
+import {
+    DataLossError,
+    InvalidArgumentError,
+    NotFoundError,
+    OutOfRangeError,
+} from "~/shared/error/error";
+import {emptyArray} from "~/shared/helpers/array/empty_array";
 import {assert} from "~/shared/helpers/control/assert";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {OrderKey} from "~/shared/helpers/sort/order_key";
+import {generateId} from "~/shared/id/id";
 import {LocalTaskId} from "~/shared/id/types/id_types";
 import {OrderKeySchema} from "~/shared/schema/order_key_schema";
 import {Schema, SchemaType} from "~/shared/schema/schema";
@@ -112,6 +121,12 @@ class LocalTasksDatabase {
         });
     }
 
+    public getTask(taskId: LocalTaskId) {
+        const task = this._taskById.get(taskId);
+        if (!task) throw new NotFoundError("Task not found");
+        return task;
+    }
+
     public getNotepadPageCount() {
         return this._notepadPageCount;
     }
@@ -122,6 +137,19 @@ class LocalTasksDatabase {
             notepadPageCount: this._notepadPageCount + 1,
             taskIdByOrderKeyByNotepadPage: this._taskIdByOrderKeyByNotepadPage,
         });
+    }
+
+    public getNotepadPageTasks(notepadPage: number): Iterable<LocalTask> {
+        if (!Number.isInteger(notepadPage))
+            throw new InvalidArgumentError("Notepad page must be an integer");
+
+        if (!(1 <= notepadPage && notepadPage <= this._notepadPageCount))
+            throw new OutOfRangeError("Notepad page is out of range");
+
+        return mapIterable(
+            this._taskIdByOrderKeyByNotepadPage.get(notepadPage)?.values() ?? emptyArray,
+            taskId => assertExists(this._taskById.get(taskId)),
+        );
     }
 }
 
@@ -136,15 +164,17 @@ const LocalTasksDatabaseSchema = LocalTasksDatabaseInternalSchema.transform<Loca
     deserialize: database => LocalTasksDatabase.deserialize(database),
 });
 
-type LocalTasksState = SchemaType<typeof LocalTasksStateSchema>;
+export type LocalTasksState = SchemaType<typeof LocalTasksStateSchema>;
 
 const LocalTasksStateSchema = Schema.object({
     database: LocalTasksDatabaseSchema,
+    ghostTaskId: Schema.id<LocalTaskId>(),
 });
 
 function getInitialLocalTasksState(): LocalTasksState {
     return {
         database: LocalTasksDatabase.empty,
+        ghostTaskId: generateId(),
     };
 }
 

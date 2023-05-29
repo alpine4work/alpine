@@ -18,6 +18,7 @@ import {
     TaskGridPresentationalViewRef,
 } from "~/client/tasks/demo_2/task_grid_presentational_view";
 import {TaskAssignee, TaskStatus} from "~/client/tasks/demo_2/task_status_button";
+import {useTaskGhostRowPlaceholderTutorial} from "~/client/tasks/demo_2/use_task_ghost_row_placeholder_tutorial";
 import {AccountModel} from "~/shared/accounts/account_model";
 import {emptyContentReferences} from "~/shared/content/content_references";
 import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
@@ -352,17 +353,6 @@ class MutableRefObjectClass<Value> {
     }
 }
 
-/**
- * The first couple times you add tasks we show a short tutorial in the
- * placeholder of the ghost row. These are the entries in that tutorial.
- */
-const taskGhostRowPlaceholderTutorial = [
-    "Click to add a task…",
-    "Press enter to add another task…",
-    "Press tab to convert into a subtask…",
-    "Keep adding tasks…",
-];
-
 function TaskGridDemoView({
     initialTasks,
 }: {
@@ -430,31 +420,7 @@ function TaskGridDemoView({
         effect(assertExists(gridViewRef.current));
     }, [state.effectRef]);
 
-    const [
-        shouldShowTaskGhostRowPlaceholderTutorial,
-        setShouldShowTaskGhostRowPlaceholderTutorial,
-    ] = useState(taskRows.length === 0);
-
-    // If the user deletes all their tasks then show the placeholder
-    // tutorial again.
-    if (taskRows.length === 0 && !shouldShowTaskGhostRowPlaceholderTutorial) {
-        setShouldShowTaskGhostRowPlaceholderTutorial(true);
-    }
-
-    // Once we complete the tutorial we shouldn't show it again if the user starts
-    // deleting tasks. Unless the user deletes all their tasks.
-    if (
-        taskRows.length >= taskGhostRowPlaceholderTutorial.length &&
-        shouldShowTaskGhostRowPlaceholderTutorial
-    ) {
-        setShouldShowTaskGhostRowPlaceholderTutorial(false);
-    }
-
-    const taskGhostRowPlaceholder =
-        shouldShowTaskGhostRowPlaceholderTutorial &&
-        taskRows.length < taskGhostRowPlaceholderTutorial.length
-            ? taskGhostRowPlaceholderTutorial[taskRows.length]!
-            : undefined;
+    const {taskGhostRowPlaceholder} = useTaskGhostRowPlaceholderTutorial(taskRows.length);
 
     return (
         <TaskGridPresentationalView<{indentation: number; task: TaskGridDemoTask}>
