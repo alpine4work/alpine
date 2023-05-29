@@ -428,7 +428,7 @@ function TaskGridDemoView({
             taskGhostRowPlaceholder={taskGhostRowPlaceholder}
             taskRowCount={taskRows.length}
             getTaskRow={index => taskRows[index]!}
-            nextTaskKey={state.nextId}
+            ghostTaskKey={state.nextId}
             getTaskKey={({task}) => task.id}
             getTaskStatus={({task}) => task.status}
             onTaskStatusChange={({task: {id: taskId}}, status) => {
@@ -584,7 +584,7 @@ function TaskGridDemoView({
                     }),
                 );
             }}
-            createTaskChildAndFocus={({task: {id: taskId}}) => {
+            createTaskChildAtStartAndFocus={({task: {id: taskId}}) => {
                 setState(state =>
                     produce(state, state => {
                         let taskRowIndex: number = 0;
@@ -636,7 +636,7 @@ function TaskGridDemoView({
                     }),
                 );
             }}
-            createTaskAtEnd={title => {
+            createTaskAtEndFromGhost={title => {
                 setState(state =>
                     produce(state, state => {
                         state.tasks.push({
@@ -649,7 +649,7 @@ function TaskGridDemoView({
                     }),
                 );
             }}
-            createTaskAtEndAndFocusGhost={title => {
+            createTaskAtEndFromGhostAndFocusNewGhost={title => {
                 setState(state =>
                     produce(state, state => {
                         state.tasks.push({

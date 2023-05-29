@@ -54,7 +54,12 @@ export function TaskNotepadView() {
                     }}
                 />
             </Box>
-            <TaskNotepadGridView ref={gridViewRef} state={state} notepadPage={notepadPage} />
+            <TaskNotepadGridView
+                ref={gridViewRef}
+                state={state}
+                dispatch={dispatch}
+                notepadPage={notepadPage}
+            />
         </Box>
     );
 }

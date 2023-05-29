@@ -77,7 +77,7 @@ function TaskRowPresentationalView(
         cells,
         createTaskAbove,
         createTaskBelowAndFocus,
-        createTaskChildAndFocus,
+        createTaskChildAtStartAndFocus,
         nestWithPreviousTaskRowIfExistsAndExpand,
         unnestTaskIfNestedRow,
         deleteTaskAndAllChildrenAndFocusPreviousRow,
@@ -100,7 +100,7 @@ function TaskRowPresentationalView(
         cells: ReadonlyArray<TaskRowViewCell>;
         createTaskAbove: () => void;
         createTaskBelowAndFocus: () => void;
-        createTaskChildAndFocus: () => void;
+        createTaskChildAtStartAndFocus: () => void;
         nestWithPreviousTaskRowIfExistsAndExpand: () => void;
         unnestTaskIfNestedRow: () => void;
         deleteTaskAndAllChildrenAndFocusPreviousRow: () => void;
@@ -256,7 +256,7 @@ function TaskRowPresentationalView(
                         areChildTasksCollapsed={areChildTasksCollapsed}
                         createTaskAbove={createTaskAbove}
                         createTaskBelowAndFocus={createTaskBelowAndFocus}
-                        createTaskChildAndFocus={createTaskChildAndFocus}
+                        createTaskChildAtStartAndFocus={createTaskChildAtStartAndFocus}
                         nestWithPreviousTaskRowIfExistsAndExpand={
                             nestWithPreviousTaskRowIfExistsAndExpand
                         }

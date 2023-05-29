@@ -43,7 +43,7 @@ type TaskGridPresentationalViewProps<TaskRow> = {
     taskGhostRowPlaceholder?: string;
     taskRowCount: number;
     getTaskRow: (index: number) => TaskRow;
-    nextTaskKey: Key;
+    ghostTaskKey: Key;
     getTaskKey: (taskRow: TaskRow) => Key;
     getTaskStatus: (taskRow: TaskRow) => TaskStatus;
     onTaskStatusChange: (taskRow: TaskRow, status: TaskStatus) => void;
@@ -56,9 +56,9 @@ type TaskGridPresentationalViewProps<TaskRow> = {
     getTaskRowIndentation: (taskRow: TaskRow) => number;
     createTaskAbove: (taskRow: TaskRow) => void;
     createTaskBelowAndFocus: (taskRow: TaskRow) => void;
-    createTaskChildAndFocus: (taskRow: TaskRow) => void;
-    createTaskAtEnd: (title: TaskTitle) => void;
-    createTaskAtEndAndFocusGhost: (title: TaskTitle) => void;
+    createTaskChildAtStartAndFocus: (taskRow: TaskRow) => void;
+    createTaskAtEndFromGhost: (title: TaskTitle) => void;
+    createTaskAtEndFromGhostAndFocusNewGhost: (title: TaskTitle) => void;
     nestTaskAndExpandParentRow: (parentTaskRow: TaskRow, childTaskRow: TaskRow) => void;
     unnestTaskIfNestedRow: (childTaskRow: TaskRow) => void;
     deleteTaskAndAllChildrenAndFocusPreviousRow: (taskRow: TaskRow) => void;
@@ -69,7 +69,7 @@ function TaskGridPresentationalView<TaskRow>(
         taskGhostRowPlaceholder = "Add a task…",
         taskRowCount,
         getTaskRow,
-        nextTaskKey,
+        ghostTaskKey,
         getTaskKey,
         getTaskStatus,
         onTaskStatusChange,
@@ -82,9 +82,9 @@ function TaskGridPresentationalView<TaskRow>(
         getTaskRowIndentation,
         createTaskAbove,
         createTaskBelowAndFocus,
-        createTaskChildAndFocus,
-        createTaskAtEnd,
-        createTaskAtEndAndFocusGhost,
+        createTaskChildAtStartAndFocus,
+        createTaskAtEndFromGhost,
+        createTaskAtEndFromGhostAndFocusNewGhost,
         nestTaskAndExpandParentRow,
         unnestTaskIfNestedRow,
         deleteTaskAndAllChildrenAndFocusPreviousRow,
@@ -153,7 +153,7 @@ function TaskGridPresentationalView<TaskRow>(
                 cells={emptyArray}
                 createTaskAbove={() => createTaskAbove(taskRow)}
                 createTaskBelowAndFocus={() => createTaskBelowAndFocus(taskRow)}
-                createTaskChildAndFocus={() => createTaskChildAndFocus(taskRow)}
+                createTaskChildAtStartAndFocus={() => createTaskChildAtStartAndFocus(taskRow)}
                 nestWithPreviousTaskRowIfExistsAndExpand={() => {
                     for (let taskRowIndex = index - 1; taskRowIndex >= 0; taskRowIndex--) {
                         const parentTaskRow = getTaskRow(taskRowIndex);
@@ -207,7 +207,7 @@ function TaskGridPresentationalView<TaskRow>(
 
     taskRows.push(
         <TaskRowPresentationalView
-            key={nextTaskKey}
+            key={ghostTaskKey}
             ref={ghostTaskRowRef}
             // If there are no task rows, the padding just makes our ghost row placeholder
             // look misaligned. So remove it.
@@ -215,7 +215,7 @@ function TaskGridPresentationalView<TaskRow>(
             status={null}
             onStatusChange={noop}
             title={emptyTaskTitle}
-            onTitleChange={title => createTaskAtEnd(title)}
+            onTitleChange={title => createTaskAtEndFromGhost(title)}
             titlePlaceholder={taskGhostRowPlaceholder}
             assignee={null}
             childTaskCount={0}
@@ -223,9 +223,11 @@ function TaskGridPresentationalView<TaskRow>(
             onAreChildTasksCollapsedToggle={noop}
             indentation={0}
             cells={emptyArray}
-            createTaskAbove={() => createTaskAtEndAndFocusGhost(emptyTaskTitle)}
-            createTaskBelowAndFocus={() => createTaskAtEndAndFocusGhost(emptyTaskTitle)}
-            createTaskChildAndFocus={() => createTaskAtEndAndFocusGhost(emptyTaskTitle)}
+            createTaskAbove={() => createTaskAtEndFromGhostAndFocusNewGhost(emptyTaskTitle)}
+            createTaskBelowAndFocus={() => createTaskAtEndFromGhostAndFocusNewGhost(emptyTaskTitle)}
+            createTaskChildAtStartAndFocus={() =>
+                createTaskAtEndFromGhostAndFocusNewGhost(emptyTaskTitle)
+            }
             nestWithPreviousTaskRowIfExistsAndExpand={noop}
             unnestTaskIfNestedRow={noop}
             deleteTaskAndAllChildrenAndFocusPreviousRow={() => {

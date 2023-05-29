@@ -67,7 +67,7 @@ function TaskRowTitleInput(
         areChildTasksCollapsed,
         createTaskAbove,
         createTaskBelowAndFocus,
-        createTaskChildAndFocus,
+        createTaskChildAtStartAndFocus,
         nestWithPreviousTaskRowIfExistsAndExpand,
         unnestTaskIfNestedRow,
         deleteTaskAndAllChildrenAndFocusPreviousRow,
@@ -84,7 +84,7 @@ function TaskRowTitleInput(
         areChildTasksCollapsed: boolean;
         createTaskAbove: () => void;
         createTaskBelowAndFocus: () => void;
-        createTaskChildAndFocus: () => void;
+        createTaskChildAtStartAndFocus: () => void;
         nestWithPreviousTaskRowIfExistsAndExpand: () => void;
         unnestTaskIfNestedRow: () => void;
         deleteTaskAndAllChildrenAndFocusPreviousRow: () => void;
@@ -125,7 +125,7 @@ function TaskRowTitleInput(
                     ) {
                         createTaskAbove();
                     } else if (childTaskCount > 0 && !areChildTasksCollapsed) {
-                        createTaskChildAndFocus();
+                        createTaskChildAtStartAndFocus();
                     } else {
                         createTaskBelowAndFocus();
                     }
