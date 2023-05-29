@@ -2,11 +2,10 @@ import {useRef, useState} from "react";
 import {Box} from "~/client/design/box";
 import {useLocalTasksState} from "~/client/tasks/demo_2/internal/local_tasks_state";
 import {TaskNotepadGridView} from "~/client/tasks/demo_2/internal/task_notepad_grid_view";
-import {TaskNotepadPaginator} from "~/client/tasks/demo_2/internal/task_notepad_paginator";
-import {taskCardViewMaxWidth} from "~/client/tasks/demo_2/task_card_presentational_view";
+import {TaskNotepadViewActiveSection} from "~/client/tasks/demo_2/internal/task_notepad_view_active_section";
+import {TaskNotepadViewPaginator} from "~/client/tasks/demo_2/internal/task_notepad_view_paginator";
 import {TaskGridPresentationalViewRef} from "~/client/tasks/demo_2/task_grid_presentational_view";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
-import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {clamp} from "~/shared/helpers/number/clamp";
 import {tasksStyles} from "~/shared/styles/styles";
@@ -53,12 +52,20 @@ export function TaskNotepadView() {
                 },
             })}
         >
-            {/* <TaskNotepadViewActiveSection /> */}
-            <Box padding="5" display="flex" alignItems="center" justifyContent="space-between">
+            <Box height="5" />
+            <TaskNotepadViewActiveSection />
+            <Box height="16" />
+            <Box
+                paddingX="5"
+                paddingBottom="4"
+                display="flex"
+                alignItems="center"
+                justifyContent="space-between"
+            >
                 <Box fontSize="100" fontStyle="semi-bold">
                     Notepad
                 </Box>
-                <TaskNotepadPaginator
+                <TaskNotepadViewPaginator
                     notepadPage={notepadPage}
                     onNotepadPageChange={setNotepadPage}
                     notepadPageCount={state.database.getNotepadPageCount()}
@@ -74,35 +81,6 @@ export function TaskNotepadView() {
                 dispatch={dispatch}
                 notepadPage={notepadPage}
             />
-        </Box>
-    );
-}
-
-function TaskNotepadViewActiveSection() {
-    const cardGap: Spacing = "3";
-    const cardWidth = `calc(${(1 / 3) * 100}% - ${
-        parseRemLengthNumber(spacing[cardGap]) * (2 / 3)
-    }rem)`;
-
-    return (
-        <Box padding="5">
-            <Box paddingLeft="4" paddingBottom="1.5" fontSize="100" fontStyle="semi-bold">
-                Active tasks
-            </Box>
-            <Box display="flex" gap={cardGap}>
-                <Box
-                    height="24"
-                    maxWidth={taskCardViewMaxWidth}
-                    border="grey-5"
-                    borderRadius="lg"
-                    style={{width: cardWidth}}
-                    padding="4"
-                    color="grey-50"
-                >
-                    No active tasks. Mark tasks you’re currently working on as active and you’ll see
-                    them here.
-                </Box>
-            </Box>
         </Box>
     );
 }

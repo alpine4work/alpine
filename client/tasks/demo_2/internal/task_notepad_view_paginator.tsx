@@ -10,7 +10,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {clamp} from "~/shared/helpers/number/clamp";
 import {sprinkles} from "~/shared/styles/styles";
 
-export function TaskNotepadPaginator({
+export function TaskNotepadViewPaginator({
     notepadPage,
     onNotepadPageChange,
     notepadPageCount,
