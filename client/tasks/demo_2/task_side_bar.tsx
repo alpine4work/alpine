@@ -7,6 +7,7 @@ import {colorSchemeVars} from "~/shared/styles/styles";
 export function TaskSideBar() {
     return (
         <Box
+            flexShrink="0"
             width="64"
             height="full"
             backgroundColor="grey-0"

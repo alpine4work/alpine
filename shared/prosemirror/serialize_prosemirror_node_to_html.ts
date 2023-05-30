@@ -1,11 +1,14 @@
-import escapeHTML from "escape-html";
-import voidHtmlTagNames from "html-tags/void";
 import {DOMOutputSpec, Fragment, Mark, Node} from "prosemirror-model";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {
+    HtmlContainerGenerator,
+    HtmlElementGenerator,
+    HtmlFragmentGenerator,
+    HtmlGenerator,
+    HtmlTextGenerator,
+} from "~/shared/helpers/html/html_generator";
 import {clamp} from "~/shared/helpers/number/clamp";
-import {isIdentifier} from "~/shared/helpers/string/is_identifier";
-import {quote} from "~/shared/helpers/string/quote";
 
 /**
  * Options for customizing ProseMirror HTML serialization. Similar set of
@@ -22,7 +25,7 @@ export type ProsemirrorHtmlSerializationOptions = {
                   pos: number,
               ) => {
                   html: HtmlGenerator;
-                  contentHtml?: ElementHtmlGenerator;
+                  contentHtml?: HtmlElementGenerator;
               })
             | undefined;
     };
@@ -31,8 +34,8 @@ export type ProsemirrorHtmlSerializationOptions = {
             mark: Mark,
             inline: boolean,
         ) => {
-            html: ElementHtmlGenerator;
-            contentHtml?: ElementHtmlGenerator;
+            html: HtmlElementGenerator;
+            contentHtml?: HtmlElementGenerator;
         };
     };
     readonly decorations?: ReadonlyArray<ProsemirrorHtmlSerializationDecoration>;
@@ -46,7 +49,7 @@ type ProsemirrorHtmlSerializationContext = {
                   pos: number,
               ) => {
                   html: HtmlGenerator;
-                  contentHtml?: ElementHtmlGenerator;
+                  contentHtml?: HtmlElementGenerator;
               })
             | undefined;
     };
@@ -55,8 +58,8 @@ type ProsemirrorHtmlSerializationContext = {
             mark: Mark,
             inline: boolean,
         ) => {
-            html: ElementHtmlGenerator;
-            contentHtml?: ElementHtmlGenerator;
+            html: HtmlElementGenerator;
+            contentHtml?: HtmlElementGenerator;
         };
     };
     readonly widgetDecorationQueue: Array<ProsemirrorHtmlSerializationWidgetDecoration>;
@@ -78,7 +81,7 @@ export type ProsemirrorHtmlSerializationDecoration =
 export type ProsemirrorHtmlSerializationWidgetDecoration = {
     readonly type: "Widget";
     readonly pos: number;
-    readonly html: ElementHtmlGenerator;
+    readonly html: HtmlElementGenerator;
 };
 
 /**
@@ -195,7 +198,7 @@ export function serializeProsemirrorFragmentToHtml(
     return serializeProsemirrorFragment(
         options.startPos ?? 0,
         fragment,
-        new FragmentHtmlGenerator(),
+        new HtmlFragmentGenerator(),
         context,
     ).generateHtml();
 }
@@ -236,7 +239,7 @@ function serializeProsemirrorRootNode(
     }
 
     if (prependDecorationHtml || appendDecorationHtml) {
-        const htmlWithDecoration = new FragmentHtmlGenerator();
+        const htmlWithDecoration = new HtmlFragmentGenerator();
         if (prependDecorationHtml) htmlWithDecoration.appendChild(prependDecorationHtml);
         htmlWithDecoration.appendChild(html);
         if (appendDecorationHtml) htmlWithDecoration.appendChild(appendDecorationHtml);
@@ -259,7 +262,7 @@ function serializeProsemirrorNode(
     context: ProsemirrorHtmlSerializationContext,
 ): HtmlGenerator {
     let html: HtmlGenerator;
-    let contentHtml: ElementHtmlGenerator | undefined;
+    let contentHtml: HtmlElementGenerator | undefined;
 
     if (!node.isText) {
         const nodeRenderer = context.nodeRenderers[node.type.name];
@@ -446,18 +449,18 @@ function serializeProsemirrorNode(
             textSegments[0]!.type === "Text" &&
             !textSegments[0]!.inlineDecoration
         ) {
-            html = new TextHtmlGenerator(text);
+            html = new HtmlTextGenerator(text);
         } else {
-            const fragmentHtml = new FragmentHtmlGenerator();
+            const fragmentHtml = new HtmlFragmentGenerator();
             html = fragmentHtml;
 
             for (const textSegment of textSegments) {
                 switch (textSegment.type) {
                     case "Text": {
                         if (!textSegment.inlineDecoration) {
-                            fragmentHtml.appendChild(new TextHtmlGenerator(textSegment.text));
+                            fragmentHtml.appendChild(new HtmlTextGenerator(textSegment.text));
                         } else {
-                            const inlineDecorationHtml = new ElementHtmlGenerator(
+                            const inlineDecorationHtml = new HtmlElementGenerator(
                                 textSegment.inlineDecoration.attrs.nodeName,
                             );
                             for (const [key, value] of Object.entries(
@@ -467,7 +470,7 @@ function serializeProsemirrorNode(
                                 inlineDecorationHtml.setAttribute(key, value);
                             }
                             inlineDecorationHtml.appendChild(
-                                new TextHtmlGenerator(textSegment.text),
+                                new HtmlTextGenerator(textSegment.text),
                             );
                             fragmentHtml.appendChild(inlineDecorationHtml);
                         }
@@ -498,9 +501,9 @@ function serializeProsemirrorMark(
     mark: Mark,
     inline: boolean,
     context: ProsemirrorHtmlSerializationContext,
-): {html: ElementHtmlGenerator; contentHtml?: ElementHtmlGenerator} | null {
+): {html: HtmlElementGenerator; contentHtml?: HtmlElementGenerator} | null {
     let html: HtmlGenerator;
-    let contentHtml: ElementHtmlGenerator | undefined;
+    let contentHtml: HtmlElementGenerator | undefined;
 
     const markRenderer = context.markRenderers[mark.type.name];
     if (markRenderer) {
@@ -511,7 +514,7 @@ function serializeProsemirrorMark(
         ({html, contentHtml} = renderProsemirrorDomOutputSpec(toDOM(mark, inline)));
     }
 
-    assert(html instanceof ElementHtmlGenerator, "Marks are expected to return DOM elements");
+    assert(html instanceof HtmlElementGenerator, "Marks are expected to return DOM elements");
     return {html, contentHtml};
 }
 
@@ -525,11 +528,11 @@ function serializeProsemirrorMark(
 function serializeProsemirrorFragment(
     pos: number, // Position of the first node in the fragment
     fragment: Fragment,
-    targetContainer: ContainerHtmlGenerator,
+    targetContainer: HtmlContainerGenerator,
     context: ProsemirrorHtmlSerializationContext,
 ) {
-    let currentTargetContainer: ContainerHtmlGenerator = targetContainer;
-    let activeMarkContainers: Array<[Mark, ContainerHtmlGenerator]> | null = null;
+    let currentTargetContainer: HtmlContainerGenerator = targetContainer;
+    let activeMarkContainers: Array<[Mark, HtmlContainerGenerator]> | null = null;
 
     if (context.widgetDecorationQueue[context.widgetDecorationQueue.length - 1]?.pos === pos) {
         const decoration = context.widgetDecorationQueue.pop()!;
@@ -621,9 +624,9 @@ function serializeProsemirrorFragment(
  */
 export function renderProsemirrorDomOutputSpec(structure: DOMOutputSpec): {
     html: HtmlGenerator;
-    contentHtml?: ElementHtmlGenerator;
+    contentHtml?: HtmlElementGenerator;
 } {
-    if (typeof structure === "string") return {html: new TextHtmlGenerator(structure)};
+    if (typeof structure === "string") return {html: new HtmlTextGenerator(structure)};
 
     assert(Array.isArray(structure), "Can not server-side render node that returns a DOM node");
 
@@ -632,12 +635,12 @@ export function renderProsemirrorDomOutputSpec(structure: DOMOutputSpec): {
 
 function renderProsemirrorDomOutputSpecArray(structure: DOMOutputSpecArray): {
     html: HtmlGenerator;
-    contentHtml?: ElementHtmlGenerator;
+    contentHtml?: HtmlElementGenerator;
 } {
     const tagName = structure[0];
     const attributes = structure[1];
 
-    const html = new ElementHtmlGenerator(tagName);
+    const html = new HtmlElementGenerator(tagName);
     let contentHtml = undefined;
 
     let childrenStart = 1;
@@ -675,95 +678,4 @@ function renderProsemirrorDomOutputSpecArray(structure: DOMOutputSpecArray): {
     }
 
     return {html, contentHtml};
-}
-
-export interface HtmlGenerator {
-    generateHtml(): string;
-}
-
-export class TextHtmlGenerator implements HtmlGenerator {
-    private _escapedText: string;
-
-    constructor(text: string) {
-        this._escapedText = escapeHTML(text);
-    }
-
-    generateHtml() {
-        return this._escapedText;
-    }
-}
-
-abstract class ContainerHtmlGenerator implements HtmlGenerator {
-    private _children: Array<HtmlGenerator> = [];
-
-    appendChild(node: HtmlGenerator) {
-        this._children.push(node);
-    }
-
-    removeAllChildren() {
-        this._children = [];
-    }
-
-    protected _generateChildrenHtml() {
-        let html = "";
-
-        for (const child of this._children) {
-            html += child.generateHtml();
-        }
-
-        return html;
-    }
-
-    abstract generateHtml(): string;
-}
-
-export class ElementHtmlGenerator extends ContainerHtmlGenerator {
-    private readonly _tagName: string;
-    private readonly _attributes = new Map<string, string>();
-
-    constructor(tagName: string) {
-        super();
-
-        assert(
-            isIdentifier(tagName),
-            quote`Invalid tag name ${tagName}, we currently only support simple tag names`,
-        );
-
-        this._tagName = tagName;
-    }
-
-    setAttribute(attributeName: string, attributeValue: unknown) {
-        assert(
-            /^[a-z]([a-z0-9-]*[a-z0-9]|)$/.test(attributeName),
-            quote`Invalid attribute name ${attributeName}, we currently only support simple attribute names`,
-        );
-
-        this._attributes.set(attributeName, escapeHTML(String(attributeValue)));
-    }
-
-    generateHtml() {
-        let html = `<${this._tagName}`;
-
-        for (const [attributeName, attributeValue] of this._attributes) {
-            html += ` ${attributeName}="${attributeValue}"`;
-        }
-
-        html += ">";
-
-        const childrenHtml = this._generateChildrenHtml();
-
-        if (childrenHtml === "" && voidHtmlTagNames.includes(this._tagName as any)) {
-            return html;
-        }
-
-        html += `${childrenHtml}</${this._tagName}>`;
-
-        return html;
-    }
-}
-
-export class FragmentHtmlGenerator extends ContainerHtmlGenerator {
-    generateHtml() {
-        return this._generateChildrenHtml();
-    }
 }

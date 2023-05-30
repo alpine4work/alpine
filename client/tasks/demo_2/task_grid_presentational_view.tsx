@@ -53,6 +53,7 @@ type TaskGridPresentationalViewProps<TaskRow> = {
     onTaskTitleChange: (taskRow: TaskRow, title: TaskTitle) => void;
     getTaskAssignee: (taskRow: TaskRow) => TaskAssignee | null;
     getTaskChildTaskCount: (taskRow: TaskRow) => number;
+    getTaskClosedChildTaskCount: (taskRow: TaskRow) => number;
     getTaskAreChildTasksCollapsed: (taskRow: TaskRow) => boolean;
     onAreChildTasksCollapsedToggle: (taskRow: TaskRow) => void;
     getTaskRowIndentation: (taskRow: TaskRow) => number;
@@ -82,6 +83,7 @@ function TaskGridPresentationalView<TaskRow>(
         onTaskTitleChange,
         getTaskAssignee,
         getTaskChildTaskCount,
+        getTaskClosedChildTaskCount,
         getTaskAreChildTasksCollapsed,
         onAreChildTasksCollapsedToggle,
         getTaskRowIndentation,
@@ -166,6 +168,7 @@ function TaskGridPresentationalView<TaskRow>(
                 titlePlaceholder="Add a task…"
                 assignee={null}
                 childTaskCount={0}
+                closedChildTaskCount={0}
                 areChildTasksCollapsed={false}
                 onAreChildTasksCollapsedToggle={noop}
                 indentation={0}
@@ -224,6 +227,7 @@ function TaskGridPresentationalView<TaskRow>(
                 onTitleChange={title => onTaskTitleChange(taskRow, title)}
                 assignee={getTaskAssignee(taskRow)}
                 childTaskCount={getTaskChildTaskCount(taskRow)}
+                closedChildTaskCount={getTaskClosedChildTaskCount(taskRow)}
                 areChildTasksCollapsed={getTaskAreChildTasksCollapsed(taskRow)}
                 onAreChildTasksCollapsedToggle={() => onAreChildTasksCollapsedToggle(taskRow)}
                 indentation={taskRowIndentation}
@@ -302,6 +306,7 @@ function TaskGridPresentationalView<TaskRow>(
             titlePlaceholder={taskGhostRowPlaceholder}
             assignee={null}
             childTaskCount={0}
+            closedChildTaskCount={0}
             areChildTasksCollapsed={false}
             onAreChildTasksCollapsedToggle={noop}
             indentation={0}

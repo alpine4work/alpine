@@ -11,13 +11,10 @@ import {ContentWithReferences} from "~/shared/content/content_references";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
-import {
-    ElementHtmlGenerator,
-    ProsemirrorHtmlSerializationDecoration,
-    TextHtmlGenerator,
-} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
+import {ProsemirrorHtmlSerializationDecoration} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
 import {contentSchemaStyles, contentViewStyles, emojiFontFamily} from "~/shared/styles/styles";
 
 const {docClassName, linkClassName, emptyTitleClassName, emptyBodyClassName, paragraphClassName} =
@@ -115,23 +112,23 @@ export function ContentView({
             const depthToLastParagraphChild =
                 lastTextblockChild?.type.name === "paragraph" ? depthToLastTextblockChild : null;
 
-            let html: ElementHtmlGenerator;
+            let html: HtmlElementGenerator;
             if (depthToLastParagraphChild !== null) {
-                const updatedNoteHtml = new ElementHtmlGenerator("span");
+                const updatedNoteHtml = new HtmlElementGenerator("span");
                 updatedNoteHtml.setAttribute("id", contentUpdatedNoteId);
                 updatedNoteHtml.setAttribute("class", contentViewStyles.updatedNoteClassName);
-                updatedNoteHtml.appendChild(new TextHtmlGenerator(" (edited)"));
+                updatedNoteHtml.appendChild(new HtmlTextGenerator(" (edited)"));
 
                 html = updatedNoteHtml;
             } else {
-                const updatedNoteContainerHtml = new ElementHtmlGenerator("p");
+                const updatedNoteContainerHtml = new HtmlElementGenerator("p");
                 updatedNoteContainerHtml.setAttribute("class", paragraphClassName);
 
-                const updatedNoteHtml = new ElementHtmlGenerator("span");
+                const updatedNoteHtml = new HtmlElementGenerator("span");
                 updatedNoteContainerHtml.appendChild(updatedNoteHtml);
                 updatedNoteHtml.setAttribute("id", contentUpdatedNoteId);
                 updatedNoteHtml.setAttribute("class", contentViewStyles.updatedNoteClassName);
-                updatedNoteHtml.appendChild(new TextHtmlGenerator("(edited)"));
+                updatedNoteHtml.appendChild(new HtmlTextGenerator("(edited)"));
 
                 html = updatedNoteContainerHtml;
             }

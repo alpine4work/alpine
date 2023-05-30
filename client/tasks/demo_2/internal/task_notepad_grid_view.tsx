@@ -11,6 +11,7 @@ import {
     TaskGridPresentationalViewRef,
 } from "~/client/tasks/demo_2/task_grid_presentational_view";
 import {useTaskGhostRowPlaceholderTutorial} from "~/client/tasks/demo_2/use_task_ghost_row_placeholder_tutorial";
+import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
 import {OrderKey} from "~/shared/helpers/sort/order_key";
 import {generateId} from "~/shared/id/id";
 import {LocalTaskId} from "~/shared/id/types/id_types";
@@ -189,6 +190,15 @@ function TaskNotepadGridView(
             }}
             getTaskAssignee={() => null}
             getTaskChildTaskCount={({task}) => task.childTaskIdByOrderKey.size}
+            getTaskClosedChildTaskCount={({task}) =>
+                reduceIterable(
+                    task.childTaskIdByOrderKey.values(),
+                    (closedChildTaskCount, childTaskId) =>
+                        closedChildTaskCount +
+                        (state.database.getTask(childTaskId).status === "Closed" ? 1 : 0),
+                    0,
+                )
+            }
             getTaskAreChildTasksCollapsed={({task}) => !expandedTaskIds.has(task.id)}
             onAreChildTasksCollapsedToggle={({task: {id: taskId}}) => {
                 setExpandedTaskIds(expandedTaskIds => {

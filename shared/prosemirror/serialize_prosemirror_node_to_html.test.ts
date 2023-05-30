@@ -1,8 +1,8 @@
 import {DOMSerializer, Node, Schema} from "prosemirror-model";
 import {marks as basicMarks, nodes as basicNodes} from "prosemirror-schema-basic";
 import {assert} from "~/shared/helpers/control/assert";
+import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator";
 import {
-    ElementHtmlGenerator,
     ProsemirrorHtmlSerializationInlineDecoration,
     ProsemirrorHtmlSerializationWidgetDecoration,
     serializeProsemirrorFragmentToHtml,
@@ -210,7 +210,7 @@ test("can insert a decoration widget anywhere", () => {
         node("paragraph", {}, [text("test2")]),
     ]);
 
-    const widgetHtml = new ElementHtmlGenerator("br");
+    const widgetHtml = new HtmlElementGenerator("br");
 
     const widget: Omit<ProsemirrorHtmlSerializationWidgetDecoration, "pos"> = {
         type: "Widget",
@@ -278,7 +278,7 @@ test("can insert multiple decoration widgets provided in any order", () => {
         node("paragraph", {}, [text("test2")]),
     ]);
 
-    const widgetHtml = new ElementHtmlGenerator("br");
+    const widgetHtml = new HtmlElementGenerator("br");
 
     const widget: Omit<ProsemirrorHtmlSerializationWidgetDecoration, "pos"> = {
         type: "Widget",
@@ -309,7 +309,7 @@ test("will insert a decoration widget outside of adjacent marks", () => {
         ]),
     ]);
 
-    const widgetHtml = new ElementHtmlGenerator("br");
+    const widgetHtml = new HtmlElementGenerator("br");
 
     const widget: Omit<ProsemirrorHtmlSerializationWidgetDecoration, "pos"> = {
         type: "Widget",

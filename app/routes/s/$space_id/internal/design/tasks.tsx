@@ -479,6 +479,9 @@ function TaskGridDemoView({
             }}
             getTaskAssignee={() => null}
             getTaskChildTaskCount={({task}) => task.childTasks.length}
+            getTaskClosedChildTaskCount={({task}) =>
+                task.childTasks.filter(childTask => childTask.status === "Closed").length
+            }
             getTaskAreChildTasksCollapsed={({task}) => task.areChildTasksCollapsed}
             onAreChildTasksCollapsedToggle={({task: {id: taskId}}) => {
                 setState(state =>

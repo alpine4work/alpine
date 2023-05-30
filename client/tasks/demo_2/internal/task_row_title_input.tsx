@@ -16,8 +16,10 @@ import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_a
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
 import {TaskStatus} from "~/client/tasks/demo_2/task_status_button";
+import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
 import {Spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {noop} from "~/shared/helpers/control/noop";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
 import {
     contentSchemaStyles,
@@ -39,7 +41,9 @@ export type TaskRowTitleInputRef = {
 const taskRowTitleInputAriaLabel = "Title";
 
 const taskRowTitleInputClassName = `ProseMirror ${sprinkles({
-    width: "full",
+    // Use an `inline-block` display so the `<div>` width is equal to our content width.
+    display: "inline-block",
+    maxWidth: "full",
     height: taskRowTitleInputHeight,
     overflowY: "hidden",
     overflowX: "scroll",
@@ -49,6 +53,8 @@ const taskRowTitleInputClassName = `ProseMirror ${sprinkles({
 
 const taskRowTitleInputStyle: CSSProperties = {
     ...contentSchemaStyles.paragraphFontSize,
+    // Make sure we have room to render the cursor.
+    minWidth: "1ch",
     // Turn off text wrapping. This component emulates a single-line input.
     // https://developer.mozilla.org/en-US/docs/Web/CSS/white-space
     whiteSpace: "pre",
@@ -64,6 +70,7 @@ function TaskRowTitleInput(
         onTitleChange,
         placeholder,
         childTaskCount,
+        closedChildTaskCount,
         areChildTasksCollapsed,
         createTaskAbove,
         createTaskBelowAndFocus,
@@ -81,6 +88,7 @@ function TaskRowTitleInput(
         onTitleChange: (title: TaskTitle) => void;
         placeholder?: string;
         childTaskCount: number;
+        closedChildTaskCount: number;
         areChildTasksCollapsed: boolean;
         createTaskAbove: () => void;
         createTaskBelowAndFocus: () => void;
@@ -99,9 +107,9 @@ function TaskRowTitleInput(
     const containerRef = useRef<HTMLDivElement>(null);
 
     const viewRef = useRef<
-        | {isReady: false; callbacks: Array<(view: EditorView) => void>}
+        | {isReady: false; callbacks: Set<(view: EditorView) => void>}
         | {isReady: true; view: EditorView}
-    >({isReady: false, callbacks: []});
+    >({isReady: false, callbacks: new Set()});
 
     const [titleState, setTitleState] = useState(() => EditorState.create({doc: title}));
 
@@ -215,6 +223,12 @@ function TaskRowTitleInput(
         handleKeyDownRef.current = handleKeyDown;
     });
 
+    // We initially consider ourselves to be fully scrolled to the left and to the
+    // right. This means on server-render we won't see gradients. They will flash
+    // in when we can measure element widths.
+    const [isFullyScrolledLeft, setIsFullyScrolledLeft] = useState(true);
+    const [isFullyScrolledRight, setIsFullyScrolledRight] = useState(true);
+
     useLayoutEffectWithoutServerSideWarning(() => {
         // Wait for the client-side rerender before mounting our editor.
         if (isInitialAppRender) return;
@@ -306,7 +320,7 @@ function TaskRowTitleInput(
 
         return () => {
             view.dom.removeEventListener("scroll", updateFullyScrolledState);
-            viewRef.current = {isReady: false, callbacks: []};
+            viewRef.current = {isReady: false, callbacks: new Set()};
             view.destroy();
         };
 
@@ -324,13 +338,16 @@ function TaskRowTitleInput(
     const runWhenViewIsReady = useCallback((run: (view: EditorView) => void) => {
         if (viewRef.current.isReady) {
             run(viewRef.current.view);
+            return noop;
         } else {
-            viewRef.current.callbacks.push(run);
+            const {callbacks} = viewRef.current;
+            callbacks.add(run);
+            return () => callbacks.delete(run);
         }
     }, []);
 
     useLayoutEffectWithoutServerSideWarning(() => {
-        runWhenViewIsReady(view => {
+        return runWhenViewIsReady(view => {
             if (!placeholder) {
                 view.dom.removeAttribute("aria-placeholder");
             } else {
@@ -339,95 +356,140 @@ function TaskRowTitleInput(
         });
     }, [placeholder, runWhenViewIsReady]);
 
-    useImperativeHandle(
-        ref,
-        () => ({
-            focusStart: () => {
-                runWhenViewIsReady(view => {
-                    const selection = Selection.atStart(view.state.doc);
+    const focusStart = useCallback(() => {
+        runWhenViewIsReady(view => {
+            const selection = Selection.atStart(view.state.doc);
 
-                    view.focus();
-                    view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
-                });
-            },
-            focusEnd: () => {
-                runWhenViewIsReady(view => {
-                    const selection = Selection.atEnd(view.state.doc);
+            view.focus();
+            view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
+        });
+    }, [runWhenViewIsReady]);
 
-                    view.focus();
-                    view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
-                });
-            },
-            focusAll: () => {
-                runWhenViewIsReady(view => {
-                    const selection = new AllSelection(view.state.doc);
+    const focusEnd = useCallback(() => {
+        runWhenViewIsReady(view => {
+            const selection = Selection.atEnd(view.state.doc);
 
-                    view.focus();
-                    view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
-                });
-            },
-            focusCoord: (coord: number) => {
-                runWhenViewIsReady(view => {
-                    const rect = view.dom.getBoundingClientRect();
-                    const top = rect.top + rect.height / 2;
-                    const posResult = view.posAtCoords({left: coord, top});
+            view.focus();
+            view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
+        });
+    }, [runWhenViewIsReady]);
 
-                    const selection = posResult
-                        ? new TextSelection(view.state.doc.resolve(posResult.pos))
-                        : coord > rect.right
-                        ? Selection.atEnd(view.state.doc)
-                        : Selection.atStart(view.state.doc);
+    const focusAll = useCallback(() => {
+        runWhenViewIsReady(view => {
+            const selection = new AllSelection(view.state.doc);
 
-                    view.focus();
-                    view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
-                });
-            },
-        }),
+            view.focus();
+            view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
+        });
+    }, [runWhenViewIsReady]);
+
+    const focusCoord = useCallback(
+        (coord: number) => {
+            runWhenViewIsReady(view => {
+                const rect = view.dom.getBoundingClientRect();
+                const top = rect.top + rect.height / 2;
+                const posResult = view.posAtCoords({left: coord, top});
+
+                const selection = posResult
+                    ? new TextSelection(view.state.doc.resolve(posResult.pos))
+                    : coord > rect.right
+                    ? Selection.atEnd(view.state.doc)
+                    : Selection.atStart(view.state.doc);
+
+                view.focus();
+                view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
+            });
+        },
         [runWhenViewIsReady],
     );
 
-    // We initially consider ourselves to be fully scrolled to the left but not to
-    // the right. On server-render this will render a right gradient on the task in
-    // case it overflows.
-    const [isFullyScrolledLeft, setIsFullyScrolledLeft] = useState(true);
-    const [isFullyScrolledRight, setIsFullyScrolledRight] = useState(false);
+    useImperativeHandle(
+        ref,
+        () => ({
+            focusStart,
+            focusEnd,
+            focusAll,
+            focusCoord,
+        }),
+        [focusAll, focusCoord, focusEnd, focusStart],
+    );
 
     return (
         <div
-            ref={containerRef}
-            className={classNames(
-                tasksStyles.titleInputContainerClassName,
-                titleState.doc.childCount === 0 && tasksStyles.titleInputEmptyContainerClassName,
-                !isFullyScrolledLeft &&
-                    tasksStyles.titleInputOverflowGradientLeftContainerClassName,
-                !isFullyScrolledRight &&
-                    tasksStyles.titleInputOverflowGradientRightContainerClassName,
-                sprinkles({
-                    color: status === "Closed" ? "grey-60" : "grey-text",
-                }),
-            )}
-            onBlur={() => {
-                runWhenViewIsReady(view => {
-                    // Reset scroll position when focus leaves the input.
-                    view.dom.scrollLeft = 0;
-                });
-            }}
+            className={sprinkles({
+                display: "flex",
+                overflow: "hidden",
+            })}
         >
-            {isInitialAppRender && (
-                // On server-side render serialize our title to HTML since we can't mount an
-                // `EditorView` until we are on the client.
-                <div
-                    className={taskRowTitleInputClassName}
-                    style={taskRowTitleInputStyle}
-                    aria-label={taskRowTitleInputAriaLabel}
-                    aria-placeholder={placeholder}
-                    // See why we set this attribute on `EditorView`.
-                    tabIndex={-1}
-                    dangerouslySetInnerHTML={{
-                        __html: serializeProsemirrorFragmentToHtml(titleState.doc.content),
-                    }}
-                />
-            )}
+            <div
+                ref={containerRef}
+                className={classNames(
+                    tasksStyles.titleInputContainerClassName,
+                    titleState.doc.childCount === 0 &&
+                        tasksStyles.titleInputEmptyContainerClassName,
+                    !isFullyScrolledLeft &&
+                        tasksStyles.titleInputOverflowGradientLeftContainerClassName,
+                    !isFullyScrolledRight &&
+                        tasksStyles.titleInputOverflowGradientRightContainerClassName,
+                    sprinkles({
+                        overflow: "hidden",
+                        height: taskRowTitleInputHeight,
+                        color: status === "Closed" ? "grey-60" : "grey-text",
+                    }),
+                )}
+                onBlur={() => {
+                    runWhenViewIsReady(view => {
+                        // Reset scroll position when focus leaves the input.
+                        view.dom.scrollLeft = 0;
+                    });
+                }}
+            >
+                {isInitialAppRender && (
+                    // On server-side render serialize our title to HTML since we can't mount an
+                    // `EditorView` until we are on the client.
+                    <div
+                        className={taskRowTitleInputClassName}
+                        style={taskRowTitleInputStyle}
+                        aria-label={taskRowTitleInputAriaLabel}
+                        aria-placeholder={placeholder}
+                        // See why we set this attribute on `EditorView`.
+                        tabIndex={-1}
+                        dangerouslySetInnerHTML={{
+                            __html: serializeProsemirrorFragmentToHtml(titleState.doc.content),
+                        }}
+                    />
+                )}
+            </div>
+            <div
+                className={classNames(
+                    tasksStyles.textCursorNotInheritedClassName,
+                    sprinkles({
+                        flexGrow: "1",
+                        height: taskRowTitleInputHeight,
+                        display: "flex",
+                        alignItems: "center",
+                        paddingLeft: childTaskCount > 0 ? "5" : undefined,
+                    }),
+                )}
+                {...useOutOfBoundsClickSelection({
+                    onSelect: event => {
+                        // Only select from clicks on area without children.
+                        if (event.target !== event.currentTarget) return;
+                        focusEnd();
+                    },
+                    onSelectAll: event => {
+                        // Only select from clicks on area without children.
+                        if (event.target !== event.currentTarget) return;
+                        focusAll();
+                    },
+                })}
+            >
+                {childTaskCount > 0 && (
+                    <div>
+                        {closedChildTaskCount}/{childTaskCount}
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

@@ -9,12 +9,11 @@ import {clampListItemIndentation} from "~/shared/content/content_schema";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title";
 import {assert} from "~/shared/helpers/control/assert";
+import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator";
 import {omitObject} from "~/shared/helpers/object/omit_object";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
 import {
-    ElementHtmlGenerator,
     ProsemirrorHtmlSerializationDecoration,
-    TextHtmlGenerator,
     renderProsemirrorDomOutputSpec,
     serializeProsemirrorFragmentToHtml,
 } from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
@@ -126,7 +125,7 @@ export function renderContentFragmentToHtml(
                 const {html, contentHtml} = renderProsemirrorDomOutputSpec(
                     node.type.spec.toDOM!(node),
                 );
-                assert(html instanceof ElementHtmlGenerator);
+                assert(html instanceof HtmlElementGenerator);
 
                 let listItemNumber = orderedListItemNumberByNode.get(node);
 
@@ -150,21 +149,21 @@ export function renderContentFragmentToHtml(
             },
             checkListItem: node => {
                 const {html} = renderProsemirrorDomOutputSpec(node.type.spec.toDOM!(node));
-                assert(html instanceof ElementHtmlGenerator);
+                assert(html instanceof HtmlElementGenerator);
 
-                const checkboxContainerHtml = new ElementHtmlGenerator("div");
+                const checkboxContainerHtml = new HtmlElementGenerator("div");
                 html.appendChild(checkboxContainerHtml);
                 checkboxContainerHtml.setAttribute(
                     "class",
                     checkListItemCheckboxContainerClassName,
                 );
 
-                const checkboxHtml = new ElementHtmlGenerator("div");
+                const checkboxHtml = new HtmlElementGenerator("div");
                 checkboxContainerHtml.appendChild(checkboxHtml);
                 checkboxHtml.setAttribute("class", checkListItemCheckboxClassName);
                 checkboxHtml.appendChild({generateHtml: () => contentCheckListItemIconSvg});
 
-                const contentHtml = new ElementHtmlGenerator("div");
+                const contentHtml = new HtmlElementGenerator("div");
                 html.appendChild(contentHtml);
                 contentHtml.setAttribute("class", checkListItemContentClassName);
 
@@ -177,11 +176,11 @@ export function renderContentFragmentToHtml(
                 // We need a container element for highlight styles to be applied to. Our
                 // mention element may have a background color when mentioning the
                 // current account.
-                const containerElement = new ElementHtmlGenerator("span");
+                const containerElement = new HtmlElementGenerator("span");
                 containerElement.setAttribute("data-mention-account", mention.accountId);
                 if (mention.isShort) containerElement.setAttribute("data-mention-short", "true");
 
-                const element = new ElementHtmlGenerator("span");
+                const element = new HtmlElementGenerator("span");
                 containerElement.appendChild(element);
                 element.setAttribute(
                     "class",
@@ -191,16 +190,16 @@ export function renderContentFragmentToHtml(
                     ),
                 );
 
-                const atElement = new ElementHtmlGenerator("span");
+                const atElement = new HtmlElementGenerator("span");
                 element.appendChild(atElement);
                 atElement.setAttribute("class", mentionAtClassName);
-                atElement.appendChild(new TextHtmlGenerator("@"));
+                atElement.appendChild(new HtmlTextGenerator("@"));
 
-                const textElement = new ElementHtmlGenerator("span");
+                const textElement = new HtmlElementGenerator("span");
                 element.appendChild(textElement);
                 textElement.setAttribute("class", mentionTextClassName);
                 textElement.appendChild(
-                    new TextHtmlGenerator(getContentMentionText(content.references, mention)),
+                    new HtmlTextGenerator(getContentMentionText(content.references, mention)),
                 );
 
                 return {html: containerElement};
@@ -214,7 +213,7 @@ export function renderContentFragmentToHtml(
                           const {html, contentHtml} = renderProsemirrorDomOutputSpec(
                               node.type.spec.toDOM!(node),
                           );
-                          assert(html instanceof ElementHtmlGenerator);
+                          assert(html instanceof HtmlElementGenerator);
 
                           html.setAttribute("data-placeholder", documentFallbackTitle);
                           // For accessibility, if the title is empty add the fallback title as an
@@ -230,7 +229,7 @@ export function renderContentFragmentToHtml(
                           const {html, contentHtml} = renderProsemirrorDomOutputSpec(
                               node.type.spec.toDOM!(node),
                           );
-                          assert(html instanceof ElementHtmlGenerator);
+                          assert(html instanceof HtmlElementGenerator);
 
                           html.setAttribute("data-placeholder", placeholder);
 
@@ -260,7 +259,7 @@ export function renderContentFragmentToHtml(
                     : markSpec;
 
                 const {html, contentHtml} = renderProsemirrorDomOutputSpec(actualMarkSpec);
-                assert(html instanceof ElementHtmlGenerator);
+                assert(html instanceof HtmlElementGenerator);
                 return {html, contentHtml};
             },
 
@@ -276,7 +275,7 @@ export function renderContentFragmentToHtml(
                     : markSpec;
 
                 const {html, contentHtml} = renderProsemirrorDomOutputSpec(actualMarkSpec);
-                assert(html instanceof ElementHtmlGenerator);
+                assert(html instanceof HtmlElementGenerator);
                 return {html, contentHtml};
             },
         },

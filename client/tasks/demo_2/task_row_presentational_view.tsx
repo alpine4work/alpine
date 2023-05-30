@@ -71,6 +71,7 @@ function TaskRowPresentationalView(
         titlePlaceholder,
         assignee,
         childTaskCount,
+        closedChildTaskCount,
         areChildTasksCollapsed,
         onAreChildTasksCollapsedToggle,
         indentation,
@@ -94,6 +95,7 @@ function TaskRowPresentationalView(
         titlePlaceholder?: string;
         assignee: TaskAssignee | null;
         childTaskCount: number;
+        closedChildTaskCount: number;
         areChildTasksCollapsed: boolean;
         onAreChildTasksCollapsedToggle: () => void;
         indentation: number;
@@ -255,6 +257,7 @@ function TaskRowPresentationalView(
                         onTitleChange={onTitleChange}
                         placeholder={titlePlaceholder}
                         childTaskCount={childTaskCount}
+                        closedChildTaskCount={closedChildTaskCount}
                         areChildTasksCollapsed={areChildTasksCollapsed}
                         createTaskAbove={createTaskAbove}
                         createTaskBelowAndFocus={createTaskBelowAndFocus}
