@@ -232,8 +232,8 @@ function TaskRowPresentationalView(
                 {onExpand && isHovered && (
                     <IconButton
                         size="xs"
-                        description="Open"
-                        pressErrorTitle="Couldn’t open task"
+                        description="Expand"
+                        pressErrorTitle="Couldn’t expand task"
                         onPress={onExpand}
                     >
                         <ArrowsOutSimple />
@@ -252,7 +252,14 @@ function TaskRowPresentationalView(
                         assignee={assignee}
                     />
                 ) : (
-                    <Box width="4" height="4" borderRadius="full" border="grey-10" />
+                    <Box
+                        width="4"
+                        height="4"
+                        borderRadius="full"
+                        border="grey-10"
+                        // Needs to be an inline style to have higher precedence than parent class.
+                        style={{pointerEvents: "none"}}
+                    />
                 )}
             </Box>
         </Box>
