@@ -112,13 +112,13 @@ function TaskDetailPresentationalView<ChildTaskRow>(
 
     return (
         <Box
+            width="full"
             maxWidth={taskDetailPresentationalViewMaxWidth}
             paddingY={padding}
             display="flex"
             flexDirection="column"
             gap="10"
             position="relative"
-            backgroundColor="grey-0"
         >
             <Box paddingX={padding} display="flex" flexDirection="column" gap="3">
                 <TaskStatusButton

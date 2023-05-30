@@ -69,7 +69,6 @@ const properties = defineProperties({
         },
         pointerEvents: {auto: "auto", none: "none"},
         userSelect: {auto: "auto", none: "none", text: "text", all: "all"},
-        boxShadow: elevationVars,
         textAlign: {left: "left", center: "center", right: "right", justify: "justify"},
         fontSize: fontSizes,
         fontStyle: fontStyles,
@@ -210,6 +209,7 @@ const responsiveProperties = defineProperties({
             base: {selectors: {"&&&&": {borderWidth: 1}}},
             thick: {selectors: {"&&&&": {borderWidth: 2}}},
         },
+        boxShadow: elevationVars,
     },
     shorthands: {
         inset: ["top", "bottom", "left", "right"],
