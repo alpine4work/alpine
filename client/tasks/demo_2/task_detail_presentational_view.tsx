@@ -19,6 +19,7 @@ import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_
 import {IconButton} from "~/client/design/icon_button";
 import {MenuButton} from "~/client/design/menu_button";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
+import {TaskChildTasksProgressWheel} from "~/client/tasks/demo_2/internal/task_child_tasks_progress_wheel";
 import {TaskCollectionChip} from "~/client/tasks/demo_2/internal/task_collection_chip";
 import {TaskDetailDueDateField} from "~/client/tasks/demo_2/internal/task_detail_due_date_field";
 import {TaskDetailNotesField} from "~/client/tasks/demo_2/internal/task_detail_notes_field";
@@ -78,6 +79,8 @@ export type TaskDetailPresentationalViewProps<ChildTaskRow> = {
     collections: ReadonlyArray<LocalTaskCollection>;
     notesContent: TaskNotesContentWithReferences;
     onNotesContentChange: (notesContent: TaskNotesContentWithReferences) => void;
+    childTaskCount: number;
+    closedChildTaskCount: number;
     childTasksGridViewProps: TaskGridPresentationalViewProps<ChildTaskRow>;
 };
 
@@ -93,6 +96,8 @@ function TaskDetailPresentationalView<ChildTaskRow>(
         collections,
         notesContent,
         onNotesContentChange,
+        childTaskCount,
+        closedChildTaskCount,
         childTasksGridViewProps,
     }: TaskDetailPresentationalViewProps<ChildTaskRow>,
     ref: Ref<TaskDetailPresentationalViewRef>,
@@ -172,7 +177,9 @@ function TaskDetailPresentationalView<ChildTaskRow>(
             <Box>
                 <label
                     className={sprinkles({
-                        display: "inline-block",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "3",
                         paddingX: padding,
                         paddingBottom: "2",
                         color: "grey-60",
@@ -182,7 +189,18 @@ function TaskDetailPresentationalView<ChildTaskRow>(
                         assertExists(childTasksGridViewRef.current).focusStart();
                     }}
                 >
-                    Subtasks
+                    <Box>Subtasks</Box>
+                    {childTaskCount > 0 && (
+                        <Box display="flex" alignItems="center" gap="1">
+                            <TaskChildTasksProgressWheel
+                                childTaskCount={childTaskCount}
+                                closedChildTaskCount={closedChildTaskCount}
+                            />
+                            <Box color="grey-70">
+                                {closedChildTaskCount}/{childTaskCount}
+                            </Box>
+                        </Box>
+                    )}
                 </label>
                 <TaskGridPresentationalView
                     {...childTasksGridViewProps}

@@ -149,6 +149,14 @@ export function TaskView({
             onNotesContentChange={notesContent =>
                 dispatch({type: "UpdateTaskNotesContent", taskId, notesContent})
             }
+            childTaskCount={task.childTaskIdByOrderKey.size}
+            closedChildTaskCount={reduceIterable(
+                task.childTaskIdByOrderKey.values(),
+                (closedChildTaskCount, childTaskId) =>
+                    closedChildTaskCount +
+                    (state.database.getTask(childTaskId).status === "Closed" ? 1 : 0),
+                0,
+            )}
             childTasksGridViewProps={{
                 taskRowCount: childTaskRows.length,
                 getTaskRow: index => childTaskRows[index]!,
