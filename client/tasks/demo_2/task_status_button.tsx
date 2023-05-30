@@ -150,7 +150,7 @@ export function TaskStatusButton({
                             status === "Closed"
                                 ? "theme-50-const"
                                 : isPressed
-                                ? "grey-5"
+                                ? "grey-10"
                                 : undefined,
                         color: status === "Open" ? "grey-text" : "grey-0-const",
                     })}

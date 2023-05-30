@@ -1,8 +1,6 @@
 import {CalendarDate} from "@internationalized/date";
-import {CaretRight} from "phosphor-react";
 import {Ref, forwardRef, useCallback, useImperativeHandle, useRef} from "react";
 import {Box} from "~/client/design/box";
-import {IconButton} from "~/client/design/icon_button";
 import {
     TaskRowTitleInput,
     TaskRowTitleInputRef,
@@ -180,26 +178,7 @@ function TaskRowPresentationalView(
                 width="5"
                 paddingRight="1"
                 className={tasksStyles.pointerEventsNoneNotInheritedClassName}
-            >
-                {childTaskCount > 0 && (
-                    <IconButton
-                        size="xs"
-                        description={
-                            areChildTasksCollapsed ? "Expand subtasks" : "Collapse subtasks"
-                        }
-                        onPress={onAreChildTasksCollapsedToggle}
-                    >
-                        <CaretRight
-                            style={{
-                                transform: areChildTasksCollapsed
-                                    ? "rotate(0deg)"
-                                    : "rotate(90deg)",
-                                transition: "transform 100ms ease",
-                            }}
-                        />
-                    </IconButton>
-                )}
-            </Box>
+            />
             <Box
                 width="6"
                 paddingRight="2"
@@ -259,6 +238,7 @@ function TaskRowPresentationalView(
                         childTaskCount={childTaskCount}
                         closedChildTaskCount={closedChildTaskCount}
                         areChildTasksCollapsed={areChildTasksCollapsed}
+                        onAreChildTasksCollapsedToggle={onAreChildTasksCollapsedToggle}
                         createTaskAbove={createTaskAbove}
                         createTaskBelowAndFocus={createTaskBelowAndFocus}
                         createTaskChildAtStartAndFocus={createTaskChildAtStartAndFocus}

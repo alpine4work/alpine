@@ -15,6 +15,7 @@ import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keybo
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
+import {TaskRowTitleChildTasksButton} from "~/client/tasks/demo_2/internal/task_row_title_child_tasks_button";
 import {TaskStatus} from "~/client/tasks/demo_2/task_status_button";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
 import {Spacing} from "~/shared/design/spacing";
@@ -72,6 +73,7 @@ function TaskRowTitleInput(
         childTaskCount,
         closedChildTaskCount,
         areChildTasksCollapsed,
+        onAreChildTasksCollapsedToggle,
         createTaskAbove,
         createTaskBelowAndFocus,
         createTaskChildAtStartAndFocus,
@@ -90,6 +92,7 @@ function TaskRowTitleInput(
         childTaskCount: number;
         closedChildTaskCount: number;
         areChildTasksCollapsed: boolean;
+        onAreChildTasksCollapsedToggle: () => void;
         createTaskAbove: () => void;
         createTaskBelowAndFocus: () => void;
         createTaskChildAtStartAndFocus: () => void;
@@ -468,7 +471,7 @@ function TaskRowTitleInput(
                         height: taskRowTitleInputHeight,
                         display: "flex",
                         alignItems: "center",
-                        paddingLeft: childTaskCount > 0 ? "5" : undefined,
+                        paddingLeft: childTaskCount > 0 ? "3" : undefined,
                     }),
                 )}
                 {...useOutOfBoundsClickSelection({
@@ -485,9 +488,12 @@ function TaskRowTitleInput(
                 })}
             >
                 {childTaskCount > 0 && (
-                    <div>
-                        {closedChildTaskCount}/{childTaskCount}
-                    </div>
+                    <TaskRowTitleChildTasksButton
+                        childTaskCount={childTaskCount}
+                        closedChildTaskCount={closedChildTaskCount}
+                        areChildTasksCollapsed={areChildTasksCollapsed}
+                        onAreChildTasksCollapsedToggle={onAreChildTasksCollapsedToggle}
+                    />
                 )}
             </div>
         </div>
