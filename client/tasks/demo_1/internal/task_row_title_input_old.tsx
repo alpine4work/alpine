@@ -55,7 +55,7 @@ const taskRowTitleInputClassName = `ProseMirror ${sprinkles({
     overflowX: "scroll",
     paddingY: "2",
     backgroundColor: "transparent",
-})} ${hideScrollbarClassName} ${tasksStyles.titleInputPlaceholderClassName}`;
+})} ${hideScrollbarClassName} ${tasksStyles.detailTitleInputPlaceholderClassName}`;
 
 const taskRowTitleInputStyle: CSSProperties = {
     ...contentSchemaStyles.paragraphFontSize,
@@ -475,16 +475,18 @@ function TaskRowTitleInput(
         <div
             ref={containerRef}
             className={classNames(
-                tasksStyles.titleInputContainerClassName,
-                titleState.doc.childCount === 0 && tasksStyles.titleInputEmptyContainerClassName,
-                !isFullyScrolledLeft &&
-                    tasksStyles.titleInputOverflowGradientLeftContainerClassName,
-                !isFullyScrolledRight &&
-                    tasksStyles.titleInputOverflowGradientRightContainerClassName,
                 sprinkles({
+                    position: "relative",
+                    zIndex: "0",
                     color:
                         taskRow.type === "Normal" && !taskRow.task.isOpen ? "grey-60" : "grey-text",
                 }),
+                titleState.doc.childCount === 0 &&
+                    tasksStyles.detailTitleInputEmptyContainerClassName,
+                !isFullyScrolledLeft &&
+                    tasksStyles.rowTitleInputOverflowGradientLeftContainerClassName,
+                !isFullyScrolledRight &&
+                    tasksStyles.rowTitleInputOverflowGradientRightContainerClassName,
             )}
             onBlur={() => {
                 if (isInitialAppRender) return;

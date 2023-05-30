@@ -34,13 +34,13 @@ export type TaskGridPresentationalViewRef = {
     focusEnd(): void;
 };
 
-const TaskGridPresentationalViewForwardRef = forwardRef(TaskGridPresentationalView) as <Task>(
-    props: PropsWithoutRef<TaskGridPresentationalViewProps<Task>> &
+const TaskGridPresentationalViewForwardRef = forwardRef(TaskGridPresentationalView) as <TaskRow>(
+    props: PropsWithoutRef<TaskGridPresentationalViewProps<TaskRow>> &
         RefAttributes<TaskGridPresentationalViewRef>,
 ) => ReactElement;
 export {TaskGridPresentationalViewForwardRef as TaskGridPresentationalView};
 
-type TaskGridPresentationalViewProps<TaskRow> = {
+export type TaskGridPresentationalViewProps<TaskRow> = {
     taskGhostRowPlaceholder?: string;
     taskRowCount: number;
     getTaskRow: (index: number) => TaskRow;

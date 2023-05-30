@@ -25,6 +25,7 @@ import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize
 import {
     contentSchemaStyles,
     hideScrollbarClassName,
+    inputPlaceholderStyles,
     sprinkles,
     tasksStyles,
 } from "~/shared/styles/styles";
@@ -50,7 +51,7 @@ const taskRowTitleInputClassName = `ProseMirror ${sprinkles({
     overflowX: "scroll",
     paddingY: "2",
     backgroundColor: "transparent",
-})} ${hideScrollbarClassName} ${tasksStyles.titleInputPlaceholderClassName}`;
+})} ${hideScrollbarClassName}`;
 
 const taskRowTitleInputStyle: CSSProperties = {
     ...contentSchemaStyles.paragraphFontSize,
@@ -422,23 +423,24 @@ function TaskRowTitleInput(
             className={sprinkles({
                 display: "flex",
                 overflow: "hidden",
+                position: "relative",
+                zIndex: "0",
             })}
         >
             <div
                 ref={containerRef}
                 className={classNames(
-                    tasksStyles.titleInputContainerClassName,
-                    titleState.doc.childCount === 0 &&
-                        tasksStyles.titleInputEmptyContainerClassName,
-                    !isFullyScrolledLeft &&
-                        tasksStyles.titleInputOverflowGradientLeftContainerClassName,
-                    !isFullyScrolledRight &&
-                        tasksStyles.titleInputOverflowGradientRightContainerClassName,
                     sprinkles({
+                        position: "relative",
+                        zIndex: "0",
                         overflow: "hidden",
                         height: taskRowTitleInputHeight,
                         color: status === "Closed" ? "grey-60" : "grey-text",
                     }),
+                    !isFullyScrolledLeft &&
+                        tasksStyles.rowTitleInputOverflowGradientLeftContainerClassName,
+                    !isFullyScrolledRight &&
+                        tasksStyles.rowTitleInputOverflowGradientRightContainerClassName,
                 )}
                 onBlur={() => {
                     runWhenViewIsReady(view => {
@@ -463,6 +465,32 @@ function TaskRowTitleInput(
                     />
                 )}
             </div>
+            {titleState.doc.childCount === 0 && placeholder && (
+                // Render the placeholder in a div adjacent to our editor. For accessibility
+                // the placeholder is present in an `aria-placeholder` but since the editor is
+                // `display: inline-block` we need the placeholder to have width in the DOM
+                // while not being editable. The best way to do that, we've found, is with a
+                // separate `<div>` here.
+                <div
+                    aria-hidden={true}
+                    className={sprinkles({
+                        position: "absolute",
+                        left: "0",
+                        top: "0",
+                        height: taskRowTitleInputHeight,
+                        paddingY: "2",
+                        pointerEvents: "none",
+                        // Make sure placeholder is rendered underneath cursor.
+                        zIndex: "-10",
+                    })}
+                    style={{
+                        ...taskRowTitleInputStyle,
+                        ...inputPlaceholderStyles,
+                    }}
+                >
+                    {placeholder}
+                </div>
+            )}
             <div
                 className={classNames(
                     tasksStyles.textCursorNotInheritedClassName,

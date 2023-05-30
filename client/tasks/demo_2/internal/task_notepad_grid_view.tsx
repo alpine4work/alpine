@@ -1,6 +1,7 @@
-import {Memo, Ref, forwardRef, useMemo, useRef, useState} from "react";
+import {Ref, forwardRef, useMemo, useRef, useState} from "react";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
+import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
 import {usePeekStackContext} from "~/client/peek/peek_stack";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {
@@ -42,7 +43,7 @@ function TaskNotepadGridView(
         notepadPage,
     }: {
         state: LocalTasksState;
-        dispatch: Memo<(action: LocalTasksAction) => void>;
+        dispatch: (action: LocalTasksAction) => void;
         notepadPage: number;
     },
     ref: Ref<TaskGridPresentationalViewRef>,
@@ -252,41 +253,56 @@ function TaskNotepadGridView(
                 });
             }}
             createTaskAtEndFromBottomGhost={title => {
-                // Generate a new ghost row...
-                setBottomTaskGhostRowId(generateId<LocalTaskId>());
+                // Immediate priority since we want React to batch the
+                // `setBottomTaskGhostRowId()` call and the `dispatch()` which doesn't go
+                // through React state.
+                runWithImmediatePriority(() => {
+                    // Generate a new ghost row...
+                    setBottomTaskGhostRowId(generateId<LocalTaskId>());
 
-                dispatch({
-                    type: "CreateTask",
-                    taskId: bottomTaskGhostRowId,
-                    title,
-                    notepad: {page: notepadPage, side: "Below"},
+                    dispatch({
+                        type: "CreateTask",
+                        taskId: bottomTaskGhostRowId,
+                        title,
+                        notepad: {page: notepadPage, side: "Below"},
+                    });
                 });
             }}
             createTaskAtEndFromBottomGhostAndFocusNewGhost={title => {
-                // Generate a new ghost row...
-                setBottomTaskGhostRowId(generateId<LocalTaskId>());
+                // Immediate priority since we want React to batch the
+                // `setBottomTaskGhostRowId()` call and the `dispatch()` which doesn't go
+                // through React state.
+                runWithImmediatePriority(() => {
+                    // Generate a new ghost row...
+                    setBottomTaskGhostRowId(generateId<LocalTaskId>());
 
-                dispatch({
-                    type: "CreateTask",
-                    taskId: bottomTaskGhostRowId,
-                    title,
-                    notepad: {page: notepadPage, side: "Below"},
-                    onLayoutEffect: () => {
-                        gridViewRef.current?.focusEnd();
-                    },
+                    dispatch({
+                        type: "CreateTask",
+                        taskId: bottomTaskGhostRowId,
+                        title,
+                        notepad: {page: notepadPage, side: "Below"},
+                        onLayoutEffect: () => {
+                            gridViewRef.current?.focusEnd();
+                        },
+                    });
                 });
             }}
             createTaskAtStartFromTopGhostWithoutNewGhost={title => {
                 if (!topTaskGhostRowId) return;
 
-                // Don't create a new top ghost row.
-                setTopTaskGhostRowId(null);
+                // Immediate priority since we want React to batch the
+                // `setTopTaskGhostRowId()` call and the `dispatch()` which doesn't go
+                // through React state.
+                runWithImmediatePriority(() => {
+                    // Don't create a new top ghost row.
+                    setTopTaskGhostRowId(null);
 
-                dispatch({
-                    type: "CreateTask",
-                    taskId: topTaskGhostRowId,
-                    title,
-                    notepad: {page: notepadPage, side: "Above"},
+                    dispatch({
+                        type: "CreateTask",
+                        taskId: topTaskGhostRowId,
+                        title,
+                        notepad: {page: notepadPage, side: "Above"},
+                    });
                 });
             }}
             createTaskAtStartFromTopGhostAndFocus={title => {
@@ -304,16 +320,21 @@ function TaskNotepadGridView(
                 });
             }}
             nestTaskAndExpandParentRow={({task: {id: parentTaskId}}, {task: {id: childTaskId}}) => {
-                dispatch({
-                    type: "NestTask",
-                    parentTaskId,
-                    childTaskId,
-                });
+                // Immediate priority since we want React to batch the
+                // `setExpandedChildTaskIds()` call and the `dispatch()` which doesn't go
+                // through React state.
+                runWithImmediatePriority(() => {
+                    dispatch({
+                        type: "NestTask",
+                        parentTaskId,
+                        childTaskId,
+                    });
 
-                setExpandedTaskIds(expandedTaskIds => {
-                    const newExpandedTaskIds = new Set(expandedTaskIds);
-                    newExpandedTaskIds.add(parentTaskId);
-                    return newExpandedTaskIds;
+                    setExpandedTaskIds(expandedTaskIds => {
+                        const newExpandedTaskIds = new Set(expandedTaskIds);
+                        newExpandedTaskIds.add(parentTaskId);
+                        return newExpandedTaskIds;
+                    });
                 });
             }}
             unnestTaskIfNestedRow={({parentPosition, task: {id: childTaskId}}) => {

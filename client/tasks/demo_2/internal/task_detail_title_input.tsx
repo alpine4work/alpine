@@ -17,7 +17,7 @@ const taskDetailTitleInputAriaLabel = "Title";
 const taskDetailTitleInputClassName = `ProseMirror ${sprinkles({
     fontSize: "300",
     fontStyle: "semi-bold",
-})} ${tasksStyles.titleInputPlaceholderClassName}`;
+})} ${tasksStyles.detailTitleInputPlaceholderClassName}`;
 
 export function TaskDetailTitleInput({
     status,
@@ -145,12 +145,13 @@ export function TaskDetailTitleInput({
             <div
                 ref={containerRef}
                 className={classNames(
-                    tasksStyles.titleInputContainerClassName,
-                    titleState.doc.childCount === 0 &&
-                        tasksStyles.titleInputEmptyContainerClassName,
                     sprinkles({
+                        position: "relative",
+                        zIndex: "0",
                         color: status === "Closed" ? "grey-60" : "grey-text",
                     }),
+                    titleState.doc.childCount === 0 &&
+                        tasksStyles.detailTitleInputEmptyContainerClassName,
                 )}
                 style={{minHeight: fontSizes["300"].lineHeight}}
             >

@@ -1,6 +1,17 @@
 import {CalendarDate} from "@internationalized/date";
 import {DotsThree} from "phosphor-react";
-import {ReactNode, useId, useMemo, useRef} from "react";
+import {
+    PropsWithoutRef,
+    ReactElement,
+    ReactNode,
+    Ref,
+    RefAttributes,
+    forwardRef,
+    useId,
+    useImperativeHandle,
+    useMemo,
+    useRef,
+} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
 import {Box} from "~/client/design/box";
@@ -13,6 +24,11 @@ import {TaskDetailDueDateField} from "~/client/tasks/demo_2/internal/task_detail
 import {TaskDetailNotesField} from "~/client/tasks/demo_2/internal/task_detail_notes_field";
 import {TaskDetailTitleInput} from "~/client/tasks/demo_2/internal/task_detail_title_input";
 import {LocalTaskCollection} from "~/client/tasks/demo_2/local_task_collection";
+import {
+    TaskGridPresentationalView,
+    TaskGridPresentationalViewProps,
+    TaskGridPresentationalViewRef,
+} from "~/client/tasks/demo_2/task_grid_presentational_view";
 import {TaskAssignee, TaskStatus, TaskStatusButton} from "~/client/tasks/demo_2/task_status_button";
 import {AccountModel} from "~/shared/accounts/account_model";
 import {Spacing, assertSpacing} from "~/shared/design/spacing";
@@ -39,18 +55,19 @@ import {TaskTitle} from "~/shared/tasks/task_title_schema";
 
 export const taskDetailPresentationalViewMaxWidth: Spacing = "160";
 
-export function TaskDetailPresentationalView({
-    status,
-    onStatusChange,
-    title,
-    onTitleChange,
-    assignee,
-    dueDate,
-    onDueDateChange,
-    collections,
-    notesContent,
-    onNotesContentChange,
-}: {
+export type TaskDetailPresentationalViewRef = {
+    getChildTasksGridView(): TaskGridPresentationalViewRef;
+};
+
+const TaskDetailPresentationalViewForwardRef = forwardRef(TaskDetailPresentationalView) as <
+    ChildTaskRow,
+>(
+    props: PropsWithoutRef<TaskDetailPresentationalViewProps<ChildTaskRow>> &
+        RefAttributes<TaskDetailPresentationalViewRef>,
+) => ReactElement;
+export {TaskDetailPresentationalViewForwardRef as TaskDetailPresentationalView};
+
+export type TaskDetailPresentationalViewProps<ChildTaskRow> = {
     status: TaskStatus;
     onStatusChange: (status: TaskStatus) => void;
     title: TaskTitle;
@@ -61,9 +78,37 @@ export function TaskDetailPresentationalView({
     collections: ReadonlyArray<LocalTaskCollection>;
     notesContent: TaskNotesContentWithReferences;
     onNotesContentChange: (notesContent: TaskNotesContentWithReferences) => void;
-}) {
+    childTasksGridViewProps: TaskGridPresentationalViewProps<ChildTaskRow>;
+};
+
+function TaskDetailPresentationalView<ChildTaskRow>(
+    {
+        status,
+        onStatusChange,
+        title,
+        onTitleChange,
+        assignee,
+        dueDate,
+        onDueDateChange,
+        collections,
+        notesContent,
+        onNotesContentChange,
+        childTasksGridViewProps,
+    }: TaskDetailPresentationalViewProps<ChildTaskRow>,
+    ref: Ref<TaskDetailPresentationalViewRef>,
+) {
     const isMobile = useIsMobile();
     const padding: Spacing = isMobile ? "3" : "5";
+
+    const childTasksGridViewRef = useRef<TaskGridPresentationalViewRef>(null);
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            getChildTasksGridView: () => assertExists(childTasksGridViewRef.current),
+        }),
+        [],
+    );
 
     return (
         <Box
@@ -125,111 +170,24 @@ export function TaskDetailPresentationalView({
                 padding={padding}
             />
             <Box>
-                <Box paddingX={padding} paddingBottom="1.5" color="grey-60">
+                <label
+                    className={sprinkles({
+                        display: "inline-block",
+                        paddingX: padding,
+                        paddingBottom: "2",
+                        color: "grey-60",
+                    })}
+                    // Affordance for mouse users. Clicking on a label focuses child tasks.
+                    onClick={() => {
+                        assertExists(childTasksGridViewRef.current).focusStart();
+                    }}
+                >
                     Subtasks
-                </Box>
-                <Box>
-                    {/* <Box paddingX={padding}>
-                            <Box
-                                height="9"
-                                fontSize="100"
-                                display="flex"
-                                alignItems="center"
-                                borderY="grey-5"
-                                style={inputPlaceholderStyles}
-                            >
-                                Add a subtask…
-                            </Box>
-                        </Box> */}
-                    <Box paddingX={padding}>
-                        <Box
-                            height="9"
-                            fontSize="100"
-                            display="flex"
-                            alignItems="center"
-                            borderY="grey-5"
-                        >
-                            Task row 1
-                        </Box>
-                    </Box>
-                    <Box paddingX={padding}>
-                        <Box
-                            height="9"
-                            fontSize="100"
-                            display="flex"
-                            alignItems="center"
-                            borderBottom="grey-5"
-                        >
-                            Task row 2
-                        </Box>
-                    </Box>
-                    <Box paddingX={padding}>
-                        <Box
-                            height="9"
-                            fontSize="100"
-                            display="flex"
-                            alignItems="center"
-                            borderBottom="grey-5"
-                        >
-                            Task row 3
-                        </Box>
-                    </Box>
-                    <Box paddingX={padding}>
-                        <Box
-                            height="9"
-                            fontSize="100"
-                            display="flex"
-                            alignItems="center"
-                            borderBottom="grey-5"
-                        >
-                            Task row 4
-                        </Box>
-                    </Box>
-                    <Box paddingX={padding}>
-                        <Box
-                            height="9"
-                            fontSize="100"
-                            display="flex"
-                            alignItems="center"
-                            borderBottom="grey-5"
-                        >
-                            Task row 5
-                        </Box>
-                    </Box>
-                    <Box paddingX={padding}>
-                        <Box
-                            height="9"
-                            fontSize="100"
-                            display="flex"
-                            alignItems="center"
-                            borderBottom="grey-5"
-                        >
-                            Task row 6
-                        </Box>
-                    </Box>
-                    <Box paddingX={padding}>
-                        <Box
-                            height="9"
-                            fontSize="100"
-                            display="flex"
-                            alignItems="center"
-                            borderBottom="grey-5"
-                        >
-                            Task row 7
-                        </Box>
-                    </Box>
-                    <Box paddingX={padding}>
-                        <Box
-                            height="9"
-                            fontSize="100"
-                            display="flex"
-                            alignItems="center"
-                            borderBottom="grey-5"
-                        >
-                            Task row 8
-                        </Box>
-                    </Box>
-                </Box>
+                </label>
+                <TaskGridPresentationalView
+                    {...childTasksGridViewProps}
+                    ref={childTasksGridViewRef}
+                />
             </Box>
         </Box>
     );

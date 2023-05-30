@@ -34,7 +34,7 @@ export function TaskDetailNotesField({
     // Space at the end of our notes field we allow the user to click and focus the
     // field. Name comes from a similar property in React Native:
     // https://reactnative.dev/docs/pressable#hitslop
-    const hitSlopBottom: Spacing = "5";
+    const hitSlopBottom: Spacing = "8";
 
     return (
         <Box>

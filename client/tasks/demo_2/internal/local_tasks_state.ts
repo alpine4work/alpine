@@ -14,6 +14,7 @@ import {
     OutOfRangeError,
 } from "~/shared/error/error";
 import {emptyArray} from "~/shared/helpers/array/empty_array";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
@@ -908,7 +909,14 @@ export function useLocalTasksState(): [LocalTasksState, (action: LocalTasksActio
         if (!state.layoutEffectRef.current) return;
         const layoutEffect = state.layoutEffectRef.current;
         state.layoutEffectRef.current = null;
-        layoutEffect();
+
+        // HACK(calebmer): We want this to run after all components which use this hook
+        // have rendered. So schedule in a microtask to make that happen. In a
+        // production implementation we should really find a better way to manage
+        // shared task state and local component state...
+        scheduleMicrotask(() => {
+            layoutEffect();
+        });
     }, [state.layoutEffectRef]);
 
     useDevConsoleTool("localTasksState", () => ({
