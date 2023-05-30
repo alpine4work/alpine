@@ -91,14 +91,117 @@ export default function TasksDesignPlaygroundRoute() {
         <Box backgroundColor="grey-0" border="grey-10" borderRadius="md" paddingY="5">
             <TaskGridDemoView
                 initialTasks={[
-                    {status: "Open", title: createSimpleTaskTitle("Test 1")},
-                    {status: "Open", title: createSimpleTaskTitle("Test 2")},
-                    {status: "Open", title: createSimpleTaskTitle("Test 3")},
-                    {status: "Open", title: createSimpleTaskTitle("Test 4")},
-                    {status: "Open", title: createSimpleTaskTitle("Test 5")},
-                    {status: "Open", title: createSimpleTaskTitle("Test 6")},
-                    {status: "Open", title: createSimpleTaskTitle("Test 7")},
-                    {status: "Open", title: createSimpleTaskTitle("Test 8")},
+                    {status: "Open", title: createSimpleTaskTitle("Vacuum and mop floors")},
+
+                    {
+                        status: "Open",
+                        title: createSimpleTaskTitle("Sort, wash, dry, and fold clothes"),
+                    },
+
+                    // Long task title
+                    {
+                        status: "Open",
+                        title: createSimpleTaskTitle(
+                            "Deep clean the kitchen: Remove all items from the countertops and wipe them down. Scrub the sink, faucet, and stovetop using appropriate cleaners. Clean the oven, inside and out, by following the manufacturer's instructions. Sweep and mop the floor, paying attention to corners and hard-to-reach areas",
+                        ),
+                    },
+
+                    {
+                        status: "Open",
+                        title: createSimpleTaskTitle(
+                            "Clean out the fridge: Remove expired items and wipe shelves",
+                        ),
+                    },
+
+                    // Task with subtasks
+                    {
+                        status: "Open",
+                        title: createSimpleTaskTitle("Clean windows and mirrors"),
+                        childTasks: [
+                            {
+                                status: "Open",
+                                title: createSimpleTaskTitle("Downstairs bathroom"),
+                            },
+                            {
+                                status: "Open",
+                                title: createSimpleTaskTitle("Upstairs bathroom"),
+                            },
+                            {
+                                status: "Open",
+                                title: createSimpleTaskTitle("Living room"),
+                            },
+                            {
+                                status: "Open",
+                                title: createSimpleTaskTitle("Dining room"),
+                            },
+                            {
+                                status: "Open",
+                                title: createSimpleTaskTitle("Master bedroom"),
+                            },
+                            {
+                                status: "Open",
+                                title: createSimpleTaskTitle("Guest bedroom"),
+                            },
+                        ],
+                    },
+
+                    {status: "Open", title: createSimpleTaskTitle("Tidy up the living room")},
+
+                    {status: "Open", title: createSimpleTaskTitle("Declutter and organize")},
+
+                    {status: "Open", title: createSimpleTaskTitle("Organize your closet")},
+
+                    // Long task title with subtasks
+                    {
+                        status: "Open",
+                        title: createSimpleTaskTitle(
+                            "Comprehensive lawn maintenance: Mow the lawn using a suitable mower height and pattern, ensuring an even cut. Pay attention to any obstacles or uneven areas to adjust your mowing technique accordingly. Trim the edges of the lawn with an edger or trimmer to create clean lines along pathways, driveways, and flower beds. Remove any weeds or unwanted vegetation manually or using a weed trimmer. Inspect the lawn for bare patches and apply grass seed or patching mixture to promote healthy growth. Use a rake or leaf blower to gather fallen leaves, branches, and debris from the lawn. Consider aerating the soil if necessary to improve airflow and water penetration. Finally, water the lawn appropriately, providing sufficient hydration without overwatering, and monitor the lawn's health and growth over time.",
+                        ),
+                        childTasks: [
+                            {
+                                status: "Open",
+                                title: createSimpleTaskTitle(
+                                    "Mow the lawn using a suitable mower height and pattern, ensuring an even cut. Pay attention to any obstacles or uneven areas",
+                                ),
+                            },
+                            {
+                                status: "Open",
+                                title: createSimpleTaskTitle(
+                                    "Trim the edges of the lawn with an edger or trimmer to create clean lines along pathways, driveways, and flower beds",
+                                ),
+                            },
+                            {
+                                status: "Open",
+                                title: createSimpleTaskTitle(
+                                    "Remove any weeds or unwanted vegetation manually or using a weed trimmer",
+                                ),
+                            },
+                            {
+                                status: "Open",
+                                title: createSimpleTaskTitle(
+                                    "Inspect the lawn for bare patches and apply grass seed or patching mixture to promote healthy growth",
+                                ),
+                            },
+                            {
+                                status: "Open",
+                                title: createSimpleTaskTitle(
+                                    "Use a rake or leaf blower to gather fallen leaves, branches, and debris from the lawn",
+                                ),
+                            },
+                            {
+                                status: "Open",
+                                title: createSimpleTaskTitle(
+                                    "Consider aerating the soil if necessary to improve airflow and water penetration",
+                                ),
+                            },
+                            {
+                                status: "Open",
+                                title: createSimpleTaskTitle(
+                                    "Water the lawn appropriately, providing sufficient hydration without overwatering, and monitor the lawn's health and growth over time",
+                                ),
+                            },
+                        ],
+                    },
                 ]}
             />
         </Box>
@@ -359,7 +462,10 @@ function TaskGridDemoView({
     initialTasks: Array<{
         title: TaskTitle;
         status: TaskStatus;
-        childTasks?: ReadonlyArray<TaskGridDemoTask>;
+        childTasks?: ReadonlyArray<{
+            title: TaskTitle;
+            status: TaskStatus;
+        }>;
     }>;
 }) {
     const gridViewRef = useRef<TaskGridPresentationalViewRef>(null);
@@ -370,15 +476,23 @@ function TaskGridDemoView({
         effectRef: MutableRefObjectClass<
             ((gridView: TaskGridPresentationalViewRef) => void) | null
         >;
-    }>({
-        nextId: initialTasks.length,
-        tasks: initialTasks.map((task, index) => ({
-            id: index,
-            ...task,
-            areChildTasksCollapsed: false,
-            childTasks: task.childTasks ?? [],
-        })),
-        effectRef: new MutableRefObjectClass(null),
+    }>(() => {
+        let nextId = 0;
+        return {
+            tasks: initialTasks.map(task => ({
+                id: nextId++,
+                ...task,
+                areChildTasksCollapsed: true,
+                childTasks: (task.childTasks ?? []).map(childTask => ({
+                    id: nextId++,
+                    ...childTask,
+                    areChildTasksCollapsed: true,
+                    childTasks: [],
+                })),
+            })),
+            nextId,
+            effectRef: new MutableRefObjectClass(null),
+        };
     });
 
     useMemo(() => {
