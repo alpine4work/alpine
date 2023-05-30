@@ -232,8 +232,8 @@ function TaskRowPresentationalView(
                 {onExpand && isHovered && (
                     <IconButton
                         size="xs"
-                        description="Expand"
-                        pressErrorTitle="Couldn’t expand task"
+                        description="Open"
+                        pressErrorTitle="Couldn’t open task"
                         onPress={onExpand}
                     >
                         <ArrowsOutSimple />

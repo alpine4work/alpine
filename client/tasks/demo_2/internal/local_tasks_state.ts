@@ -27,6 +27,11 @@ import {generateId} from "~/shared/id/id";
 import {LocalTaskId} from "~/shared/id/types/id_types";
 import {OrderKeySchema} from "~/shared/schema/order_key_schema";
 import {Schema, SchemaType} from "~/shared/schema/schema";
+import {
+    TaskNotesContentWithReferences,
+    TaskNotesContentWithReferencesSchema,
+    emptyTaskNotesContentWithReferences,
+} from "~/shared/tasks/task_notes_content_schema";
 import {TaskTitle, TaskTitleSchema, emptyTaskTitle} from "~/shared/tasks/task_title_schema";
 
 const LocalTaskIdByOrderKeySchema = Schema.map(OrderKeySchema, Schema.id<LocalTaskId>()).transform<
@@ -42,6 +47,7 @@ const LocalTaskSchema = Schema.object({
     id: Schema.id<LocalTaskId>(),
     status: Schema.enum(["Open", "Closed"]),
     title: TaskTitleSchema,
+    notesContent: TaskNotesContentWithReferencesSchema,
     parentTaskId: Schema.id<LocalTaskId>().nullable(),
     childTaskIdByOrderKey: LocalTaskIdByOrderKeySchema,
 });
@@ -199,6 +205,7 @@ class LocalTasksDatabase {
             id: options.taskId ?? generateId(),
             status: "Open",
             title: options.title ?? emptyTaskTitle,
+            notesContent: emptyTaskNotesContentWithReferences,
             parentTaskId: options.parentTask?.id ?? null,
             childTaskIdByOrderKey: ImmutableMap.empty(),
         };
@@ -320,6 +327,20 @@ class LocalTasksDatabase {
             taskById: this._taskById.update(taskId, task => {
                 if (!task) throw new NotFoundError("Task not found");
                 return {...task, status};
+            }),
+            notepadPageCount: this._notepadPageCount,
+            taskIdByOrderKeyByNotepadPage: this._taskIdByOrderKeyByNotepadPage,
+        });
+    }
+
+    public updateTaskNotesContent(
+        taskId: LocalTaskId,
+        notesContent: TaskNotesContentWithReferences,
+    ) {
+        return new LocalTasksDatabase({
+            taskById: this._taskById.update(taskId, task => {
+                if (!task) throw new NotFoundError("Task not found");
+                return {...task, notesContent};
             }),
             notepadPageCount: this._notepadPageCount,
             taskIdByOrderKeyByNotepadPage: this._taskIdByOrderKeyByNotepadPage,
@@ -641,6 +662,7 @@ export type LocalTasksAction =
     | LocalTasksCreateTaskAction
     | LocalTasksUpdateTaskTitleAction
     | LocalTasksUpdateTaskStatusAction
+    | LocalTasksUpdateTaskNotesContentAction
     | LocalTasksDeleteTaskAndAllChildrenAction
     | LocalTasksNestTaskAction
     | LocalTasksUnnestTaskToParentTaskAction
@@ -674,6 +696,12 @@ type LocalTasksUpdateTaskStatusAction = {
     readonly type: "UpdateTaskStatus";
     readonly taskId: LocalTaskId;
     readonly status: TaskStatus;
+};
+
+type LocalTasksUpdateTaskNotesContentAction = {
+    readonly type: "UpdateTaskNotesContent";
+    readonly taskId: LocalTaskId;
+    readonly notesContent: TaskNotesContentWithReferences;
 };
 
 type LocalTasksDeleteTaskAndAllChildrenAction = {
@@ -763,6 +791,13 @@ function reduceLocalTasksState(state: LocalTasksState, action: LocalTasksAction)
             return {
                 ...state,
                 database: state.database.updateTaskStatus(action.taskId, action.status),
+            };
+        }
+
+        case "UpdateTaskNotesContent": {
+            return {
+                ...state,
+                database: state.database.updateTaskNotesContent(action.taskId, action.notesContent),
             };
         }
 

@@ -3,7 +3,6 @@ import {useLocalTasksState} from "~/client/tasks/demo_2/internal/local_tasks_sta
 import {TaskDetailPresentationalView} from "~/client/tasks/demo_2/task_detail_presentational_view";
 import {emptyArray} from "~/shared/helpers/array/empty_array";
 import {LocalTaskId} from "~/shared/id/types/id_types";
-import {emptyTaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema";
 
 export function TaskView({taskId}: {taskId: LocalTaskId}) {
     const [state, dispatch] = useLocalTasksState();
@@ -12,15 +11,17 @@ export function TaskView({taskId}: {taskId: LocalTaskId}) {
     return (
         <TaskDetailPresentationalView
             status={task.status}
-            onStatusChange={() => {}} // NOCOMMIT
+            onStatusChange={status => dispatch({type: "UpdateTaskStatus", taskId, status})}
             title={task.title}
-            onTitleChange={() => {}} // NOCOMMIT
+            onTitleChange={title => dispatch({type: "UpdateTaskTitle", taskId, title})}
             assignee={null} // NOCOMMIT
             dueDate={null} // NOCOMMIT
             onDueDateChange={() => {}} // NOCOMMIT
             collections={emptyArray} // NOCOMMIT
-            notesContent={emptyTaskNotesContentWithReferences} // NOCOMMIT
-            onNotesContentChange={() => {}} // NOCOMMIT
+            notesContent={task.notesContent}
+            onNotesContentChange={notesContent =>
+                dispatch({type: "UpdateTaskNotesContent", taskId, notesContent})
+            }
         />
     );
 }
