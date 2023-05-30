@@ -1,6 +1,16 @@
 import {CalendarDate} from "@internationalized/date";
-import {Ref, forwardRef, useCallback, useImperativeHandle, useRef} from "react";
+import {ArrowsOutSimple} from "phosphor-react";
+import {
+    Ref,
+    forwardRef,
+    useCallback,
+    useEffect,
+    useImperativeHandle,
+    useRef,
+    useState,
+} from "react";
 import {Box} from "~/client/design/box";
+import {IconButton} from "~/client/design/icon_button";
 import {
     TaskRowTitleInput,
     TaskRowTitleInputRef,
@@ -72,6 +82,7 @@ function TaskRowPresentationalView(
         closedChildTaskCount,
         areChildTasksCollapsed,
         onAreChildTasksCollapsedToggle,
+        onExpand,
         indentation,
         cells,
         createTaskAbove,
@@ -96,6 +107,7 @@ function TaskRowPresentationalView(
         closedChildTaskCount: number;
         areChildTasksCollapsed: boolean;
         onAreChildTasksCollapsedToggle: () => void;
+        onExpand: (() => Promise<void>) | null;
         indentation: number;
         cells: ReadonlyArray<TaskRowViewCell>;
         createTaskAbove: () => void;
@@ -112,6 +124,7 @@ function TaskRowPresentationalView(
     },
     ref: Ref<TaskRowPresentationalViewRef>,
 ) {
+    const rowRef = useRef<HTMLDivElement>(null);
     const titleInputRef = useRef<TaskRowTitleInputRef>(null);
 
     const focusTitleStart = useCallback(() => {
@@ -135,6 +148,43 @@ function TaskRowPresentationalView(
         () => ({focusTitleStart, focusTitleEnd, focusTitleAll, focusTitleCoord}),
         [focusTitleAll, focusTitleCoord, focusTitleEnd, focusTitleStart],
     );
+
+    const [isHovered, setIsHovered] = useState(false);
+
+    useEffect(() => {
+        const rowElement = assertExists(rowRef.current);
+
+        const handlePointerEnter = () => setIsHovered(true);
+        const handlePointerLeave = () => setIsHovered(false);
+
+        rowElement.addEventListener("pointerenter", handlePointerEnter);
+        rowElement.addEventListener("pointerleave", handlePointerLeave);
+        return () => {
+            rowElement.removeEventListener("pointerenter", handlePointerEnter);
+            rowElement.removeEventListener("pointerleave", handlePointerLeave);
+        };
+    }, []);
+
+    // If we have received a `pointerenter` event, then listen for `pointerenter`
+    // events on `document` which will happen if the mouse enters an element that
+    // occludes our own. If the pointer enters an occluding element we should set
+    // `isHovered` to false.
+    useEffect(() => {
+        if (!isHovered) return;
+
+        const rowElement = assertExists(rowRef.current);
+
+        const handleDocumentPointerEnter = (event: PointerEvent) => {
+            if (!event.currentTarget || event.currentTarget instanceof Node) {
+                setIsHovered(rowElement.contains(event.currentTarget));
+            }
+        };
+
+        document.addEventListener("pointerenter", handleDocumentPointerEnter);
+        return () => {
+            document.removeEventListener("pointerenter", handleDocumentPointerEnter);
+        };
+    }, [isHovered]);
 
     // Small naming note: The whitespace area outside of the task row border we
     // call "margin" and the whitespace area inside the task row border we
@@ -178,7 +228,18 @@ function TaskRowPresentationalView(
                 width="5"
                 paddingRight="1"
                 className={tasksStyles.pointerEventsNoneNotInheritedClassName}
-            />
+            >
+                {onExpand && isHovered && (
+                    <IconButton
+                        size="xs"
+                        description="Expand"
+                        pressErrorTitle="Couldn’t expand task"
+                        onPress={onExpand}
+                    >
+                        <ArrowsOutSimple />
+                    </IconButton>
+                )}
+            </Box>
             <Box
                 width="6"
                 paddingRight="2"
@@ -198,7 +259,7 @@ function TaskRowPresentationalView(
     );
 
     return (
-        <Box height={taskRowViewHeight} display="flex">
+        <Box ref={rowRef} height={taskRowViewHeight} display="flex">
             <Box
                 flexShrink="0"
                 width="5"

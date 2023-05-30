@@ -7,8 +7,10 @@ export default function TasksRoute() {
     return (
         <TaskNotepadView
             // Fully remount after initial render since our data is coming from
-            // localStorage` so we want our components to be fresh with the
+            // `localStorage` so we want our components to be fresh with the
             // correct data.
+            //
+            // TODO(calebmer): Remove this in a production implementation.
             key={String(isInitialAppRender)}
         />
     );

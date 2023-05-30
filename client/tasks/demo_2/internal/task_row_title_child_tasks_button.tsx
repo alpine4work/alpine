@@ -131,7 +131,7 @@ function TaskRowTitleChildTasksButtonProgress({
                         strokeLinejoin="round"
                         strokeWidth={strokeWidth}
                         strokeDasharray={`${fraction * dashes} ${dashes}`}
-                        style={{transition: "stroke-dasharray 100ms ease"}}
+                        style={{transition: "stroke-dasharray 200ms ease"}}
                     />
                 </svg>
             </Box>

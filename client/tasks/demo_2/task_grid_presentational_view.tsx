@@ -55,7 +55,8 @@ type TaskGridPresentationalViewProps<TaskRow> = {
     getTaskChildTaskCount: (taskRow: TaskRow) => number;
     getTaskClosedChildTaskCount: (taskRow: TaskRow) => number;
     getTaskAreChildTasksCollapsed: (taskRow: TaskRow) => boolean;
-    onAreChildTasksCollapsedToggle: (taskRow: TaskRow) => void;
+    onTaskAreChildTasksCollapsedToggle: (taskRow: TaskRow) => void;
+    onTaskExpand: ((taskRow: TaskRow) => Promise<void>) | null;
     getTaskRowIndentation: (taskRow: TaskRow) => number;
     createTaskAbove: (taskRow: TaskRow) => void;
     createTaskBelowAndFocus: (taskRow: TaskRow) => void;
@@ -85,7 +86,8 @@ function TaskGridPresentationalView<TaskRow>(
         getTaskChildTaskCount,
         getTaskClosedChildTaskCount,
         getTaskAreChildTasksCollapsed,
-        onAreChildTasksCollapsedToggle,
+        onTaskAreChildTasksCollapsedToggle,
+        onTaskExpand,
         getTaskRowIndentation,
         createTaskAbove,
         createTaskBelowAndFocus,
@@ -171,6 +173,7 @@ function TaskGridPresentationalView<TaskRow>(
                 closedChildTaskCount={0}
                 areChildTasksCollapsed={false}
                 onAreChildTasksCollapsedToggle={noop}
+                onExpand={null}
                 indentation={0}
                 cells={emptyArray}
                 createTaskAbove={() => createTaskAtStartFromTopGhostAndFocus(emptyTaskTitle)}
@@ -229,7 +232,8 @@ function TaskGridPresentationalView<TaskRow>(
                 childTaskCount={getTaskChildTaskCount(taskRow)}
                 closedChildTaskCount={getTaskClosedChildTaskCount(taskRow)}
                 areChildTasksCollapsed={getTaskAreChildTasksCollapsed(taskRow)}
-                onAreChildTasksCollapsedToggle={() => onAreChildTasksCollapsedToggle(taskRow)}
+                onAreChildTasksCollapsedToggle={() => onTaskAreChildTasksCollapsedToggle(taskRow)}
+                onExpand={onTaskExpand ? () => onTaskExpand(taskRow) : null}
                 indentation={taskRowIndentation}
                 cells={emptyArray}
                 createTaskAbove={() => createTaskAbove(taskRow)}
@@ -309,6 +313,7 @@ function TaskGridPresentationalView<TaskRow>(
             closedChildTaskCount={0}
             areChildTasksCollapsed={false}
             onAreChildTasksCollapsedToggle={noop}
+            onExpand={null}
             indentation={0}
             cells={emptyArray}
             createTaskAbove={() => createTaskAtEndFromBottomGhostAndFocusNewGhost(emptyTaskTitle)}

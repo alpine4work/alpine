@@ -1,6 +1,8 @@
 import {Memo, Ref, forwardRef, useMemo, useRef, useState} from "react";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
+import {usePeekStackContext} from "~/client/peek/peek_stack";
+import {useSpaceContext} from "~/client/spaces/space_context";
 import {
     LocalTask,
     LocalTasksAction,
@@ -45,6 +47,8 @@ function TaskNotepadGridView(
     },
     ref: Ref<TaskGridPresentationalViewRef>,
 ) {
+    const {space} = useSpaceContext();
+    const peekStackContext = usePeekStackContext();
     const gridViewRef = useRef<TaskGridPresentationalViewRef>(null);
 
     const tasks = useMemo(
@@ -200,7 +204,7 @@ function TaskNotepadGridView(
                 )
             }
             getTaskAreChildTasksCollapsed={({task}) => !expandedTaskIds.has(task.id)}
-            onAreChildTasksCollapsedToggle={({task: {id: taskId}}) => {
+            onTaskAreChildTasksCollapsedToggle={({task: {id: taskId}}) => {
                 setExpandedTaskIds(expandedTaskIds => {
                     const newExpandedTaskIds = new Set(expandedTaskIds);
                     if (!newExpandedTaskIds.delete(taskId)) {
@@ -208,6 +212,9 @@ function TaskNotepadGridView(
                     }
                     return newExpandedTaskIds;
                 });
+            }}
+            onTaskExpand={async ({task: {id: taskId}}) => {
+                await peekStackContext.push(`/s/${space.id}/tasks/demo-2/${taskId}`);
             }}
             getTaskRowIndentation={({position}) => position.indentation}
             createTaskAbove={({position}) => {

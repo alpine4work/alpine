@@ -19,13 +19,13 @@ export async function loadInitialPeekDataForServer(
     context: LoaderContext,
     request: Request,
     routes: Array<ServerRoute>,
-    to: To,
+    spacePath: To,
 ): Promise<{
-    path: Path;
+    peekPath: Path;
     loaderData: {[key: string]: SchemaSerializedObjectValue};
     loadExtraRouteIds: Array<string>;
 }> {
-    const peekPath = convertSpacePathToPeekPath(to);
+    const peekPath = convertSpacePathToPeekPath(spacePath);
     if (!peekPath) throw new InvalidArgumentError("Can only open peek for a space route");
 
     const routeMatches = matchServerRoutes(routes, peekPath.pathname);
@@ -64,7 +64,7 @@ export async function loadInitialPeekDataForServer(
     const loaderData = Object.fromEntries(results.filter(isNonNullable));
 
     return {
-        path: peekPath,
+        peekPath,
         loaderData,
         loadExtraRouteIds,
     };

@@ -1,7 +1,10 @@
-import {Memo, MutableRefObject, useEffect, useReducer, useRef} from "react";
+import {MutableRefObject, useEffect, useMemo, useRef} from "react";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
+import {Store} from "~/client/helpers/store/store";
+import {useStore} from "~/client/helpers/store/use_store";
+import {ValueStore} from "~/client/helpers/store/value_store";
 import {TaskStatus} from "~/client/tasks/demo_2/task_status_button";
 import {
     DataLossError,
@@ -14,6 +17,8 @@ import {emptyArray} from "~/shared/helpers/array/empty_array";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {Lazy} from "~/shared/helpers/control/lazy";
+import {noop} from "~/shared/helpers/control/noop";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
@@ -807,26 +812,51 @@ function reduceLocalTasksState(state: LocalTasksState, action: LocalTasksAction)
     }
 }
 
-function maybeRestoreLocalTasksState(shouldRestoreState: boolean): LocalTasksState {
-    let state = getInitialLocalTasksState();
+const localTasksStateStore = new Lazy<{
+    state: Store<LocalTasksState>;
+    dispatch: (action: LocalTasksAction) => void;
+}>(() => {
+    let initialState = getInitialLocalTasksState();
 
-    if (shouldRestoreState) {
-        const serializedStateString = localStorage.getItem("tasksLocalState2");
-        if (serializedStateString !== null) {
-            state = reduceLocalTasksState(state, {type: "RestoreState", serializedStateString});
-        }
+    const serializedStateString = localStorage.getItem("tasksLocalState2");
+    if (serializedStateString !== null) {
+        initialState = reduceLocalTasksState(initialState, {
+            type: "RestoreState",
+            serializedStateString,
+        });
     }
 
-    return state;
-}
+    const stateStore = new ValueStore(initialState);
 
-export function useLocalTasksState(): [LocalTasksState, Memo<(action: LocalTasksAction) => void>] {
+    const dispatch = (action: LocalTasksAction) => {
+        stateStore.set(state => reduceLocalTasksState(state, action));
+    };
+
+    stateStore.subscribe(() => {
+        const serializedState = LocalTasksStateSchema.serialize(stateStore.getSnapshot());
+        const serializedStateString = JSON.stringify(serializedState);
+        localStorage.setItem("tasksLocalState2", serializedStateString);
+    });
+
+    return {
+        state: stateStore,
+        dispatch,
+    };
+});
+
+export function useLocalTasksState(): [LocalTasksState, (action: LocalTasksAction) => void] {
     const isInitialAppRender = useIsInitialAppRender();
-    const [state, dispatch] = useReducer(
-        reduceLocalTasksState,
-        !isInitialAppRender,
-        maybeRestoreLocalTasksState,
-    );
+
+    const store = useMemo(() => {
+        if (!isInitialAppRender) return localTasksStateStore.get();
+
+        return {
+            state: new ValueStore(getInitialLocalTasksState()),
+            dispatch: noop,
+        };
+    }, [isInitialAppRender]);
+
+    const state = useStore(store.state);
 
     const shouldRestoreStateRef = useRef(isInitialAppRender);
     useEffect(() => {
@@ -835,17 +865,9 @@ export function useLocalTasksState(): [LocalTasksState, Memo<(action: LocalTasks
 
         const serializedStateString = localStorage.getItem("tasksLocalState2");
         if (serializedStateString !== null) {
-            dispatch({type: "RestoreState", serializedStateString});
+            store.dispatch({type: "RestoreState", serializedStateString});
         }
-    }, []);
-
-    useEffect(() => {
-        if (isInitialAppRender) return;
-
-        const serializedState = LocalTasksStateSchema.serialize(state);
-        const serializedStateString = JSON.stringify(serializedState);
-        localStorage.setItem("tasksLocalState2", serializedStateString);
-    }, [isInitialAppRender, state]);
+    }, [store]);
 
     useLayoutEffectWithoutServerSideWarning(() => {
         if (!state.layoutEffectRef.current) return;
@@ -855,8 +877,8 @@ export function useLocalTasksState(): [LocalTasksState, Memo<(action: LocalTasks
     }, [state.layoutEffectRef]);
 
     useDevConsoleTool("localTasksState", () => ({
-        reset: () => dispatch({type: "ResetState"}),
+        reset: () => store.dispatch({type: "ResetState"}),
     }));
 
-    return [state, dispatch as Memo<(action: LocalTasksAction) => void>];
+    return [state, store.dispatch];
 }

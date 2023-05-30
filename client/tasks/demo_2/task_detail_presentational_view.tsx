@@ -37,6 +37,8 @@ import {TaskTitle} from "~/shared/tasks/task_title_schema";
 // [ ] Activity
 // [ ] Dark mode pass
 
+export const taskDetailPresentationalViewMaxWidth: Spacing = "160";
+
 export function TaskDetailPresentationalView({
     status,
     onStatusChange,
@@ -64,72 +66,70 @@ export function TaskDetailPresentationalView({
     const padding: Spacing = isMobile ? "3" : "5";
 
     return (
-        <Box minHeight="full" display="flex">
-            <Box
-                flexGrow="1"
-                maxWidth="160"
-                paddingY={padding}
-                display="flex"
-                flexDirection="column"
-                gap="10"
-                position="relative"
-                borderRight="grey-10"
-            >
-                <Box paddingX={padding} display="flex" flexDirection="column" gap="3">
-                    <TaskStatusButton
-                        size="5"
-                        assignee={assignee}
-                        status={status}
-                        onStatusChange={onStatusChange}
-                    />
-                    <Box
-                        position="absolute"
-                        top={assertSpacing(`${parseInt(padding, 10) - 2}`)}
-                        right={assertSpacing(`${parseInt(padding, 10) - 2}`)}
-                    >
-                        <MenuButton
-                            actions={[
-                                {
-                                    label: "Copy link",
-                                    pressErrorTitle: "Couldn’t copy task link",
-                                    onPress: async () => {
-                                        // NOCOMMIT
-                                        throw new UnimplementedError("TODO");
-                                    },
-                                },
-                            ]}
-                        >
-                            <IconButton description="More" withoutTooltip={true}>
-                                <DotsThree />
-                            </IconButton>
-                        </MenuButton>
-                    </Box>
-                    <TaskDetailTitleInput
-                        status={status}
-                        title={title}
-                        onTitleChange={onTitleChange}
-                        placeholder="Untitled task"
-                    />
-                </Box>
-                <TaskDetailViewDenseFields
+        <Box
+            maxWidth={taskDetailPresentationalViewMaxWidth}
+            paddingY={padding}
+            display="flex"
+            flexDirection="column"
+            gap="10"
+            position="relative"
+            backgroundColor="grey-0"
+        >
+            <Box paddingX={padding} display="flex" flexDirection="column" gap="3">
+                <TaskStatusButton
+                    size="5"
+                    assignee={assignee}
                     status={status}
-                    assigneeAccount={assignee?.account ?? null}
-                    dueDate={dueDate}
-                    onDueDateChange={onDueDateChange}
-                    collections={collections}
-                    padding={padding}
+                    onStatusChange={onStatusChange}
                 />
-                <TaskDetailNotesField
-                    notesContent={notesContent}
-                    onNotesContentChange={onNotesContentChange}
-                    padding={padding}
+                <Box
+                    position="absolute"
+                    top={assertSpacing(`${parseInt(padding, 10) - 2}`)}
+                    right={assertSpacing(`${parseInt(padding, 10) - 2}`)}
+                >
+                    <MenuButton
+                        actions={[
+                            {
+                                label: "Copy link",
+                                pressErrorTitle: "Couldn’t copy task link",
+                                onPress: async () => {
+                                    // NOCOMMIT
+                                    throw new UnimplementedError("TODO");
+                                },
+                            },
+                        ]}
+                    >
+                        <IconButton description="More" withoutTooltip={true}>
+                            <DotsThree />
+                        </IconButton>
+                    </MenuButton>
+                </Box>
+                <TaskDetailTitleInput
+                    status={status}
+                    title={title}
+                    onTitleChange={onTitleChange}
+                    placeholder="Untitled task"
                 />
+            </Box>
+            <TaskDetailViewDenseFields
+                status={status}
+                assigneeAccount={assignee?.account ?? null}
+                dueDate={dueDate}
+                onDueDateChange={onDueDateChange}
+                collections={collections}
+                padding={padding}
+            />
+            <TaskDetailNotesField
+                notesContent={notesContent}
+                onNotesContentChange={onNotesContentChange}
+                padding={padding}
+            />
+            <Box>
+                <Box paddingX={padding} paddingBottom="1.5" color="grey-60">
+                    Subtasks
+                </Box>
                 <Box>
-                    <Box paddingX={padding} paddingBottom="1.5" color="grey-60">
-                        Subtasks
-                    </Box>
-                    <Box>
-                        {/* <Box paddingX={padding}>
+                    {/* <Box paddingX={padding}>
                             <Box
                                 height="9"
                                 fontSize="100"
@@ -141,93 +141,92 @@ export function TaskDetailPresentationalView({
                                 Add a subtask…
                             </Box>
                         </Box> */}
-                        <Box paddingX={padding}>
-                            <Box
-                                height="9"
-                                fontSize="100"
-                                display="flex"
-                                alignItems="center"
-                                borderY="grey-5"
-                            >
-                                Task row 1
-                            </Box>
+                    <Box paddingX={padding}>
+                        <Box
+                            height="9"
+                            fontSize="100"
+                            display="flex"
+                            alignItems="center"
+                            borderY="grey-5"
+                        >
+                            Task row 1
                         </Box>
-                        <Box paddingX={padding}>
-                            <Box
-                                height="9"
-                                fontSize="100"
-                                display="flex"
-                                alignItems="center"
-                                borderBottom="grey-5"
-                            >
-                                Task row 2
-                            </Box>
+                    </Box>
+                    <Box paddingX={padding}>
+                        <Box
+                            height="9"
+                            fontSize="100"
+                            display="flex"
+                            alignItems="center"
+                            borderBottom="grey-5"
+                        >
+                            Task row 2
                         </Box>
-                        <Box paddingX={padding}>
-                            <Box
-                                height="9"
-                                fontSize="100"
-                                display="flex"
-                                alignItems="center"
-                                borderBottom="grey-5"
-                            >
-                                Task row 3
-                            </Box>
+                    </Box>
+                    <Box paddingX={padding}>
+                        <Box
+                            height="9"
+                            fontSize="100"
+                            display="flex"
+                            alignItems="center"
+                            borderBottom="grey-5"
+                        >
+                            Task row 3
                         </Box>
-                        <Box paddingX={padding}>
-                            <Box
-                                height="9"
-                                fontSize="100"
-                                display="flex"
-                                alignItems="center"
-                                borderBottom="grey-5"
-                            >
-                                Task row 4
-                            </Box>
+                    </Box>
+                    <Box paddingX={padding}>
+                        <Box
+                            height="9"
+                            fontSize="100"
+                            display="flex"
+                            alignItems="center"
+                            borderBottom="grey-5"
+                        >
+                            Task row 4
                         </Box>
-                        <Box paddingX={padding}>
-                            <Box
-                                height="9"
-                                fontSize="100"
-                                display="flex"
-                                alignItems="center"
-                                borderBottom="grey-5"
-                            >
-                                Task row 5
-                            </Box>
+                    </Box>
+                    <Box paddingX={padding}>
+                        <Box
+                            height="9"
+                            fontSize="100"
+                            display="flex"
+                            alignItems="center"
+                            borderBottom="grey-5"
+                        >
+                            Task row 5
                         </Box>
-                        <Box paddingX={padding}>
-                            <Box
-                                height="9"
-                                fontSize="100"
-                                display="flex"
-                                alignItems="center"
-                                borderBottom="grey-5"
-                            >
-                                Task row 6
-                            </Box>
+                    </Box>
+                    <Box paddingX={padding}>
+                        <Box
+                            height="9"
+                            fontSize="100"
+                            display="flex"
+                            alignItems="center"
+                            borderBottom="grey-5"
+                        >
+                            Task row 6
                         </Box>
-                        <Box paddingX={padding}>
-                            <Box
-                                height="9"
-                                fontSize="100"
-                                display="flex"
-                                alignItems="center"
-                                borderBottom="grey-5"
-                            >
-                                Task row 7
-                            </Box>
+                    </Box>
+                    <Box paddingX={padding}>
+                        <Box
+                            height="9"
+                            fontSize="100"
+                            display="flex"
+                            alignItems="center"
+                            borderBottom="grey-5"
+                        >
+                            Task row 7
                         </Box>
-                        <Box paddingX={padding}>
-                            <Box
-                                height="9"
-                                fontSize="100"
-                                display="flex"
-                                alignItems="center"
-                                borderBottom="grey-5"
-                            >
-                                Task row 8
-                            </Box>
+                    </Box>
+                    <Box paddingX={padding}>
+                        <Box
+                            height="9"
+                            fontSize="100"
+                            display="flex"
+                            alignItems="center"
+                            borderBottom="grey-5"
+                        >
+                            Task row 8
                         </Box>
                     </Box>
                 </Box>

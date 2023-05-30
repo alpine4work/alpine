@@ -267,11 +267,24 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
 
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     const push = useEvent(async (to: To, {focus = false}: {focus?: boolean} = {}) => {
+        const peekPath = convertSpacePathToPeekPath(to);
+        if (!peekPath) throw new InternalError("Can only open peek for a space route");
+
+        // If the top of the peek stack is the URL we're navigating to then do nothing.
+        // Wiggle the stack as a response to the user's interaction.
+        if (
+            state.stack[0]?.history.location.pathname === peekPath.pathname &&
+            state.stack[0].history.location.search === peekPath.search
+        ) {
+            stackRef.current?.wiggle();
+            return;
+        }
+
         const abortController = new AbortController();
 
-        const {path, loaderData} = await loadInitialPeekDataForClient(
+        const {loaderData} = await loadInitialPeekDataForClient(
             remixEntryContext.clientRoutes,
-            to,
+            peekPath,
             abortController.signal,
         );
 
@@ -280,7 +293,7 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
             entry: {
                 id: generateId(),
                 history: createMemoryHistory({
-                    initialEntries: [path],
+                    initialEntries: [peekPath],
                 }),
                 autoFocus: focus,
                 loaderDataRef: new Lazy(() => PromiseImmediate.resolve({current: loaderData})),
@@ -1427,15 +1440,9 @@ function restorePeekStack(
             loaderDataRef: new Lazy(() =>
                 PromiseImmediate.resolve(
                     (async () => {
-                        const spacePath = convertPeekPathToSpacePath(history.location);
-                        if (!spacePath)
-                            throw new InternalError(
-                                "Expected restored peek stack to only have peek routes",
-                            );
-
                         const {loaderData} = await loadInitialPeekDataForClient(
                             routes,
-                            spacePath,
+                            history.location,
                             abortController.signal,
                         );
 

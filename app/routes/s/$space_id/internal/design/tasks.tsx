@@ -12,7 +12,10 @@ import {
     TaskCardPresentationalView,
     taskCardViewMaxWidth,
 } from "~/client/tasks/demo_2/task_card_presentational_view";
-import {TaskDetailPresentationalView} from "~/client/tasks/demo_2/task_detail_presentational_view";
+import {
+    TaskDetailPresentationalView,
+    taskDetailPresentationalViewMaxWidth,
+} from "~/client/tasks/demo_2/task_detail_presentational_view";
 import {
     TaskGridPresentationalView,
     TaskGridPresentationalViewRef,
@@ -247,7 +250,7 @@ export default function TasksDesignPlaygroundRoute() {
             <Box
                 backgroundColor="grey-0"
                 flexShrink="0"
-                width="192"
+                width={taskDetailPresentationalViewMaxWidth}
                 style={{height: "56rem"}}
                 boxShadow="elevation-5"
                 borderRadius="lg"
@@ -348,7 +351,7 @@ export default function TasksDesignPlaygroundRoute() {
         <Box
             backgroundColor="grey-0"
             flexShrink="0"
-            width="192"
+            width={taskDetailPresentationalViewMaxWidth}
             style={{height: "56rem"}}
             boxShadow="elevation-5"
             borderRadius="lg"
@@ -597,7 +600,7 @@ function TaskGridDemoView({
                 task.childTasks.filter(childTask => childTask.status === "Closed").length
             }
             getTaskAreChildTasksCollapsed={({task}) => task.areChildTasksCollapsed}
-            onAreChildTasksCollapsedToggle={({task: {id: taskId}}) => {
+            onTaskAreChildTasksCollapsedToggle={({task: {id: taskId}}) => {
                 setState(state =>
                     produce(state, state => {
                         const loop = (tasks: Draft<ReadonlyArray<TaskGridDemoTask>>) => {
@@ -619,6 +622,7 @@ function TaskGridDemoView({
                     }),
                 );
             }}
+            onTaskExpand={null}
             getTaskRowIndentation={({indentation}) => indentation}
             createTaskAbove={({task: {id: taskId}}) => {
                 setState(state =>

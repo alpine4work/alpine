@@ -78,7 +78,7 @@ export async function loader({params, context, request, serverRoutes}: LoaderArg
         entriesResult,
         peekData: peekData
             ? {
-                  path: createPath(peekData.path),
+                  path: createPath(peekData.peekPath),
                   loaderData: peekData.loaderData,
                   loadExtraRouteIds: peekData.loadExtraRouteIds,
               }

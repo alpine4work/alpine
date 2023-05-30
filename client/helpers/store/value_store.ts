@@ -39,12 +39,15 @@ export class ValueStore<Value> extends Store<Value> {
      * Update the value in the store. Calls any subscribed listeners. The store
      * value should be immutable so this should be the only way to update it.
      */
-    public set(value: Value): void {
+    public set(value: Value | ((value: Value) => Value)): void {
+        const actualValue: Value =
+            typeof value === "function" ? (value as (value: Value) => Value)(this._value) : value;
+
         // Optimization: Skip updates where the value is exactly equal to the
         // previous value.
-        if (Object.is(this._value, value)) return;
+        if (Object.is(this._value, actualValue)) return;
 
-        this._value = value;
+        this._value = actualValue;
 
         for (const listener of this._listeners) {
             try {

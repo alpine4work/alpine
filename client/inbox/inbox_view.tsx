@@ -228,7 +228,7 @@ export function InboxView({
         const loaderDataRefPromise = (async () => {
             const {loaderData} = await loadInitialPeekDataForClient(
                 remixEntryContext.clientRoutes,
-                spacePath,
+                peekPath,
                 abortController.signal,
             );
             return {current: loaderData};

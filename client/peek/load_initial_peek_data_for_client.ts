@@ -1,23 +1,18 @@
 import {ClientRoute, matchClientRoutes} from "@remix-run/react";
-import {Path, To} from "history";
-import {InternalError, NotFoundError} from "~/shared/error/error";
+import {Path} from "history";
+import {NotFoundError} from "~/shared/error/error";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
-import {convertSpacePathToPeekPath} from "~/shared/remix/peek_path_helpers";
 
 /**
  * We have a server version of this too: `loadInitialPeekDataForServer()`.
  */
 export async function loadInitialPeekDataForClient(
     routes: Array<ClientRoute>,
-    to: To,
+    peekPath: Path,
     signal: AbortSignal,
 ): Promise<{
-    path: Path;
     loaderData: {[key: string]: unknown};
 }> {
-    const peekPath = convertSpacePathToPeekPath(to);
-    if (!peekPath) throw new InternalError("Can only open peek for a space route");
-
     const routeMatches = matchClientRoutes(routes, peekPath.pathname);
     if (!routeMatches) throw new NotFoundError("Peek route not found");
 
@@ -57,7 +52,6 @@ export async function loadInitialPeekDataForClient(
     }
 
     return {
-        path: peekPath,
         loaderData,
     };
 }
