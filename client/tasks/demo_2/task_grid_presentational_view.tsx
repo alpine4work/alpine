@@ -1,4 +1,10 @@
-import {DndContext, DragOverlay, pointerWithin, useDndContext} from "@dnd-kit/core";
+import {
+    CollisionDescriptor,
+    CollisionDetection,
+    DndContext,
+    DragOverlay,
+    useDndContext,
+} from "@dnd-kit/core";
 import {
     Key,
     PropsWithoutRef,
@@ -420,7 +426,7 @@ function TaskGridPresentationalView<TaskRow>(
     );
 
     return (
-        <DndContext collisionDetection={pointerWithin}>
+        <DndContext collisionDetection={taskGridViewDndCollisionDetection} onDragEnd={() => {}}>
             <Box position="relative" zIndex="0">
                 {taskRows}
                 {taskRows.length <= 1 && decorativeGhostTaskRow}
@@ -430,6 +436,74 @@ function TaskGridPresentationalView<TaskRow>(
         </DndContext>
     );
 }
+
+/**
+ * Custom collision detection algorithm that picks the droppable container the
+ * pointer collides with. If the pointer doesn't collide with any droppable
+ * container then we look for the closest droppable container to the pointer.
+ */
+const taskGridViewDndCollisionDetection: CollisionDetection = ({
+    pointerCoordinates,
+    droppableContainers,
+    droppableRects,
+}) => {
+    if (!pointerCoordinates) return [];
+
+    const collisions: Array<CollisionDescriptor> = [];
+    let nearestFallbackCollision: CollisionDescriptor | null = null;
+
+    for (const droppableContainer of droppableContainers) {
+        const {id} = droppableContainer;
+        const rect = droppableRects.get(id);
+
+        if (!rect) continue;
+
+        // Calculate the distance between the pointer and the droppable bounding box.
+        // https://stackoverflow.com/a/18157551/1568890
+        const dx = Math.max(rect.left - pointerCoordinates.x, 0, pointerCoordinates.x - rect.right);
+        const dy = Math.max(rect.top - pointerCoordinates.y, 0, pointerCoordinates.y - rect.bottom);
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (
+            distance > 0 &&
+            (!nearestFallbackCollision || nearestFallbackCollision.data.value > distance)
+        ) {
+            nearestFallbackCollision = {id, data: {droppableContainer, value: distance}};
+        } else if (distance === 0) {
+            // There may be more than a single rectangle intersecting with the pointer
+            // coordinates. In order to sort the colliding rectangles, we measure the
+            // distance between the pointer and the corners of the intersecting rectangle.
+            //
+            // This logic is adapted from `@dnd-kit/core`:
+            // https://github.com/clauderic/dnd-kit/blob/5c58f0fe5d19b5aaa5cf93572f3435f4a0a6e54f/packages/core/src/utilities/algorithms/pointerWithin.ts#L36-L52
+            const corners = [
+                {x: rect.left, y: rect.top},
+                {x: rect.left + rect.width, y: rect.top},
+                {x: rect.left, y: rect.top + rect.height},
+                {x: rect.left + rect.width, y: rect.top + rect.height},
+            ];
+
+            const distances = corners.reduce(
+                (accumulator, corner) =>
+                    accumulator +
+                    Math.sqrt(
+                        Math.pow(pointerCoordinates.x - corner.x, 2) +
+                            Math.pow(pointerCoordinates.y - corner.y, 2),
+                    ),
+                0,
+            );
+            const effectiveDistance = Number((distances / 4).toFixed(4));
+
+            collisions.push({id, data: {droppableContainer, value: effectiveDistance}});
+        }
+    }
+
+    if (collisions.length > 0) {
+        return collisions.sort((a, b) => a.data.value - b.data.value);
+    }
+
+    return nearestFallbackCollision ? [nearestFallbackCollision] : [];
+};
 
 function TaskRowViewDragPortals() {
     const {active, activatorEvent} = useDndContext();
