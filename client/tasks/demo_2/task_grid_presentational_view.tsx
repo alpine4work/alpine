@@ -23,6 +23,7 @@ import {
 import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
+import {TaskRowViewDroppable} from "~/client/tasks/demo_2/internal/task_row_view_droppable";
 import {
     TaskRowPresentationalView,
     TaskRowPresentationalViewRef,
@@ -81,6 +82,8 @@ export type TaskGridPresentationalViewProps<TaskRow> = {
     nestTaskAndExpandParentRow: (parentTaskRow: TaskRow, childTaskRow: TaskRow) => void;
     unnestTaskIfNestedRow: (childTaskRow: TaskRow) => void;
     deleteTaskAndAllChildrenAndFocusPreviousRow: (taskRow: TaskRow) => void;
+    moveTaskBelow: (belowTaskRow: TaskRow | null, unnest: number, taskRow: TaskRow) => void;
+    moveTaskToParentTop: (parentTaskRow: TaskRow, taskRow: TaskRow) => void;
 };
 
 function TaskGridPresentationalView<TaskRow>(
@@ -113,6 +116,8 @@ function TaskGridPresentationalView<TaskRow>(
         nestTaskAndExpandParentRow,
         unnestTaskIfNestedRow,
         deleteTaskAndAllChildrenAndFocusPreviousRow,
+        moveTaskBelow,
+        moveTaskToParentTop,
     }: TaskGridPresentationalViewProps<TaskRow>,
     ref: Ref<TaskGridPresentationalViewRef>,
 ) {
@@ -172,11 +177,14 @@ function TaskGridPresentationalView<TaskRow>(
 
     const taskRows: Array<ReactNode> = [];
 
-    if (topGhostTaskKey !== null && taskRowCount >= 1) {
+    const hasTopGhostTaskRow = topGhostTaskKey !== null && taskRowCount >= 1;
+
+    if (hasTopGhostTaskRow) {
         taskRows.push(
             <TaskRowPresentationalView
                 key={topGhostTaskKey}
                 ref={topGhostTaskRowRef}
+                taskRow={null}
                 status={null}
                 onStatusChange={noop}
                 title={emptyTaskTitle}
@@ -190,6 +198,7 @@ function TaskGridPresentationalView<TaskRow>(
                 onAreChildTasksCollapsedToggle={noop}
                 onExpand={null}
                 indentation={0}
+                droppableIndentations={[0]}
                 cells={emptyArray}
                 createTaskAbove={() => createTaskAtStartFromTopGhostAndFocus(emptyTaskTitle)}
                 createTaskBelowAndFocus={() =>
@@ -227,7 +236,6 @@ function TaskGridPresentationalView<TaskRow>(
                 focusLastTaskTitleEnd={() => {
                     bottomGhostTaskRowRef.current?.focusTitleEnd();
                 }}
-                droppableIndentations={[0]}
             />,
         );
     }
@@ -253,6 +261,7 @@ function TaskGridPresentationalView<TaskRow>(
             <TaskRowPresentationalView
                 key={getTaskKey(taskRow)}
                 ref={taskRowRefByIndex.get(index)}
+                taskRow={taskRow}
                 status={getTaskStatus(taskRow)}
                 onStatusChange={status => onTaskStatusChange(taskRow, status)}
                 title={getTaskTitle(taskRow)}
@@ -265,6 +274,7 @@ function TaskGridPresentationalView<TaskRow>(
                 onAreChildTasksCollapsedToggle={() => onTaskAreChildTasksCollapsedToggle(taskRow)}
                 onExpand={onTaskExpand ? () => onTaskExpand(taskRow) : null}
                 indentation={taskRowIndentation}
+                droppableIndentations={droppableIndentations}
                 cells={emptyArray}
                 createTaskAbove={() => createTaskAbove(taskRow)}
                 createTaskBelowAndFocus={() => createTaskBelowAndFocus(taskRow)}
@@ -322,7 +332,6 @@ function TaskGridPresentationalView<TaskRow>(
                 focusLastTaskTitleEnd={() => {
                     bottomGhostTaskRowRef.current?.focusTitleEnd();
                 }}
-                droppableIndentations={droppableIndentations}
             />,
         );
     }
@@ -334,6 +343,7 @@ function TaskGridPresentationalView<TaskRow>(
             // If there are no task rows, the padding just makes our ghost row placeholder
             // look misaligned. So remove it.
             withoutPaddingLeft={taskRowCount === 0}
+            taskRow={null}
             status={null}
             onStatusChange={noop}
             title={emptyTaskTitle}
@@ -347,6 +357,7 @@ function TaskGridPresentationalView<TaskRow>(
             onAreChildTasksCollapsedToggle={noop}
             onExpand={null}
             indentation={0}
+            droppableIndentations={[]}
             cells={emptyArray}
             createTaskAbove={() => createTaskAtEndFromBottomGhostAndFocusNewGhost(emptyTaskTitle)}
             createTaskBelowAndFocus={() =>
@@ -426,13 +437,48 @@ function TaskGridPresentationalView<TaskRow>(
     );
 
     return (
-        <DndContext collisionDetection={taskGridViewDndCollisionDetection} onDragEnd={() => {}}>
+        <DndContext
+            collisionDetection={taskGridViewDndCollisionDetection}
+            onDragEnd={({active, over}) => {
+                if (!over) return;
+
+                const activeTaskRow: TaskRow = assertExists(active.data.current).taskRow;
+                const overTaskRow: TaskRow | null = assertExists(over.data.current).taskRow;
+                const overIndentation: number = assertExists(over.data.current).indentation;
+
+                const unnest = Math.max(
+                    0,
+                    (overTaskRow ? getTaskRowIndentation(overTaskRow) : 0) - overIndentation,
+                );
+
+                if (overTaskRow && unnest === 0 && !getTaskAreChildTasksCollapsed(overTaskRow)) {
+                    moveTaskToParentTop(overTaskRow, activeTaskRow);
+                } else {
+                    moveTaskBelow(overTaskRow, unnest, activeTaskRow);
+                }
+            }}
+        >
             <Box position="relative" zIndex="0">
+                {!hasTopGhostTaskRow && (
+                    <Box position="relative" height="0">
+                        <TaskRowViewDroppable
+                            taskRow={null}
+                            indentation={0}
+                            nextAdjacentIndentation={null}
+                            previousAdjacentIndentation={null}
+                            isVerticallyFlipped={true}
+                        />
+                    </Box>
+                )}
                 {taskRows}
                 {taskRows.length <= 1 && decorativeGhostTaskRow}
                 {taskRows.length <= 2 && decorativeGhostTaskRow}
             </Box>
-            <TaskRowViewDragPortals />
+            <TaskRowViewDragPortals
+                getTaskStatus={getTaskStatus}
+                getTaskAssignee={getTaskAssignee}
+                getTaskTitle={getTaskTitle}
+            />
         </DndContext>
     );
 }
@@ -505,7 +551,15 @@ const taskGridViewDndCollisionDetection: CollisionDetection = ({
     return nearestFallbackCollision ? [nearestFallbackCollision] : [];
 };
 
-function TaskRowViewDragPortals() {
+function TaskRowViewDragPortals<TaskRow>({
+    getTaskStatus,
+    getTaskAssignee,
+    getTaskTitle,
+}: {
+    getTaskStatus: (taskRow: TaskRow) => TaskStatus;
+    getTaskAssignee: (taskRow: TaskRow) => TaskAssignee | null;
+    getTaskTitle: (taskRow: TaskRow) => TaskTitle;
+}) {
     const {active, activatorEvent} = useDndContext();
 
     const isPointerDragging = active && activatorEvent instanceof PointerEvent;
@@ -520,7 +574,12 @@ function TaskRowViewDragPortals() {
             {active &&
                 createPortal(
                     <DragOverlay zIndex={60}>
-                        <TaskRowViewDragOverlay dataRef={active.data as any} />
+                        <TaskRowViewDragOverlay
+                            dataRef={active.data as any}
+                            getTaskStatus={getTaskStatus}
+                            getTaskAssignee={getTaskAssignee}
+                            getTaskTitle={getTaskTitle}
+                        />
                     </DragOverlay>,
                     document.body,
                 )}
@@ -528,12 +587,18 @@ function TaskRowViewDragPortals() {
     );
 }
 
-function TaskRowViewDragOverlay({
+function TaskRowViewDragOverlay<TaskRow>({
     dataRef,
+    getTaskStatus,
+    getTaskAssignee,
+    getTaskTitle,
 }: {
-    dataRef: RefObject<{status: TaskStatus; title: TaskTitle; assignee: TaskAssignee}>;
+    dataRef: RefObject<{taskRow: TaskRow}>;
+    getTaskStatus: (taskRow: TaskRow) => TaskStatus;
+    getTaskAssignee: (taskRow: TaskRow) => TaskAssignee | null;
+    getTaskTitle: (taskRow: TaskRow) => TaskTitle;
 }) {
-    const [{status, title, assignee}] = useState(assertExists(dataRef.current));
+    const [{taskRow}] = useState(assertExists(dataRef.current));
 
     return (
         <Box
@@ -558,9 +623,9 @@ function TaskRowViewDragOverlay({
             <Box height="full" display="flex" alignItems="center" gap="2" style={{opacity: 0.5}}>
                 <Box flexShrink="0">
                     <TaskStatusButton
-                        status={status}
+                        status={getTaskStatus(taskRow)}
                         onStatusChange={noop}
-                        assignee={assignee}
+                        assignee={getTaskAssignee(taskRow)}
                         onAssigneeChange={noop}
                     />
                 </Box>
@@ -568,7 +633,7 @@ function TaskRowViewDragOverlay({
                     fontStyle="truncate"
                     style={contentSchemaStyles.paragraphFontSize}
                     dangerouslySetInnerHTML={{
-                        __html: serializeProsemirrorFragmentToHtml(title.content),
+                        __html: serializeProsemirrorFragmentToHtml(getTaskTitle(taskRow).content),
                     }}
                 />
             </Box>

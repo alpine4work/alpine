@@ -1,8 +1,11 @@
-import {useDraggable, useDroppable} from "@dnd-kit/core";
+import {useDraggable} from "@dnd-kit/core";
 import {CalendarDate} from "@internationalized/date";
 import {ArrowsOutSimple, DotsSixVertical} from "phosphor-react";
 import {
+    PropsWithoutRef,
+    ReactElement,
     Ref,
+    RefAttributes,
     forwardRef,
     useCallback,
     useEffect,
@@ -17,11 +20,11 @@ import {
     TaskRowTitleInput,
     TaskRowTitleInputRef,
 } from "~/client/tasks/demo_2/internal/task_row_title_input";
+import {TaskRowViewDroppable} from "~/client/tasks/demo_2/internal/task_row_view_droppable";
 import {LocalTaskCollection} from "~/client/tasks/demo_2/local_task_collection";
 import {TaskAssignee, TaskStatus, TaskStatusButton} from "~/client/tasks/demo_2/task_status_button";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
 import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
-import {emptyArray} from "~/shared/helpers/array/empty_array";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {colorSchemeVars, contentSchemaStyles, sprinkles, tasksStyles} from "~/shared/styles/styles";
 import {TaskTitle} from "~/shared/tasks/task_title_schema";
@@ -70,11 +73,45 @@ export type TaskRowPresentationalViewRef = {
     focusTitleCoord(coord: number): void;
 };
 
-const TaskRowPresentationalViewForwardRef = forwardRef(TaskRowPresentationalView);
+const TaskRowPresentationalViewForwardRef = forwardRef(TaskRowPresentationalView) as <TaskRow>(
+    props: PropsWithoutRef<TaskRowPresentationalViewProps<TaskRow>> &
+        RefAttributes<TaskRowPresentationalViewRef>,
+) => ReactElement;
 export {TaskRowPresentationalViewForwardRef as TaskRowPresentationalView};
 
-function TaskRowPresentationalView(
+type TaskRowPresentationalViewProps<TaskRow> = {
+    taskRow: TaskRow | null;
+    status: TaskStatus | null;
+    onStatusChange: (status: TaskStatus) => void;
+    title: TaskTitle;
+    onTitleChange: (title: TaskTitle) => void;
+    titlePlaceholder?: string;
+    assignee: TaskAssignee | null;
+    onAssigneeChange: (assignee: TaskAssignee | null) => void;
+    childTaskCount: number;
+    closedChildTaskCount: number;
+    areChildTasksCollapsed: boolean;
+    onAreChildTasksCollapsedToggle: () => void;
+    onExpand: (() => Promise<void>) | null;
+    indentation: number;
+    droppableIndentations: ReadonlyArray<number>;
+    cells: ReadonlyArray<TaskRowViewCell>;
+    createTaskAbove: () => void;
+    createTaskBelowAndFocus: () => void;
+    createTaskChildAtStartAndFocus: () => void;
+    nestWithPreviousTaskRowIfExistsAndExpand: () => void;
+    unnestTaskIfNestedRow: () => void;
+    deleteTaskAndAllChildrenAndFocusPreviousRow: () => void;
+    focusNextTaskTitleCoord: (coord: number) => void;
+    focusPreviousTaskTitleCoord: (coord: number) => void;
+    focusFirstTaskTitleStart: () => void;
+    focusLastTaskTitleEnd: () => void;
+    withoutPaddingLeft?: boolean;
+};
+
+function TaskRowPresentationalView<TaskRow>(
     {
+        taskRow,
         status,
         onStatusChange,
         title,
@@ -88,6 +125,7 @@ function TaskRowPresentationalView(
         onAreChildTasksCollapsedToggle,
         onExpand,
         indentation,
+        droppableIndentations,
         cells,
         createTaskAbove,
         createTaskBelowAndFocus,
@@ -100,35 +138,7 @@ function TaskRowPresentationalView(
         focusFirstTaskTitleStart,
         focusLastTaskTitleEnd,
         withoutPaddingLeft,
-        droppableIndentations = emptyArray,
-    }: {
-        status: TaskStatus | null;
-        onStatusChange: (status: TaskStatus) => void;
-        title: TaskTitle;
-        onTitleChange: (title: TaskTitle) => void;
-        titlePlaceholder?: string;
-        assignee: TaskAssignee | null;
-        onAssigneeChange: (assignee: TaskAssignee | null) => void;
-        childTaskCount: number;
-        closedChildTaskCount: number;
-        areChildTasksCollapsed: boolean;
-        onAreChildTasksCollapsedToggle: () => void;
-        onExpand: (() => Promise<void>) | null;
-        indentation: number;
-        cells: ReadonlyArray<TaskRowViewCell>;
-        createTaskAbove: () => void;
-        createTaskBelowAndFocus: () => void;
-        createTaskChildAtStartAndFocus: () => void;
-        nestWithPreviousTaskRowIfExistsAndExpand: () => void;
-        unnestTaskIfNestedRow: () => void;
-        deleteTaskAndAllChildrenAndFocusPreviousRow: () => void;
-        focusNextTaskTitleCoord: (coord: number) => void;
-        focusPreviousTaskTitleCoord: (coord: number) => void;
-        focusFirstTaskTitleStart: () => void;
-        focusLastTaskTitleEnd: () => void;
-        withoutPaddingLeft?: boolean;
-        droppableIndentations?: ReadonlyArray<number>;
-    },
+    }: TaskRowPresentationalViewProps<TaskRow>,
     ref: Ref<TaskRowPresentationalViewRef>,
 ) {
     const rowRef = useRef<HTMLDivElement>(null);
@@ -199,10 +209,11 @@ function TaskRowPresentationalView(
         setNodeRef: setDraggableNodeRef,
     } = useDraggable({
         id: useId(),
-        data: {status, title, assignee},
+        data: {taskRow},
+        disabled: !taskRow,
     });
 
-    const dragHandleNode = (
+    const dragHandleNode = taskRow && (
         <button
             {...draggableAttributes}
             {...draggableListeners}
@@ -420,79 +431,12 @@ function TaskRowPresentationalView(
                 .map((indentation, index, sortedDroppableIndentations) => (
                     <TaskRowViewDroppable
                         key={indentation}
+                        taskRow={taskRow}
                         indentation={indentation}
-                        nextIndentation={sortedDroppableIndentations[index + 1] ?? null}
-                        lastIndentation={sortedDroppableIndentations[index - 1] ?? null}
+                        nextAdjacentIndentation={sortedDroppableIndentations[index + 1] ?? null}
+                        previousAdjacentIndentation={sortedDroppableIndentations[index - 1] ?? null}
                     />
                 ))}
-        </Box>
-    );
-}
-
-function TaskRowViewDroppable({
-    indentation,
-    nextIndentation,
-    lastIndentation,
-}: {
-    indentation: number;
-    nextIndentation: number | null;
-    lastIndentation: number | null;
-}) {
-    const {isOver, setNodeRef: setDroppableNodeRef} = useDroppable({
-        id: useId(),
-    });
-
-    const listItemIndent = parseRemLengthNumber(contentSchemaStyles.listItemIndentation);
-
-    return (
-        <Box
-            position="absolute"
-            top="3"
-            left="0"
-            right="0"
-            zIndex="10"
-            pointerEvents="none"
-            height={taskRowViewHeight}
-        >
-            <Box
-                ref={setDroppableNodeRef}
-                position="absolute"
-                left="0"
-                top="0"
-                bottom="0"
-                style={{
-                    left: lastIndentation !== null ? `${listItemIndent * indentation}rem` : 0,
-                    width:
-                        nextIndentation !== null && lastIndentation !== null
-                            ? `${listItemIndent * (nextIndentation - lastIndentation - 1)}rem`
-                            : nextIndentation !== null
-                            ? `${listItemIndent * nextIndentation}rem`
-                            : lastIndentation !== null
-                            ? `calc(100% - ${listItemIndent * (lastIndentation + 1)}rem)`
-                            : "100%",
-                }}
-            ></Box>
-            <Box
-                position="absolute"
-                right="5"
-                bottom="3"
-                pointerEvents="none"
-                backgroundColor={isOver ? {light: "theme-30", dark: "theme-60"} : undefined}
-                style={{
-                    height: 1,
-                    left: `${parseRemLengthNumber(spacing["5"]) + listItemIndent * indentation}rem`,
-                }}
-            />
-            <Box
-                position="absolute"
-                bottom="3"
-                height="2.5"
-                backgroundColor={isOver ? {light: "theme-30", dark: "theme-60"} : undefined}
-                style={{
-                    width: 1,
-                    left: `${parseRemLengthNumber(spacing["5"]) + listItemIndent * indentation}rem`,
-                }}
-            />
         </Box>
     );
 }

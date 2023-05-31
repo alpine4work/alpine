@@ -76,6 +76,8 @@ export function TaskNotepadView() {
                 />
             </Box>
             <TaskNotepadGridView
+                // Remount when the notepad page changes...
+                key={notepadPage}
                 ref={gridViewRef}
                 state={state}
                 dispatch={dispatch}

@@ -21,7 +21,6 @@ import {generateId} from "~/shared/id/id";
 import {LocalTaskId} from "~/shared/id/types/id_types";
 
 type TaskViewChildTasksGridViewRowPosition = {
-    indentation: number;
     parentTask: {id: LocalTaskId; orderKey: OrderKey};
 };
 
@@ -50,13 +49,12 @@ export function TaskView({
 
         const childTaskRows: Array<{
             position: TaskViewChildTasksGridViewRowPosition;
-            parentPosition: TaskViewChildTasksGridViewRowPosition | null;
+            parentPositionStack: ReadonlyArray<TaskViewChildTasksGridViewRowPosition>;
             task: LocalTask;
         }> = [];
 
         const addChildTasks = (
-            parentPosition: TaskViewChildTasksGridViewRowPosition | null,
-            indentation: number,
+            parentPositionStack: ReadonlyArray<TaskViewChildTasksGridViewRowPosition>,
             parentTask: LocalTask,
         ) => {
             for (const [orderKey, childTaskId] of parentTask.childTaskIdByOrderKey) {
@@ -65,23 +63,22 @@ export function TaskView({
                 childTaskRowIds.add(childTask.id);
 
                 const position: TaskViewChildTasksGridViewRowPosition = {
-                    indentation: indentation,
                     parentTask: {id: parentTask.id, orderKey},
                 };
 
                 childTaskRows.push({
                     position,
-                    parentPosition,
+                    parentPositionStack,
                     task: childTask,
                 });
 
                 if (expandedChildTaskIds.has(childTask.id)) {
-                    addChildTasks(position, indentation + 1, childTask);
+                    addChildTasks([...parentPositionStack, position], childTask);
                 }
             }
         };
 
-        addChildTasks(null, 0, task);
+        addChildTasks([], task);
 
         return {childTaskRowIds, childTaskRows};
     }, [expandedChildTaskIds, state.database, task]);
@@ -133,7 +130,7 @@ export function TaskView({
     return (
         <TaskDetailPresentationalView<{
             position: TaskViewChildTasksGridViewRowPosition;
-            parentPosition: TaskViewChildTasksGridViewRowPosition | null;
+            parentPositionStack: ReadonlyArray<TaskViewChildTasksGridViewRowPosition>;
             task: LocalTask;
         }>
             ref={detailViewRef}
@@ -216,7 +213,7 @@ export function TaskView({
                         await peekStackContext.push(`/s/${space.id}/tasks/demo-2/${taskId}`);
                     }
                 },
-                getTaskRowIndentation: ({position}) => position.indentation,
+                getTaskRowIndentation: ({parentPositionStack}) => parentPositionStack.length,
                 createTaskAbove: ({position}) => {
                     dispatch({
                         type: "CreateTask",
@@ -357,13 +354,15 @@ export function TaskView({
                         });
                     });
                 },
-                unnestTaskIfNestedRow: ({parentPosition, task: {id: childTaskId}}) => {
+                unnestTaskIfNestedRow: ({parentPositionStack, task: {id: childTaskId}}) => {
+                    const parentPosition = parentPositionStack[parentPositionStack.length - 1];
+
                     if (parentPosition) {
                         dispatch({
-                            type: "UnnestTaskToParentTask",
+                            type: "MoveTaskToParentTask",
                             parentTaskId: parentPosition.parentTask.id,
                             belowOrderKey: parentPosition.parentTask.orderKey,
-                            childTaskId,
+                            taskId: childTaskId,
                         });
                     }
                 },
@@ -386,6 +385,39 @@ export function TaskView({
                                     .focusTaskRowTitleEnd(oldIndex - 1);
                             }
                         },
+                    });
+                },
+                moveTaskBelow: (belowTaskRow, unnest, taskRow) => {
+                    if (!belowTaskRow) {
+                        dispatch({
+                            type: "MoveTaskToParentTask",
+                            parentTaskId: taskId,
+                            belowOrderKey: null,
+                            taskId: taskRow.task.id,
+                        });
+                        return;
+                    }
+
+                    const position =
+                        unnest === 0
+                            ? belowTaskRow.position
+                            : belowTaskRow.parentPositionStack[
+                                  belowTaskRow.parentPositionStack.length - unnest
+                              ] ?? belowTaskRow.position;
+
+                    dispatch({
+                        type: "MoveTaskToParentTask",
+                        parentTaskId: position.parentTask.id,
+                        belowOrderKey: position.parentTask.orderKey,
+                        taskId: taskRow.task.id,
+                    });
+                },
+                moveTaskToParentTop: (parentTaskRow, taskRow) => {
+                    dispatch({
+                        type: "MoveTaskToParentTask",
+                        parentTaskId: parentTaskRow.task.id,
+                        belowOrderKey: null,
+                        taskId: taskRow.task.id,
                     });
                 },
             }}

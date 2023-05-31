@@ -27,12 +27,10 @@ export {TaskNotepadGridViewForwardRef as TaskNotepadGridView};
 type TaskNotepadGridViewRowPosition =
     | {
           isRoot: true;
-          indentation: 0;
           notepad: {page: number; orderKey: OrderKey};
       }
     | {
           isRoot: false;
-          indentation: number;
           parentTask: {id: LocalTaskId; orderKey: OrderKey};
       };
 
@@ -64,13 +62,12 @@ function TaskNotepadGridView(
 
         const taskRows: Array<{
             position: TaskNotepadGridViewRowPosition;
-            parentPosition: TaskNotepadGridViewRowPosition | null;
+            parentPositionStack: ReadonlyArray<TaskNotepadGridViewRowPosition>;
             task: LocalTask;
         }> = [];
 
         const addChildTasks = (
-            parentPosition: TaskNotepadGridViewRowPosition | null,
-            indentation: number,
+            parentPositionStack: ReadonlyArray<TaskNotepadGridViewRowPosition>,
             parentTask: LocalTask,
         ) => {
             for (const [orderKey, childTaskId] of parentTask.childTaskIdByOrderKey) {
@@ -80,18 +77,17 @@ function TaskNotepadGridView(
 
                 const position: TaskNotepadGridViewRowPosition = {
                     isRoot: false,
-                    indentation: indentation,
                     parentTask: {id: parentTask.id, orderKey},
                 };
 
                 taskRows.push({
                     position,
-                    parentPosition,
+                    parentPositionStack,
                     task: childTask,
                 });
 
                 if (expandedTaskIds.has(childTask.id)) {
-                    addChildTasks(position, indentation + 1, childTask);
+                    addChildTasks([...parentPositionStack, position], childTask);
                 }
             }
         };
@@ -101,18 +97,17 @@ function TaskNotepadGridView(
 
             const position: TaskNotepadGridViewRowPosition = {
                 isRoot: true,
-                indentation: 0,
                 notepad: {page: notepadPage, orderKey},
             };
 
             taskRows.push({
                 position,
-                parentPosition: null,
+                parentPositionStack: [],
                 task,
             });
 
             if (expandedTaskIds.has(task.id)) {
-                addChildTasks(position, 1, task);
+                addChildTasks([position], task);
             }
         }
 
@@ -167,7 +162,7 @@ function TaskNotepadGridView(
     return (
         <TaskGridPresentationalView<{
             position: TaskNotepadGridViewRowPosition;
-            parentPosition: TaskNotepadGridViewRowPosition | null;
+            parentPositionStack: ReadonlyArray<TaskNotepadGridViewRowPosition>;
             task: LocalTask;
         }>
             ref={useMergedRefs(ref, gridViewRef)}
@@ -224,7 +219,7 @@ function TaskNotepadGridView(
             onTaskExpand={async ({task: {id: taskId}}) => {
                 await peekStackContext.push(`/s/${space.id}/tasks/demo-2/${taskId}`);
             }}
-            getTaskRowIndentation={({position}) => position.indentation}
+            getTaskRowIndentation={({parentPositionStack}) => parentPositionStack.length}
             createTaskAbove={({position}) => {
                 dispatch({
                     type: "CreateTask",
@@ -344,21 +339,23 @@ function TaskNotepadGridView(
                     });
                 });
             }}
-            unnestTaskIfNestedRow={({parentPosition, task: {id: childTaskId}}) => {
+            unnestTaskIfNestedRow={({parentPositionStack, task: {id: childTaskId}}) => {
+                const parentPosition = parentPositionStack[parentPositionStack.length - 1] ?? null;
+
                 if (parentPosition) {
                     if (parentPosition.isRoot) {
                         dispatch({
-                            type: "UnnestTaskToNotepad",
+                            type: "MoveTaskToNotepad",
                             notepadPage: parentPosition.notepad.page,
                             belowOrderKey: parentPosition.notepad.orderKey,
-                            childTaskId,
+                            taskId: childTaskId,
                         });
                     } else {
                         dispatch({
-                            type: "UnnestTaskToParentTask",
+                            type: "MoveTaskToParentTask",
                             parentTaskId: parentPosition.parentTask.id,
                             belowOrderKey: parentPosition.parentTask.orderKey,
-                            childTaskId,
+                            taskId: childTaskId,
                         });
                     }
                 }
@@ -378,6 +375,48 @@ function TaskNotepadGridView(
                             gridViewRef.current?.focusTaskRowTitleEnd(oldIndex - 1);
                         }
                     },
+                });
+            }}
+            moveTaskBelow={(belowTaskRow, unnest, taskRow) => {
+                if (!belowTaskRow) {
+                    dispatch({
+                        type: "MoveTaskToNotepad",
+                        notepadPage: notepadPage,
+                        belowOrderKey: null,
+                        taskId: taskRow.task.id,
+                    });
+                    return;
+                }
+
+                const position =
+                    unnest === 0
+                        ? belowTaskRow.position
+                        : belowTaskRow.parentPositionStack[
+                              belowTaskRow.parentPositionStack.length - unnest
+                          ] ?? belowTaskRow.position;
+
+                if (position.isRoot) {
+                    dispatch({
+                        type: "MoveTaskToNotepad",
+                        notepadPage: position.notepad.page,
+                        belowOrderKey: position.notepad.orderKey,
+                        taskId: taskRow.task.id,
+                    });
+                } else {
+                    dispatch({
+                        type: "MoveTaskToParentTask",
+                        parentTaskId: position.parentTask.id,
+                        belowOrderKey: position.parentTask.orderKey,
+                        taskId: taskRow.task.id,
+                    });
+                }
+            }}
+            moveTaskToParentTop={(parentTaskRow, taskRow) => {
+                dispatch({
+                    type: "MoveTaskToParentTask",
+                    parentTaskId: parentTaskRow.task.id,
+                    belowOrderKey: null,
+                    taskId: taskRow.task.id,
                 });
             }}
         />
