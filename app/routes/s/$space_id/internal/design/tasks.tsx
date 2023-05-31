@@ -222,6 +222,7 @@ export default function TasksDesignPlaygroundRoute() {
                         "Clean the kitchen: Wash the dishes, wipe down countertops, clean appliances (such as the oven and refrigerator), and sweep or mop the floor",
                     )}
                     assignee={{account: account4, status: "Active"}}
+                    onAssigneeChange={noop}
                     dueDate={currentDate.subtract({days: 1})}
                     collections={[kitchenTaskCollection]}
                 />
@@ -230,6 +231,7 @@ export default function TasksDesignPlaygroundRoute() {
                     onStatusChange={noop}
                     title={createSimpleTaskTitle("Sort, wash, dry, and fold clothes")}
                     assignee={null}
+                    onAssigneeChange={noop}
                     dueDate={currentDate.add({days: 7})}
                     collections={[kitchenTaskCollection, bathroomTaskCollection]}
                 />
@@ -240,6 +242,7 @@ export default function TasksDesignPlaygroundRoute() {
                     onStatusChange={noop}
                     title={createSimpleTaskTitle("Vacuum and mop floors")}
                     assignee={{account: account2, status: "Inactive"}}
+                    onAssigneeChange={noop}
                     dueDate={null}
                     collections={[]}
                 />
@@ -301,6 +304,7 @@ export default function TasksDesignPlaygroundRoute() {
                         "Clean out the fridge: Remove expired items and wipe shelves",
                     )}
                     assignee={{account: account3, status: "Inactive"}}
+                    onAssigneeChange={noop}
                     dueDate={currentDate}
                     collections={[kitchenTaskCollection]}
                 />
@@ -309,6 +313,7 @@ export default function TasksDesignPlaygroundRoute() {
                     onStatusChange={noop}
                     title={createSimpleTaskTitle("Clean windows and mirrors")}
                     assignee={{account: account3, status: "Active"}}
+                    onAssigneeChange={noop}
                     dueDate={currentDate.add({days: 1})}
                     collections={[bathroomTaskCollection, kitchenTaskCollection]}
                 />
@@ -319,6 +324,7 @@ export default function TasksDesignPlaygroundRoute() {
                         "Deep clean the kitchen: Remove all items from the countertops and wipe them down. Scrub the sink, faucet, and stovetop using appropriate cleaners. Clean the oven, inside and out, by following the manufacturer's instructions. Sweep and mop the floor, paying attention to corners and hard-to-reach areas",
                     )}
                     assignee={null}
+                    onAssigneeChange={noop}
                     dueDate={null}
                     collections={[kitchenTaskCollection]}
                 />
@@ -327,6 +333,7 @@ export default function TasksDesignPlaygroundRoute() {
                     onStatusChange={noop}
                     title={createSimpleTaskTitle("Tidy up the living room")}
                     assignee={null}
+                    onAssigneeChange={noop}
                     dueDate={currentDate.subtract({days: 7})}
                     collections={[]}
                 />
@@ -335,6 +342,7 @@ export default function TasksDesignPlaygroundRoute() {
                     onStatusChange={noop}
                     title={createSimpleTaskTitle("Declutter and organize")}
                     assignee={null}
+                    onAssigneeChange={noop}
                     dueDate={null}
                     collections={[]}
                 />
@@ -343,6 +351,7 @@ export default function TasksDesignPlaygroundRoute() {
                     onStatusChange={noop}
                     title={createSimpleTaskTitle("Organize your closet")}
                     assignee={{account: account2, status: "Inactive"}}
+                    onAssigneeChange={noop}
                     dueDate={null}
                     collections={[bedroomTaskCollection]}
                 />
@@ -353,6 +362,7 @@ export default function TasksDesignPlaygroundRoute() {
                         "Remember to take breaks and reward yourself for your hard work!",
                     )}
                     assignee={{account: account1, status: "Inactive"}}
+                    onAssigneeChange={noop}
                     dueDate={currentDate.subtract({years: 2})}
                     collections={[]}
                 />
@@ -456,8 +466,9 @@ export default function TasksDesignPlaygroundRoute() {
 
 type TaskGridDemoTask = {
     readonly id: Key;
-    readonly title: TaskTitle;
     readonly status: TaskStatus;
+    readonly title: TaskTitle;
+    readonly assignee: TaskAssignee | null;
     readonly areChildTasksCollapsed: boolean;
     readonly childTasks: ReadonlyArray<TaskGridDemoTask>;
 };
@@ -503,10 +514,12 @@ function useDemoTaskGridViewState({
             tasks: initialTasks.map(task => ({
                 id: nextId++,
                 ...task,
+                assignee: null,
                 areChildTasksCollapsed: true,
                 childTasks: (task.childTasks ?? []).map(childTask => ({
                     id: nextId++,
                     ...childTask,
+                    assignee: null,
                     areChildTasksCollapsed: true,
                     childTasks: [],
                 })),
@@ -609,7 +622,29 @@ function useDemoTaskGridViewState({
                     }),
                 );
             },
-            getTaskAssignee: () => null,
+            getTaskAssignee: ({task}) => task.assignee,
+            onTaskAssigneeChange: ({task: {id: taskId}}, assignee) => {
+                setState(state =>
+                    produce(state, state => {
+                        const loop = (tasks: Draft<ReadonlyArray<TaskGridDemoTask>>) => {
+                            for (const task of tasks) {
+                                if (task.id === taskId) {
+                                    task.assignee = assignee;
+                                    return true;
+                                }
+
+                                if (loop(task.childTasks)) return true;
+                            }
+
+                            return false;
+                        };
+
+                        if (!loop(state.tasks)) {
+                            throw new NotFoundError("Task not found");
+                        }
+                    }),
+                );
+            },
             getTaskChildTaskCount: ({task}) => task.childTasks.length,
             getTaskClosedChildTaskCount: ({task}) =>
                 task.childTasks.filter(childTask => childTask.status === "Closed").length,
@@ -648,8 +683,9 @@ function useDemoTaskGridViewState({
                                 if (task.id === taskId) {
                                     tasks.splice(taskIndex, 0, {
                                         id: state.nextId++,
-                                        title: castDraft(emptyTaskTitle),
                                         status: "Open",
+                                        title: castDraft(emptyTaskTitle),
+                                        assignee: null,
                                         areChildTasksCollapsed: false,
                                         childTasks: [],
                                     });
@@ -683,8 +719,9 @@ function useDemoTaskGridViewState({
                                 if (task.id === taskId) {
                                     tasks.splice(taskIndex + 1, 0, {
                                         id: state.nextId++,
-                                        title: castDraft(emptyTaskTitle),
                                         status: "Open",
+                                        title: castDraft(emptyTaskTitle),
+                                        assignee: null,
                                         areChildTasksCollapsed: false,
                                         childTasks: [],
                                     });
@@ -735,8 +772,9 @@ function useDemoTaskGridViewState({
                                 if (task.id === taskId) {
                                     task.childTasks.unshift({
                                         id: state.nextId++,
-                                        title: castDraft(emptyTaskTitle),
                                         status: "Open",
+                                        title: castDraft(emptyTaskTitle),
+                                        assignee: null,
                                         areChildTasksCollapsed: false,
                                         childTasks: [],
                                     });
@@ -777,8 +815,9 @@ function useDemoTaskGridViewState({
                     produce(state, state => {
                         state.tasks.push({
                             id: state.nextId++,
-                            title: castDraft(title),
                             status: "Open",
+                            title: castDraft(title),
+                            assignee: null,
                             areChildTasksCollapsed: false,
                             childTasks: [],
                         });
@@ -790,8 +829,9 @@ function useDemoTaskGridViewState({
                     produce(state, state => {
                         state.tasks.push({
                             id: state.nextId++,
-                            title: castDraft(title),
                             status: "Open",
+                            title: castDraft(title),
+                            assignee: null,
                             areChildTasksCollapsed: false,
                             childTasks: [],
                         });
@@ -1034,9 +1074,7 @@ function TaskDetailDemoView({
             title={title}
             onTitleChange={setTitle}
             assignee={assignee}
-            onAssigneeAccountChange={assigneeAccount =>
-                setAssignee(assigneeAccount ? {account: assigneeAccount, status: "Inactive"} : null)
-            }
+            onAssigneeChange={setAssignee}
             dueDate={dueDate}
             onDueDateChange={setDueDate}
             collections={collections}

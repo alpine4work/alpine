@@ -73,7 +73,7 @@ export type TaskDetailPresentationalViewProps<ChildTaskRow> = {
     title: TaskTitle;
     onTitleChange: (title: TaskTitle) => void;
     assignee: TaskAssignee | null;
-    onAssigneeAccountChange: (assigneeAccount: AccountModel | null) => void;
+    onAssigneeChange: (assignee: TaskAssignee | null) => void;
     dueDate: CalendarDate | null;
     onDueDateChange: (dueDate: CalendarDate | null) => void;
     collections: ReadonlyArray<LocalTaskCollection>;
@@ -91,7 +91,7 @@ function TaskDetailPresentationalView<ChildTaskRow>(
         title,
         onTitleChange,
         assignee,
-        onAssigneeAccountChange,
+        onAssigneeChange,
         dueDate,
         onDueDateChange,
         collections,
@@ -130,9 +130,10 @@ function TaskDetailPresentationalView<ChildTaskRow>(
             <Box paddingX={padding} display="flex" flexDirection="column" gap="3">
                 <TaskStatusButton
                     size="5"
-                    assignee={assignee}
                     status={status}
                     onStatusChange={onStatusChange}
+                    assignee={assignee}
+                    onAssigneeChange={onAssigneeChange}
                 />
                 <Box
                     position="absolute"
@@ -166,7 +167,11 @@ function TaskDetailPresentationalView<ChildTaskRow>(
             <TaskDetailViewDenseFields
                 status={status}
                 assigneeAccount={assignee?.account ?? null}
-                onAssigneeAccountChange={onAssigneeAccountChange}
+                onAssigneeAccountChange={assigneeAccount =>
+                    onAssigneeChange(
+                        assigneeAccount ? {account: assigneeAccount, status: "Inactive"} : null,
+                    )
+                }
                 dueDate={dueDate}
                 onDueDateChange={onDueDateChange}
                 collections={collections}

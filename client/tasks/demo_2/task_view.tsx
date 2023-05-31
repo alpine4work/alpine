@@ -142,15 +142,7 @@ export function TaskView({
             title={task.title}
             onTitleChange={title => dispatch({type: "UpdateTaskTitle", taskId, title})}
             assignee={task.assignee}
-            onAssigneeAccountChange={assigneeAccount =>
-                dispatch({
-                    type: "UpdateTaskAssignee",
-                    taskId,
-                    assignee: assigneeAccount
-                        ? {account: assigneeAccount, status: "Inactive"}
-                        : null,
-                })
-            }
+            onAssigneeChange={assignee => dispatch({type: "UpdateTaskAssignee", taskId, assignee})}
             dueDate={null} // NOCOMMIT
             onDueDateChange={() => {}} // NOCOMMIT
             collections={emptyArray} // NOCOMMIT
@@ -188,7 +180,14 @@ export function TaskView({
                         title,
                     });
                 },
-                getTaskAssignee: () => null,
+                getTaskAssignee: ({task}) => task.assignee,
+                onTaskAssigneeChange: ({task: {id: taskId}}, assignee) => {
+                    dispatch({
+                        type: "UpdateTaskAssignee",
+                        taskId,
+                        assignee,
+                    });
+                },
                 getTaskChildTaskCount: ({task}) => task.childTaskIdByOrderKey.size,
                 getTaskClosedChildTaskCount: ({task}) =>
                     reduceIterable(

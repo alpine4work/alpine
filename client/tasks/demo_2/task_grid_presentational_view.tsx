@@ -52,6 +52,7 @@ export type TaskGridPresentationalViewProps<TaskRow> = {
     getTaskTitle: (taskRow: TaskRow) => TaskTitle;
     onTaskTitleChange: (taskRow: TaskRow, title: TaskTitle) => void;
     getTaskAssignee: (taskRow: TaskRow) => TaskAssignee | null;
+    onTaskAssigneeChange: (taskRow: TaskRow, assignee: TaskAssignee | null) => void;
     getTaskChildTaskCount: (taskRow: TaskRow) => number;
     getTaskClosedChildTaskCount: (taskRow: TaskRow) => number;
     getTaskAreChildTasksCollapsed: (taskRow: TaskRow) => boolean;
@@ -83,6 +84,7 @@ function TaskGridPresentationalView<TaskRow>(
         getTaskTitle,
         onTaskTitleChange,
         getTaskAssignee,
+        onTaskAssigneeChange,
         getTaskChildTaskCount,
         getTaskClosedChildTaskCount,
         getTaskAreChildTasksCollapsed,
@@ -169,6 +171,7 @@ function TaskGridPresentationalView<TaskRow>(
                 onTitleChange={title => createTaskAtStartFromTopGhostWithoutNewGhost(title)}
                 titlePlaceholder="Add a task…"
                 assignee={null}
+                onAssigneeChange={noop}
                 childTaskCount={0}
                 closedChildTaskCount={0}
                 areChildTasksCollapsed={false}
@@ -229,6 +232,7 @@ function TaskGridPresentationalView<TaskRow>(
                 title={getTaskTitle(taskRow)}
                 onTitleChange={title => onTaskTitleChange(taskRow, title)}
                 assignee={getTaskAssignee(taskRow)}
+                onAssigneeChange={assignee => onTaskAssigneeChange(taskRow, assignee)}
                 childTaskCount={getTaskChildTaskCount(taskRow)}
                 closedChildTaskCount={getTaskClosedChildTaskCount(taskRow)}
                 areChildTasksCollapsed={getTaskAreChildTasksCollapsed(taskRow)}
@@ -309,6 +313,7 @@ function TaskGridPresentationalView<TaskRow>(
             onTitleChange={title => createTaskAtEndFromBottomGhost(title)}
             titlePlaceholder={taskGhostRowPlaceholder}
             assignee={null}
+            onAssigneeChange={noop}
             childTaskCount={0}
             closedChildTaskCount={0}
             areChildTasksCollapsed={false}

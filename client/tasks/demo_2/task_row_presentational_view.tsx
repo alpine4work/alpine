@@ -78,6 +78,7 @@ function TaskRowPresentationalView(
         onTitleChange,
         titlePlaceholder,
         assignee,
+        onAssigneeChange,
         childTaskCount,
         closedChildTaskCount,
         areChildTasksCollapsed,
@@ -103,6 +104,7 @@ function TaskRowPresentationalView(
         onTitleChange: (title: TaskTitle) => void;
         titlePlaceholder?: string;
         assignee: TaskAssignee | null;
+        onAssigneeChange: (assignee: TaskAssignee | null) => void;
         childTaskCount: number;
         closedChildTaskCount: number;
         areChildTasksCollapsed: boolean;
@@ -250,6 +252,7 @@ function TaskRowPresentationalView(
                         status={status}
                         onStatusChange={onStatusChange}
                         assignee={assignee}
+                        onAssigneeChange={onAssigneeChange}
                     />
                 ) : (
                     <Box

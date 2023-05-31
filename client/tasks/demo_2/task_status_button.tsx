@@ -5,6 +5,7 @@ import {Box} from "~/client/design/box";
 import {buttonPressedOverlayOpacity} from "~/client/design/button";
 import {FocusRing} from "~/client/design/focus_ring";
 import {MenuButton} from "~/client/design/menu_button";
+import {useSpaceContext} from "~/client/spaces/space_context";
 import {AccountModel} from "~/shared/accounts/account_model";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {colorSchemeVars, sprinkles} from "~/shared/styles/styles";
@@ -22,13 +23,17 @@ export function TaskStatusButton({
     status,
     onStatusChange,
     assignee,
+    onAssigneeChange,
     size = "4",
 }: {
     status: TaskStatus;
     onStatusChange: (status: TaskStatus) => void;
     assignee: TaskAssignee | null;
+    onAssigneeChange: (assignee: TaskAssignee | null) => void;
     size?: "4" | "5";
 }) {
+    const {currentAccount} = useSpaceContext();
+
     const buttonRef = useRef<HTMLButtonElement>(null);
 
     const {isPressed, buttonProps} = useButton({}, buttonRef);
@@ -40,7 +45,9 @@ export function TaskStatusButton({
                     label: "Open",
                     isSelected: status === "Open" && assignee?.status !== "Active",
                     disabledReason:
-                        assignee && assignee.status === "Active"
+                        assignee &&
+                        assignee.account.id !== currentAccount.id &&
+                        assignee.status === "Active"
                             ? "Only the assignee can change which of their tasks are active"
                             : undefined,
                     icon: ({isDisabled}) => (
@@ -54,14 +61,22 @@ export function TaskStatusButton({
                         />
                     ),
                     onPress: () => {
-                        onStatusChange("Open");
+                        if (status !== "Open") {
+                            onStatusChange("Open");
+                        }
+
+                        if (assignee?.status === "Active") {
+                            onAssigneeChange({account: assignee.account, status: "Inactive"});
+                        }
                     },
                 },
                 {
                     label: "Active",
                     isSelected: status === "Open" && assignee?.status === "Active",
                     disabledReason:
-                        assignee && assignee.status === "Inactive"
+                        assignee &&
+                        assignee.account.id !== currentAccount.id &&
+                        assignee.status === "Inactive"
                             ? "Only the assignee can change which of their tasks are active"
                             : undefined,
                     icon: ({isDisabled}) => (
@@ -103,7 +118,11 @@ export function TaskStatusButton({
                             </Box>
                         </Box>
                     ),
-                    onPress: () => {},
+                    onPress: () => {
+                        if (!assignee || assignee.account.id === currentAccount.id) {
+                            onAssigneeChange({account: currentAccount, status: "Active"});
+                        }
+                    },
                 },
                 {
                     label: "Closed",
@@ -126,7 +145,9 @@ export function TaskStatusButton({
                         </Box>
                     ),
                     onPress: () => {
-                        onStatusChange("Closed");
+                        if (status !== "Closed") {
+                            onStatusChange("Closed");
+                        }
                     },
                 },
             ]}

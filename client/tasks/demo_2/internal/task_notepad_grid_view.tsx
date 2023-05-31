@@ -193,7 +193,14 @@ function TaskNotepadGridView(
                     title,
                 });
             }}
-            getTaskAssignee={() => null}
+            getTaskAssignee={({task}) => task.assignee}
+            onTaskAssigneeChange={({task: {id: taskId}}, assignee) => {
+                dispatch({
+                    type: "UpdateTaskAssignee",
+                    taskId,
+                    assignee,
+                });
+            }}
             getTaskChildTaskCount={({task}) => task.childTaskIdByOrderKey.size}
             getTaskClosedChildTaskCount={({task}) =>
                 reduceIterable(

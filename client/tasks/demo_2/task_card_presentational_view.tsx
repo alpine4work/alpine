@@ -40,6 +40,7 @@ export function TaskCardPresentationalView({
     onStatusChange,
     title,
     assignee,
+    onAssigneeChange,
     dueDate,
     collections,
 }: {
@@ -47,6 +48,7 @@ export function TaskCardPresentationalView({
     onStatusChange: (status: TaskStatus) => void;
     title: TaskTitle;
     assignee: TaskAssignee | null;
+    onAssigneeChange: (assignee: TaskAssignee | null) => void;
     dueDate: CalendarDate | null;
     collections: ReadonlyArray<LocalTaskCollection>;
 }) {
@@ -152,9 +154,10 @@ export function TaskCardPresentationalView({
                     style={{height: contentSchemaStyles.paragraphFontSize.lineHeight}}
                 >
                     <TaskStatusButton
-                        assignee={assignee}
                         status={status}
                         onStatusChange={onStatusChange}
+                        assignee={assignee}
+                        onAssigneeChange={onAssigneeChange}
                     />
                 </Box>
                 <Box
