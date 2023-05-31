@@ -7,6 +7,8 @@ ts_project(
         "//client:__subpackages__",
     ],
     deps = [
+        "//:node_modules/@dnd-kit/core",
+        "//:node_modules/@dnd-kit/modifiers",
         "//:node_modules/@internationalized/date",
         "//:node_modules/@types/react",
         "//:node_modules/classnames",

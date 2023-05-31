@@ -1,10 +1,12 @@
+import {useDraggable, useDroppable} from "@dnd-kit/core";
 import {CalendarDate} from "@internationalized/date";
-import {ArrowsOutSimple} from "phosphor-react";
+import {ArrowsOutSimple, DotsSixVertical} from "phosphor-react";
 import {
     Ref,
     forwardRef,
     useCallback,
     useEffect,
+    useId,
     useImperativeHandle,
     useRef,
     useState,
@@ -19,8 +21,9 @@ import {LocalTaskCollection} from "~/client/tasks/demo_2/local_task_collection";
 import {TaskAssignee, TaskStatus, TaskStatusButton} from "~/client/tasks/demo_2/task_status_button";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
 import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
+import {emptyArray} from "~/shared/helpers/array/empty_array";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {colorSchemeVars, contentSchemaStyles, tasksStyles} from "~/shared/styles/styles";
+import {colorSchemeVars, contentSchemaStyles, sprinkles, tasksStyles} from "~/shared/styles/styles";
 import {TaskTitle} from "~/shared/tasks/task_title_schema";
 
 // TODO(calebmer): Needs:
@@ -31,9 +34,9 @@ import {TaskTitle} from "~/shared/tasks/task_title_schema";
 // [ ] Due date field
 // [ ] Collections field
 // [ ] Custom fields
-// [ ] Mark as in progress
-// [ ] Subtasks
-// [ ] Open detail interaction
+// [x] Mark as in progress
+// [x] Subtasks
+// [x] Open detail interaction
 // [ ] Dark mode pass
 
 export const taskRowViewHeight: Spacing = "9";
@@ -97,6 +100,7 @@ function TaskRowPresentationalView(
         focusFirstTaskTitleStart,
         focusLastTaskTitleEnd,
         withoutPaddingLeft,
+        droppableIndentations = emptyArray,
     }: {
         status: TaskStatus | null;
         onStatusChange: (status: TaskStatus) => void;
@@ -123,6 +127,7 @@ function TaskRowPresentationalView(
         focusFirstTaskTitleStart: () => void;
         focusLastTaskTitleEnd: () => void;
         withoutPaddingLeft?: boolean;
+        droppableIndentations?: ReadonlyArray<number>;
     },
     ref: Ref<TaskRowPresentationalViewRef>,
 ) {
@@ -188,11 +193,41 @@ function TaskRowPresentationalView(
         };
     }, [isHovered]);
 
+    const {
+        attributes: draggableAttributes,
+        listeners: draggableListeners,
+        setNodeRef: setDraggableNodeRef,
+    } = useDraggable({
+        id: useId(),
+        data: {status, title, assignee},
+    });
+
+    const dragHandleNode = (
+        <button
+            {...draggableAttributes}
+            {...draggableListeners}
+            ref={setDraggableNodeRef}
+            className={sprinkles({
+                width: "4",
+                height: "4",
+                padding: "0.5",
+                borderRadius: "full",
+                cursor: "grab",
+            })}
+            // Drag handle is not tab focusable. Keyboard navigation within a task grid is
+            // not done with tab navigation.
+            tabIndex={-1}
+        >
+            <DotsSixVertical size={spacing["3"]} />
+        </button>
+    );
+
     // Small naming note: The whitespace area outside of the task row border we
     // call "margin" and the whitespace area inside the task row border we
     // call "padding". Similar to the CSS box model.
     const paddingLeftNode = (
         <Box
+            position="relative"
             flexShrink="0"
             display="flex"
             justifyContent="flex-end"
@@ -226,6 +261,14 @@ function TaskRowPresentationalView(
                 },
             })}
         >
+            {indentation > 0 && (
+                <Box
+                    paddingRight="0.5"
+                    className={tasksStyles.pointerEventsNoneNotInheritedClassName}
+                >
+                    {isHovered && dragHandleNode}
+                </Box>
+            )}
             <Box
                 width="5"
                 paddingRight="1"
@@ -269,24 +312,53 @@ function TaskRowPresentationalView(
     );
 
     return (
-        <Box ref={rowRef} height={taskRowViewHeight} display="flex">
+        <Box
+            ref={rowRef}
+            display="flex"
+            height={taskRowViewHeight}
+            backgroundColor="grey-0"
+            position="relative"
+        >
             <Box
                 flexShrink="0"
                 width="5"
+                display="flex"
+                justifyContent="flex-end"
+                alignItems="center"
                 // Create an illusion that the text editor extends into the margins by giving
                 // the margin a text cursor and making it clickable putting focus in the task.
                 // A double click selects the task text.
                 //
                 // This is an affordance for mouse users, does not need to be usable
                 // by keyboard.
-                cursor="text"
+                className={tasksStyles.textCursorNotInheritedClassName}
                 {...useOutOfBoundsClickSelection({
-                    onSelect: focusTitleStart,
-                    onSelectAll: focusTitleAll,
+                    onSelect: event => {
+                        // Only handle clicks on the background not covered by content.
+                        if (event.target === event.currentTarget) {
+                            focusTitleStart();
+                        }
+                    },
+                    onSelectAll: event => {
+                        // Only handle clicks on the background not covered by content.
+                        if (event.target === event.currentTarget) {
+                            focusTitleAll();
+                        }
+                    },
                 })}
-            />
+            >
+                {indentation === 0 && (
+                    <Box
+                        paddingRight="0.5"
+                        className={tasksStyles.pointerEventsNoneNotInheritedClassName}
+                    >
+                        {isHovered && dragHandleNode}
+                    </Box>
+                )}
+            </Box>
             <Box
                 position="relative"
+                zIndex="0"
                 flexGrow="1"
                 overflow="hidden"
                 display="flex"
@@ -341,6 +413,85 @@ function TaskRowPresentationalView(
                     onSelect: focusTitleEnd,
                     onSelectAll: focusTitleAll,
                 })}
+            />
+            {droppableIndentations
+                .slice()
+                .sort((a, b) => a - b)
+                .map((indentation, index, sortedDroppableIndentations) => (
+                    <TaskRowViewDroppable
+                        key={indentation}
+                        indentation={indentation}
+                        nextIndentation={sortedDroppableIndentations[index + 1] ?? null}
+                        lastIndentation={sortedDroppableIndentations[index - 1] ?? null}
+                    />
+                ))}
+        </Box>
+    );
+}
+
+function TaskRowViewDroppable({
+    indentation,
+    nextIndentation,
+    lastIndentation,
+}: {
+    indentation: number;
+    nextIndentation: number | null;
+    lastIndentation: number | null;
+}) {
+    const {isOver, setNodeRef: setDroppableNodeRef} = useDroppable({
+        id: useId(),
+    });
+
+    const listItemIndent = parseRemLengthNumber(contentSchemaStyles.listItemIndentation);
+
+    return (
+        <Box
+            position="absolute"
+            top="3"
+            left="0"
+            right="0"
+            zIndex="10"
+            pointerEvents="none"
+            height={taskRowViewHeight}
+        >
+            <Box
+                ref={setDroppableNodeRef}
+                position="absolute"
+                left="0"
+                top="0"
+                bottom="0"
+                style={{
+                    left: lastIndentation !== null ? `${listItemIndent * indentation}rem` : 0,
+                    width:
+                        nextIndentation !== null && lastIndentation !== null
+                            ? `${listItemIndent * (nextIndentation - lastIndentation - 1)}rem`
+                            : nextIndentation !== null
+                            ? `${listItemIndent * nextIndentation}rem`
+                            : lastIndentation !== null
+                            ? `calc(100% - ${listItemIndent * (lastIndentation + 1)}rem)`
+                            : "100%",
+                }}
+            ></Box>
+            <Box
+                position="absolute"
+                right="5"
+                bottom="3"
+                pointerEvents="none"
+                backgroundColor={isOver ? {light: "theme-30", dark: "theme-60"} : undefined}
+                style={{
+                    height: 1,
+                    left: `${parseRemLengthNumber(spacing["5"]) + listItemIndent * indentation}rem`,
+                }}
+            />
+            <Box
+                position="absolute"
+                bottom="3"
+                height="2.5"
+                backgroundColor={isOver ? {light: "theme-30", dark: "theme-60"} : undefined}
+                style={{
+                    width: 1,
+                    left: `${parseRemLengthNumber(spacing["5"]) + listItemIndent * indentation}rem`,
+                }}
             />
         </Box>
     );

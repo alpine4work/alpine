@@ -1,3 +1,4 @@
+import {DndContext, DragOverlay, pointerWithin, useDndContext} from "@dnd-kit/core";
 import {
     Key,
     PropsWithoutRef,
@@ -5,12 +6,15 @@ import {
     ReactNode,
     Ref,
     RefAttributes,
+    RefObject,
     createRef,
     forwardRef,
     useEffect,
     useImperativeHandle,
     useRef,
+    useState,
 } from "react";
+import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
 import {
@@ -18,13 +22,15 @@ import {
     TaskRowPresentationalViewRef,
     taskRowViewHeight,
 } from "~/client/tasks/demo_2/task_row_presentational_view";
-import {TaskAssignee, TaskStatus} from "~/client/tasks/demo_2/task_status_button";
+import {TaskAssignee, TaskStatus, TaskStatusButton} from "~/client/tasks/demo_2/task_status_button";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
+import {spacing} from "~/shared/design/spacing";
 import {emptyArray} from "~/shared/helpers/array/empty_array";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {LazyMap} from "~/shared/helpers/control/lazy_map";
 import {noop} from "~/shared/helpers/control/noop";
-import {colorSchemeVars} from "~/shared/styles/styles";
+import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
+import {colorSchemeVars, contentSchemaStyles} from "~/shared/styles/styles";
 import {TaskTitle, emptyTaskTitle} from "~/shared/tasks/task_title_schema";
 
 export type TaskGridPresentationalViewRef = {
@@ -215,6 +221,7 @@ function TaskGridPresentationalView<TaskRow>(
                 focusLastTaskTitleEnd={() => {
                     bottomGhostTaskRowRef.current?.focusTitleEnd();
                 }}
+                droppableIndentations={[0]}
             />,
         );
     }
@@ -222,6 +229,19 @@ function TaskGridPresentationalView<TaskRow>(
     for (let index = 0; index < taskRowCount; index++) {
         const taskRow = getTaskRow(index);
         const taskRowIndentation = getTaskRowIndentation(taskRow);
+
+        const nextTaskRowIndentation =
+            index + 1 < taskRowCount ? getTaskRowIndentation(getTaskRow(index + 1)) : 0;
+
+        const droppableIndentations = [taskRowIndentation];
+
+        for (
+            let droppableIndentation = taskRowIndentation - 1;
+            droppableIndentation >= nextTaskRowIndentation;
+            droppableIndentation--
+        ) {
+            droppableIndentations.push(droppableIndentation);
+        }
 
         taskRows.push(
             <TaskRowPresentationalView
@@ -296,6 +316,7 @@ function TaskGridPresentationalView<TaskRow>(
                 focusLastTaskTitleEnd={() => {
                     bottomGhostTaskRowRef.current?.focusTitleEnd();
                 }}
+                droppableIndentations={droppableIndentations}
             />,
         );
     }
@@ -399,10 +420,84 @@ function TaskGridPresentationalView<TaskRow>(
     );
 
     return (
-        <Box>
-            {taskRows}
-            {taskRows.length <= 1 && decorativeGhostTaskRow}
-            {taskRows.length <= 2 && decorativeGhostTaskRow}
+        <DndContext collisionDetection={pointerWithin}>
+            <Box position="relative" zIndex="0">
+                {taskRows}
+                {taskRows.length <= 1 && decorativeGhostTaskRow}
+                {taskRows.length <= 2 && decorativeGhostTaskRow}
+            </Box>
+            <TaskRowViewDragPortals />
+        </DndContext>
+    );
+}
+
+function TaskRowViewDragPortals() {
+    const {active, activatorEvent} = useDndContext();
+
+    const isPointerDragging = active && activatorEvent instanceof PointerEvent;
+
+    return (
+        <>
+            {isPointerDragging &&
+                createPortal(
+                    <Box position="absolute" inset="0" zIndex="70" cursor="grabbing" />,
+                    document.body,
+                )}
+            {active &&
+                createPortal(
+                    <DragOverlay zIndex={60}>
+                        <TaskRowViewDragOverlay dataRef={active.data as any} />
+                    </DragOverlay>,
+                    document.body,
+                )}
+        </>
+    );
+}
+
+function TaskRowViewDragOverlay({
+    dataRef,
+}: {
+    dataRef: RefObject<{status: TaskStatus; title: TaskTitle; assignee: TaskAssignee}>;
+}) {
+    const [{status, title, assignee}] = useState(assertExists(dataRef.current));
+
+    return (
+        <Box
+            display="inline-block"
+            minWidth="48"
+            maxWidth="128"
+            paddingX="3"
+            borderRadius="md"
+            boxShadow="elevation-20"
+            backgroundColor="grey-0"
+            position="relative"
+            left="2"
+            style={{
+                height: `calc(${spacing[taskRowViewHeight]} + 1px)`,
+                paddingTop: 1,
+                top: -1,
+                transform: "scale(75%)",
+                transformOrigin: "center left",
+                opacity: 0.75,
+            }}
+        >
+            <Box height="full" display="flex" alignItems="center" gap="2" style={{opacity: 0.5}}>
+                <Box flexShrink="0">
+                    <TaskStatusButton
+                        status={status}
+                        onStatusChange={noop}
+                        assignee={assignee}
+                        onAssigneeChange={noop}
+                    />
+                </Box>
+                <Box
+                    fontStyle="truncate"
+                    style={contentSchemaStyles.paragraphFontSize}
+                    dangerouslySetInnerHTML={{
+                        __html: serializeProsemirrorFragmentToHtml(title.content),
+                    }}
+                />
+            </Box>
         </Box>
     );
 }
