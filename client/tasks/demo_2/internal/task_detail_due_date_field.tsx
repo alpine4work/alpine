@@ -127,6 +127,7 @@ export function TaskDetailDueDateField({
                             dueDate={dueDate}
                             onDueDateChange={onDueDateChange}
                             aria-labelledby={ariaLabelledBy}
+                            isEditing={isEditing}
                         />
                     </Box>
                 </FocusRing>

@@ -302,6 +302,8 @@ function TaskDetailViewField({
     const valueRef = useRef<HTMLDivElement>(null);
 
     return (
+        // Doesn't have a parent to horizontally align elements since we layout fields
+        // with CSS grid.
         <>
             <label
                 id={labelId}
