@@ -141,7 +141,16 @@ export function TaskView({
             onStatusChange={status => dispatch({type: "UpdateTaskStatus", taskId, status})}
             title={task.title}
             onTitleChange={title => dispatch({type: "UpdateTaskTitle", taskId, title})}
-            assignee={null} // NOCOMMIT
+            assignee={task.assignee}
+            onAssigneeAccountChange={assigneeAccount =>
+                dispatch({
+                    type: "UpdateTaskAssignee",
+                    taskId,
+                    assignee: assigneeAccount
+                        ? {account: assigneeAccount, status: "Inactive"}
+                        : null,
+                })
+            }
             dueDate={null} // NOCOMMIT
             onDueDateChange={() => {}} // NOCOMMIT
             collections={emptyArray} // NOCOMMIT

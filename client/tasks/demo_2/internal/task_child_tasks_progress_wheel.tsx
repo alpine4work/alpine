@@ -20,7 +20,7 @@ export function TaskChildTasksProgressWheel({
     const radius = useSpacingPx(size) / 2;
     const strokeWidth = 2;
     const viewBoxSize = radius * 2 + strokeWidth;
-    const dashes = Math.round(2 * Math.PI * radius);
+    const circumference = 2 * Math.PI * radius;
 
     return (
         <Box position="relative" width={size} height={size}>
@@ -74,7 +74,7 @@ export function TaskChildTasksProgressWheel({
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         strokeWidth={strokeWidth}
-                        strokeDasharray={`${fraction * dashes} ${dashes}`}
+                        strokeDasharray={`${fraction * circumference} ${circumference}`}
                         style={{transition: "stroke-dasharray 200ms ease"}}
                     />
                 </svg>

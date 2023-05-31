@@ -12,8 +12,6 @@ import {
     useMemo,
     useRef,
 } from "react";
-import {AccountAvatar} from "~/client/accounts/account_avatar";
-import {AccountShortName} from "~/client/accounts/account_short_name";
 import {Box} from "~/client/design/box";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element";
 import {IconButton} from "~/client/design/icon_button";
@@ -21,6 +19,7 @@ import {MenuButton} from "~/client/design/menu_button";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {TaskChildTasksProgressWheel} from "~/client/tasks/demo_2/internal/task_child_tasks_progress_wheel";
 import {TaskCollectionChip} from "~/client/tasks/demo_2/internal/task_collection_chip";
+import {TaskDetailAssigneeField} from "~/client/tasks/demo_2/internal/task_detail_assignee_field";
 import {TaskDetailDueDateField} from "~/client/tasks/demo_2/internal/task_detail_due_date_field";
 import {TaskDetailNotesField} from "~/client/tasks/demo_2/internal/task_detail_notes_field";
 import {TaskDetailTitleInput} from "~/client/tasks/demo_2/internal/task_detail_title_input";
@@ -74,6 +73,7 @@ export type TaskDetailPresentationalViewProps<ChildTaskRow> = {
     title: TaskTitle;
     onTitleChange: (title: TaskTitle) => void;
     assignee: TaskAssignee | null;
+    onAssigneeAccountChange: (assigneeAccount: AccountModel | null) => void;
     dueDate: CalendarDate | null;
     onDueDateChange: (dueDate: CalendarDate | null) => void;
     collections: ReadonlyArray<LocalTaskCollection>;
@@ -91,6 +91,7 @@ function TaskDetailPresentationalView<ChildTaskRow>(
         title,
         onTitleChange,
         assignee,
+        onAssigneeAccountChange,
         dueDate,
         onDueDateChange,
         collections,
@@ -118,6 +119,7 @@ function TaskDetailPresentationalView<ChildTaskRow>(
     return (
         <Box
             width="full"
+            overflow="hidden"
             maxWidth={taskDetailPresentationalViewMaxWidth}
             paddingY={padding}
             display="flex"
@@ -164,6 +166,7 @@ function TaskDetailPresentationalView<ChildTaskRow>(
             <TaskDetailViewDenseFields
                 status={status}
                 assigneeAccount={assignee?.account ?? null}
+                onAssigneeAccountChange={onAssigneeAccountChange}
                 dueDate={dueDate}
                 onDueDateChange={onDueDateChange}
                 collections={collections}
@@ -214,6 +217,7 @@ function TaskDetailPresentationalView<ChildTaskRow>(
 function TaskDetailViewDenseFields({
     status,
     assigneeAccount,
+    onAssigneeAccountChange,
     dueDate,
     onDueDateChange,
     collections,
@@ -221,6 +225,7 @@ function TaskDetailViewDenseFields({
 }: {
     status: TaskStatus;
     assigneeAccount: AccountModel | null;
+    onAssigneeAccountChange: (assigneeAccount: AccountModel | null) => void;
     dueDate: CalendarDate | null;
     onDueDateChange: (dueDate: CalendarDate | null) => void;
     collections: ReadonlyArray<LocalTaskCollection>;
@@ -233,30 +238,20 @@ function TaskDetailViewDenseFields({
             flexDirection="column"
             gap="5"
             style={{
-                gridTemplateColumns: "auto 1fr",
+                gridTemplateColumns: "auto minmax(0, 1fr)",
                 gridTemplateRows: "repeat(3, auto)",
                 gridAutoFlow: "row dense",
             }}
         >
-            {useMemo(
-                () => (
-                    <TaskDetailViewField label="Assignee">
-                        {assigneeAccount && (
-                            <Box display="flex" alignItems="center" gap="2">
-                                <Box position="relative" width="4" height="4">
-                                    <Box position="absolute" top="-0.5" left="-0.5">
-                                        <AccountAvatar size="5" account={assigneeAccount} />
-                                    </Box>
-                                </Box>
-                                <Box fontStyle="truncate">
-                                    <AccountShortName account={assigneeAccount} />
-                                </Box>
-                            </Box>
-                        )}
-                    </TaskDetailViewField>
-                ),
-                [assigneeAccount],
-            )}
+            <TaskDetailViewField label="Assignee">
+                {({"aria-labelledby": ariaLabelledBy}) => (
+                    <TaskDetailAssigneeField
+                        assigneeAccount={assigneeAccount}
+                        onAssigneeAccountChange={onAssigneeAccountChange}
+                        aria-labelledby={ariaLabelledBy}
+                    />
+                )}
+            </TaskDetailViewField>
             <TaskDetailViewField label="Due date">
                 {({"aria-labelledby": ariaLabelledBy}) => (
                     // TODO(calebmer): Should due date be visible or hidden by default? It is good

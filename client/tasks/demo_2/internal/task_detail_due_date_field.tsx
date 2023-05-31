@@ -53,7 +53,7 @@ export function TaskDetailDueDateField({
     const isEditing = isFocusWithinInput || isFocusWithinOverlay;
 
     return (
-        <Box position="relative">
+        <Box position="relative" height="4">
             {!isEditing && formattedDueDate && (
                 <Box
                     position="absolute"
@@ -112,6 +112,7 @@ export function TaskDetailDueDateField({
                 <FocusRing isVisibleWhenFocusWithin>
                     <Box
                         ref={inputRef}
+                        display="inline-block"
                         pointerEvents={!isEditing && formattedDueDate ? "none" : undefined}
                         style={{opacity: !isEditing && formattedDueDate ? 0 : undefined}}
                         onFocus={event => {

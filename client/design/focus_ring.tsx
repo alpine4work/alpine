@@ -39,6 +39,7 @@ function FocusRing(
     {
         offset,
         insetX,
+        insetBottom,
         isVisible = false,
         isDisabled = false,
         shouldIgnoreFocusEvents = false,
@@ -67,6 +68,14 @@ function FocusRing(
          * `offset - insetX`.
          */
         insetX?: Spacing;
+
+        /**
+         * How far from the bottom should we inset our focus ring?
+         *
+         * This will be subtracted from `offset`. So the true offset on the bottom is
+         * `offset - insetBottom`.
+         */
+        insetBottom?: Spacing;
 
         /**
          * Is the focus ring always visible regardless of whether the target
@@ -234,7 +243,12 @@ function FocusRing(
             sameHeight={true}
             overlay={
                 <Box pointerEvents="none" position="relative" zIndex={overlayZIndex}>
-                    <FocusRingBox offset={offset} insetX={insetX} targetRef={targetRef} />
+                    <FocusRingBox
+                        offset={offset}
+                        insetX={insetX}
+                        insetBottom={insetBottom}
+                        targetRef={targetRef}
+                    />
                 </Box>
             }
             children={useElementWithRef(children, mergedTargetRef)}
@@ -246,10 +260,12 @@ function FocusRing(
 function FocusRingBox({
     offset = "0.5",
     insetX = "0",
+    insetBottom = "0",
     targetRef,
 }: {
     offset?: Spacing | "border" | "inset";
     insetX?: Spacing;
+    insetBottom?: Spacing;
     targetRef: RefObject<HTMLElement | null>;
 }) {
     const ringRef = useRef<HTMLDivElement>(null);
@@ -269,9 +285,11 @@ function FocusRingBox({
     if (offset === "inset") ringOffsetBasePx = -ringWidthPx;
 
     const ringInsetXPx = useSpacingPx(insetX);
+    const ringInsetBottomPx = useSpacingPx(insetBottom);
 
     const ringOffsetXPx = ringOffsetBasePx - ringInsetXPx;
-    const ringOffsetYPx = ringOffsetBasePx;
+    const ringOffsetTopPx = ringOffsetBasePx;
+    const ringOffsetBottomPx = ringOffsetBasePx - ringInsetBottomPx;
 
     useLayoutEffect(() => {
         const run = () => {
@@ -359,9 +377,9 @@ function FocusRingBox({
             border="theme-30-const"
             style={{
                 width: `calc(100% + ${ringWidthPx * 2 + ringOffsetXPx * 2}px)`,
-                height: `calc(100% + ${ringWidthPx * 2 + ringOffsetYPx * 2}px)`,
+                height: `calc(100% + ${ringWidthPx * 2 + ringOffsetTopPx + ringOffsetBottomPx}px)`,
                 transform: `translate(${-(ringWidthPx + ringOffsetXPx)}px, ${-(
-                    ringWidthPx + ringOffsetYPx
+                    ringWidthPx + ringOffsetTopPx
                 )}px)`,
                 borderWidth: ringWidthPx,
             }}

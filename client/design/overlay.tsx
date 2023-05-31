@@ -27,7 +27,7 @@ import {
     removeResizeListenerForElement,
 } from "~/client/helpers/use_resize_observer";
 import {useStableJsonValue} from "~/client/helpers/use_stable_json_value";
-import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/spacing";
+import {RemLength, Spacing, convertRemLengthToPx, spacing} from "~/shared/design/spacing";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {assert} from "~/shared/helpers/control/assert";
 import {noop} from "~/shared/helpers/control/noop";
@@ -100,7 +100,7 @@ export type OverlayProps = {
      *
      * [1]: https://popper.js.org/docs/v2/modifiers/offset/#demo
      */
-    offset?: Spacing | `-${Spacing}`;
+    offset?: Spacing | `-${Spacing}` | RemLength;
 
     /**
      * How far the offset should move along the reference.
@@ -109,7 +109,7 @@ export type OverlayProps = {
      *
      * [1]: https://popper.js.org/docs/v2/modifiers/offset/#demo
      */
-    offsetAlong?: Spacing | `-${Spacing}`;
+    offsetAlong?: Spacing | `-${Spacing}` | RemLength;
 
     /**
      * If true, the overlay tries to stay visible within the nearest parent
@@ -278,22 +278,30 @@ function Overlay(
                                       offsetAlong
                                           ? offsetAlong.startsWith("-")
                                               ? -convertRemLengthToPx(
-                                                    spacing[offsetAlong.slice(1) as Spacing],
+                                                    !offsetAlong.endsWith("rem")
+                                                        ? spacing[offsetAlong.slice(1) as Spacing]
+                                                        : (offsetAlong.slice(1) as RemLength),
                                                     remPx,
                                                 )
                                               : convertRemLengthToPx(
-                                                    spacing[offsetAlong as Spacing],
+                                                    !offsetAlong.endsWith("rem")
+                                                        ? spacing[offsetAlong as Spacing]
+                                                        : (offsetAlong as RemLength),
                                                     remPx,
                                                 )
                                           : 0,
                                       offset
                                           ? offset.startsWith("-")
                                               ? -convertRemLengthToPx(
-                                                    spacing[offset.slice(1) as Spacing],
+                                                    !offset.endsWith("rem")
+                                                        ? spacing[offset.slice(1) as Spacing]
+                                                        : (offset.slice(1) as RemLength),
                                                     remPx,
                                                 )
                                               : convertRemLengthToPx(
-                                                    spacing[offset as Spacing],
+                                                    !offset.endsWith("rem")
+                                                        ? spacing[offset as Spacing]
+                                                        : (offset as RemLength),
                                                     remPx,
                                                 )
                                           : 0,

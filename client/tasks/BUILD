@@ -10,6 +10,7 @@ ts_project(
         "//:node_modules/@internationalized/date",
         "//:node_modules/@types/react",
         "//:node_modules/classnames",
+        "//:node_modules/fuse.js",
         "//:node_modules/prosemirror-model",
         "//:node_modules/prosemirror-state",
         "//:node_modules/prosemirror-view",

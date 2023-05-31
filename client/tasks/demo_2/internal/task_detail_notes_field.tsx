@@ -53,7 +53,7 @@ export function TaskDetailNotesField({
             >
                 Notes
             </label>
-            <FocusRing insetX={padding} isVisibleWhenFocusWithin>
+            <FocusRing insetX={padding} insetBottom={hitSlopBottom} isVisibleWhenFocusWithin>
                 <Box marginBottom={`-${hitSlopBottom}`}>
                     <ContentEditor
                         ref={editorRef}

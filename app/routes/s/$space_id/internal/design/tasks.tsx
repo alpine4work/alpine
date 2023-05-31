@@ -1014,7 +1014,7 @@ function TaskDetailDemoView({
 
     const [status, setStatus] = useState(initialStatus);
     const [title, setTitle] = useState(initialTitle);
-    const [assignee] = useState(initialAssignee);
+    const [assignee, setAssignee] = useState(initialAssignee);
     const [dueDate, setDueDate] = useState(initialDueDate);
     const [collections] = useState(initialCollections);
     const [notesContent, setNotesContent] = useState(initialNotesContent);
@@ -1034,6 +1034,9 @@ function TaskDetailDemoView({
             title={title}
             onTitleChange={setTitle}
             assignee={assignee}
+            onAssigneeAccountChange={assigneeAccount =>
+                setAssignee(assigneeAccount ? {account: assigneeAccount, status: "Inactive"} : null)
+            }
             dueDate={dueDate}
             onDueDateChange={setDueDate}
             collections={collections}

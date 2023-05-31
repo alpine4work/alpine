@@ -5,7 +5,8 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {Store} from "~/client/helpers/store/store";
 import {useStore} from "~/client/helpers/store/use_store";
 import {ValueStore} from "~/client/helpers/store/value_store";
-import {TaskStatus} from "~/client/tasks/demo_2/task_status_button";
+import {TaskAssignee, TaskStatus} from "~/client/tasks/demo_2/task_status_button";
+import {AccountModel} from "~/shared/accounts/account_model";
 import {
     DataLossError,
     FailedPreconditionError,
@@ -48,6 +49,12 @@ const LocalTaskSchema = Schema.object({
     id: Schema.id<LocalTaskId>(),
     status: Schema.enum(["Open", "Closed"]),
     title: TaskTitleSchema,
+    assignee: Schema.object({
+        account: AccountModel.schema(),
+        status: Schema.enum(["Inactive", "Active"]),
+    })
+        .nullable()
+        .default(null),
     notesContent: TaskNotesContentWithReferencesSchema,
     parentTaskId: Schema.id<LocalTaskId>().nullable(),
     childTaskIdByOrderKey: LocalTaskIdByOrderKeySchema,
@@ -206,6 +213,7 @@ class LocalTasksDatabase {
             id: options.taskId ?? generateId(),
             status: "Open",
             title: options.title ?? emptyTaskTitle,
+            assignee: null,
             notesContent: emptyTaskNotesContentWithReferences,
             parentTaskId: options.parentTask?.id ?? null,
             childTaskIdByOrderKey: ImmutableMap.empty(),
@@ -317,6 +325,17 @@ class LocalTasksDatabase {
             taskById: this._taskById.update(taskId, task => {
                 if (!task) throw new NotFoundError("Task not found");
                 return {...task, title};
+            }),
+            notepadPageCount: this._notepadPageCount,
+            taskIdByOrderKeyByNotepadPage: this._taskIdByOrderKeyByNotepadPage,
+        });
+    }
+
+    public updateTaskAssignee(taskId: LocalTaskId, assignee: TaskAssignee | null) {
+        return new LocalTasksDatabase({
+            taskById: this._taskById.update(taskId, task => {
+                if (!task) throw new NotFoundError("Task not found");
+                return {...task, assignee};
             }),
             notepadPageCount: this._notepadPageCount,
             taskIdByOrderKeyByNotepadPage: this._taskIdByOrderKeyByNotepadPage,
@@ -662,6 +681,7 @@ export type LocalTasksAction =
     | LocalTasksCreateNotepadPageAction
     | LocalTasksCreateTaskAction
     | LocalTasksUpdateTaskTitleAction
+    | LocalTasksUpdateTaskAssigneeAction
     | LocalTasksUpdateTaskStatusAction
     | LocalTasksUpdateTaskNotesContentAction
     | LocalTasksDeleteTaskAndAllChildrenAction
@@ -691,6 +711,12 @@ type LocalTasksUpdateTaskTitleAction = {
     readonly type: "UpdateTaskTitle";
     readonly taskId: LocalTaskId;
     readonly title: TaskTitle;
+};
+
+type LocalTasksUpdateTaskAssigneeAction = {
+    readonly type: "UpdateTaskAssignee";
+    readonly taskId: LocalTaskId;
+    readonly assignee: TaskAssignee | null;
 };
 
 type LocalTasksUpdateTaskStatusAction = {
@@ -785,6 +811,13 @@ function reduceLocalTasksState(state: LocalTasksState, action: LocalTasksAction)
             return {
                 ...state,
                 database: state.database.updateTaskTitle(action.taskId, action.title),
+            };
+        }
+
+        case "UpdateTaskAssignee": {
+            return {
+                ...state,
+                database: state.database.updateTaskAssignee(action.taskId, action.assignee),
             };
         }
 
