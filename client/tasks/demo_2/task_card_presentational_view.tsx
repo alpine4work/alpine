@@ -157,12 +157,11 @@ export function TaskCardPresentationalView({
                         status={status}
                         onStatusChange={onStatusChange}
                         assignee={assignee}
-                        onAssigneeChange={onAssigneeChange}
                     />
                 </Box>
                 <Box
                     flexGrow="1"
-                    color={status === "Closed" ? "grey-60" : "grey-text"}
+                    color="grey-text"
                     style={{
                         overflow: "hidden",
                         ...contentSchemaStyles.paragraphFontSize,

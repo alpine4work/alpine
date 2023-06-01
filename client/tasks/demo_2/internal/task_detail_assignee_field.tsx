@@ -18,6 +18,7 @@ import {FocusRing} from "~/client/design/focus_ring";
 import {useSpacingPx} from "~/client/design/helpers/use_spacing_px";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
+import {useSpaceContext} from "~/client/spaces/space_context";
 import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts";
 import {AccountModel} from "~/shared/accounts/account_model";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
@@ -68,6 +69,81 @@ export function TaskDetailAssigneeField({
     onAssigneeAccountChange: (assigneeAccount: AccountModel | null) => void;
     "aria-labelledby": string;
 }) {
+    return (
+        <Box height="4" marginTop="-1" marginLeft="-0.5">
+            <Box
+                height="6"
+                width="full"
+                overflow="hidden"
+                display="flex"
+                alignItems="center"
+                gap="5"
+            >
+                <TaskDetailAssigneeFieldInput
+                    assigneeAccount={assigneeAccount}
+                    onAssigneeAccountChange={onAssigneeAccountChange}
+                    aria-labelledby={ariaLabelledBy}
+                />
+                {/* NOCOMMIT <Box flexShrink="0">
+                    <Button
+                        variant="quiet-placeholder"
+                        height="6"
+                        paddingX="2"
+                        icon={
+                            <Box
+                                position="relative"
+                                width="3"
+                                height="3"
+                                borderRadius="full"
+                                style={{borderWidth: 1, borderColor: "currentcolor"}}
+                            >
+                                <Box
+                                    position="absolute"
+                                    top="0"
+                                    left="0"
+                                    height="3"
+                                    overflow="hidden"
+                                    style={{
+                                        width: `${parseRemLengthNumber(spacing["3"]) / 2}rem`,
+                                        transform: `translate(-1px, -1px) translateX(${
+                                            parseRemLengthNumber(spacing["3"]) / 2
+                                        }rem) scale(${(16 - 5) / 16})`,
+                                        transformOrigin: "center left",
+                                    }}
+                                >
+                                    <Box
+                                        position="absolute"
+                                        top="0"
+                                        right="0"
+                                        width="3"
+                                        height="3"
+                                        borderRadius="full"
+                                        // backgroundColor="grey-30"
+                                        style={{backgroundColor: "currentcolor"}}
+                                    />
+                                </Box>
+                            </Box>
+                        }
+                    >
+                        Inactive
+                    </Button>
+                </Box> */}
+            </Box>
+        </Box>
+    );
+}
+
+function TaskDetailAssigneeFieldInput({
+    assigneeAccount,
+    onAssigneeAccountChange,
+    "aria-labelledby": ariaLabelledBy,
+}: {
+    assigneeAccount: AccountModel | null;
+    onAssigneeAccountChange: (assigneeAccount: AccountModel | null) => void;
+    "aria-labelledby": string;
+}) {
+    const {currentAccount} = useSpaceContext();
+
     const [inputState, setInputState] = useState<TaskDetailAssigneeFieldInputState>({
         type: "Selection",
         disableAnimationOut: false,
@@ -93,16 +169,18 @@ export function TaskDetailAssigneeField({
 
         allItems.push({type: "Null", key: "Null"});
 
-        allItems.sort((item1, item2) =>
-            item1.type === "Null"
-                ? -1
-                : item2.type === "Null"
-                ? 1
-                : item1.account.name.localeCompare(item2.account.name),
-        );
+        allItems.sort((item1, item2) => {
+            if (item1.type === "Null") return -1;
+            if (item2.type === "Null") return 1;
+
+            if (item1.account.id === currentAccount.id) return -1;
+            if (item2.account.id === currentAccount.id) return 1;
+
+            return item1.account.name.localeCompare(item2.account.name);
+        });
 
         return allItems;
-    }, [allUnsortedAccounts]);
+    }, [allUnsortedAccounts, currentAccount.id]);
 
     const itemsSearchIndex = useMemo(
         () =>
@@ -202,85 +280,79 @@ export function TaskDetailAssigneeField({
     );
 
     return (
-        <Box height="4" marginTop="-0.5" marginLeft="-0.5">
-            <OverlayAnimated
-                isVisible={comboBoxState.isOpen}
-                offset="2"
-                offsetAlong={`-${parseRemLengthNumber(
-                    addRemLengths(spacing["4"], spacing["0.5"]),
-                )}rem`}
-                disableAnimationIn={true}
-                disableAnimationOut={
-                    inputState.type === "Selection" && inputState.disableAnimationOut
-                }
-                placement="bottom-start"
-                overlay={
-                    <Box ref={popoverRef} position="relative">
-                        <TaskDetailAssigneeFieldListBox
-                            comboBoxState={comboBoxState}
-                            listBoxRef={listBoxRef}
-                            listBoxProps={listBoxProps}
-                            selectedKey={selectedKey}
-                        />
+        <OverlayAnimated
+            isVisible={comboBoxState.isOpen}
+            offset="2"
+            offsetAlong={`-${parseRemLengthNumber(addRemLengths(spacing["4"], spacing["0.5"]))}rem`}
+            disableAnimationIn={true}
+            disableAnimationOut={inputState.type === "Selection" && inputState.disableAnimationOut}
+            placement="bottom-start"
+            overlay={
+                <Box ref={popoverRef} position="relative">
+                    <TaskDetailAssigneeFieldListBox
+                        comboBoxState={comboBoxState}
+                        listBoxRef={listBoxRef}
+                        listBoxProps={listBoxProps}
+                        selectedKey={selectedKey}
+                    />
+                </Box>
+            }
+        >
+            <FocusRing isVisibleWhenFocusWithin>
+                <Box
+                    maxWidth="full"
+                    overflow="hidden"
+                    display="inline-flex"
+                    alignItems="center"
+                    gap="1.5"
+                    className={tasksStyles.textCursorNotInheritedClassName}
+                    onClick={event => {
+                        // If the backdrop of this element was clicked, focus our combobox input.
+                        if (event.target === event.currentTarget) {
+                            assertExists(inputRef.current).focus();
+                        }
+                    }}
+                >
+                    <Box flexShrink="0" pointerEvents="none">
+                        {assigneeAccount ? (
+                            <AccountAvatar size="5" account={assigneeAccount} />
+                        ) : (
+                            <TaskDetailAssigneeFieldPlaceholderAvatar />
+                        )}
                     </Box>
-                }
-            >
-                <FocusRing isVisibleWhenFocusWithin>
                     <Box
                         maxWidth="full"
                         overflow="hidden"
-                        display="inline-flex"
-                        alignItems="center"
-                        gap="1.5"
-                        className={tasksStyles.textCursorNotInheritedClassName}
-                        onClick={event => {
-                            // If the backdrop of this element was clicked, focus our combobox input.
-                            if (event.target === event.currentTarget) {
-                                assertExists(inputRef.current).focus();
-                            }
-                        }}
+                        // The width of this element is determined by nested text boxes. The `<input>`
+                        // then uses the parent width as its own width.
+                        display="inline-block"
                     >
-                        <Box flexShrink="0" pointerEvents="none">
-                            {assigneeAccount ? (
-                                <AccountAvatar size="5" account={assigneeAccount} />
-                            ) : (
-                                <TaskDetailAssigneeFieldPlaceholderAvatar />
-                            )}
+                        <Box height="0" opacity="0" pointerEvents="none" aria-hidden={true}>
+                            {nullAssigneeLabel}
                         </Box>
-                        <Box
-                            maxWidth="full"
-                            overflow="hidden"
-                            // The width of this element is determined by nested text boxes. The `<input>`
-                            // then uses the parent width as its own width.
-                            display="inline-block"
-                        >
-                            <Box height="0" opacity="0" pointerEvents="none" aria-hidden={true}>
-                                {nullAssigneeLabel}
-                            </Box>
-                            <Box height="0" opacity="0" pointerEvents="none" aria-hidden={true}>
-                                {inputValue}
-                            </Box>
-                            <input
-                                {...inputProps}
-                                ref={inputRef}
-                                type="text"
-                                className={sprinkles({
-                                    display: "inline-block",
-                                    width: "full",
-                                    backgroundColor: "transparent",
-                                })}
-                                // By default `<input>` elements have a `min-width` determined by the `size`
-                                // property. We want our `<input>`s `min-width` to be determined by our CSS
-                                // so set it to a small value as not to matter.
-                                // https://stackoverflow.com/questions/29470676/why-doesnt-the-input-element-respect-min-width
-                                size={1}
-                                placeholder={nullAssigneeLabel}
-                            />
+                        <Box height="0" opacity="0" pointerEvents="none" aria-hidden={true}>
+                            {inputValue}
                         </Box>
+                        <input
+                            {...inputProps}
+                            ref={inputRef}
+                            type="text"
+                            className={sprinkles({
+                                display: "inline-block",
+                                width: "full",
+                                backgroundColor: "transparent",
+                            })}
+                            // By default `<input>` elements have a `min-width` determined by the `size`
+                            // property. We want our `<input>`s `min-width` to be determined by our CSS
+                            // so set it to a small value as not to matter.
+                            // https://stackoverflow.com/questions/29470676/why-doesnt-the-input-element-respect-min-width
+                            size={1}
+                            placeholder={nullAssigneeLabel}
+                        />
                     </Box>
-                </FocusRing>
-            </OverlayAnimated>
-        </Box>
+                </Box>
+            </FocusRing>
+        </OverlayAnimated>
     );
 }
 

@@ -6,7 +6,6 @@ import {FocusRing} from "~/client/design/focus_ring";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
-import {TaskStatus} from "~/client/tasks/demo_2/task_status_button";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
 import {fontSizes, sprinkles, tasksStyles} from "~/shared/styles/styles";
@@ -20,12 +19,10 @@ const taskDetailTitleInputClassName = `ProseMirror ${sprinkles({
 })} ${tasksStyles.detailTitleInputPlaceholderClassName}`;
 
 export function TaskDetailTitleInput({
-    status,
     title,
     onTitleChange,
     placeholder,
 }: {
-    status: TaskStatus;
     title: TaskTitle;
     onTitleChange: (title: TaskTitle) => void;
     placeholder?: string;
@@ -148,7 +145,7 @@ export function TaskDetailTitleInput({
                     sprinkles({
                         position: "relative",
                         zIndex: "0",
-                        color: status === "Closed" ? "grey-60" : "grey-text",
+                        color: "grey-text",
                     }),
                     titleState.doc.childCount === 0 &&
                         tasksStyles.detailTitleInputEmptyContainerClassName,

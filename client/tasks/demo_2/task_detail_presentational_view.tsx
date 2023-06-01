@@ -13,10 +13,12 @@ import {
     useRef,
 } from "react";
 import {Box} from "~/client/design/box";
+import {Button} from "~/client/design/button";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element";
 import {IconButton} from "~/client/design/icon_button";
 import {MenuButton} from "~/client/design/menu_button";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
+import {useSpaceContext} from "~/client/spaces/space_context";
 import {TaskChildTasksProgressWheel} from "~/client/tasks/demo_2/internal/task_child_tasks_progress_wheel";
 import {TaskCollectionChip} from "~/client/tasks/demo_2/internal/task_collection_chip";
 import {TaskDetailAssigneeField} from "~/client/tasks/demo_2/internal/task_detail_assignee_field";
@@ -103,6 +105,7 @@ function TaskDetailPresentationalView<ChildTaskRow>(
     }: TaskDetailPresentationalViewProps<ChildTaskRow>,
     ref: Ref<TaskDetailPresentationalViewRef>,
 ) {
+    const {currentAccount} = useSpaceContext();
     const isMobile = useIsMobile();
     const padding: Spacing = isMobile ? "3" : "5";
 
@@ -128,13 +131,42 @@ function TaskDetailPresentationalView<ChildTaskRow>(
             position="relative"
         >
             <Box paddingX={padding} display="flex" flexDirection="column" gap="3">
-                <TaskStatusButton
-                    size="5"
-                    status={status}
-                    onStatusChange={onStatusChange}
-                    assignee={assignee}
-                    onAssigneeChange={onAssigneeChange}
-                />
+                <Box display="flex" alignItems="center" gap="1">
+                    <TaskStatusButton
+                        size="5"
+                        status={status}
+                        onStatusChange={onStatusChange}
+                        assignee={assignee}
+                    />
+                    <Box marginY="-0.5">
+                        {status === "Closed" ? (
+                            <Box
+                                display="flex"
+                                alignItems="center"
+                                height="6"
+                                paddingX="2"
+                                color="grey-50"
+                            >
+                                Closed
+                            </Box>
+                        ) : (
+                            <Button
+                                variant="quiet-off"
+                                height="6"
+                                paddingX="1.5"
+                                onPress={() => {
+                                    onAssigneeChange({
+                                        account: assignee?.account ?? currentAccount,
+                                        status:
+                                            assignee?.status === "Active" ? "Inactive" : "Active",
+                                    });
+                                }}
+                            >
+                                {assignee?.status === "Active" ? "Active" : "Inactive"}
+                            </Button>
+                        )}
+                    </Box>
+                </Box>
                 <Box
                     position="absolute"
                     top={assertSpacing(`${parseInt(padding, 10) - 2}`)}
@@ -158,7 +190,6 @@ function TaskDetailPresentationalView<ChildTaskRow>(
                     </MenuButton>
                 </Box>
                 <TaskDetailTitleInput
-                    status={status}
                     title={title}
                     onTitleChange={onTitleChange}
                     placeholder="Untitled task"

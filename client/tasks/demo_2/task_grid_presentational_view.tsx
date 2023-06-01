@@ -626,7 +626,6 @@ function TaskRowViewDragOverlay<TaskRow>({
                         status={getTaskStatus(taskRow)}
                         onStatusChange={noop}
                         assignee={getTaskAssignee(taskRow)}
-                        onAssigneeChange={noop}
                     />
                 </Box>
                 <Box

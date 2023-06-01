@@ -67,7 +67,6 @@ export {TaskRowTitleInputForwardRef as TaskRowTitleInput};
 
 function TaskRowTitleInput(
     {
-        status,
         title,
         onTitleChange,
         placeholder,
@@ -86,7 +85,6 @@ function TaskRowTitleInput(
         focusFirstTaskTitleStart,
         focusLastTaskTitleEnd,
     }: {
-        status: TaskStatus | null;
         title: TaskTitle;
         onTitleChange: (title: TaskTitle) => void;
         placeholder?: string;
@@ -435,7 +433,7 @@ function TaskRowTitleInput(
                         zIndex: "0",
                         overflow: "hidden",
                         height: taskRowTitleInputHeight,
-                        color: status === "Closed" ? "grey-60" : "grey-text",
+                        color: "grey-text",
                     }),
                     !isFullyScrolledLeft &&
                         tasksStyles.rowTitleInputOverflowGradientLeftContainerClassName,

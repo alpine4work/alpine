@@ -306,7 +306,6 @@ function TaskRowPresentationalView<TaskRow>(
                         status={status}
                         onStatusChange={onStatusChange}
                         assignee={assignee}
-                        onAssigneeChange={onAssigneeChange}
                     />
                 ) : (
                     <Box
@@ -385,7 +384,6 @@ function TaskRowPresentationalView<TaskRow>(
                 <Box flexGrow="1" overflow="hidden">
                     <TaskRowTitleInput
                         ref={titleInputRef}
-                        status={status}
                         title={title}
                         onTitleChange={onTitleChange}
                         placeholder={titlePlaceholder}
