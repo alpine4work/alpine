@@ -6,11 +6,14 @@ import {buttonPressedOverlayOpacity} from "~/client/design/button";
 import {FocusRing} from "~/client/design/focus_ring";
 import {AccountModel} from "~/shared/accounts/account_model";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
+import {OrderKey} from "~/shared/helpers/sort/order_key";
 import {sprinkles} from "~/shared/styles/styles";
 
 export type TaskStatus = "Open" | "Closed";
 
-export type TaskAssigneeStatus = "Inactive" | "Active";
+export type TaskAssigneeStatus =
+    | {readonly type: "Inactive"}
+    | {readonly type: "Active"; readonly orderTime: Date; readonly orderKey: OrderKey};
 
 export type TaskAssignee = {
     readonly account: AccountModel;
@@ -92,7 +95,7 @@ export function TaskStatusButton({
                         }
                     />
                 )}
-                {status === "Open" && assignee?.status === "Active" && (
+                {status === "Open" && assignee?.status.type === "Active" && (
                     <Box
                         position="absolute"
                         top="0"

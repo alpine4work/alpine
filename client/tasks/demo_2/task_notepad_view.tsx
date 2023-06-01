@@ -1,88 +1,156 @@
 import {useRef, useState} from "react";
 import {Box} from "~/client/design/box";
 import {useLocalTasksState} from "~/client/tasks/demo_2/internal/local_tasks_state";
-import {TaskNotepadGridView} from "~/client/tasks/demo_2/internal/task_notepad_grid_view";
+import {TaskGridViewDndContext} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
+import {
+    TaskNotepadGridView,
+    TaskNotepadGridViewRow,
+} from "~/client/tasks/demo_2/internal/task_notepad_grid_view";
 import {TaskNotepadViewActiveSection} from "~/client/tasks/demo_2/internal/task_notepad_view_active_section";
 import {TaskNotepadViewPaginator} from "~/client/tasks/demo_2/internal/task_notepad_view_paginator";
 import {TaskGridPresentationalViewRef} from "~/client/tasks/demo_2/task_grid_presentational_view";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {clamp} from "~/shared/helpers/number/clamp";
+import {LocalTaskId} from "~/shared/id/types/id_types";
 import {tasksStyles} from "~/shared/styles/styles";
 
 // TODO(calebmer): Some stuff this view needs:
 //
 // - Shift-tab on a task that's about to move keeps it in place then animate
-// - Drag to reorder
 // - Due date
 // - Assignee
 // - Drag selection should select multiple tasks
 // - Select all
 // - Undo
 // - Save expanded tasks on server for browser so we can re-expand them on reload
-//
-// Generally I should overview a list of document shortcuts and keyboard
-// shortcuts and incorporate all that make sense.
 
 export function TaskNotepadView() {
     const gridViewRef = useRef<TaskGridPresentationalViewRef>(null);
     const [state, dispatch] = useLocalTasksState();
     const [notepadPage, setNotepadPage] = useState(state.database.getNotepadPageCount());
 
+    const [expandedTaskIds, setExpandedTaskIds] = useState<ReadonlySet<LocalTaskId>>(new Set());
+
     const clampedNotepadPage = clamp(1, notepadPage, state.database.getNotepadPageCount());
     if (clampedNotepadPage !== notepadPage) setNotepadPage(clampedNotepadPage);
 
+    const moveTaskBelow = (
+        belowTaskRow: TaskNotepadGridViewRow | null,
+        unnest: number,
+        taskRow: TaskNotepadGridViewRow,
+    ) => {
+        if (!belowTaskRow) {
+            dispatch({
+                type: "MoveTaskToNotepad",
+                notepadPage: notepadPage,
+                belowOrderKey: null,
+                taskId: taskRow.task.id,
+            });
+            return;
+        }
+
+        const position =
+            unnest === 0
+                ? belowTaskRow.position
+                : belowTaskRow.parentPositionStack[
+                      belowTaskRow.parentPositionStack.length - unnest
+                  ] ?? belowTaskRow.position;
+
+        if (position.isRoot) {
+            dispatch({
+                type: "MoveTaskToNotepad",
+                notepadPage: position.notepad.page,
+                belowOrderKey: position.notepad.orderKey,
+                taskId: taskRow.task.id,
+            });
+        } else {
+            dispatch({
+                type: "MoveTaskToParentTask",
+                parentTaskId: position.parentTask.id,
+                belowOrderKey: position.parentTask.orderKey,
+                taskId: taskRow.task.id,
+            });
+        }
+    };
+
+    const moveTaskToParentTop = (
+        parentTaskRow: TaskNotepadGridViewRow,
+        taskRow: TaskNotepadGridViewRow,
+    ) => {
+        dispatch({
+            type: "MoveTaskToParentTask",
+            parentTaskId: parentTaskRow.task.id,
+            belowOrderKey: null,
+            taskId: taskRow.task.id,
+        });
+    };
+
     return (
-        <Box
-            flexGrow="1"
-            overflowX="hidden"
-            overflowY="scroll"
-            backgroundColor="grey-0"
-            className={tasksStyles.textCursorNotInheritedClassName}
-            {...useOutOfBoundsClickSelection({
-                onSelect: event => {
-                    // Only select from clicks on area without children.
-                    if (event.target !== event.currentTarget) return;
-                    assertExists(gridViewRef.current).focusEnd();
-                },
-                onSelectAll: event => {
-                    // Only select from clicks on area without children.
-                    if (event.target !== event.currentTarget) return;
-                    assertExists(gridViewRef.current).focusEnd();
-                },
-            })}
+        <TaskGridViewDndContext<TaskNotepadGridViewRow>
+            getTaskStatus={({task}) => task.status}
+            getTaskAssignee={({task}) => task.assignee}
+            getTaskTitle={({task}) => task.title}
+            getTaskAreChildTasksCollapsed={({task}) => !expandedTaskIds.has(task.id)}
+            getTaskRowIndentation={({parentPositionStack}) => parentPositionStack.length}
+            moveTaskBelow={moveTaskBelow}
+            moveTaskToParentTop={moveTaskToParentTop}
         >
-            <Box height="5" />
-            <TaskNotepadViewActiveSection />
-            <Box height="16" />
             <Box
-                paddingX="5"
-                paddingBottom="4"
-                display="flex"
-                alignItems="center"
-                justifyContent="space-between"
+                flexGrow="1"
+                overflowX="hidden"
+                overflowY="scroll"
+                backgroundColor="grey-0"
+                className={tasksStyles.textCursorNotInheritedClassName}
+                {...useOutOfBoundsClickSelection({
+                    onSelect: event => {
+                        // Only select from clicks on area without children.
+                        if (event.target !== event.currentTarget) return;
+                        assertExists(gridViewRef.current).focusEnd();
+                    },
+                    onSelectAll: event => {
+                        // Only select from clicks on area without children.
+                        if (event.target !== event.currentTarget) return;
+                        assertExists(gridViewRef.current).focusEnd();
+                    },
+                })}
             >
-                <Box fontSize="100" fontStyle="semi-bold">
-                    Notepad
+                <Box height="5" />
+                <TaskNotepadViewActiveSection state={state} dispatch={dispatch} />
+                <Box height="16" />
+                <Box
+                    paddingX="5"
+                    paddingBottom="4"
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="space-between"
+                >
+                    <Box fontSize="100" fontStyle="semi-bold">
+                        Notepad
+                    </Box>
+                    <TaskNotepadViewPaginator
+                        notepadPage={notepadPage}
+                        onNotepadPageChange={setNotepadPage}
+                        notepadPageCount={state.database.getNotepadPageCount()}
+                        onNotepadPageCreate={() => {
+                            dispatch({type: "CreateNotepadPage"});
+                            setNotepadPage(state.database.getNotepadPageCount() + 1);
+                        }}
+                    />
                 </Box>
-                <TaskNotepadViewPaginator
+                <TaskNotepadGridView
+                    // Remount when the notepad page changes...
+                    key={notepadPage}
+                    ref={gridViewRef}
+                    state={state}
+                    dispatch={dispatch}
                     notepadPage={notepadPage}
-                    onNotepadPageChange={setNotepadPage}
-                    notepadPageCount={state.database.getNotepadPageCount()}
-                    onNotepadPageCreate={() => {
-                        dispatch({type: "CreateNotepadPage"});
-                        setNotepadPage(state.database.getNotepadPageCount() + 1);
-                    }}
+                    expandedTaskIds={expandedTaskIds}
+                    setExpandedTaskIds={setExpandedTaskIds}
+                    moveTaskBelow={moveTaskBelow}
+                    moveTaskToParentTop={moveTaskToParentTop}
                 />
             </Box>
-            <TaskNotepadGridView
-                // Remount when the notepad page changes...
-                key={notepadPage}
-                ref={gridViewRef}
-                state={state}
-                dispatch={dispatch}
-                notepadPage={notepadPage}
-            />
-        </Box>
+        </TaskGridViewDndContext>
     );
 }

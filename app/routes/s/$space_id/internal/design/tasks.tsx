@@ -4,7 +4,10 @@ import {Key, RefObject, useCallback, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box";
 import {Spacer} from "~/client/design/spacer";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour";
+import {
+    useCurrentDate,
+    useCurrentTimeRoundedToHour,
+} from "~/client/remix/use_current_time_rounded_to_hour";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
 import {SpaceRouteScrollView} from "~/client/spaces/space_route_scroll_view";
 import {LocalTaskCollection} from "~/client/tasks/demo_2/local_task_collection";
@@ -31,6 +34,7 @@ import {InvalidArgumentError, NotFoundError, UnimplementedError} from "~/shared/
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {noop} from "~/shared/helpers/control/noop";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key";
 import {assertId} from "~/shared/id/id";
 import {AccountId, LocalTaskCollectionId} from "~/shared/id/types/id_types";
 import {sprinkles} from "~/shared/styles/styles";
@@ -91,6 +95,7 @@ const bedroomTaskCollection: LocalTaskCollection = {
 
 export default function TasksDesignPlaygroundRoute() {
     const currentDate = useCurrentDate();
+    const currentTimeRoundedToHour = useCurrentTimeRoundedToHour();
 
     const taskRowViews = (
         <Box backgroundColor="grey-0" border="grey-10" borderRadius="md" paddingY="5">
@@ -221,7 +226,14 @@ export default function TasksDesignPlaygroundRoute() {
                     title={createSimpleTaskTitle(
                         "Clean the kitchen: Wash the dishes, wipe down countertops, clean appliances (such as the oven and refrigerator), and sweep or mop the floor",
                     )}
-                    assignee={{account: account4, status: "Active"}}
+                    assignee={{
+                        account: account4,
+                        status: {
+                            type: "Active",
+                            orderTime: currentTimeRoundedToHour,
+                            orderKey: initialOrderKey,
+                        },
+                    }}
                     onAssigneeChange={noop}
                     dueDate={currentDate.subtract({days: 1})}
                     collections={[kitchenTaskCollection]}
@@ -241,7 +253,10 @@ export default function TasksDesignPlaygroundRoute() {
                     status="Closed"
                     onStatusChange={noop}
                     title={createSimpleTaskTitle("Vacuum and mop floors")}
-                    assignee={{account: account2, status: "Inactive"}}
+                    assignee={{
+                        account: account2,
+                        status: {type: "Inactive"},
+                    }}
                     onAssigneeChange={noop}
                     dueDate={null}
                     collections={[]}
@@ -267,7 +282,10 @@ export default function TasksDesignPlaygroundRoute() {
                     initialTitle={createSimpleTaskTitle(
                         "Clean the kitchen: Wash the dishes, wipe down countertops, clean appliances (such as the oven and refrigerator), and sweep or mop the floor",
                     )}
-                    initialAssignee={{account: account4, status: "Inactive"}}
+                    initialAssignee={{
+                        account: account4,
+                        status: {type: "Inactive"},
+                    }}
                     initialDueDate={currentDate}
                     initialCollections={[kitchenTaskCollection]}
                     initialNotesContent={{
@@ -303,7 +321,10 @@ export default function TasksDesignPlaygroundRoute() {
                     title={createSimpleTaskTitle(
                         "Clean out the fridge: Remove expired items and wipe shelves",
                     )}
-                    assignee={{account: account3, status: "Inactive"}}
+                    assignee={{
+                        account: account3,
+                        status: {type: "Inactive"},
+                    }}
                     onAssigneeChange={noop}
                     dueDate={currentDate}
                     collections={[kitchenTaskCollection]}
@@ -312,7 +333,14 @@ export default function TasksDesignPlaygroundRoute() {
                     status="Open"
                     onStatusChange={noop}
                     title={createSimpleTaskTitle("Clean windows and mirrors")}
-                    assignee={{account: account3, status: "Active"}}
+                    assignee={{
+                        account: account3,
+                        status: {
+                            type: "Active",
+                            orderTime: currentTimeRoundedToHour,
+                            orderKey: initialOrderKey,
+                        },
+                    }}
                     onAssigneeChange={noop}
                     dueDate={currentDate.add({days: 1})}
                     collections={[bathroomTaskCollection, kitchenTaskCollection]}
@@ -350,7 +378,10 @@ export default function TasksDesignPlaygroundRoute() {
                     status="Open"
                     onStatusChange={noop}
                     title={createSimpleTaskTitle("Organize your closet")}
-                    assignee={{account: account2, status: "Inactive"}}
+                    assignee={{
+                        account: account2,
+                        status: {type: "Inactive"},
+                    }}
                     onAssigneeChange={noop}
                     dueDate={null}
                     collections={[bedroomTaskCollection]}
@@ -361,7 +392,10 @@ export default function TasksDesignPlaygroundRoute() {
                     title={createSimpleTaskTitle(
                         "Remember to take breaks and reward yourself for your hard work!",
                     )}
-                    assignee={{account: account1, status: "Inactive"}}
+                    assignee={{
+                        account: account1,
+                        status: {type: "Inactive"},
+                    }}
                     onAssigneeChange={noop}
                     dueDate={currentDate.subtract({years: 2})}
                     collections={[]}

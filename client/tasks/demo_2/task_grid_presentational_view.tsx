@@ -1,43 +1,32 @@
 import {
-    CollisionDescriptor,
-    CollisionDetection,
-    DndContext,
-    DragOverlay,
-    useDndContext,
-} from "@dnd-kit/core";
-import {
     Key,
     PropsWithoutRef,
     ReactElement,
     ReactNode,
     Ref,
     RefAttributes,
-    RefObject,
     createRef,
     forwardRef,
     useEffect,
     useImperativeHandle,
     useRef,
-    useState,
 } from "react";
-import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
+import {TaskGridViewDndContext} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
 import {TaskRowViewDroppable} from "~/client/tasks/demo_2/internal/task_row_view_droppable";
 import {
     TaskRowPresentationalView,
     TaskRowPresentationalViewRef,
     taskRowViewHeight,
 } from "~/client/tasks/demo_2/task_row_presentational_view";
-import {TaskAssignee, TaskStatus, TaskStatusButton} from "~/client/tasks/demo_2/task_status_button";
+import {TaskAssignee, TaskStatus} from "~/client/tasks/demo_2/task_status_button";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
-import {spacing} from "~/shared/design/spacing";
 import {emptyArray} from "~/shared/helpers/array/empty_array";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {LazyMap} from "~/shared/helpers/control/lazy_map";
 import {noop} from "~/shared/helpers/control/noop";
-import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
-import {colorSchemeVars, contentSchemaStyles} from "~/shared/styles/styles";
+import {colorSchemeVars} from "~/shared/styles/styles";
 import {TaskTitle, emptyTaskTitle} from "~/shared/tasks/task_title_schema";
 
 export type TaskGridPresentationalViewRef = {
@@ -437,26 +426,14 @@ function TaskGridPresentationalView<TaskRow>(
     );
 
     return (
-        <DndContext
-            collisionDetection={taskGridViewDndCollisionDetection}
-            onDragEnd={({active, over}) => {
-                if (!over) return;
-
-                const activeTaskRow: TaskRow = assertExists(active.data.current).taskRow;
-                const overTaskRow: TaskRow | null = assertExists(over.data.current).taskRow;
-                const overIndentation: number = assertExists(over.data.current).indentation;
-
-                const unnest = Math.max(
-                    0,
-                    (overTaskRow ? getTaskRowIndentation(overTaskRow) : 0) - overIndentation,
-                );
-
-                if (overTaskRow && unnest === 0 && !getTaskAreChildTasksCollapsed(overTaskRow)) {
-                    moveTaskToParentTop(overTaskRow, activeTaskRow);
-                } else {
-                    moveTaskBelow(overTaskRow, unnest, activeTaskRow);
-                }
-            }}
+        <TaskGridViewDndContext
+            getTaskStatus={getTaskStatus}
+            getTaskAssignee={getTaskAssignee}
+            getTaskTitle={getTaskTitle}
+            getTaskAreChildTasksCollapsed={getTaskAreChildTasksCollapsed}
+            getTaskRowIndentation={getTaskRowIndentation}
+            moveTaskBelow={moveTaskBelow}
+            moveTaskToParentTop={moveTaskToParentTop}
         >
             <Box position="relative" zIndex="0">
                 {!hasTopGhostTaskRow && (
@@ -474,168 +451,6 @@ function TaskGridPresentationalView<TaskRow>(
                 {taskRows.length <= 1 && decorativeGhostTaskRow}
                 {taskRows.length <= 2 && decorativeGhostTaskRow}
             </Box>
-            <TaskRowViewDragPortals
-                getTaskStatus={getTaskStatus}
-                getTaskAssignee={getTaskAssignee}
-                getTaskTitle={getTaskTitle}
-            />
-        </DndContext>
-    );
-}
-
-/**
- * Custom collision detection algorithm that picks the droppable container the
- * pointer collides with. If the pointer doesn't collide with any droppable
- * container then we look for the closest droppable container to the pointer.
- */
-const taskGridViewDndCollisionDetection: CollisionDetection = ({
-    pointerCoordinates,
-    droppableContainers,
-    droppableRects,
-}) => {
-    if (!pointerCoordinates) return [];
-
-    const collisions: Array<CollisionDescriptor> = [];
-    let nearestFallbackCollision: CollisionDescriptor | null = null;
-
-    for (const droppableContainer of droppableContainers) {
-        const {id} = droppableContainer;
-        const rect = droppableRects.get(id);
-
-        if (!rect) continue;
-
-        // Calculate the distance between the pointer and the droppable bounding box.
-        // https://stackoverflow.com/a/18157551/1568890
-        const dx = Math.max(rect.left - pointerCoordinates.x, 0, pointerCoordinates.x - rect.right);
-        const dy = Math.max(rect.top - pointerCoordinates.y, 0, pointerCoordinates.y - rect.bottom);
-        const distance = Math.sqrt(dx * dx + dy * dy);
-
-        if (
-            distance > 0 &&
-            (!nearestFallbackCollision || nearestFallbackCollision.data.value > distance)
-        ) {
-            nearestFallbackCollision = {id, data: {droppableContainer, value: distance}};
-        } else if (distance === 0) {
-            // There may be more than a single rectangle intersecting with the pointer
-            // coordinates. In order to sort the colliding rectangles, we measure the
-            // distance between the pointer and the corners of the intersecting rectangle.
-            //
-            // This logic is adapted from `@dnd-kit/core`:
-            // https://github.com/clauderic/dnd-kit/blob/5c58f0fe5d19b5aaa5cf93572f3435f4a0a6e54f/packages/core/src/utilities/algorithms/pointerWithin.ts#L36-L52
-            const corners = [
-                {x: rect.left, y: rect.top},
-                {x: rect.left + rect.width, y: rect.top},
-                {x: rect.left, y: rect.top + rect.height},
-                {x: rect.left + rect.width, y: rect.top + rect.height},
-            ];
-
-            const distances = corners.reduce(
-                (accumulator, corner) =>
-                    accumulator +
-                    Math.sqrt(
-                        Math.pow(pointerCoordinates.x - corner.x, 2) +
-                            Math.pow(pointerCoordinates.y - corner.y, 2),
-                    ),
-                0,
-            );
-            const effectiveDistance = Number((distances / 4).toFixed(4));
-
-            collisions.push({id, data: {droppableContainer, value: effectiveDistance}});
-        }
-    }
-
-    if (collisions.length > 0) {
-        return collisions.sort((a, b) => a.data.value - b.data.value);
-    }
-
-    return nearestFallbackCollision ? [nearestFallbackCollision] : [];
-};
-
-function TaskRowViewDragPortals<TaskRow>({
-    getTaskStatus,
-    getTaskAssignee,
-    getTaskTitle,
-}: {
-    getTaskStatus: (taskRow: TaskRow) => TaskStatus;
-    getTaskAssignee: (taskRow: TaskRow) => TaskAssignee | null;
-    getTaskTitle: (taskRow: TaskRow) => TaskTitle;
-}) {
-    const {active, activatorEvent} = useDndContext();
-
-    const isPointerDragging = active && activatorEvent instanceof PointerEvent;
-
-    return (
-        <>
-            {isPointerDragging &&
-                createPortal(
-                    <Box position="absolute" inset="0" zIndex="70" cursor="grabbing" />,
-                    document.body,
-                )}
-            {active &&
-                createPortal(
-                    <DragOverlay zIndex={60}>
-                        <TaskRowViewDragOverlay
-                            dataRef={active.data as any}
-                            getTaskStatus={getTaskStatus}
-                            getTaskAssignee={getTaskAssignee}
-                            getTaskTitle={getTaskTitle}
-                        />
-                    </DragOverlay>,
-                    document.body,
-                )}
-        </>
-    );
-}
-
-function TaskRowViewDragOverlay<TaskRow>({
-    dataRef,
-    getTaskStatus,
-    getTaskAssignee,
-    getTaskTitle,
-}: {
-    dataRef: RefObject<{taskRow: TaskRow}>;
-    getTaskStatus: (taskRow: TaskRow) => TaskStatus;
-    getTaskAssignee: (taskRow: TaskRow) => TaskAssignee | null;
-    getTaskTitle: (taskRow: TaskRow) => TaskTitle;
-}) {
-    const [{taskRow}] = useState(assertExists(dataRef.current));
-
-    return (
-        <Box
-            display="inline-block"
-            minWidth="48"
-            maxWidth="128"
-            paddingX="3"
-            borderRadius="md"
-            boxShadow="elevation-20"
-            backgroundColor="grey-0"
-            position="relative"
-            left="2"
-            style={{
-                height: `calc(${spacing[taskRowViewHeight]} + 1px)`,
-                paddingTop: 1,
-                top: -1,
-                transform: "scale(75%)",
-                transformOrigin: "center left",
-                opacity: 0.75,
-            }}
-        >
-            <Box height="full" display="flex" alignItems="center" gap="2" style={{opacity: 0.5}}>
-                <Box flexShrink="0">
-                    <TaskStatusButton
-                        status={getTaskStatus(taskRow)}
-                        onStatusChange={noop}
-                        assignee={getTaskAssignee(taskRow)}
-                    />
-                </Box>
-                <Box
-                    fontStyle="truncate"
-                    style={contentSchemaStyles.paragraphFontSize}
-                    dangerouslySetInnerHTML={{
-                        __html: serializeProsemirrorFragmentToHtml(getTaskTitle(taskRow).content),
-                    }}
-                />
-            </Box>
-        </Box>
+        </TaskGridViewDndContext>
     );
 }

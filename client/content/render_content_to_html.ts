@@ -8,6 +8,7 @@ import {ContentWithReferences} from "~/shared/content/content_references";
 import {clampListItemIndentation} from "~/shared/content/content_schema";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title";
+import {UnimplementedError} from "~/shared/error/error";
 import {assert} from "~/shared/helpers/control/assert";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator";
 import {omitObject} from "~/shared/helpers/object/omit_object";
@@ -161,7 +162,14 @@ export function renderContentFragmentToHtml(
                 const checkboxHtml = new HtmlElementGenerator("div");
                 checkboxContainerHtml.appendChild(checkboxHtml);
                 checkboxHtml.setAttribute("class", checkListItemCheckboxClassName);
-                checkboxHtml.appendChild({generateHtml: () => contentCheckListItemIconSvg});
+                checkboxHtml.appendChild({
+                    generateHtml: () => contentCheckListItemIconSvg,
+                    generateNode: () => {
+                        throw new UnimplementedError(
+                            "DOM node generation unimplemented for icon SVG",
+                        );
+                    },
+                });
 
                 const contentHtml = new HtmlElementGenerator("div");
                 html.appendChild(contentHtml);

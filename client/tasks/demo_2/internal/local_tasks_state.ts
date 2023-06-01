@@ -1,3 +1,5 @@
+import {CalendarDate, parseDate} from "@internationalized/date";
+import {compareDesc} from "date-fns";
 import {MutableRefObject, useEffect, useMemo, useRef} from "react";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
@@ -25,8 +27,9 @@ import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
 import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
 import {generateId} from "~/shared/id/id";
-import {LocalTaskId} from "~/shared/id/types/id_types";
+import {AccountId, LocalTaskId} from "~/shared/id/types/id_types";
 import {OrderKeySchema} from "~/shared/schema/order_key_schema";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 import {
@@ -45,16 +48,31 @@ const LocalTaskIdByOrderKeySchema = Schema.map(OrderKeySchema, Schema.id<LocalTa
 
 export type LocalTask = SchemaType<typeof LocalTaskSchema>;
 
+const CalendarDateSchema = Schema.string.transform<CalendarDate>({
+    serialize: date => date.toString(),
+    deserialize: date => parseDate(date),
+});
+
 const LocalTaskSchema = Schema.object({
     id: Schema.id<LocalTaskId>(),
     status: Schema.enum(["Open", "Closed"]),
     title: TaskTitleSchema,
     assignee: Schema.object({
         account: AccountModel.schema(),
-        status: Schema.enum(["Inactive", "Active"]),
+        status: Schema.union({
+            Inactive: Schema.object({
+                type: Schema.value("Inactive"),
+            }),
+            Active: Schema.object({
+                type: Schema.value("Active"),
+                orderTime: Schema.date,
+                orderKey: OrderKeySchema,
+            }),
+        }),
     })
         .nullable()
         .default(null),
+    dueDate: CalendarDateSchema.nullable().default(null),
     notesContent: TaskNotesContentWithReferencesSchema,
     parentTaskId: Schema.id<LocalTaskId>().nullable(),
     childTaskIdByOrderKey: LocalTaskIdByOrderKeySchema,
@@ -214,6 +232,7 @@ class LocalTasksDatabase {
             status: "Open",
             title: options.title ?? emptyTaskTitle,
             assignee: null,
+            dueDate: null,
             notesContent: emptyTaskNotesContentWithReferences,
             parentTaskId: options.parentTask?.id ?? null,
             childTaskIdByOrderKey: ImmutableMap.empty(),
@@ -346,7 +365,24 @@ class LocalTasksDatabase {
         return new LocalTasksDatabase({
             taskById: this._taskById.update(taskId, task => {
                 if (!task) throw new NotFoundError("Task not found");
-                return {...task, status};
+                return {
+                    ...task,
+                    status,
+                    assignee: task.assignee
+                        ? {account: task.assignee.account, status: {type: "Inactive"}}
+                        : null,
+                };
+            }),
+            notepadPageCount: this._notepadPageCount,
+            taskIdByOrderKeyByNotepadPage: this._taskIdByOrderKeyByNotepadPage,
+        });
+    }
+
+    public updateTaskDueDate(taskId: LocalTaskId, dueDate: CalendarDate | null) {
+        return new LocalTasksDatabase({
+            taskById: this._taskById.update(taskId, task => {
+                if (!task) throw new NotFoundError("Task not found");
+                return {...task, dueDate};
             }),
             notepadPageCount: this._notepadPageCount,
             taskIdByOrderKeyByNotepadPage: this._taskIdByOrderKeyByNotepadPage,
@@ -551,6 +587,34 @@ class LocalTasksDatabase {
             taskIdByOrderKeyByNotepadPage,
         });
     }
+
+    public getActiveTasksForAccount(accountId: AccountId) {
+        const activeTasks = [];
+
+        for (const task of this._taskById.values()) {
+            if (
+                task.status === "Open" &&
+                task.assignee?.account.id === accountId &&
+                task.assignee.status.type === "Active"
+            ) {
+                activeTasks.push(task);
+            }
+        }
+
+        activeTasks.sort((task1, task2) => {
+            assert(task1.assignee?.status.type === "Active");
+            assert(task2.assignee?.status.type === "Active");
+            return (
+                compareDesc(task1.assignee.status.orderTime, task2.assignee.status.orderTime) ||
+                defaultCompareStrings(
+                    task1.assignee.status.orderKey,
+                    task2.assignee.status.orderKey,
+                )
+            );
+        });
+
+        return activeTasks;
+    }
 }
 
 function deleteTaskInParentTask(taskById: ImmutableMap<LocalTaskId, LocalTask>, task: LocalTask) {
@@ -691,6 +755,7 @@ export type LocalTasksAction =
     | LocalTasksUpdateTaskTitleAction
     | LocalTasksUpdateTaskAssigneeAction
     | LocalTasksUpdateTaskStatusAction
+    | LocalTasksUpdateTaskDueDateAction
     | LocalTasksUpdateTaskNotesContentAction
     | LocalTasksDeleteTaskAndAllChildrenAction
     | LocalTasksNestTaskAction
@@ -731,6 +796,12 @@ type LocalTasksUpdateTaskStatusAction = {
     readonly type: "UpdateTaskStatus";
     readonly taskId: LocalTaskId;
     readonly status: TaskStatus;
+};
+
+type LocalTasksUpdateTaskDueDateAction = {
+    readonly type: "UpdateTaskDueDate";
+    readonly taskId: LocalTaskId;
+    readonly dueDate: CalendarDate | null;
 };
 
 type LocalTasksUpdateTaskNotesContentAction = {
@@ -833,6 +904,13 @@ function reduceLocalTasksState(state: LocalTasksState, action: LocalTasksAction)
             return {
                 ...state,
                 database: state.database.updateTaskStatus(action.taskId, action.status),
+            };
+        }
+
+        case "UpdateTaskDueDate": {
+            return {
+                ...state,
+                database: state.database.updateTaskDueDate(action.taskId, action.dueDate),
             };
         }
 

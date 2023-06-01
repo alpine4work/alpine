@@ -40,17 +40,17 @@ export function TaskCardPresentationalView({
     onStatusChange,
     title,
     assignee,
-    onAssigneeChange,
     dueDate,
     collections,
+    shouldFillHeight,
 }: {
     status: TaskStatus;
     onStatusChange: (status: TaskStatus) => void;
     title: TaskTitle;
     assignee: TaskAssignee | null;
-    onAssigneeChange: (assignee: TaskAssignee | null) => void;
     dueDate: CalendarDate | null;
     collections: ReadonlyArray<LocalTaskCollection>;
+    shouldFillHeight?: boolean;
 }) {
     const {timeZone, locale} = useClientInfo();
     const currentDate = useCurrentDate();
@@ -132,6 +132,7 @@ export function TaskCardPresentationalView({
         <Box
             width="full"
             maxWidth={taskCardViewMaxWidth}
+            minHeight={shouldFillHeight ? "full" : undefined}
             overflow="hidden"
             backgroundColor="grey-0"
             boxShadow="elevation-5"
@@ -139,6 +140,7 @@ export function TaskCardPresentationalView({
             padding="4"
             display="flex"
             flexDirection="column"
+            justifyContent="space-between"
             gap="4"
         >
             <Box

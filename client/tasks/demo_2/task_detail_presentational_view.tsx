@@ -36,6 +36,7 @@ import {AccountModel} from "~/shared/accounts/account_model";
 import {Spacing, assertSpacing} from "~/shared/design/spacing";
 import {UnimplementedError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key";
 import {sprinkles} from "~/shared/styles/styles";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema";
 import {TaskTitle} from "~/shared/tasks/task_title_schema";
@@ -158,11 +159,17 @@ function TaskDetailPresentationalView<ChildTaskRow>(
                                     onAssigneeChange({
                                         account: assignee?.account ?? currentAccount,
                                         status:
-                                            assignee?.status === "Active" ? "Inactive" : "Active",
+                                            assignee?.status.type === "Active"
+                                                ? {type: "Inactive"}
+                                                : {
+                                                      type: "Active",
+                                                      orderTime: new Date(),
+                                                      orderKey: initialOrderKey,
+                                                  },
                                     });
                                 }}
                             >
-                                {assignee?.status === "Active" ? "Active" : "Inactive"}
+                                {assignee?.status.type === "Active" ? "Active" : "Inactive"}
                             </Button>
                         )}
                     </Box>
@@ -200,7 +207,9 @@ function TaskDetailPresentationalView<ChildTaskRow>(
                 assigneeAccount={assignee?.account ?? null}
                 onAssigneeAccountChange={assigneeAccount =>
                     onAssigneeChange(
-                        assigneeAccount ? {account: assigneeAccount, status: "Inactive"} : null,
+                        assigneeAccount
+                            ? {account: assigneeAccount, status: {type: "Inactive"}}
+                            : null,
                     )
                 }
                 dueDate={dueDate}
