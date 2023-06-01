@@ -1,13 +1,19 @@
+import {useDroppable} from "@dnd-kit/core";
+import {Fragment, useId} from "react";
 import {Box} from "~/client/design/box";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {LocalTasksAction, LocalTasksState} from "~/client/tasks/demo_2/internal/local_tasks_state";
+import {TaskGridViewDroppableData} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
 import {
     TaskCardPresentationalView,
     taskCardViewMaxWidth,
 } from "~/client/tasks/demo_2/task_card_presentational_view";
+import {TaskAssigneeActiveStatus} from "~/client/tasks/demo_2/task_status_button";
 import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {emptyArray} from "~/shared/helpers/array/empty_array";
 import {colorSchemeVars, hideScrollbarClassName, sprinkles} from "~/shared/styles/styles";
+
+// NOCOMMIT: Drag to reorder active cards
 
 export function TaskNotepadViewActiveSection({
     state,
@@ -25,22 +31,30 @@ export function TaskNotepadViewActiveSection({
         (tasks.length > 3 ? parseRemLengthNumber(spacing["4"]) : 0)
     }rem)`;
 
+    const cardDroppableWidth = `calc(${(1 / 3) * 100}% - ${
+        tasks.length > 3 ? parseRemLengthNumber(spacing["4"]) : 0
+    }rem)`;
+
+    const cardDroppableHalfWidth = `calc((${(1 / 3) * 100}% - ${
+        tasks.length > 3 ? parseRemLengthNumber(spacing["4"]) : 0
+    }rem) / 2)`;
+
     return (
         <Box marginBottom="-2">
             <Box paddingX="5" fontSize="100" fontStyle="semi-bold">
                 Active
             </Box>
             <Box
-                position="relative"
                 paddingX="5"
                 paddingY="2"
-                display="flex"
-                gap={taskNotepadViewActiveSectionCardGap}
                 overflowX="scroll"
                 overflowY="hidden"
                 className={hideScrollbarClassName}
+                display="flex"
+                gap={taskNotepadViewActiveSectionCardGap}
+                position="relative"
             >
-                {tasks.map(task => (
+                {tasks.map(({task}) => (
                     <Box key={task.id} flexShrink="0" style={{width: cardWidth}}>
                         <TaskCardPresentationalView
                             shouldFillHeight={true}
@@ -70,7 +84,130 @@ export function TaskNotepadViewActiveSection({
                 {tasks.length <= 2 && (
                     <TaskNotepadViewActiveSectionPlaceholderCard cardWidth={cardWidth} />
                 )}
+                <Box
+                    pointerEvents="none"
+                    position="absolute"
+                    top="2"
+                    bottom="2"
+                    display="flex"
+                    style={{
+                        left: `${
+                            parseRemLengthNumber(spacing["5"]) -
+                            parseRemLengthNumber(spacing[taskNotepadViewActiveSectionCardGap]) / 2
+                        }rem`,
+                        right: `${
+                            parseRemLengthNumber(spacing["5"]) -
+                            parseRemLengthNumber(spacing[taskNotepadViewActiveSectionCardGap]) / 2
+                        }rem`,
+                    }}
+                >
+                    {tasks.length === 0 ? (
+                        <TaskNotepadViewActiveSectionDroppable
+                            hintPosition="Left"
+                            nextAssigneeActiveStatus={null}
+                            previousAssigneeActiveStatus={null}
+                            flexGrow="1"
+                        />
+                    ) : (
+                        tasks.map(({assigneeActiveStatus}, index) => {
+                            const nextAssigneeActiveStatus =
+                                tasks[index + 1]?.assigneeActiveStatus ?? null;
+
+                            return (
+                                <Fragment key={index}>
+                                    {index === 0 && (
+                                        <TaskNotepadViewActiveSectionDroppable
+                                            hintPosition="Left"
+                                            nextAssigneeActiveStatus={assigneeActiveStatus}
+                                            previousAssigneeActiveStatus={null}
+                                            flexShrink="0"
+                                            widthStyle={cardDroppableHalfWidth}
+                                        />
+                                    )}
+                                    {index === tasks.length - 1 ? (
+                                        <TaskNotepadViewActiveSectionDroppable
+                                            hintPosition="Right"
+                                            nextAssigneeActiveStatus={null}
+                                            previousAssigneeActiveStatus={assigneeActiveStatus}
+                                            flexShrink="0"
+                                            widthStyle={cardDroppableHalfWidth}
+                                        />
+                                    ) : (
+                                        <TaskNotepadViewActiveSectionDroppable
+                                            hintPosition="Middle"
+                                            nextAssigneeActiveStatus={nextAssigneeActiveStatus}
+                                            previousAssigneeActiveStatus={assigneeActiveStatus}
+                                            flexShrink="0"
+                                            widthStyle={cardDroppableWidth}
+                                        />
+                                    )}
+                                    {index === tasks.length - 1 && tasks.length < 3 && (
+                                        <TaskNotepadViewActiveSectionDroppable
+                                            hintPosition="Left"
+                                            nextAssigneeActiveStatus={null}
+                                            previousAssigneeActiveStatus={assigneeActiveStatus}
+                                            flexGrow="1"
+                                        />
+                                    )}
+                                </Fragment>
+                            );
+                        })
+                    )}
+                </Box>
             </Box>
+        </Box>
+    );
+}
+
+function TaskNotepadViewActiveSectionDroppable({
+    hintPosition,
+    nextAssigneeActiveStatus,
+    previousAssigneeActiveStatus,
+    flexShrink,
+    flexGrow,
+    widthStyle,
+}: {
+    hintPosition: "Left" | "Middle" | "Right";
+    nextAssigneeActiveStatus: TaskAssigneeActiveStatus | null;
+    previousAssigneeActiveStatus: TaskAssigneeActiveStatus | null;
+    flexShrink?: "0" | "1";
+    flexGrow?: "0" | "1";
+    widthStyle?: number | string;
+}) {
+    const {isOver, setNodeRef} = useDroppable({
+        id: useId(),
+        data: {
+            type: "ActiveCard",
+            nextAssigneeActiveStatus,
+            previousAssigneeActiveStatus,
+        } satisfies TaskGridViewDroppableData<never>,
+    });
+
+    return (
+        <Box
+            ref={setNodeRef}
+            flexShrink={flexShrink}
+            flexGrow={flexGrow}
+            height="full"
+            style={{width: widthStyle}}
+            position="relative"
+        >
+            {isOver && (
+                <Box
+                    position="absolute"
+                    top="-1"
+                    bottom="-1"
+                    backgroundColor={{light: "theme-30", dark: "theme-60"}}
+                    style={{
+                        width: 1,
+                        ...(hintPosition === "Left"
+                            ? {left: -0.5}
+                            : hintPosition === "Middle"
+                            ? {left: "50%"}
+                            : {right: -0.5}),
+                    }}
+                />
+            )}
         </Box>
     );
 }

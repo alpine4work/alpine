@@ -16,6 +16,7 @@ import {
 } from "react";
 import {Box} from "~/client/design/box";
 import {IconButton} from "~/client/design/icon_button";
+import {TaskGridViewDraggableData} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
 import {
     TaskRowTitleInput,
     TaskRowTitleInputRef,
@@ -209,7 +210,7 @@ function TaskRowPresentationalView<TaskRow>(
         setNodeRef: setDraggableNodeRef,
     } = useDraggable({
         id: useId(),
-        data: {taskRow},
+        data: {taskRow} satisfies TaskGridViewDraggableData<TaskRow>,
         disabled: !taskRow,
     });
 

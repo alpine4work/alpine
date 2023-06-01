@@ -90,6 +90,9 @@ export function TaskNotepadView() {
         <TaskGridViewDndContext<TaskNotepadGridViewRow>
             getTaskStatus={({task}) => task.status}
             getTaskAssignee={({task}) => task.assignee}
+            onTaskAssigneeChange={({task: {id: taskId}}, assignee) =>
+                dispatch({type: "UpdateTaskAssignee", taskId, assignee})
+            }
             getTaskTitle={({task}) => task.title}
             getTaskAreChildTasksCollapsed={({task}) => !expandedTaskIds.has(task.id)}
             getTaskRowIndentation={({parentPositionStack}) => parentPositionStack.length}

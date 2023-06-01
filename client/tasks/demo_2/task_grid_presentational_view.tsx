@@ -429,6 +429,7 @@ function TaskGridPresentationalView<TaskRow>(
         <TaskGridViewDndContext
             getTaskStatus={getTaskStatus}
             getTaskAssignee={getTaskAssignee}
+            onTaskAssigneeChange={onTaskAssigneeChange}
             getTaskTitle={getTaskTitle}
             getTaskAreChildTasksCollapsed={getTaskAreChildTasksCollapsed}
             getTaskRowIndentation={getTaskRowIndentation}

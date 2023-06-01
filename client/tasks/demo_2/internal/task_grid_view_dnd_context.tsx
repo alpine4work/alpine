@@ -8,21 +8,46 @@ import {
 import {ReactNode, RefObject, createContext, useContext, useState} from "react";
 import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box";
+import {useSpaceContext} from "~/client/spaces/space_context";
 import {taskRowViewHeight} from "~/client/tasks/demo_2/task_row_presentational_view";
-import {TaskAssignee, TaskStatus, TaskStatusButton} from "~/client/tasks/demo_2/task_status_button";
+import {
+    TaskAssignee,
+    TaskAssigneeActiveStatus,
+    TaskStatus,
+    TaskStatusButton,
+} from "~/client/tasks/demo_2/task_status_button";
 import {spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {noop} from "~/shared/helpers/control/noop";
+import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
 import {contentSchemaStyles} from "~/shared/styles/styles";
 import {TaskTitle} from "~/shared/tasks/task_title_schema";
 
 const TaskGridViewHasDndContext = createContext(false);
 
+export type TaskGridViewDraggableData<TaskRow> = {
+    readonly taskRow: TaskRow;
+};
+
+export type TaskGridViewDroppableData<TaskRow> =
+    | {
+          readonly type: "Row";
+          readonly taskRow: TaskRow | null;
+          readonly indentation: number;
+      }
+    | {
+          readonly type: "ActiveCard";
+          readonly nextAssigneeActiveStatus: TaskAssigneeActiveStatus | null;
+          readonly previousAssigneeActiveStatus: TaskAssigneeActiveStatus | null;
+      };
+
 export function TaskGridViewDndContext<TaskRow>({
     children,
     getTaskStatus,
     getTaskAssignee,
+    onTaskAssigneeChange,
     getTaskTitle,
     getTaskAreChildTasksCollapsed,
     getTaskRowIndentation,
@@ -32,12 +57,15 @@ export function TaskGridViewDndContext<TaskRow>({
     children?: ReactNode;
     getTaskStatus: (taskRow: TaskRow) => TaskStatus;
     getTaskAssignee: (taskRow: TaskRow) => TaskAssignee | null;
+    onTaskAssigneeChange: (taskRow: TaskRow, assignee: TaskAssignee) => void;
     getTaskTitle: (taskRow: TaskRow) => TaskTitle;
     getTaskAreChildTasksCollapsed: (taskRow: TaskRow) => boolean;
     getTaskRowIndentation: (taskRow: TaskRow) => number;
     moveTaskBelow: (belowTaskRow: TaskRow | null, unnest: number, taskRow: TaskRow) => void;
     moveTaskToParentTop: (parentTaskRow: TaskRow, taskRow: TaskRow) => void;
 }) {
+    const {currentAccount} = useSpaceContext();
+
     // If we already have a parent `<TaskGridViewDndContext>` then don't render
     // another one. This allows us to "hoist" up drag-and-drop functionality.
     if (useContext(TaskGridViewHasDndContext)) return <>{children}</>;
@@ -49,23 +77,104 @@ export function TaskGridViewDndContext<TaskRow>({
                 onDragEnd={({active, over}) => {
                     if (!over) return;
 
-                    const activeTaskRow: TaskRow = assertExists(active.data.current).taskRow;
-                    const overTaskRow: TaskRow | null = assertExists(over.data.current).taskRow;
-                    const overIndentation: number = assertExists(over.data.current).indentation;
+                    const activeData = assertExists(
+                        active.data.current,
+                    ) as TaskGridViewDraggableData<TaskRow>;
+                    const overData = assertExists(
+                        over.data.current,
+                    ) as TaskGridViewDroppableData<TaskRow>;
 
-                    const unnest = Math.max(
-                        0,
-                        (overTaskRow ? getTaskRowIndentation(overTaskRow) : 0) - overIndentation,
-                    );
+                    switch (overData.type) {
+                        case "Row": {
+                            const unnest = Math.max(
+                                0,
+                                (overData.taskRow ? getTaskRowIndentation(overData.taskRow) : 0) -
+                                    overData.indentation,
+                            );
 
-                    if (
-                        overTaskRow &&
-                        unnest === 0 &&
-                        !getTaskAreChildTasksCollapsed(overTaskRow)
-                    ) {
-                        moveTaskToParentTop(overTaskRow, activeTaskRow);
-                    } else {
-                        moveTaskBelow(overTaskRow, unnest, activeTaskRow);
+                            if (
+                                overData.taskRow &&
+                                unnest === 0 &&
+                                !getTaskAreChildTasksCollapsed(overData.taskRow)
+                            ) {
+                                moveTaskToParentTop(overData.taskRow, activeData.taskRow);
+                            } else {
+                                moveTaskBelow(overData.taskRow, unnest, activeData.taskRow);
+                            }
+                            break;
+                        }
+                        case "ActiveCard": {
+                            if (
+                                overData.nextAssigneeActiveStatus &&
+                                overData.previousAssigneeActiveStatus
+                            ) {
+                                if (
+                                    overData.nextAssigneeActiveStatus.orderTime.toString() ===
+                                    overData.previousAssigneeActiveStatus.orderTime.toString()
+                                ) {
+                                    onTaskAssigneeChange(activeData.taskRow, {
+                                        account: currentAccount,
+                                        status: {
+                                            type: "Active",
+                                            orderTime: overData.nextAssigneeActiveStatus.orderTime,
+                                            orderKey: generateOrderKeyBetween(
+                                                overData.previousAssigneeActiveStatus.orderKey,
+                                                overData.nextAssigneeActiveStatus.orderKey,
+                                            ),
+                                        },
+                                    });
+                                } else {
+                                    onTaskAssigneeChange(activeData.taskRow, {
+                                        account: currentAccount,
+                                        status: {
+                                            type: "Active",
+                                            orderTime:
+                                                overData.previousAssigneeActiveStatus.orderTime,
+                                            orderKey: generateOrderKeyBetween(
+                                                overData.previousAssigneeActiveStatus.orderKey,
+                                                null,
+                                            ),
+                                        },
+                                    });
+                                }
+                            } else if (overData.previousAssigneeActiveStatus) {
+                                onTaskAssigneeChange(activeData.taskRow, {
+                                    account: currentAccount,
+                                    status: {
+                                        type: "Active",
+                                        orderTime: overData.previousAssigneeActiveStatus.orderTime,
+                                        orderKey: generateOrderKeyBetween(
+                                            overData.previousAssigneeActiveStatus.orderKey,
+                                            null,
+                                        ),
+                                    },
+                                });
+                            } else if (overData.nextAssigneeActiveStatus) {
+                                onTaskAssigneeChange(activeData.taskRow, {
+                                    account: currentAccount,
+                                    status: {
+                                        type: "Active",
+                                        orderTime: overData.nextAssigneeActiveStatus.orderTime,
+                                        orderKey: generateOrderKeyBetween(
+                                            null,
+                                            overData.nextAssigneeActiveStatus.orderKey,
+                                        ),
+                                    },
+                                });
+                            } else {
+                                onTaskAssigneeChange(activeData.taskRow, {
+                                    account: currentAccount,
+                                    status: {
+                                        type: "Active",
+                                        orderTime: new Date(),
+                                        orderKey: initialOrderKey,
+                                    },
+                                });
+                            }
+                            break;
+                        }
+                        default:
+                            throw exhaustive(overData);
                     }
                 }}
             >

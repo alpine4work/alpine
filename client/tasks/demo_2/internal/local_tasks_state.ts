@@ -7,7 +7,11 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {Store} from "~/client/helpers/store/store";
 import {useStore} from "~/client/helpers/store/use_store";
 import {ValueStore} from "~/client/helpers/store/value_store";
-import {TaskAssignee, TaskStatus} from "~/client/tasks/demo_2/task_status_button";
+import {
+    TaskAssignee,
+    TaskAssigneeActiveStatus,
+    TaskStatus,
+} from "~/client/tasks/demo_2/task_status_button";
 import {AccountModel} from "~/shared/accounts/account_model";
 import {
     DataLossError,
@@ -589,7 +593,10 @@ class LocalTasksDatabase {
     }
 
     public getActiveTasksForAccount(accountId: AccountId) {
-        const activeTasks = [];
+        const activeTasks: Array<{
+            task: LocalTask;
+            assigneeActiveStatus: TaskAssigneeActiveStatus;
+        }> = [];
 
         for (const task of this._taskById.values()) {
             if (
@@ -597,21 +604,21 @@ class LocalTasksDatabase {
                 task.assignee?.account.id === accountId &&
                 task.assignee.status.type === "Active"
             ) {
-                activeTasks.push(task);
+                activeTasks.push({task, assigneeActiveStatus: task.assignee.status});
             }
         }
 
-        activeTasks.sort((task1, task2) => {
-            assert(task1.assignee?.status.type === "Active");
-            assert(task2.assignee?.status.type === "Active");
-            return (
-                compareDesc(task1.assignee.status.orderTime, task2.assignee.status.orderTime) ||
+        activeTasks.sort(
+            (task1, task2) =>
+                compareDesc(
+                    task1.assigneeActiveStatus.orderTime,
+                    task2.assigneeActiveStatus.orderTime,
+                ) ||
                 defaultCompareStrings(
-                    task1.assignee.status.orderKey,
-                    task2.assignee.status.orderKey,
-                )
-            );
-        });
+                    task1.assigneeActiveStatus.orderKey,
+                    task2.assigneeActiveStatus.orderKey,
+                ),
+        );
 
         return activeTasks;
     }

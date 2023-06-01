@@ -11,9 +11,17 @@ import {sprinkles} from "~/shared/styles/styles";
 
 export type TaskStatus = "Open" | "Closed";
 
-export type TaskAssigneeStatus =
-    | {readonly type: "Inactive"}
-    | {readonly type: "Active"; readonly orderTime: Date; readonly orderKey: OrderKey};
+export type TaskAssigneeStatus = TaskAssigneeInactiveStatus | TaskAssigneeActiveStatus;
+
+export type TaskAssigneeInactiveStatus = {
+    readonly type: "Inactive";
+};
+
+export type TaskAssigneeActiveStatus = {
+    readonly type: "Active";
+    readonly orderTime: Date;
+    readonly orderKey: OrderKey;
+};
 
 export type TaskAssignee = {
     readonly account: AccountModel;

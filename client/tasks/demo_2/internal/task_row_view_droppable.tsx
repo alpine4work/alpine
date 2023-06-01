@@ -1,6 +1,7 @@
 import {useDroppable} from "@dnd-kit/core";
 import {useId} from "react";
 import {Box} from "~/client/design/box";
+import {TaskGridViewDroppableData} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
 import {taskRowViewHeight} from "~/client/tasks/demo_2/task_row_presentational_view";
 import {parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {contentSchemaStyles} from "~/shared/styles/styles";
@@ -20,7 +21,11 @@ export function TaskRowViewDroppable<TaskRow>({
 }) {
     const {isOver, setNodeRef: setDroppableNodeRef} = useDroppable({
         id: useId(),
-        data: {taskRow, indentation},
+        data: {
+            type: "Row",
+            taskRow,
+            indentation,
+        } satisfies TaskGridViewDroppableData<TaskRow>,
     });
 
     const listItemIndent = parseRemLengthNumber(contentSchemaStyles.listItemIndentation);
