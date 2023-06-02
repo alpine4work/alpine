@@ -1,6 +1,7 @@
 import {useDroppable} from "@dnd-kit/core";
 import {Fragment, useId} from "react";
 import {Box} from "~/client/design/box";
+import {usePeekStackContext} from "~/client/peek/peek_stack";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {LocalTasksAction, LocalTasksState} from "~/client/tasks/demo_2/internal/local_tasks_state";
 import {TaskGridViewDroppableData} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
@@ -14,6 +15,7 @@ import {emptyArray} from "~/shared/helpers/array/empty_array";
 import {colorSchemeVars, hideScrollbarClassName, sprinkles} from "~/shared/styles/styles";
 
 // NOCOMMIT: Drag to reorder active cards
+// NOCOMMIT: Scroll card into view on drop
 
 export function TaskNotepadViewActiveSection({
     state,
@@ -22,7 +24,8 @@ export function TaskNotepadViewActiveSection({
     state: LocalTasksState;
     dispatch: (action: LocalTasksAction) => void;
 }) {
-    const {currentAccount} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
+    const peekStackContext = usePeekStackContext();
 
     const tasks = state.database.getActiveTasksForAccount(currentAccount.id);
 
@@ -70,6 +73,11 @@ export function TaskNotepadViewActiveSection({
                             assignee={task.assignee}
                             dueDate={task.dueDate}
                             collections={emptyArray} // NOCOMMIT
+                            onExpand={async () => {
+                                await peekStackContext.push(
+                                    `/s/${space.id}/tasks/demo-2/${task.id}`,
+                                );
+                            }}
                         />
                     </Box>
                 ))}

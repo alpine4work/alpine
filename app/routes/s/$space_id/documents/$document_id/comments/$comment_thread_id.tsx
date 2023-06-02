@@ -99,7 +99,7 @@ export default function DocumentCommentThreadRoute({
                 // - Open in a peek; OR
                 // - Navigate the peek we are rendered in
                 //
-                // TODO(calebmer): Some global loading indicator?
+                // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
                 rootNavigate(
                     `/s/${initialDocument.spaceId}/documents/${initialDocument.id}?comments=${commentThreadId}`,
                 ).catch(error => {

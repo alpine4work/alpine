@@ -745,7 +745,8 @@ export class DocumentContentEditorWebSocketClient {
                     break;
                 }
                 case "PersistedContent": {
-                    // TODO(calebmer): Show a saving indicator until content has persisted!
+                    // TODO(calebmer, #global-loading-indicator): Show a saving indicator until
+                    // content has persisted!
                     break;
                 }
                 case "UpdateOtherPresenceState": {

@@ -583,6 +583,7 @@ function DocumentCommentThreadListView(
                                         backgroundColor: "grey-0",
                                         borderTopRadius: !withMobileLayout ? "md" : undefined,
                                         boxShadow: "elevation-5",
+                                        overflow: "hidden",
                                     })}
                                 >
                                     <DocumentCommentThreadPreview

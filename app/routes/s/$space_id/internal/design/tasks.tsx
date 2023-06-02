@@ -234,18 +234,18 @@ export default function TasksDesignPlaygroundRoute() {
                             orderKey: initialOrderKey,
                         },
                     }}
-                    onAssigneeChange={noop}
                     dueDate={currentDate.subtract({days: 1})}
                     collections={[kitchenTaskCollection]}
+                    onExpand={async () => {}}
                 />
                 <TaskCardPresentationalView
                     status="Open"
                     onStatusChange={noop}
                     title={createSimpleTaskTitle("Sort, wash, dry, and fold clothes")}
                     assignee={null}
-                    onAssigneeChange={noop}
                     dueDate={currentDate.add({days: 7})}
                     collections={[kitchenTaskCollection, bathroomTaskCollection]}
+                    onExpand={async () => {}}
                 />
             </Box>
             <Box width="full" maxWidth="96" display="flex" flexDirection="column" gap="4">
@@ -257,9 +257,9 @@ export default function TasksDesignPlaygroundRoute() {
                         account: account2,
                         status: {type: "Inactive"},
                     }}
-                    onAssigneeChange={noop}
                     dueDate={null}
                     collections={[]}
+                    onExpand={async () => {}}
                 />
             </Box>
         </Box>
@@ -325,9 +325,9 @@ export default function TasksDesignPlaygroundRoute() {
                         account: account3,
                         status: {type: "Inactive"},
                     }}
-                    onAssigneeChange={noop}
                     dueDate={currentDate}
                     collections={[kitchenTaskCollection]}
+                    onExpand={async () => {}}
                 />
                 <TaskCardPresentationalView
                     status="Open"
@@ -341,9 +341,9 @@ export default function TasksDesignPlaygroundRoute() {
                             orderKey: initialOrderKey,
                         },
                     }}
-                    onAssigneeChange={noop}
                     dueDate={currentDate.add({days: 1})}
                     collections={[bathroomTaskCollection, kitchenTaskCollection]}
+                    onExpand={async () => {}}
                 />
                 <TaskCardPresentationalView
                     status="Open"
@@ -352,27 +352,27 @@ export default function TasksDesignPlaygroundRoute() {
                         "Deep clean the kitchen: Remove all items from the countertops and wipe them down. Scrub the sink, faucet, and stovetop using appropriate cleaners. Clean the oven, inside and out, by following the manufacturer's instructions. Sweep and mop the floor, paying attention to corners and hard-to-reach areas",
                     )}
                     assignee={null}
-                    onAssigneeChange={noop}
                     dueDate={null}
                     collections={[kitchenTaskCollection]}
+                    onExpand={async () => {}}
                 />
                 <TaskCardPresentationalView
                     status="Closed"
                     onStatusChange={noop}
                     title={createSimpleTaskTitle("Tidy up the living room")}
                     assignee={null}
-                    onAssigneeChange={noop}
                     dueDate={currentDate.subtract({days: 7})}
                     collections={[]}
+                    onExpand={async () => {}}
                 />
                 <TaskCardPresentationalView
                     status="Closed"
                     onStatusChange={noop}
                     title={createSimpleTaskTitle("Declutter and organize")}
                     assignee={null}
-                    onAssigneeChange={noop}
                     dueDate={null}
                     collections={[]}
+                    onExpand={async () => {}}
                 />
                 <TaskCardPresentationalView
                     status="Open"
@@ -382,9 +382,9 @@ export default function TasksDesignPlaygroundRoute() {
                         account: account2,
                         status: {type: "Inactive"},
                     }}
-                    onAssigneeChange={noop}
                     dueDate={null}
                     collections={[bedroomTaskCollection]}
+                    onExpand={async () => {}}
                 />
                 <TaskCardPresentationalView
                     status="Open"
@@ -396,9 +396,9 @@ export default function TasksDesignPlaygroundRoute() {
                         account: account1,
                         status: {type: "Inactive"},
                     }}
-                    onAssigneeChange={noop}
                     dueDate={currentDate.subtract({years: 2})}
                     collections={[]}
+                    onExpand={async () => {}}
                 />
             </Box>
         </Box>

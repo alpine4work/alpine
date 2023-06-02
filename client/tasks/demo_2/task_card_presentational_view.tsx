@@ -1,9 +1,11 @@
 import {CalendarDate} from "@internationalized/date";
 import {CalendarBlank} from "phosphor-react";
 import {cloneElement, useMemo} from "react";
+import {usePress} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
 import {Box} from "~/client/design/box";
+import {FocusRing} from "~/client/design/focus_ring";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour";
 import {formatTaskDueDate} from "~/client/tasks/demo_2/internal/format_task_due_date";
@@ -12,7 +14,7 @@ import {LocalTaskCollection} from "~/client/tasks/demo_2/local_task_collection";
 import {TaskAssignee, TaskStatus, TaskStatusButton} from "~/client/tasks/demo_2/task_status_button";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
-import {contentSchemaStyles} from "~/shared/styles/styles";
+import {contentSchemaStyles, pressOpacityOverlayClassName} from "~/shared/styles/styles";
 import {TaskTitle} from "~/shared/tasks/task_title_schema";
 
 // TODO(calebmer): Needs:
@@ -41,6 +43,7 @@ export function TaskCardPresentationalView({
     title,
     assignee,
     dueDate,
+    onExpand,
     collections,
     shouldFillHeight,
 }: {
@@ -49,11 +52,22 @@ export function TaskCardPresentationalView({
     title: TaskTitle;
     assignee: TaskAssignee | null;
     dueDate: CalendarDate | null;
+    onExpand: () => Promise<void>;
     collections: ReadonlyArray<LocalTaskCollection>;
     shouldFillHeight?: boolean;
 }) {
     const {timeZone, locale} = useClientInfo();
     const currentDate = useCurrentDate();
+
+    const {pressProps, isPressed} = usePress({
+        onPress: () => {
+            const promise = onExpand();
+
+            // TODO(calebmer, #global-loading-indicator): Some kind of global loading
+            // indicator for navigation?
+            void promise;
+        },
+    });
 
     const fieldElements = useMemo(() => {
         const fieldElements = [];
@@ -129,70 +143,93 @@ export function TaskCardPresentationalView({
     }, [assignee, collections, currentDate, dueDate, locale, status, timeZone]);
 
     return (
-        <Box
-            width="full"
-            maxWidth={taskCardViewMaxWidth}
-            minHeight={shouldFillHeight ? "full" : undefined}
-            overflow="hidden"
-            backgroundColor="grey-0"
-            boxShadow="elevation-5"
-            borderRadius="lg"
-            padding="4"
-            display="flex"
-            flexDirection="column"
-            justifyContent="space-between"
-            gap="4"
-        >
+        <FocusRing offset="0">
             <Box
+                {...pressProps}
+                tabIndex={0}
+                width="full"
+                maxWidth={taskCardViewMaxWidth}
+                minHeight={shouldFillHeight ? "full" : undefined}
+                overflow="hidden"
+                backgroundColor="grey-0"
+                boxShadow="elevation-5"
+                borderRadius="lg"
+                padding="4"
                 display="flex"
-                gap="2"
-                // Extra margin on the right to balance margin on the left from status button.
-                paddingRight="3"
+                flexDirection="column"
+                justifyContent="space-between"
+                gap="4"
+                position="relative"
+                zIndex="0"
             >
+                {isPressed && (
+                    <Box
+                        position="absolute"
+                        zIndex="10"
+                        inset="0"
+                        pointerEvents="none"
+                        borderWidth="thick"
+                        border="grey-0"
+                        borderRadius="lg"
+                        className={pressOpacityOverlayClassName}
+                    />
+                )}
                 <Box
-                    flexShrink="0"
                     display="flex"
-                    alignItems="center"
-                    style={{height: contentSchemaStyles.paragraphFontSize.lineHeight}}
+                    gap="2"
+                    // Extra margin on the right to balance margin on the left from status button.
+                    paddingRight="3"
                 >
-                    <TaskStatusButton
-                        status={status}
-                        onStatusChange={onStatusChange}
-                        assignee={assignee}
+                    <Box
+                        flexShrink="0"
+                        display="flex"
+                        alignItems="center"
+                        style={{height: contentSchemaStyles.paragraphFontSize.lineHeight}}
+                        // Render status button on top of the press overlay to try and communicate that
+                        // it is independently clickable from the rest of the card.
+                        position="relative"
+                        zIndex="20"
+                    >
+                        <TaskStatusButton
+                            status={status}
+                            onStatusChange={onStatusChange}
+                            assignee={assignee}
+                        />
+                    </Box>
+                    <Box
+                        flexGrow="1"
+                        color="grey-text"
+                        style={{
+                            overflow: "hidden",
+                            ...contentSchemaStyles.paragraphFontSize,
+                            maxHeight: `${
+                                parseRemLengthNumber(
+                                    contentSchemaStyles.paragraphFontSize.lineHeight,
+                                ) * 3
+                            }rem`,
+                            // Truncate after 3 lines of text. Unofficial syntax that works in all browsers
+                            // except IE.
+                            // https://stackoverflow.com/questions/3922739/limit-text-length-to-n-lines-using-css
+                            display: "-webkit-box",
+                            WebkitLineClamp: 3,
+                            lineClamp: 3,
+                            WebkitBoxOrient: "vertical",
+                            textOverflow: "ellipsis",
+                        }}
+                        dangerouslySetInnerHTML={useMemo(
+                            () => ({
+                                __html: serializeProsemirrorFragmentToHtml(title.content),
+                            }),
+                            [title],
+                        )}
                     />
                 </Box>
-                <Box
-                    flexGrow="1"
-                    color="grey-text"
-                    style={{
-                        overflow: "hidden",
-                        ...contentSchemaStyles.paragraphFontSize,
-                        maxHeight: `${
-                            parseRemLengthNumber(contentSchemaStyles.paragraphFontSize.lineHeight) *
-                            3
-                        }rem`,
-                        // Truncate after 3 lines of text. Unofficial syntax that works in all browsers
-                        // except IE.
-                        // https://stackoverflow.com/questions/3922739/limit-text-length-to-n-lines-using-css
-                        display: "-webkit-box",
-                        WebkitLineClamp: 3,
-                        lineClamp: 3,
-                        WebkitBoxOrient: "vertical",
-                        textOverflow: "ellipsis",
-                    }}
-                    dangerouslySetInnerHTML={useMemo(
-                        () => ({
-                            __html: serializeProsemirrorFragmentToHtml(title.content),
-                        }),
-                        [title],
-                    )}
-                />
+                {fieldElements.length > 0 && (
+                    <Box display="flex" flexWrap="wrap" gap="3">
+                        {fieldElements.map((node, index) => cloneElement(node, {key: index}))}
+                    </Box>
+                )}
             </Box>
-            {fieldElements.length > 0 && (
-                <Box display="flex" flexWrap="wrap" gap="3">
-                    {fieldElements.map((node, index) => cloneElement(node, {key: index}))}
-                </Box>
-            )}
-        </Box>
+        </FocusRing>
     );
 }

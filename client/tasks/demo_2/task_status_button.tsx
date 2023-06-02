@@ -67,7 +67,7 @@ export function TaskStatusButton({
                     overflow: "hidden",
                     border: status === "Open" ? "grey-40" : undefined,
                     backgroundColor:
-                        status === "Closed" ? "theme-50-const" : isPressed ? "grey-10" : undefined,
+                        status === "Closed" ? "theme-50-const" : isPressed ? "grey-10" : "grey-0",
                     color: status === "Open" ? "grey-text" : "grey-0-const",
                 })}
             >

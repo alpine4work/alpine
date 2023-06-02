@@ -14,7 +14,7 @@ import {DocumentCommentThreadModel} from "~/shared/documents/document_model";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {safe, safeAlphanumericString, safeNumber} from "~/shared/helpers/string/safe_string";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
-import {documentCommentThreadPreviewStyles, fontSizesByPlatform} from "~/shared/styles/styles";
+import {fontSizesByPlatform, pressOpacityOverlayClassName} from "~/shared/styles/styles";
 
 export function DocumentCommentThreadPreview({
     commentThread,
@@ -108,7 +108,7 @@ export function DocumentCommentThreadPreview({
                             inset="0"
                             zIndex="50"
                             pointerEvents="none"
-                            className={documentCommentThreadPreviewStyles.pressOverlayClassName}
+                            className={pressOpacityOverlayClassName}
                         />
                     )}
                     <Box ref={previewRef} overflow="hidden" height="full">

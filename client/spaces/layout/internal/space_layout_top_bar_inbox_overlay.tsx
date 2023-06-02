@@ -252,7 +252,8 @@ function SpaceLayoutTopBarInboxOverlayEntry({
             onPress={() => {
                 if (isPending) return;
 
-                // TODO(calebmer): Some kind of global loading indicator?
+                // TODO(calebmer, #global-loading-indicator): Some kind of global loading
+                // indicator?
                 peekStackContext.push(entry.getPath()).then(
                     () => {
                         setIsPending(false);
