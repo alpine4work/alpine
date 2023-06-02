@@ -14,6 +14,7 @@ import {
     useRef,
     useState,
 } from "react";
+import {mergeProps} from "react-aria";
 import {Box} from "~/client/design/box";
 import {IconButton} from "~/client/design/icon_button";
 import {TaskGridViewDraggableData} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
@@ -210,21 +211,30 @@ function TaskRowPresentationalView<TaskRow>(
         setNodeRef: setDraggableNodeRef,
     } = useDraggable({
         id: useId(),
-        data: {taskRow} satisfies TaskGridViewDraggableData<TaskRow>,
+        data: taskRow
+            ? ({type: "Row", taskRow} satisfies TaskGridViewDraggableData<TaskRow>)
+            : undefined,
         disabled: !taskRow,
     });
 
+    const [isDragHandlePressed, setIsDragHandlePressed] = useState(false);
+
     const dragHandleNode = taskRow && (
         <button
-            {...draggableAttributes}
-            {...draggableListeners}
+            {...mergeProps(draggableAttributes, draggableListeners ?? {}, {
+                onPointerDown: () => setIsDragHandlePressed(true),
+                onPointerUp: () => setIsDragHandlePressed(false),
+                onPointerOut: () => setIsDragHandlePressed(false),
+            })}
             ref={setDraggableNodeRef}
             className={sprinkles({
                 width: "4",
                 height: "4",
                 padding: "0.5",
                 borderRadius: "full",
-                cursor: "grab",
+                // Dragging doesn't activate until the mouse moves. Set the grabbing cursor
+                // immediately on press.
+                cursor: isDragHandlePressed ? "grabbing" : "grab",
             })}
             // Drag handle is not tab focusable. Keyboard navigation within a task grid is
             // not done with tab navigation.

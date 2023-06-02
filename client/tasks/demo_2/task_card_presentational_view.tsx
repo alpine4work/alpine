@@ -1,7 +1,8 @@
+import {useDraggable} from "@dnd-kit/core";
 import {CalendarDate} from "@internationalized/date";
 import {CalendarBlank} from "phosphor-react";
-import {cloneElement, useMemo} from "react";
-import {usePress} from "react-aria";
+import {cloneElement, useId, useMemo, useState} from "react";
+import {mergeProps} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
 import {Box} from "~/client/design/box";
@@ -10,6 +11,7 @@ import {useClientInfo} from "~/client/remix/client_info_context";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour";
 import {formatTaskDueDate} from "~/client/tasks/demo_2/internal/format_task_due_date";
 import {TaskCollectionChip} from "~/client/tasks/demo_2/internal/task_collection_chip";
+import {TaskGridViewDraggableData} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
 import {LocalTaskCollection} from "~/client/tasks/demo_2/local_task_collection";
 import {TaskAssignee, TaskStatus, TaskStatusButton} from "~/client/tasks/demo_2/task_status_button";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
@@ -43,30 +45,51 @@ export function TaskCardPresentationalView({
     title,
     assignee,
     dueDate,
-    onExpand,
     collections,
+    onExpand,
     shouldFillHeight,
+    isDragOverlay,
 }: {
     status: TaskStatus;
     onStatusChange: (status: TaskStatus) => void;
     title: TaskTitle;
     assignee: TaskAssignee | null;
     dueDate: CalendarDate | null;
-    onExpand: () => Promise<void>;
     collections: ReadonlyArray<LocalTaskCollection>;
+    onExpand: () => Promise<void>;
     shouldFillHeight?: boolean;
+    isDragOverlay?: boolean;
 }) {
     const {timeZone, locale} = useClientInfo();
     const currentDate = useCurrentDate();
 
-    const {pressProps, isPressed} = usePress({
-        onPress: () => {
-            const promise = onExpand();
+    // We manually implement `usePress()` so to play nice with drag-and-drop.
+    const [isPressed, setIsPressed] = useState(false);
 
-            // TODO(calebmer, #global-loading-indicator): Some kind of global loading
-            // indicator for navigation?
-            void promise;
-        },
+    const onPress = () => {
+        const promise = onExpand();
+
+        // TODO(calebmer, #global-loading-indicator): Some kind of global loading
+        // indicator for navigation?
+        void promise;
+    };
+
+    const {
+        isDragging,
+        attributes: draggableAttributes,
+        listeners: draggableListeners,
+        setNodeRef: setDraggableNodeRef,
+    } = useDraggable({
+        id: useId(),
+        disabled: isDragOverlay,
+        data: {
+            type: "Card",
+            status,
+            title,
+            assignee,
+            dueDate,
+            collections,
+        } satisfies TaskGridViewDraggableData<never>,
     });
 
     const fieldElements = useMemo(() => {
@@ -145,14 +168,22 @@ export function TaskCardPresentationalView({
     return (
         <FocusRing offset="0">
             <Box
-                {...pressProps}
+                {...mergeProps(draggableListeners ?? {}, draggableAttributes, {
+                    onPointerDown: () => setIsPressed(true),
+                    onPointerUp: () => {
+                        setIsPressed(false);
+                        if (isPressed) onPress();
+                    },
+                    onPointerOut: () => setIsPressed(false),
+                })}
+                ref={setDraggableNodeRef}
                 tabIndex={0}
                 width="full"
                 maxWidth={taskCardViewMaxWidth}
                 minHeight={shouldFillHeight ? "full" : undefined}
                 overflow="hidden"
                 backgroundColor="grey-0"
-                boxShadow="elevation-5"
+                boxShadow={isDragOverlay ? "elevation-30" : "elevation-5"}
                 borderRadius="lg"
                 padding="4"
                 display="flex"
@@ -161,6 +192,8 @@ export function TaskCardPresentationalView({
                 gap="4"
                 position="relative"
                 zIndex="0"
+                opacity={isDragging ? "0" : undefined}
+                pointerEvents={isDragging || isDragOverlay ? "none" : undefined}
             >
                 {isPressed && (
                     <Box
@@ -194,6 +227,7 @@ export function TaskCardPresentationalView({
                             status={status}
                             onStatusChange={onStatusChange}
                             assignee={assignee}
+                            isDisabled={isDragging || isDragOverlay}
                         />
                     </Box>
                     <Box

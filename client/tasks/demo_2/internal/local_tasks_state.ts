@@ -1,5 +1,4 @@
 import {CalendarDate, parseDate} from "@internationalized/date";
-import {compareDesc} from "date-fns";
 import {MutableRefObject, useEffect, useMemo, useRef} from "react";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
@@ -11,6 +10,7 @@ import {
     TaskAssignee,
     TaskAssigneeActiveStatus,
     TaskStatus,
+    compareTaskAssigneeActiveStatus,
 } from "~/client/tasks/demo_2/task_status_button";
 import {AccountModel} from "~/shared/accounts/account_model";
 import {
@@ -31,7 +31,6 @@ import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
 import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
 import {generateId} from "~/shared/id/id";
 import {AccountId, LocalTaskId} from "~/shared/id/types/id_types";
 import {OrderKeySchema} from "~/shared/schema/order_key_schema";
@@ -358,7 +357,11 @@ class LocalTasksDatabase {
         return new LocalTasksDatabase({
             taskById: this._taskById.update(taskId, task => {
                 if (!task) throw new NotFoundError("Task not found");
-                return {...task, assignee};
+                return {
+                    ...task,
+                    status: assignee?.status.type === "Active" ? "Open" : task.status,
+                    assignee,
+                };
             }),
             notepadPageCount: this._notepadPageCount,
             taskIdByOrderKeyByNotepadPage: this._taskIdByOrderKeyByNotepadPage,
@@ -608,16 +611,8 @@ class LocalTasksDatabase {
             }
         }
 
-        activeTasks.sort(
-            (task1, task2) =>
-                compareDesc(
-                    task1.assigneeActiveStatus.orderTime,
-                    task2.assigneeActiveStatus.orderTime,
-                ) ||
-                defaultCompareStrings(
-                    task1.assigneeActiveStatus.orderKey,
-                    task2.assigneeActiveStatus.orderKey,
-                ),
+        activeTasks.sort(({assigneeActiveStatus: status1}, {assigneeActiveStatus: status2}) =>
+            compareTaskAssigneeActiveStatus(status1, status2),
         );
 
         return activeTasks;

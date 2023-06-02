@@ -3,12 +3,20 @@ import {
     CollisionDetection,
     DndContext,
     DragOverlay,
+    MouseSensor,
     useDndContext,
+    useSensor,
+    useSensors,
 } from "@dnd-kit/core";
+import type {MouseSensorProps} from "@dnd-kit/core/dist/sensors";
+import {CalendarDate} from "@internationalized/date";
 import {ReactNode, RefObject, createContext, useContext, useState} from "react";
 import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box";
+import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
 import {useSpaceContext} from "~/client/spaces/space_context";
+import {LocalTaskCollection} from "~/client/tasks/demo_2/local_task_collection";
+import {TaskCardPresentationalView} from "~/client/tasks/demo_2/task_card_presentational_view";
 import {taskRowViewHeight} from "~/client/tasks/demo_2/task_row_presentational_view";
 import {
     TaskAssignee,
@@ -27,9 +35,19 @@ import {TaskTitle} from "~/shared/tasks/task_title_schema";
 
 const TaskGridViewHasDndContext = createContext(false);
 
-export type TaskGridViewDraggableData<TaskRow> = {
-    readonly taskRow: TaskRow;
-};
+export type TaskGridViewDraggableData<TaskRow> =
+    | {
+          readonly type: "Row";
+          readonly taskRow: TaskRow;
+      }
+    | {
+          readonly type: "Card";
+          readonly status: TaskStatus;
+          readonly title: TaskTitle;
+          readonly assignee: TaskAssignee | null;
+          readonly dueDate: CalendarDate | null;
+          readonly collections: ReadonlyArray<LocalTaskCollection>;
+      };
 
 export type TaskGridViewDroppableData<TaskRow> =
     | {
@@ -39,9 +57,27 @@ export type TaskGridViewDroppableData<TaskRow> =
       }
     | {
           readonly type: "ActiveCard";
+          readonly showHintIndex: number;
           readonly nextAssigneeActiveStatus: TaskAssigneeActiveStatus | null;
           readonly previousAssigneeActiveStatus: TaskAssigneeActiveStatus | null;
       };
+
+class MouseSensorWithImmediatePriorityEnd extends MouseSensor {
+    constructor(props: MouseSensorProps) {
+        super({
+            ...props,
+            onEnd: () => {
+                // Run the `onEnd` handler with immediate priority. This means React will batch
+                // any `useSyncExternalStore()` updates with any state updates at the end of
+                // the drag. So we won't have weird flashes where an external store has updated
+                // but not our drag state.
+                runWithImmediatePriority(() => {
+                    props.onEnd();
+                });
+            },
+        });
+    }
+}
 
 export function TaskGridViewDndContext<TaskRow>({
     children,
@@ -66,6 +102,18 @@ export function TaskGridViewDndContext<TaskRow>({
 }) {
     const {currentAccount} = useSpaceContext();
 
+    const mouseSensor = useSensor(MouseSensorWithImmediatePriorityEnd, {
+        activationConstraint: {
+            // The mouse must move to activate dragging. This is required for cards which
+            // when clicked expand the task and when dragged can be reordered.
+            distance: 1,
+        },
+    });
+
+    // No keyboard sensor. To move task rows and cards with the keyboard we should
+    // have other keyboard shortcuts.
+    const sensors = useSensors(mouseSensor);
+
     // If we already have a parent `<TaskGridViewDndContext>` then don't render
     // another one. This allows us to "hoist" up drag-and-drop functionality.
     if (useContext(TaskGridViewHasDndContext)) return <>{children}</>;
@@ -73,6 +121,7 @@ export function TaskGridViewDndContext<TaskRow>({
     return (
         <TaskGridViewHasDndContext.Provider value={true}>
             <DndContext
+                sensors={sensors}
                 collisionDetection={taskGridViewDndCollisionDetection}
                 onDragEnd={({active, over}) => {
                     if (!over) return;
@@ -83,6 +132,9 @@ export function TaskGridViewDndContext<TaskRow>({
                     const overData = assertExists(
                         over.data.current,
                     ) as TaskGridViewDroppableData<TaskRow>;
+
+                    // NOCOMMIT: Implement!
+                    if (activeData.type === "Card") return;
 
                     switch (overData.type) {
                         case "Row": {
@@ -195,16 +247,28 @@ export function TaskGridViewDndContext<TaskRow>({
  * container then we look for the closest droppable container to the pointer.
  */
 const taskGridViewDndCollisionDetection: CollisionDetection = ({
+    active,
     pointerCoordinates,
     droppableContainers,
     droppableRects,
 }) => {
     if (!pointerCoordinates) return [];
 
+    const activeData = assertExists(active.data.current) as TaskGridViewDraggableData<unknown>;
+
     const collisions: Array<CollisionDescriptor> = [];
     let nearestFallbackCollision: CollisionDescriptor | null = null;
 
     for (const droppableContainer of droppableContainers) {
+        const droppableData = assertExists(
+            droppableContainer.data.current,
+        ) as TaskGridViewDroppableData<unknown>;
+
+        // Can't drag cards onto rows.
+        if (activeData.type === "Card" && droppableData.type === "Row") {
+            continue;
+        }
+
         const {id} = droppableContainer;
         const rect = droppableRects.get(id);
 
@@ -268,7 +332,8 @@ function TaskRowViewDragPortals<TaskRow>({
 }) {
     const {active, activatorEvent} = useDndContext();
 
-    const isPointerDragging = active && activatorEvent instanceof PointerEvent;
+    const isPointerDragging =
+        active && (activatorEvent instanceof PointerEvent || activatorEvent instanceof MouseEvent);
 
     return (
         <>
@@ -299,49 +364,77 @@ function TaskRowViewDragOverlay<TaskRow>({
     getTaskAssignee,
     getTaskTitle,
 }: {
-    dataRef: RefObject<{taskRow: TaskRow}>;
+    dataRef: RefObject<TaskGridViewDraggableData<TaskRow>>;
     getTaskStatus: (taskRow: TaskRow) => TaskStatus;
     getTaskAssignee: (taskRow: TaskRow) => TaskAssignee | null;
     getTaskTitle: (taskRow: TaskRow) => TaskTitle;
 }) {
-    const [{taskRow}] = useState(assertExists(dataRef.current));
+    const [data] = useState(assertExists(dataRef.current));
 
-    return (
-        <Box
-            display="inline-block"
-            minWidth="48"
-            maxWidth="128"
-            paddingX="3"
-            borderRadius="md"
-            boxShadow="elevation-20"
-            backgroundColor="grey-0"
-            position="relative"
-            left="2"
-            style={{
-                height: `calc(${spacing[taskRowViewHeight]} + 1px)`,
-                paddingTop: 1,
-                top: -1,
-                transform: "scale(75%)",
-                transformOrigin: "center left",
-                opacity: 0.75,
-            }}
-        >
-            <Box height="full" display="flex" alignItems="center" gap="2" style={{opacity: 0.5}}>
-                <Box flexShrink="0">
-                    <TaskStatusButton
-                        status={getTaskStatus(taskRow)}
-                        onStatusChange={noop}
-                        assignee={getTaskAssignee(taskRow)}
-                    />
-                </Box>
+    switch (data.type) {
+        case "Row": {
+            return (
                 <Box
-                    fontStyle="truncate"
-                    style={contentSchemaStyles.paragraphFontSize}
-                    dangerouslySetInnerHTML={{
-                        __html: serializeProsemirrorFragmentToHtml(getTaskTitle(taskRow).content),
+                    display="inline-block"
+                    minWidth="48"
+                    maxWidth="128"
+                    paddingX="3"
+                    borderRadius="md"
+                    boxShadow="elevation-30"
+                    backgroundColor="grey-0"
+                    position="relative"
+                    left="2"
+                    style={{
+                        height: `calc(${spacing[taskRowViewHeight]} + 1px)`,
+                        paddingTop: 1,
+                        top: -1,
+                        transform: "scale(75%)",
+                        transformOrigin: "center left",
+                        opacity: 0.75,
                     }}
+                >
+                    <Box
+                        height="full"
+                        display="flex"
+                        alignItems="center"
+                        gap="2"
+                        style={{opacity: 0.5}}
+                    >
+                        <Box flexShrink="0">
+                            <TaskStatusButton
+                                status={getTaskStatus(data.taskRow)}
+                                onStatusChange={noop}
+                                assignee={getTaskAssignee(data.taskRow)}
+                            />
+                        </Box>
+                        <Box
+                            fontStyle="truncate"
+                            style={contentSchemaStyles.paragraphFontSize}
+                            dangerouslySetInnerHTML={{
+                                __html: serializeProsemirrorFragmentToHtml(
+                                    getTaskTitle(data.taskRow).content,
+                                ),
+                            }}
+                        />
+                    </Box>
+                </Box>
+            );
+        }
+        case "Card": {
+            return (
+                <TaskCardPresentationalView
+                    isDragOverlay={true}
+                    status={data.status}
+                    onStatusChange={noop}
+                    title={data.title}
+                    assignee={data.assignee}
+                    dueDate={data.dueDate}
+                    collections={data.collections}
+                    onExpand={async () => {}}
                 />
-            </Box>
-        </Box>
-    );
+            );
+        }
+        default:
+            throw exhaustive(data);
+    }
 }

@@ -1,21 +1,32 @@
-import {useDroppable} from "@dnd-kit/core";
-import {Fragment, useId} from "react";
+import {useDndContext, useDroppable} from "@dnd-kit/core";
+import {useId} from "react";
 import {Box} from "~/client/design/box";
 import {usePeekStackContext} from "~/client/peek/peek_stack";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {LocalTasksAction, LocalTasksState} from "~/client/tasks/demo_2/internal/local_tasks_state";
-import {TaskGridViewDroppableData} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
+import {
+    TaskGridViewDraggableData,
+    TaskGridViewDroppableData,
+} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
 import {
     TaskCardPresentationalView,
     taskCardViewMaxWidth,
 } from "~/client/tasks/demo_2/task_card_presentational_view";
-import {TaskAssigneeActiveStatus} from "~/client/tasks/demo_2/task_status_button";
+import {
+    TaskAssigneeActiveStatus,
+    compareTaskAssigneeActiveStatus,
+} from "~/client/tasks/demo_2/task_status_button";
 import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length";
 import {emptyArray} from "~/shared/helpers/array/empty_array";
-import {colorSchemeVars, hideScrollbarClassName, sprinkles} from "~/shared/styles/styles";
+import {
+    colorSchemeVars,
+    hideScrollbarClassName,
+    pressOpacityOverlayClassName,
+    sprinkles,
+} from "~/shared/styles/styles";
 
-// NOCOMMIT: Drag to reorder active cards
-// NOCOMMIT: Scroll card into view on drop
+const taskNotepadViewActiveSectionCardTranslateDurationMs = 200;
 
 export function TaskNotepadViewActiveSection({
     state,
@@ -26,6 +37,15 @@ export function TaskNotepadViewActiveSection({
 }) {
     const {space, currentAccount} = useSpaceContext();
     const peekStackContext = usePeekStackContext();
+    const dndContext = useDndContext();
+
+    const activeDraggableData = dndContext.active?.data.current as
+        | TaskGridViewDraggableData<never>
+        | undefined;
+
+    const overDroppableData = dndContext.over?.data.current as
+        | TaskGridViewDroppableData<never>
+        | undefined;
 
     const tasks = state.database.getActiveTasksForAccount(currentAccount.id);
 
@@ -37,10 +57,6 @@ export function TaskNotepadViewActiveSection({
     const cardDroppableWidth = `calc(${(1 / 3) * 100}% - ${
         tasks.length > 3 ? parseRemLengthNumber(spacing["4"]) : 0
     }rem)`;
-
-    const cardDroppableHalfWidth = `calc((${(1 / 3) * 100}% - ${
-        tasks.length > 3 ? parseRemLengthNumber(spacing["4"]) : 0
-    }rem) / 2)`;
 
     return (
         <Box marginBottom="-2">
@@ -56,41 +72,125 @@ export function TaskNotepadViewActiveSection({
                 display="flex"
                 gap={taskNotepadViewActiveSectionCardGap}
                 position="relative"
+                zIndex="0"
             >
-                {tasks.map(({task}) => (
-                    <Box key={task.id} flexShrink="0" style={{width: cardWidth}}>
-                        <TaskCardPresentationalView
-                            shouldFillHeight={true}
-                            status={task.status}
-                            onStatusChange={status =>
-                                dispatch({
-                                    type: "UpdateTaskStatus",
-                                    taskId: task.id,
-                                    status,
-                                })
-                            }
-                            title={task.title}
-                            assignee={task.assignee}
-                            dueDate={task.dueDate}
-                            collections={emptyArray} // NOCOMMIT
-                            onExpand={async () => {
-                                await peekStackContext.push(
-                                    `/s/${space.id}/tasks/demo-2/${task.id}`,
-                                );
+                {tasks.map(({task, assigneeActiveStatus}) => {
+                    const shouldPushRight =
+                        overDroppableData?.type === "ActiveCard" &&
+                        overDroppableData.nextAssigneeActiveStatus &&
+                        compareTaskAssigneeActiveStatus(
+                            overDroppableData.nextAssigneeActiveStatus,
+                            assigneeActiveStatus,
+                        ) <= 0 &&
+                        // There are two kinds of drag into this list:
+                        //
+                        // 1. Inserting a row
+                        // 2. Moving a card
+                        //
+                        // For 1 we only want to push cards to the right. For 2 if we drag to an
+                        // earlier position we need to push left and if we drag to a later position
+                        // we need to push right.
+                        //
+                        // Here we need to handle case 1 and 2.
+                        (activeDraggableData?.type !== "Card" ||
+                            (activeDraggableData.assignee?.status.type === "Active" &&
+                                compareTaskAssigneeActiveStatus(
+                                    activeDraggableData.assignee.status,
+                                    assigneeActiveStatus,
+                                ) > 0));
+
+                    const shouldPushLeft =
+                        overDroppableData?.type === "ActiveCard" &&
+                        overDroppableData.previousAssigneeActiveStatus &&
+                        compareTaskAssigneeActiveStatus(
+                            overDroppableData.previousAssigneeActiveStatus,
+                            assigneeActiveStatus,
+                        ) >= 0 &&
+                        // There are two kinds of drag into this list:
+                        //
+                        // 1. Inserting a row
+                        // 2. Moving a card
+                        //
+                        // For 1 we only want to push cards to the right. For 2 if we drag to an
+                        // earlier position we need to push left and if we drag to a later position
+                        // we need to push right.
+                        //
+                        // Here we only need to handle case 2.
+                        activeDraggableData?.type === "Card" &&
+                        activeDraggableData.assignee?.status.type === "Active" &&
+                        compareTaskAssigneeActiveStatus(
+                            activeDraggableData.assignee.status,
+                            assigneeActiveStatus,
+                        ) < 0;
+
+                    return (
+                        <Box
+                            key={task.id}
+                            flexShrink="0"
+                            maxWidth={taskCardViewMaxWidth}
+                            style={{
+                                width: cardWidth,
+                                transform: shouldPushRight
+                                    ? `translateX(100%) translateX(${spacing[taskNotepadViewActiveSectionCardGap]})`
+                                    : shouldPushLeft
+                                    ? `translateX(-100%) translateX(-${spacing[taskNotepadViewActiveSectionCardGap]})`
+                                    : undefined,
+                                transition: dndContext.active
+                                    ? `transform ${taskNotepadViewActiveSectionCardTranslateDurationMs}ms ease`
+                                    : undefined,
                             }}
-                        />
-                    </Box>
-                ))}
-                {tasks.length <= 0 && (
+                        >
+                            <TaskCardPresentationalView
+                                shouldFillHeight={true}
+                                status={task.status}
+                                onStatusChange={status =>
+                                    dispatch({
+                                        type: "UpdateTaskStatus",
+                                        taskId: task.id,
+                                        status,
+                                    })
+                                }
+                                title={task.title}
+                                assignee={task.assignee}
+                                dueDate={task.dueDate}
+                                collections={emptyArray} // NOCOMMIT
+                                onExpand={async () => {
+                                    await peekStackContext.push(
+                                        `/s/${space.id}/tasks/demo-2/${task.id}`,
+                                    );
+                                }}
+                            />
+                        </Box>
+                    );
+                })}
+                {tasks.length === 0 && (
                     <TaskNotepadViewActiveSectionInstructionalPlaceholderCard
                         cardWidth={cardWidth}
                     />
                 )}
                 {tasks.length <= 1 && (
-                    <TaskNotepadViewActiveSectionPlaceholderCard cardWidth={cardWidth} />
+                    <TaskNotepadViewActiveSectionPlaceholderCard
+                        cardWidth={cardWidth}
+                        // If we are dragging a row into our active section, it will push a card into
+                        // our placeholder space so hide the placeholder space.
+                        shouldHide={
+                            overDroppableData?.type === "ActiveCard" &&
+                            activeDraggableData?.type === "Row" &&
+                            tasks.length >= 1
+                        }
+                    />
                 )}
                 {tasks.length <= 2 && (
-                    <TaskNotepadViewActiveSectionPlaceholderCard cardWidth={cardWidth} />
+                    <TaskNotepadViewActiveSectionPlaceholderCard
+                        cardWidth={cardWidth}
+                        // If we are dragging a row into our active section, it will push a card into
+                        // our placeholder space so hide the placeholder space.
+                        shouldHide={
+                            overDroppableData?.type === "ActiveCard" &&
+                            activeDraggableData?.type === "Row" &&
+                            tasks.length >= 2
+                        }
+                    />
                 )}
                 <Box
                     pointerEvents="none"
@@ -111,81 +211,123 @@ export function TaskNotepadViewActiveSection({
                 >
                     {tasks.length === 0 ? (
                         <TaskNotepadViewActiveSectionDroppable
-                            hintPosition="Left"
+                            showHintIndex={0}
                             nextAssigneeActiveStatus={null}
                             previousAssigneeActiveStatus={null}
                             flexGrow="1"
                         />
                     ) : (
                         tasks.map(({assigneeActiveStatus}, index) => {
-                            const nextAssigneeActiveStatus =
-                                tasks[index + 1]?.assigneeActiveStatus ?? null;
-
                             return (
-                                <Fragment key={index}>
-                                    {index === 0 && (
-                                        <TaskNotepadViewActiveSectionDroppable
-                                            hintPosition="Left"
-                                            nextAssigneeActiveStatus={assigneeActiveStatus}
-                                            previousAssigneeActiveStatus={null}
-                                            flexShrink="0"
-                                            widthStyle={cardDroppableHalfWidth}
-                                        />
-                                    )}
-                                    {index === tasks.length - 1 ? (
-                                        <TaskNotepadViewActiveSectionDroppable
-                                            hintPosition="Right"
-                                            nextAssigneeActiveStatus={null}
-                                            previousAssigneeActiveStatus={assigneeActiveStatus}
-                                            flexShrink="0"
-                                            widthStyle={cardDroppableHalfWidth}
-                                        />
-                                    ) : (
-                                        <TaskNotepadViewActiveSectionDroppable
-                                            hintPosition="Middle"
-                                            nextAssigneeActiveStatus={nextAssigneeActiveStatus}
-                                            previousAssigneeActiveStatus={assigneeActiveStatus}
-                                            flexShrink="0"
-                                            widthStyle={cardDroppableWidth}
-                                        />
-                                    )}
-                                    {index === tasks.length - 1 && tasks.length < 3 && (
-                                        <TaskNotepadViewActiveSectionDroppable
-                                            hintPosition="Left"
-                                            nextAssigneeActiveStatus={null}
-                                            previousAssigneeActiveStatus={assigneeActiveStatus}
-                                            flexGrow="1"
-                                        />
-                                    )}
-                                </Fragment>
+                                <TaskNotepadViewActiveSectionDroppable
+                                    key={index}
+                                    showHintIndex={index}
+                                    nextAssigneeActiveStatus={assigneeActiveStatus}
+                                    previousAssigneeActiveStatus={assigneeActiveStatus}
+                                    {...(index === tasks.length - 1 &&
+                                    tasks.length < 3 &&
+                                    activeDraggableData?.type !== "Row"
+                                        ? {
+                                              flexGrow: "1",
+                                          }
+                                        : {
+                                              flexShrink: "0",
+                                              widthStyle: cardDroppableWidth,
+                                          })}
+                                />
                             );
                         })
                     )}
+                    {tasks.length > 0 && activeDraggableData?.type === "Row" && (
+                        <TaskNotepadViewActiveSectionDroppable
+                            showHintIndex={tasks.length}
+                            nextAssigneeActiveStatus={null}
+                            previousAssigneeActiveStatus={
+                                tasks[tasks.length - 1]?.assigneeActiveStatus ?? null
+                            }
+                            {...(tasks.length < 3
+                                ? {
+                                      flexGrow: "1",
+                                  }
+                                : {
+                                      flexShrink: "0",
+                                      widthStyle: cardDroppableWidth,
+                                  })}
+                        />
+                    )}
                 </Box>
+                {overDroppableData && overDroppableData.type === "ActiveCard" && (
+                    <Box
+                        pointerEvents="none"
+                        position="absolute"
+                        zIndex="-10"
+                        top="2"
+                        bottom="2"
+                        left="5"
+                        right="5"
+                        display="flex"
+                        gap={taskNotepadViewActiveSectionCardGap}
+                    >
+                        {createArrayWithLength(
+                            Math.max(
+                                1,
+                                tasks.length +
+                                    (tasks.length > 0 && activeDraggableData?.type === "Row"
+                                        ? 1
+                                        : 0),
+                            ),
+                            index => (
+                                <Box
+                                    key={index}
+                                    height="full"
+                                    maxWidth={taskCardViewMaxWidth}
+                                    flexShrink="0"
+                                    borderRadius="lg"
+                                    className={pressOpacityOverlayClassName}
+                                    style={{
+                                        width: cardWidth,
+                                        opacity: overDroppableData.showHintIndex === index ? 1 : 0,
+                                        transition:
+                                            overDroppableData.showHintIndex === index
+                                                ? undefined
+                                                : // Delay hiding the old hint. This helps the user's eye focus on the
+                                                  // card horizontal motion.
+                                                  `opacity 0ms ${taskNotepadViewActiveSectionCardTranslateDurationMs}ms`,
+                                    }}
+                                />
+                            ),
+                        )}
+                    </Box>
+                )}
             </Box>
         </Box>
     );
 }
 
 function TaskNotepadViewActiveSectionDroppable({
-    hintPosition,
+    showHintIndex,
     nextAssigneeActiveStatus,
     previousAssigneeActiveStatus,
     flexShrink,
     flexGrow,
     widthStyle,
 }: {
-    hintPosition: "Left" | "Middle" | "Right";
+    showHintIndex: number;
     nextAssigneeActiveStatus: TaskAssigneeActiveStatus | null;
     previousAssigneeActiveStatus: TaskAssigneeActiveStatus | null;
     flexShrink?: "0" | "1";
     flexGrow?: "0" | "1";
     widthStyle?: number | string;
 }) {
-    const {isOver, setNodeRef} = useDroppable({
+    // Switch this to `true` if you're in a development environment and need to see
+    // the droppable area bounds. Switch back to `false` before committing!
+    const shouldDebug = false;
+
+    const {setNodeRef} = useDroppable({
         id: useId(),
         data: {
             type: "ActiveCard",
+            showHintIndex,
             nextAssigneeActiveStatus,
             previousAssigneeActiveStatus,
         } satisfies TaskGridViewDroppableData<never>,
@@ -197,32 +339,25 @@ function TaskNotepadViewActiveSectionDroppable({
             flexShrink={flexShrink}
             flexGrow={flexGrow}
             height="full"
-            style={{width: widthStyle}}
+            style={{
+                width: widthStyle,
+                // Debug with a box-shadow to not affect layout.
+                boxShadow: shouldDebug ? `0 0 0 1px ${colorSchemeVars["red-10"]}` : undefined,
+            }}
             position="relative"
-        >
-            {isOver && (
-                <Box
-                    position="absolute"
-                    top="-1"
-                    bottom="-1"
-                    backgroundColor={{light: "theme-30", dark: "theme-60"}}
-                    style={{
-                        width: 1,
-                        ...(hintPosition === "Left"
-                            ? {left: -0.5}
-                            : hintPosition === "Middle"
-                            ? {left: "50%"}
-                            : {right: -0.5}),
-                    }}
-                />
-            )}
-        </Box>
+        />
     );
 }
 
 const taskNotepadViewActiveSectionCardGap: Spacing = "3";
 
-function TaskNotepadViewActiveSectionPlaceholderCard({cardWidth}: {cardWidth: string}) {
+function TaskNotepadViewActiveSectionPlaceholderCard({
+    cardWidth,
+    shouldHide,
+}: {
+    cardWidth: string;
+    shouldHide: boolean;
+}) {
     return (
         <Box
             flexShrink="0"
@@ -235,6 +370,7 @@ function TaskNotepadViewActiveSectionPlaceholderCard({cardWidth}: {cardWidth: st
                 // which uses a box shadow. So this means our placeholders have
                 // consistent layout.
                 boxShadow: `0 0 0 1px ${colorSchemeVars["grey-5"]}`,
+                opacity: shouldHide ? 0 : undefined,
             }}
         >
             <Box
@@ -260,7 +396,9 @@ function TaskNotepadViewActiveSectionInstructionalPlaceholderCard({
         <Box
             flexShrink="0"
             position="relative"
-            zIndex="0"
+            // Render under the grey overlay from our droppable area hints which uses a
+            // -10 z-index.
+            zIndex="-20"
             maxWidth={taskCardViewMaxWidth}
             minHeight="full"
             borderRadius="lg"

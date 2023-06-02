@@ -81,7 +81,7 @@ export function TaskRowViewDroppable<TaskRow>({
                 position="absolute"
                 bottom={!isVerticallyFlipped ? "3" : undefined}
                 top={isVerticallyFlipped ? "6" : undefined}
-                height="2.5"
+                height="2"
                 backgroundColor={isOver ? {light: "theme-30", dark: "theme-60"} : undefined}
                 style={{
                     width: 1,
