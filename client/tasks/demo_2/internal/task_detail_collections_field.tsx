@@ -202,7 +202,11 @@ export function TaskDetailCollectionsField({
                     <TaskDetailCollectionsFieldListBoxOptionItem item={item} />
                 </Item>
             ) : (
-                <Item>Create collection</Item>
+                <Item>
+                    {inputState.value.length > 0
+                        ? `Create collection “${inputState.value}”`
+                        : "Create collection"}
+                </Item>
             ),
 
         // No key is ever selected by the combobox. Instead when a selection occurs we
@@ -211,12 +215,14 @@ export function TaskDetailCollectionsField({
         onSelectionChange: key => {
             if (typeof key !== "string") return;
 
+            const shouldReturnFocusToInput = getInteractionModality() === "pointer";
+
             if (key.startsWith("Collection:")) {
                 const collectionId = key.slice("Collection:".length);
                 assert(isId<LocalTaskCollectionId>(collectionId));
                 addCollectionToTask(collectionId);
 
-                if (getInteractionModality() === "pointer") {
+                if (shouldReturnFocusToInput) {
                     setInputState(inputState => {
                         if (inputState.type === "Unfocused") return inputState;
                         return {type: "Unfocused", value: "", disableAnimationOut: true};
@@ -232,17 +238,39 @@ export function TaskDetailCollectionsField({
             }
 
             if (key === "CreateCollection") {
-                setInputState(inputState => {
-                    if (inputState.type === "Unfocused") return inputState;
-                    return {type: "Unfocused", value: "", disableAnimationOut: true};
-                });
+                if (inputState.value === "") {
+                    setInputState(inputState => {
+                        if (inputState.type === "Unfocused") return inputState;
+                        return {type: "Unfocused", value: "", disableAnimationOut: true};
+                    });
 
-                comboBoxState.close();
+                    comboBoxState.close();
 
-                setCreateCollectionInputState({
-                    isVisible: true,
-                    shouldReturnFocusToInput: getInteractionModality() === "keyboard",
-                });
+                    setCreateCollectionInputState({
+                        isVisible: true,
+                        shouldReturnFocusToInput,
+                    });
+                } else {
+                    createCollectionAndAddToTask({
+                        id: generateId(),
+                        name: inputState.value,
+                        color: themeColors[randomInteger(themeColors.length)]!,
+                    });
+
+                    if (shouldReturnFocusToInput) {
+                        setInputState(inputState => {
+                            if (inputState.type === "Unfocused") return inputState;
+                            return {type: "Unfocused", value: "", disableAnimationOut: true};
+                        });
+
+                        assertExists(inputRef.current).blur();
+                    } else {
+                        setInputState(inputState => {
+                            if (inputState.type === "Unfocused") return inputState;
+                            return {type: "Focused", value: ""};
+                        });
+                    }
+                }
             }
         },
     };
@@ -812,7 +840,7 @@ function TaskDetailCollectionsFieldListBoxCreateCollectionOption({
                     />
                 )}
                 <Plus size={spacing["3"]} weight={!isQuiet ? "bold" : undefined} />
-                <Box>{item.rendered}</Box>
+                <Box fontStyle="truncate">{item.rendered}</Box>
             </Box>
         </FocusRing>
     );
