@@ -10,6 +10,11 @@ import {OverlayAnimated} from "~/client/design/overlay_animated";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
 import {useConfirmSaveAfterLosingFocus} from "~/client/helpers/use_confirm_save_after_losing_focus";
+import {LocalTaskCollection} from "~/client/tasks/demo_2/internal/local_tasks_state";
+import {
+    TaskCollectionChip,
+    taskCollectionChipContainerMaxWidth,
+} from "~/client/tasks/demo_2/internal/task_collection_chip";
 import {
     TaskCollectionChipBase,
     taskCollectionChipHeight,
@@ -19,6 +24,8 @@ import {spacing} from "~/shared/design/spacing";
 import {themeColors} from "~/shared/design/theme_colors";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {randomInteger} from "~/shared/helpers/number/random_integer";
+import {generateId} from "~/shared/id/id";
+import {LocalTaskCollectionId} from "~/shared/id/types/id_types";
 import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles";
 
 type TaskDetailCollectionsFieldItem = {readonly key: never};
@@ -26,9 +33,17 @@ type TaskDetailCollectionsFieldItem = {readonly key: never};
 // NOCOMMIT: Arrow down when there are no collections should select create
 // collection button.
 
+// NOCOMMIT: Clicking create button shouldn't animate overlay away.
+
 export function TaskDetailCollectionsField({
+    collections,
+    createCollectionAndAddToTask,
+    removeCollectionFromTask,
     "aria-labelledby": ariaLabelledBy,
 }: {
+    collections: ReadonlyArray<LocalTaskCollection>;
+    createCollectionAndAddToTask: (collection: LocalTaskCollection) => void;
+    removeCollectionFromTask: (collection: LocalTaskCollectionId) => void;
     "aria-labelledby": string;
 }) {
     const [inputValue, setInputValue] = useState("");
@@ -70,39 +85,59 @@ export function TaskDetailCollectionsField({
         comboBoxState,
     );
 
-    const shouldShowPrivatePlaceholder = !isCreatingCollection;
+    const shouldShowPrivatePlaceholder = !isCreatingCollection && collections.length === 0;
 
     const inputPlaceholder = shouldShowPrivatePlaceholder ? "Private" : "Add";
 
     return (
-        <OverlayAnimated
-            isVisible={comboBoxState.isOpen}
-            offset="2"
-            disableAnimationIn={true}
-            disableAnimationOut={false}
-            placement="bottom-start"
-            overlay={
-                <Box ref={popoverRef} position="relative">
-                    <TaskDetailCollectionsFieldListBox
-                        comboBoxState={comboBoxState}
-                        listBoxRef={listBoxRef}
-                        listBoxProps={listBoxProps}
-                        onCreateCollection={() => {
-                            comboBoxState.close();
-                            setIsCreatingCollection(true);
-                        }}
+        <Box display="flex" alignItems="center" flexWrap="wrap" gap="3">
+            {collections.map(collection => (
+                <Box
+                    key={collection.id}
+                    overflow="hidden"
+                    marginY="-0.5"
+                    marginLeft="-0.5"
+                    style={{maxWidth: taskCollectionChipContainerMaxWidth}}
+                >
+                    <TaskCollectionChip
+                        collection={collection}
+                        onRemove={() => removeCollectionFromTask(collection.id)}
                     />
                 </Box>
-            }
-        >
-            <Box display="flex" alignItems="center" flexWrap="wrap" gap="3">
-                {isCreatingCollection && (
-                    <Box maxWidth="full" overflow="hidden" marginY="-0.5" marginLeft="-0.5">
-                        <TaskDetailCollectionsFieldCreateCollectionInput
-                            onCancel={() => setIsCreatingCollection(false)}
+            ))}
+            {isCreatingCollection && (
+                <Box
+                    overflow="hidden"
+                    marginY="-0.5"
+                    marginLeft="-0.5"
+                    style={{maxWidth: taskCollectionChipContainerMaxWidth}}
+                >
+                    <TaskDetailCollectionsFieldCreateCollectionInput
+                        onCancel={() => setIsCreatingCollection(false)}
+                        createCollectionAndAddToTask={createCollectionAndAddToTask}
+                    />
+                </Box>
+            )}
+            <OverlayAnimated
+                isVisible={comboBoxState.isOpen}
+                offset="2"
+                disableAnimationIn={true}
+                disableAnimationOut={false}
+                placement="bottom-start"
+                overlay={
+                    <Box ref={popoverRef} position="relative">
+                        <TaskDetailCollectionsFieldListBox
+                            comboBoxState={comboBoxState}
+                            listBoxRef={listBoxRef}
+                            listBoxProps={listBoxProps}
+                            onCreateCollection={() => {
+                                comboBoxState.close();
+                                setIsCreatingCollection(true);
+                            }}
                         />
                     </Box>
-                )}
+                }
+            >
                 <Box
                     position="relative"
                     zIndex="0"
@@ -117,7 +152,7 @@ export function TaskDetailCollectionsField({
                         zIndex="-10"
                         display="flex"
                         alignItems="center"
-                        gap={shouldShowPrivatePlaceholder ? "1" : "0.5"}
+                        gap={shouldShowPrivatePlaceholder ? "1" : undefined}
                         pointerEvents="none"
                         // This is accessible through `aria-placeholder` on the `<input>`.
                         aria-hidden={true}
@@ -148,7 +183,12 @@ export function TaskDetailCollectionsField({
                                 inset: "0",
                                 display: "inline-block",
                                 backgroundColor: "transparent",
-                                paddingLeft: inputValue.length === 0 ? "5" : undefined,
+                                paddingLeft:
+                                    inputValue.length === 0
+                                        ? shouldShowPrivatePlaceholder
+                                            ? "5"
+                                            : "4"
+                                        : undefined,
                             })}
                             // By default `<input>` elements have a `min-width` determined by the `size`
                             // property. We want our `<input>`s `min-width` to be determined by our CSS
@@ -167,8 +207,8 @@ export function TaskDetailCollectionsField({
                         />
                     </FocusRing>
                 </Box>
-            </Box>
-        </OverlayAnimated>
+            </OverlayAnimated>
+        </Box>
     );
 }
 
@@ -236,11 +276,11 @@ function TaskDetailCollectionsFieldListBoxInstructionalPlaceholder({
                     gap="1"
                 >
                     <Box display="flex" gap="1">
-                        <TaskCollectionChipBase color="red" name="Bugs" />
-                        <TaskCollectionChipBase color="green" name="Q3" />
+                        <TaskCollectionChipBase color="red" name="Bugs" onRemove={null} />
+                        <TaskCollectionChipBase color="green" name="Q3" onRemove={null} />
                     </Box>
                     <Box>
-                        <TaskCollectionChipBase color="cyan" name="Marketing" />
+                        <TaskCollectionChipBase color="cyan" name="Marketing" onRemove={null} />
                     </Box>
                 </Box>
             </Box>
@@ -257,11 +297,17 @@ function TaskDetailCollectionsFieldListBoxInstructionalPlaceholder({
     );
 }
 
-function TaskDetailCollectionsFieldCreateCollectionInput({onCancel}: {onCancel: () => void}) {
+function TaskDetailCollectionsFieldCreateCollectionInput({
+    onCancel,
+    createCollectionAndAddToTask,
+}: {
+    onCancel: () => void;
+    createCollectionAndAddToTask: (collection: LocalTaskCollection) => void;
+}) {
     const inputRef = useRef<HTMLInputElement>(null);
     const inputPlaceholder = "Name";
     const [inputValue, setInputValue] = useState("");
-    const [themeColor] = useState(() => themeColors[randomInteger(themeColors.length)]!);
+    const [color] = useState(() => themeColors[randomInteger(themeColors.length)]!);
     const [shouldShowConfirmSaveDialog, setShouldShowConfirmSaveDialog] = useState(false);
 
     const shouldFocusNextRenderRef = useRef(true);
@@ -277,11 +323,24 @@ function TaskDetailCollectionsFieldCreateCollectionInput({onCancel}: {onCancel: 
         inputElement.focus({preventScroll: true});
     }, [shouldShowConfirmSaveDialog]);
 
+    const confirm = () => {
+        if (inputValue.length === 0) {
+            onCancel();
+            return;
+        }
+
+        createCollectionAndAddToTask({
+            id: generateId(),
+            name: inputValue,
+            color,
+        });
+    };
+
     return (
         <>
             <FocusRing isVisibleWhenFocusWithin>
                 <TaskCollectionChipBase
-                    color={themeColor}
+                    color={color}
                     name={
                         <Box
                             height={taskCollectionChipHeight}
@@ -324,9 +383,15 @@ function TaskDetailCollectionsFieldCreateCollectionInput({onCancel}: {onCancel: 
                                         onConfirmSave: () => setShouldShowConfirmSaveDialog(true),
                                     }),
                                 )}
+                                onKeyDown={event => {
+                                    if (event.key === "Enter") {
+                                        confirm();
+                                    }
+                                }}
                             />
                         </Box>
                     }
+                    onRemove={null}
                 />
             </FocusRing>
             {shouldShowConfirmSaveDialog && (
@@ -340,9 +405,7 @@ function TaskDetailCollectionsFieldCreateCollectionInput({onCancel}: {onCancel: 
                         setShouldShowConfirmSaveDialog(false);
                     }}
                     primaryButtonLabel="Save"
-                    onPrimaryButtonPress={() => {
-                        // NOCOMMIT
-                    }}
+                    onPrimaryButtonPress={confirm}
                     cancelButtonLabel="Discard collection"
                     onCancelButtonPress={onCancel}
                 />

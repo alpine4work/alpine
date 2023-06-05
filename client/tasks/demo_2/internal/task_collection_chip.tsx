@@ -1,6 +1,25 @@
+import {LocalTaskCollection} from "~/client/tasks/demo_2/internal/local_tasks_state";
 import {TaskCollectionChipBase} from "~/client/tasks/demo_2/internal/task_collection_chip_base";
-import {LocalTaskCollection} from "~/client/tasks/demo_2/local_task_collection";
+import {spacing} from "~/shared/design/spacing";
 
-export function TaskCollectionChip({collection}: {collection: LocalTaskCollection}) {
-    return <TaskCollectionChipBase color={collection.color} name={collection.name} />;
+/**
+ * At maximum width, two task collection chips should fit on a line. Subtract
+ * the amount of gap between chips.
+ */
+export const taskCollectionChipContainerMaxWidth = `calc(50% - ${spacing["2.5"]})`;
+
+export function TaskCollectionChip({
+    collection,
+    onRemove,
+}: {
+    collection: LocalTaskCollection;
+    onRemove: (() => void) | null;
+}) {
+    return (
+        <TaskCollectionChipBase
+            color={collection.color}
+            name={collection.name}
+            onRemove={onRemove}
+        />
+    );
 }

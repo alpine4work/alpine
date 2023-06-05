@@ -18,13 +18,13 @@ import {IconButton} from "~/client/design/icon_button";
 import {MenuButton} from "~/client/design/menu_button";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {useSpaceContext} from "~/client/spaces/space_context";
+import {LocalTaskCollection} from "~/client/tasks/demo_2/internal/local_tasks_state";
 import {TaskChildTasksProgressWheel} from "~/client/tasks/demo_2/internal/task_child_tasks_progress_wheel";
 import {TaskDetailAssigneeField} from "~/client/tasks/demo_2/internal/task_detail_assignee_field";
 import {TaskDetailCollectionsField} from "~/client/tasks/demo_2/internal/task_detail_collections_field";
 import {TaskDetailDueDateField} from "~/client/tasks/demo_2/internal/task_detail_due_date_field";
 import {TaskDetailNotesField} from "~/client/tasks/demo_2/internal/task_detail_notes_field";
 import {TaskDetailTitleInput} from "~/client/tasks/demo_2/internal/task_detail_title_input";
-import {LocalTaskCollection} from "~/client/tasks/demo_2/local_task_collection";
 import {
     TaskGridPresentationalView,
     TaskGridPresentationalViewProps,
@@ -36,6 +36,7 @@ import {Spacing, assertSpacing} from "~/shared/design/spacing";
 import {UnimplementedError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key";
+import {LocalTaskCollectionId} from "~/shared/id/types/id_types";
 import {sprinkles} from "~/shared/styles/styles";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema";
 import {TaskTitle} from "~/shared/tasks/task_title_schema";
@@ -79,6 +80,8 @@ export type TaskDetailPresentationalViewProps<ChildTaskRow> = {
     dueDate: CalendarDate | null;
     onDueDateChange: (dueDate: CalendarDate | null) => void;
     collections: ReadonlyArray<LocalTaskCollection>;
+    createCollectionAndAddToTask: (collection: LocalTaskCollection) => void;
+    removeCollectionFromTask: (collectionId: LocalTaskCollectionId) => void;
     notesContent: TaskNotesContentWithReferences;
     onNotesContentChange: (notesContent: TaskNotesContentWithReferences) => void;
     childTaskCount: number;
@@ -97,6 +100,8 @@ function TaskDetailPresentationalView<ChildTaskRow>(
         dueDate,
         onDueDateChange,
         collections,
+        createCollectionAndAddToTask,
+        removeCollectionFromTask,
         notesContent,
         onNotesContentChange,
         childTaskCount,
@@ -214,6 +219,8 @@ function TaskDetailPresentationalView<ChildTaskRow>(
                 dueDate={dueDate}
                 onDueDateChange={onDueDateChange}
                 collections={collections}
+                createCollectionAndAddToTask={createCollectionAndAddToTask}
+                removeCollectionFromTask={removeCollectionFromTask}
                 padding={padding}
             />
             <TaskDetailNotesField
@@ -276,6 +283,8 @@ function TaskDetailViewDenseFields({
     dueDate,
     onDueDateChange,
     collections,
+    createCollectionAndAddToTask,
+    removeCollectionFromTask,
     padding,
 }: {
     status: TaskStatus;
@@ -284,6 +293,8 @@ function TaskDetailViewDenseFields({
     dueDate: CalendarDate | null;
     onDueDateChange: (dueDate: CalendarDate | null) => void;
     collections: ReadonlyArray<LocalTaskCollection>;
+    createCollectionAndAddToTask: (collection: LocalTaskCollection) => void;
+    removeCollectionFromTask: (collectionId: LocalTaskCollectionId) => void;
     padding: Spacing;
 }) {
     return (
@@ -325,7 +336,12 @@ function TaskDetailViewDenseFields({
             </TaskDetailViewField>
             <TaskDetailViewField label="Collections">
                 {({"aria-labelledby": ariaLabelledBy}) => (
-                    <TaskDetailCollectionsField aria-labelledby={ariaLabelledBy} />
+                    <TaskDetailCollectionsField
+                        collections={collections}
+                        createCollectionAndAddToTask={createCollectionAndAddToTask}
+                        removeCollectionFromTask={removeCollectionFromTask}
+                        aria-labelledby={ariaLabelledBy}
+                    />
                 )}
                 {/* NOCOMMIT: <Box display="flex" flexWrap="wrap" gap="3">
                     {collections.map(collection => (

@@ -14,7 +14,6 @@ import {
     TaskDetailPresentationalView,
     TaskDetailPresentationalViewRef,
 } from "~/client/tasks/demo_2/task_detail_presentational_view";
-import {emptyArray} from "~/shared/helpers/array/empty_array";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
 import {OrderKey} from "~/shared/helpers/sort/order_key";
 import {generateId} from "~/shared/id/id";
@@ -142,7 +141,19 @@ export function TaskView({
             onAssigneeChange={assignee => dispatch({type: "UpdateTaskAssignee", taskId, assignee})}
             dueDate={task.dueDate}
             onDueDateChange={dueDate => dispatch({type: "UpdateTaskDueDate", taskId, dueDate})}
-            collections={emptyArray} // NOCOMMIT
+            collections={useMemo(
+                () =>
+                    Array.from(task.collectionIds, collectionId =>
+                        state.database.getTaskCollection(collectionId),
+                    ),
+                [state.database, task.collectionIds],
+            )}
+            createCollectionAndAddToTask={taskCollection =>
+                dispatch({type: "CreateTaskCollectionAndAddToTask", taskId, taskCollection})
+            }
+            removeCollectionFromTask={taskCollectionId =>
+                dispatch({type: "RemoveTaskCollectionFromTask", taskId, taskCollectionId})
+            }
             notesContent={task.notesContent}
             onNotesContentChange={notesContent =>
                 dispatch({type: "UpdateTaskNotesContent", taskId, notesContent})

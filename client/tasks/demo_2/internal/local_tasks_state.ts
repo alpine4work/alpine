@@ -13,6 +13,7 @@ import {
     compareTaskAssigneeActiveStatus,
 } from "~/client/tasks/demo_2/task_status_button";
 import {AccountModel} from "~/shared/accounts/account_model";
+import {themeColors} from "~/shared/design/theme_colors";
 import {
     DataLossError,
     FailedPreconditionError,
@@ -32,7 +33,8 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
 import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key";
 import {generateId} from "~/shared/id/id";
-import {AccountId, LocalTaskId} from "~/shared/id/types/id_types";
+import {AccountId, LocalTaskCollectionId, LocalTaskId} from "~/shared/id/types/id_types";
+import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 import {OrderKeySchema} from "~/shared/schema/order_key_schema";
 import {Schema, SchemaType} from "~/shared/schema/schema";
 import {
@@ -49,12 +51,12 @@ const LocalTaskIdByOrderKeySchema = Schema.map(OrderKeySchema, Schema.id<LocalTa
     deserialize: taskIdByOrderKey => ImmutableMap.from(taskIdByOrderKey),
 });
 
-export type LocalTask = SchemaType<typeof LocalTaskSchema>;
-
 const CalendarDateSchema = Schema.string.transform<CalendarDate>({
     serialize: date => date.toString(),
     deserialize: date => parseDate(date),
 });
+
+export type LocalTask = SchemaType<typeof LocalTaskSchema>;
 
 const LocalTaskSchema = Schema.object({
     id: Schema.id<LocalTaskId>(),
@@ -76,13 +78,25 @@ const LocalTaskSchema = Schema.object({
         .nullable()
         .default(null),
     dueDate: CalendarDateSchema.nullable().default(null),
+    collectionIds: Schema.set(Schema.id<LocalTaskCollectionId>())
+        .default(new Set())
+        .originalPropertyKey("taskCollectionIds"),
     notesContent: TaskNotesContentWithReferencesSchema,
     parentTaskId: Schema.id<LocalTaskId>().nullable(),
     childTaskIdByOrderKey: LocalTaskIdByOrderKeySchema,
 });
 
+export type LocalTaskCollection = SchemaType<typeof LocalTaskCollectionSchema>;
+
+const LocalTaskCollectionSchema = Schema.object({
+    id: Schema.id<LocalTaskCollectionId>(),
+    name: LabelStringSchema,
+    color: Schema.enum(themeColors),
+});
+
 class LocalTasksDatabase {
     private readonly _taskById: ImmutableMap<LocalTaskId, LocalTask>;
+    private readonly _taskCollectionById: ImmutableMap<LocalTaskCollectionId, LocalTaskCollection>;
 
     private readonly _notepadPageCount: number;
 
@@ -93,10 +107,12 @@ class LocalTasksDatabase {
 
     private constructor({
         taskById,
+        taskCollectionById,
         notepadPageCount,
         taskIdByOrderKeyByNotepadPage,
     }: {
         taskById: ImmutableMap<LocalTaskId, LocalTask>;
+        taskCollectionById: ImmutableMap<LocalTaskCollectionId, LocalTaskCollection>;
         notepadPageCount: number;
         taskIdByOrderKeyByNotepadPage: ImmutableMap<number, ImmutableMap<OrderKey, LocalTaskId>>;
     }) {
@@ -161,15 +177,24 @@ class LocalTasksDatabase {
                     notepadPageTaskIds.add(taskId);
                 }
             }
+
+            for (const [taskCollectionId, taskCollection] of taskCollectionById) {
+                assert(
+                    taskCollectionId === taskCollection.id,
+                    "Key in `taskCollectionById` does not match value",
+                );
+            }
         }
 
         this._taskById = taskById;
+        this._taskCollectionById = taskCollectionById;
         this._notepadPageCount = notepadPageCount;
         this._taskIdByOrderKeyByNotepadPage = taskIdByOrderKeyByNotepadPage;
     }
 
     public static readonly empty = new LocalTasksDatabase({
         taskById: ImmutableMap.empty(),
+        taskCollectionById: ImmutableMap.empty(),
         notepadPageCount: 1,
         taskIdByOrderKeyByNotepadPage: ImmutableMap.empty(),
     });
@@ -177,6 +202,7 @@ class LocalTasksDatabase {
     public serialize(): SchemaType<typeof LocalTasksDatabaseInternalSchema> {
         return {
             taskById: new Map(this._taskById),
+            taskCollectionById: new Map(this._taskCollectionById),
             notepadPageCount: this._notepadPageCount,
             taskIdByOrderKeyByNotepadPage: new Map(this._taskIdByOrderKeyByNotepadPage),
         };
@@ -185,6 +211,7 @@ class LocalTasksDatabase {
     public static deserialize(data: SchemaType<typeof LocalTasksDatabaseInternalSchema>) {
         return new LocalTasksDatabase({
             taskById: ImmutableMap.from(data.taskById),
+            taskCollectionById: ImmutableMap.from(data.taskCollectionById),
             notepadPageCount: data.notepadPageCount,
             taskIdByOrderKeyByNotepadPage: ImmutableMap.from(data.taskIdByOrderKeyByNotepadPage),
         });
@@ -196,6 +223,12 @@ class LocalTasksDatabase {
         return task;
     }
 
+    public getTaskCollection(taskCollectionId: LocalTaskCollectionId) {
+        const taskCollection = this._taskCollectionById.get(taskCollectionId);
+        if (!taskCollection) throw new NotFoundError("Task collection not found");
+        return taskCollection;
+    }
+
     public getNotepadPageCount() {
         return this._notepadPageCount;
     }
@@ -203,6 +236,7 @@ class LocalTasksDatabase {
     public createNotepadPage() {
         return new LocalTasksDatabase({
             taskById: this._taskById,
+            taskCollectionById: this._taskCollectionById,
             notepadPageCount: this._notepadPageCount + 1,
             taskIdByOrderKeyByNotepadPage: this._taskIdByOrderKeyByNotepadPage,
         });
@@ -236,6 +270,7 @@ class LocalTasksDatabase {
             title: options.title ?? emptyTaskTitle,
             assignee: null,
             dueDate: null,
+            collectionIds: new Set(),
             notesContent: emptyTaskNotesContentWithReferences,
             parentTaskId: options.parentTask?.id ?? null,
             childTaskIdByOrderKey: ImmutableMap.empty(),
@@ -335,6 +370,7 @@ class LocalTasksDatabase {
         return [
             new LocalTasksDatabase({
                 taskById,
+                taskCollectionById: this._taskCollectionById,
                 notepadPageCount: this._notepadPageCount,
                 taskIdByOrderKeyByNotepadPage,
             }),
@@ -348,6 +384,7 @@ class LocalTasksDatabase {
                 if (!task) throw new NotFoundError("Task not found");
                 return {...task, title};
             }),
+            taskCollectionById: this._taskCollectionById,
             notepadPageCount: this._notepadPageCount,
             taskIdByOrderKeyByNotepadPage: this._taskIdByOrderKeyByNotepadPage,
         });
@@ -363,6 +400,7 @@ class LocalTasksDatabase {
                     assignee,
                 };
             }),
+            taskCollectionById: this._taskCollectionById,
             notepadPageCount: this._notepadPageCount,
             taskIdByOrderKeyByNotepadPage: this._taskIdByOrderKeyByNotepadPage,
         });
@@ -380,6 +418,7 @@ class LocalTasksDatabase {
                         : null,
                 };
             }),
+            taskCollectionById: this._taskCollectionById,
             notepadPageCount: this._notepadPageCount,
             taskIdByOrderKeyByNotepadPage: this._taskIdByOrderKeyByNotepadPage,
         });
@@ -391,6 +430,7 @@ class LocalTasksDatabase {
                 if (!task) throw new NotFoundError("Task not found");
                 return {...task, dueDate};
             }),
+            taskCollectionById: this._taskCollectionById,
             notepadPageCount: this._notepadPageCount,
             taskIdByOrderKeyByNotepadPage: this._taskIdByOrderKeyByNotepadPage,
         });
@@ -405,6 +445,7 @@ class LocalTasksDatabase {
                 if (!task) throw new NotFoundError("Task not found");
                 return {...task, notesContent};
             }),
+            taskCollectionById: this._taskCollectionById,
             notepadPageCount: this._notepadPageCount,
             taskIdByOrderKeyByNotepadPage: this._taskIdByOrderKeyByNotepadPage,
         });
@@ -451,6 +492,7 @@ class LocalTasksDatabase {
 
         return new LocalTasksDatabase({
             taskById,
+            taskCollectionById: this._taskCollectionById,
             notepadPageCount: this._notepadPageCount,
             taskIdByOrderKeyByNotepadPage,
         });
@@ -503,6 +545,7 @@ class LocalTasksDatabase {
 
         return new LocalTasksDatabase({
             taskById,
+            taskCollectionById: this._taskCollectionById,
             notepadPageCount: this._notepadPageCount,
             taskIdByOrderKeyByNotepadPage,
         });
@@ -557,6 +600,7 @@ class LocalTasksDatabase {
 
         return new LocalTasksDatabase({
             taskById,
+            taskCollectionById: this._taskCollectionById,
             notepadPageCount: this._notepadPageCount,
             taskIdByOrderKeyByNotepadPage,
         });
@@ -590,6 +634,7 @@ class LocalTasksDatabase {
 
         return new LocalTasksDatabase({
             taskById,
+            taskCollectionById: this._taskCollectionById,
             notepadPageCount: this._notepadPageCount,
             taskIdByOrderKeyByNotepadPage,
         });
@@ -616,6 +661,53 @@ class LocalTasksDatabase {
         );
 
         return activeTasks;
+    }
+
+    public createTaskCollectionAndAddToTask(
+        taskId: LocalTaskId,
+        taskCollection: LocalTaskCollection,
+    ) {
+        return new LocalTasksDatabase({
+            taskById: this._taskById.update(taskId, task => {
+                if (!task) throw new NotFoundError("Task not found");
+                return {
+                    ...task,
+                    collectionIds: new Set([...task.collectionIds, taskCollection.id]),
+                };
+            }),
+            taskCollectionById: this._taskCollectionById.update(
+                taskCollection.id,
+                oldTaskCollection => {
+                    if (oldTaskCollection)
+                        throw new FailedPreconditionError("Task collection already exists");
+
+                    return taskCollection;
+                },
+            ),
+            notepadPageCount: this._notepadPageCount,
+            taskIdByOrderKeyByNotepadPage: this._taskIdByOrderKeyByNotepadPage,
+        });
+    }
+
+    public removeTaskCollectionFromTask(
+        taskId: LocalTaskId,
+        taskCollectionId: LocalTaskCollectionId,
+    ) {
+        return new LocalTasksDatabase({
+            taskById: this._taskById.update(taskId, task => {
+                if (!task) throw new NotFoundError("Task not found");
+
+                const newCollectionIds = new Set(task.collectionIds);
+
+                if (!newCollectionIds.delete(taskCollectionId))
+                    throw new FailedPreconditionError("Task collection not in task");
+
+                return {...task, collectionIds: newCollectionIds};
+            }),
+            taskCollectionById: this._taskCollectionById,
+            notepadPageCount: this._notepadPageCount,
+            taskIdByOrderKeyByNotepadPage: this._taskIdByOrderKeyByNotepadPage,
+        });
     }
 }
 
@@ -720,6 +812,10 @@ type LocalTasksDatabaseCreateTaskOptions = {
 
 const LocalTasksDatabaseInternalSchema = Schema.object({
     taskById: Schema.map(Schema.id<LocalTaskId>(), LocalTaskSchema),
+    taskCollectionById: Schema.map(
+        Schema.id<LocalTaskCollectionId>(),
+        LocalTaskCollectionSchema,
+    ).default(new Map()),
     notepadPageCount: Schema.integer.min(1),
     taskIdByOrderKeyByNotepadPage: Schema.map(Schema.integer.min(1), LocalTaskIdByOrderKeySchema),
 });
@@ -762,7 +858,9 @@ export type LocalTasksAction =
     | LocalTasksDeleteTaskAndAllChildrenAction
     | LocalTasksNestTaskAction
     | LocalTasksMoveTaskToParentTaskAction
-    | LocalTasksMoveTaskToNotepadAction;
+    | LocalTasksMoveTaskToNotepadAction
+    | LocalTasksCreateTaskCollectionAndAddToTaskAction
+    | LocalTasksRemoveTaskCollectionFromTaskAction;
 
 type LocalTasksRestoreStateAction = {
     readonly type: "RestoreState";
@@ -836,6 +934,18 @@ type LocalTasksMoveTaskToNotepadAction = {
     readonly notepadPage: number;
     readonly belowOrderKey: OrderKey | null;
     readonly taskId: LocalTaskId;
+};
+
+type LocalTasksCreateTaskCollectionAndAddToTaskAction = {
+    readonly type: "CreateTaskCollectionAndAddToTask";
+    readonly taskId: LocalTaskId;
+    readonly taskCollection: LocalTaskCollection;
+};
+
+type LocalTasksRemoveTaskCollectionFromTaskAction = {
+    readonly type: "RemoveTaskCollectionFromTask";
+    readonly taskId: LocalTaskId;
+    readonly taskCollectionId: LocalTaskCollectionId;
 };
 
 function reduceLocalTasksState(state: LocalTasksState, action: LocalTasksAction): LocalTasksState {
@@ -960,6 +1070,26 @@ function reduceLocalTasksState(state: LocalTasksState, action: LocalTasksAction)
                     action.notepadPage,
                     action.belowOrderKey,
                     action.taskId,
+                ),
+            };
+        }
+
+        case "CreateTaskCollectionAndAddToTask": {
+            return {
+                ...state,
+                database: state.database.createTaskCollectionAndAddToTask(
+                    action.taskId,
+                    action.taskCollection,
+                ),
+            };
+        }
+
+        case "RemoveTaskCollectionFromTask": {
+            return {
+                ...state,
+                database: state.database.removeTaskCollectionFromTask(
+                    action.taskId,
+                    action.taskCollectionId,
                 ),
             };
         }

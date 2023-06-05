@@ -18,7 +18,6 @@ import {
 } from "~/client/tasks/demo_2/task_status_button";
 import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length";
-import {emptyArray} from "~/shared/helpers/array/empty_array";
 import {
     colorSchemeVars,
     hideScrollbarClassName,
@@ -154,7 +153,9 @@ export function TaskNotepadViewActiveSection({
                                 title={task.title}
                                 assignee={task.assignee}
                                 dueDate={task.dueDate}
-                                collections={emptyArray} // NOCOMMIT
+                                collections={Array.from(task.collectionIds, collectionId =>
+                                    state.database.getTaskCollection(collectionId),
+                                )}
                                 onExpand={async () => {
                                     await peekStackContext.push(
                                         `/s/${space.id}/tasks/demo-2/${task.id}`,

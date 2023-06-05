@@ -10,7 +10,8 @@ import {
 } from "~/client/remix/use_current_time_rounded_to_hour";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
 import {SpaceRouteScrollView} from "~/client/spaces/space_route_scroll_view";
-import {LocalTaskCollection} from "~/client/tasks/demo_2/local_task_collection";
+// eslint-disable-next-line no-internal-imports
+import {LocalTaskCollection} from "~/client/tasks/demo_2/internal/local_tasks_state";
 import {
     TaskCardPresentationalView,
     taskCardViewMaxWidth,
