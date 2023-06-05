@@ -41,7 +41,7 @@ import {
     taskCollectionChipHeight,
     taskCollectionChipPaddingY,
 } from "~/client/tasks/demo_2/internal/task_collection_chip_base";
-import {parseRemLengthNumber, spacing} from "~/shared/design/spacing";
+import {spacing} from "~/shared/design/spacing";
 import {ThemeColor, themeColors} from "~/shared/design/theme_colors";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length";
 import {assert} from "~/shared/helpers/control/assert";
@@ -49,7 +49,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {randomInteger} from "~/shared/helpers/number/random_integer";
 import {generateId, isId} from "~/shared/id/id";
 import {LocalTaskCollectionId} from "~/shared/id/types/id_types";
-import {fontSizes, inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles";
+import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles";
 
 type TaskDetailCollectionsFieldItem = {
     readonly key: LocalTaskCollectionId;
@@ -58,8 +58,6 @@ type TaskDetailCollectionsFieldItem = {
 
 // NOCOMMIT: Arrow down when there are no collections should select create
 // collection button.
-
-// NOCOMMIT: Create button when some collections exist.
 
 type TaskDetailCollectionsFieldInputState =
     | {
@@ -328,7 +326,10 @@ export function TaskDetailCollectionsField({
                 >
                     <TaskDetailCollectionsFieldCreateCollectionInput
                         onCancel={() => setIsCreatingCollection(false)}
-                        createCollectionAndAddToTask={createCollectionAndAddToTask}
+                        createCollectionAndAddToTask={collection => {
+                            setIsCreatingCollection(false);
+                            createCollectionAndAddToTask(collection);
+                        }}
                     />
                 </Box>
             )}
@@ -349,6 +350,14 @@ export function TaskDetailCollectionsField({
                             listBoxRef={listBoxRef}
                             listBoxProps={listBoxProps}
                             onCreateCollection={() => {
+                                setInputState(inputState => {
+                                    if (inputState.type === "Unfocused") return inputState;
+                                    return {
+                                        type: "Unfocused",
+                                        value: "",
+                                        disableAnimationOut: true,
+                                    };
+                                });
                                 comboBoxState.close();
                                 setIsCreatingCollection(true);
                             }}
@@ -450,7 +459,7 @@ function TaskDetailCollectionsFieldListBox({
             borderRadius="md"
             backgroundColor={{light: "grey-0", dark: "grey-5"}}
             boxShadow="elevation-20"
-            width={haveNoCollectionsBeenCreated ? "64" : "48"}
+            width="64"
             maxHeight="64"
             overflow="hidden"
             display="flex"
@@ -488,6 +497,13 @@ function TaskDetailCollectionsFieldListBox({
                     ))
                 )}
             </ul>
+            {!haveNoCollectionsBeenCreated && (
+                <Box borderTop="grey-10" padding="1">
+                    <Button fullWidth icon={<Plus weight="bold" />} onPress={onCreateCollection}>
+                        <Box fontStyle="semi-bold">Create collection</Box>
+                    </Button>
+                </Box>
+            )}
         </Box>
     );
 }
@@ -567,24 +583,7 @@ function TaskDetailCollectionsFieldListBoxOptionItem({
                 />
             </Box>
             <Box flexGrow="1" overflow="hidden">
-                <Box
-                    maxWidth="full"
-                    overflow="hidden"
-                    fontSize="75"
-                    style={{
-                        maxHeight: `${parseRemLengthNumber(fontSizes["75"].lineHeight) * 2}rem`,
-                        // Truncate after 2 lines of text. Unofficial syntax that works in all browsers
-                        // except IE.
-                        // https://stackoverflow.com/questions/3922739/limit-text-length-to-n-lines-using-css
-                        display: "-webkit-box",
-                        WebkitLineClamp: 2,
-                        lineClamp: 2,
-                        WebkitBoxOrient: "vertical",
-                        textOverflow: "ellipsis",
-                    }}
-                >
-                    {item.collection.name}
-                </Box>
+                <Box fontStyle="truncate">{item.collection.name}</Box>
                 <Box fontSize="50" color="grey-40">
                     {getTaskCollectionTaskCountSummary(item.collection)},{" "}
                     {getTaskCollectionLastUpdateTimeSummary(
@@ -794,8 +793,26 @@ function TaskDetailCollectionsFieldCreateCollectionInput({
                                     }),
                                 )}
                                 onKeyDown={event => {
-                                    if (event.key === "Enter") {
-                                        confirm();
+                                    switch (event.key) {
+                                        case "Enter": {
+                                            event.preventDefault();
+                                            event.stopPropagation();
+                                            confirm();
+                                            break;
+                                        }
+                                        case "Backspace": {
+                                            if (
+                                                inputValue.length === 0 &&
+                                                event.currentTarget.selectionStart ===
+                                                    event.currentTarget.selectionEnd &&
+                                                event.currentTarget.selectionStart === 0
+                                            ) {
+                                                event.preventDefault();
+                                                event.stopPropagation();
+                                                onCancel();
+                                                break;
+                                            }
+                                        }
                                     }
                                 }}
                             />
