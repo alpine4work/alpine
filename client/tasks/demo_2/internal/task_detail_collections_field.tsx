@@ -1,9 +1,18 @@
-import {isFocusVisible} from "@react-aria/interactions";
+import {getInteractionModality, isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
 import {differenceInMonths, differenceInYears} from "date-fns";
 import Fuse from "fuse.js";
 import {Lock, MagnifyingGlass, Plus} from "phosphor-react";
-import {RefObject, cloneElement, isValidElement, useMemo, useRef, useState} from "react";
+import {
+    KeyboardEvent,
+    RefObject,
+    cloneElement,
+    createRef,
+    isValidElement,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {
     AriaListBoxOptions,
     mergeProps,
@@ -34,6 +43,7 @@ import {
 } from "~/client/tasks/demo_2/internal/task_collection_chip_base";
 import {parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {ThemeColor, themeColors} from "~/shared/design/theme_colors";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {randomInteger} from "~/shared/helpers/number/random_integer";
@@ -157,12 +167,19 @@ export function TaskDetailCollectionsField({
             assert(isId<LocalTaskCollectionId>(collectionId));
             addCollectionToTask(collectionId);
 
-            setInputState(inputState => {
-                if (inputState.type === "Unfocused") return inputState;
-                return {type: "Unfocused", value: "", disableAnimationOut: true};
-            });
+            if (getInteractionModality() === "pointer") {
+                setInputState(inputState => {
+                    if (inputState.type === "Unfocused") return inputState;
+                    return {type: "Unfocused", value: "", disableAnimationOut: true};
+                });
 
-            assertExists(inputRef.current).blur();
+                assertExists(inputRef.current).blur();
+            } else {
+                setInputState(inputState => {
+                    if (inputState.type === "Unfocused") return inputState;
+                    return {type: "Focused", value: ""};
+                });
+            }
         },
     };
 
@@ -172,6 +189,11 @@ export function TaskDetailCollectionsField({
     const popoverRef = useRef<HTMLDivElement>(null);
     const listBoxRef = useRef<HTMLUListElement>(null);
 
+    const collectionRefs = useMemo(
+        () => createArrayWithLength(collections.length, () => createRef<HTMLDivElement>()),
+        [collections.length],
+    );
+
     const {inputProps, listBoxProps} = useComboBox(
         {
             ...comboBoxProps,
@@ -179,6 +201,39 @@ export function TaskDetailCollectionsField({
             popoverRef,
             listBoxRef,
             "aria-labelledby": ariaLabelledBy,
+            onKeyDown: event => {
+                assert(event.currentTarget instanceof HTMLInputElement);
+                switch (event.key) {
+                    // If we are at the beginning of the combobox text input, the backspace key
+                    // will delete the last collection.
+                    case "Backspace": {
+                        if (
+                            collections.length > 0 &&
+                            event.currentTarget.selectionStart ===
+                                event.currentTarget.selectionEnd &&
+                            event.currentTarget.selectionStart === 0
+                        ) {
+                            event.preventDefault();
+                            removeCollectionFromTask(collections[collections.length - 1]!.id);
+                        }
+                        break;
+                    }
+                    // If we are at the beginning of the combobox text input, the arrow left key
+                    // will focus a previously selected account if we have one.
+                    case "ArrowLeft": {
+                        if (
+                            collectionRefs.length > 0 &&
+                            event.currentTarget.selectionStart ===
+                                event.currentTarget.selectionEnd &&
+                            event.currentTarget.selectionStart === 0
+                        ) {
+                            event.preventDefault();
+                            collectionRefs[collectionRefs.length - 1]!.current!.focus();
+                        }
+                        break;
+                    }
+                }
+            },
         },
         comboBoxState,
     );
@@ -187,22 +242,83 @@ export function TaskDetailCollectionsField({
 
     const inputPlaceholder = shouldShowPrivatePlaceholder ? "Private" : "Add";
 
-    return (
-        <Box display="flex" alignItems="center" flexWrap="wrap" gap="3">
-            {collections.map(collection => (
+    const collectionsChildren = collections.map((collection, index) => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            switch (event.key) {
+                // Backspace or delete will remove our selected account.
+                case "Backspace":
+                case "Delete": {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    removeCollectionFromTask(collection.id);
+                    if (index + 1 < collectionRefs.length) {
+                        collectionRefs[index + 1]?.current?.focus();
+                    } else {
+                        inputRef.current?.focus();
+                    }
+                    break;
+                }
+                // Arrow keys navigate through selected accounts. Only the first selected
+                // account is focusable since you use arrow keys to navigate between accounts.
+                case "ArrowLeft": {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    collectionRefs[index - 1]?.current?.focus();
+                    break;
+                }
+                // Arrow keys navigate through selected accounts. Only the first selected
+                // account is focusable since you use arrow keys to navigate between accounts.
+                case "ArrowRight": {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (index + 1 < collectionRefs.length) {
+                        collectionRefs[index + 1]?.current?.focus();
+                    } else {
+                        inputRef.current?.focus();
+                    }
+                    break;
+                }
+                default: {
+                    // If the user presses a letter then interpret that as the user trying to
+                    // replace the focused account. So delete the selected account and add the text
+                    // to our search input.
+                    if (/^[0-9a-zA-Z]$/.test(event.key)) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        removeCollectionFromTask(collection.id);
+                        setInputState({type: "Focused", value: event.key});
+                        inputRef.current?.focus();
+                    }
+                    break;
+                }
+            }
+        };
+
+        return (
+            <FocusRing key={collection.id}>
                 <Box
-                    key={collection.id}
+                    ref={collectionRefs[index]}
                     overflow="hidden"
                     marginY="-0.5"
                     marginLeft="-0.5"
                     style={{maxWidth: taskCollectionChipContainerMaxWidth}}
+                    // The first selected account is focusable via tab and you can use arrow keys
+                    // to focus the others.
+                    tabIndex={index === 0 ? 0 : -1}
+                    onKeyDown={handleKeyDown}
                 >
                     <TaskCollectionChip
                         collection={collection}
                         onRemove={() => removeCollectionFromTask(collection.id)}
                     />
                 </Box>
-            ))}
+            </FocusRing>
+        );
+    });
+
+    return (
+        <Box display="flex" alignItems="center" flexWrap="wrap" gap="3">
+            {collectionsChildren}
             {isCreatingCollection && (
                 <Box
                     overflow="hidden"
@@ -228,6 +344,7 @@ export function TaskDetailCollectionsField({
                     <Box ref={popoverRef} position="relative">
                         <TaskDetailCollectionsFieldListBox
                             haveNoCollectionsBeenCreated={allCollections.length === 0}
+                            hasNoMoreCollections={allCollectionsWithoutSelection.length === 0}
                             comboBoxState={comboBoxState}
                             listBoxRef={listBoxRef}
                             listBoxProps={listBoxProps}
@@ -313,12 +430,14 @@ export function TaskDetailCollectionsField({
 
 function TaskDetailCollectionsFieldListBox({
     haveNoCollectionsBeenCreated,
+    hasNoMoreCollections,
     comboBoxState,
     listBoxRef,
     listBoxProps: _listBoxProps,
     onCreateCollection,
 }: {
     haveNoCollectionsBeenCreated: boolean;
+    hasNoMoreCollections: boolean;
     comboBoxState: ComboBoxState<TaskDetailCollectionsFieldItem>;
     listBoxRef: RefObject<HTMLUListElement>;
     listBoxProps: AriaListBoxOptions<TaskDetailCollectionsFieldItem>;
@@ -356,8 +475,8 @@ function TaskDetailCollectionsFieldListBox({
             >
                 {comboBoxState.collection.size === 0 ? (
                     <Box padding="1.5" display="flex" alignItems="center" gap="1" color="grey-70">
-                        <MagnifyingGlass size={spacing["3"]} />
-                        <Box>No results</Box>
+                        {!hasNoMoreCollections && <MagnifyingGlass size={spacing["3"]} />}
+                        <Box>{hasNoMoreCollections ? "No more collections" : "No results"}</Box>
                     </Box>
                 ) : (
                     Array.from(comboBoxState.collection, item => (
