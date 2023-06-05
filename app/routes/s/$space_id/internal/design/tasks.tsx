@@ -36,7 +36,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {noop} from "~/shared/helpers/control/noop";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key";
 import {assertId} from "~/shared/id/id";
-import {AccountId, LocalTaskCollectionId} from "~/shared/id/types/id_types";
+import {AccountId, LocalTaskCollectionId, LocalTaskId} from "~/shared/id/types/id_types";
 import {sprinkles} from "~/shared/styles/styles";
 import {
     TaskNotesContentWithReferences,
@@ -92,6 +92,8 @@ const bedroomTaskCollection: LocalTaskCollection = {
     name: "Bedroom",
     color: "pink",
 };
+
+const mockTaskId = assertId<LocalTaskId>("yf337jacvqzanv4xq5ds27s1m4");
 
 export default function TasksDesignPlaygroundRoute() {
     const currentDate = useCurrentDate();
@@ -221,6 +223,7 @@ export default function TasksDesignPlaygroundRoute() {
         <Box display="flex" gap="4">
             <Box width="full" maxWidth="96" display="flex" flexDirection="column" gap="4">
                 <TaskCardPresentationalView
+                    id={mockTaskId}
                     status="Open"
                     onStatusChange={noop}
                     title={createSimpleTaskTitle(
@@ -239,6 +242,7 @@ export default function TasksDesignPlaygroundRoute() {
                     onExpand={async () => {}}
                 />
                 <TaskCardPresentationalView
+                    id={mockTaskId}
                     status="Open"
                     onStatusChange={noop}
                     title={createSimpleTaskTitle("Sort, wash, dry, and fold clothes")}
@@ -250,6 +254,7 @@ export default function TasksDesignPlaygroundRoute() {
             </Box>
             <Box width="full" maxWidth="96" display="flex" flexDirection="column" gap="4">
                 <TaskCardPresentationalView
+                    id={mockTaskId}
                     status="Closed"
                     onStatusChange={noop}
                     title={createSimpleTaskTitle("Vacuum and mop floors")}
@@ -316,6 +321,7 @@ export default function TasksDesignPlaygroundRoute() {
                 gap="4"
             >
                 <TaskCardPresentationalView
+                    id={mockTaskId}
                     status="Closed"
                     onStatusChange={noop}
                     title={createSimpleTaskTitle(
@@ -330,6 +336,7 @@ export default function TasksDesignPlaygroundRoute() {
                     onExpand={async () => {}}
                 />
                 <TaskCardPresentationalView
+                    id={mockTaskId}
                     status="Open"
                     onStatusChange={noop}
                     title={createSimpleTaskTitle("Clean windows and mirrors")}
@@ -346,6 +353,7 @@ export default function TasksDesignPlaygroundRoute() {
                     onExpand={async () => {}}
                 />
                 <TaskCardPresentationalView
+                    id={mockTaskId}
                     status="Open"
                     onStatusChange={noop}
                     title={createSimpleTaskTitle(
@@ -357,6 +365,7 @@ export default function TasksDesignPlaygroundRoute() {
                     onExpand={async () => {}}
                 />
                 <TaskCardPresentationalView
+                    id={mockTaskId}
                     status="Closed"
                     onStatusChange={noop}
                     title={createSimpleTaskTitle("Tidy up the living room")}
@@ -366,6 +375,7 @@ export default function TasksDesignPlaygroundRoute() {
                     onExpand={async () => {}}
                 />
                 <TaskCardPresentationalView
+                    id={mockTaskId}
                     status="Closed"
                     onStatusChange={noop}
                     title={createSimpleTaskTitle("Declutter and organize")}
@@ -375,6 +385,7 @@ export default function TasksDesignPlaygroundRoute() {
                     onExpand={async () => {}}
                 />
                 <TaskCardPresentationalView
+                    id={mockTaskId}
                     status="Open"
                     onStatusChange={noop}
                     title={createSimpleTaskTitle("Organize your closet")}
@@ -387,6 +398,7 @@ export default function TasksDesignPlaygroundRoute() {
                     onExpand={async () => {}}
                 />
                 <TaskCardPresentationalView
+                    id={mockTaskId}
                     status="Open"
                     onStatusChange={noop}
                     title={createSimpleTaskTitle(
