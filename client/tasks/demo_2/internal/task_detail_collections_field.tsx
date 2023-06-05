@@ -5,10 +5,12 @@ import Fuse from "fuse.js";
 import {Lock, MagnifyingGlass, Plus} from "phosphor-react";
 import {
     KeyboardEvent,
+    ReactNode,
     RefObject,
     cloneElement,
     createRef,
     isValidElement,
+    useEffect,
     useMemo,
     useRef,
     useState,
@@ -23,7 +25,7 @@ import {
 } from "react-aria";
 import {ComboBoxState, ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
 import {Box} from "~/client/design/box";
-import {Button} from "~/client/design/button";
+import {buttonPressedOverlayOpacity} from "~/client/design/button";
 import {FocusRing} from "~/client/design/focus_ring";
 import {ModalDialog} from "~/client/design/modal_dialog";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
@@ -51,9 +53,19 @@ import {generateId, isId} from "~/shared/id/id";
 import {LocalTaskCollectionId} from "~/shared/id/types/id_types";
 import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles";
 
-type TaskDetailCollectionsFieldItem = {
-    readonly key: LocalTaskCollectionId;
+type TaskDetailCollectionsFieldItem =
+    | TaskDetailCollectionsFieldCollectionItem
+    | TaskDetailCollectionsFieldCreateCollectionItem;
+
+type TaskDetailCollectionsFieldCollectionItem = {
+    readonly type: "Collection";
+    readonly key: `Collection:${LocalTaskCollectionId}`;
     readonly collection: LocalTaskCollection;
+};
+
+type TaskDetailCollectionsFieldCreateCollectionItem = {
+    readonly type: "CreateCollection";
+    readonly key: "CreateCollection";
 };
 
 // NOCOMMIT: Arrow down when there are no collections should select create
@@ -107,7 +119,27 @@ export function TaskDetailCollectionsField({
         value: "",
         disableAnimationOut: false,
     });
-    const [isCreatingCollection, setIsCreatingCollection] = useState(false);
+
+    const [createCollectionInputState, setCreateCollectionInputState] = useState<
+        {isVisible: false} | {isVisible: true; shouldReturnFocusToInput: boolean}
+    >({
+        isVisible: false,
+    });
+
+    // When the create collection input goes from `isVisible` `true` to `false`
+    // then we want to refocus the input ref if we opened the create collection
+    // input with the keyboard.
+    useEffect(() => {
+        return () => {
+            if (
+                createCollectionInputState.isVisible &&
+                createCollectionInputState.shouldReturnFocusToInput
+            ) {
+                // eslint-disable-next-line react-hooks/exhaustive-deps
+                inputRef.current?.focus();
+            }
+        };
+    }, [createCollectionInputState]);
 
     const searchedCollections = useMemo(
         () =>
@@ -117,10 +149,24 @@ export function TaskDetailCollectionsField({
         [allCollectionsWithoutSelection, allCollectionsSearchIndex, inputState.value],
     );
 
-    const searchedItems: ReadonlyArray<TaskDetailCollectionsFieldItem> = useMemo(
-        () => searchedCollections.map(collection => ({key: collection.id, collection})),
-        [searchedCollections],
-    );
+    const searchedItems: ReadonlyArray<TaskDetailCollectionsFieldItem> = useMemo(() => {
+        const searchedItems: Array<TaskDetailCollectionsFieldItem> = [];
+
+        for (const collection of searchedCollections) {
+            searchedItems.push({
+                type: "Collection",
+                key: `Collection:${collection.id}`,
+                collection,
+            });
+        }
+
+        searchedItems.push({
+            type: "CreateCollection",
+            key: "CreateCollection",
+        });
+
+        return searchedItems;
+    }, [searchedCollections]);
 
     const comboBoxProps: ComboBoxStateOptions<TaskDetailCollectionsFieldItem> = {
         menuTrigger: "focus",
@@ -150,32 +196,52 @@ export function TaskDetailCollectionsField({
         },
 
         items: searchedItems,
-        children: item => (
-            <Item textValue={item.collection.name}>
-                <TaskDetailCollectionsFieldListBoxOptionItem item={item} />
-            </Item>
-        ),
+        children: item =>
+            item.type === "Collection" ? (
+                <Item textValue={item.collection.name}>
+                    <TaskDetailCollectionsFieldListBoxOptionItem item={item} />
+                </Item>
+            ) : (
+                <Item>Create collection</Item>
+            ),
 
         // No key is ever selected by the combobox. Instead when a selection occurs we
         // add it to a list of selected values.
         selectedKey: null,
-        onSelectionChange: collectionId => {
-            if (typeof collectionId !== "string") return;
+        onSelectionChange: key => {
+            if (typeof key !== "string") return;
 
-            assert(isId<LocalTaskCollectionId>(collectionId));
-            addCollectionToTask(collectionId);
+            if (key.startsWith("Collection:")) {
+                const collectionId = key.slice("Collection:".length);
+                assert(isId<LocalTaskCollectionId>(collectionId));
+                addCollectionToTask(collectionId);
 
-            if (getInteractionModality() === "pointer") {
+                if (getInteractionModality() === "pointer") {
+                    setInputState(inputState => {
+                        if (inputState.type === "Unfocused") return inputState;
+                        return {type: "Unfocused", value: "", disableAnimationOut: true};
+                    });
+
+                    assertExists(inputRef.current).blur();
+                } else {
+                    setInputState(inputState => {
+                        if (inputState.type === "Unfocused") return inputState;
+                        return {type: "Focused", value: ""};
+                    });
+                }
+            }
+
+            if (key === "CreateCollection") {
                 setInputState(inputState => {
                     if (inputState.type === "Unfocused") return inputState;
                     return {type: "Unfocused", value: "", disableAnimationOut: true};
                 });
 
-                assertExists(inputRef.current).blur();
-            } else {
-                setInputState(inputState => {
-                    if (inputState.type === "Unfocused") return inputState;
-                    return {type: "Focused", value: ""};
+                comboBoxState.close();
+
+                setCreateCollectionInputState({
+                    isVisible: true,
+                    shouldReturnFocusToInput: getInteractionModality() === "keyboard",
                 });
             }
         },
@@ -236,7 +302,8 @@ export function TaskDetailCollectionsField({
         comboBoxState,
     );
 
-    const shouldShowPrivatePlaceholder = !isCreatingCollection && collections.length === 0;
+    const shouldShowPrivatePlaceholder =
+        !createCollectionInputState.isVisible && collections.length === 0;
 
     const inputPlaceholder = shouldShowPrivatePlaceholder ? "Private" : "Add";
 
@@ -317,7 +384,7 @@ export function TaskDetailCollectionsField({
     return (
         <Box display="flex" alignItems="center" flexWrap="wrap" gap="3">
             {collectionsChildren}
-            {isCreatingCollection && (
+            {createCollectionInputState.isVisible && (
                 <Box
                     overflow="hidden"
                     marginY="-0.5"
@@ -325,9 +392,9 @@ export function TaskDetailCollectionsField({
                     style={{maxWidth: taskCollectionChipContainerMaxWidth}}
                 >
                     <TaskDetailCollectionsFieldCreateCollectionInput
-                        onCancel={() => setIsCreatingCollection(false)}
+                        onCancel={() => setCreateCollectionInputState({isVisible: false})}
                         createCollectionAndAddToTask={collection => {
-                            setIsCreatingCollection(false);
+                            setCreateCollectionInputState({isVisible: false});
                             createCollectionAndAddToTask(collection);
                         }}
                     />
@@ -349,18 +416,6 @@ export function TaskDetailCollectionsField({
                             comboBoxState={comboBoxState}
                             listBoxRef={listBoxRef}
                             listBoxProps={listBoxProps}
-                            onCreateCollection={() => {
-                                setInputState(inputState => {
-                                    if (inputState.type === "Unfocused") return inputState;
-                                    return {
-                                        type: "Unfocused",
-                                        value: "",
-                                        disableAnimationOut: true,
-                                    };
-                                });
-                                comboBoxState.close();
-                                setIsCreatingCollection(true);
-                            }}
                         />
                     </Box>
                 }
@@ -443,16 +498,35 @@ function TaskDetailCollectionsFieldListBox({
     comboBoxState,
     listBoxRef,
     listBoxProps: _listBoxProps,
-    onCreateCollection,
 }: {
     haveNoCollectionsBeenCreated: boolean;
     hasNoMoreCollections: boolean;
     comboBoxState: ComboBoxState<TaskDetailCollectionsFieldItem>;
     listBoxRef: RefObject<HTMLUListElement>;
     listBoxProps: AriaListBoxOptions<TaskDetailCollectionsFieldItem>;
-    onCreateCollection: () => void;
 }) {
     const {listBoxProps} = useListBox(_listBoxProps, comboBoxState, listBoxRef);
+
+    const {itemsWithoutCreateCollectionButton, createCollectionButtonItem} = useMemo(() => {
+        const itemsWithoutCreateCollectionButton: Array<ReactNode> = [];
+        let createCollectionButtonItem: Node<TaskDetailCollectionsFieldItem> | null = null;
+
+        for (const item of comboBoxState.collection) {
+            if (item.value.type === "CreateCollection") {
+                createCollectionButtonItem = item;
+            } else {
+                itemsWithoutCreateCollectionButton.push(
+                    <TaskDetailCollectionsFieldListBoxOption
+                        key={item.key}
+                        comboBoxState={comboBoxState}
+                        item={item}
+                    />,
+                );
+            }
+        }
+
+        return {itemsWithoutCreateCollectionButton, createCollectionButtonItem};
+    }, [comboBoxState]);
 
     return (
         <Box
@@ -465,44 +539,53 @@ function TaskDetailCollectionsFieldListBox({
             display="flex"
             flexDirection="column"
         >
-            {haveNoCollectionsBeenCreated && (
-                <TaskDetailCollectionsFieldListBoxInstructionalPlaceholder
-                    onCreateCollection={onCreateCollection}
-                />
-            )}
-            <ul
-                {...listBoxProps}
-                ref={listBoxRef}
-                className={sprinkles({
-                    flexGrow: "1",
-                    width: "full",
-                    padding: "1",
-                    overflowX: "hidden",
-                    overflowY: "scroll",
-                    display: haveNoCollectionsBeenCreated ? "none" : undefined,
-                })}
-            >
-                {comboBoxState.collection.size === 0 ? (
-                    <Box padding="1.5" display="flex" alignItems="center" gap="1" color="grey-70">
-                        {!hasNoMoreCollections && <MagnifyingGlass size={spacing["3"]} />}
-                        <Box>{hasNoMoreCollections ? "No more collections" : "No results"}</Box>
-                    </Box>
-                ) : (
-                    Array.from(comboBoxState.collection, item => (
-                        <TaskDetailCollectionsFieldListBoxOption
-                            key={item.key}
-                            comboBoxState={comboBoxState}
-                            item={item}
-                        />
-                    ))
-                )}
-            </ul>
-            {!haveNoCollectionsBeenCreated && (
-                <Box borderTop="grey-10" padding="1">
-                    <Button fullWidth icon={<Plus weight="bold" />} onPress={onCreateCollection}>
-                        <Box fontStyle="semi-bold">Create collection</Box>
-                    </Button>
-                </Box>
+            {haveNoCollectionsBeenCreated ? (
+                <ul {...listBoxProps} ref={listBoxRef}>
+                    <TaskDetailCollectionsFieldListBoxInstructionalPlaceholder
+                        comboBoxState={comboBoxState}
+                        createCollectionButtonItem={createCollectionButtonItem}
+                    />
+                </ul>
+            ) : (
+                <>
+                    <ul
+                        {...listBoxProps}
+                        ref={listBoxRef}
+                        className={sprinkles({
+                            flexGrow: "1",
+                            width: "full",
+                            padding: "1",
+                            overflowX: "hidden",
+                            overflowY: "scroll",
+                        })}
+                    >
+                        {itemsWithoutCreateCollectionButton.length === 0 ? (
+                            <Box
+                                padding="1.5"
+                                display="flex"
+                                alignItems="center"
+                                gap="1"
+                                color="grey-70"
+                            >
+                                {!hasNoMoreCollections && <MagnifyingGlass size={spacing["3"]} />}
+                                <Box>
+                                    {hasNoMoreCollections ? "No more collections" : "No results"}
+                                </Box>
+                            </Box>
+                        ) : (
+                            itemsWithoutCreateCollectionButton
+                        )}
+                    </ul>
+                    {createCollectionButtonItem && (
+                        <Box borderTop="grey-10" padding="1">
+                            <TaskDetailCollectionsFieldListBoxCreateCollectionOption
+                                comboBoxState={comboBoxState}
+                                item={createCollectionButtonItem}
+                                isQuiet={true}
+                            />
+                        </Box>
+                    )}
+                </>
             )}
         </Box>
     );
@@ -557,7 +640,7 @@ function TaskDetailCollectionsFieldListBoxOptionItem({
     item,
     isPressed,
 }: {
-    item: TaskDetailCollectionsFieldItem;
+    item: TaskDetailCollectionsFieldCollectionItem;
     isPressed?: boolean;
 }) {
     assert(
@@ -657,10 +740,90 @@ function getTaskCollectionLastUpdateTimeSummary(
     }
 }
 
-function TaskDetailCollectionsFieldListBoxInstructionalPlaceholder({
-    onCreateCollection,
+function TaskDetailCollectionsFieldListBoxCreateCollectionOption({
+    comboBoxState,
+    item,
+    isQuiet,
 }: {
-    onCreateCollection: () => void;
+    comboBoxState: ComboBoxState<TaskDetailCollectionsFieldItem>;
+    item: Node<TaskDetailCollectionsFieldItem>;
+    isQuiet: boolean;
+}) {
+    const optionRef = useRef(null);
+    const {isHovered, hoverProps} = useHover({});
+    const {optionProps, isFocused, isPressed} = useOption(
+        {key: item.key},
+        comboBoxState,
+        optionRef,
+    );
+
+    const [wasFocusVisibleWhenFocused, setWasFocusVisibleWhenFocused] = useState(false);
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (isFocused) setWasFocusVisibleWhenFocused(isFocusVisible());
+    }, [isFocused]);
+
+    return (
+        <FocusRing
+            offset={isQuiet ? "0" : "0.5"}
+            isVisible={isFocused && wasFocusVisibleWhenFocused}
+        >
+            <Box
+                {...mergeProps(optionProps, hoverProps)}
+                ref={optionRef}
+                width="full"
+                padding="1.5"
+                borderRadius="base"
+                color={isQuiet ? "grey-text" : "grey-0"}
+                backgroundColor={
+                    isQuiet
+                        ? isPressed
+                            ? {light: "grey-10", dark: "grey-20"}
+                            : isHovered
+                            ? {light: "grey-5", dark: "grey-10"}
+                            : undefined
+                        : {light: "grey-80", dark: "grey-90"}
+                }
+                display="flex"
+                justifyContent="center"
+                alignItems="center"
+                gap="1"
+                position="relative"
+                fontStyle={!isQuiet ? "semi-bold" : undefined}
+            >
+                {isPressed && !isQuiet && (
+                    // For accent buttons, instead of choosing a darker background color shade when
+                    // pressed we add a black overlay at a lowered opacity. We accomplish this with
+                    // an overlay element since such a color is not in our color scheme.
+                    //
+                    // Darker shades in our color scheme are more saturated. We want the effect of a
+                    // button being physically pressed down.
+                    //
+                    // When we added this there was a happy accident. The text color also got
+                    // darker! This is more fitting for the physical analogy of a button being
+                    // pressed down.
+                    <span
+                        className={sprinkles({
+                            position: "absolute",
+                            inset: "0",
+                            backgroundColor: "grey-dark",
+                            pointerEvents: "none",
+                        })}
+                        style={{opacity: buttonPressedOverlayOpacity}}
+                    />
+                )}
+                <Plus size={spacing["3"]} weight={!isQuiet ? "bold" : undefined} />
+                <Box>{item.rendered}</Box>
+            </Box>
+        </FocusRing>
+    );
+}
+
+function TaskDetailCollectionsFieldListBoxInstructionalPlaceholder({
+    comboBoxState,
+    createCollectionButtonItem,
+}: {
+    comboBoxState: ComboBoxState<TaskDetailCollectionsFieldItem>;
+    createCollectionButtonItem: Node<TaskDetailCollectionsFieldItem> | null;
 }) {
     return (
         <Box display="flex" flexDirection="column" padding="3" gap="3">
@@ -689,15 +852,13 @@ function TaskDetailCollectionsFieldListBoxInstructionalPlaceholder({
                     </Box>
                 </Box>
             </Box>
-            <Button
-                variant="neutral"
-                fullWidth
-                height="6"
-                icon={<Plus />}
-                onPress={onCreateCollection}
-            >
-                Create
-            </Button>
+            {createCollectionButtonItem && (
+                <TaskDetailCollectionsFieldListBoxCreateCollectionOption
+                    comboBoxState={comboBoxState}
+                    item={createCollectionButtonItem}
+                    isQuiet={false}
+                />
+            )}
         </Box>
     );
 }
