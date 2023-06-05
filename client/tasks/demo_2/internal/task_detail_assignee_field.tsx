@@ -84,50 +84,6 @@ export function TaskDetailAssigneeField({
                     onAssigneeAccountChange={onAssigneeAccountChange}
                     aria-labelledby={ariaLabelledBy}
                 />
-                {/* NOCOMMIT <Box flexShrink="0">
-                    <Button
-                        variant="quiet-placeholder"
-                        height="6"
-                        paddingX="2"
-                        icon={
-                            <Box
-                                position="relative"
-                                width="3"
-                                height="3"
-                                borderRadius="full"
-                                style={{borderWidth: 1, borderColor: "currentcolor"}}
-                            >
-                                <Box
-                                    position="absolute"
-                                    top="0"
-                                    left="0"
-                                    height="3"
-                                    overflow="hidden"
-                                    style={{
-                                        width: `${parseRemLengthNumber(spacing["3"]) / 2}rem`,
-                                        transform: `translate(-1px, -1px) translateX(${
-                                            parseRemLengthNumber(spacing["3"]) / 2
-                                        }rem) scale(${(16 - 5) / 16})`,
-                                        transformOrigin: "center left",
-                                    }}
-                                >
-                                    <Box
-                                        position="absolute"
-                                        top="0"
-                                        right="0"
-                                        width="3"
-                                        height="3"
-                                        borderRadius="full"
-                                        // backgroundColor="grey-30"
-                                        style={{backgroundColor: "currentcolor"}}
-                                    />
-                                </Box>
-                            </Box>
-                        }
-                    >
-                        Inactive
-                    </Button>
-                </Box> */}
             </Box>
         </Box>
     );
@@ -208,7 +164,12 @@ function TaskDetailAssigneeFieldInput({
 
         inputValue,
         onInputChange: inputValue => {
-            setInputState({type: "Typing", value: inputValue, hasChanged: true});
+            setInputState(inputState => {
+                // Must be in a typing state to accept new typing changes.
+                if (inputState.type !== "Typing") return inputState;
+
+                return {type: "Typing", value: inputValue, hasChanged: true};
+            });
         },
 
         onFocus: () => {

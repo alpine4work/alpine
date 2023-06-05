@@ -24,7 +24,6 @@ type ButtonVariant =
     | "quiet-on"
     | "quiet-off"
     | "quiet-above-grey-5-dark-background"
-    | "quiet-placeholder"
     | "neutral"
     | "accent"
     | "accent-even-when-disabled";
@@ -275,16 +274,6 @@ function Button(
                   backgroundColor: undefined,
                   color: "grey-30",
               },
-        // NOCOMMIT: Remove
-        "quiet-placeholder": !isDisabled
-            ? {
-                  backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
-                  color: isPressed ? "grey-text" : isHovered ? "grey-40" : "grey-30",
-              }
-            : {
-                  backgroundColor: undefined,
-                  color: "grey-30",
-              },
         neutral: !isDisabled
             ? {
                   backgroundColor: {light: "grey-80", dark: "grey-90"},
@@ -316,8 +305,7 @@ function Button(
         variant === "quiet" ||
         variant === "quiet-on" ||
         variant === "quiet-off" ||
-        variant === "quiet-above-grey-5-dark-background" ||
-        variant === "quiet-placeholder";
+        variant === "quiet-above-grey-5-dark-background";
 
     let node = (
         <FocusRing offset={isQuietVariant ? "0" : "0.5"}>
