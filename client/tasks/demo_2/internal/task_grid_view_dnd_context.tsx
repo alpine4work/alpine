@@ -23,12 +23,14 @@ import {
     TaskAssigneeActiveStatus,
     TaskStatus,
     TaskStatusButton,
+    compareTaskAssigneeActiveStatus,
 } from "~/client/tasks/demo_2/task_status_button";
 import {spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {noop} from "~/shared/helpers/control/noop";
 import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key";
+import {LocalTaskId} from "~/shared/id/types/id_types";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
 import {contentSchemaStyles} from "~/shared/styles/styles";
 import {TaskTitle} from "~/shared/tasks/task_title_schema";
@@ -42,6 +44,7 @@ export type TaskGridViewDraggableData<TaskRow> =
       }
     | {
           readonly type: "Card";
+          readonly id: LocalTaskId;
           readonly status: TaskStatus;
           readonly title: TaskTitle;
           readonly assignee: TaskAssignee | null;
@@ -58,8 +61,9 @@ export type TaskGridViewDroppableData<TaskRow> =
     | {
           readonly type: "ActiveCard";
           readonly showHintIndex: number;
-          readonly nextAssigneeActiveStatus: TaskAssigneeActiveStatus | null;
           readonly previousAssigneeActiveStatus: TaskAssigneeActiveStatus | null;
+          readonly assigneeActiveStatus: TaskAssigneeActiveStatus | null;
+          readonly nextAssigneeActiveStatus: TaskAssigneeActiveStatus | null;
       };
 
 class MouseSensorWithImmediatePriorityEnd extends MouseSensor {
@@ -133,88 +137,131 @@ export function TaskGridViewDndContext<TaskRow>({
                         over.data.current,
                     ) as TaskGridViewDroppableData<TaskRow>;
 
-                    // NOCOMMIT: Implement!
-                    if (activeData.type === "Card") return;
-
                     switch (overData.type) {
                         case "Row": {
-                            const unnest = Math.max(
-                                0,
-                                (overData.taskRow ? getTaskRowIndentation(overData.taskRow) : 0) -
-                                    overData.indentation,
-                            );
+                            switch (activeData.type) {
+                                case "Row": {
+                                    const unnest = Math.max(
+                                        0,
+                                        (overData.taskRow
+                                            ? getTaskRowIndentation(overData.taskRow)
+                                            : 0) - overData.indentation,
+                                    );
 
-                            if (
-                                overData.taskRow &&
-                                unnest === 0 &&
-                                !getTaskAreChildTasksCollapsed(overData.taskRow)
-                            ) {
-                                moveTaskToParentTop(overData.taskRow, activeData.taskRow);
-                            } else {
-                                moveTaskBelow(overData.taskRow, unnest, activeData.taskRow);
+                                    if (
+                                        overData.taskRow &&
+                                        unnest === 0 &&
+                                        !getTaskAreChildTasksCollapsed(overData.taskRow)
+                                    ) {
+                                        moveTaskToParentTop(overData.taskRow, activeData.taskRow);
+                                    } else {
+                                        moveTaskBelow(overData.taskRow, unnest, activeData.taskRow);
+                                    }
+                                    break;
+                                }
+                                case "Card": {
+                                    // Can not drop cards into row positions...
+                                    break;
+                                }
+                                default:
+                                    throw exhaustive(activeData);
                             }
                             break;
                         }
                         case "ActiveCard": {
-                            if (
-                                overData.nextAssigneeActiveStatus &&
-                                overData.previousAssigneeActiveStatus
-                            ) {
+                            let taskRow: TaskRow;
+                            let beforeAssigneeActiveStatus: TaskAssigneeActiveStatus | null = null;
+                            let afterAssigneeActiveStatus: TaskAssigneeActiveStatus | null = null;
+
+                            switch (activeData.type) {
+                                case "Row": {
+                                    taskRow = activeData.taskRow;
+                                    beforeAssigneeActiveStatus =
+                                        overData.previousAssigneeActiveStatus;
+                                    afterAssigneeActiveStatus = overData.assigneeActiveStatus;
+                                    break;
+                                }
+                                case "Card": {
+                                    // @ts-expect-error: Hack. This should get cleaned up in a production
+                                    // implementation.
+                                    taskRow = {task: {id: activeData.id}};
+                                    if (
+                                        activeData.assignee?.status.type === "Active" &&
+                                        overData.assigneeActiveStatus &&
+                                        compareTaskAssigneeActiveStatus(
+                                            activeData.assignee.status,
+                                            overData.assigneeActiveStatus,
+                                        ) < 0
+                                    ) {
+                                        beforeAssigneeActiveStatus = overData.assigneeActiveStatus;
+                                        afterAssigneeActiveStatus =
+                                            overData.nextAssigneeActiveStatus;
+                                    } else {
+                                        beforeAssigneeActiveStatus =
+                                            overData.previousAssigneeActiveStatus;
+                                        afterAssigneeActiveStatus = overData.assigneeActiveStatus;
+                                    }
+                                    break;
+                                }
+                                default:
+                                    throw exhaustive(activeData);
+                            }
+
+                            if (afterAssigneeActiveStatus && beforeAssigneeActiveStatus) {
                                 if (
-                                    overData.nextAssigneeActiveStatus.orderTime.toString() ===
-                                    overData.previousAssigneeActiveStatus.orderTime.toString()
+                                    afterAssigneeActiveStatus.orderTime.toString() ===
+                                    beforeAssigneeActiveStatus.orderTime.toString()
                                 ) {
-                                    onTaskAssigneeChange(activeData.taskRow, {
+                                    onTaskAssigneeChange(taskRow, {
                                         account: currentAccount,
                                         status: {
                                             type: "Active",
-                                            orderTime: overData.nextAssigneeActiveStatus.orderTime,
+                                            orderTime: afterAssigneeActiveStatus.orderTime,
                                             orderKey: generateOrderKeyBetween(
-                                                overData.previousAssigneeActiveStatus.orderKey,
-                                                overData.nextAssigneeActiveStatus.orderKey,
+                                                beforeAssigneeActiveStatus.orderKey,
+                                                afterAssigneeActiveStatus.orderKey,
                                             ),
                                         },
                                     });
                                 } else {
-                                    onTaskAssigneeChange(activeData.taskRow, {
+                                    onTaskAssigneeChange(taskRow, {
                                         account: currentAccount,
                                         status: {
                                             type: "Active",
-                                            orderTime:
-                                                overData.previousAssigneeActiveStatus.orderTime,
+                                            orderTime: beforeAssigneeActiveStatus.orderTime,
                                             orderKey: generateOrderKeyBetween(
-                                                overData.previousAssigneeActiveStatus.orderKey,
+                                                beforeAssigneeActiveStatus.orderKey,
                                                 null,
                                             ),
                                         },
                                     });
                                 }
-                            } else if (overData.previousAssigneeActiveStatus) {
-                                onTaskAssigneeChange(activeData.taskRow, {
+                            } else if (beforeAssigneeActiveStatus) {
+                                onTaskAssigneeChange(taskRow, {
                                     account: currentAccount,
                                     status: {
                                         type: "Active",
-                                        orderTime: overData.previousAssigneeActiveStatus.orderTime,
+                                        orderTime: beforeAssigneeActiveStatus.orderTime,
                                         orderKey: generateOrderKeyBetween(
-                                            overData.previousAssigneeActiveStatus.orderKey,
+                                            beforeAssigneeActiveStatus.orderKey,
                                             null,
                                         ),
                                     },
                                 });
-                            } else if (overData.nextAssigneeActiveStatus) {
-                                onTaskAssigneeChange(activeData.taskRow, {
+                            } else if (afterAssigneeActiveStatus) {
+                                onTaskAssigneeChange(taskRow, {
                                     account: currentAccount,
                                     status: {
                                         type: "Active",
-                                        orderTime: overData.nextAssigneeActiveStatus.orderTime,
+                                        orderTime: afterAssigneeActiveStatus.orderTime,
                                         orderKey: generateOrderKeyBetween(
                                             null,
-                                            overData.nextAssigneeActiveStatus.orderKey,
+                                            afterAssigneeActiveStatus.orderKey,
                                         ),
                                     },
                                 });
                             } else {
-                                onTaskAssigneeChange(activeData.taskRow, {
+                                onTaskAssigneeChange(taskRow, {
                                     account: currentAccount,
                                     status: {
                                         type: "Active",
@@ -424,6 +471,7 @@ function TaskRowViewDragOverlay<TaskRow>({
             return (
                 <TaskCardPresentationalView
                     isDragOverlay={true}
+                    id={data.id}
                     status={data.status}
                     onStatusChange={noop}
                     title={data.title}

@@ -15,6 +15,7 @@ import {TaskGridViewDraggableData} from "~/client/tasks/demo_2/internal/task_gri
 import {LocalTaskCollection} from "~/client/tasks/demo_2/local_task_collection";
 import {TaskAssignee, TaskStatus, TaskStatusButton} from "~/client/tasks/demo_2/task_status_button";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
+import {LocalTaskId} from "~/shared/id/types/id_types";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
 import {contentSchemaStyles, pressOpacityOverlayClassName} from "~/shared/styles/styles";
 import {TaskTitle} from "~/shared/tasks/task_title_schema";
@@ -40,6 +41,7 @@ export const taskCardViewMaxWidth = "96";
  * optimize for reading.
  */
 export function TaskCardPresentationalView({
+    id,
     status,
     onStatusChange,
     title,
@@ -50,6 +52,7 @@ export function TaskCardPresentationalView({
     shouldFillHeight,
     isDragOverlay,
 }: {
+    id: LocalTaskId;
     status: TaskStatus;
     onStatusChange: (status: TaskStatus) => void;
     title: TaskTitle;
@@ -84,6 +87,7 @@ export function TaskCardPresentationalView({
         disabled: isDragOverlay,
         data: {
             type: "Card",
+            id,
             status,
             title,
             assignee,

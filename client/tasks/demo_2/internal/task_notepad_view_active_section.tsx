@@ -77,9 +77,9 @@ export function TaskNotepadViewActiveSection({
                 {tasks.map(({task, assigneeActiveStatus}) => {
                     const shouldPushRight =
                         overDroppableData?.type === "ActiveCard" &&
-                        overDroppableData.nextAssigneeActiveStatus &&
+                        overDroppableData.assigneeActiveStatus &&
                         compareTaskAssigneeActiveStatus(
-                            overDroppableData.nextAssigneeActiveStatus,
+                            overDroppableData.assigneeActiveStatus,
                             assigneeActiveStatus,
                         ) <= 0 &&
                         // There are two kinds of drag into this list:
@@ -101,9 +101,9 @@ export function TaskNotepadViewActiveSection({
 
                     const shouldPushLeft =
                         overDroppableData?.type === "ActiveCard" &&
-                        overDroppableData.previousAssigneeActiveStatus &&
+                        overDroppableData.assigneeActiveStatus &&
                         compareTaskAssigneeActiveStatus(
-                            overDroppableData.previousAssigneeActiveStatus,
+                            overDroppableData.assigneeActiveStatus,
                             assigneeActiveStatus,
                         ) >= 0 &&
                         // There are two kinds of drag into this list:
@@ -142,6 +142,7 @@ export function TaskNotepadViewActiveSection({
                         >
                             <TaskCardPresentationalView
                                 shouldFillHeight={true}
+                                id={task.id}
                                 status={task.status}
                                 onStatusChange={status =>
                                     dispatch({
@@ -212,39 +213,44 @@ export function TaskNotepadViewActiveSection({
                     {tasks.length === 0 ? (
                         <TaskNotepadViewActiveSectionDroppable
                             showHintIndex={0}
-                            nextAssigneeActiveStatus={null}
                             previousAssigneeActiveStatus={null}
+                            assigneeActiveStatus={null}
+                            nextAssigneeActiveStatus={null}
                             flexGrow="1"
                         />
                     ) : (
-                        tasks.map(({assigneeActiveStatus}, index) => {
-                            return (
-                                <TaskNotepadViewActiveSectionDroppable
-                                    key={index}
-                                    showHintIndex={index}
-                                    nextAssigneeActiveStatus={assigneeActiveStatus}
-                                    previousAssigneeActiveStatus={assigneeActiveStatus}
-                                    {...(index === tasks.length - 1 &&
-                                    tasks.length < 3 &&
-                                    activeDraggableData?.type !== "Row"
-                                        ? {
-                                              flexGrow: "1",
-                                          }
-                                        : {
-                                              flexShrink: "0",
-                                              widthStyle: cardDroppableWidth,
-                                          })}
-                                />
-                            );
-                        })
+                        tasks.map(({assigneeActiveStatus}, index) => (
+                            <TaskNotepadViewActiveSectionDroppable
+                                key={index}
+                                showHintIndex={index}
+                                previousAssigneeActiveStatus={
+                                    tasks[index - 1]?.assigneeActiveStatus ?? null
+                                }
+                                assigneeActiveStatus={assigneeActiveStatus}
+                                nextAssigneeActiveStatus={
+                                    tasks[index + 1]?.assigneeActiveStatus ?? null
+                                }
+                                {...(index === tasks.length - 1 &&
+                                tasks.length < 3 &&
+                                activeDraggableData?.type !== "Row"
+                                    ? {
+                                          flexGrow: "1",
+                                      }
+                                    : {
+                                          flexShrink: "0",
+                                          widthStyle: cardDroppableWidth,
+                                      })}
+                            />
+                        ))
                     )}
                     {tasks.length > 0 && activeDraggableData?.type === "Row" && (
                         <TaskNotepadViewActiveSectionDroppable
                             showHintIndex={tasks.length}
-                            nextAssigneeActiveStatus={null}
                             previousAssigneeActiveStatus={
                                 tasks[tasks.length - 1]?.assigneeActiveStatus ?? null
                             }
+                            assigneeActiveStatus={null}
+                            nextAssigneeActiveStatus={null}
                             {...(tasks.length < 3
                                 ? {
                                       flexGrow: "1",
@@ -306,15 +312,17 @@ export function TaskNotepadViewActiveSection({
 
 function TaskNotepadViewActiveSectionDroppable({
     showHintIndex,
-    nextAssigneeActiveStatus,
     previousAssigneeActiveStatus,
+    assigneeActiveStatus,
+    nextAssigneeActiveStatus,
     flexShrink,
     flexGrow,
     widthStyle,
 }: {
     showHintIndex: number;
-    nextAssigneeActiveStatus: TaskAssigneeActiveStatus | null;
     previousAssigneeActiveStatus: TaskAssigneeActiveStatus | null;
+    assigneeActiveStatus: TaskAssigneeActiveStatus | null;
+    nextAssigneeActiveStatus: TaskAssigneeActiveStatus | null;
     flexShrink?: "0" | "1";
     flexGrow?: "0" | "1";
     widthStyle?: number | string;
@@ -328,8 +336,9 @@ function TaskNotepadViewActiveSectionDroppable({
         data: {
             type: "ActiveCard",
             showHintIndex,
-            nextAssigneeActiveStatus,
             previousAssigneeActiveStatus,
+            assigneeActiveStatus,
+            nextAssigneeActiveStatus,
         } satisfies TaskGridViewDroppableData<never>,
     });
 
