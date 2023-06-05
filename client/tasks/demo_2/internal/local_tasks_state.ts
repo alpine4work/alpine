@@ -13,7 +13,7 @@ import {
     compareTaskAssigneeActiveStatus,
 } from "~/client/tasks/demo_2/task_status_button";
 import {AccountModel} from "~/shared/accounts/account_model";
-import {themeColors} from "~/shared/design/theme_colors";
+import {ThemeColor, themeColors} from "~/shared/design/theme_colors";
 import {
     DataLossError,
     FailedPreconditionError,
@@ -36,7 +36,7 @@ import {generateId} from "~/shared/id/id";
 import {AccountId, LocalTaskCollectionId, LocalTaskId} from "~/shared/id/types/id_types";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 import {OrderKeySchema} from "~/shared/schema/order_key_schema";
-import {Schema, SchemaType} from "~/shared/schema/schema";
+import {Schema, SchemaDeserializationError, SchemaType} from "~/shared/schema/schema";
 import {
     TaskNotesContentWithReferences,
     TaskNotesContentWithReferencesSchema,
@@ -92,7 +92,31 @@ const LocalTaskCollectionSchema = Schema.object({
     id: Schema.id<LocalTaskCollectionId>(),
     name: LabelStringSchema,
     color: Schema.enum(themeColors),
+    createdTime: Schema.date.default(new Date("2023-06-05T20:28:14.198Z")),
+    lastTaskAddedOrRemovedTimeRoundedToDay: Schema.date
+        .transform<Date>({
+            serialize: date => {
+                assert(date.toISOString() === roundDateToDay(date).toISOString());
+                return date;
+            },
+            deserialize: date => {
+                if (date.toISOString() !== roundDateToDay(date).toISOString()) {
+                    throw new SchemaDeserializationError("Expected date to be rounded to day");
+                }
+                return date;
+            },
+        })
+        .nullable()
+        .default(null),
+    taskCount: Schema.integer.default(0),
 });
+
+/**
+ * Round the provided date to the start of the current day.
+ */
+export function roundDateToDay(time: Date): Date {
+    return new Date(time.getFullYear(), time.getMonth(), time.getDate(), 0, 0, 0, 0);
+}
 
 class LocalTasksDatabase {
     private readonly _taskById: ImmutableMap<LocalTaskId, LocalTask>;
@@ -665,7 +689,11 @@ class LocalTasksDatabase {
 
     public createTaskCollectionAndAddToTask(
         taskId: LocalTaskId,
-        taskCollection: LocalTaskCollection,
+        taskCollection: {
+            id: LocalTaskCollectionId;
+            name: string;
+            color: ThemeColor;
+        },
     ) {
         return new LocalTasksDatabase({
             taskById: this._taskById.update(taskId, task => {
@@ -681,7 +709,41 @@ class LocalTasksDatabase {
                     if (oldTaskCollection)
                         throw new FailedPreconditionError("Task collection already exists");
 
-                    return taskCollection;
+                    const createdTime = new Date();
+
+                    return {
+                        ...taskCollection,
+                        createdTime,
+                        lastTaskAddedOrRemovedTimeRoundedToDay: roundDateToDay(createdTime),
+                        taskCount: 1,
+                    };
+                },
+            ),
+            notepadPageCount: this._notepadPageCount,
+            taskIdByOrderKeyByNotepadPage: this._taskIdByOrderKeyByNotepadPage,
+        });
+    }
+
+    public addTaskCollectionToTask(taskId: LocalTaskId, taskCollectionId: LocalTaskCollectionId) {
+        return new LocalTasksDatabase({
+            taskById: this._taskById.update(taskId, task => {
+                if (!task) throw new NotFoundError("Task not found");
+
+                const newCollectionIds = new Set(task.collectionIds);
+                newCollectionIds.add(taskCollectionId);
+
+                return {...task, collectionIds: newCollectionIds};
+            }),
+            taskCollectionById: this._taskCollectionById.update(
+                taskCollectionId,
+                taskCollection => {
+                    if (!taskCollection) throw new NotFoundError("Task collection not found");
+
+                    return {
+                        ...taskCollection,
+                        lastTaskAddedOrRemovedTimeRoundedToDay: roundDateToDay(new Date()),
+                        taskCount: taskCollection.taskCount + 1,
+                    };
                 },
             ),
             notepadPageCount: this._notepadPageCount,
@@ -698,16 +760,31 @@ class LocalTasksDatabase {
                 if (!task) throw new NotFoundError("Task not found");
 
                 const newCollectionIds = new Set(task.collectionIds);
-
-                if (!newCollectionIds.delete(taskCollectionId))
-                    throw new FailedPreconditionError("Task collection not in task");
+                newCollectionIds.delete(taskCollectionId);
 
                 return {...task, collectionIds: newCollectionIds};
             }),
-            taskCollectionById: this._taskCollectionById,
+            taskCollectionById: this._taskCollectionById.update(
+                taskCollectionId,
+                taskCollection => {
+                    if (!taskCollection) throw new NotFoundError("Task collection not found");
+
+                    return {
+                        ...taskCollection,
+                        lastTaskAddedOrRemovedTimeRoundedToDay: roundDateToDay(new Date()),
+                        taskCount: taskCollection.taskCount - 1,
+                    };
+                },
+            ),
             notepadPageCount: this._notepadPageCount,
             taskIdByOrderKeyByNotepadPage: this._taskIdByOrderKeyByNotepadPage,
         });
+    }
+
+    public getAllTaskCollections() {
+        return Array.from(this._taskCollectionById.values()).sort((collection1, collection2) =>
+            collection1.name.localeCompare(collection2.name),
+        );
     }
 }
 
@@ -860,6 +937,7 @@ export type LocalTasksAction =
     | LocalTasksMoveTaskToParentTaskAction
     | LocalTasksMoveTaskToNotepadAction
     | LocalTasksCreateTaskCollectionAndAddToTaskAction
+    | LocalTasksAddTaskCollectionToTaskAction
     | LocalTasksRemoveTaskCollectionFromTaskAction;
 
 type LocalTasksRestoreStateAction = {
@@ -939,7 +1017,17 @@ type LocalTasksMoveTaskToNotepadAction = {
 type LocalTasksCreateTaskCollectionAndAddToTaskAction = {
     readonly type: "CreateTaskCollectionAndAddToTask";
     readonly taskId: LocalTaskId;
-    readonly taskCollection: LocalTaskCollection;
+    readonly taskCollection: {
+        readonly id: LocalTaskCollectionId;
+        readonly name: string;
+        readonly color: ThemeColor;
+    };
+};
+
+type LocalTasksAddTaskCollectionToTaskAction = {
+    readonly type: "AddTaskCollectionToTask";
+    readonly taskId: LocalTaskId;
+    readonly taskCollectionId: LocalTaskCollectionId;
 };
 
 type LocalTasksRemoveTaskCollectionFromTaskAction = {
@@ -1080,6 +1168,16 @@ function reduceLocalTasksState(state: LocalTasksState, action: LocalTasksAction)
                 database: state.database.createTaskCollectionAndAddToTask(
                     action.taskId,
                     action.taskCollection,
+                ),
+            };
+        }
+
+        case "AddTaskCollectionToTask": {
+            return {
+                ...state,
+                database: state.database.addTaskCollectionToTask(
+                    action.taskId,
+                    action.taskCollectionId,
                 ),
             };
         }

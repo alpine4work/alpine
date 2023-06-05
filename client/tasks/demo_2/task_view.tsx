@@ -141,6 +141,7 @@ export function TaskView({
             onAssigneeChange={assignee => dispatch({type: "UpdateTaskAssignee", taskId, assignee})}
             dueDate={task.dueDate}
             onDueDateChange={dueDate => dispatch({type: "UpdateTaskDueDate", taskId, dueDate})}
+            allCollections={useMemo(() => state.database.getAllTaskCollections(), [state.database])}
             collections={useMemo(
                 () =>
                     Array.from(task.collectionIds, collectionId =>
@@ -150,6 +151,9 @@ export function TaskView({
             )}
             createCollectionAndAddToTask={taskCollection =>
                 dispatch({type: "CreateTaskCollectionAndAddToTask", taskId, taskCollection})
+            }
+            addCollectionToTask={taskCollectionId =>
+                dispatch({type: "AddTaskCollectionToTask", taskId, taskCollectionId})
             }
             removeCollectionFromTask={taskCollectionId =>
                 dispatch({type: "RemoveTaskCollectionFromTask", taskId, taskCollectionId})

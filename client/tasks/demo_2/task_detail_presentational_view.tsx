@@ -33,6 +33,7 @@ import {
 import {TaskAssignee, TaskStatus, TaskStatusButton} from "~/client/tasks/demo_2/task_status_button";
 import {AccountModel} from "~/shared/accounts/account_model";
 import {Spacing, assertSpacing} from "~/shared/design/spacing";
+import {ThemeColor} from "~/shared/design/theme_colors";
 import {UnimplementedError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key";
@@ -79,8 +80,14 @@ export type TaskDetailPresentationalViewProps<ChildTaskRow> = {
     onAssigneeChange: (assignee: TaskAssignee | null) => void;
     dueDate: CalendarDate | null;
     onDueDateChange: (dueDate: CalendarDate | null) => void;
+    allCollections: ReadonlyArray<LocalTaskCollection>;
     collections: ReadonlyArray<LocalTaskCollection>;
-    createCollectionAndAddToTask: (collection: LocalTaskCollection) => void;
+    createCollectionAndAddToTask: (collection: {
+        id: LocalTaskCollectionId;
+        name: string;
+        color: ThemeColor;
+    }) => void;
+    addCollectionToTask: (collectionId: LocalTaskCollectionId) => void;
     removeCollectionFromTask: (collectionId: LocalTaskCollectionId) => void;
     notesContent: TaskNotesContentWithReferences;
     onNotesContentChange: (notesContent: TaskNotesContentWithReferences) => void;
@@ -99,8 +106,10 @@ function TaskDetailPresentationalView<ChildTaskRow>(
         onAssigneeChange,
         dueDate,
         onDueDateChange,
+        allCollections,
         collections,
         createCollectionAndAddToTask,
+        addCollectionToTask,
         removeCollectionFromTask,
         notesContent,
         onNotesContentChange,
@@ -218,8 +227,10 @@ function TaskDetailPresentationalView<ChildTaskRow>(
                 }
                 dueDate={dueDate}
                 onDueDateChange={onDueDateChange}
+                allCollections={allCollections}
                 collections={collections}
                 createCollectionAndAddToTask={createCollectionAndAddToTask}
+                addCollectionToTask={addCollectionToTask}
                 removeCollectionFromTask={removeCollectionFromTask}
                 padding={padding}
             />
@@ -282,8 +293,10 @@ function TaskDetailViewDenseFields({
     onAssigneeAccountChange,
     dueDate,
     onDueDateChange,
+    allCollections,
     collections,
     createCollectionAndAddToTask,
+    addCollectionToTask,
     removeCollectionFromTask,
     padding,
 }: {
@@ -292,8 +305,14 @@ function TaskDetailViewDenseFields({
     onAssigneeAccountChange: (assigneeAccount: AccountModel | null) => void;
     dueDate: CalendarDate | null;
     onDueDateChange: (dueDate: CalendarDate | null) => void;
+    allCollections: ReadonlyArray<LocalTaskCollection>;
     collections: ReadonlyArray<LocalTaskCollection>;
-    createCollectionAndAddToTask: (collection: LocalTaskCollection) => void;
+    createCollectionAndAddToTask: (collection: {
+        id: LocalTaskCollectionId;
+        name: string;
+        color: ThemeColor;
+    }) => void;
+    addCollectionToTask: (collectionId: LocalTaskCollectionId) => void;
     removeCollectionFromTask: (collectionId: LocalTaskCollectionId) => void;
     padding: Spacing;
 }) {
@@ -337,19 +356,14 @@ function TaskDetailViewDenseFields({
             <TaskDetailViewField label="Collections">
                 {({"aria-labelledby": ariaLabelledBy}) => (
                     <TaskDetailCollectionsField
+                        allCollections={allCollections}
                         collections={collections}
                         createCollectionAndAddToTask={createCollectionAndAddToTask}
+                        addCollectionToTask={addCollectionToTask}
                         removeCollectionFromTask={removeCollectionFromTask}
                         aria-labelledby={ariaLabelledBy}
                     />
                 )}
-                {/* NOCOMMIT: <Box display="flex" flexWrap="wrap" gap="3">
-                    {collections.map(collection => (
-                        <Box key={collection.id} marginY="-0.5" marginLeft="-0.5">
-                            <TaskCollectionChip collection={collection} />
-                        </Box>
-                    ))}
-                </Box> */}
             </TaskDetailViewField>
         </Box>
     );
