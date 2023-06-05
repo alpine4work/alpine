@@ -480,7 +480,7 @@ function TaskNotepadViewActiveSectionInstructionalPlaceholderCard({
                             height: "5",
                         })}
                         style={{
-                            transform: "rotate(-25deg)",
+                            transform: "rotate(-2deg)",
                             left: "5.75rem",
                             top: "1.625rem",
                             fill: colorSchemeVars["grey-text"],

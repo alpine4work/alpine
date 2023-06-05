@@ -244,7 +244,7 @@ function TaskDetailAssigneeFieldInput({
         <OverlayAnimated
             isVisible={comboBoxState.isOpen}
             offset="2"
-            offsetAlong={`-${parseRemLengthNumber(addRemLengths(spacing["4"], spacing["0.5"]))}rem`}
+            offsetAlong="-2.5"
             disableAnimationIn={true}
             disableAnimationOut={inputState.type === "Selection" && inputState.disableAnimationOut}
             placement="bottom-start"
@@ -271,6 +271,16 @@ function TaskDetailAssigneeFieldInput({
                         // If the backdrop of this element was clicked, focus our combobox input.
                         if (event.target === event.currentTarget) {
                             assertExists(inputRef.current).focus();
+                        }
+                    }}
+                    onPointerDown={event => {
+                        // If the backdrop of this element was clicked and the input is focused then
+                        // don't let a click unfocus it.
+                        if (
+                            event.target === event.currentTarget &&
+                            document.activeElement === inputRef.current
+                        ) {
+                            event.preventDefault();
                         }
                     }}
                 >
@@ -382,7 +392,6 @@ function TaskDetailAssigneeFieldListBox({
             className={sprinkles({
                 borderRadius: "md",
                 padding: "1",
-                marginX: "2",
                 backgroundColor: {light: "grey-0", dark: "grey-5"},
                 boxShadow: "elevation-20",
                 width: "48",
@@ -397,10 +406,10 @@ function TaskDetailAssigneeFieldListBox({
                     paddingY="1.5"
                     display="flex"
                     alignItems="center"
-                    gap="2"
+                    gap="1.5"
                     color="grey-70"
                 >
-                    <Box padding="1">
+                    <Box padding="0.5">
                         <MagnifyingGlass size={spacing["4"]} />
                     </Box>
                     <Box>No results</Box>

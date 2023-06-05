@@ -9,7 +9,6 @@ import {
     forwardRef,
     useId,
     useImperativeHandle,
-    useMemo,
     useRef,
 } from "react";
 import {Box} from "~/client/design/box";
@@ -20,8 +19,8 @@ import {MenuButton} from "~/client/design/menu_button";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {TaskChildTasksProgressWheel} from "~/client/tasks/demo_2/internal/task_child_tasks_progress_wheel";
-import {TaskCollectionChip} from "~/client/tasks/demo_2/internal/task_collection_chip";
 import {TaskDetailAssigneeField} from "~/client/tasks/demo_2/internal/task_detail_assignee_field";
+import {TaskDetailCollectionsField} from "~/client/tasks/demo_2/internal/task_detail_collections_field";
 import {TaskDetailDueDateField} from "~/client/tasks/demo_2/internal/task_detail_due_date_field";
 import {TaskDetailNotesField} from "~/client/tasks/demo_2/internal/task_detail_notes_field";
 import {TaskDetailTitleInput} from "~/client/tasks/demo_2/internal/task_detail_title_input";
@@ -259,6 +258,17 @@ function TaskDetailPresentationalView<ChildTaskRow>(
     );
 }
 
+/**
+ * IMPORTANT: While programming task detail fields, keep the following in mind:
+ *
+ * - The cursor hit box of a task field should not extend beyond the content of
+ *   the task field. We are using borderless inputs, it would be confusing to
+ *   the user if empty whitespace was clickable.
+ *
+ * - Make sure field content that extends beyond the screen width is
+ *   appropriately truncated. Our use of CSS grid may mean you need to fiddle
+ *   around a bit to get truncation right.
+ */
 function TaskDetailViewDenseFields({
     status,
     assigneeAccount,
@@ -313,20 +323,18 @@ function TaskDetailViewDenseFields({
                     />
                 )}
             </TaskDetailViewField>
-            {useMemo(
-                () => (
-                    <TaskDetailViewField label="Collections">
-                        <Box display="flex" flexWrap="wrap" gap="3">
-                            {collections.map(collection => (
-                                <Box key={collection.id} marginY="-0.5" marginLeft="-0.5">
-                                    <TaskCollectionChip collection={collection} />
-                                </Box>
-                            ))}
+            <TaskDetailViewField label="Collections">
+                {({"aria-labelledby": ariaLabelledBy}) => (
+                    <TaskDetailCollectionsField aria-labelledby={ariaLabelledBy} />
+                )}
+                {/* NOCOMMIT: <Box display="flex" flexWrap="wrap" gap="3">
+                    {collections.map(collection => (
+                        <Box key={collection.id} marginY="-0.5" marginLeft="-0.5">
+                            <TaskCollectionChip collection={collection} />
                         </Box>
-                    </TaskDetailViewField>
-                ),
-                [collections],
-            )}
+                    ))}
+                </Box> */}
+            </TaskDetailViewField>
         </Box>
     );
 }

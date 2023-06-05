@@ -151,23 +151,30 @@ function FocusRing(
                 return;
             }
 
-            const isActive = () =>
+            const isActive = () => {
                 // If there is an element focused...
-                document.activeElement &&
+                if (!document.activeElement) return false;
+
                 // And there is not another element with a focus ring. This may happen when
                 // `isVisibleWhenFocusWithin` is true and we have a child with a `<FocusRing>`.
-                (!currentActiveElement || currentActiveElement === targetElement) &&
+                if (currentActiveElement && currentActiveElement !== targetElement) return false;
+
                 // Either:
                 //
                 // 1. We are the focused element
                 // 2. A child is focused and `isVisibleWhenFocusWithin` is true.
-                (document.activeElement === targetElement ||
-                    (isVisibleWhenFocusWithin && targetElement.contains(document.activeElement))) &&
+                const isFocused =
+                    document.activeElement === targetElement ||
+                    (isVisibleWhenFocusWithin && targetElement.contains(document.activeElement));
+
+                if (!isFocused) return false;
+
                 // Only show the focus ring when we are in a keyboard interaction modality.
                 // (Unless otherwise specified.) We cache whether focus is visible instead of
                 // relying on a prop since if the interaction modality changes from keyboard
                 // to mouse we'd like to keep the ring.
-                (isVisibleFromAnyFocus || isFocusVisible());
+                return isVisibleFromAnyFocus || isFocusVisible();
+            };
 
             let isFocused = isVisibleWhenFocusWithin
                 ? targetElement.contains(document.activeElement)
@@ -181,7 +188,7 @@ function FocusRing(
 
                 const nextIsFocused = isVisibleWhenFocusWithin
                     ? targetElement.contains(focusedElement)
-                    : document.activeElement === focusedElement;
+                    : focusedElement === targetElement;
 
                 // Only update our active state if focus is moving in or out of the target
                 // element. Not if focus is moving within sub-elements of the target element.

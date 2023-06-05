@@ -12,14 +12,13 @@ import {
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
-import {useOutsidePress} from "~/client/design/helpers/use_outside_press";
 import {IconButton} from "~/client/design/icon_button";
 import {ModalDialog} from "~/client/design/modal_dialog";
 import {OverlayRef} from "~/client/design/overlay";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
-import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
+import {useConfirmSaveAfterLosingFocus} from "~/client/helpers/use_confirm_save_after_losing_focus";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {isContentEmpty} from "~/shared/content/is_content_empty";
 import {parseRemLengthNumber, spacing} from "~/shared/design/spacing";
@@ -225,45 +224,11 @@ function ContentEditorCommentInput({
                         onCloseWithoutAnimation();
                     }
                 }}
-                onBlur={event => {
-                    // Ignore blur events where focus is moving within the element.
-                    //
-                    // We need to use element ownership instead of `document.body.contains()` to
-                    // handle modals.
-                    if (
-                        event.relatedTarget &&
-                        isElementOwnedBy(event.currentTarget, event.relatedTarget)
-                    ) {
-                        return;
-                    }
-
-                    // If the user didn't type a comment then close without asking
-                    // for confirmation.
-                    if (isContentEmpty(commentState.getDoc())) {
-                        onCloseWithAnimation();
-                        return;
-                    }
-
-                    setShouldShowConfirmCloseDialog(true);
-                }}
-                // Sometimes clicks outside an element do not move focus. So in addition to
-                // `onBlur`, look for any clicks and show a confirmation dialog before closing
-                // our input.
-                ref={useOutsidePress(event => {
-                    // The user may click within the close confirmation dialog.
-                    if (shouldShowConfirmCloseDialog) return;
-
-                    // If the user didn't type a comment then close without asking
-                    // for confirmation.
-                    if (isContentEmpty(commentState.getDoc())) {
-                        onCloseWithAnimation();
-                        return;
-                    }
-
-                    // Cancel the outside press and ask the user to confirm first.
-                    event.preventDefault();
-                    event.stopPropagation();
-                    setShouldShowConfirmCloseDialog(true);
+                ref={useConfirmSaveAfterLosingFocus({
+                    shouldConfirmSave: !isContentEmpty(commentState.getDoc()),
+                    isConfirmingSave: shouldShowConfirmCloseDialog,
+                    onCancelSave: onCloseWithAnimation,
+                    onConfirmSave: () => setShouldShowConfirmCloseDialog(true),
                 })}
             >
                 <Box display="flex" alignItems="flex-end">

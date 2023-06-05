@@ -9,6 +9,7 @@ import {IconButton} from "~/client/design/icon_button";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
+import {useConfirmSaveAfterLosingFocus} from "~/client/helpers/use_confirm_save_after_losing_focus";
 import {MessageEditing} from "~/client/messaging/message_editing";
 import {
     messageViewActionsWidth,
@@ -61,48 +62,13 @@ function MessageViewEditor<RoomKey extends string>(
             // parent message then the part of the parent message that underlaps our
             // message bubble is clickable.
             pointerEvents="none"
-            onBlur={event => {
-                // Ignore blur events where focus is moving within the element.
-                //
-                // We need to use element ownership instead of `document.body.contains()` to
-                // handle modals.
-                if (
-                    event.relatedTarget &&
-                    isElementOwnedBy(event.currentTarget, event.relatedTarget)
-                ) {
-                    return;
-                }
-
-                messageEditing?.dispatch({
-                    type: "MaybeCancelEditing",
-                });
-            }}
-            // Sometimes clicks outside an element do not move focus. So in addition to
-            // `onBlur`, look for any clicks and show a confirmation dialog before closing
-            // our input.
-            ref={useOutsidePress(event => {
-                // The user may click within the save confirmation dialog.
-                if (
+            ref={useConfirmSaveAfterLosingFocus({
+                shouldConfirmSave: state.contentEditorState.getDoc() !== state.initialContent,
+                isConfirmingSave:
                     messageEditing.state.isEditing &&
-                    messageEditing.state.confirmationDialog === "Save"
-                ) {
-                    return;
-                }
-
-                // If the user didn't update their content then let the click through.
-                if (state.contentEditorState.getDoc() === state.initialContent) {
-                    messageEditing?.dispatch({
-                        type: "MaybeCancelEditing",
-                    });
-                    return;
-                }
-
-                // Cancel the outside press and ask the user to confirm first.
-                event.preventDefault();
-                event.stopPropagation();
-                messageEditing?.dispatch({
-                    type: "MaybeCancelEditing",
-                });
+                    messageEditing.state.confirmationDialog === "Save",
+                onCancelSave: () => messageEditing?.dispatch({type: "MaybeCancelEditing"}),
+                onConfirmSave: () => messageEditing?.dispatch({type: "MaybeCancelEditing"}),
             })}
         >
             <FocusRing offset="border" isVisibleWhenFocusWithin={true} isVisibleFromAnyFocus={true}>
