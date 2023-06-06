@@ -118,7 +118,7 @@ export function TaskNotepadView() {
                     },
                 })}
             >
-                <Box height="8" />
+                <Box height="7" />
                 <TaskNotepadViewActiveSection state={state} dispatch={dispatch} />
                 <Box height="16" />
                 <Box
