@@ -40,6 +40,7 @@ import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
 import {Spacing, spacing} from "~/shared/design/spacing";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -186,6 +187,8 @@ type MenuButtonChildrenProps = {
     isVisible: boolean;
 };
 
+type MenuWidth = "32" | "48" | "64";
+
 /**
  * A menu button is a button which opens a menu overlay. The menu overlay
  * contains a list of actions which may be selected by the user.
@@ -197,6 +200,7 @@ type MenuButtonChildrenProps = {
 export function MenuButton({
     actions,
     placement = "bottom-start",
+    width = "32",
     offset = defaultTooltipOffset,
     offsetAlong,
     children: actualChildren,
@@ -205,14 +209,22 @@ export function MenuButton({
     /**
      * All the actions available in a menu’s popup. When clicking on the button
      * element to open
+     *
+     * If you have nested arrays then each sub-array will form a section with a
+     * divider between sections.
      */
-    actions: ReadonlyArray<MenuAction>;
+    actions: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
 
     /**
      * Where should the menu overlay be placed relative to the target element?
      * Defaults to `bottom-start`.
      */
     placement?: OverlayPlacement;
+
+    /**
+     * The width of items in our menu. Defaults to `32`.
+     */
+    width?: MenuWidth;
 
     /**
      * Offset of the menu from the target.
@@ -441,6 +453,7 @@ export function MenuButton({
                     ref={useMergedRefs<HTMLDivElement>(menuRef, outsidePressRef)}
                     actions={actions}
                     placement={placement}
+                    width={width}
                     isFadingOut={!state.isExpanded && state.isFadingOut}
                     initiallyFocus={state.initiallyFocus ?? "Menu"}
                     onClose={({returnFocusTo, withoutAnimation} = {}) => {
@@ -486,14 +499,16 @@ export function MenuButton({
  */
 const Menu = forwardRef(function Menu(
     {
-        actions,
+        actions: nestedActions,
         placement,
+        width,
         isFadingOut,
         initiallyFocus,
         onClose,
     }: {
-        actions: ReadonlyArray<MenuAction>;
+        actions: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
         placement: OverlayPlacement;
+        width: MenuWidth;
         isFadingOut: boolean;
         initiallyFocus: "Menu" | "FirstMenuItem" | "LastMenuItem";
         onClose: (opts?: {
@@ -503,11 +518,39 @@ const Menu = forwardRef(function Menu(
     },
     ref: Ref<HTMLDivElement>,
 ) {
-    assert(actions.length > 0);
+    const flattenedActions = useMemo(() => {
+        const flattenedActions: Array<{type: "Action"; action: MenuAction} | {type: "Divider"}> =
+            [];
+
+        for (const nestedAction of nestedActions) {
+            if (!isReadonlyArray(nestedAction)) {
+                flattenedActions.push({type: "Action", action: nestedAction});
+                continue;
+            }
+
+            if (flattenedActions.length > 0) {
+                flattenedActions.push({type: "Divider"});
+            }
+
+            for (const action of nestedAction) {
+                flattenedActions.push({type: "Action", action});
+            }
+        }
+
+        return flattenedActions;
+    }, [nestedActions]);
+
+    assert(flattenedActions.length > 0);
 
     const menuRef = useRef<HTMLDivElement>(null);
 
-    const menuItemRefs = useMemo(() => actions.map(() => createRef<HTMLDivElement>()), [actions]);
+    const menuItemRefs = useMemo(
+        () =>
+            flattenedActions.map(action =>
+                action.type === "Action" ? createRef<HTMLDivElement>() : null,
+            ),
+        [flattenedActions],
+    );
 
     // When a `menu` opens, keyboard focus is placed on the first item.
     //
@@ -518,10 +561,22 @@ const Menu = forwardRef(function Menu(
                 menuRef.current?.focus();
                 break;
             case "FirstMenuItem":
-                menuItemRefs[0]!.current?.focus();
+                for (let index = 0; index < menuItemRefs.length; index++) {
+                    const menuItemRef = menuItemRefs[index]!;
+                    if (menuItemRef) {
+                        menuItemRef.current?.focus();
+                        break;
+                    }
+                }
                 break;
             case "LastMenuItem":
-                menuItemRefs[menuItemRefs.length - 1]!.current?.focus();
+                for (let index = menuItemRefs.length - 1; index >= 0; index--) {
+                    const menuItemRef = menuItemRefs[index]!;
+                    if (menuItemRef) {
+                        menuItemRef.current?.focus();
+                        break;
+                    }
+                }
                 break;
             default:
                 throw exhaustive(initiallyFocus);
@@ -550,7 +605,7 @@ const Menu = forwardRef(function Menu(
     function getFocusedActionIndexIfExists() {
         if (!document.activeElement) return null;
         const index = menuItemRefs.findIndex(
-            menuItemRef => menuItemRef.current === document.activeElement,
+            menuItemRef => menuItemRef?.current === document.activeElement,
         );
         return index === -1 ? null : index;
     }
@@ -605,16 +660,30 @@ const Menu = forwardRef(function Menu(
                             setInteractionModality("keyboard");
 
                             const currentIndex = getFocusedActionIndexIfExists();
-                            if (currentIndex === null) {
-                                menuItemRefs[0]!.current?.focus();
-                                break;
+                            if (currentIndex !== null) {
+                                for (
+                                    let index = currentIndex + 1;
+                                    index < menuItemRefs.length;
+                                    index++
+                                ) {
+                                    const menuItemRef = menuItemRefs[index]!;
+                                    if (menuItemRef) {
+                                        menuItemRef.current?.focus();
+                                        return;
+                                    }
+                                }
                             }
 
-                            let nextIndex = currentIndex + 1;
-                            if (nextIndex > menuItemRefs.length - 1) nextIndex = 0;
-
-                            menuItemRefs[nextIndex]!.current?.focus();
-                            break;
+                            // If we did not find a menu item after `currentIndex` then loop back around to
+                            // the first menu item.
+                            for (let index = 0; index < menuItemRefs.length; index++) {
+                                const menuItemRef = menuItemRefs[index]!;
+                                if (menuItemRef) {
+                                    menuItemRef.current?.focus();
+                                    return;
+                                }
+                            }
+                            return;
                         }
                         // When focus is in a menu, moves focus to the previous item,
                         // optionally wrapping from the first to the last.
@@ -627,16 +696,26 @@ const Menu = forwardRef(function Menu(
                             setInteractionModality("keyboard");
 
                             const currentIndex = getFocusedActionIndexIfExists();
-                            if (currentIndex === null) {
-                                menuItemRefs[menuItemRefs.length - 1]!.current?.focus();
-                                break;
+                            if (currentIndex !== null) {
+                                for (let index = currentIndex - 1; index >= 0; index--) {
+                                    const menuItemRef = menuItemRefs[index]!;
+                                    if (menuItemRef) {
+                                        menuItemRef.current?.focus();
+                                        return;
+                                    }
+                                }
                             }
 
-                            let nextIndex = currentIndex - 1;
-                            if (nextIndex < 0) nextIndex = menuItemRefs.length - 1;
-
-                            menuItemRefs[nextIndex]!.current?.focus();
-                            break;
+                            // If we did not find a menu item before `currentIndex` then loop back around to
+                            // the first menu item.
+                            for (let index = menuItemRefs.length - 1; index >= 0; index--) {
+                                const menuItemRef = menuItemRefs[index]!;
+                                if (menuItemRef) {
+                                    menuItemRef.current?.focus();
+                                    return;
+                                }
+                            }
+                            return;
                         }
                         // Moves focus to the first item in the current menu. Technically, the spec
                         // says only implement if arrow key wrapping is not supported but it's easy
@@ -646,8 +725,15 @@ const Menu = forwardRef(function Menu(
                         case "Home": {
                             event.preventDefault(); // Don't scroll
                             event.stopPropagation();
-                            menuItemRefs[0]!.current?.focus();
-                            break;
+
+                            for (let index = 0; index < menuItemRefs.length; index++) {
+                                const menuItemRef = menuItemRefs[index]!;
+                                if (menuItemRef) {
+                                    menuItemRef.current?.focus();
+                                    return;
+                                }
+                            }
+                            return;
                         }
                         // Moves focus to the last item in the current menu. Technically, the spec
                         // says only implement if arrow key wrapping is not supported but it's easy
@@ -657,8 +743,15 @@ const Menu = forwardRef(function Menu(
                         case "End": {
                             event.preventDefault(); // Don't scroll
                             event.stopPropagation();
-                            menuItemRefs[menuItemRefs.length - 1]!.current?.focus();
-                            break;
+
+                            for (let index = menuItemRefs.length - 1; index >= 0; index--) {
+                                const menuItemRef = menuItemRefs[index]!;
+                                if (menuItemRef) {
+                                    menuItemRef.current?.focus();
+                                    return;
+                                }
+                            }
+                            return;
                         }
                         // Close the menu that contains focus and return focus to the element
                         // or context, e.g., menu button, from which the menu was opened.
@@ -668,7 +761,7 @@ const Menu = forwardRef(function Menu(
                             event.preventDefault();
                             event.stopPropagation();
                             onClose({returnFocusTo: "TriggerElement"});
-                            break;
+                            return;
                         }
                         // Moves focus to the next (or previous) element in the tab sequence,
                         // and closes its `menu` and all open parent menu containers.
@@ -680,7 +773,7 @@ const Menu = forwardRef(function Menu(
                             onClose({
                                 returnFocusTo: event.shiftKey ? "PreviousElement" : "NextElement",
                             });
-                            break;
+                            return;
                         }
                         default: {
                             // Move focus to the next menu item in the current menu whose label
@@ -691,41 +784,58 @@ const Menu = forwardRef(function Menu(
                                 event.preventDefault();
                                 event.stopPropagation();
                                 const nextSearchText = searchText + event.key;
-                                const nextIndex = actions.findIndex(
+                                const nextIndex = flattenedActions.findIndex(
                                     action =>
-                                        !action.withCustomLayout &&
-                                        action.label
+                                        action.type === "Action" &&
+                                        !action.action.withCustomLayout &&
+                                        action.action.label
                                             .slice(0, nextSearchText.length)
                                             .toLowerCase() === nextSearchText.toLowerCase(),
                                 );
-                                if (nextIndex !== -1) menuItemRefs[nextIndex]!.current?.focus();
+                                if (nextIndex !== -1) menuItemRefs[nextIndex]?.current?.focus();
                                 setSearchText(nextSearchText);
-                                break;
+                                return;
                             }
                         }
                     }
                 }}
             >
                 <Box
-                    minWidth="32"
+                    minWidth={width}
                     borderRadius="md"
                     padding="1"
                     backgroundColor={{light: "grey-0", dark: "grey-5"}}
                     boxShadow="elevation-20"
                     className={isFadingOut ? overlayAnimateFadeOutClassName : undefined}
                 >
-                    {actions.map((action, index) => {
-                        return (
-                            <MenuItem
-                                key={index}
-                                ref={menuItemRefs[index]}
-                                action={action}
-                                parentPlacement={placement}
-                                isFadingOut={isFadingOut}
-                                onCloseWithAnimation={onClose}
-                                onCloseWithoutAnimation={() => onClose({withoutAnimation: true})}
-                            />
-                        );
+                    {flattenedActions.map((action, index) => {
+                        switch (action.type) {
+                            case "Divider": {
+                                return (
+                                    <Box key={index} paddingX="1" paddingY="1">
+                                        <Box width="full" borderBottom="grey-5" />
+                                    </Box>
+                                );
+                            }
+                            case "Action": {
+                                return (
+                                    <MenuItem
+                                        key={index}
+                                        ref={menuItemRefs[index]}
+                                        menuWidth={width}
+                                        action={action.action}
+                                        parentPlacement={placement}
+                                        isFadingOut={isFadingOut}
+                                        onCloseWithAnimation={onClose}
+                                        onCloseWithoutAnimation={() =>
+                                            onClose({withoutAnimation: true})
+                                        }
+                                    />
+                                );
+                            }
+                            default:
+                                throw exhaustive(action);
+                        }
                     })}
                 </Box>
             </div>
@@ -737,12 +847,14 @@ const defaultMenuItemPressErrorTitle = "The menu option you pressed didn’t wor
 
 const MenuItem = forwardRef(function MenuItem(
     {
+        menuWidth,
         action,
         parentPlacement,
         isFadingOut,
         onCloseWithAnimation,
         onCloseWithoutAnimation,
     }: {
+        menuWidth: MenuWidth;
         action: MenuAction;
         parentPlacement: OverlayPlacement;
         isFadingOut: boolean;
@@ -784,6 +896,7 @@ const MenuItem = forwardRef(function MenuItem(
                 {({skipHoverDelay}) => (
                     <MenuStandardButton
                         ref={ref}
+                        menuWidth={menuWidth}
                         menuItemId={id}
                         action={action}
                         isFadingOut={isFadingOut}
@@ -798,6 +911,7 @@ const MenuItem = forwardRef(function MenuItem(
         return (
             <MenuStandardButton
                 ref={ref}
+                menuWidth={menuWidth}
                 menuItemId={id}
                 action={action}
                 isFadingOut={isFadingOut}
@@ -810,6 +924,7 @@ const MenuItem = forwardRef(function MenuItem(
 
 const MenuStandardButton = forwardRef(function MenuStandardButton(
     {
+        menuWidth,
         menuItemId,
         action,
         isFadingOut,
@@ -817,6 +932,7 @@ const MenuStandardButton = forwardRef(function MenuStandardButton(
         onCloseWithoutAnimation,
         skipTooltipHoverDelay,
     }: {
+        menuWidth: MenuWidth;
         menuItemId: string;
         action: MenuStandardAction;
         isFadingOut: boolean;
@@ -941,7 +1057,7 @@ const MenuStandardButton = forwardRef(function MenuStandardButton(
                 //
                 // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
                 tabIndex={-1}
-                width="32"
+                width={menuWidth}
                 paddingX="2"
                 paddingY={action.icon ? "1.5" : "1"}
                 borderRadius="base"

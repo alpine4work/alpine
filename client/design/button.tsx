@@ -21,6 +21,7 @@ export {ButtonForwardRef as Button};
 
 type ButtonVariant =
     | "quiet"
+    | "quieter"
     | "quiet-on"
     | "quiet-off"
     | "quiet-above-grey-5-dark-background"
@@ -243,6 +244,15 @@ function Button(
                   backgroundColor: undefined,
                   color: "grey-30",
               },
+        quieter: !isDisabled
+            ? {
+                  backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
+                  color: isPressed ? "grey-text" : "grey-70",
+              }
+            : {
+                  backgroundColor: undefined,
+                  color: "grey-30",
+              },
         "quiet-on": !isDisabled
             ? {
                   backgroundColor: isPressed ? "grey-10" : "grey-5",
@@ -303,6 +313,7 @@ function Button(
 
     const isQuietVariant =
         variant === "quiet" ||
+        variant === "quieter" ||
         variant === "quiet-on" ||
         variant === "quiet-off" ||
         variant === "quiet-above-grey-5-dark-background";
