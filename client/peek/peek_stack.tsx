@@ -440,11 +440,47 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
                         // Determine whether there is a peek route for the path we are navigating to.
                         const peekPath = convertSpacePathToPeekPath(path);
                         if (!peekPath) return {preventDefault: false};
-                        const routeMatches = matchClientRoutes(
+                        const peekRouteMatches = matchClientRoutes(
                             remixEntryContext.clientRoutes,
                             peekPath.pathname,
                         );
-                        if (!routeMatches) return {preventDefault: false};
+                        if (!peekRouteMatches) return {preventDefault: false};
+
+                        const routeMatches = matchClientRoutes(
+                            remixEntryContext.clientRoutes,
+                            path.pathname ?? "/",
+                        );
+
+                        // So sometimes we have routes like that look like this:
+                        //
+                        // - `route/s/$space_id/tasks/$task_id`
+                        // - `route/s/$space_id/tasks/view`
+                        // - `route/s/$space_id/peek/tasks/$task_id`
+                        //
+                        // When you navigate to `/s/$space_id/tasks/view` it correctly picks the view
+                        // route instead of the wildcard route. But when navigating to a peek
+                        // `/s/$space_id/peek/tasks/view` matches the `$task_id` wildcard peek route.
+                        //
+                        // We don't want the peek to open in this case and instead we want the full
+                        // page route to open. So the way we detect this case is by trying to match the
+                        // URL we're navigating to both by peek path and by regular path. Then we
+                        // compare the `params` object of the last match since the last match will have
+                        // all the accumulated wildcard values.
+                        //
+                        // So the main path match will be `{space_id: '...'}` while the peek path match
+                        // will be `{space_id: '...', task_id: 'view'}`. These are not equal and it
+                        // tells us we shouldn't open this route in a peek.
+                        //
+                        // Admittedly, this is a little hacky.
+                        if (
+                            !routeMatches ||
+                            !isDeepEqual(
+                                routeMatches[routeMatches.length - 1]?.params ?? {},
+                                peekRouteMatches[peekRouteMatches.length - 1]?.params ?? {},
+                            )
+                        ) {
+                            return {preventDefault: false};
+                        }
 
                         // If the top of the peek stack is the URL we're navigating to then do nothing.
                         // Wiggle the stack as a response to the user's interaction.

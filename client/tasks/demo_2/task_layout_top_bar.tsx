@@ -1,19 +1,15 @@
-import {
-    CalendarCheck,
-    CaretDown,
-    Notepad,
-    Plus,
-    Table,
-    User,
-    UserPlus,
-    Users,
-} from "phosphor-react";
+import {CaretDown, Plus, User, UserPlus, Users} from "phosphor-react";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {MenuButton} from "~/client/design/menu_button";
-import {spacing} from "~/shared/design/spacing";
+import {useNavigate} from "~/client/remix/use_navigate";
+import {useSpaceContext} from "~/client/spaces/space_context";
+import {serializeTaskQueryFiltersSearchParam} from "~/client/tasks/demo_2/task_query_filter";
 
 export function TaskLayoutTopBar() {
+    const navigate = useNavigate();
+    const {space} = useSpaceContext();
+
     return (
         <Box
             flexShrink="0"
@@ -40,8 +36,9 @@ export function TaskLayoutTopBar() {
                         {
                             label: "New view",
                             icon: <Plus />,
-                            onPress: () => {
-                                // NOCOMMIT
+                            pressErrorTitle: "Couldn’t create new view",
+                            onPress: async () => {
+                                await navigate(`/s/${space.id}/tasks/demo-2/view`);
                             },
                         },
                     ],
@@ -49,22 +46,61 @@ export function TaskLayoutTopBar() {
                         {
                             label: "Tasks I’ve created",
                             icon: <UserPlus />,
-                            onPress: () => {
-                                // NOCOMMIT
+                            pressErrorTitle: "Couldn’t open view",
+                            onPress: async () => {
+                                const filtersSearchParam = serializeTaskQueryFiltersSearchParam([
+                                    {
+                                        type: "Creator",
+                                        operation: {
+                                            type: "OneOf",
+                                            accounts: [{type: "CurrentAccount"}],
+                                        },
+                                    },
+                                ]);
+
+                                await navigate(
+                                    `/s/${space.id}/tasks/demo-2/view?filters=${filtersSearchParam}`,
+                                );
                             },
                         },
                         {
                             label: "Tasks assigned to me",
                             icon: <User />,
-                            onPress: () => {
-                                // NOCOMMIT
+                            pressErrorTitle: "Couldn’t open view",
+                            onPress: async () => {
+                                const filtersSearchParam = serializeTaskQueryFiltersSearchParam([
+                                    {
+                                        type: "Assignee",
+                                        operation: {
+                                            type: "OneOf",
+                                            accounts: [{type: "CurrentAccount"}],
+                                        },
+                                    },
+                                ]);
+
+                                await navigate(
+                                    `/s/${space.id}/tasks/demo-2/view?filters=${filtersSearchParam}`,
+                                );
                             },
                         },
                         {
                             label: "Tasks I’ve assigned to others",
                             icon: <Users />,
-                            onPress: () => {
-                                // NOCOMMIT
+                            pressErrorTitle: "Couldn’t open view",
+                            onPress: async () => {
+                                const filtersSearchParam = serializeTaskQueryFiltersSearchParam([
+                                    {
+                                        type: "Assigner",
+                                        operation: {
+                                            type: "OneOf",
+                                            accounts: [{type: "CurrentAccount"}],
+                                        },
+                                    },
+                                ]);
+
+                                await navigate(
+                                    `/s/${space.id}/tasks/demo-2/view?filters=${filtersSearchParam}`,
+                                );
                             },
                         },
                     ],

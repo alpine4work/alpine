@@ -56,6 +56,7 @@ function TaskCollectionChipBase(
                     <IconButton
                         size="xs"
                         variant="quiet-above-grey-5-background"
+                        borderRadius="sm"
                         // The user focuses the pill as a whole and hits the delete key to delete using
                         // the keyboard.
                         disableKeyboardFocus={true}

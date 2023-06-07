@@ -27,6 +27,11 @@ let alphabetReverseMap: Map<string, number>;
 export const idLength = 26;
 
 /**
+ * The number of bytes in an `Id`'s binary representation.
+ */
+export const idByteLength = 16;
+
+/**
  * The minimum `Id` string we can generate.
  */
 const minId = "00000000000000000000000000" as Id;
@@ -90,20 +95,20 @@ export function assertId<Value extends Id>(string: string): Value {
 export function generateId<Value extends Id>(): Value {
     const bytes = new Uint8Array(16);
     crypto.getRandomValues(bytes);
-    return encodeId(bytes) as Value;
+    return encodeId(bytes);
 }
 
 /**
  * Encodes 128 bits (16 bytes) into an `Id`.
  */
-export function encodeId(bytes: Uint8Array, byteOffset: number = 0): Id {
-    assert(bytes.length - byteOffset >= 16);
+export function encodeId<Value extends Id>(bytes: Uint8Array, byteOffset: number = 0): Value {
+    assert(bytes.length - byteOffset >= idByteLength);
 
     let bits = 0;
     let value = 0;
     let id = "";
 
-    for (let byteIndex = byteOffset; byteIndex < byteOffset + 16; byteIndex++) {
+    for (let byteIndex = byteOffset; byteIndex < byteOffset + idByteLength; byteIndex++) {
         value = (value << 8) | bytes[byteIndex]!;
         bits += 8;
 
@@ -117,14 +122,14 @@ export function encodeId(bytes: Uint8Array, byteOffset: number = 0): Id {
         id += alphabet[(value << (5 - bits)) & 31];
     }
 
-    return id as Id;
+    return id as Value;
 }
 
 /**
  * Decodes an `Id` into 128 bytes (16 bytes).
  */
 export function decodeId(id: Id): Uint8Array {
-    const bytes = new Uint8Array(16);
+    const bytes = new Uint8Array(idByteLength);
     decodeIdInto(id, bytes);
     return bytes;
 }
@@ -134,7 +139,7 @@ export function decodeId(id: Id): Uint8Array {
  * array. Useful if you want to decode an `Id` into an existing buffer.
  */
 export function decodeIdInto(id: Id, bytes: Uint8Array, byteOffset: number = 0): void {
-    assert(bytes.length - byteOffset >= 16);
+    assert(bytes.length - byteOffset >= idByteLength);
 
     // Lazily initialize the alphabet reverse map.
     if (!alphabetReverseMap) {

@@ -90,6 +90,11 @@ function IconButton(
         size?: IconButtonSize;
 
         /**
+         * The border radius of the icon button. Defaults to `full`.
+         */
+        borderRadius?: "full" | "sm";
+
+        /**
          * Don't show a tooltip when hovering over this icon button.
          *
          * Defaults to `false`.
@@ -158,6 +163,7 @@ function IconButton(
         pressErrorTitle,
         variant = "quiet",
         size = "base",
+        borderRadius = "full",
         children,
         isDisabled = false,
         withoutTooltip = false,
@@ -354,7 +360,7 @@ function IconButton(
                         display: "flex",
                         justifyContent: "center",
                         alignItems: "center",
-                        borderRadius: "full",
+                        borderRadius,
                         overflow: !disableOverflowHidden ? "hidden" : undefined,
                         // You may notice our button doesn't have a pointer cursor. See:
                         // https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
