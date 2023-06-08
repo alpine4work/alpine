@@ -1,5 +1,5 @@
 import Fuse from "fuse.js";
-import {useEffect, useMemo, useRef, useState} from "react";
+import {MutableRefObject, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name";
@@ -23,6 +23,7 @@ import {missingAccountName} from "~/shared/accounts/missing_account_name";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
+import {iterableFindIndex} from "~/shared/helpers/iterable/iterable_find_index";
 import {isId} from "~/shared/id/id";
 import {AccountId} from "~/shared/id/types/id_types";
 import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles";
@@ -44,6 +45,8 @@ export function TaskQueryFilterAccountOperationEditor({
         mergeFilterReferences?: TaskQueryFilterReferences,
     ) => void;
 }) {
+    useExpensivelyPreloadAllSpaceAccounts();
+
     const {currentAccount} = useSpaceContext();
 
     const accountIds = useMemo(() => {
@@ -82,6 +85,8 @@ export function TaskQueryFilterAccountOperationEditor({
     const oneOfOperatorLabel = normalizedAccountIds.size > 1 ? "is one of" : "is";
     const noneOfOperatorLabel = normalizedAccountIds.size > 1 ? "is not one of" : "is not";
 
+    const accountByIdRef = useRef<ReadonlyMap<AccountId, AccountModel>>(null);
+
     return (
         <>
             <TaskQueryFilterOperatorEditor
@@ -109,17 +114,32 @@ export function TaskQueryFilterAccountOperationEditor({
                     },
                 ]}
             />
-            <TaskQueryFilterAccountOperationEditorAccounts
+            <TaskQueryFilterEditorMultiSelectComboBox
                 inputLabel={inputLabel}
-                shouldHideNoAccountItem={shouldHideNoAccountItem}
-                filterReferences={filterReferences}
-                accountIds={accountIds}
-                normalizedAccountIds={normalizedAccountIds}
-                onAccountIdsChange={(accountIds, mergeFilterReferences) => {
+                preview={
+                    <TaskQueryFilterAccountOperationEditorPreview
+                        filterReferences={filterReferences}
+                        normalizedAccountIds={normalizedAccountIds}
+                    />
+                }
+                selectedKeys={accountIds}
+                onSelectedKeysChange={newAccountIds => {
+                    const addedAccountIds = new Set(newAccountIds);
+                    for (const accountId of accountIds) addedAccountIds.delete(accountId);
+
+                    const addedAccountById = new Map<AccountId, AccountModel>();
+
+                    for (const accountId of addedAccountIds) {
+                        if (typeof accountId === "string" && isId<AccountId>(accountId)) {
+                            const account = accountByIdRef.current?.get(accountId);
+                            if (account) addedAccountById.set(account.id, account);
+                        }
+                    }
+
                     onOperationChange(
                         {
                             type: operation.type,
-                            accounts: Array.from(accountIds, accountId => {
+                            accounts: Array.from(newAccountIds, accountId => {
                                 if (accountId === "CurrentAccount") {
                                     return {type: "CurrentAccount"};
                                 } else if (accountId === "NoAccount") {
@@ -129,76 +149,25 @@ export function TaskQueryFilterAccountOperationEditor({
                                 }
                             }),
                         },
-                        mergeFilterReferences,
+                        {accountById: addedAccountById},
                     );
                 }}
+                useSearchedItems={searchInputValue =>
+                    // The `useSearchedItems()` callback follows the rules of hooks.
+                    // eslint-disable-next-line react-hooks/rules-of-hooks
+                    useTaskQueryFilterAccountOperationEditorSearchedItems({
+                        searchInputValue,
+                        shouldHideNoAccountItem,
+                        accountIds,
+                        accountByIdRef,
+                    })
+                }
             />
         </>
     );
 }
 
-function TaskQueryFilterAccountOperationEditorAccounts({
-    inputLabel,
-    shouldHideNoAccountItem,
-    filterReferences,
-    accountIds,
-    normalizedAccountIds,
-    onAccountIdsChange,
-}: {
-    inputLabel: string;
-    shouldHideNoAccountItem: boolean;
-    filterReferences: TaskQueryFilterReferences;
-    accountIds: ReadonlySet<AccountId | "CurrentAccount" | "NoAccount">;
-    normalizedAccountIds: ReadonlySet<AccountId | "NoAccount">;
-    onAccountIdsChange: (
-        accountIds: ReadonlySet<AccountId | "CurrentAccount" | "NoAccount">,
-        mergeFilterReferences: TaskQueryFilterReferences,
-    ) => void;
-}) {
-    useExpensivelyPreloadAllSpaceAccounts();
-
-    const accountByIdRef = useRef<ReadonlyMap<AccountId, AccountModel>>(null);
-
-    return (
-        <TaskQueryFilterEditorMultiSelectComboBox
-            inputLabel={inputLabel}
-            preview={
-                <TaskQueryFilterAccountOperationEditorAccountsPreview
-                    filterReferences={filterReferences}
-                    normalizedAccountIds={normalizedAccountIds}
-                />
-            }
-            selectedKeys={accountIds}
-            onSelectedKeysChange={newAccountIds => {
-                const addedAccountIds = new Set(newAccountIds);
-                for (const accountId of accountIds) addedAccountIds.delete(accountId);
-
-                const addedAccountById = new Map<AccountId, AccountModel>();
-
-                for (const accountId of addedAccountIds) {
-                    if (typeof accountId === "string" && isId<AccountId>(accountId)) {
-                        const account = accountByIdRef.current?.get(accountId);
-                        if (account) addedAccountById.set(account.id, account);
-                    }
-                }
-
-                onAccountIdsChange(newAccountIds, {accountById: addedAccountById});
-            }}
-            useSearchedItems={searchInputValue =>
-                // The `useSearchedItems()` callback follows the rules of hooks.
-                // eslint-disable-next-line react-hooks/rules-of-hooks
-                useTaskQueryFilterAccountOperationEditorSearchedItems({
-                    searchInputValue,
-                    shouldHideNoAccountItem,
-                    accountIds,
-                    accountByIdRef,
-                })
-            }
-        />
-    );
-}
-
-function TaskQueryFilterAccountOperationEditorAccountsPreview({
+function TaskQueryFilterAccountOperationEditorPreview({
     filterReferences,
     normalizedAccountIds,
 }: {
@@ -208,7 +177,7 @@ function TaskQueryFilterAccountOperationEditorAccountsPreview({
     const {currentAccount} = useSpaceContext();
 
     if (normalizedAccountIds.size === 0) {
-        return <span style={inputPlaceholderStyles}>anyone</span>;
+        return <Box style={inputPlaceholderStyles}>anyone</Box>;
     }
 
     const getAccountIfExists = (accountId: AccountId) =>
@@ -216,12 +185,23 @@ function TaskQueryFilterAccountOperationEditorAccountsPreview({
             ? currentAccount
             : filterReferences.accountById.get(accountId);
 
+    const renderNoAccount = () => (
+        <>
+            <TaskNoAccountAvatar size="3" />{" "}
+            <Box paddingLeft="1" color="grey-60">
+                nobody
+            </Box>
+        </>
+    );
+
     const renderSingleAccount = (account: AccountModel) => (
         <>
             <AccountAvatar size="3" account={account} />{" "}
-            {account.id === currentAccount.id
-                ? "me"
-                : getAccountShortNameWithoutFullNameTooltip(account)}
+            <Box paddingLeft="1">
+                {account.id === currentAccount.id
+                    ? "me"
+                    : getAccountShortNameWithoutFullNameTooltip(account)}
+            </Box>
         </>
     );
 
@@ -230,12 +210,7 @@ function TaskQueryFilterAccountOperationEditorAccountsPreview({
         assert(!firstStep.done);
 
         if (firstStep.value === "NoAccount") {
-            return (
-                <>
-                    <TaskNoAccountAvatar size="3" />{" "}
-                    <span className={sprinkles({color: "grey-60"})}>nobody</span>
-                </>
-            );
+            return renderNoAccount();
         } else {
             const account = getAccountIfExists(firstStep.value);
             if (!account) return <>{missingAccountName}</>;
@@ -266,11 +241,13 @@ function TaskQueryFilterAccountOperationEditorAccountsPreview({
                         getAllAccounts={() => accounts}
                     />
                 )}
-                <PrettyNumber
-                    number={accountCountWithMissingAccounts}
-                    label="person"
-                    pluralLabel="people"
-                />
+                <Box paddingLeft={accounts.length > 0 ? "1" : undefined}>
+                    <PrettyNumber
+                        number={accountCountWithMissingAccounts}
+                        label="person"
+                        pluralLabel="people"
+                    />
+                </Box>
             </>
         );
 
@@ -280,10 +257,11 @@ function TaskQueryFilterAccountOperationEditorAccountsPreview({
 
     return (
         <>
-            {previewWithoutNoAccount}{" "}
-            <span className={sprinkles({color: "grey-60", marginRight: "0.5"})}>or</span>{" "}
-            <TaskNoAccountAvatar size="3" />{" "}
-            <span className={sprinkles({color: "grey-60"})}>nobody</span>
+            {previewWithoutNoAccount}
+            <Box color="grey-60" paddingLeft="1" paddingRight="1.5">
+                or
+            </Box>
+            {renderNoAccount()}
         </>
     );
 }
@@ -369,11 +347,17 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
 
             // Sort the selected accounts when the listbox was opened first in our
             // items list.
-            if (initialAccountIds.has(item1.key) && !initialAccountIds.has(item2.key)) {
-                return -1;
-            }
-            if (initialAccountIds.has(item2.key) && !initialAccountIds.has(item1.key)) {
-                return 1;
+            const isInitialAccount1 = initialAccountIds.has(item1.key);
+            const isInitialAccount2 = initialAccountIds.has(item2.key);
+
+            if (isInitialAccount1 && !isInitialAccount2) return -1;
+            if (isInitialAccount2 && !isInitialAccount1) return 1;
+
+            if (isInitialAccount1 && isInitialAccount2) {
+                return (
+                    iterableFindIndex(initialAccountIds, accountId => accountId === item1.key) -
+                    iterableFindIndex(initialAccountIds, accountId => accountId === item2.key)
+                );
             }
 
             return item1.textValue.localeCompare(item2.textValue);

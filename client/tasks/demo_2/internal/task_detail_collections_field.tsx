@@ -1,6 +1,5 @@
 import {getInteractionModality, isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
-import {differenceInMonths, differenceInYears} from "date-fns";
 import Fuse from "fuse.js";
 import {Lock, MagnifyingGlass, Plus} from "phosphor-react";
 import {
@@ -32,8 +31,6 @@ import {OverlayAnimated} from "~/client/design/overlay_animated";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
 import {useConfirmSaveAfterLosingFocus} from "~/client/helpers/use_confirm_save_after_losing_focus";
-import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour";
-import {LocalTaskCollection} from "~/client/tasks/demo_2/internal/local_tasks_state";
 import {
     TaskCollectionChip,
     taskCollectionChipContainerMaxWidth,
@@ -43,6 +40,8 @@ import {
     taskCollectionChipHeight,
     taskCollectionChipPaddingY,
 } from "~/client/tasks/demo_2/internal/task_collection_chip_base";
+import {TaskCollectionOption} from "~/client/tasks/demo_2/internal/task_collection_option";
+import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
 import {spacing} from "~/shared/design/spacing";
 import {ThemeColor, themeColors} from "~/shared/design/theme_colors";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length";
@@ -199,7 +198,7 @@ export function TaskDetailCollectionsField({
         children: item =>
             item.type === "Collection" ? (
                 <Item textValue={item.collection.name}>
-                    <TaskDetailCollectionsFieldListBoxOptionItem item={item} />
+                    <TaskCollectionOption collection={item.collection} />
                 </Item>
             ) : (
                 <Item>
@@ -480,7 +479,14 @@ export function TaskDetailCollectionsField({
                         )}
                         <Box>{inputPlaceholder}</Box>
                     </Box>
-                    <Box height="0" opacity="0" pointerEvents="none" aria-hidden={true}>
+                    <Box
+                        height="0"
+                        opacity="0"
+                        pointerEvents="none"
+                        aria-hidden={true}
+                        // Leading and trailing spaces should contribute to width.
+                        style={{whiteSpace: "pre"}}
+                    >
                         {inputState.value}
                     </Box>
                     <FocusRing>
@@ -664,110 +670,6 @@ function TaskDetailCollectionsFieldListBoxOption({
     );
 }
 
-function TaskDetailCollectionsFieldListBoxOptionItem({
-    item,
-    isPressed,
-}: {
-    item: TaskDetailCollectionsFieldCollectionItem;
-    isPressed?: boolean;
-}) {
-    assert(
-        typeof isPressed === "boolean",
-        "Expected to be rendered by <TaskDetailCollectionsFieldListBoxOption> which provides extra props",
-    );
-
-    return (
-        <Box display="flex" alignItems="flex-start" gap="1.5">
-            <Box
-                flexShrink="0"
-                height="4"
-                paddingX="0.5"
-                display="flex"
-                justifyContent="center"
-                alignItems="center"
-            >
-                <Box
-                    width="1.5"
-                    height="1.5"
-                    borderRadius="full"
-                    backgroundColor={`${item.collection.color}-50-const`}
-                />
-            </Box>
-            <Box flexGrow="1" overflow="hidden">
-                <Box fontStyle="truncate">{item.collection.name}</Box>
-                <Box fontSize="50" color="grey-40">
-                    {getTaskCollectionTaskCountSummary(item.collection)},{" "}
-                    {getTaskCollectionLastUpdateTimeSummary(
-                        item.collection,
-                        useCurrentTimeRoundedToHour(),
-                    )}
-                </Box>
-            </Box>
-        </Box>
-    );
-}
-
-function getTaskCollectionTaskCountSummary(collection: LocalTaskCollection) {
-    if (collection.taskCount === 0) {
-        return "No tasks";
-    } else if (collection.taskCount < 100) {
-        return "Several tasks";
-    } else if (collection.taskCount < 1000) {
-        return "Hundreds of tasks";
-    } else {
-        return "Thousands of tasks";
-    }
-}
-
-function getTaskCollectionLastUpdateTimeSummary(
-    collection: LocalTaskCollection,
-    currentTime: Date,
-) {
-    if (!collection.lastTaskAddedOrRemovedTimeRoundedToDay) {
-        const years = differenceInYears(currentTime, collection.createdTime);
-
-        if (years === 1) {
-            return "created 1 year ago";
-        } else if (years > 1) {
-            return `created ${years} year ago`;
-        }
-
-        const months = differenceInMonths(currentTime, collection.createdTime);
-
-        if (months === 1) {
-            return "created 1 month ago";
-        } else if (months > 1) {
-            return `created ${months} months ago`;
-        } else {
-            return "created recently";
-        }
-    } else {
-        const years = differenceInYears(
-            currentTime,
-            collection.lastTaskAddedOrRemovedTimeRoundedToDay,
-        );
-
-        if (years === 1) {
-            return "last updated 1 year ago";
-        } else if (years > 1) {
-            return `last updated ${years} year ago`;
-        }
-
-        const months = differenceInMonths(
-            currentTime,
-            collection.lastTaskAddedOrRemovedTimeRoundedToDay,
-        );
-
-        if (months === 1) {
-            return "last updated 1 month ago";
-        } else if (months > 1) {
-            return `last updated ${months} months ago`;
-        } else {
-            return "updated recently";
-        }
-    }
-}
-
 function TaskDetailCollectionsFieldListBoxCreateCollectionOption({
     comboBoxState,
     item,
@@ -839,7 +741,11 @@ function TaskDetailCollectionsFieldListBoxCreateCollectionOption({
                         style={{opacity: buttonPressedOverlayOpacity}}
                     />
                 )}
-                <Plus size={spacing["3"]} weight={!isQuiet ? "bold" : undefined} />
+                <Plus
+                    size={spacing["3"]}
+                    weight={!isQuiet ? "bold" : undefined}
+                    className={sprinkles({flexShrink: "0"})}
+                />
                 <Box fontStyle="truncate">{item.rendered}</Box>
             </Box>
         </FocusRing>
@@ -953,7 +859,14 @@ function TaskDetailCollectionsFieldCreateCollectionInput({
                             <Box height="0" opacity="0" pointerEvents="none" aria-hidden={true}>
                                 {inputPlaceholder}
                             </Box>
-                            <Box height="0" opacity="0" pointerEvents="none" aria-hidden={true}>
+                            <Box
+                                height="0"
+                                opacity="0"
+                                pointerEvents="none"
+                                aria-hidden={true}
+                                // Leading and trailing spaces should contribute to width.
+                                style={{whiteSpace: "pre"}}
+                            >
                                 {inputValue}
                             </Box>
                             <input

@@ -1,5 +1,5 @@
-import {LocalTaskCollection} from "~/client/tasks/demo_2/internal/local_tasks_state";
 import {TaskCollectionChipBase} from "~/client/tasks/demo_2/internal/task_collection_chip_base";
+import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
 import {spacing} from "~/shared/design/spacing";
 
 /**

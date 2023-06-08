@@ -72,9 +72,15 @@ const testCases: Array<{name: string; filters: Array<TaskQueryFilter>}> = [
         ],
     },
     {
-        name: "empty collections",
+        name: "empty one of collections",
         filters: [
             {type: "Collections", operation: {type: "IncludesOneOf", collectionIds: new Set()}},
+        ],
+    },
+    {
+        name: "empty all of collections",
+        filters: [
+            {type: "Collections", operation: {type: "IncludesAllOf", collectionIds: new Set()}},
         ],
     },
     {
@@ -84,11 +90,20 @@ const testCases: Array<{name: string; filters: Array<TaskQueryFilter>}> = [
         ],
     },
     {
-        name: "1 collection",
+        name: "one of 1 collection",
         filters: [
             {
                 type: "Collections",
                 operation: {type: "IncludesOneOf", collectionIds: new Set([generateId()])},
+            },
+        ],
+    },
+    {
+        name: "all of 1 collection",
+        filters: [
+            {
+                type: "Collections",
+                operation: {type: "IncludesAllOf", collectionIds: new Set([generateId()])},
             },
         ],
     },
@@ -102,12 +117,24 @@ const testCases: Array<{name: string; filters: Array<TaskQueryFilter>}> = [
         ],
     },
     {
-        name: "3 collections",
+        name: "one of 3 collections",
         filters: [
             {
                 type: "Collections",
                 operation: {
                     type: "IncludesOneOf",
+                    collectionIds: new Set([generateId(), generateId(), generateId()]),
+                },
+            },
+        ],
+    },
+    {
+        name: "all of 3 collections",
+        filters: [
+            {
+                type: "Collections",
+                operation: {
+                    type: "IncludesAllOf",
                     collectionIds: new Set([generateId(), generateId(), generateId()]),
                 },
             },
@@ -122,6 +149,15 @@ const testCases: Array<{name: string; filters: Array<TaskQueryFilter>}> = [
                     type: "ExcludesAllOf",
                     collectionIds: new Set([generateId(), generateId(), generateId()]),
                 },
+            },
+        ],
+    },
+    {
+        name: "actually empty collections",
+        filters: [
+            {
+                type: "Collections",
+                operation: {type: "IsEmpty"},
             },
         ],
     },

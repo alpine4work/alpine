@@ -1,7 +1,9 @@
 import {useState} from "react";
 import {useLocation, useSearchParams} from "react-router-dom";
 import {Box} from "~/client/design/box";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
+import {useLocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
 import {TaskQueryCustomizationBar} from "~/client/tasks/demo_2/task_query_customization_bar";
 import {
     deserializeTaskQueryFiltersSearchParam,
@@ -56,11 +58,18 @@ function TasksViewRoute() {
     });
 
     const {filterReferences} = useLoaderDataWithSchema(LoaderSchema);
+    const [state] = useLocalTasksState();
+
+    const isInitialAppRender = useIsInitialAppRender();
 
     return (
         <Box flexGrow="1" position="relative" zIndex="0" backgroundColor="grey-0" padding="5">
             <TaskQueryCustomizationBar
-                initialFilters={initialFilters}
+                // TODO(calebmer): A production implementation should not remount everything on
+                // initial render!
+                key={`${isInitialAppRender}`}
+                state={state}
+                initialFilters={isInitialAppRender ? [] : initialFilters}
                 initialFilterReferences={filterReferences}
                 onFiltersChange={filters => {
                     const url = new URL(window.location.href);

@@ -5,6 +5,7 @@ import {Button} from "~/client/design/button";
 import {IconButton} from "~/client/design/icon_button";
 import {MenuButton} from "~/client/design/menu_button";
 import {TaskQueryFilterEditor} from "~/client/tasks/demo_2/internal/task_query_filter_editor";
+import {LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
 import {TaskQueryFilter} from "~/client/tasks/demo_2/task_query_filter";
 import {spacing} from "~/shared/design/spacing";
 import {
@@ -13,10 +14,12 @@ import {
 } from "~/shared/tasks/task_query_filter_references";
 
 export function TaskQueryCustomizationBar({
+    state,
     initialFilters,
     initialFilterReferences,
     onFiltersChange,
 }: {
+    state: LocalTasksState;
     initialFilters: ReadonlyArray<TaskQueryFilter>;
     initialFilterReferences: TaskQueryFilterReferences;
     onFiltersChange: (filters: ReadonlyArray<TaskQueryFilter>) => void;
@@ -45,13 +48,14 @@ export function TaskQueryCustomizationBar({
         <Box display="flex" alignItems="flex-start">
             {filters.length > 0 && (
                 <Box height="6" display="flex" alignItems="center" paddingLeft="2" paddingRight="3">
-                    Filters:
+                    Filter:
                 </Box>
             )}
             <Box flexGrow="1" display="flex" flexWrap="wrap" alignItems="center" gap="2">
                 {filters.map((filter, index) => (
                     <TaskQueryFilterEditor
                         key={index}
+                        state={state}
                         filter={filter}
                         filterReferences={filterReferences}
                         onFilterChange={(filter, mergeFilterReferences) => {
@@ -102,7 +106,7 @@ export function TaskQueryCustomizationBar({
                                     addFilter({
                                         type: "Collections",
                                         operation: {
-                                            type: "IncludesOneOf",
+                                            type: "IncludesAllOf",
                                             collectionIds: new Set(),
                                         },
                                     });

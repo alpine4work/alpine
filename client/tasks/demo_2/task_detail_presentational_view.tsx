@@ -18,13 +18,13 @@ import {IconButton} from "~/client/design/icon_button";
 import {MenuButton} from "~/client/design/menu_button";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {useSpaceContext} from "~/client/spaces/space_context";
-import {LocalTaskCollection} from "~/client/tasks/demo_2/internal/local_tasks_state";
 import {TaskChildTasksProgressWheel} from "~/client/tasks/demo_2/internal/task_child_tasks_progress_wheel";
 import {TaskDetailAssigneeField} from "~/client/tasks/demo_2/internal/task_detail_assignee_field";
 import {TaskDetailCollectionsField} from "~/client/tasks/demo_2/internal/task_detail_collections_field";
 import {TaskDetailDueDateField} from "~/client/tasks/demo_2/internal/task_detail_due_date_field";
 import {TaskDetailNotesField} from "~/client/tasks/demo_2/internal/task_detail_notes_field";
 import {TaskDetailTitleInput} from "~/client/tasks/demo_2/internal/task_detail_title_input";
+import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
 import {
     TaskGridPresentationalView,
     TaskGridPresentationalViewProps,

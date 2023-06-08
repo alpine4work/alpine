@@ -10,12 +10,12 @@ import {FocusRing} from "~/client/design/focus_ring";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour";
 import {formatTaskDueDate} from "~/client/tasks/demo_2/internal/format_task_due_date";
-import {LocalTaskCollection} from "~/client/tasks/demo_2/internal/local_tasks_state";
 import {
     TaskCollectionChip,
     taskCollectionChipContainerMaxWidth,
 } from "~/client/tasks/demo_2/internal/task_collection_chip";
 import {TaskGridViewDraggableData} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
+import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
 import {TaskAssignee, TaskStatus, TaskStatusButton} from "~/client/tasks/demo_2/task_status_button";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {LocalTaskId} from "~/shared/id/types/id_types";

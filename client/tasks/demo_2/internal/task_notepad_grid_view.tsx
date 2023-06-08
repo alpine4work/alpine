@@ -8,7 +8,7 @@ import {
     LocalTask,
     LocalTasksAction,
     LocalTasksState,
-} from "~/client/tasks/demo_2/internal/local_tasks_state";
+} from "~/client/tasks/demo_2/local_tasks_state";
 import {
     TaskGridPresentationalView,
     TaskGridPresentationalViewRef,

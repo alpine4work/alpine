@@ -15,7 +15,7 @@ import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
 import {useSpaceContext} from "~/client/spaces/space_context";
-import {LocalTaskCollection} from "~/client/tasks/demo_2/internal/local_tasks_state";
+import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
 import {TaskCardPresentationalView} from "~/client/tasks/demo_2/task_card_presentational_view";
 import {taskRowViewHeight} from "~/client/tasks/demo_2/task_row_presentational_view";
 import {

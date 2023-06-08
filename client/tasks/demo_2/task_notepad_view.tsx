@@ -1,6 +1,5 @@
 import {useRef, useState} from "react";
 import {Box} from "~/client/design/box";
-import {useLocalTasksState} from "~/client/tasks/demo_2/internal/local_tasks_state";
 import {TaskGridViewDndContext} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
 import {
     TaskNotepadGridView,
@@ -8,6 +7,7 @@ import {
 } from "~/client/tasks/demo_2/internal/task_notepad_grid_view";
 import {TaskNotepadViewActiveSection} from "~/client/tasks/demo_2/internal/task_notepad_view_active_section";
 import {TaskNotepadViewPaginator} from "~/client/tasks/demo_2/internal/task_notepad_view_paginator";
+import {useLocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
 import {TaskGridPresentationalViewRef} from "~/client/tasks/demo_2/task_grid_presentational_view";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
 import {assertExists} from "~/shared/helpers/control/assert_exists";

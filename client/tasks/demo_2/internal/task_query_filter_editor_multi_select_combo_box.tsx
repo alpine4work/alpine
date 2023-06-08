@@ -18,7 +18,7 @@ import {useOutsidePress} from "~/client/design/helpers/use_outside_press";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
 import {defaultTooltipOffset} from "~/client/design/tooltip";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {addRemLengths, spacing} from "~/shared/design/spacing";
+import {Spacing, addRemLengths, spacing} from "~/shared/design/spacing";
 import {emptyArray} from "~/shared/helpers/array/empty_array";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -42,6 +42,7 @@ export function TaskQueryFilterEditorMultiSelectComboBox<Key extends string>({
     selectedKeys,
     onSelectedKeysChange,
     useSearchedItems,
+    optionCheckboxMarginTop,
 }: {
     inputLabel: string;
     preview: ReactNode;
@@ -53,6 +54,7 @@ export function TaskQueryFilterEditorMultiSelectComboBox<Key extends string>({
               searchedItems: ReadonlyArray<TaskQueryFilterEditorMultiSelectComboBoxItem<Key>>;
           }
         | {isLoading: true};
+    optionCheckboxMarginTop?: Spacing;
 }) {
     const overlayTriggerState = useOverlayTriggerState({});
 
@@ -114,6 +116,7 @@ export function TaskQueryFilterEditorMultiSelectComboBox<Key extends string>({
                         onSelectedKeysChange={onSelectedKeysChange}
                         useSearchedItems={useSearchedItems}
                         onCloseWithoutAnimation={() => overlayTriggerState.close()}
+                        optionCheckboxMarginTop={optionCheckboxMarginTop ?? null}
                     />
                 </Box>
             }
@@ -137,7 +140,6 @@ export function TaskQueryFilterEditorMultiSelectComboBox<Key extends string>({
                             paddingX: "1",
                             display: "flex",
                             alignItems: "center",
-                            gap: "1",
                             // The hit radius for this button extends within the entire filter editor but
                             // the background color style has some inset.
                             backgroundColor: isPressed
@@ -162,6 +164,7 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<Key extends string>({
     onSelectedKeysChange,
     useSearchedItems,
     onCloseWithoutAnimation,
+    optionCheckboxMarginTop,
 }: {
     inputLabel: string;
     selectedKeys: ReadonlySet<Key>;
@@ -173,6 +176,7 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<Key extends string>({
           }
         | {isLoading: true};
     onCloseWithoutAnimation: () => void;
+    optionCheckboxMarginTop: Spacing | null;
 }) {
     const [inputValue, setInputValue] = useState("");
 
@@ -299,6 +303,7 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<Key extends string>({
                         comboBoxState={comboBoxState}
                         listBoxRef={listBoxRef}
                         listBoxProps={listBoxProps}
+                        optionCheckboxMarginTop={optionCheckboxMarginTop}
                     />
                 )}
             </Box>
@@ -310,10 +315,12 @@ function TaskQueryFilterEditorMultiSelectListBox<Key extends string>({
     comboBoxState,
     listBoxRef,
     listBoxProps: _listBoxProps,
+    optionCheckboxMarginTop,
 }: {
     comboBoxState: ComboBoxState<TaskQueryFilterEditorMultiSelectComboBoxItem<Key>>;
     listBoxRef: RefObject<HTMLUListElement>;
     listBoxProps: AriaListBoxOptions<TaskQueryFilterEditorMultiSelectComboBoxItem<Key>>;
+    optionCheckboxMarginTop: Spacing | null;
 }) {
     const {listBoxProps} = useListBox(
         {..._listBoxProps, autoFocus: false},
@@ -345,6 +352,7 @@ function TaskQueryFilterEditorMultiSelectListBox<Key extends string>({
                         key={item.key}
                         comboBoxState={comboBoxState}
                         item={item}
+                        optionCheckboxMarginTop={optionCheckboxMarginTop}
                     />
                 ))
             )}
@@ -355,9 +363,11 @@ function TaskQueryFilterEditorMultiSelectListBox<Key extends string>({
 function TaskQueryFilterEditorMultiSelectListBoxOption<Key extends string>({
     comboBoxState,
     item,
+    optionCheckboxMarginTop,
 }: {
     comboBoxState: ComboBoxState<TaskQueryFilterEditorMultiSelectComboBoxItem<Key>>;
     item: Node<TaskQueryFilterEditorMultiSelectComboBoxItem<Key>>;
+    optionCheckboxMarginTop: Spacing | null;
 }) {
     const optionRef = useRef(null);
     const {isHovered, hoverProps} = useHover({});
@@ -388,27 +398,38 @@ function TaskQueryFilterEditorMultiSelectListBoxOption<Key extends string>({
                         ? {light: "grey-5", dark: "grey-10"}
                         : undefined,
                     display: "flex",
-                    alignItems: "center",
+                    alignItems: "flex-start",
                     gap: "1.5",
                 })}
             >
                 <Box
-                    width="3"
-                    height="3"
-                    border={!isSelected ? "grey-20" : undefined}
-                    borderRadius="sm"
-                    backgroundColor={!isSelected ? "grey-0" : {light: "grey-80", dark: "grey-90"}}
+                    alignSelf={optionCheckboxMarginTop === null ? "stretch" : undefined}
+                    paddingTop={
+                        optionCheckboxMarginTop !== null ? optionCheckboxMarginTop : undefined
+                    }
                     display="flex"
-                    justifyContent="center"
                     alignItems="center"
                 >
-                    {isSelected && (
-                        <Check
-                            color={colorSchemeVars["grey-0"]}
-                            weight="bold"
-                            size={addRemLengths(spacing["2"], spacing["0.5"])}
-                        />
-                    )}
+                    <Box
+                        width="3"
+                        height="3"
+                        border={!isSelected ? "grey-20" : undefined}
+                        borderRadius="sm"
+                        backgroundColor={
+                            !isSelected ? "grey-0" : {light: "grey-80", dark: "grey-90"}
+                        }
+                        display="flex"
+                        justifyContent="center"
+                        alignItems="center"
+                    >
+                        {isSelected && (
+                            <Check
+                                color={colorSchemeVars["grey-0"]}
+                                weight="bold"
+                                size={addRemLengths(spacing["2"], spacing["0.5"])}
+                            />
+                        )}
+                    </Box>
                 </Box>
                 {item.rendered}
             </li>

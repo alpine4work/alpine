@@ -108,6 +108,8 @@ const LocalTaskCollectionSchema = Schema.object({
         })
         .nullable()
         .default(null),
+    // TODO(calebmer): In a production implementation this should be the open
+    // task count.
     taskCount: Schema.integer.default(0),
 });
 

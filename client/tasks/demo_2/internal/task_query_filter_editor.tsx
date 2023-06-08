@@ -5,17 +5,20 @@ import {IconButton} from "~/client/design/icon_button";
 import {TaskQueryCollectionsFilterOperationEditor} from "~/client/tasks/demo_2/internal/task_query_collections_filter_operation_editor";
 import {TaskQueryFilterAccountOperationEditor} from "~/client/tasks/demo_2/internal/task_query_filter_account_operation_editor";
 import {TaskQueryFilterOperatorEditor} from "~/client/tasks/demo_2/internal/task_query_filter_operator_editor";
+import {LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
 import {TaskQueryFilter, TaskQueryStatusFilter} from "~/client/tasks/demo_2/task_query_filter";
 import {spacing} from "~/shared/design/spacing";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references";
 
 export function TaskQueryFilterEditor({
+    state,
     filter,
     filterReferences,
     onFilterChange,
     onFilterRemove,
 }: {
+    state: LocalTasksState;
     filter: TaskQueryFilter;
     filterReferences: TaskQueryFilterReferences;
     onFilterChange: (
@@ -45,6 +48,7 @@ export function TaskQueryFilterEditor({
                     name="Collections"
                     operation={
                         <TaskQueryCollectionsFilterOperationEditor
+                            state={state}
                             filter={filter}
                             onFilterChange={onFilterChange}
                         />

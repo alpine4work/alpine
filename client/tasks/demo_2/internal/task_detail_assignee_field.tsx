@@ -296,7 +296,14 @@ function TaskDetailAssigneeFieldInput({
                         <Box height="0" opacity="0" pointerEvents="none" aria-hidden={true}>
                             {nullAssigneeLabel}
                         </Box>
-                        <Box height="0" opacity="0" pointerEvents="none" aria-hidden={true}>
+                        <Box
+                            height="0"
+                            opacity="0"
+                            pointerEvents="none"
+                            aria-hidden={true}
+                            // Leading and trailing spaces should contribute to width.
+                            style={{whiteSpace: "pre"}}
+                        >
                             {inputValue}
                         </Box>
                         <input

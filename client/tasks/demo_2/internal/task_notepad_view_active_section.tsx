@@ -3,11 +3,11 @@ import {useId} from "react";
 import {Box} from "~/client/design/box";
 import {usePeekStackContext} from "~/client/peek/peek_stack";
 import {useSpaceContext} from "~/client/spaces/space_context";
-import {LocalTasksAction, LocalTasksState} from "~/client/tasks/demo_2/internal/local_tasks_state";
 import {
     TaskGridViewDraggableData,
     TaskGridViewDroppableData,
 } from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
+import {LocalTasksAction, LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
 import {
     TaskCardPresentationalView,
     taskCardViewMaxWidth,

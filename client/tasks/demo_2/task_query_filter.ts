@@ -317,23 +317,49 @@ export type TaskQueryCollectionsFilter = {
               readonly collectionIds: ReadonlySet<LocalTaskCollectionId>;
           }
         | {
+              readonly type: "IncludesAllOf";
+              readonly collectionIds: ReadonlySet<LocalTaskCollectionId>;
+          }
+        | {
               readonly type: "ExcludesAllOf";
               readonly collectionIds: ReadonlySet<LocalTaskCollectionId>;
+          }
+        | {
+              readonly type: "IsEmpty";
           };
 };
 
 function getTaskQueryCollectionsFilterByteLength(filter: TaskQueryCollectionsFilter) {
-    return 1 + filter.operation.collectionIds.size * idByteLength;
+    switch (filter.operation.type) {
+        case "IncludesOneOf":
+        case "IncludesAllOf":
+        case "ExcludesAllOf":
+            return 1 + filter.operation.collectionIds.size * idByteLength;
+        case "IsEmpty":
+            return 1;
+        default:
+            throw exhaustive(filter.operation);
+    }
 }
 
 function serializeTaskQueryCollectionsFilter(filter: TaskQueryCollectionsFilter, view: DataView) {
+    if (filter.operation.type === "IsEmpty") {
+        view.setUint8(0, 4);
+        return;
+    }
+
     // We use the first two bits of our `collectionIds` length byte to encode the
     // operation type. We reserve 0 for null.
     if (filter.operation.collectionIds.size > 2 ** 6 - 1)
         throw new InvalidArgumentError("Too many collections");
 
     const typeAndCollectionIdsSizeByte =
-        ((filter.operation.type === "IncludesOneOf" ? 1 : 2) << 6) |
+        ((filter.operation.type === "IncludesOneOf"
+            ? 1
+            : filter.operation.type === "IncludesAllOf"
+            ? 2
+            : 3) <<
+            6) |
         (filter.operation.collectionIds.size & 0b00111111);
 
     view.setUint8(0, typeAndCollectionIdsSizeByte);
@@ -357,19 +383,35 @@ function deserializeTaskQueryCollectionsFilter(view: DataView): {
     const typeAndCollectionIdsSizeByte = view.getUint8(0);
 
     const typeBits = typeAndCollectionIdsSizeByte >> 6;
-    let type: "IncludesOneOf" | "ExcludesAllOf";
+    const collectionIdsSize = typeAndCollectionIdsSizeByte & 0b00111111;
+
+    let type: "IncludesOneOf" | "IncludesAllOf" | "ExcludesAllOf";
     switch (typeBits) {
         case 1:
             type = "IncludesOneOf";
             break;
         case 2:
+            type = "IncludesAllOf";
+            break;
+        case 3:
             type = "ExcludesAllOf";
             break;
+        case 4: {
+            if (collectionIdsSize !== 0)
+                throw new InvalidArgumentError("Unexpected non-zero size in operation type");
+
+            return {
+                filter: {
+                    type: "Collections",
+                    operation: {type: "IsEmpty"},
+                },
+                byteLength: 1,
+            };
+        }
         default:
             throw new InvalidArgumentError(`Unrecognized operation type ${typeBits}`);
     }
 
-    const collectionIdsSize = typeAndCollectionIdsSizeByte & 0b00111111;
     const collectionIds = new Set<LocalTaskCollectionId>();
     let byteOffset = 1;
 
