@@ -462,7 +462,7 @@ function TaskDetailAssigneeFieldListBoxOptionItem({
             return (
                 <Box display="flex" alignItems="center" gap="1.5">
                     <TaskNoAccountAvatar />
-                    <Box flexGrow="1" fontStyle="truncate">
+                    <Box flexGrow="1" fontStyle="truncate" color="grey-60">
                         {nullAssigneeLabel}
                     </Box>
                     {isSelected && (

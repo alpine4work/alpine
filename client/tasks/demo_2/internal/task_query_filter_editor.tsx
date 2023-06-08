@@ -55,7 +55,6 @@ export function TaskQueryFilterEditor({
                     operation={
                         <TaskQueryFilterAccountOperationEditor
                             label="Assignee"
-                            noAccountNoun="unassigned"
                             filterReferences={filterReferences}
                             operation={filter.operation}
                             onOperationChange={(operation, mergeFilterReferences) =>
@@ -74,7 +73,6 @@ export function TaskQueryFilterEditor({
                     operation={
                         <TaskQueryFilterAccountOperationEditor
                             label="Creator"
-                            noAccountNoun="nobody"
                             // Tasks always have a creator so hide the `NoAccount` filter option.
                             shouldHideNoAccountItem={true}
                             filterReferences={filterReferences}
@@ -95,7 +93,6 @@ export function TaskQueryFilterEditor({
                     operation={
                         <TaskQueryFilterAccountOperationEditor
                             label="Assigner"
-                            noAccountNoun="unassigned"
                             filterReferences={filterReferences}
                             operation={filter.operation}
                             onOperationChange={(operation, mergeFilterReferences) =>

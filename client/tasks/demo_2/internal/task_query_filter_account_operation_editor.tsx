@@ -54,16 +54,12 @@ import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_refere
 
 export function TaskQueryFilterAccountOperationEditor({
     label,
-    noAccountNoun,
-    noAccountStartOfSentenceNoun = noAccountNoun.slice(0, 1).toUpperCase() + noAccountNoun.slice(1),
     shouldHideNoAccountItem = false,
     filterReferences,
     operation,
     onOperationChange,
 }: {
     label: string;
-    noAccountNoun: string;
-    noAccountStartOfSentenceNoun?: string;
     shouldHideNoAccountItem?: boolean;
     filterReferences: TaskQueryFilterReferences;
     operation: TaskQueryFilterAccountOperation;
@@ -139,8 +135,6 @@ export function TaskQueryFilterAccountOperationEditor({
             />
             <TaskQueryFilterAccountOperationEditorAccounts
                 label={label}
-                noAccountNoun={noAccountNoun}
-                noAccountStartOfSentenceNoun={noAccountStartOfSentenceNoun}
                 shouldHideNoAccountItem={shouldHideNoAccountItem}
                 filterReferences={filterReferences}
                 accountIds={accountIds}
@@ -169,8 +163,6 @@ export function TaskQueryFilterAccountOperationEditor({
 
 function TaskQueryFilterAccountOperationEditorAccounts({
     label,
-    noAccountNoun,
-    noAccountStartOfSentenceNoun,
     shouldHideNoAccountItem,
     filterReferences,
     accountIds,
@@ -178,8 +170,6 @@ function TaskQueryFilterAccountOperationEditorAccounts({
     onAccountIdsChange,
 }: {
     label: string;
-    noAccountNoun: string;
-    noAccountStartOfSentenceNoun: string;
     shouldHideNoAccountItem: boolean;
     filterReferences: TaskQueryFilterReferences;
     accountIds: ReadonlySet<AccountId | "CurrentAccount" | "NoAccount">;
@@ -247,7 +237,6 @@ function TaskQueryFilterAccountOperationEditorAccounts({
                 >
                     <TaskQueryFilterAccountOperationEditorOverlay
                         label={label}
-                        noAccountStartOfSentenceNoun={noAccountStartOfSentenceNoun}
                         shouldHideNoAccountItem={shouldHideNoAccountItem}
                         selectedAccountIds={accountIds}
                         onSelectedAccountIdsChange={onAccountIdsChange}
@@ -287,7 +276,6 @@ function TaskQueryFilterAccountOperationEditorAccounts({
                         })}
                     >
                         <TaskQueryFilterAccountOperationEditorAccountsPreview
-                            noAccountNoun={noAccountNoun}
                             filterReferences={filterReferences}
                             normalizedAccountIds={normalizedAccountIds}
                         />
@@ -299,18 +287,16 @@ function TaskQueryFilterAccountOperationEditorAccounts({
 }
 
 function TaskQueryFilterAccountOperationEditorAccountsPreview({
-    noAccountNoun,
     filterReferences,
     normalizedAccountIds,
 }: {
-    noAccountNoun: string;
     filterReferences: TaskQueryFilterReferences;
     normalizedAccountIds: ReadonlySet<AccountId | "NoAccount">;
 }) {
     const {currentAccount} = useSpaceContext();
 
     if (normalizedAccountIds.size === 0) {
-        return <span style={inputPlaceholderStyles}>Select someone</span>;
+        return <span style={inputPlaceholderStyles}>anyone</span>;
     }
 
     const getAccountIfExists = (accountId: AccountId) =>
@@ -334,7 +320,8 @@ function TaskQueryFilterAccountOperationEditorAccountsPreview({
         if (firstStep.value === "NoAccount") {
             return (
                 <>
-                    <TaskNoAccountAvatar size="3" /> {noAccountNoun}
+                    <TaskNoAccountAvatar size="3" />{" "}
+                    <span className={sprinkles({color: "grey-60"})}>nobody</span>
                 </>
             );
         } else {
@@ -381,7 +368,10 @@ function TaskQueryFilterAccountOperationEditorAccountsPreview({
 
     return (
         <>
-            <TaskNoAccountAvatar size="3" /> {noAccountNoun} or {previewWithoutNoAccount}
+            {previewWithoutNoAccount}{" "}
+            <span className={sprinkles({color: "grey-60", marginRight: "0.5"})}>or</span>{" "}
+            <TaskNoAccountAvatar size="3" />{" "}
+            <span className={sprinkles({color: "grey-60"})}>nobody</span>
         </>
     );
 }
@@ -403,14 +393,12 @@ type TaskQueryFilterAccountOperationEditorItem =
 
 function TaskQueryFilterAccountOperationEditorOverlay({
     label,
-    noAccountStartOfSentenceNoun,
     shouldHideNoAccountItem,
     selectedAccountIds,
     onSelectedAccountIdsChange,
     onCloseWithoutAnimation,
 }: {
     label: string;
-    noAccountStartOfSentenceNoun: string;
     shouldHideNoAccountItem: boolean;
     selectedAccountIds: ReadonlySet<AccountId | "CurrentAccount" | "NoAccount">;
     onSelectedAccountIdsChange: (
@@ -480,21 +468,18 @@ function TaskQueryFilterAccountOperationEditorOverlay({
         shouldHideNoAccountItem,
     ]);
 
-    const getItemTextValue = useCallback(
-        (item: TaskQueryFilterAccountOperationEditorItem) => {
-            switch (item.type) {
-                case "Account":
-                    return item.account.name;
-                case "NoAccount":
-                    return noAccountStartOfSentenceNoun;
-                case "CurrentAccount":
-                    return "Me (dynamic)";
-                default:
-                    throw exhaustive(item);
-            }
-        },
-        [noAccountStartOfSentenceNoun],
-    );
+    const getItemTextValue = useCallback((item: TaskQueryFilterAccountOperationEditorItem) => {
+        switch (item.type) {
+            case "Account":
+                return item.account.name;
+            case "NoAccount":
+                return "Nobody";
+            case "CurrentAccount":
+                return "Me (dynamic)";
+            default:
+                throw exhaustive(item);
+        }
+    }, []);
 
     const itemsSearchIndex = useMemo(
         () =>
@@ -517,10 +502,7 @@ function TaskQueryFilterAccountOperationEditorOverlay({
 
     const listChildren = (item: TaskQueryFilterAccountOperationEditorItem) => (
         <Item textValue={getItemTextValue(item)}>
-            <TaskQueryFilterAccountOperationEditorListBoxOptionItem
-                item={item}
-                noAccountStartOfSentenceNoun={noAccountStartOfSentenceNoun}
-            />
+            <TaskQueryFilterAccountOperationEditorListBoxOptionItem item={item} />
         </Item>
     );
 
@@ -773,10 +755,8 @@ function TaskQueryFilterAccountOperationEditorListBoxOption({
 
 function TaskQueryFilterAccountOperationEditorListBoxOptionItem({
     item,
-    noAccountStartOfSentenceNoun,
 }: {
     item: TaskQueryFilterAccountOperationEditorItem;
-    noAccountStartOfSentenceNoun: string;
 }) {
     switch (item.type) {
         case "CurrentAccount": {
@@ -792,7 +772,8 @@ function TaskQueryFilterAccountOperationEditorListBoxOptionItem({
         case "NoAccount": {
             return (
                 <>
-                    <TaskNoAccountAvatar /> {noAccountStartOfSentenceNoun}
+                    <TaskNoAccountAvatar />{" "}
+                    <span className={sprinkles({color: "grey-60"})}>Nobody</span>
                 </>
             );
         }
