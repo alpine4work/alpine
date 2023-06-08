@@ -210,6 +210,29 @@ function Overlay(
 
     const defaultTargetElementId = useId();
 
+    const [_portalElement, setPortalElement] = useState(overlaySink.portalRef.current);
+    let portalElement = _portalElement;
+
+    // If we are making the overlay visible and we initially read the portal ref as
+    // `null` but not the portal ref has a value, update our state without waiting
+    // for an effect.
+    if (isVisible && portalElement === null && overlaySink.portalRef.current !== null) {
+        portalElement = overlaySink.portalRef.current;
+        setPortalElement(overlaySink.portalRef.current);
+    }
+
+    // If this component is rendered at the same time as our
+    // `<OverlayScopeContextProvider>` then we will get `null` when reading
+    // `portalRef.current` in render. So re-render with the actual element. We
+    // will only re-render if the overlay is visible on initial mount.
+    //
+    // This may cause the overlay portal to flash in. Consider a layout
+    // effect here to prevent flashes.
+    useEffect(() => {
+        if (!isVisible) return;
+        setPortalElement(overlaySink.portalRef.current);
+    }, [isVisible, overlaySink.portalRef]);
+
     const targetLifecycleRef = useCallback(
         (targetElement: HTMLElement) => {
             assert(
@@ -217,7 +240,7 @@ function Overlay(
                 "Expected the children of an `<Overlay>` component to render an element with a ref to an HTML element",
             );
 
-            if (!isVisible) return;
+            if (!isVisible || !portalElement) return;
 
             assert(
                 overlayRef.current && overlayRef.current instanceof HTMLElement,
@@ -374,6 +397,7 @@ function Overlay(
         },
         [
             isVisible,
+            portalElement,
             placement,
             preventOverflow,
             fallbackPlacements,
@@ -404,37 +428,14 @@ function Overlay(
 
     return (
         <>
-            {isVisible && (
+            {isVisible &&
+                portalElement &&
                 // This intentionally comes before `children` so that React executes
                 // `overlayRef` before `targetRef`.
-                <OverlayPortal portalRef={overlaySink.portalRef} overlay={overlay} />
-            )}
+                createPortal(overlay, portalElement)}
             {useElementWithRef(children, useLifecycleRef(targetLifecycleRef))}
         </>
     );
-}
-
-function OverlayPortal({
-    portalRef,
-    overlay,
-}: {
-    portalRef: RefObject<HTMLDivElement>;
-    overlay: ReactNode;
-}) {
-    const [portalElement, setPortalElement] = useState(portalRef.current);
-
-    // If this component is rendered at the same time as our
-    // `<OverlayScopeContextProvider>` then we will get `null` when reading
-    // `portalRef.current` in render. So re-render with the actual element. We
-    // will only re-render if the overlay is visible on initial mount.
-    //
-    // This may cause the overlay portal to flash in. Consider a layout
-    // effect here to prevent flashes.
-    useEffect(() => {
-        setPortalElement(portalRef.current);
-    }, [portalRef]);
-
-    return portalElement ? createPortal(overlay, portalElement) : null;
 }
 
 const OverlaySinkContext = createContext<{

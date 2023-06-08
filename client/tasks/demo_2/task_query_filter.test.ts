@@ -151,6 +151,20 @@ const testCases: Array<{name: string; filters: Array<TaskQueryFilter>}> = [
             },
         },
         {
+            name: "no account",
+            operation: {
+                type: "OneOf",
+                accounts: [{type: "NoAccount"}],
+            },
+        },
+        {
+            name: "not no account",
+            operation: {
+                type: "NoneOf",
+                accounts: [{type: "NoAccount"}],
+            },
+        },
+        {
             name: "1 account",
             operation: {
                 type: "OneOf",

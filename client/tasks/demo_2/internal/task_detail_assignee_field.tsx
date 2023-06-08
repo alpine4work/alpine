@@ -1,7 +1,7 @@
 import {isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
 import Fuse from "fuse.js";
-import {Check, MagnifyingGlass, User} from "phosphor-react";
+import {Check, MagnifyingGlass} from "phosphor-react";
 import {RefObject, cloneElement, isValidElement, useMemo, useRef, useState} from "react";
 import {
     AriaListBoxOptions,
@@ -15,11 +15,11 @@ import {ComboBoxState, ComboBoxStateOptions, Item, useComboBoxState} from "react
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
-import {useSpacingPx} from "~/client/design/helpers/use_spacing_px";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts";
+import {TaskNoAccountAvatar} from "~/client/tasks/demo_2/internal/task_no_account_avatar";
 import {AccountModel} from "~/shared/accounts/account_model";
 import {spacing} from "~/shared/design/spacing";
 import {emptyArray} from "~/shared/helpers/array/empty_array";
@@ -28,14 +28,9 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {assertId} from "~/shared/id/id";
 import {AccountId} from "~/shared/id/types/id_types";
-import {
-    colorSchemeVars,
-    inputPlaceholderStyles,
-    sprinkles,
-    tasksStyles,
-} from "~/shared/styles/styles";
+import {colorSchemeVars, sprinkles, tasksStyles} from "~/shared/styles/styles";
 
-const nullAssigneeLabel = "Unassigned";
+const nullAssigneeLabel = "Nobody";
 
 type TaskDetailAssigneeFieldItem =
     | {
@@ -288,7 +283,7 @@ function TaskDetailAssigneeFieldInput({
                         {assigneeAccount ? (
                             <AccountAvatar size="5" account={assigneeAccount} />
                         ) : (
-                            <TaskDetailAssigneeFieldPlaceholderAvatar />
+                            <TaskNoAccountAvatar />
                         )}
                     </Box>
                     <Box
@@ -327,51 +322,6 @@ function TaskDetailAssigneeFieldInput({
     );
 }
 
-function TaskDetailAssigneeFieldPlaceholderAvatar() {
-    const radius = useSpacingPx("5") / 2;
-    const strokeWidth = 1;
-    const viewBoxSize = radius * 2 + strokeWidth;
-    const circumference = 2 * Math.PI * radius;
-    const dashes = 7;
-    const gapRatio = 0.5;
-
-    return (
-        <Box flexShrink="0" position="relative" width="5" height="5">
-            <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className={sprinkles({
-                    width: "5",
-                    height: "5",
-                })}
-                viewBox={`0 0 ${viewBoxSize} ${viewBoxSize}`}
-            >
-                <circle
-                    cx={viewBoxSize / 2}
-                    cy={viewBoxSize / 2}
-                    r={radius}
-                    fill="none"
-                    stroke={inputPlaceholderStyles.color}
-                    strokeWidth={strokeWidth}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeDasharray={`${(circumference / dashes) * (1 - gapRatio)} ${
-                        (circumference / dashes) * gapRatio
-                    }`}
-                />
-            </svg>
-            <User
-                size={spacing["3"]}
-                color={inputPlaceholderStyles.color}
-                className={sprinkles({
-                    position: "absolute",
-                    top: "1",
-                    left: "1",
-                })}
-            />
-        </Box>
-    );
-}
-
 function TaskDetailAssigneeFieldListBox({
     comboBoxState,
     listBoxRef,
@@ -401,14 +351,7 @@ function TaskDetailAssigneeFieldListBox({
             })}
         >
             {comboBoxState.collection.size === 0 ? (
-                <Box
-                    paddingX="1.5"
-                    paddingY="1.5"
-                    display="flex"
-                    alignItems="center"
-                    gap="1.5"
-                    color="grey-70"
-                >
+                <Box padding="1.5" display="flex" alignItems="center" gap="1.5" color="grey-70">
                     <Box padding="0.5">
                         <MagnifyingGlass size={spacing["4"]} />
                     </Box>
@@ -459,8 +402,7 @@ function TaskDetailAssigneeFieldListBoxOption({
                 ref={optionRef}
                 className={sprinkles({
                     width: "full",
-                    paddingX: "1.5",
-                    paddingY: "1.5",
+                    padding: "1.5",
                     borderRadius: "base",
                     color: "grey-text",
                     backgroundColor: isPressed
@@ -519,7 +461,7 @@ function TaskDetailAssigneeFieldListBoxOptionItem({
         case "Null": {
             return (
                 <Box display="flex" alignItems="center" gap="1.5">
-                    <TaskDetailAssigneeFieldPlaceholderAvatar />
+                    <TaskNoAccountAvatar />
                     <Box flexGrow="1" fontStyle="truncate">
                         {nullAssigneeLabel}
                     </Box>

@@ -15,7 +15,7 @@ import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_with
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
 import {backgroundColorVar, spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
 
-export type AccountAvatarPileSize = "4" | "6" | "12";
+export type AccountAvatarPileSize = "3" | "4" | "6" | "12";
 
 export function AccountAvatarPile({
     size = "6",
@@ -33,8 +33,15 @@ export function AccountAvatarPile({
         [previewAccounts],
     );
 
-    const {avatarSize, avatarOverlapWidth, borderWidth, overflowFontSize} = (
+    const {avatarSize, avatarOverlapWidth, borderWidth, overflowFontSize, overflowScale} = (
         {
+            "3": {
+                avatarSize: "3",
+                avatarOverlapWidth: "2.5",
+                borderWidth: 1,
+                overflowFontSize: "50",
+                overflowScale: 0.75,
+            },
             "4": {
                 avatarSize: "4",
                 avatarOverlapWidth: "3",
@@ -139,7 +146,15 @@ export function AccountAvatarPile({
                                 justifyContent="center"
                                 alignItems="center"
                             >
-                                +{accountCount - previewAccounts.length}
+                                <span
+                                    style={{
+                                        transform: overflowScale
+                                            ? `scale(${overflowScale})`
+                                            : undefined,
+                                    }}
+                                >
+                                    +{accountCount - previewAccounts.length}
+                                </span>
                             </Box>
                         </Box>
                     </AsyncTooltip>

@@ -1,5 +1,6 @@
 import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name";
-import {ContentMention, missingAccountContentMentionName} from "~/shared/content/content_mention";
+import {missingAccountName} from "~/shared/accounts/missing_account_name";
+import {ContentMention} from "~/shared/content/content_mention";
 import {ContentReferences} from "~/shared/content/content_references";
 
 /**
@@ -15,7 +16,7 @@ export function getContentMentionText(
         ? mention.isShort
             ? getAccountShortNameWithoutFullNameTooltip(account)
             : account.name
-        : missingAccountContentMentionName;
+        : missingAccountName;
 
     // Replace spaces in the account name with no-break spaces. We want the entire
     // pill to stay together and not wrap when we reach the end of a line of text.

@@ -1,20 +1,30 @@
-import {Plus, SortAscending, X} from "phosphor-react";
+import {Plus, SortAscending} from "phosphor-react";
 import {useEffect, useRef, useState} from "react";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {IconButton} from "~/client/design/icon_button";
 import {MenuButton} from "~/client/design/menu_button";
+import {TaskQueryFilterEditor} from "~/client/tasks/demo_2/internal/task_query_filter_editor";
 import {TaskQueryFilter} from "~/client/tasks/demo_2/task_query_filter";
 import {spacing} from "~/shared/design/spacing";
+import {
+    TaskQueryFilterReferences,
+    mergeTaskQueryFilterReferences,
+} from "~/shared/tasks/task_query_filter_references";
 
 export function TaskQueryCustomizationBar({
     initialFilters,
+    initialFilterReferences,
     onFiltersChange,
 }: {
     initialFilters: ReadonlyArray<TaskQueryFilter>;
+    initialFilterReferences: TaskQueryFilterReferences;
     onFiltersChange: (filters: ReadonlyArray<TaskQueryFilter>) => void;
 }) {
-    const [filters, setFilters] = useState<ReadonlyArray<TaskQueryFilter>>(initialFilters);
+    const [{filters, filterReferences}, setFiltersState] = useState({
+        filters: initialFilters,
+        filterReferences: initialFilterReferences,
+    });
 
     const lastFiltersRef = useRef(initialFilters);
     useEffect(() => {
@@ -24,50 +34,52 @@ export function TaskQueryCustomizationBar({
         }
     }, [filters, onFiltersChange]);
 
+    const addFilter = (filter: TaskQueryFilter) => {
+        setFiltersState(({filters, filterReferences}) => ({
+            filters: [...filters, filter],
+            filterReferences,
+        }));
+    };
+
     return (
         <Box display="flex" alignItems="flex-start">
             {filters.length > 0 && (
-                <Box height="6" display="flex" alignItems="center" paddingRight="3">
+                <Box height="6" display="flex" alignItems="center" paddingLeft="2" paddingRight="3">
                     Filters:
                 </Box>
             )}
             <Box flexGrow="1" display="flex" flexWrap="wrap" alignItems="center" gap="2">
                 {filters.map((filter, index) => (
-                    <Box
+                    <TaskQueryFilterEditor
                         key={index}
-                        height="6"
-                        width="32"
-                        display="flex"
-                        alignItems="center"
-                        paddingLeft="2"
-                        borderRadius="base"
-                        border="grey-10"
-                    >
-                        <Box flexGrow="1">{filter.type}</Box>
-                        <Box
-                            style={{
-                                // Subtract 1px from our right padding since that's the border width. That will
-                                // give us good margin on all sides of the button.
-                                paddingRight: `calc(${spacing["1"]} - 1px)`,
-                            }}
-                        >
-                            <IconButton
-                                size="xs"
-                                description="Remove"
-                                withoutTooltip
-                                borderRadius="sm"
-                                onPress={() => {
-                                    setFilters(filters => {
-                                        const newFilters = [...filters];
-                                        newFilters.splice(index, 1);
-                                        return newFilters;
-                                    });
-                                }}
-                            >
-                                <X />
-                            </IconButton>
-                        </Box>
-                    </Box>
+                        filter={filter}
+                        filterReferences={filterReferences}
+                        onFilterChange={(filter, mergeFilterReferences) => {
+                            setFiltersState(({filters, filterReferences}) => {
+                                const newFilters = [...filters];
+                                newFilters[index] = filter;
+
+                                const newFilterReferences = mergeFilterReferences
+                                    ? mergeTaskQueryFilterReferences(
+                                          filterReferences,
+                                          mergeFilterReferences,
+                                      )
+                                    : filterReferences;
+
+                                return {
+                                    filters: newFilters,
+                                    filterReferences: newFilterReferences,
+                                };
+                            });
+                        }}
+                        onFilterRemove={() => {
+                            setFiltersState(({filters, filterReferences}) => {
+                                const newFilters = [...filters];
+                                newFilters.splice(index, 1);
+                                return {filters: newFilters, filterReferences};
+                            });
+                        }}
+                    />
                 ))}
                 <MenuButton
                     actions={[
@@ -75,25 +87,25 @@ export function TaskQueryCustomizationBar({
                             {
                                 label: "Status",
                                 onPress: () => {
-                                    setFilters(filters => [
-                                        ...filters,
-                                        {
-                                            type: "Status",
-                                            operation: {type: "OneOf", statuses: new Set()},
+                                    addFilter({
+                                        type: "Status",
+                                        operation: {
+                                            type: "NoneOf",
+                                            statuses: new Set(["Closed"]),
                                         },
-                                    ]);
+                                    });
                                 },
                             },
                             {
                                 label: "Collection",
                                 onPress: () => {
-                                    setFilters(filters => [
-                                        ...filters,
-                                        {
-                                            type: "Collections",
-                                            operation: {type: "OneOf", collectionIds: new Set()},
+                                    addFilter({
+                                        type: "Collections",
+                                        operation: {
+                                            type: "OneOf",
+                                            collectionIds: new Set(),
                                         },
-                                    ]);
+                                    });
                                 },
                             },
                         ],
@@ -101,46 +113,37 @@ export function TaskQueryCustomizationBar({
                             {
                                 label: "Assignee",
                                 onPress: () => {
-                                    setFilters(filters => [
-                                        ...filters,
-                                        {
-                                            type: "Assignee",
-                                            operation: {
-                                                type: "OneOf",
-                                                accounts: [{type: "CurrentAccount"}],
-                                            },
+                                    addFilter({
+                                        type: "Assignee",
+                                        operation: {
+                                            type: "OneOf",
+                                            accounts: [{type: "CurrentAccount"}],
                                         },
-                                    ]);
+                                    });
                                 },
                             },
                             {
                                 label: "Creator",
                                 onPress: () => {
-                                    setFilters(filters => [
-                                        ...filters,
-                                        {
-                                            type: "Creator",
-                                            operation: {
-                                                type: "OneOf",
-                                                accounts: [{type: "CurrentAccount"}],
-                                            },
+                                    addFilter({
+                                        type: "Creator",
+                                        operation: {
+                                            type: "OneOf",
+                                            accounts: [{type: "CurrentAccount"}],
                                         },
-                                    ]);
+                                    });
                                 },
                             },
                             {
                                 label: "Assigner",
                                 onPress: () => {
-                                    setFilters(filters => [
-                                        ...filters,
-                                        {
-                                            type: "Assigner",
-                                            operation: {
-                                                type: "OneOf",
-                                                accounts: [{type: "CurrentAccount"}],
-                                            },
+                                    addFilter({
+                                        type: "Assigner",
+                                        operation: {
+                                            type: "OneOf",
+                                            accounts: [{type: "CurrentAccount"}],
                                         },
-                                    ]);
+                                    });
                                 },
                             },
                         ],
@@ -148,46 +151,46 @@ export function TaskQueryCustomizationBar({
                             {
                                 label: "Due date",
                                 onPress: () => {
-                                    setFilters(filters => [
-                                        ...filters,
-                                        {type: "DueDate", operation: {type: "Overdue"}},
-                                    ]);
+                                    addFilter({
+                                        type: "DueDate",
+                                        operation: {type: "Overdue"},
+                                    });
                                 },
                             },
                             {
                                 label: "Created date",
                                 onPress: () => {
-                                    setFilters(filters => [
-                                        ...filters,
-                                        {
-                                            type: "CreatedDate",
-                                            operation: {type: "GreaterThanOrEqualTo", date: null},
+                                    addFilter({
+                                        type: "CreatedDate",
+                                        operation: {
+                                            type: "GreaterThanOrEqualTo",
+                                            date: null,
                                         },
-                                    ]);
+                                    });
                                 },
                             },
                             {
                                 label: "Assigned date",
                                 onPress: () => {
-                                    setFilters(filters => [
-                                        ...filters,
-                                        {
-                                            type: "AssignedDate",
-                                            operation: {type: "GreaterThanOrEqualTo", date: null},
+                                    addFilter({
+                                        type: "AssignedDate",
+                                        operation: {
+                                            type: "GreaterThanOrEqualTo",
+                                            date: null,
                                         },
-                                    ]);
+                                    });
                                 },
                             },
                             {
                                 label: "Closed date",
                                 onPress: () => {
-                                    setFilters(filters => [
-                                        ...filters,
-                                        {
-                                            type: "ClosedDate",
-                                            operation: {type: "GreaterThanOrEqualTo", date: null},
+                                    addFilter({
+                                        type: "ClosedDate",
+                                        operation: {
+                                            type: "GreaterThanOrEqualTo",
+                                            date: null,
                                         },
-                                    ]);
+                                    });
                                 },
                             },
                             {
@@ -197,13 +200,13 @@ export function TaskQueryCustomizationBar({
                                 // "setting a task as active".
                                 label: "Active date",
                                 onPress: () => {
-                                    setFilters(filters => [
-                                        ...filters,
-                                        {
-                                            type: "ActivatedDate",
-                                            operation: {type: "GreaterThanOrEqualTo", date: null},
+                                    addFilter({
+                                        type: "ActivatedDate",
+                                        operation: {
+                                            type: "GreaterThanOrEqualTo",
+                                            date: null,
                                         },
-                                    ]);
+                                    });
                                 },
                             },
                         ],

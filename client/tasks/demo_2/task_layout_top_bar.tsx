@@ -23,10 +23,23 @@ export function TaskLayoutTopBar() {
             gap="4"
             paddingX="2"
         >
-            <Button variant="quiet-on" height="6" paddingX="2">
+            <Button
+                variant="quiet-on"
+                height="6"
+                paddingX="2"
+                pressErrorTitle="Couldn’t open notepad"
+                onPress={() => navigate(`/s/${space.id}/tasks/demo-2`)}
+            >
                 Notepad
             </Button>
-            <Button variant="quieter" height="6" paddingX="2">
+            <Button
+                variant="quieter"
+                height="6"
+                paddingX="2"
+                onPress={() => {
+                    // NOCOMMIT
+                }}
+            >
                 Planner
             </Button>
             <MenuButton

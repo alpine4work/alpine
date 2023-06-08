@@ -293,7 +293,7 @@ export function MenuButton({
             );
 
             // If the overlay portal element is not ready then `menuRef` will not have
-            // mounted yet.
+            // mounted yet even if `state.isExpanded` is true.
             assert(!state.isExpanded || isWaitingForOverlayPortalElement || menuRef.current);
             const menuElement = menuRef.current;
 

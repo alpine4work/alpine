@@ -393,6 +393,7 @@ export type TaskQueryFilterAccountOperation =
           readonly accounts: ReadonlyArray<
               | {readonly type: "Account"; readonly accountId: AccountId}
               | {readonly type: "CurrentAccount"}
+              | {readonly type: "NoAccount"}
           >;
       }
     | {
@@ -400,6 +401,7 @@ export type TaskQueryFilterAccountOperation =
           readonly accounts: ReadonlyArray<
               | {readonly type: "Account"; readonly accountId: AccountId}
               | {readonly type: "CurrentAccount"}
+              | {readonly type: "NoAccount"}
           >;
       };
 
@@ -438,7 +440,7 @@ function serializeTaskQueryFilterAccountOperation(
             );
             byteOffset += idByteLength;
         } else {
-            view.setUint8(byteOffset, 2);
+            view.setUint8(byteOffset, account.type === "CurrentAccount" ? 2 : 3);
             byteOffset += 1;
         }
     }
@@ -467,6 +469,7 @@ function deserializeTaskQueryFilterAccountOperation(view: DataView): {
     const accounts: Array<
         | {readonly type: "Account"; readonly accountId: AccountId}
         | {readonly type: "CurrentAccount"}
+        | {readonly type: "NoAccount"}
     > = [];
     let byteOffset = 1;
 
@@ -486,6 +489,9 @@ function deserializeTaskQueryFilterAccountOperation(view: DataView): {
                 break;
             case 2:
                 accounts.push({type: "CurrentAccount"});
+                break;
+            case 3:
+                accounts.push({type: "NoAccount"});
                 break;
             default:
                 throw new InvalidArgumentError(`Unrecognized account type ${typeBits}`);

@@ -584,7 +584,7 @@ function Tooltip(
             );
 
             // If the overlay portal element is not ready then `tooltipRef` will not have
-            // mounted yet.
+            // mounted yet even if `isVisible` is true.
             assert(!isVisible || isWaitingForOverlayPortalElement || tooltipRef.current);
             const tooltipElement = tooltipRef.current;
 
