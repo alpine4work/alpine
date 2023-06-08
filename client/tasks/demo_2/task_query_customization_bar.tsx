@@ -97,12 +97,12 @@ export function TaskQueryCustomizationBar({
                                 },
                             },
                             {
-                                label: "Collection",
+                                label: "Collections",
                                 onPress: () => {
                                     addFilter({
                                         type: "Collections",
                                         operation: {
-                                            type: "OneOf",
+                                            type: "IncludesOneOf",
                                             collectionIds: new Set(),
                                         },
                                     });

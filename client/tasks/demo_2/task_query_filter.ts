@@ -313,11 +313,11 @@ export type TaskQueryCollectionsFilter = {
     readonly type: "Collections";
     readonly operation:
         | {
-              readonly type: "OneOf";
+              readonly type: "IncludesOneOf";
               readonly collectionIds: ReadonlySet<LocalTaskCollectionId>;
           }
         | {
-              readonly type: "NoneOf";
+              readonly type: "ExcludesAllOf";
               readonly collectionIds: ReadonlySet<LocalTaskCollectionId>;
           };
 };
@@ -333,7 +333,7 @@ function serializeTaskQueryCollectionsFilter(filter: TaskQueryCollectionsFilter,
         throw new InvalidArgumentError("Too many collections");
 
     const typeAndCollectionIdsSizeByte =
-        ((filter.operation.type === "OneOf" ? 1 : 2) << 6) |
+        ((filter.operation.type === "IncludesOneOf" ? 1 : 2) << 6) |
         (filter.operation.collectionIds.size & 0b00111111);
 
     view.setUint8(0, typeAndCollectionIdsSizeByte);
@@ -357,13 +357,13 @@ function deserializeTaskQueryCollectionsFilter(view: DataView): {
     const typeAndCollectionIdsSizeByte = view.getUint8(0);
 
     const typeBits = typeAndCollectionIdsSizeByte >> 6;
-    let type: "OneOf" | "NoneOf";
+    let type: "IncludesOneOf" | "ExcludesAllOf";
     switch (typeBits) {
         case 1:
-            type = "OneOf";
+            type = "IncludesOneOf";
             break;
         case 2:
-            type = "NoneOf";
+            type = "ExcludesAllOf";
             break;
         default:
             throw new InvalidArgumentError(`Unrecognized operation type ${typeBits}`);

@@ -2,6 +2,7 @@ import {X} from "phosphor-react";
 import {ReactNode} from "react";
 import {Box} from "~/client/design/box";
 import {IconButton} from "~/client/design/icon_button";
+import {TaskQueryCollectionsFilterOperationEditor} from "~/client/tasks/demo_2/internal/task_query_collections_filter_operation_editor";
 import {TaskQueryFilterAccountOperationEditor} from "~/client/tasks/demo_2/internal/task_query_filter_account_operation_editor";
 import {TaskQueryFilterOperatorEditor} from "~/client/tasks/demo_2/internal/task_query_filter_operator_editor";
 import {TaskQueryFilter, TaskQueryStatusFilter} from "~/client/tasks/demo_2/task_query_filter";
@@ -41,9 +42,13 @@ export function TaskQueryFilterEditor({
         case "Collections": {
             return (
                 <TaskQueryFilterEditorBase
-                    name="Collection"
-                    // NOCOMMIT
-                    operation={null}
+                    name="Collections"
+                    operation={
+                        <TaskQueryCollectionsFilterOperationEditor
+                            filter={filter}
+                            onFilterChange={onFilterChange}
+                        />
+                    }
                     onFilterRemove={onFilterRemove}
                 />
             );
@@ -54,7 +59,7 @@ export function TaskQueryFilterEditor({
                     name="Assignee"
                     operation={
                         <TaskQueryFilterAccountOperationEditor
-                            label="Assignee"
+                            inputLabel="Assignee"
                             filterReferences={filterReferences}
                             operation={filter.operation}
                             onOperationChange={(operation, mergeFilterReferences) =>
@@ -72,7 +77,7 @@ export function TaskQueryFilterEditor({
                     name="Creator"
                     operation={
                         <TaskQueryFilterAccountOperationEditor
-                            label="Creator"
+                            inputLabel="Creator"
                             // Tasks always have a creator so hide the `NoAccount` filter option.
                             shouldHideNoAccountItem={true}
                             filterReferences={filterReferences}
@@ -92,7 +97,7 @@ export function TaskQueryFilterEditor({
                     name="Assigner"
                     operation={
                         <TaskQueryFilterAccountOperationEditor
-                            label="Assigner"
+                            inputLabel="Assigner"
                             filterReferences={filterReferences}
                             operation={filter.operation}
                             onOperationChange={(operation, mergeFilterReferences) =>

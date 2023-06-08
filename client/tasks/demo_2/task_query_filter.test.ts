@@ -73,18 +73,22 @@ const testCases: Array<{name: string; filters: Array<TaskQueryFilter>}> = [
     },
     {
         name: "empty collections",
-        filters: [{type: "Collections", operation: {type: "OneOf", collectionIds: new Set()}}],
+        filters: [
+            {type: "Collections", operation: {type: "IncludesOneOf", collectionIds: new Set()}},
+        ],
     },
     {
         name: "not empty collections",
-        filters: [{type: "Collections", operation: {type: "NoneOf", collectionIds: new Set()}}],
+        filters: [
+            {type: "Collections", operation: {type: "ExcludesAllOf", collectionIds: new Set()}},
+        ],
     },
     {
         name: "1 collection",
         filters: [
             {
                 type: "Collections",
-                operation: {type: "OneOf", collectionIds: new Set([generateId()])},
+                operation: {type: "IncludesOneOf", collectionIds: new Set([generateId()])},
             },
         ],
     },
@@ -93,7 +97,7 @@ const testCases: Array<{name: string; filters: Array<TaskQueryFilter>}> = [
         filters: [
             {
                 type: "Collections",
-                operation: {type: "NoneOf", collectionIds: new Set([generateId()])},
+                operation: {type: "ExcludesAllOf", collectionIds: new Set([generateId()])},
             },
         ],
     },
@@ -103,7 +107,7 @@ const testCases: Array<{name: string; filters: Array<TaskQueryFilter>}> = [
             {
                 type: "Collections",
                 operation: {
-                    type: "OneOf",
+                    type: "IncludesOneOf",
                     collectionIds: new Set([generateId(), generateId(), generateId()]),
                 },
             },
@@ -115,7 +119,7 @@ const testCases: Array<{name: string; filters: Array<TaskQueryFilter>}> = [
             {
                 type: "Collections",
                 operation: {
-                    type: "NoneOf",
+                    type: "ExcludesAllOf",
                     collectionIds: new Set([generateId(), generateId(), generateId()]),
                 },
             },
