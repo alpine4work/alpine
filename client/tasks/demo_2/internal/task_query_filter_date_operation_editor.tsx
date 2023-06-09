@@ -15,6 +15,9 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {clamp} from "~/shared/helpers/number/clamp";
 import {sprinkles} from "~/shared/styles/styles";
 
+export const taskQueryFilterDateOperationLessThanOperatorLabel = "is before";
+export const taskQueryFilterDateOperationGreaterThanOperatorLabel = "is after";
+
 export function TaskQueryFilterDateOperationEditor({
     operation,
     onOperationChange,
@@ -22,16 +25,54 @@ export function TaskQueryFilterDateOperationEditor({
     operation: TaskQueryFilterDateOperation;
     onOperationChange: (operation: TaskQueryFilterDateOperation) => void;
 }) {
-    const lessThanOperatorLabel = "is before";
-    const greaterThanOperatorLabel = "is after";
+    return (
+        <>
+            <TaskQueryFilterOperatorEditor
+                operatorLabel={
+                    operation.type === "LessThan"
+                        ? taskQueryFilterDateOperationLessThanOperatorLabel
+                        : taskQueryFilterDateOperationGreaterThanOperatorLabel
+                }
+                allOperators={[
+                    {
+                        label: taskQueryFilterDateOperationLessThanOperatorLabel,
+                        isSelected: operation.type === "LessThan",
+                        onPress: () => {
+                            onOperationChange({
+                                type: "LessThan",
+                                date: operation.date,
+                            });
+                        },
+                    },
+                    {
+                        label: taskQueryFilterDateOperationGreaterThanOperatorLabel,
+                        isSelected: operation.type === "GreaterThan",
+                        onPress: () => {
+                            onOperationChange({
+                                type: "GreaterThan",
+                                date: operation.date,
+                            });
+                        },
+                    },
+                ]}
+            />
+            <TaskQueryFilterDateOperationValueEditor
+                operation={operation}
+                onOperationChange={onOperationChange}
+            />
+        </>
+    );
+}
 
+export function TaskQueryFilterDateOperationValueEditor({
+    operation,
+    onOperationChange,
+}: {
+    operation: TaskQueryFilterDateOperation;
+    onOperationChange: (operation: TaskQueryFilterDateOperation) => void;
+}) {
     const absoluteDateLabel = "exact date";
     const relativeTodayDateLabel = "today";
-
-    const isDurationLabelSingular =
-        operation.date.type !== "Absolute" &&
-        operation.date.type !== "RelativeToday" &&
-        operation.date.duration.count === 1;
 
     const relativeBeforeTodaySingularLabelByDurationType: {
         [Key in TaskQueryFilterDateOperationDuration["type"]]: string;
@@ -71,31 +112,6 @@ export function TaskQueryFilterDateOperationEditor({
 
     return (
         <>
-            <TaskQueryFilterOperatorEditor
-                operatorLabel={
-                    operation.type === "LessThan" ? lessThanOperatorLabel : greaterThanOperatorLabel
-                }
-                allOperators={[
-                    {
-                        label: lessThanOperatorLabel,
-                        onPress: () => {
-                            onOperationChange({
-                                type: "LessThan",
-                                date: operation.date,
-                            });
-                        },
-                    },
-                    {
-                        label: greaterThanOperatorLabel,
-                        onPress: () => {
-                            onOperationChange({
-                                type: "GreaterThan",
-                                date: operation.date,
-                            });
-                        },
-                    },
-                ]}
-            />
             {operation.date.type === "Absolute" ? (
                 <TaskQueryFilterDateOperationEditorDate
                     date={operation.date.date}
@@ -145,7 +161,7 @@ export function TaskQueryFilterDateOperationEditor({
                                   operation.date.duration.type
                               ]
                         : operation.date.duration.count === 1
-                        ? relativeBeforeTodaySingularLabelByDurationType[
+                        ? relativeAfterTodaySingularLabelByDurationType[
                               operation.date.duration.type
                           ]
                         : relativeAfterTodayPluralLabelByDurationType[operation.date.duration.type]
@@ -154,6 +170,7 @@ export function TaskQueryFilterDateOperationEditor({
                     [
                         {
                             label: relativeTodayDateLabel,
+                            isSelected: operation.date.type === "RelativeToday",
                             onPress: () => {
                                 onOperationChange({
                                     type: operation.type,
@@ -163,6 +180,7 @@ export function TaskQueryFilterDateOperationEditor({
                         },
                         {
                             label: absoluteDateLabel,
+                            isSelected: operation.date.type === "Absolute",
                             onPress: () => {
                                 onOperationChange({
                                     type: operation.type,
@@ -174,6 +192,9 @@ export function TaskQueryFilterDateOperationEditor({
                     [
                         {
                             label: relativeBeforeTodayPluralLabelByDurationType["Days"],
+                            isSelected:
+                                operation.date.type === "RelativeBeforeToday" &&
+                                operation.date.duration.type === "Days",
                             onPress: () => {
                                 onOperationChange({
                                     type: operation.type,
@@ -194,6 +215,9 @@ export function TaskQueryFilterDateOperationEditor({
                         },
                         {
                             label: relativeBeforeTodayPluralLabelByDurationType["Weeks"],
+                            isSelected:
+                                operation.date.type === "RelativeBeforeToday" &&
+                                operation.date.duration.type === "Weeks",
                             onPress: () => {
                                 onOperationChange({
                                     type: operation.type,
@@ -214,6 +238,9 @@ export function TaskQueryFilterDateOperationEditor({
                         },
                         {
                             label: relativeBeforeTodayPluralLabelByDurationType["Months"],
+                            isSelected:
+                                operation.date.type === "RelativeBeforeToday" &&
+                                operation.date.duration.type === "Months",
                             onPress: () => {
                                 onOperationChange({
                                     type: operation.type,
@@ -234,6 +261,9 @@ export function TaskQueryFilterDateOperationEditor({
                         },
                         {
                             label: relativeBeforeTodayPluralLabelByDurationType["Years"],
+                            isSelected:
+                                operation.date.type === "RelativeBeforeToday" &&
+                                operation.date.duration.type === "Years",
                             onPress: () => {
                                 onOperationChange({
                                     type: operation.type,
@@ -256,6 +286,9 @@ export function TaskQueryFilterDateOperationEditor({
                     [
                         {
                             label: relativeAfterTodayPluralLabelByDurationType["Days"],
+                            isSelected:
+                                operation.date.type === "RelativeAfterToday" &&
+                                operation.date.duration.type === "Days",
                             onPress: () => {
                                 onOperationChange({
                                     type: operation.type,
@@ -276,6 +309,9 @@ export function TaskQueryFilterDateOperationEditor({
                         },
                         {
                             label: relativeAfterTodayPluralLabelByDurationType["Weeks"],
+                            isSelected:
+                                operation.date.type === "RelativeAfterToday" &&
+                                operation.date.duration.type === "Weeks",
                             onPress: () => {
                                 onOperationChange({
                                     type: operation.type,
@@ -296,6 +332,9 @@ export function TaskQueryFilterDateOperationEditor({
                         },
                         {
                             label: relativeAfterTodayPluralLabelByDurationType["Months"],
+                            isSelected:
+                                operation.date.type === "RelativeAfterToday" &&
+                                operation.date.duration.type === "Months",
                             onPress: () => {
                                 onOperationChange({
                                     type: operation.type,
@@ -316,6 +355,9 @@ export function TaskQueryFilterDateOperationEditor({
                         },
                         {
                             label: relativeAfterTodayPluralLabelByDurationType["Years"],
+                            isSelected:
+                                operation.date.type === "RelativeAfterToday" &&
+                                operation.date.duration.type === "Years",
                             onPress: () => {
                                 onOperationChange({
                                     type: operation.type,

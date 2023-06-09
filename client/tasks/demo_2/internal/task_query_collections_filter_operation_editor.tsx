@@ -58,6 +58,9 @@ export function TaskQueryCollectionsFilterOperationEditor({
                         ? [
                               {
                                   label: includesAllOfOperatorLabel,
+                                  isSelected:
+                                      filter.operation.type === "IncludesOneOf" ||
+                                      filter.operation.type === "IncludesAllOf",
                                   onPress: () => {
                                       onFilterChange({
                                           type: "Collections",
@@ -78,6 +81,7 @@ export function TaskQueryCollectionsFilterOperationEditor({
                         : [
                               {
                                   label: includesAllOfOperatorLabel,
+                                  isSelected: filter.operation.type === "IncludesAllOf",
                                   onPress: () => {
                                       onFilterChange({
                                           type: "Collections",
@@ -93,6 +97,7 @@ export function TaskQueryCollectionsFilterOperationEditor({
                               },
                               {
                                   label: includesOneOfOperatorLabel,
+                                  isSelected: filter.operation.type === "IncludesOneOf",
                                   onPress: () => {
                                       onFilterChange({
                                           type: "Collections",
@@ -109,6 +114,7 @@ export function TaskQueryCollectionsFilterOperationEditor({
                           ]),
                     {
                         label: excludesAllOfOperatorLabel,
+                        isSelected: filter.operation.type === "ExcludesAllOf",
                         onPress: () => {
                             onFilterChange({
                                 type: "Collections",
@@ -124,6 +130,7 @@ export function TaskQueryCollectionsFilterOperationEditor({
                     },
                     {
                         label: isEmptyOperatorLabel,
+                        isSelected: filter.operation.type === "IsEmpty",
                         onPress: () => {
                             onFilterChange({
                                 type: "Collections",

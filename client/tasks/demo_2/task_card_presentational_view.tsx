@@ -139,6 +139,7 @@ export function TaskCardPresentationalView({
                 locale,
                 currentDate,
                 date: dueDate,
+                shouldFormatToday: true,
             });
 
             fieldElements.push(

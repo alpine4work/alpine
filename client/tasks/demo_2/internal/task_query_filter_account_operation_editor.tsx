@@ -97,6 +97,7 @@ export function TaskQueryFilterAccountOperationEditor({
                 allOperators={[
                     {
                         label: oneOfOperatorLabel,
+                        isSelected: operation.type === "OneOf",
                         onPress: () => {
                             onOperationChange({
                                 type: "OneOf",
@@ -106,6 +107,7 @@ export function TaskQueryFilterAccountOperationEditor({
                     },
                     {
                         label: noneOfOperatorLabel,
+                        isSelected: operation.type === "NoneOf",
                         onPress: () => {
                             onOperationChange({
                                 type: "NoneOf",

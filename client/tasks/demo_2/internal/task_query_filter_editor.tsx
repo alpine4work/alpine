@@ -4,7 +4,12 @@ import {Box} from "~/client/design/box";
 import {IconButton} from "~/client/design/icon_button";
 import {TaskQueryCollectionsFilterOperationEditor} from "~/client/tasks/demo_2/internal/task_query_collections_filter_operation_editor";
 import {TaskQueryFilterAccountOperationEditor} from "~/client/tasks/demo_2/internal/task_query_filter_account_operation_editor";
-import {TaskQueryFilterDateOperationEditor} from "~/client/tasks/demo_2/internal/task_query_filter_date_operation_editor";
+import {
+    TaskQueryFilterDateOperationEditor,
+    TaskQueryFilterDateOperationValueEditor,
+    taskQueryFilterDateOperationGreaterThanOperatorLabel,
+    taskQueryFilterDateOperationLessThanOperatorLabel,
+} from "~/client/tasks/demo_2/internal/task_query_filter_date_operation_editor";
 import {TaskQueryFilterOperatorEditor} from "~/client/tasks/demo_2/internal/task_query_filter_operator_editor";
 import {LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
 import {TaskQueryFilter, TaskQueryStatusFilter} from "~/client/tasks/demo_2/task_query_filter";
@@ -115,11 +120,88 @@ export function TaskQueryFilterEditor({
             );
         }
         case "DueDate": {
+            const overdueOperatorLabel = "is overdue";
+
             return (
                 <TaskQueryFilterEditorBase
                     name="Due date"
-                    // NOCOMMIT
-                    operation={null}
+                    operation={
+                        <>
+                            <TaskQueryFilterOperatorEditor
+                                operatorLabel={
+                                    filter.operation.type === "Overdue"
+                                        ? overdueOperatorLabel
+                                        : filter.operation.type === "LessThan"
+                                        ? taskQueryFilterDateOperationLessThanOperatorLabel
+                                        : taskQueryFilterDateOperationGreaterThanOperatorLabel
+                                }
+                                allOperators={[
+                                    {
+                                        label: overdueOperatorLabel,
+                                        isSelected: filter.operation.type === "Overdue",
+                                        onPress: () => {
+                                            onFilterChange({
+                                                ...filter,
+                                                operation: {type: "Overdue"},
+                                            });
+                                        },
+                                    },
+                                    {
+                                        label: taskQueryFilterDateOperationLessThanOperatorLabel,
+                                        isSelected: filter.operation.type === "LessThan",
+                                        onPress: () => {
+                                            onFilterChange({
+                                                ...filter,
+                                                operation: {
+                                                    type: "LessThan",
+                                                    date:
+                                                        filter.operation.type !== "Overdue"
+                                                            ? filter.operation.date
+                                                            : {
+                                                                  type: "RelativeAfterToday",
+                                                                  duration: {
+                                                                      type: "Weeks",
+                                                                      count: 1,
+                                                                  },
+                                                              },
+                                                },
+                                            });
+                                        },
+                                    },
+                                    {
+                                        label: taskQueryFilterDateOperationGreaterThanOperatorLabel,
+                                        isSelected: filter.operation.type === "GreaterThan",
+                                        onPress: () => {
+                                            onFilterChange({
+                                                ...filter,
+                                                operation: {
+                                                    type: "GreaterThan",
+                                                    date:
+                                                        filter.operation.type !== "Overdue"
+                                                            ? filter.operation.date
+                                                            : {
+                                                                  type: "RelativeBeforeToday",
+                                                                  duration: {
+                                                                      type: "Weeks",
+                                                                      count: 1,
+                                                                  },
+                                                              },
+                                                },
+                                            });
+                                        },
+                                    },
+                                ]}
+                            />
+                            {filter.operation.type !== "Overdue" && (
+                                <TaskQueryFilterDateOperationValueEditor
+                                    operation={filter.operation}
+                                    onOperationChange={operation =>
+                                        onFilterChange({...filter, operation})
+                                    }
+                                />
+                            )}
+                        </>
+                    }
                     onFilterRemove={onFilterRemove}
                 />
             );
@@ -236,6 +318,7 @@ function TaskQueryStatusFilterOperationEditor({
                 allOperators={[
                     {
                         label: "is",
+                        isSelected: filter.operation.type === "OneOf",
                         onPress: () => {
                             onFilterChange({
                                 type: "Status",
@@ -245,6 +328,7 @@ function TaskQueryStatusFilterOperationEditor({
                     },
                     {
                         label: "is not",
+                        isSelected: filter.operation.type === "NoneOf",
                         onPress: () => {
                             onFilterChange({
                                 type: "Status",

@@ -10,8 +10,8 @@ export function TaskQueryFilterOperatorEditor({
 }: {
     operatorLabel: string;
     allOperators:
-        | ReadonlyArray<{label: string; onPress: () => void}>
-        | ReadonlyArray<ReadonlyArray<{label: string; onPress: () => void}>>;
+        | ReadonlyArray<{label: string; isSelected: boolean; onPress: () => void}>
+        | ReadonlyArray<ReadonlyArray<{label: string; isSelected: boolean; onPress: () => void}>>;
 }) {
     const buttonRef = useRef<HTMLButtonElement>(null);
     const {buttonProps, isPressed} = useButton({}, buttonRef);
