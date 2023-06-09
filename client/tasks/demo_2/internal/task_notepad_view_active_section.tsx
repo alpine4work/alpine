@@ -7,6 +7,7 @@ import {
     TaskGridViewDraggableData,
     TaskGridViewDroppableData,
 } from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
+import {TaskStatusCircle} from "~/client/tasks/demo_2/internal/task_status_circle";
 import {LocalTasksAction, LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
 import {
     TaskCardPresentationalView,
@@ -494,41 +495,7 @@ function TaskNotepadViewActiveSectionInstructionalPlaceholderCard({
                         />
                     </svg>
                     <Box display="flex" alignItems="center" gap="2.5">
-                        <Box
-                            position="relative"
-                            width="6"
-                            height="6"
-                            borderRadius="full"
-                            border="grey-40"
-                        >
-                            <Box
-                                position="absolute"
-                                top="0"
-                                left="0"
-                                height="6"
-                                overflow="hidden"
-                                style={{
-                                    width: `${parseRemLengthNumber(spacing["6"]) / 2}rem`,
-                                    transform: `translate(-1px, -1px) translateX(${
-                                        parseRemLengthNumber(spacing["6"]) / 2
-                                    }rem) scale(${(16 - 5) / 16})`,
-                                    transformOrigin: "center left",
-                                }}
-                            >
-                                <Box
-                                    position="absolute"
-                                    top="0"
-                                    right="0"
-                                    width="6"
-                                    height="6"
-                                    borderRadius="full"
-                                    backgroundColor={{
-                                        light: "theme-20-const",
-                                        dark: "theme-30-const",
-                                    }}
-                                />
-                            </Box>
-                        </Box>
+                        <TaskStatusCircle status="Active" size="6" />
                         <Box fontSize="100" color="grey-70" display="flex" alignItems="center">
                             Active
                         </Box>

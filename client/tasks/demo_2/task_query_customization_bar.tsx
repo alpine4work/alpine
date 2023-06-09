@@ -94,8 +94,8 @@ export function TaskQueryCustomizationBar({
                                     addFilter({
                                         type: "Status",
                                         operation: {
-                                            type: "NoneOf",
-                                            statuses: new Set(["Closed"]),
+                                            type: "OneOf",
+                                            statuses: new Set([]),
                                         },
                                     });
                                 },

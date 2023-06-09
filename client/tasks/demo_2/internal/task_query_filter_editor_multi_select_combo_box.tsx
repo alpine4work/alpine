@@ -18,6 +18,7 @@ import {useOutsidePress} from "~/client/design/helpers/use_outside_press";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
 import {defaultTooltipOffset} from "~/client/design/tooltip";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
+import {TaskCheckbox} from "~/client/tasks/demo_2/internal/task_checkbox";
 import {Spacing, addRemLengths, spacing} from "~/shared/design/spacing";
 import {emptyArray} from "~/shared/helpers/array/empty_array";
 import {createTimeout} from "~/shared/helpers/async/timeout";
@@ -410,26 +411,7 @@ function TaskQueryFilterEditorMultiSelectListBoxOption<Key extends string>({
                     display="flex"
                     alignItems="center"
                 >
-                    <Box
-                        width="3"
-                        height="3"
-                        border={!isSelected ? "grey-20" : undefined}
-                        borderRadius="sm"
-                        backgroundColor={
-                            !isSelected ? "grey-0" : {light: "grey-80", dark: "grey-90"}
-                        }
-                        display="flex"
-                        justifyContent="center"
-                        alignItems="center"
-                    >
-                        {isSelected && (
-                            <Check
-                                color={colorSchemeVars["grey-0"]}
-                                weight="bold"
-                                size={addRemLengths(spacing["2"], spacing["0.5"])}
-                            />
-                        )}
-                    </Box>
+                    <TaskCheckbox isChecked={isSelected} />
                 </Box>
                 {item.rendered}
             </li>

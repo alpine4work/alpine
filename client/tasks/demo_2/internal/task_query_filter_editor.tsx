@@ -11,8 +11,9 @@ import {
     taskQueryFilterDateOperationLessThanOperatorLabel,
 } from "~/client/tasks/demo_2/internal/task_query_filter_date_operation_editor";
 import {TaskQueryFilterOperatorEditor} from "~/client/tasks/demo_2/internal/task_query_filter_operator_editor";
+import {TaskQueryStatusFilterOperationEditor} from "~/client/tasks/demo_2/internal/task_query_status_filter_operation_editor";
 import {LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
-import {TaskQueryFilter, TaskQueryStatusFilter} from "~/client/tasks/demo_2/task_query_filter";
+import {TaskQueryFilter} from "~/client/tasks/demo_2/task_query_filter";
 import {spacing} from "~/shared/design/spacing";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references";
@@ -301,44 +302,5 @@ function TaskQueryFilterEditorBase({
                 </IconButton>
             </Box>
         </Box>
-    );
-}
-
-function TaskQueryStatusFilterOperationEditor({
-    filter,
-    onFilterChange,
-}: {
-    filter: TaskQueryStatusFilter;
-    onFilterChange: (filter: TaskQueryStatusFilter) => void;
-}) {
-    return (
-        <>
-            <TaskQueryFilterOperatorEditor
-                operatorLabel={filter.operation.type === "OneOf" ? "is" : "is not"}
-                allOperators={[
-                    {
-                        label: "is",
-                        isSelected: filter.operation.type === "OneOf",
-                        onPress: () => {
-                            onFilterChange({
-                                type: "Status",
-                                operation: {type: "OneOf", statuses: filter.operation.statuses},
-                            });
-                        },
-                    },
-                    {
-                        label: "is not",
-                        isSelected: filter.operation.type === "NoneOf",
-                        onPress: () => {
-                            onFilterChange({
-                                type: "Status",
-                                operation: {type: "NoneOf", statuses: filter.operation.statuses},
-                            });
-                        },
-                    },
-                ]}
-            />
-            open
-        </>
     );
 }
