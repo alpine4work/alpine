@@ -5,6 +5,7 @@ import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name";
 import {Box} from "~/client/design/box";
 import {PrettyNumber} from "~/client/design/pretty_number";
+import {Tooltip} from "~/client/design/tooltip";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {
     useExpensivelyLoadAllSpaceAccounts,
@@ -316,7 +317,13 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
                 <>
                     <TaskCurrentAccountAvatar />{" "}
                     <span>
-                        Me <span className={sprinkles({color: "grey-50"})}>(dynamic)</span>
+                        Me{" "}
+                        <Tooltip
+                            content="Whoever you share this view with will see their tasks instead of yours"
+                            placement="bottom"
+                        >
+                            <span className={sprinkles({color: "grey-50"})}>(dynamic*)</span>
+                        </Tooltip>
                     </span>
                 </>
             ),

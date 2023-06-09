@@ -26,8 +26,17 @@ export function TaskQueryCollectionsFilterOperationEditor({
     filter: TaskQueryCollectionsFilter;
     onFilterChange: (filter: TaskQueryCollectionsFilter) => void;
 }) {
-    const includesOneOfOperatorLabel = "has any of";
-    const includesAllOfOperatorLabel = "has all of";
+    // Simplify operator label if there is just one collection and the operators do
+    // the same thing.
+    const includesOneOfOperatorLabel =
+        filter.operation.type !== "IsEmpty" && filter.operation.collectionIds.size <= 1
+            ? "has"
+            : "has any of";
+    const includesAllOfOperatorLabel =
+        filter.operation.type !== "IsEmpty" && filter.operation.collectionIds.size <= 1
+            ? "has"
+            : "has all of";
+
     const excludesAllOfOperatorLabel = "has none of";
     const isEmptyOperatorLabel = "is empty";
 
@@ -44,36 +53,60 @@ export function TaskQueryCollectionsFilterOperationEditor({
                         : isEmptyOperatorLabel
                 }
                 allOperators={[
-                    {
-                        label: includesAllOfOperatorLabel,
-                        onPress: () => {
-                            onFilterChange({
-                                type: "Collections",
-                                operation: {
-                                    type: "IncludesAllOf",
-                                    collectionIds:
-                                        filter.operation.type !== "IsEmpty"
-                                            ? filter.operation.collectionIds
-                                            : new Set(),
-                                },
-                            });
-                        },
-                    },
-                    {
-                        label: includesOneOfOperatorLabel,
-                        onPress: () => {
-                            onFilterChange({
-                                type: "Collections",
-                                operation: {
-                                    type: "IncludesOneOf",
-                                    collectionIds:
-                                        filter.operation.type !== "IsEmpty"
-                                            ? filter.operation.collectionIds
-                                            : new Set(),
-                                },
-                            });
-                        },
-                    },
+                    ...(filter.operation.type !== "IsEmpty" &&
+                    filter.operation.collectionIds.size <= 1
+                        ? [
+                              {
+                                  label: includesAllOfOperatorLabel,
+                                  onPress: () => {
+                                      onFilterChange({
+                                          type: "Collections",
+                                          operation: {
+                                              type:
+                                                  filter.operation.type === "IncludesOneOf"
+                                                      ? "IncludesOneOf"
+                                                      : "IncludesAllOf",
+                                              collectionIds:
+                                                  filter.operation.type !== "IsEmpty"
+                                                      ? filter.operation.collectionIds
+                                                      : new Set(),
+                                          },
+                                      });
+                                  },
+                              },
+                          ]
+                        : [
+                              {
+                                  label: includesAllOfOperatorLabel,
+                                  onPress: () => {
+                                      onFilterChange({
+                                          type: "Collections",
+                                          operation: {
+                                              type: "IncludesAllOf",
+                                              collectionIds:
+                                                  filter.operation.type !== "IsEmpty"
+                                                      ? filter.operation.collectionIds
+                                                      : new Set(),
+                                          },
+                                      });
+                                  },
+                              },
+                              {
+                                  label: includesOneOfOperatorLabel,
+                                  onPress: () => {
+                                      onFilterChange({
+                                          type: "Collections",
+                                          operation: {
+                                              type: "IncludesOneOf",
+                                              collectionIds:
+                                                  filter.operation.type !== "IsEmpty"
+                                                      ? filter.operation.collectionIds
+                                                      : new Set(),
+                                          },
+                                      });
+                                  },
+                              },
+                          ]),
                     {
                         label: excludesAllOfOperatorLabel,
                         onPress: () => {
