@@ -1,4 +1,4 @@
-import {CalendarDate, DateDuration, GregorianCalendar, toCalendar} from "@internationalized/date";
+import {CalendarDate, GregorianCalendar, toCalendar} from "@internationalized/date";
 import {InvalidArgumentError} from "~/shared/error/error";
 import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64";
 import {assert} from "~/shared/helpers/control/assert";
@@ -344,7 +344,7 @@ function getTaskQueryCollectionsFilterByteLength(filter: TaskQueryCollectionsFil
 
 function serializeTaskQueryCollectionsFilter(filter: TaskQueryCollectionsFilter, view: DataView) {
     if (filter.operation.type === "IsEmpty") {
-        view.setUint8(0, 4);
+        view.setUint8(0, 0);
         return;
     }
 
@@ -387,16 +387,7 @@ function deserializeTaskQueryCollectionsFilter(view: DataView): {
 
     let type: "IncludesOneOf" | "IncludesAllOf" | "ExcludesAllOf";
     switch (typeBits) {
-        case 1:
-            type = "IncludesOneOf";
-            break;
-        case 2:
-            type = "IncludesAllOf";
-            break;
-        case 3:
-            type = "ExcludesAllOf";
-            break;
-        case 4: {
+        case 0: {
             if (collectionIdsSize !== 0)
                 throw new InvalidArgumentError("Unexpected non-zero size in operation type");
 
@@ -408,6 +399,15 @@ function deserializeTaskQueryCollectionsFilter(view: DataView): {
                 byteLength: 1,
             };
         }
+        case 1:
+            type = "IncludesOneOf";
+            break;
+        case 2:
+            type = "IncludesAllOf";
+            break;
+        case 3:
+            type = "ExcludesAllOf";
+            break;
         default:
             throw new InvalidArgumentError(`Unrecognized operation type ${typeBits}`);
     }
@@ -609,45 +609,6 @@ function deserializeTaskQueryAssignerFilter(view: DataView): {
     return {filter: {type: "Assigner", operation}, byteLength};
 }
 
-export type TaskQueryFilterDateOperationDate =
-    | {
-          readonly type: "Absolute";
-          readonly date: CalendarDate;
-      }
-    | {
-          readonly type: "RelativeAfterToday";
-          readonly duration: DateDuration;
-      }
-    | {
-          readonly type: "RelativeBeforeToday";
-          readonly duration: DateDuration;
-      };
-
-function getTaskQueryFilterDateOperationDateByteLength(date: TaskQueryFilterDateOperationDate) {
-    switch (date.type) {
-        case "Absolute": {
-            return (
-                1 + // Tag
-                4 + // Year (0 through 2^32 - 1, ~4 billion)
-                1 + // Month (0 through 255)
-                1 // Day (0 through 255)
-            );
-        }
-        case "RelativeAfterToday":
-        case "RelativeBeforeToday": {
-            return (
-                1 + // Tag
-                4 + // Years
-                4 + // Months
-                4 + // Weeks
-                4 // Days
-            );
-        }
-        default:
-            throw exhaustive(date);
-    }
-}
-
 function isUint32(number: number) {
     return Number.isInteger(number) && number >= 0 && number <= 2 ** 32 - 1;
 }
@@ -656,12 +617,168 @@ function isUint8(number: number) {
     return Number.isInteger(number) && number >= 0 && number <= 2 ** 8 - 1;
 }
 
+export type TaskQueryFilterDateOperationDuration =
+    | {
+          readonly type: "Days";
+          readonly count: number;
+      }
+    | {
+          readonly type: "Weeks";
+          readonly count: number;
+      }
+    | {
+          readonly type: "Months";
+          readonly count: number;
+      }
+    | {
+          readonly type: "Years";
+          readonly count: number;
+      };
+
+function getTaskQueryFilterDateOperationDurationByteLength(
+    duration: TaskQueryFilterDateOperationDuration,
+) {
+    return 1 + 4;
+}
+
+function serializeTaskQueryFilterDateOperationDuration(
+    duration: TaskQueryFilterDateOperationDuration,
+    view: DataView,
+) {
+    switch (duration.type) {
+        case "Days": {
+            if (!isUint32(duration.count)) throw new InvalidArgumentError("Days must be a uint32");
+            view.setUint8(0, 1);
+            view.setUint32(1, duration.count);
+            break;
+        }
+        case "Weeks": {
+            if (!isUint32(duration.count)) throw new InvalidArgumentError("Weeks must be a uint32");
+            view.setUint8(0, 2);
+            view.setUint32(1, duration.count);
+            break;
+        }
+        case "Months": {
+            if (!isUint32(duration.count))
+                throw new InvalidArgumentError("Months must be a uint32");
+            view.setUint8(0, 3);
+            view.setUint32(1, duration.count);
+            break;
+        }
+        case "Years": {
+            if (!isUint32(duration.count)) throw new InvalidArgumentError("Years must be a uint32");
+            view.setUint8(0, 4);
+            view.setUint32(1, duration.count);
+            break;
+        }
+        default:
+            throw exhaustive(duration);
+    }
+}
+
+function deserializeTaskQueryFilterDateOperationDuration(view: DataView): {
+    duration: TaskQueryFilterDateOperationDuration;
+    byteLength: number;
+} {
+    let byteOffset = 0;
+
+    const typeByte = view.getUint8(byteOffset);
+    byteOffset += 1;
+
+    switch (typeByte) {
+        case 1: {
+            const count = view.getUint32(byteOffset);
+            byteOffset += 4;
+
+            return {
+                duration: {type: "Days", count},
+                byteLength: byteOffset,
+            };
+        }
+        case 2: {
+            const count = view.getUint32(byteOffset);
+            byteOffset += 4;
+
+            return {
+                duration: {type: "Weeks", count},
+                byteLength: byteOffset,
+            };
+        }
+        case 3: {
+            const count = view.getUint32(byteOffset);
+            byteOffset += 4;
+
+            return {
+                duration: {type: "Months", count},
+                byteLength: byteOffset,
+            };
+        }
+        case 4: {
+            const count = view.getUint32(byteOffset);
+            byteOffset += 4;
+
+            return {
+                duration: {type: "Years", count},
+                byteLength: byteOffset,
+            };
+        }
+        default:
+            throw new InvalidArgumentError(`Unrecognized duration type ${typeByte}`);
+    }
+}
+
+export type TaskQueryFilterDateOperationDate =
+    | {
+          readonly type: "Absolute";
+          readonly date: CalendarDate | null;
+      }
+    | {
+          readonly type: "RelativeToday";
+      }
+    | {
+          readonly type: "RelativeAfterToday";
+          readonly duration: TaskQueryFilterDateOperationDuration;
+      }
+    | {
+          readonly type: "RelativeBeforeToday";
+          readonly duration: TaskQueryFilterDateOperationDuration;
+      };
+
+function getTaskQueryFilterDateOperationDateByteLength(date: TaskQueryFilterDateOperationDate) {
+    switch (date.type) {
+        case "Absolute": {
+            if (!date.date) return 1;
+
+            return (
+                1 + // Tag
+                4 + // Year (0 through 2^32 - 1, ~4 billion)
+                1 + // Month (0 through 255)
+                1 // Day (0 through 255)
+            );
+        }
+        case "RelativeToday": {
+            return 1;
+        }
+        case "RelativeAfterToday":
+        case "RelativeBeforeToday": {
+            return 1 + getTaskQueryFilterDateOperationDurationByteLength(date.duration);
+        }
+        default:
+            throw exhaustive(date);
+    }
+}
+
 function serializeTaskQueryFilterDateOperationDate(
     date: TaskQueryFilterDateOperationDate,
     view: DataView,
 ) {
     switch (date.type) {
         case "Absolute": {
+            if (!date.date) {
+                view.setUint8(0, 2);
+                break;
+            }
+
             let byteOffset = 0;
 
             view.setUint8(byteOffset, 1);
@@ -682,56 +799,30 @@ function serializeTaskQueryFilterDateOperationDate(
             byteOffset += 1;
             break;
         }
+        case "RelativeToday": {
+            view.setUint8(0, 3);
+            break;
+        }
         case "RelativeAfterToday": {
-            let byteOffset = 0;
+            view.setUint8(0, 4);
 
-            view.setUint8(byteOffset, 2);
-            byteOffset += 1;
-
-            const {years = 0, months = 0, weeks = 0, days = 0} = date.duration;
-
-            if (!isUint32(years)) throw new InvalidArgumentError("Years must be a uint32");
-            view.setUint32(byteOffset, years);
-            byteOffset += 4;
-
-            if (!isUint32(months)) throw new InvalidArgumentError("Months must be a uint32");
-            view.setUint32(byteOffset, months);
-            byteOffset += 4;
-
-            if (!isUint32(weeks)) throw new InvalidArgumentError("Weeks must be a uint32");
-            view.setUint32(byteOffset, weeks);
-            byteOffset += 4;
-
-            if (!isUint32(days)) throw new InvalidArgumentError("Days must be a uint32");
-            view.setUint32(byteOffset, days);
-            byteOffset += 4;
+            serializeTaskQueryFilterDateOperationDuration(
+                date.duration,
+                new DataView(view.buffer, view.byteOffset + 1, view.byteLength - 1),
+            );
             break;
         }
         case "RelativeBeforeToday": {
-            let byteOffset = 0;
+            view.setUint8(0, 5);
 
-            view.setUint8(byteOffset, 3);
-            byteOffset += 1;
-
-            const {years = 0, months = 0, weeks = 0, days = 0} = date.duration;
-
-            if (!isUint32(years)) throw new InvalidArgumentError("Years must be a uint32");
-            view.setUint32(byteOffset, years);
-            byteOffset += 4;
-
-            if (!isUint32(months)) throw new InvalidArgumentError("Months must be a uint32");
-            view.setUint32(byteOffset, months);
-            byteOffset += 4;
-
-            if (!isUint32(weeks)) throw new InvalidArgumentError("Weeks must be a uint32");
-            view.setUint32(byteOffset, weeks);
-            byteOffset += 4;
-
-            if (!isUint32(days)) throw new InvalidArgumentError("Days must be a uint32");
-            view.setUint32(byteOffset, days);
-            byteOffset += 4;
+            serializeTaskQueryFilterDateOperationDuration(
+                date.duration,
+                new DataView(view.buffer, view.byteOffset + 1, view.byteLength - 1),
+            );
             break;
         }
+        default:
+            throw exhaustive(date);
     }
 }
 
@@ -739,13 +830,12 @@ function deserializeTaskQueryFilterDateOperationDate(view: DataView): {
     date: TaskQueryFilterDateOperationDate;
     byteLength: number;
 } {
-    let byteOffset = 0;
-
-    const typeByte = view.getUint8(byteOffset);
-    byteOffset += 1;
+    const typeByte = view.getUint8(0);
 
     switch (typeByte) {
         case 1: {
+            let byteOffset = 1;
+
             const year = view.getUint32(byteOffset);
             byteOffset += 4;
 
@@ -763,51 +853,35 @@ function deserializeTaskQueryFilterDateOperationDate(view: DataView): {
             };
         }
         case 2: {
-            const years = view.getUint32(byteOffset);
-            byteOffset += 4;
-
-            const months = view.getUint32(byteOffset);
-            byteOffset += 4;
-
-            const weeks = view.getUint32(byteOffset);
-            byteOffset += 4;
-
-            const days = view.getUint32(byteOffset);
-            byteOffset += 4;
-
-            const duration: DateDuration = {};
-            if (years !== 0) duration.years = years;
-            if (months !== 0) duration.months = months;
-            if (weeks !== 0) duration.weeks = weeks;
-            if (days !== 0) duration.days = days;
-
             return {
-                date: {type: "RelativeAfterToday", duration},
-                byteLength: byteOffset,
+                date: {type: "Absolute", date: null},
+                byteLength: 1,
             };
         }
         case 3: {
-            const years = view.getUint32(byteOffset);
-            byteOffset += 4;
+            return {
+                date: {type: "RelativeToday"},
+                byteLength: 1,
+            };
+        }
+        case 4: {
+            const {duration, byteLength} = deserializeTaskQueryFilterDateOperationDuration(
+                new DataView(view.buffer, view.byteOffset + 1, view.byteLength - 1),
+            );
 
-            const months = view.getUint32(byteOffset);
-            byteOffset += 4;
-
-            const weeks = view.getUint32(byteOffset);
-            byteOffset += 4;
-
-            const days = view.getUint32(byteOffset);
-            byteOffset += 4;
-
-            const duration: DateDuration = {};
-            if (years !== 0) duration.years = years;
-            if (months !== 0) duration.months = months;
-            if (weeks !== 0) duration.weeks = weeks;
-            if (days !== 0) duration.days = days;
+            return {
+                date: {type: "RelativeAfterToday", duration},
+                byteLength: 1 + byteLength,
+            };
+        }
+        case 5: {
+            const {duration, byteLength} = deserializeTaskQueryFilterDateOperationDuration(
+                new DataView(view.buffer, view.byteOffset + 1, view.byteLength - 1),
+            );
 
             return {
                 date: {type: "RelativeBeforeToday", duration},
-                byteLength: byteOffset,
+                byteLength: 1 + byteLength,
             };
         }
         default:
@@ -817,32 +891,28 @@ function deserializeTaskQueryFilterDateOperationDate(view: DataView): {
 
 export type TaskQueryFilterDateOperation =
     | {
-          readonly type: "LessThanOrEqualTo";
-          readonly date: TaskQueryFilterDateOperationDate | null;
+          readonly type: "LessThan";
+          readonly date: TaskQueryFilterDateOperationDate;
       }
     | {
-          readonly type: "GreaterThanOrEqualTo";
-          readonly date: TaskQueryFilterDateOperationDate | null;
+          readonly type: "GreaterThan";
+          readonly date: TaskQueryFilterDateOperationDate;
       };
 
 function getTaskQueryFilterDateOperationByteLength(operation: TaskQueryFilterDateOperation) {
-    return 1 + (operation.date ? getTaskQueryFilterDateOperationDateByteLength(operation.date) : 1);
+    return 1 + getTaskQueryFilterDateOperationDateByteLength(operation.date);
 }
 
 function serializeTaskQueryFilterDateOperation(
     operation: TaskQueryFilterDateOperation,
     view: DataView,
 ) {
-    view.setUint8(0, operation.type === "LessThanOrEqualTo" ? 1 : 2);
+    view.setUint8(0, operation.type === "LessThan" ? 1 : 2);
 
-    if (!operation.date) {
-        view.setUint8(1, 0);
-    } else {
-        serializeTaskQueryFilterDateOperationDate(
-            operation.date,
-            new DataView(view.buffer, view.byteOffset + 1, view.byteLength - 1),
-        );
-    }
+    serializeTaskQueryFilterDateOperationDate(
+        operation.date,
+        new DataView(view.buffer, view.byteOffset + 1, view.byteLength - 1),
+    );
 }
 
 function deserializeTaskQueryFilterDateOperation(view: DataView): {
@@ -850,21 +920,16 @@ function deserializeTaskQueryFilterDateOperation(view: DataView): {
     byteLength: number;
 } {
     const typeByte = view.getUint8(0);
-    let type: "LessThanOrEqualTo" | "GreaterThanOrEqualTo";
+    let type: "LessThan" | "GreaterThan";
     switch (typeByte) {
         case 1:
-            type = "LessThanOrEqualTo";
+            type = "LessThan";
             break;
         case 2:
-            type = "GreaterThanOrEqualTo";
+            type = "GreaterThan";
             break;
         default:
             throw new InvalidArgumentError(`Unrecognized operation type ${typeByte}`);
-    }
-
-    const firstDateByte = view.getUint8(1);
-    if (firstDateByte === 0) {
-        return {operation: {type, date: null}, byteLength: 2};
     }
 
     const {date, byteLength} = deserializeTaskQueryFilterDateOperationDate(

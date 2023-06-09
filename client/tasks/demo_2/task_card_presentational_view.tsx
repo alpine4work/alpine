@@ -9,7 +9,7 @@ import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour";
-import {formatTaskDueDate} from "~/client/tasks/demo_2/internal/format_task_due_date";
+import {formatTaskDate} from "~/client/tasks/demo_2/internal/format_task_date";
 import {
     TaskCollectionChip,
     taskCollectionChipContainerMaxWidth,
@@ -134,11 +134,11 @@ export function TaskCardPresentationalView({
         }
 
         if (dueDate) {
-            const {isAfterDueDate, dueDateString} = formatTaskDueDate({
+            const {isAfterDate: isAfterDueDate, dateString: dueDateString} = formatTaskDate({
                 timeZone,
                 locale,
                 currentDate,
-                dueDate,
+                date: dueDate,
             });
 
             fieldElements.push(

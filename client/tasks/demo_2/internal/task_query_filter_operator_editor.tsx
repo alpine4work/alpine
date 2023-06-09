@@ -9,19 +9,16 @@ export function TaskQueryFilterOperatorEditor({
     allOperators,
 }: {
     operatorLabel: string;
-    allOperators: ReadonlyArray<{label: string; onPress: () => void}>;
+    allOperators:
+        | ReadonlyArray<{label: string; onPress: () => void}>
+        | ReadonlyArray<ReadonlyArray<{label: string; onPress: () => void}>>;
 }) {
     const buttonRef = useRef<HTMLButtonElement>(null);
     const {buttonProps, isPressed} = useButton({}, buttonRef);
     const {hoverProps, isHovered} = useHover({});
 
     return (
-        <MenuButton
-            actions={allOperators.map(operator => ({
-                label: operator.label,
-                onPress: operator.onPress,
-            }))}
-        >
+        <MenuButton actions={allOperators}>
             <FocusRing offset="0">
                 <button
                     {...mergeProps(buttonProps, hoverProps)}

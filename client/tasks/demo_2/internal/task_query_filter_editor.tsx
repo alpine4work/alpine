@@ -4,6 +4,7 @@ import {Box} from "~/client/design/box";
 import {IconButton} from "~/client/design/icon_button";
 import {TaskQueryCollectionsFilterOperationEditor} from "~/client/tasks/demo_2/internal/task_query_collections_filter_operation_editor";
 import {TaskQueryFilterAccountOperationEditor} from "~/client/tasks/demo_2/internal/task_query_filter_account_operation_editor";
+import {TaskQueryFilterDateOperationEditor} from "~/client/tasks/demo_2/internal/task_query_filter_date_operation_editor";
 import {TaskQueryFilterOperatorEditor} from "~/client/tasks/demo_2/internal/task_query_filter_operator_editor";
 import {LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
 import {TaskQueryFilter, TaskQueryStatusFilter} from "~/client/tasks/demo_2/task_query_filter";
@@ -127,8 +128,12 @@ export function TaskQueryFilterEditor({
             return (
                 <TaskQueryFilterEditorBase
                     name="Created date"
-                    // NOCOMMIT
-                    operation={null}
+                    operation={
+                        <TaskQueryFilterDateOperationEditor
+                            operation={filter.operation}
+                            onOperationChange={operation => onFilterChange({...filter, operation})}
+                        />
+                    }
                     onFilterRemove={onFilterRemove}
                 />
             );
@@ -137,8 +142,12 @@ export function TaskQueryFilterEditor({
             return (
                 <TaskQueryFilterEditorBase
                     name="Assigned date"
-                    // NOCOMMIT
-                    operation={null}
+                    operation={
+                        <TaskQueryFilterDateOperationEditor
+                            operation={filter.operation}
+                            onOperationChange={operation => onFilterChange({...filter, operation})}
+                        />
+                    }
                     onFilterRemove={onFilterRemove}
                 />
             );
@@ -147,8 +156,12 @@ export function TaskQueryFilterEditor({
             return (
                 <TaskQueryFilterEditorBase
                     name="Closed date"
-                    // NOCOMMIT
-                    operation={null}
+                    operation={
+                        <TaskQueryFilterDateOperationEditor
+                            operation={filter.operation}
+                            onOperationChange={operation => onFilterChange({...filter, operation})}
+                        />
+                    }
                     onFilterRemove={onFilterRemove}
                 />
             );
@@ -157,8 +170,12 @@ export function TaskQueryFilterEditor({
             return (
                 <TaskQueryFilterEditorBase
                     name="Active date"
-                    // NOCOMMIT
-                    operation={null}
+                    operation={
+                        <TaskQueryFilterDateOperationEditor
+                            operation={filter.operation}
+                            onOperationChange={operation => onFilterChange({...filter, operation})}
+                        />
+                    }
                     onFilterRemove={onFilterRemove}
                 />
             );

@@ -9,33 +9,42 @@ import {useClientInfo} from "~/client/remix/client_info_context";
 import {spacing} from "~/shared/design/spacing";
 import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles";
 
-export function TaskDetailDueDateFieldInput({
-    dueDate,
-    onDueDateChange,
+export function TaskDateFieldInput({
+    date,
+    onDateChange,
+    "aria-label": ariaLabel,
     "aria-labelledby": ariaLabelledBy,
     isEditing,
+    shouldIncludeCalendarIcon,
+    height,
+    paddingX,
 }: {
-    dueDate: CalendarDate | null;
-    onDueDateChange: (dueDate: CalendarDate | null) => void;
-    "aria-labelledby": string;
+    date: CalendarDate | null;
+    onDateChange: (date: CalendarDate | null) => void;
+    "aria-label"?: string;
+    "aria-labelledby"?: string;
     isEditing: boolean;
+    shouldIncludeCalendarIcon: boolean;
+    height: "full" | "4";
+    paddingX: "0" | "1";
 }) {
     const {locale} = useClientInfo();
 
     const datePickerProps: DateFieldStateOptions & AriaDateFieldProps<CalendarDate> = {
         locale,
         createCalendar,
+        "aria-label": ariaLabel,
         "aria-labelledby": ariaLabelledBy,
         // The types are wrong. These hooks actually support `CalendarDate | null`.
-        value: dueDate as DateValue,
-        onChange: onDueDateChange as (value: DateValue) => void,
+        value: date as DateValue,
+        onChange: onDateChange as (value: DateValue) => void,
     };
 
     const state = useDateFieldState(datePickerProps);
 
-    // If we are no longer editing the due date input and have a `null` due date
+    // If we are no longer editing the date input and have a `null` date
     // then don't leave a partial date in our state.
-    if (!isEditing && !dueDate) {
+    if (!isEditing && !date) {
         for (const segment of state.segments) {
             if (segment.isEditable && !segment.isPlaceholder) {
                 state.clearSegment(segment.type);
@@ -47,11 +56,13 @@ export function TaskDetailDueDateFieldInput({
     const {fieldProps} = useDateField(datePickerProps, state, ref);
 
     return (
-        <Box height="4">
+        <Box height={height}>
             <Box
                 // Inline flex so the clickable range doesn't extend beyond the
                 // input's contents.
                 display="inline-flex"
+                height="full"
+                paddingX={paddingX}
                 alignItems="center"
                 gap="1"
                 color="grey-text"
@@ -73,14 +84,16 @@ export function TaskDetailDueDateFieldInput({
                     }
                 }}
             >
-                <CalendarBlank
-                    size={spacing["4"]}
-                    className={sprinkles({pointerEvents: "none"})}
-                    color={!isEditing ? inputPlaceholderStyles.color : undefined}
-                />
+                {shouldIncludeCalendarIcon && (
+                    <CalendarBlank
+                        size={spacing["4"]}
+                        className={sprinkles({pointerEvents: "none"})}
+                        color={!isEditing ? inputPlaceholderStyles.color : undefined}
+                    />
+                )}
                 <Box {...fieldProps} ref={ref} display="inline-flex">
                     {state.segments.map((segment, i) => (
-                        <TaskDetailDueDateFieldInputSegment
+                        <TaskDateFieldInputSegment
                             key={i}
                             state={state}
                             segment={segment}
@@ -93,7 +106,7 @@ export function TaskDetailDueDateFieldInput({
     );
 }
 
-function TaskDetailDueDateFieldInputSegment({
+function TaskDateFieldInputSegment({
     state,
     segment,
     areAllSegmentsPlaceholders,

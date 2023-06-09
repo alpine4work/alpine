@@ -7,44 +7,56 @@ import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_
 import {OverlayAnimated} from "~/client/design/overlay_animated";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour";
-import {formatTaskDueDate} from "~/client/tasks/demo_2/internal/format_task_due_date";
-import {TaskDetailDueDateFieldCalendar} from "~/client/tasks/demo_2/internal/task_detail_due_date_field_calendar";
-import {TaskDetailDueDateFieldInput} from "~/client/tasks/demo_2/internal/task_detail_due_date_field_input";
-import {TaskStatus} from "~/client/tasks/demo_2/task_status_button";
+import {formatTaskDate} from "~/client/tasks/demo_2/internal/format_task_date";
+import {TaskDateFieldCalendar} from "~/client/tasks/demo_2/internal/task_date_field_calendar";
+import {TaskDateFieldInput} from "~/client/tasks/demo_2/internal/task_date_field_input";
 import {spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 
 /**
- * The due date field displays the formatted date we show everywhere but when
+ * The date field displays the formatted date we show everywhere but when
  * you click or focus we reveal a text input where you can type the date in
  * your locale.
  */
-export function TaskDetailDueDateField({
-    status,
-    dueDate,
-    onDueDateChange,
+export function TaskDateField({
+    date,
+    onDateChange,
+    shouldIncludeCalendarIcon = false,
+    shouldWarnIfAfterDate = false,
+    shouldFormatToday = false,
+    "aria-label": ariaLabel,
     "aria-labelledby": ariaLabelledBy,
+    height = "4",
+    paddingX = "0",
+    focusRingOffset,
 }: {
-    status: TaskStatus;
-    dueDate: CalendarDate | null;
-    onDueDateChange: (dueDate: CalendarDate | null) => void;
-    "aria-labelledby": string;
+    date: CalendarDate | null;
+    onDateChange: (date: CalendarDate | null) => void;
+    shouldIncludeCalendarIcon?: boolean;
+    shouldWarnIfAfterDate?: boolean;
+    shouldFormatToday?: boolean;
+    "aria-label"?: string;
+    "aria-labelledby"?: string;
+    height?: "full" | "4";
+    paddingX?: "0" | "1";
+    focusRingOffset?: "0";
 }) {
     const {timeZone, locale} = useClientInfo();
     const currentDate = useCurrentDate();
     const inputRef = useRef<HTMLDivElement>(null);
 
-    const formattedDueDate = useMemo(
+    const formattedDate = useMemo(
         () =>
-            dueDate
-                ? formatTaskDueDate({
+            date
+                ? formatTaskDate({
                       timeZone,
                       locale,
                       currentDate,
-                      dueDate,
+                      date,
+                      shouldFormatToday,
                   })
                 : null,
-        [currentDate, dueDate, locale, timeZone],
+        [currentDate, date, locale, shouldFormatToday, timeZone],
     );
 
     const [isFocusWithinInput, setIsFocusWithinInput] = useState(false);
@@ -53,19 +65,18 @@ export function TaskDetailDueDateField({
     const isEditing = isFocusWithinInput || isFocusWithinOverlay;
 
     return (
-        <Box position="relative" height="4">
-            {!isEditing && formattedDueDate && (
+        <Box position="relative" height={height}>
+            {!isEditing && formattedDate && (
                 <Box
-                    position="absolute"
-                    top="0"
-                    left="0"
-                    display="flex"
+                    // Inline flex so the clickable range doesn't extend beyond the
+                    // input's contents.
+                    display="inline-flex"
                     alignItems="center"
+                    height="full"
+                    paddingX={paddingX}
                     gap="1"
                     color={
-                        status === "Open" && formattedDueDate.isAfterDueDate
-                            ? "red-60"
-                            : "grey-text"
+                        shouldWarnIfAfterDate && formattedDate.isAfterDate ? "red-60" : "grey-text"
                     }
                     cursor="text"
                     onClick={() => {
@@ -74,8 +85,8 @@ export function TaskDetailDueDateField({
                         })?.focus();
                     }}
                 >
-                    <CalendarBlank size={spacing["4"]} />
-                    <Box>{formattedDueDate.dueDateString}</Box>
+                    {shouldIncludeCalendarIcon && <CalendarBlank size={spacing["4"]} />}
+                    <Box>{formattedDate.dateString}</Box>
                 </Box>
             )}
             <OverlayAnimated
@@ -102,19 +113,18 @@ export function TaskDetailDueDateField({
                             );
                         }}
                     >
-                        <TaskDetailDueDateFieldCalendar
-                            dueDate={dueDate}
-                            onDueDateChange={onDueDateChange}
-                        />
+                        <TaskDateFieldCalendar date={date} onDateChange={onDateChange} />
                     </Box>
                 }
             >
-                <FocusRing isVisibleWhenFocusWithin>
+                <FocusRing offset={focusRingOffset} isVisibleWhenFocusWithin>
                     <Box
                         ref={inputRef}
-                        display="inline-block"
-                        pointerEvents={!isEditing && formattedDueDate ? "none" : undefined}
-                        style={{opacity: !isEditing && formattedDueDate ? 0 : undefined}}
+                        height={height}
+                        position={!isEditing && formattedDate ? "absolute" : "relative"}
+                        top={!isEditing && formattedDate ? "0" : undefined}
+                        pointerEvents={!isEditing && formattedDate ? "none" : undefined}
+                        style={{opacity: !isEditing && formattedDate ? 0 : undefined}}
                         onFocus={event => {
                             setIsFocusWithinInput(event.currentTarget.contains(event.target));
                         }}
@@ -124,11 +134,15 @@ export function TaskDetailDueDateField({
                             );
                         }}
                     >
-                        <TaskDetailDueDateFieldInput
-                            dueDate={dueDate}
-                            onDueDateChange={onDueDateChange}
+                        <TaskDateFieldInput
+                            date={date}
+                            onDateChange={onDateChange}
+                            aria-label={ariaLabel}
                             aria-labelledby={ariaLabelledBy}
                             isEditing={isEditing}
+                            shouldIncludeCalendarIcon={shouldIncludeCalendarIcon}
+                            height={height}
+                            paddingX={paddingX}
                         />
                     </Box>
                 </FocusRing>

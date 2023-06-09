@@ -14,10 +14,12 @@ import {CaretLeft, CaretRight} from "phosphor-react";
 import {useCallback, useMemo, useRef, useState} from "react";
 import {
     AriaCalendarProps,
+    mergeProps,
     useCalendar,
     useCalendarCell,
     useCalendarGrid,
     useDateFormatter,
+    useHover,
 } from "react-aria";
 import {CalendarState, CalendarStateOptions, useCalendarState} from "react-stately";
 import {Box} from "~/client/design/box";
@@ -26,23 +28,24 @@ import {IconButton} from "~/client/design/icon_button";
 import {Spacer} from "~/client/design/spacer";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour";
+import {spacing} from "~/shared/design/spacing";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
 import {sprinkles} from "~/shared/styles/styles";
 
-export function TaskDetailDueDateFieldCalendar({
-    dueDate,
-    onDueDateChange,
+export function TaskDateFieldCalendar({
+    date,
+    onDateChange,
 }: {
-    dueDate: CalendarDate | null;
-    onDueDateChange: (dueDate: CalendarDate | null) => void;
+    date: CalendarDate | null;
+    onDateChange: (date: CalendarDate | null) => void;
 }) {
     const {locale, timeZone} = useClientInfo();
     const currentDate = useCurrentDate();
 
-    const [focusedDate, setFocusedDate] = useState(dueDate ?? currentDate);
+    const [focusedDate, setFocusedDate] = useState(date ?? currentDate);
 
     const {calendarName, calendar} = useMemo(() => {
         const calendarName = new Intl.DateTimeFormat(locale).resolvedOptions().calendar;
@@ -60,8 +63,8 @@ export function TaskDetailDueDateFieldCalendar({
             [calendar, calendarName],
         ),
         // The types are wrong. These hooks actually support `CalendarDate | null`.
-        value: dueDate as DateValue,
-        onChange: onDueDateChange as (value: DateValue) => void,
+        value: date as DateValue,
+        onChange: onDateChange as (value: DateValue) => void,
         focusedValue: focusedDate,
         onFocusChange: setFocusedDate,
         // When we are at the end of the month you probably want to select dates next
@@ -74,6 +77,7 @@ export function TaskDetailDueDateFieldCalendar({
     const _state = useCalendarState(calendarProps);
 
     const actualStartDate = _state.visibleRange.start;
+    const actualEndDate = _state.visibleRange.end;
 
     // We want dates for the full week in the first and last weeks of the month. To
     // do this we modify our state such that that's our visible range. The
@@ -163,16 +167,18 @@ export function TaskDetailDueDateFieldCalendar({
             </Box>
             <Box display="flex" gap="3">
                 <Box>
-                    <TaskDetailDueDateFieldCalendarGrid
+                    <TaskDateFieldCalendarGrid
                         state={state}
                         actualStartDate={actualStartDate}
+                        actualEndDate={actualEndDate}
                         currentDate={currentDate}
                     />
                 </Box>
                 <Box>
-                    <TaskDetailDueDateFieldCalendarGrid
+                    <TaskDateFieldCalendarGrid
                         state={state}
                         actualStartDate={actualStartDate}
+                        actualEndDate={actualEndDate}
                         currentDate={currentDate}
                         offset={{months: 1}}
                     />
@@ -189,7 +195,7 @@ export function TaskDetailDueDateFieldCalendar({
                     variant="quiet-above-grey-5-dark-background"
                     height="5"
                     paddingX="2"
-                    onPress={() => onDueDateChange(null)}
+                    onPress={() => onDateChange(null)}
                 >
                     Clear
                 </Button>
@@ -198,14 +204,16 @@ export function TaskDetailDueDateFieldCalendar({
     );
 }
 
-function TaskDetailDueDateFieldCalendarGrid({
+function TaskDateFieldCalendarGrid({
     state,
     actualStartDate,
+    actualEndDate,
     currentDate,
     offset = {},
 }: {
     state: CalendarState;
     actualStartDate: CalendarDate;
+    actualEndDate: CalendarDate;
     currentDate: CalendarDate;
     offset?: DateDuration;
 }) {
@@ -249,9 +257,11 @@ function TaskDetailDueDateFieldCalendarGrid({
                             .getDatesInWeek(weekIndex, startDate)
                             .map((date, i) =>
                                 date ? (
-                                    <TaskDetailDueDateFieldCalendarCell
+                                    <TaskDateFieldCalendarCell
                                         key={i}
                                         state={state}
+                                        actualStartDate={actualStartDate}
+                                        actualEndDate={actualEndDate}
                                         date={date}
                                         gridStartDate={startDate}
                                         currentDate={currentDate}
@@ -267,19 +277,24 @@ function TaskDetailDueDateFieldCalendarGrid({
     );
 }
 
-function TaskDetailDueDateFieldCalendarCell({
+function TaskDateFieldCalendarCell({
     state,
+    actualStartDate,
+    actualEndDate,
     date,
     gridStartDate,
     currentDate,
 }: {
     state: CalendarState;
+    actualStartDate: CalendarDate;
+    actualEndDate: CalendarDate;
     date: CalendarDate;
     gridStartDate: CalendarDate;
     currentDate: CalendarDate;
 }) {
     const {locale} = useClientInfo();
     const ref = useRef<HTMLDivElement>(null);
+    const {hoverProps, isHovered} = useHover({});
 
     const isDimmed =
         isWeekend(date, locale) ||
@@ -288,20 +303,45 @@ function TaskDetailDueDateFieldCalendarCell({
 
     const isCurrentDate = date.compare(currentDate) === 0;
 
-    const {cellProps, buttonProps, isSelected, formattedDate} = useCalendarCell({date}, state, ref);
+    const {
+        cellProps,
+        buttonProps,
+        isPressed,
+        isSelected: _isSelected,
+        formattedDate,
+    } = useCalendarCell({date}, state, ref);
+
+    const isDateSameMonthAsGridStartDate =
+        date.month === gridStartDate.month && date.year === gridStartDate.year;
+
+    // We only want to show the selected circle once. When we have overlapping
+    // dates between adjacent months, only show the selected circle around the date
+    // in its month.
+    //
+    // For overflow dates at the start/end of the calendar grids we want to show
+    // the selected circle there too since we don't render the adjacent month.
+    const isSelected =
+        isPressed ||
+        (_isSelected &&
+            (isDateSameMonthAsGridStartDate ||
+                date.compare(actualStartDate) < 0 ||
+                date.compare(actualEndDate) > 0));
 
     return (
         <td {...cellProps}>
-            <div {...buttonProps} ref={ref}>
+            <div {...mergeProps(buttonProps, hoverProps)} ref={ref} style={{padding: 1}}>
                 <div
                     // Put border radius on a nested `<div>` so entire parent is clickable.
                     className={sprinkles({
-                        width: "7",
-                        height: "7",
                         fontSize: "75",
                         fontStyle: isCurrentDate && !isDimmed ? "ultra-bold" : undefined,
                         borderRadius: "full",
                         backgroundColor: isSelected
+                            ? {light: "grey-10", dark: "grey-20"}
+                            : // We use a hover state here since picking the right date requires some motor
+                            // precision. So hovering helps reduce the mental load as your mouse tracks to
+                            // the right position.
+                            isHovered
                             ? {light: "grey-5", dark: "grey-10"}
                             : undefined,
                         color:
@@ -314,6 +354,10 @@ function TaskDetailDueDateFieldCalendarCell({
                         justifyContent: "center",
                         alignItems: "center",
                     })}
+                    style={{
+                        width: `calc(${spacing["7"]} - 2px)`,
+                        height: `calc(${spacing["7"]} - 2px)`,
+                    }}
                 >
                     {formattedDate}
                 </div>

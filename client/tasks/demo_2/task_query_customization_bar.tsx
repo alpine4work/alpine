@@ -167,8 +167,11 @@ export function TaskQueryCustomizationBar({
                                     addFilter({
                                         type: "CreatedDate",
                                         operation: {
-                                            type: "GreaterThanOrEqualTo",
-                                            date: null,
+                                            type: "GreaterThan",
+                                            date: {
+                                                type: "RelativeBeforeToday",
+                                                duration: {type: "Weeks", count: 1},
+                                            },
                                         },
                                     });
                                 },
@@ -179,8 +182,11 @@ export function TaskQueryCustomizationBar({
                                     addFilter({
                                         type: "AssignedDate",
                                         operation: {
-                                            type: "GreaterThanOrEqualTo",
-                                            date: null,
+                                            type: "GreaterThan",
+                                            date: {
+                                                type: "RelativeBeforeToday",
+                                                duration: {type: "Weeks", count: 1},
+                                            },
                                         },
                                     });
                                 },
@@ -191,8 +197,11 @@ export function TaskQueryCustomizationBar({
                                     addFilter({
                                         type: "ClosedDate",
                                         operation: {
-                                            type: "GreaterThanOrEqualTo",
-                                            date: null,
+                                            type: "GreaterThan",
+                                            date: {
+                                                type: "RelativeBeforeToday",
+                                                duration: {type: "Weeks", count: 1},
+                                            },
                                         },
                                     });
                                 },
@@ -207,8 +216,11 @@ export function TaskQueryCustomizationBar({
                                     addFilter({
                                         type: "ActivatedDate",
                                         operation: {
-                                            type: "GreaterThanOrEqualTo",
-                                            date: null,
+                                            type: "GreaterThan",
+                                            date: {
+                                                type: "RelativeBeforeToday",
+                                                duration: {type: "Weeks", count: 1},
+                                            },
                                         },
                                     });
                                 },

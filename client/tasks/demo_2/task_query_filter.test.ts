@@ -285,17 +285,9 @@ const testCases: Array<{name: string; filters: Array<TaskQueryFilter>}> = [
     ),
     ...cast<Array<{name: string; operation: TaskQueryFilterDateOperation}>>([
         {
-            name: "less than null date",
-            operation: {type: "LessThanOrEqualTo", date: null},
-        },
-        {
-            name: "greater than null date",
-            operation: {type: "GreaterThanOrEqualTo", date: null},
-        },
-        {
             name: "less than absolute date",
             operation: {
-                type: "LessThanOrEqualTo",
+                type: "LessThan",
                 date: {
                     type: "Absolute",
                     date: new CalendarDate(new GregorianCalendar(), 2023, 6, 7),
@@ -305,7 +297,7 @@ const testCases: Array<{name: string; filters: Array<TaskQueryFilter>}> = [
         {
             name: "greater than absolute date",
             operation: {
-                type: "GreaterThanOrEqualTo",
+                type: "GreaterThan",
                 date: {
                     type: "Absolute",
                     date: new CalendarDate(new GregorianCalendar(), 2023, 6, 7),
@@ -313,202 +305,190 @@ const testCases: Array<{name: string; filters: Array<TaskQueryFilter>}> = [
             },
         },
         {
+            name: "less than null absolute date",
+            operation: {
+                type: "LessThan",
+                date: {type: "Absolute", date: null},
+            },
+        },
+        {
+            name: "greater than null absolute date",
+            operation: {
+                type: "GreaterThan",
+                date: {type: "Absolute", date: null},
+            },
+        },
+        {
+            name: "less than relative today",
+            operation: {
+                type: "LessThan",
+                date: {type: "RelativeToday"},
+            },
+        },
+        {
             name: "less than relative after today in years",
             operation: {
-                type: "LessThanOrEqualTo",
+                type: "LessThan",
                 date: {
                     type: "RelativeAfterToday",
-                    duration: {years: 1},
+                    duration: {type: "Years", count: 1},
                 },
             },
         },
         {
             name: "less than relative after today in months",
             operation: {
-                type: "LessThanOrEqualTo",
+                type: "LessThan",
                 date: {
                     type: "RelativeAfterToday",
-                    duration: {months: 3},
+                    duration: {type: "Months", count: 3},
                 },
             },
         },
         {
             name: "less than relative after today in weeks",
             operation: {
-                type: "LessThanOrEqualTo",
+                type: "LessThan",
                 date: {
                     type: "RelativeAfterToday",
-                    duration: {weeks: 6},
+                    duration: {type: "Weeks", count: 6},
                 },
             },
         },
         {
             name: "less than relative after today in days",
             operation: {
-                type: "LessThanOrEqualTo",
+                type: "LessThan",
                 date: {
                     type: "RelativeAfterToday",
-                    duration: {days: 7},
-                },
-            },
-        },
-        {
-            name: "less than relative after today in months and days",
-            operation: {
-                type: "LessThanOrEqualTo",
-                date: {
-                    type: "RelativeAfterToday",
-                    duration: {months: 1, days: 7},
+                    duration: {type: "Days", count: 7},
                 },
             },
         },
         {
             name: "less than relative before today in years",
             operation: {
-                type: "LessThanOrEqualTo",
+                type: "LessThan",
                 date: {
                     type: "RelativeBeforeToday",
-                    duration: {years: 1},
+                    duration: {type: "Years", count: 1},
                 },
             },
         },
         {
             name: "less than relative before today in months",
             operation: {
-                type: "LessThanOrEqualTo",
+                type: "LessThan",
                 date: {
                     type: "RelativeBeforeToday",
-                    duration: {months: 3},
+                    duration: {type: "Months", count: 3},
                 },
             },
         },
         {
             name: "less than relative before today in weeks",
             operation: {
-                type: "LessThanOrEqualTo",
+                type: "LessThan",
                 date: {
                     type: "RelativeBeforeToday",
-                    duration: {weeks: 6},
+                    duration: {type: "Weeks", count: 6},
                 },
             },
         },
         {
             name: "less than relative before today in days",
             operation: {
-                type: "LessThanOrEqualTo",
+                type: "LessThan",
                 date: {
                     type: "RelativeBeforeToday",
-                    duration: {days: 7},
+                    duration: {type: "Days", count: 7},
                 },
             },
         },
         {
-            name: "less than relative before today in months and days",
+            name: "greater than relative today",
             operation: {
-                type: "LessThanOrEqualTo",
-                date: {
-                    type: "RelativeBeforeToday",
-                    duration: {months: 1, days: 7},
-                },
+                type: "GreaterThan",
+                date: {type: "RelativeToday"},
             },
         },
         {
             name: "greater than relative after today in years",
             operation: {
-                type: "GreaterThanOrEqualTo",
+                type: "GreaterThan",
                 date: {
                     type: "RelativeAfterToday",
-                    duration: {years: 1},
+                    duration: {type: "Years", count: 1},
                 },
             },
         },
         {
             name: "greater than relative after today in months",
             operation: {
-                type: "GreaterThanOrEqualTo",
+                type: "GreaterThan",
                 date: {
                     type: "RelativeAfterToday",
-                    duration: {months: 3},
+                    duration: {type: "Months", count: 3},
                 },
             },
         },
         {
             name: "greater than relative after today in weeks",
             operation: {
-                type: "GreaterThanOrEqualTo",
+                type: "GreaterThan",
                 date: {
                     type: "RelativeAfterToday",
-                    duration: {weeks: 6},
+                    duration: {type: "Weeks", count: 6},
                 },
             },
         },
         {
             name: "greater than relative after today in days",
             operation: {
-                type: "GreaterThanOrEqualTo",
+                type: "GreaterThan",
                 date: {
                     type: "RelativeAfterToday",
-                    duration: {days: 7},
-                },
-            },
-        },
-        {
-            name: "greater than relative after today in months and days",
-            operation: {
-                type: "GreaterThanOrEqualTo",
-                date: {
-                    type: "RelativeAfterToday",
-                    duration: {months: 1, days: 7},
+                    duration: {type: "Days", count: 7},
                 },
             },
         },
         {
             name: "greater than relative before today in years",
             operation: {
-                type: "GreaterThanOrEqualTo",
+                type: "GreaterThan",
                 date: {
                     type: "RelativeBeforeToday",
-                    duration: {years: 1},
+                    duration: {type: "Years", count: 1},
                 },
             },
         },
         {
             name: "greater than relative before today in months",
             operation: {
-                type: "GreaterThanOrEqualTo",
+                type: "GreaterThan",
                 date: {
                     type: "RelativeBeforeToday",
-                    duration: {months: 3},
+                    duration: {type: "Months", count: 3},
                 },
             },
         },
         {
             name: "greater than relative before today in weeks",
             operation: {
-                type: "GreaterThanOrEqualTo",
+                type: "GreaterThan",
                 date: {
                     type: "RelativeBeforeToday",
-                    duration: {weeks: 6},
+                    duration: {type: "Weeks", count: 6},
                 },
             },
         },
         {
             name: "greater than relative before today in days",
             operation: {
-                type: "GreaterThanOrEqualTo",
+                type: "GreaterThan",
                 date: {
                     type: "RelativeBeforeToday",
-                    duration: {days: 7},
-                },
-            },
-        },
-        {
-            name: "greater than relative before today in months and days",
-            operation: {
-                type: "GreaterThanOrEqualTo",
-                date: {
-                    type: "RelativeBeforeToday",
-                    duration: {months: 1, days: 7},
+                    duration: {type: "Days", count: 7},
                 },
             },
         },

@@ -102,7 +102,7 @@ export function TaskQueryFilterEditorMultiSelectComboBox<Key extends string>({
                         overlayTriggerState.close();
                     })}
                     width="64"
-                    maxHeight="64"
+                    maxHeight="96"
                     overflow="hidden"
                     borderRadius="md"
                     backgroundColor={{light: "grey-0", dark: "grey-5"}}

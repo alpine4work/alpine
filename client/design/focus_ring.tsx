@@ -17,6 +17,7 @@ import {assignRef} from "~/client/helpers/refs/assign_ref";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
+import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
 import {Spacing} from "~/shared/design/spacing";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {assert} from "~/shared/helpers/control/assert";
@@ -199,13 +200,18 @@ function FocusRing(
                 if (isFocused !== nextIsFocused) {
                     isFocused = nextIsFocused;
 
-                    if (isActive()) {
-                        currentActiveElement = targetElement;
-                        setIsActive(true);
-                    } else {
-                        if (currentActiveElement === targetElement) currentActiveElement = null;
-                        setIsActive(false);
-                    }
+                    // Immediately re-render the focus ring. That way if we have any state changing
+                    // the visuals of an element in `onFocus` or `onBlur` we don't have a tear with
+                    // the focus ring in a weird state.
+                    runWithImmediatePriority(() => {
+                        if (isActive()) {
+                            currentActiveElement = targetElement;
+                            setIsActive(true);
+                        } else {
+                            if (currentActiveElement === targetElement) currentActiveElement = null;
+                            setIsActive(false);
+                        }
+                    });
                 }
             };
 
