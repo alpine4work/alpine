@@ -55,6 +55,7 @@ export type TaskGridPresentationalViewProps<TaskRow> = {
     onTaskTitleChange: (taskRow: TaskRow, title: TaskTitle) => void;
     getTaskAssignee: (taskRow: TaskRow) => TaskAssignee | null;
     onTaskAssigneeChange: (taskRow: TaskRow, assignee: TaskAssignee | null) => void;
+    getTaskParentTaskTitle: (taskRow: TaskRow) => TaskTitle | null;
     getTaskChildTaskCount: (taskRow: TaskRow) => number;
     getTaskClosedChildTaskCount: (taskRow: TaskRow) => number;
     getTaskAreChildTasksCollapsed: (taskRow: TaskRow) => boolean;
@@ -89,6 +90,7 @@ function TaskGridPresentationalView<TaskRow>(
         onTaskTitleChange,
         getTaskAssignee,
         onTaskAssigneeChange,
+        getTaskParentTaskTitle,
         getTaskChildTaskCount,
         getTaskClosedChildTaskCount,
         getTaskAreChildTasksCollapsed,
@@ -171,7 +173,7 @@ function TaskGridPresentationalView<TaskRow>(
     if (hasTopGhostTaskRow) {
         taskRows.push(
             <TaskRowPresentationalView
-                key={`${topGhostTaskKey}-0`}
+                key={topGhostTaskKey}
                 ref={topGhostTaskRowRef}
                 taskRow={null}
                 status={null}
@@ -181,6 +183,7 @@ function TaskGridPresentationalView<TaskRow>(
                 titlePlaceholder="Add a task…"
                 assignee={null}
                 onAssigneeChange={noop}
+                parentTaskTitle={null}
                 childTaskCount={0}
                 closedChildTaskCount={0}
                 areChildTasksCollapsed={false}
@@ -259,7 +262,7 @@ function TaskGridPresentationalView<TaskRow>(
                 // TODO(calebmer): Remounting when moving between indentation levels is a
                 // little strange when we don't remount for normal moves. Should we consider
                 // keeping some local counter that follows task rows around as they move?
-                key={`${getTaskKey(taskRow)}-${getTaskRowIndentation(taskRow)}`}
+                key={getTaskKey(taskRow)}
                 ref={taskRowRefByIndex.get(index)}
                 taskRow={taskRow}
                 status={getTaskStatus(taskRow)}
@@ -268,6 +271,7 @@ function TaskGridPresentationalView<TaskRow>(
                 onTitleChange={title => onTaskTitleChange(taskRow, title)}
                 assignee={getTaskAssignee(taskRow)}
                 onAssigneeChange={assignee => onTaskAssigneeChange(taskRow, assignee)}
+                parentTaskTitle={getTaskParentTaskTitle(taskRow)}
                 childTaskCount={getTaskChildTaskCount(taskRow)}
                 closedChildTaskCount={getTaskClosedChildTaskCount(taskRow)}
                 areChildTasksCollapsed={getTaskAreChildTasksCollapsed(taskRow)}
@@ -338,7 +342,7 @@ function TaskGridPresentationalView<TaskRow>(
 
     taskRows.push(
         <TaskRowPresentationalView
-            key={`${bottomGhostTaskKey}-0`}
+            key={bottomGhostTaskKey}
             ref={bottomGhostTaskRowRef}
             // If there are no task rows, the padding just makes our ghost row placeholder
             // look misaligned. So remove it.
@@ -351,6 +355,7 @@ function TaskGridPresentationalView<TaskRow>(
             titlePlaceholder={taskGhostRowPlaceholder}
             assignee={null}
             onAssigneeChange={noop}
+            parentTaskTitle={null}
             childTaskCount={0}
             closedChildTaskCount={0}
             areChildTasksCollapsed={false}

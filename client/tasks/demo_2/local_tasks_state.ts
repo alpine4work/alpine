@@ -1,5 +1,6 @@
 import {toCalendarDate} from "@internationalized/date";
 import {CalendarDate, parseAbsolute, parseDate} from "@internationalized/date";
+import {compareAsc} from "date-fns";
 import {MutableRefObject, useEffect, useMemo, useRef} from "react";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
@@ -855,6 +856,13 @@ class LocalTasksDatabase {
                 tasks.push(task);
             }
         }
+
+        tasks.sort((task1, task2) => {
+            return -(
+                task1.createdDate.compare(task2.createdDate) ||
+                compareAsc(task1.createdTime, task2.createdTime)
+            );
+        });
 
         return tasks;
     }

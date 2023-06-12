@@ -186,6 +186,9 @@ export function TaskQueryGridView({
                     assignee,
                 });
             }}
+            getTaskParentTaskTitle={({task}) =>
+                task.parentTaskId ? state.database.getTask(task.parentTaskId).title : null
+            }
             getTaskChildTaskCount={({task}) => task.childTaskIdByOrderKey.size}
             getTaskClosedChildTaskCount={({task}) =>
                 reduceIterable(

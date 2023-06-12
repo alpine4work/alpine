@@ -90,6 +90,7 @@ type TaskRowPresentationalViewProps<TaskRow> = {
     titlePlaceholder?: string;
     assignee: TaskAssignee | null;
     onAssigneeChange: (assignee: TaskAssignee | null) => void;
+    parentTaskTitle: TaskTitle | null;
     childTaskCount: number;
     closedChildTaskCount: number;
     areChildTasksCollapsed: boolean;
@@ -121,6 +122,7 @@ function TaskRowPresentationalView<TaskRow>(
         titlePlaceholder,
         assignee,
         onAssigneeChange,
+        parentTaskTitle,
         childTaskCount,
         closedChildTaskCount,
         areChildTasksCollapsed,
@@ -398,6 +400,8 @@ function TaskRowPresentationalView<TaskRow>(
                         title={title}
                         onTitleChange={onTitleChange}
                         placeholder={titlePlaceholder}
+                        indentation={indentation}
+                        parentTaskTitle={parentTaskTitle}
                         childTaskCount={childTaskCount}
                         closedChildTaskCount={closedChildTaskCount}
                         areChildTasksCollapsed={areChildTasksCollapsed}

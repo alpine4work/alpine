@@ -1,4 +1,5 @@
 import classNames from "classnames";
+import {CaretLeft} from "phosphor-react";
 import {AllSelection, EditorState, Selection, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {
@@ -16,9 +17,8 @@ import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_a
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
 import {TaskRowTitleChildTasksButton} from "~/client/tasks/demo_2/internal/task_row_title_child_tasks_button";
-import {TaskStatus} from "~/client/tasks/demo_2/task_status_button";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
-import {Spacing} from "~/shared/design/spacing";
+import {Spacing, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {noop} from "~/shared/helpers/control/noop";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
@@ -70,6 +70,8 @@ function TaskRowTitleInput(
         title,
         onTitleChange,
         placeholder,
+        indentation,
+        parentTaskTitle,
         childTaskCount,
         closedChildTaskCount,
         areChildTasksCollapsed,
@@ -88,6 +90,8 @@ function TaskRowTitleInput(
         title: TaskTitle;
         onTitleChange: (title: TaskTitle) => void;
         placeholder?: string;
+        indentation: number;
+        parentTaskTitle: TaskTitle | null;
         childTaskCount: number;
         closedChildTaskCount: number;
         areChildTasksCollapsed: boolean;
@@ -497,7 +501,6 @@ function TaskRowTitleInput(
                         height: taskRowTitleInputHeight,
                         display: "flex",
                         alignItems: "center",
-                        paddingLeft: childTaskCount > 0 ? "3" : undefined,
                     }),
                 )}
                 {...useOutOfBoundsClickSelection({
@@ -513,6 +516,29 @@ function TaskRowTitleInput(
                     },
                 })}
             >
+                {parentTaskTitle && indentation === 0 && (
+                    <div
+                        className={sprinkles({
+                            pointerEvents: "none",
+                            color: "grey-50",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.5",
+                            marginLeft: "1.5",
+                        })}
+                    >
+                        <CaretLeft size={spacing["3"]} />
+                        <div
+                            className={sprinkles({
+                                fontStyle: "truncate",
+                                maxWidth: "48",
+                            })}
+                            dangerouslySetInnerHTML={{
+                                __html: serializeProsemirrorFragmentToHtml(parentTaskTitle.content),
+                            }}
+                        />
+                    </div>
+                )}
                 {childTaskCount > 0 && (
                     <TaskRowTitleChildTasksButton
                         childTaskCount={childTaskCount}

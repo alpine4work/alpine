@@ -30,6 +30,7 @@ export function TaskRowTitleChildTasksButton({
                 {...mergeProps(hoverProps, pressProps)}
                 display="flex"
                 alignItems="center"
+                marginLeft="3"
                 paddingLeft="1"
                 paddingRight="0.5"
                 paddingY="0.5"

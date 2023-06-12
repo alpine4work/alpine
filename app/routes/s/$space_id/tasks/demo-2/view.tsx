@@ -57,7 +57,7 @@ function TasksViewRoute() {
     });
 
     const {filterReferences} = useLoaderDataWithSchema(LoaderSchema);
-    const [state] = useLocalTasksState();
+    const [state, dispatch] = useLocalTasksState();
 
     const isInitialAppRender = useIsInitialAppRender();
 
@@ -67,6 +67,7 @@ function TasksViewRoute() {
             // initial render!
             key={`${isInitialAppRender}`}
             state={state}
+            dispatch={dispatch}
             initialFilters={isInitialAppRender ? [] : initialFilters}
             initialFilterReferences={filterReferences}
             onFiltersChange={filters => {
