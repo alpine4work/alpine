@@ -90,7 +90,6 @@ export function TaskGridViewDndContext<TaskRow>({
     getTaskAssignee,
     onTaskAssigneeChange,
     getTaskTitle,
-    getTaskAreChildTasksCollapsed,
     getTaskRowIndentation,
     moveTaskBelow,
     moveTaskToParentTop,
@@ -100,7 +99,6 @@ export function TaskGridViewDndContext<TaskRow>({
     getTaskAssignee: (taskRow: TaskRow) => TaskAssignee | null;
     onTaskAssigneeChange: (taskRow: TaskRow, assignee: TaskAssignee) => void;
     getTaskTitle: (taskRow: TaskRow) => TaskTitle;
-    getTaskAreChildTasksCollapsed: (taskRow: TaskRow) => boolean;
     getTaskRowIndentation: (taskRow: TaskRow) => number;
     moveTaskBelow: (belowTaskRow: TaskRow | null, unnest: number, taskRow: TaskRow) => void;
     moveTaskToParentTop: (parentTaskRow: TaskRow, taskRow: TaskRow) => void;
@@ -143,18 +141,12 @@ export function TaskGridViewDndContext<TaskRow>({
                         case "Row": {
                             switch (activeData.type) {
                                 case "Row": {
-                                    const unnest = Math.max(
-                                        0,
+                                    const unnest =
                                         (overData.taskRow
                                             ? getTaskRowIndentation(overData.taskRow)
-                                            : 0) - overData.indentation,
-                                    );
+                                            : 0) - overData.indentation;
 
-                                    if (
-                                        overData.taskRow &&
-                                        unnest === 0 &&
-                                        !getTaskAreChildTasksCollapsed(overData.taskRow)
-                                    ) {
+                                    if (overData.taskRow && unnest < 0) {
                                         moveTaskToParentTop(overData.taskRow, activeData.taskRow);
                                     } else {
                                         moveTaskBelow(overData.taskRow, unnest, activeData.taskRow);

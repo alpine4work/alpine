@@ -1,9 +1,9 @@
-import {Dispatch, Ref, SetStateAction, forwardRef, useMemo, useRef, useState} from "react";
+import {useMemo, useRef, useState} from "react";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
 import {usePeekStackContext} from "~/client/peek/peek_stack";
 import {useClientInfo} from "~/client/remix/client_info_context";
+import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {
     LocalTask,
@@ -14,75 +14,58 @@ import {
     TaskGridPresentationalView,
     TaskGridPresentationalViewRef,
 } from "~/client/tasks/demo_2/task_grid_presentational_view";
-import {useTaskGhostRowPlaceholderTutorial} from "~/client/tasks/demo_2/use_task_ghost_row_placeholder_tutorial";
+import {TaskQueryFilter} from "~/client/tasks/demo_2/task_query_filter";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
 import {OrderKey} from "~/shared/helpers/sort/order_key";
 import {generateId} from "~/shared/id/id";
 import {LocalTaskId} from "~/shared/id/types/id_types";
 
-const TaskNotepadGridViewForwardRef = forwardRef(TaskNotepadGridView);
-export {TaskNotepadGridViewForwardRef as TaskNotepadGridView};
-
-type TaskNotepadGridViewRowPosition =
+type TaskQueryGridViewRowPosition =
     | {
           readonly isRoot: true;
-          readonly notepad: {readonly page: number; readonly orderKey: OrderKey};
       }
     | {
           readonly isRoot: false;
           readonly parentTask: {readonly id: LocalTaskId; readonly orderKey: OrderKey};
       };
 
-export type TaskNotepadGridViewRow = {
-    readonly position: TaskNotepadGridViewRowPosition;
-    readonly parentPositionStack: ReadonlyArray<TaskNotepadGridViewRowPosition>;
+export type TaskQueryGridViewRow = {
+    readonly position: TaskQueryGridViewRowPosition;
+    readonly parentPositionStack: ReadonlyArray<TaskQueryGridViewRowPosition>;
     readonly task: LocalTask;
 };
 
-function TaskNotepadGridView(
-    {
-        state,
-        dispatch,
-        notepadPage,
-        expandedTaskIds,
-        setExpandedTaskIds,
-        moveTaskBelow,
-        moveTaskToParentTop,
-    }: {
-        state: LocalTasksState;
-        dispatch: (action: LocalTasksAction) => void;
-        notepadPage: number;
-        expandedTaskIds: ReadonlySet<LocalTaskId>;
-        setExpandedTaskIds: Dispatch<SetStateAction<ReadonlySet<LocalTaskId>>>;
-        moveTaskBelow: (
-            belowTaskRow: TaskNotepadGridViewRow | null,
-            unnest: number,
-            taskRow: TaskNotepadGridViewRow,
-        ) => void;
-        moveTaskToParentTop: (
-            parentTaskRow: TaskNotepadGridViewRow,
-            taskRow: TaskNotepadGridViewRow,
-        ) => void;
-    },
-    ref: Ref<TaskGridPresentationalViewRef>,
-) {
+export function TaskQueryGridView({
+    state,
+    dispatch,
+    filters,
+}: {
+    state: LocalTasksState;
+    dispatch: (action: LocalTasksAction) => void;
+    filters: ReadonlyArray<TaskQueryFilter>;
+}) {
     const {timeZone} = useClientInfo();
-    const {space, currentAccount} = useSpaceContext();
+    const currentDate = useCurrentDate();
+    const {currentAccount, space} = useSpaceContext();
     const peekStackContext = usePeekStackContext();
     const gridViewRef = useRef<TaskGridPresentationalViewRef>(null);
 
-    const tasks = useMemo(
-        () => Array.from(state.database.getNotepadPageTasks(notepadPage)),
-        [notepadPage, state.database],
-    );
+    const tasks = useMemo(() => {
+        return state.database.query(filters, {
+            currentAccountId: currentAccount.id,
+            currentDate,
+        });
+    }, [currentAccount.id, currentDate, filters, state.database]);
+
+    const [expandedTaskIds, setExpandedTaskIds] = useState(new Set<LocalTaskId>());
 
     const {taskRowIds, taskRows} = useMemo(() => {
         const taskRowIds = new Set<LocalTaskId>();
 
-        const taskRows: Array<TaskNotepadGridViewRow> = [];
+        const taskRows: Array<TaskQueryGridViewRow> = [];
 
         const addChildTasks = (
-            parentPositionStack: ReadonlyArray<TaskNotepadGridViewRowPosition>,
+            parentPositionStack: ReadonlyArray<TaskQueryGridViewRowPosition>,
             parentTask: LocalTask,
         ) => {
             for (const [orderKey, childTaskId] of parentTask.childTaskIdByOrderKey) {
@@ -90,7 +73,7 @@ function TaskNotepadGridView(
 
                 taskRowIds.add(childTask.id);
 
-                const position: TaskNotepadGridViewRowPosition = {
+                const position: TaskQueryGridViewRowPosition = {
                     isRoot: false,
                     parentTask: {id: parentTask.id, orderKey},
                 };
@@ -107,12 +90,11 @@ function TaskNotepadGridView(
             }
         };
 
-        for (const [orderKey, task] of tasks) {
+        for (const task of tasks) {
             taskRowIds.add(task.id);
 
-            const position: TaskNotepadGridViewRowPosition = {
+            const position: TaskQueryGridViewRowPosition = {
                 isRoot: true,
-                notepad: {page: notepadPage, orderKey},
             };
 
             taskRows.push({
@@ -127,7 +109,7 @@ function TaskNotepadGridView(
         }
 
         return {taskRowIds, taskRows};
-    }, [expandedTaskIds, notepadPage, state.database, tasks]);
+    }, [expandedTaskIds, state.database, tasks]);
 
     // Remove any `expandedTaskIds` that do not exist in `taskIds`. If we a delete
     // a task this is how we update our expanded task IDs set.
@@ -159,8 +141,6 @@ function TaskNotepadGridView(
         taskRowsRef.current = taskRows;
     });
 
-    const {taskGhostRowPlaceholder} = useTaskGhostRowPlaceholderTutorial(taskRows.length);
-
     // Only show the top ghost row if the component mounts with tasks. Once the top
     // ghost row is consumed it doesn't come back until the component is
     // mounted again.
@@ -175,9 +155,8 @@ function TaskNotepadGridView(
     );
 
     return (
-        <TaskGridPresentationalView<TaskNotepadGridViewRow>
-            ref={useMergedRefs(ref, gridViewRef)}
-            taskGhostRowPlaceholder={taskGhostRowPlaceholder}
+        <TaskGridPresentationalView<TaskQueryGridViewRow>
+            ref={gridViewRef}
             taskRowCount={taskRows.length}
             getTaskRow={index => taskRows[index]!}
             topGhostTaskKey={topTaskGhostRowId}
@@ -285,7 +264,8 @@ function TaskNotepadGridView(
                         creatorTimeZone: timeZone,
                         taskId: bottomTaskGhostRowId,
                         title,
-                        notepad: {page: notepadPage, side: "Below"},
+                        // NOCOMMIT: Do an equivalent thing here?
+                        // notepad: {page: notepadPage, side: "Below"},
                     });
                 });
             }}
@@ -303,7 +283,8 @@ function TaskNotepadGridView(
                         creatorTimeZone: timeZone,
                         taskId: bottomTaskGhostRowId,
                         title,
-                        notepad: {page: notepadPage, side: "Below"},
+                        // NOCOMMIT: Do an equivalent thing here?
+                        // notepad: {page: notepadPage, side: "Below"},
                         onLayoutEffect: () => {
                             gridViewRef.current?.focusEnd();
                         },
@@ -326,7 +307,8 @@ function TaskNotepadGridView(
                         creatorTimeZone: timeZone,
                         taskId: topTaskGhostRowId,
                         title,
-                        notepad: {page: notepadPage, side: "Above"},
+                        // NOCOMMIT: Do an equivalent thing here?
+                        // notepad: {page: notepadPage, side: "Below"},
                     });
                 });
             }}
@@ -336,7 +318,8 @@ function TaskNotepadGridView(
                     creatorId: currentAccount.id,
                     creatorTimeZone: timeZone,
                     title,
-                    notepad: {page: notepadPage, side: "Above"},
+                    // NOCOMMIT: Do an equivalent thing here?
+                    // notepad: {page: notepadPage, side: "Below"},
                     onLayoutEffect: taskId => {
                         // TODO(calebmer): A production implementation probably shouldn't do an
                         // O(n) loop here.
@@ -369,12 +352,13 @@ function TaskNotepadGridView(
 
                 if (parentPosition) {
                     if (parentPosition.isRoot) {
-                        dispatch({
-                            type: "MoveTaskToNotepad",
-                            notepadPage: parentPosition.notepad.page,
-                            belowOrderKey: parentPosition.notepad.orderKey,
-                            taskId: childTaskId,
-                        });
+                        // NOCOMMIT: Do an equivalent thing here?
+                        // dispatch({
+                        //     type: "MoveTaskToNotepad",
+                        //     notepadPage: parentPosition.notepad.page,
+                        //     belowOrderKey: parentPosition.notepad.orderKey,
+                        //     taskId: childTaskId,
+                        // });
                     } else {
                         dispatch({
                             type: "MoveTaskToParentTask",
@@ -402,8 +386,50 @@ function TaskNotepadGridView(
                     },
                 });
             }}
-            moveTaskBelow={moveTaskBelow}
-            moveTaskToParentTop={moveTaskToParentTop}
+            moveTaskBelow={(belowTaskRow, unnest, taskRow) => {
+                if (!belowTaskRow) {
+                    // NOCOMMIT: Do an equivalent thing here?
+                    // dispatch({
+                    //     type: "MoveTaskToNotepad",
+                    //     notepadPage: notepadPage,
+                    //     belowOrderKey: null,
+                    //     taskId: taskRow.task.id,
+                    // });
+                    return;
+                }
+
+                const position =
+                    unnest === 0
+                        ? belowTaskRow.position
+                        : belowTaskRow.parentPositionStack[
+                              belowTaskRow.parentPositionStack.length - unnest
+                          ] ?? belowTaskRow.position;
+
+                if (position.isRoot) {
+                    // NOCOMMIT: Do an equivalent thing here?
+                    // dispatch({
+                    //     type: "MoveTaskToNotepad",
+                    //     notepadPage: position.notepad.page,
+                    //     belowOrderKey: position.notepad.orderKey,
+                    //     taskId: taskRow.task.id,
+                    // });
+                } else {
+                    dispatch({
+                        type: "MoveTaskToParentTask",
+                        parentTaskId: position.parentTask.id,
+                        belowOrderKey: position.parentTask.orderKey,
+                        taskId: taskRow.task.id,
+                    });
+                }
+            }}
+            moveTaskToParentTop={(parentTaskRow, taskRow) => {
+                dispatch({
+                    type: "MoveTaskToParentTask",
+                    parentTaskId: parentTaskRow.task.id,
+                    belowOrderKey: null,
+                    taskId: taskRow.task.id,
+                });
+            }}
         />
     );
 }

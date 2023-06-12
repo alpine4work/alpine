@@ -11,12 +11,14 @@ export function TaskRowViewDroppable<TaskRow>({
     indentation,
     nextAdjacentIndentation,
     previousAdjacentIndentation,
+    isPositionedAbove,
     isVerticallyFlipped,
 }: {
     taskRow: TaskRow | null;
     indentation: number;
     nextAdjacentIndentation: number | null;
     previousAdjacentIndentation: number | null;
+    isPositionedAbove?: boolean;
     isVerticallyFlipped?: boolean;
 }) {
     const {isOver, setNodeRef: setDroppableNodeRef} = useDroppable({
@@ -33,7 +35,7 @@ export function TaskRowViewDroppable<TaskRow>({
     return (
         <Box
             position="absolute"
-            top={!isVerticallyFlipped ? "3" : "-6"}
+            top={!isPositionedAbove ? "3" : "-6"}
             left="0"
             right="0"
             zIndex="10"

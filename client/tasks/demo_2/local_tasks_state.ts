@@ -7,6 +7,8 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {Store} from "~/client/helpers/store/store";
 import {useStore} from "~/client/helpers/store/use_store";
 import {ValueStore} from "~/client/helpers/store/value_store";
+import {evaluateTaskQueryFilters} from "~/client/tasks/demo_2/internal/evaluate_task_query_filters";
+import {TaskQueryFilter} from "~/client/tasks/demo_2/task_query_filter";
 import {
     TaskAssignee,
     TaskAssigneeActiveStatus,
@@ -840,6 +842,21 @@ class LocalTasksDatabase {
         return Array.from(this._taskCollectionById.values()).sort((collection1, collection2) =>
             collection1.name.localeCompare(collection2.name),
         );
+    }
+
+    public query(
+        filters: ReadonlyArray<TaskQueryFilter>,
+        context: {currentAccountId: AccountId; currentDate: CalendarDate},
+    ) {
+        const tasks = [];
+
+        for (const task of this._taskById.values()) {
+            if (evaluateTaskQueryFilters(filters, task, context)) {
+                tasks.push(task);
+            }
+        }
+
+        return tasks;
     }
 }
 

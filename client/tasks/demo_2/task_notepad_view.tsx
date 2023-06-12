@@ -94,7 +94,6 @@ export function TaskNotepadView() {
                 dispatch({type: "UpdateTaskAssignee", taskId, assignee})
             }
             getTaskTitle={({task}) => task.title}
-            getTaskAreChildTasksCollapsed={({task}) => !expandedTaskIds.has(task.id)}
             getTaskRowIndentation={({parentPositionStack}) => parentPositionStack.length}
             moveTaskBelow={moveTaskBelow}
             moveTaskToParentTop={moveTaskToParentTop}
@@ -151,7 +150,6 @@ export function TaskNotepadView() {
                     expandedTaskIds={expandedTaskIds}
                     setExpandedTaskIds={setExpandedTaskIds}
                     moveTaskBelow={moveTaskBelow}
-                    moveTaskToParentTop={moveTaskToParentTop}
                 />
             </Box>
         </TaskGridViewDndContext>

@@ -1,5 +1,4 @@
 import {Plus, SortAscending} from "phosphor-react";
-import {useEffect, useRef, useState} from "react";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {IconButton} from "~/client/design/icon_button";
@@ -8,46 +7,30 @@ import {TaskQueryFilterEditor} from "~/client/tasks/demo_2/internal/task_query_f
 import {LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
 import {TaskQueryFilter} from "~/client/tasks/demo_2/task_query_filter";
 import {spacing} from "~/shared/design/spacing";
-import {
-    TaskQueryFilterReferences,
-    mergeTaskQueryFilterReferences,
-} from "~/shared/tasks/task_query_filter_references";
+import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references";
 
-export function TaskQueryCustomizationBar({
+export function TaskQueryViewCustomizationBar({
     state,
-    initialFilters,
-    initialFilterReferences,
+    filters,
+    filterReferences,
     onFiltersChange,
 }: {
     state: LocalTasksState;
-    initialFilters: ReadonlyArray<TaskQueryFilter>;
-    initialFilterReferences: TaskQueryFilterReferences;
-    onFiltersChange: (filters: ReadonlyArray<TaskQueryFilter>) => void;
+    filters: ReadonlyArray<TaskQueryFilter>;
+    filterReferences: TaskQueryFilterReferences;
+    onFiltersChange: (
+        filters: ReadonlyArray<TaskQueryFilter>,
+        mergeFilterReferences?: TaskQueryFilterReferences,
+    ) => void;
 }) {
-    const [{filters, filterReferences}, setFiltersState] = useState({
-        filters: initialFilters,
-        filterReferences: initialFilterReferences,
-    });
-
-    const lastFiltersRef = useRef(initialFilters);
-    useEffect(() => {
-        if (lastFiltersRef.current !== filters) {
-            onFiltersChange(filters);
-            lastFiltersRef.current = filters;
-        }
-    }, [filters, onFiltersChange]);
-
     const addFilter = (filter: TaskQueryFilter) => {
-        setFiltersState(({filters, filterReferences}) => ({
-            filters: [...filters, filter],
-            filterReferences,
-        }));
+        onFiltersChange([...filters, filter]);
     };
 
     return (
         <Box display="flex" alignItems="flex-start">
             {filters.length > 0 && (
-                <Box height="6" display="flex" alignItems="center" paddingLeft="2" paddingRight="3">
+                <Box height="6" display="flex" alignItems="center" paddingRight="3">
                     Filter:
                 </Box>
             )}
@@ -59,29 +42,16 @@ export function TaskQueryCustomizationBar({
                         filter={filter}
                         filterReferences={filterReferences}
                         onFilterChange={(filter, mergeFilterReferences) => {
-                            setFiltersState(({filters, filterReferences}) => {
-                                const newFilters = [...filters];
-                                newFilters[index] = filter;
+                            const newFilters = [...filters];
+                            newFilters[index] = filter;
 
-                                const newFilterReferences = mergeFilterReferences
-                                    ? mergeTaskQueryFilterReferences(
-                                          filterReferences,
-                                          mergeFilterReferences,
-                                      )
-                                    : filterReferences;
-
-                                return {
-                                    filters: newFilters,
-                                    filterReferences: newFilterReferences,
-                                };
-                            });
+                            onFiltersChange(newFilters, mergeFilterReferences);
                         }}
                         onFilterRemove={() => {
-                            setFiltersState(({filters, filterReferences}) => {
-                                const newFilters = [...filters];
-                                newFilters.splice(index, 1);
-                                return {filters: newFilters, filterReferences};
-                            });
+                            const newFilters = [...filters];
+                            newFilters.splice(index, 1);
+
+                            onFiltersChange(newFilters);
                         }}
                     />
                 ))}
@@ -233,7 +203,13 @@ export function TaskQueryCustomizationBar({
                             <Plus size={spacing["3"]} />
                         </IconButton>
                     ) : (
-                        <Button icon={<Plus />} iconPlacement="end" height="6" paddingX="2">
+                        <Button
+                            variant="neutral"
+                            icon={<Plus />}
+                            iconPlacement="end"
+                            height="6"
+                            paddingX="2"
+                        >
                             Add filter
                         </Button>
                     )}

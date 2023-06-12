@@ -171,7 +171,7 @@ function TaskGridPresentationalView<TaskRow>(
     if (hasTopGhostTaskRow) {
         taskRows.push(
             <TaskRowPresentationalView
-                key={topGhostTaskKey}
+                key={`${topGhostTaskKey}-0`}
                 ref={topGhostTaskRowRef}
                 taskRow={null}
                 status={null}
@@ -233,22 +233,33 @@ function TaskGridPresentationalView<TaskRow>(
         const taskRow = getTaskRow(index);
         const taskRowIndentation = getTaskRowIndentation(taskRow);
 
-        const nextTaskRowIndentation =
-            index + 1 < taskRowCount ? getTaskRowIndentation(getTaskRow(index + 1)) : 0;
+        const droppableIndentations = [];
 
-        const droppableIndentations = [taskRowIndentation];
+        if (!getTaskAreChildTasksCollapsed(taskRow)) {
+            droppableIndentations.push(taskRowIndentation + 1);
+        } else {
+            const nextTaskRowIndentation =
+                index + 1 < taskRowCount ? getTaskRowIndentation(getTaskRow(index + 1)) : 0;
 
-        for (
-            let droppableIndentation = taskRowIndentation - 1;
-            droppableIndentation >= nextTaskRowIndentation;
-            droppableIndentation--
-        ) {
-            droppableIndentations.push(droppableIndentation);
+            droppableIndentations.push(taskRowIndentation);
+
+            for (
+                let droppableIndentation = taskRowIndentation - 1;
+                droppableIndentation >= nextTaskRowIndentation;
+                droppableIndentation--
+            ) {
+                droppableIndentations.push(droppableIndentation);
+            }
         }
 
         taskRows.push(
             <TaskRowPresentationalView
-                key={getTaskKey(taskRow)}
+                // A child row may appear twice at different indentation levels.
+                //
+                // TODO(calebmer): Remounting when moving between indentation levels is a
+                // little strange when we don't remount for normal moves. Should we consider
+                // keeping some local counter that follows task rows around as they move?
+                key={`${getTaskKey(taskRow)}-${getTaskRowIndentation(taskRow)}`}
                 ref={taskRowRefByIndex.get(index)}
                 taskRow={taskRow}
                 status={getTaskStatus(taskRow)}
@@ -327,7 +338,7 @@ function TaskGridPresentationalView<TaskRow>(
 
     taskRows.push(
         <TaskRowPresentationalView
-            key={bottomGhostTaskKey}
+            key={`${bottomGhostTaskKey}-0`}
             ref={bottomGhostTaskRowRef}
             // If there are no task rows, the padding just makes our ghost row placeholder
             // look misaligned. So remove it.
@@ -431,7 +442,6 @@ function TaskGridPresentationalView<TaskRow>(
             getTaskAssignee={getTaskAssignee}
             onTaskAssigneeChange={onTaskAssigneeChange}
             getTaskTitle={getTaskTitle}
-            getTaskAreChildTasksCollapsed={getTaskAreChildTasksCollapsed}
             getTaskRowIndentation={getTaskRowIndentation}
             moveTaskBelow={moveTaskBelow}
             moveTaskToParentTop={moveTaskToParentTop}
@@ -444,6 +454,7 @@ function TaskGridPresentationalView<TaskRow>(
                             indentation={0}
                             nextAdjacentIndentation={null}
                             previousAdjacentIndentation={null}
+                            isPositionedAbove={true}
                             isVerticallyFlipped={true}
                         />
                     </Box>

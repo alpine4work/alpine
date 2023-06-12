@@ -1,14 +1,13 @@
 import {useState} from "react";
 import {useLocation, useSearchParams} from "react-router-dom";
-import {Box} from "~/client/design/box";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {useLocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
-import {TaskQueryCustomizationBar} from "~/client/tasks/demo_2/task_query_customization_bar";
 import {
     deserializeTaskQueryFiltersSearchParam,
     serializeTaskQueryFiltersSearchParam,
 } from "~/client/tasks/demo_2/task_query_filter";
+import {TaskQueryView} from "~/client/tasks/demo_2/task_query_view";
 import {getTaskQueryFilterReferences} from "~/server/dynamo/helpers/get_task_query_filter_references";
 import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
@@ -63,31 +62,26 @@ function TasksViewRoute() {
     const isInitialAppRender = useIsInitialAppRender();
 
     return (
-        <Box flexGrow="1" position="relative" zIndex="0" backgroundColor="grey-0" padding="5">
-            <TaskQueryCustomizationBar
-                // TODO(calebmer): A production implementation should not remount everything on
-                // initial render!
-                key={`${isInitialAppRender}`}
-                state={state}
-                initialFilters={isInitialAppRender ? [] : initialFilters}
-                initialFilterReferences={filterReferences}
-                onFiltersChange={filters => {
-                    const url = new URL(window.location.href);
+        <TaskQueryView
+            // TODO(calebmer): A production implementation should not remount everything on
+            // initial render!
+            key={`${isInitialAppRender}`}
+            state={state}
+            initialFilters={isInitialAppRender ? [] : initialFilters}
+            initialFilterReferences={filterReferences}
+            onFiltersChange={filters => {
+                const url = new URL(window.location.href);
 
-                    if (filters.length === 0) {
-                        url.searchParams.delete("filters");
-                    } else {
-                        url.searchParams.set(
-                            "filters",
-                            serializeTaskQueryFiltersSearchParam(filters),
-                        );
-                    }
+                if (filters.length === 0) {
+                    url.searchParams.delete("filters");
+                } else {
+                    url.searchParams.set("filters", serializeTaskQueryFiltersSearchParam(filters));
+                }
 
-                    // Silently update the URL without telling Remix so our component doesn't
-                    // re-render unnecessarily.
-                    window.history.replaceState(null, "", url);
-                }}
-            />
-        </Box>
+                // Silently update the URL without telling Remix so our component doesn't
+                // re-render unnecessarily.
+                window.history.replaceState(null, "", url);
+            }}
+        />
     );
 }

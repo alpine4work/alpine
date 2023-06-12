@@ -10,7 +10,30 @@ import {iterableEvery} from "~/shared/helpers/iterable/iterable_every";
 import {iterableSome} from "~/shared/helpers/iterable/iterable_some";
 import {AccountId} from "~/shared/id/types/id_types";
 
-export function evaluateTaskQueryFilter(
+export function evaluateTaskQueryFilters(
+    filters: ReadonlyArray<TaskQueryFilter>,
+    task: LocalTask,
+    context: {
+        currentAccountId: AccountId;
+        currentDate: CalendarDate;
+    },
+): boolean {
+    const hasStatusFilter = filters.some(
+        filter => filter.type === "Status" && filter.operation.statuses.size > 0,
+    );
+
+    // If there is no status filter, by default we only return open/active tasks.
+    if (!hasStatusFilter) {
+        filters = [
+            {type: "Status", operation: {type: "NoneOf", statuses: new Set(["Closed"])}},
+            ...filters,
+        ];
+    }
+
+    return filters.every(filter => evaluateTaskQueryFilter(filter, task, context));
+}
+
+function evaluateTaskQueryFilter(
     filter: TaskQueryFilter,
     task: LocalTask,
     context: {
@@ -27,9 +50,15 @@ export function evaluateTaskQueryFilter(
 
             switch (filter.operation.type) {
                 case "OneOf":
-                    return filter.operation.statuses.has(status);
+                    return (
+                        filter.operation.statuses.size === 0 ||
+                        filter.operation.statuses.has(status)
+                    );
                 case "NoneOf":
-                    return !filter.operation.statuses.has(status);
+                    return (
+                        filter.operation.statuses.size === 0 ||
+                        !filter.operation.statuses.has(status)
+                    );
                 default:
                     throw exhaustive(filter.operation);
             }

@@ -437,13 +437,14 @@ function TaskRowPresentationalView<TaskRow>(
             {droppableIndentations
                 .slice()
                 .sort((a, b) => a - b)
-                .map((indentation, index, sortedDroppableIndentations) => (
+                .map((droppableIndentation, index, sortedDroppableIndentations) => (
                     <TaskRowViewDroppable
-                        key={indentation}
+                        key={droppableIndentation}
                         taskRow={taskRow}
-                        indentation={indentation}
+                        indentation={droppableIndentation}
                         nextAdjacentIndentation={sortedDroppableIndentations[index + 1] ?? null}
                         previousAdjacentIndentation={sortedDroppableIndentations[index - 1] ?? null}
+                        isVerticallyFlipped={droppableIndentation > indentation}
                     />
                 ))}
         </Box>
