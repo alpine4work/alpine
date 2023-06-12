@@ -1,5 +1,5 @@
-import {TimeZone, isTimeZone} from "~/shared/helpers/date/time_zone";
-import {Schema, SchemaDeserializationError, SchemaType} from "~/shared/schema/schema";
+import {Schema, SchemaType} from "~/shared/schema/schema";
+import {TimeZoneSchema} from "~/shared/schema/time_zone_schema";
 
 /**
  * Self-reported information about the client available on the server via a cookie.
@@ -39,15 +39,7 @@ export const ClientInfoSchema = Schema.object({
      * The time zone a user is in. Should be an IANA time zone identifier like
      * `America/New_York`.
      */
-    timeZone: Schema.string.transform<TimeZone>({
-        serialize: timeZone => timeZone,
-        deserialize: timeZone => {
-            if (!isTimeZone(timeZone))
-                throw new SchemaDeserializationError("Expected string to be a valid time zone");
-
-            return timeZone;
-        },
-    }),
+    timeZone: TimeZoneSchema,
 
     /**
      * The locale of the user. Should be an IETF language tag like `en-US`.

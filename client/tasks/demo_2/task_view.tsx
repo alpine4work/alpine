@@ -3,6 +3,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
 import {usePeekContext} from "~/client/peek/peek_remix_embed";
 import {usePeekStackContext} from "~/client/peek/peek_stack";
+import {useClientInfo} from "~/client/remix/client_info_context";
 import {useNavigate} from "~/client/remix/use_navigate";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {
@@ -32,8 +33,9 @@ export function TaskView({
     dispatch: (action: LocalTasksAction) => void;
     taskId: LocalTaskId;
 }) {
+    const {timeZone} = useClientInfo();
     const navigate = useNavigate();
-    const {space} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
     const peekStackContext = usePeekStackContext();
     const peekContext = usePeekContext();
     const detailViewRef = useRef<TaskDetailPresentationalViewRef>(null);
@@ -167,7 +169,7 @@ export function TaskView({
                 task.childTaskIdByOrderKey.values(),
                 (closedChildTaskCount, childTaskId) =>
                     closedChildTaskCount +
-                    (state.database.getTask(childTaskId).status === "Closed" ? 1 : 0),
+                    (state.database.getTask(childTaskId).status.type === "Closed" ? 1 : 0),
                 0,
             )}
             childTasksGridViewProps={{
@@ -206,7 +208,7 @@ export function TaskView({
                         task.childTaskIdByOrderKey.values(),
                         (closedChildTaskCount, childTaskId) =>
                             closedChildTaskCount +
-                            (state.database.getTask(childTaskId).status === "Closed" ? 1 : 0),
+                            (state.database.getTask(childTaskId).status.type === "Closed" ? 1 : 0),
                         0,
                     ),
                 getTaskAreChildTasksCollapsed: ({task}) => !expandedChildTaskIds.has(task.id),
@@ -232,6 +234,8 @@ export function TaskView({
                 createTaskAbove: ({position}) => {
                     dispatch({
                         type: "CreateTask",
+                        creatorId: currentAccount.id,
+                        creatorTimeZone: timeZone,
                         ...position,
                         side: "Above",
                     });
@@ -239,6 +243,8 @@ export function TaskView({
                 createTaskBelowAndFocus: ({position}) => {
                     dispatch({
                         type: "CreateTask",
+                        creatorId: currentAccount.id,
+                        creatorTimeZone: timeZone,
                         ...position,
                         side: "Below",
                         onLayoutEffect: taskId => {
@@ -259,6 +265,8 @@ export function TaskView({
                 createTaskChildAtStartAndFocus: ({task: {id: taskId}}) => {
                     dispatch({
                         type: "CreateTask",
+                        creatorId: currentAccount.id,
+                        creatorTimeZone: timeZone,
                         parentTask: {id: taskId, side: "Above"},
                         onLayoutEffect: taskId => {
                             // TODO(calebmer): A production implementation probably shouldn't do an
@@ -285,6 +293,8 @@ export function TaskView({
 
                         dispatch({
                             type: "CreateTask",
+                            creatorId: currentAccount.id,
+                            creatorTimeZone: timeZone,
                             taskId: bottomTaskGhostRowId,
                             title,
                             parentTask: {id: task.id, side: "Below"},
@@ -301,6 +311,8 @@ export function TaskView({
 
                         dispatch({
                             type: "CreateTask",
+                            creatorId: currentAccount.id,
+                            creatorTimeZone: timeZone,
                             taskId: bottomTaskGhostRowId,
                             title,
                             parentTask: {id: task.id, side: "Below"},
@@ -322,6 +334,8 @@ export function TaskView({
 
                         dispatch({
                             type: "CreateTask",
+                            creatorId: currentAccount.id,
+                            creatorTimeZone: timeZone,
                             taskId: topTaskGhostRowId,
                             title,
                             parentTask: {id: task.id, side: "Above"},
@@ -331,6 +345,8 @@ export function TaskView({
                 createTaskAtStartFromTopGhostAndFocus: title => {
                     dispatch({
                         type: "CreateTask",
+                        creatorId: currentAccount.id,
+                        creatorTimeZone: timeZone,
                         title,
                         parentTask: {id: task.id, side: "Above"},
                         onLayoutEffect: taskId => {

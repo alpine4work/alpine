@@ -147,7 +147,7 @@ export function TaskCardPresentationalView({
                     display="flex"
                     alignItems="center"
                     gap="1"
-                    color={status === "Open" && isAfterDueDate ? "red-60" : "grey-60"}
+                    color={status.type === "Open" && isAfterDueDate ? "red-60" : "grey-60"}
                     style={{
                         paddingRight: addRemLengths(
                             spacing["2"],

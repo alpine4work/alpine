@@ -940,11 +940,14 @@ function deserializeTaskQueryFilterDateOperation(view: DataView): {
 
 export type TaskQueryDueDateFilter = {
     readonly type: "DueDate";
-    readonly operation: {readonly type: "Overdue"} | TaskQueryFilterDateOperation;
+    readonly operation:
+        | {readonly type: "Overdue"}
+        | {readonly type: "IsEmpty"}
+        | TaskQueryFilterDateOperation;
 };
 
 function getTaskQueryDueDateFilterByteLength(filter: TaskQueryDueDateFilter) {
-    if (filter.operation.type === "Overdue") {
+    if (filter.operation.type === "Overdue" || filter.operation.type === "IsEmpty") {
         return 1;
     } else {
         return getTaskQueryFilterDateOperationByteLength(filter.operation);
@@ -954,6 +957,8 @@ function getTaskQueryDueDateFilterByteLength(filter: TaskQueryDueDateFilter) {
 function serializeTaskQueryDueDateFilter(filter: TaskQueryDueDateFilter, view: DataView) {
     if (filter.operation.type === "Overdue") {
         view.setUint8(0, 255);
+    } else if (filter.operation.type === "IsEmpty") {
+        view.setUint8(0, 254);
     } else {
         serializeTaskQueryFilterDateOperation(filter.operation, view);
     }
@@ -966,6 +971,8 @@ function deserializeTaskQueryDueDateFilter(view: DataView): {
     const firstByte = view.getUint8(0);
     if (firstByte === 255) {
         return {filter: {type: "DueDate", operation: {type: "Overdue"}}, byteLength: 1};
+    } else if (firstByte === 254) {
+        return {filter: {type: "DueDate", operation: {type: "IsEmpty"}}, byteLength: 1};
     }
 
     const {operation, byteLength} = deserializeTaskQueryFilterDateOperation(view);

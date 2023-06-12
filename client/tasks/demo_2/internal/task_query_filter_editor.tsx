@@ -122,6 +122,7 @@ export function TaskQueryFilterEditor({
         }
         case "DueDate": {
             const overdueOperatorLabel = "is overdue";
+            const isEmptyOperatorLabel = "is empty";
 
             return (
                 <TaskQueryFilterEditorBase
@@ -132,6 +133,8 @@ export function TaskQueryFilterEditor({
                                 operatorLabel={
                                     filter.operation.type === "Overdue"
                                         ? overdueOperatorLabel
+                                        : filter.operation.type === "IsEmpty"
+                                        ? isEmptyOperatorLabel
                                         : filter.operation.type === "LessThan"
                                         ? taskQueryFilterDateOperationLessThanOperatorLabel
                                         : taskQueryFilterDateOperationGreaterThanOperatorLabel
@@ -156,7 +159,8 @@ export function TaskQueryFilterEditor({
                                                 operation: {
                                                     type: "LessThan",
                                                     date:
-                                                        filter.operation.type !== "Overdue"
+                                                        filter.operation.type !== "Overdue" &&
+                                                        filter.operation.type !== "IsEmpty"
                                                             ? filter.operation.date
                                                             : {
                                                                   type: "RelativeAfterToday",
@@ -178,7 +182,8 @@ export function TaskQueryFilterEditor({
                                                 operation: {
                                                     type: "GreaterThan",
                                                     date:
-                                                        filter.operation.type !== "Overdue"
+                                                        filter.operation.type !== "Overdue" &&
+                                                        filter.operation.type !== "IsEmpty"
                                                             ? filter.operation.date
                                                             : {
                                                                   type: "RelativeBeforeToday",
@@ -191,16 +196,27 @@ export function TaskQueryFilterEditor({
                                             });
                                         },
                                     },
+                                    {
+                                        label: isEmptyOperatorLabel,
+                                        isSelected: filter.operation.type === "IsEmpty",
+                                        onPress: () => {
+                                            onFilterChange({
+                                                ...filter,
+                                                operation: {type: "IsEmpty"},
+                                            });
+                                        },
+                                    },
                                 ]}
                             />
-                            {filter.operation.type !== "Overdue" && (
-                                <TaskQueryFilterDateOperationValueEditor
-                                    operation={filter.operation}
-                                    onOperationChange={operation =>
-                                        onFilterChange({...filter, operation})
-                                    }
-                                />
-                            )}
+                            {filter.operation.type !== "Overdue" &&
+                                filter.operation.type !== "IsEmpty" && (
+                                    <TaskQueryFilterDateOperationValueEditor
+                                        operation={filter.operation}
+                                        onOperationChange={operation =>
+                                            onFilterChange({...filter, operation})
+                                        }
+                                    />
+                                )}
                         </>
                     }
                     onFilterRemove={onFilterRemove}

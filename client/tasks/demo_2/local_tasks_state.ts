@@ -1,4 +1,5 @@
-import {CalendarDate, parseDate} from "@internationalized/date";
+import {toCalendarDate} from "@internationalized/date";
+import {CalendarDate, parseAbsolute, parseDate} from "@internationalized/date";
 import {MutableRefObject, useEffect, useMemo, useRef} from "react";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
@@ -28,6 +29,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {Lazy} from "~/shared/helpers/control/lazy";
 import {noop} from "~/shared/helpers/control/noop";
+import {TimeZone} from "~/shared/helpers/date/time_zone";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
@@ -37,6 +39,7 @@ import {AccountId, LocalTaskCollectionId, LocalTaskId} from "~/shared/id/types/i
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
 import {OrderKeySchema} from "~/shared/schema/order_key_schema";
 import {Schema, SchemaDeserializationError, SchemaType} from "~/shared/schema/schema";
+import {TimeZoneSchema} from "~/shared/schema/time_zone_schema";
 import {
     TaskNotesContentWithReferences,
     TaskNotesContentWithReferencesSchema,
@@ -60,10 +63,44 @@ export type LocalTask = SchemaType<typeof LocalTaskSchema>;
 
 const LocalTaskSchema = Schema.object({
     id: Schema.id<LocalTaskId>(),
-    status: Schema.enum(["Open", "Closed"]),
+    creatorId: Schema.id<AccountId>(),
+    createdTime: Schema.date,
+    creatorTimeZone: TimeZoneSchema,
+    // The date this task was created in its local time zone. We display this as
+    // the created date to users and use it for filtering/sorting so users in
+    // different time zones don't get different results.
+    //
+    // TODO(calebmer): Think about this more and document this better.
+    createdDate: CalendarDateSchema,
+    status: Schema.union({
+        Open: Schema.object({
+            type: Schema.value("Open"),
+        }),
+        Closed: Schema.object({
+            type: Schema.value("Closed"),
+            closerId: Schema.id<AccountId>(),
+            closedTime: Schema.date,
+            closerTimeZone: TimeZoneSchema,
+            // The date this task was closed in its local time zone. We display this as
+            // the closed date to users and use it for filtering/sorting so users in
+            // different time zones don't get different results.
+            //
+            // TODO(calebmer): Think about this more and document this better.
+            closedDate: CalendarDateSchema,
+        }),
+    }),
     title: TaskTitleSchema,
     assignee: Schema.object({
         account: AccountModel.schema(),
+        assignerId: Schema.id<AccountId>(),
+        assignedTime: Schema.date,
+        assignerTimeZone: TimeZoneSchema,
+        // The date this task was assigned in its local time zone. We display this
+        // as the assigned date to users and use it for filtering/sorting so users
+        // in different time zones don't get different results.
+        //
+        // TODO(calebmer): Think about this more and document this better.
+        assignedDate: CalendarDateSchema,
         status: Schema.union({
             Inactive: Schema.object({
                 type: Schema.value("Inactive"),
@@ -72,6 +109,15 @@ const LocalTaskSchema = Schema.object({
                 type: Schema.value("Active"),
                 orderTime: Schema.date,
                 orderKey: OrderKeySchema,
+                activatorId: Schema.id<AccountId>(),
+                activatedTime: Schema.date,
+                activatorTimeZone: TimeZoneSchema,
+                // The date this task was assigned in its local time zone. We display this
+                // as the assigned date to users and use it for filtering/sorting so users
+                // in different time zones don't get different results.
+                //
+                // TODO(calebmer): Think about this more and document this better.
+                activatedDate: CalendarDateSchema,
             }),
         }),
     })
@@ -285,14 +331,23 @@ class LocalTasksDatabase {
         );
     }
 
-    public createTask(options?: LocalTasksDatabaseCreateTaskOptions) {
+    public createTask(options: LocalTasksDatabaseCreateTaskOptions) {
         return this.createAndReturnTask(options)[0];
     }
 
-    public createAndReturnTask(options: LocalTasksDatabaseCreateTaskOptions = {}) {
+    public createAndReturnTask(options: LocalTasksDatabaseCreateTaskOptions) {
+        const createdTime = new Date();
+        const createdDate = toCalendarDate(
+            parseAbsolute(createdTime.toISOString(), options.creatorTimeZone),
+        );
+
         const task: LocalTask = {
             id: options.taskId ?? generateId(),
-            status: "Open",
+            createdTime: new Date(),
+            creatorTimeZone: options.creatorTimeZone,
+            createdDate,
+            creatorId: options.creatorId,
+            status: {type: "Open"},
             title: options.title ?? emptyTaskTitle,
             assignee: null,
             dueDate: null,
@@ -422,7 +477,7 @@ class LocalTasksDatabase {
                 if (!task) throw new NotFoundError("Task not found");
                 return {
                     ...task,
-                    status: assignee?.status.type === "Active" ? "Open" : task.status,
+                    status: assignee?.status.type === "Active" ? {type: "Open"} : task.status,
                     assignee,
                 };
             }),
@@ -439,9 +494,7 @@ class LocalTasksDatabase {
                 return {
                     ...task,
                     status,
-                    assignee: task.assignee
-                        ? {account: task.assignee.account, status: {type: "Inactive"}}
-                        : null,
+                    assignee: task.assignee ? {...task.assignee, status: {type: "Inactive"}} : null,
                 };
             }),
             taskCollectionById: this._taskCollectionById,
@@ -674,7 +727,7 @@ class LocalTasksDatabase {
 
         for (const task of this._taskById.values()) {
             if (
-                task.status === "Open" &&
+                task.status.type === "Open" &&
                 task.assignee?.account.id === accountId &&
                 task.assignee.status.type === "Active"
             ) {
@@ -840,6 +893,16 @@ function deleteTaskInTaskIdByOrderKeyByNotepadPage(
 }
 
 type LocalTasksDatabaseCreateTaskOptions = {
+    /**
+     * The account who created this task.
+     */
+    creatorId: AccountId;
+
+    /**
+     * The time zone the task was created in.
+     */
+    creatorTimeZone: TimeZone;
+
     /**
      * The ID to use for this task. The ID should not yet exist in our database. If
      * not provided then we will generate an ID.

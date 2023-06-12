@@ -9,11 +9,12 @@ import {
     useSensors,
 } from "@dnd-kit/core";
 import type {MouseSensorProps} from "@dnd-kit/core/dist/sensors";
-import {CalendarDate} from "@internationalized/date";
+import {CalendarDate, parseAbsolute, toCalendarDate} from "@internationalized/date";
 import {ReactNode, RefObject, createContext, useContext, useState} from "react";
 import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
+import {useClientInfo} from "~/client/remix/client_info_context";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
 import {TaskCardPresentationalView} from "~/client/tasks/demo_2/task_card_presentational_view";
@@ -104,6 +105,7 @@ export function TaskGridViewDndContext<TaskRow>({
     moveTaskBelow: (belowTaskRow: TaskRow | null, unnest: number, taskRow: TaskRow) => void;
     moveTaskToParentTop: (parentTaskRow: TaskRow, taskRow: TaskRow) => void;
 }) {
+    const {timeZone} = useClientInfo();
     const {currentAccount} = useSpaceContext();
 
     const mouseSensor = useSensor(MouseSensorWithImmediatePriorityEnd, {
@@ -207,6 +209,11 @@ export function TaskGridViewDndContext<TaskRow>({
                                     throw exhaustive(activeData);
                             }
 
+                            const assignedTime = new Date();
+                            const assignedDate = toCalendarDate(
+                                parseAbsolute(assignedTime.toISOString(), timeZone),
+                            );
+
                             if (afterAssigneeActiveStatus && beforeAssigneeActiveStatus) {
                                 if (
                                     afterAssigneeActiveStatus.orderTime.toString() ===
@@ -214,6 +221,11 @@ export function TaskGridViewDndContext<TaskRow>({
                                 ) {
                                     onTaskAssigneeChange(taskRow, {
                                         account: currentAccount,
+                                        // TODO(calebmer): This probably should be a new assigned time...
+                                        assignerId: currentAccount.id,
+                                        assignedTime,
+                                        assignerTimeZone: timeZone,
+                                        assignedDate,
                                         status: {
                                             type: "Active",
                                             orderTime: afterAssigneeActiveStatus.orderTime,
@@ -221,11 +233,20 @@ export function TaskGridViewDndContext<TaskRow>({
                                                 beforeAssigneeActiveStatus.orderKey,
                                                 afterAssigneeActiveStatus.orderKey,
                                             ),
+                                            activatorId: currentAccount.id,
+                                            activatedTime: assignedTime,
+                                            activatorTimeZone: timeZone,
+                                            activatedDate: assignedDate,
                                         },
                                     });
                                 } else {
                                     onTaskAssigneeChange(taskRow, {
                                         account: currentAccount,
+                                        // TODO(calebmer): This probably should be a new assigned time...
+                                        assignerId: currentAccount.id,
+                                        assignedTime,
+                                        assignerTimeZone: timeZone,
+                                        assignedDate,
                                         status: {
                                             type: "Active",
                                             orderTime: beforeAssigneeActiveStatus.orderTime,
@@ -233,12 +254,21 @@ export function TaskGridViewDndContext<TaskRow>({
                                                 beforeAssigneeActiveStatus.orderKey,
                                                 null,
                                             ),
+                                            activatorId: currentAccount.id,
+                                            activatedTime: assignedTime,
+                                            activatorTimeZone: timeZone,
+                                            activatedDate: assignedDate,
                                         },
                                     });
                                 }
                             } else if (beforeAssigneeActiveStatus) {
                                 onTaskAssigneeChange(taskRow, {
                                     account: currentAccount,
+                                    // TODO(calebmer): This probably should be a new assigned time...
+                                    assignerId: currentAccount.id,
+                                    assignedTime,
+                                    assignerTimeZone: timeZone,
+                                    assignedDate,
                                     status: {
                                         type: "Active",
                                         orderTime: beforeAssigneeActiveStatus.orderTime,
@@ -246,11 +276,20 @@ export function TaskGridViewDndContext<TaskRow>({
                                             beforeAssigneeActiveStatus.orderKey,
                                             null,
                                         ),
+                                        activatorId: currentAccount.id,
+                                        activatedTime: assignedTime,
+                                        activatorTimeZone: timeZone,
+                                        activatedDate: assignedDate,
                                     },
                                 });
                             } else if (afterAssigneeActiveStatus) {
                                 onTaskAssigneeChange(taskRow, {
                                     account: currentAccount,
+                                    // TODO(calebmer): This probably should be a new assigned time...
+                                    assignerId: currentAccount.id,
+                                    assignedTime,
+                                    assignerTimeZone: timeZone,
+                                    assignedDate,
                                     status: {
                                         type: "Active",
                                         orderTime: afterAssigneeActiveStatus.orderTime,
@@ -258,15 +297,28 @@ export function TaskGridViewDndContext<TaskRow>({
                                             null,
                                             afterAssigneeActiveStatus.orderKey,
                                         ),
+                                        activatorId: currentAccount.id,
+                                        activatedTime: assignedTime,
+                                        activatorTimeZone: timeZone,
+                                        activatedDate: assignedDate,
                                     },
                                 });
                             } else {
                                 onTaskAssigneeChange(taskRow, {
                                     account: currentAccount,
+                                    // TODO(calebmer): This probably should be a new assigned time...
+                                    assignerId: currentAccount.id,
+                                    assignedTime,
+                                    assignerTimeZone: timeZone,
+                                    assignedDate,
                                     status: {
                                         type: "Active",
                                         orderTime: new Date(),
                                         orderKey: initialOrderKey,
+                                        activatorId: currentAccount.id,
+                                        activatedTime: assignedTime,
+                                        activatorTimeZone: timeZone,
+                                        activatedDate: assignedDate,
                                     },
                                 });
                             }

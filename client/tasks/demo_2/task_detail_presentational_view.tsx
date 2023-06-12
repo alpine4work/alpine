@@ -1,4 +1,4 @@
-import {CalendarDate} from "@internationalized/date";
+import {CalendarDate, parseAbsolute, toCalendarDate} from "@internationalized/date";
 import {DotsThree} from "phosphor-react";
 import {
     PropsWithoutRef,
@@ -16,6 +16,7 @@ import {Button} from "~/client/design/button";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element";
 import {IconButton} from "~/client/design/icon_button";
 import {MenuButton} from "~/client/design/menu_button";
+import {useClientInfo} from "~/client/remix/client_info_context";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {TaskChildTasksProgressWheel} from "~/client/tasks/demo_2/internal/task_child_tasks_progress_wheel";
@@ -119,6 +120,7 @@ function TaskDetailPresentationalView<ChildTaskRow>(
     }: TaskDetailPresentationalViewProps<ChildTaskRow>,
     ref: Ref<TaskDetailPresentationalViewRef>,
 ) {
+    const {timeZone} = useClientInfo();
     const {currentAccount} = useSpaceContext();
     const isMobile = useIsMobile();
     const padding: Spacing = isMobile ? "3" : "5";
@@ -153,7 +155,7 @@ function TaskDetailPresentationalView<ChildTaskRow>(
                         assignee={assignee}
                     />
                     <Box marginY="-0.5">
-                        {status === "Closed" ? (
+                        {status.type === "Closed" ? (
                             <Box
                                 display="flex"
                                 alignItems="center"
@@ -169,8 +171,18 @@ function TaskDetailPresentationalView<ChildTaskRow>(
                                 height="6"
                                 paddingX="1.5"
                                 onPress={() => {
+                                    const assignedTime = new Date();
+                                    const assignedDate = toCalendarDate(
+                                        parseAbsolute(assignedTime.toISOString(), timeZone),
+                                    );
+
                                     onAssigneeChange({
-                                        account: assignee?.account ?? currentAccount,
+                                        account: currentAccount,
+                                        assignerId: currentAccount.id,
+                                        assignedTime,
+                                        assignerTimeZone: timeZone,
+                                        assignedDate,
+                                        ...assignee,
                                         status:
                                             assignee?.status.type === "Active"
                                                 ? {type: "Inactive"}
@@ -178,6 +190,10 @@ function TaskDetailPresentationalView<ChildTaskRow>(
                                                       type: "Active",
                                                       orderTime: new Date(),
                                                       orderKey: initialOrderKey,
+                                                      activatorId: currentAccount.id,
+                                                      activatedTime: assignedTime,
+                                                      activatorTimeZone: timeZone,
+                                                      activatedDate: assignedDate,
                                                   },
                                     });
                                 }}
@@ -218,13 +234,25 @@ function TaskDetailPresentationalView<ChildTaskRow>(
             <TaskDetailViewDenseFields
                 status={status}
                 assigneeAccount={assignee?.account ?? null}
-                onAssigneeAccountChange={assigneeAccount =>
+                onAssigneeAccountChange={assigneeAccount => {
+                    const assignedTime = new Date();
+                    const assignedDate = toCalendarDate(
+                        parseAbsolute(assignedTime.toISOString(), timeZone),
+                    );
+
                     onAssigneeChange(
                         assigneeAccount
-                            ? {account: assigneeAccount, status: {type: "Inactive"}}
+                            ? {
+                                  account: assigneeAccount,
+                                  assignerId: currentAccount.id,
+                                  assignedTime,
+                                  assignerTimeZone: timeZone,
+                                  assignedDate,
+                                  status: {type: "Inactive"},
+                              }
                             : null,
-                    )
-                }
+                    );
+                }}
                 dueDate={dueDate}
                 onDueDateChange={onDueDateChange}
                 allCollections={allCollections}
@@ -349,7 +377,7 @@ function TaskDetailViewDenseFields({
                         date={dueDate}
                         onDateChange={onDueDateChange}
                         shouldIncludeCalendarIcon={true}
-                        shouldWarnIfAfterDate={status === "Open"}
+                        shouldWarnIfAfterDate={status.type === "Open"}
                         shouldFormatToday={true}
                         aria-labelledby={ariaLabelledBy}
                     />

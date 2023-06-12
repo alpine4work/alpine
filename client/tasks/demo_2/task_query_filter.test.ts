@@ -518,6 +518,15 @@ const testCases: Array<{name: string; filters: Array<TaskQueryFilter>}> = [
             },
         ],
     },
+    {
+        name: "empty due date",
+        filters: [
+            {
+                type: "DueDate",
+                operation: {type: "IsEmpty"},
+            },
+        ],
+    },
 ];
 
 describe("task query filter binary encoding", () => {

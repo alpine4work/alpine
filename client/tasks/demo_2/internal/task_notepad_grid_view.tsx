@@ -3,6 +3,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
 import {usePeekStackContext} from "~/client/peek/peek_stack";
+import {useClientInfo} from "~/client/remix/client_info_context";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {
     LocalTask,
@@ -67,7 +68,8 @@ function TaskNotepadGridView(
     },
     ref: Ref<TaskGridPresentationalViewRef>,
 ) {
-    const {space} = useSpaceContext();
+    const {timeZone} = useClientInfo();
+    const {space, currentAccount} = useSpaceContext();
     const peekStackContext = usePeekStackContext();
     const gridViewRef = useRef<TaskGridPresentationalViewRef>(null);
 
@@ -213,7 +215,7 @@ function TaskNotepadGridView(
                     task.childTaskIdByOrderKey.values(),
                     (closedChildTaskCount, childTaskId) =>
                         closedChildTaskCount +
-                        (state.database.getTask(childTaskId).status === "Closed" ? 1 : 0),
+                        (state.database.getTask(childTaskId).status.type === "Closed" ? 1 : 0),
                     0,
                 )
             }
@@ -234,6 +236,8 @@ function TaskNotepadGridView(
             createTaskAbove={({position}) => {
                 dispatch({
                     type: "CreateTask",
+                    creatorId: currentAccount.id,
+                    creatorTimeZone: timeZone,
                     ...position,
                     side: "Above",
                 });
@@ -241,6 +245,8 @@ function TaskNotepadGridView(
             createTaskBelowAndFocus={({position}) => {
                 dispatch({
                     type: "CreateTask",
+                    creatorId: currentAccount.id,
+                    creatorTimeZone: timeZone,
                     ...position,
                     side: "Below",
                     onLayoutEffect: taskId => {
@@ -255,6 +261,8 @@ function TaskNotepadGridView(
             createTaskChildAtStartAndFocus={({task: {id: taskId}}) => {
                 dispatch({
                     type: "CreateTask",
+                    creatorId: currentAccount.id,
+                    creatorTimeZone: timeZone,
                     parentTask: {id: taskId, side: "Above"},
                     onLayoutEffect: taskId => {
                         // TODO(calebmer): A production implementation probably shouldn't do an
@@ -275,6 +283,8 @@ function TaskNotepadGridView(
 
                     dispatch({
                         type: "CreateTask",
+                        creatorId: currentAccount.id,
+                        creatorTimeZone: timeZone,
                         taskId: bottomTaskGhostRowId,
                         title,
                         notepad: {page: notepadPage, side: "Below"},
@@ -291,6 +301,8 @@ function TaskNotepadGridView(
 
                     dispatch({
                         type: "CreateTask",
+                        creatorId: currentAccount.id,
+                        creatorTimeZone: timeZone,
                         taskId: bottomTaskGhostRowId,
                         title,
                         notepad: {page: notepadPage, side: "Below"},
@@ -312,6 +324,8 @@ function TaskNotepadGridView(
 
                     dispatch({
                         type: "CreateTask",
+                        creatorId: currentAccount.id,
+                        creatorTimeZone: timeZone,
                         taskId: topTaskGhostRowId,
                         title,
                         notepad: {page: notepadPage, side: "Above"},
@@ -321,6 +335,8 @@ function TaskNotepadGridView(
             createTaskAtStartFromTopGhostAndFocus={title => {
                 dispatch({
                     type: "CreateTask",
+                    creatorId: currentAccount.id,
+                    creatorTimeZone: timeZone,
                     title,
                     notepad: {page: notepadPage, side: "Above"},
                     onLayoutEffect: taskId => {
