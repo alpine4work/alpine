@@ -281,8 +281,7 @@ export function TaskCollectionGridView({
                         creatorTimeZone: timeZone,
                         taskId: bottomTaskGhostRowId,
                         title,
-                        // NOCOMMIT: Do an equivalent thing here?
-                        // notepad: {page: notepadPage, side: "Below"},
+                        collection: {id: collectionId, side: "Below"},
                     });
                 });
             }}
@@ -300,8 +299,7 @@ export function TaskCollectionGridView({
                         creatorTimeZone: timeZone,
                         taskId: bottomTaskGhostRowId,
                         title,
-                        // NOCOMMIT: Do an equivalent thing here?
-                        // notepad: {page: notepadPage, side: "Below"},
+                        collection: {id: collectionId, side: "Below"},
                         onLayoutEffect: () => {
                             gridViewRef.current?.focusEnd();
                         },
@@ -324,8 +322,7 @@ export function TaskCollectionGridView({
                         creatorTimeZone: timeZone,
                         taskId: topTaskGhostRowId,
                         title,
-                        // NOCOMMIT: Do an equivalent thing here?
-                        // notepad: {page: notepadPage, side: "Below"},
+                        collection: {id: collectionId, side: "Above"},
                     });
                 });
             }}
@@ -335,8 +332,7 @@ export function TaskCollectionGridView({
                     creatorId: currentAccount.id,
                     creatorTimeZone: timeZone,
                     title,
-                    // NOCOMMIT: Do an equivalent thing here?
-                    // notepad: {page: notepadPage, side: "Below"},
+                    collection: {id: collectionId, side: "Above"},
                     onLayoutEffect: taskId => {
                         // TODO(calebmer): A production implementation probably shouldn't do an
                         // O(n) loop here.

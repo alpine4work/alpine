@@ -218,6 +218,14 @@ function TaskDetailPresentationalView<ChildTaskRow>(
                                     throw new UnimplementedError("TODO");
                                 },
                             },
+                            {
+                                label: "Delete task",
+                                pressErrorTitle: "Couldn’t delete task",
+                                onPress: async () => {
+                                    // NOCOMMIT
+                                    throw new UnimplementedError("TODO");
+                                },
+                            },
                         ]}
                     >
                         <IconButton description="More" withoutTooltip={true}>

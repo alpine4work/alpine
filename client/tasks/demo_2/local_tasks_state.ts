@@ -414,7 +414,7 @@ class LocalTasksDatabase {
             title: options.title ?? emptyTaskTitle,
             assignee: null,
             dueDate: null,
-            collectionIds: new Set(),
+            collectionIds: options.collection ? new Set([options.collection.id]) : new Set(),
             notesContent: emptyTaskNotesContentWithReferences,
             parentTaskId: options.parentTask?.id ?? null,
             childTaskIdByOrderKey: ImmutableMap.empty(),
@@ -422,6 +422,7 @@ class LocalTasksDatabase {
 
         let taskById = this._taskById;
         let taskIdByOrderKeyByNotepadPage = this._taskIdByOrderKeyByNotepadPage;
+        let taskCollectionById = this._taskCollectionById;
 
         if (taskById.has(task.id)) throw new FailedPreconditionError("Task IDs must be unique");
 
@@ -511,10 +512,53 @@ class LocalTasksDatabase {
             );
         }
 
+        if (options.collection) {
+            let taskCollection = taskCollectionById.get(options.collection.id);
+            if (!taskCollection) throw new NotFoundError("Task collection not found");
+
+            let orderKey: OrderKey;
+            if ((options.collection.side ?? options.side ?? "Below") === "Above") {
+                if (options.collection.orderKey) {
+                    orderKey = generateOrderKeyBetween(
+                        taskCollection.taskIdByOrderKey.getEntryBefore(
+                            options.collection.orderKey,
+                        )?.[0] ?? null,
+                        options.collection.orderKey,
+                    );
+                } else {
+                    orderKey = generateOrderKeyBetween(
+                        null,
+                        taskCollection.taskIdByOrderKey.getFirstEntry()?.[0] ?? null,
+                    );
+                }
+            } else {
+                if (options.collection.orderKey) {
+                    orderKey = generateOrderKeyBetween(
+                        options.collection.orderKey,
+                        taskCollection.taskIdByOrderKey.getEntryAfter(
+                            options.collection.orderKey,
+                        )?.[0] ?? null,
+                    );
+                } else {
+                    orderKey = generateOrderKeyBetween(
+                        taskCollection.taskIdByOrderKey.getLastEntry()?.[0] ?? null,
+                        null,
+                    );
+                }
+            }
+
+            taskCollection = {
+                ...taskCollection,
+                taskIdByOrderKey: taskCollection.taskIdByOrderKey.set(orderKey, task.id),
+            };
+
+            taskCollectionById = taskCollectionById.set(taskCollection.id, taskCollection);
+        }
+
         return [
             new LocalTasksDatabase({
                 taskById,
-                taskCollectionById: this._taskCollectionById,
+                taskCollectionById,
                 notepadPageCount: this._notepadPageCount,
                 taskIdByOrderKeyByNotepadPage,
             }),
@@ -831,6 +875,7 @@ class LocalTasksDatabase {
     public deleteTaskAndAllChildren(taskId: LocalTaskId) {
         let taskById = this._taskById;
         let taskIdByOrderKeyByNotepadPage = this._taskIdByOrderKeyByNotepadPage;
+        let taskCollectionById = this._taskCollectionById;
 
         const deleteTask = (taskId: LocalTaskId, shouldDeleteFromParent: boolean) => {
             const [task, _taskById] = taskById.getAndDelete(taskId);
@@ -847,6 +892,28 @@ class LocalTasksDatabase {
                 taskId,
             );
 
+            for (const collectionId of task.collectionIds) {
+                let taskCollection = assertExists(taskCollectionById.get(collectionId));
+
+                taskCollection = {
+                    ...taskCollection,
+                    lastTaskAddedOrRemovedTimeRoundedToDay: roundDateToDay(new Date()),
+                    taskCount: taskCollection.taskCount - 1,
+                    // TODO(calebmer): In a production implementation we should have a reverse
+                    // index since a scan could be expensive.
+                    taskIdByOrderKey: reduceIterable(
+                        taskCollection.taskIdByOrderKey.entries(),
+                        (taskIdByOrderKey, [orderKey, otherTaskId]) =>
+                            otherTaskId === task.id
+                                ? taskIdByOrderKey.delete(orderKey)
+                                : taskIdByOrderKey,
+                        taskCollection.taskIdByOrderKey,
+                    ),
+                };
+
+                taskCollectionById = taskCollectionById.set(taskCollection.id, taskCollection);
+            }
+
             for (const childTaskId of task.childTaskIdByOrderKey.values()) {
                 deleteTask(childTaskId, false);
             }
@@ -856,7 +923,7 @@ class LocalTasksDatabase {
 
         return new LocalTasksDatabase({
             taskById,
-            taskCollectionById: this._taskCollectionById,
+            taskCollectionById,
             notepadPageCount: this._notepadPageCount,
             taskIdByOrderKeyByNotepadPage,
         });
@@ -1153,6 +1220,20 @@ type LocalTasksDatabaseCreateTaskOptions = {
      * `side` defaults to `Below`.
      */
     notepad?: {page: number; orderKey?: OrderKey; side?: "Above" | "Below"};
+
+    /**
+     * Set this to create a task in a collection.
+     *
+     * Provide an `orderKey` to specify where in the notepad page you want to
+     * create this task. You may use `side` to specify whether you want to
+     * create the task above or below the provided `orderKey`.
+     *
+     * If an `orderKey` is not provided then we create the start or end of the
+     * parent's child tasks depending on `side`.
+     *
+     * `side` defaults to `Below`.
+     */
+    collection?: {id: LocalTaskCollectionId; orderKey?: OrderKey; side?: "Above" | "Below"};
 
     /**
      * Should we create the task above or below the order keys provided in `parent`
