@@ -3,7 +3,6 @@ import {useEffect, useRef, useState} from "react";
 import {Box} from "~/client/design/box";
 import {IconButton} from "~/client/design/icon_button";
 import {MenuButton} from "~/client/design/menu_button";
-import {Spacer} from "~/client/design/spacer";
 import {TaskQueryGridView} from "~/client/tasks/demo_2/internal/task_query_grid_view";
 import {TaskQueryViewCustomizationBar} from "~/client/tasks/demo_2/internal/task_query_view_customization_bar";
 import {LocalTasksAction, LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
@@ -61,14 +60,20 @@ export function TaskCollectionView({
                 alignItems="center"
                 gap="2"
             >
-                <Box
-                    width="2"
-                    height="2"
-                    borderRadius="full"
-                    backgroundColor={`${collection.color}-50-const`}
-                />
-                <Box fontSize="200" fontStyle="truncate-semi-bold">
-                    {collection.name}
+                <Box display="flex" alignItems="center" gap="1">
+                    <Box display="flex" justifyContent="center" width="3">
+                        <Box
+                            // Carefully positioned so it aligns with the "+" icon in the
+                            // "Add filter" button.
+                            width="2"
+                            height="2"
+                            borderRadius="full"
+                            backgroundColor={`${collection.color}-50-const`}
+                        />
+                    </Box>
+                    <Box fontSize="200" fontStyle="truncate-semi-bold">
+                        {collection.name}
+                    </Box>
                 </Box>
                 <MenuButton
                     actions={[
