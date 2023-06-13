@@ -1,7 +1,7 @@
 import {isFocusVisible, usePress} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
-import {Check, MagnifyingGlass, SpinnerGap} from "phosphor-react";
-import {ReactNode, RefObject, useEffect, useLayoutEffect, useRef, useState} from "react";
+import {MagnifyingGlass, SpinnerGap} from "phosphor-react";
+import {ReactNode, RefObject, useRef, useState} from "react";
 import {
     AriaListBoxOptions,
     mergeProps,
@@ -9,27 +9,17 @@ import {
     useHover,
     useListBox,
     useOption,
-    useOverlayTrigger,
 } from "react-aria";
-import {ComboBoxState, Item, useListState, useOverlayTriggerState} from "react-stately";
+import {ComboBoxState, Item, useListState} from "react-stately";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
-import {useOutsidePress} from "~/client/design/helpers/use_outside_press";
-import {OverlayAnimated} from "~/client/design/overlay_animated";
-import {defaultTooltipOffset} from "~/client/design/tooltip";
+import {OverlayTriggerButton} from "~/client/design/overlay_trigger";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {TaskCheckbox} from "~/client/tasks/demo_2/internal/task_checkbox";
-import {Spacing, addRemLengths, spacing} from "~/shared/design/spacing";
+import {Spacing, spacing} from "~/shared/design/spacing";
 import {emptyArray} from "~/shared/helpers/array/empty_array";
-import {createTimeout} from "~/shared/helpers/async/timeout";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {noop} from "~/shared/helpers/control/noop";
-import {
-    colorSchemeVars,
-    overlayFadeOutAnimationDurationMs,
-    spinAnimationClassName,
-    sprinkles,
-} from "~/shared/styles/styles";
+import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
 
 export type TaskQueryFilterEditorMultiSelectComboBoxItem<Key extends string> = {
     readonly key: Key;
@@ -57,51 +47,14 @@ export function TaskQueryFilterEditorMultiSelectComboBox<Key extends string>({
         | {isLoading: true};
     optionCheckboxMarginTop?: Spacing;
 }) {
-    const overlayTriggerState = useOverlayTriggerState({});
-
-    const triggerRef = useRef<HTMLButtonElement>(null);
-    const {
-        triggerProps: {onPressStart, onPress, ...triggerProps},
-        overlayProps,
-    } = useOverlayTrigger({type: "listbox"}, overlayTriggerState, triggerRef);
-    const {pressProps, isPressed} = usePress({onPressStart, onPress});
+    const {pressProps, isPressed} = usePress({});
     const {hoverProps, isHovered} = useHover({});
 
-    // When this is set to true we allow the next animation then no more
-    // animations. Most interactions that control whether the picker is open/close
-    // are direct interactions that shouldn't be animated.
-    const [shouldOverlayAnimateOut, setShouldOverlayAnimateOut] = useState(false);
-    useEffect(() => {
-        if (!shouldOverlayAnimateOut) return;
-
-        const timeout = createTimeout(() => {
-            setShouldOverlayAnimateOut(false);
-        }, overlayFadeOutAnimationDurationMs);
-        return () => {
-            timeout.clear();
-        };
-    }, [shouldOverlayAnimateOut]);
-
     return (
-        <OverlayAnimated
-            isVisible={overlayTriggerState.isOpen}
-            placement="bottom-start"
-            offset={defaultTooltipOffset}
-            disableAnimationIn={true}
-            disableAnimationOut={!shouldOverlayAnimateOut}
-            overlay={
+        <OverlayTriggerButton
+            aria-haspopup="listbox"
+            overlay={({onCloseWithoutAnimation}) => (
                 <Box
-                    {...overlayProps}
-                    ref={useOutsidePress(event => {
-                        // Clicking on the trigger button is not an outside press. Let
-                        // `useOverlayTrigger()` handle that.
-                        if (assertExists(triggerRef.current).contains(event.target as Element)) {
-                            return;
-                        }
-
-                        setShouldOverlayAnimateOut(true);
-                        overlayTriggerState.close();
-                    })}
                     width="64"
                     maxHeight="96"
                     overflow="hidden"
@@ -116,16 +69,15 @@ export function TaskQueryFilterEditorMultiSelectComboBox<Key extends string>({
                         selectedKeys={selectedKeys}
                         onSelectedKeysChange={onSelectedKeysChange}
                         useSearchedItems={useSearchedItems}
-                        onCloseWithoutAnimation={() => overlayTriggerState.close()}
+                        onCloseWithoutAnimation={onCloseWithoutAnimation}
                         optionCheckboxMarginTop={optionCheckboxMarginTop ?? null}
                     />
                 </Box>
-            }
+            )}
         >
             <FocusRing offset="0">
                 <button
-                    {...mergeProps(triggerProps, pressProps, hoverProps)}
-                    ref={triggerRef}
+                    {...mergeProps(pressProps, hoverProps)}
                     className={sprinkles({
                         height: "full",
                     })}
@@ -155,7 +107,7 @@ export function TaskQueryFilterEditorMultiSelectComboBox<Key extends string>({
                     </span>
                 </button>
             </FocusRing>
-        </OverlayAnimated>
+        </OverlayTriggerButton>
     );
 }
 
@@ -256,18 +208,9 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<Key extends string>({
         comboBoxState,
     );
 
-    // Autofocus our input when the overlay opens.
-    const hasInitiallyRenderedRef = useRef(false);
-    useLayoutEffect(() => {
-        if (hasInitiallyRenderedRef.current) return;
-        hasInitiallyRenderedRef.current = true;
-
-        assertExists(inputRef.current).focus();
-    }, []);
-
     return (
         <>
-            <FocusRing offset="border">
+            <FocusRing offset="border" isDisabled={!!selectionManager.focusedKey}>
                 <input
                     {...inputProps}
                     ref={inputRef}
@@ -282,6 +225,13 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<Key extends string>({
                         borderBottom: "grey-10",
                     })}
                     placeholder={inputLabel}
+                    onKeyDown={event => {
+                        // Don't handle a tab keypress with `react-aria`. Instead let our
+                        // `<OverlayTriggerButton>` handle it.
+                        if (event.key === "Tab") return;
+
+                        inputProps.onKeyDown?.(event);
+                    }}
                 />
             </FocusRing>
             <Box

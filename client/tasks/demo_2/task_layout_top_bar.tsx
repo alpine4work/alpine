@@ -4,11 +4,14 @@ import {Button} from "~/client/design/button";
 import {MenuButton} from "~/client/design/menu_button";
 import {useNavigate} from "~/client/remix/use_navigate";
 import {useSpaceContext} from "~/client/spaces/space_context";
+import {TaskLayoutTopBarCollectionsButton} from "~/client/tasks/demo_2/internal/task_layout_top_bar_collections_button";
+import {useLocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
 import {serializeTaskQueryFiltersSearchParam} from "~/client/tasks/demo_2/task_query_filter";
 
 export function TaskLayoutTopBar() {
     const navigate = useNavigate();
     const {space} = useSpaceContext();
+    const [state] = useLocalTasksState();
 
     return (
         <Box
@@ -32,16 +35,7 @@ export function TaskLayoutTopBar() {
             >
                 Notepad
             </Button>
-            <Button
-                variant="quieter"
-                height="6"
-                paddingX="2"
-                onPress={() => {
-                    // NOCOMMIT
-                }}
-            >
-                Planner
-            </Button>
+            <TaskLayoutTopBarCollectionsButton state={state} />
             <MenuButton
                 width="64"
                 actions={[

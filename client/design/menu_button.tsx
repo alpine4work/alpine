@@ -1,57 +1,34 @@
 import {setInteractionModality} from "@react-aria/interactions";
 import {Check, IconContext, SpinnerGap} from "phosphor-react";
-import React, {
+import {
     ReactElement,
     ReactNode,
     Ref,
     createRef,
     forwardRef,
-    useCallback,
     useEffect,
     useId,
     useMemo,
-    useRef,
     useState,
 } from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
+import {OverlayPlacement} from "~/client/design/overlay";
 import {
-    getNextFocusableElementIfExists,
-    getPreviousFocusableElementIfExists,
-} from "~/client/design/helpers/get_next_focusable_element";
-import {setElementAttributesWithCleanup} from "~/client/design/helpers/set_element_attributes_with_cleanup";
-import {useOutsidePress} from "~/client/design/helpers/use_outside_press";
-import {
-    Overlay,
-    OverlayPlacement,
-    useIsWaitingForOverlayPortalElement,
-} from "~/client/design/overlay";
+    OverlayTriggerButton,
+    OverlayTriggerButtonChildrenProps,
+    OverlayTriggerButtonState,
+} from "~/client/design/overlay_trigger";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {useShowToast} from "~/client/design/toast";
-import {
-    Tooltip,
-    TooltipCoordinationContextProvider,
-    defaultTooltipOffset,
-    useShouldDisableTooltips,
-} from "~/client/design/tooltip";
-import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref";
-import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref";
-import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
+import {Tooltip, defaultTooltipOffset} from "~/client/design/tooltip";
 import {Spacing, spacing} from "~/shared/design/spacing";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {
-    colorSchemeVars,
-    overlayAnimateContainerClassName,
-    overlayAnimateFadeOutClassName,
-    overlayFadeOutAnimationDurationMs,
-    spinAnimationClassName,
-} from "~/shared/styles/styles";
+import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
 
 // TODO(calebmer): Implement the mobile action sheet version of our menu
 // component.
@@ -163,30 +140,6 @@ type MenuCustomAction = {
     }) => ReactNode;
 };
 
-type MenuButtonState =
-    | {
-          readonly isExpanded: false;
-          readonly isFadingOut: boolean;
-          readonly initiallyFocus?: undefined;
-      }
-    | {
-          readonly isExpanded: true;
-          readonly initiallyFocus?: "FirstMenuItem" | "LastMenuItem";
-          readonly isFadingOut?: undefined;
-      };
-
-const initialMenuButtonState: MenuButtonState = {
-    isExpanded: false,
-    isFadingOut: false,
-};
-
-type MenuButtonChildrenProps = {
-    /**
-     * Is the menu currently visible? True even while the menu is fading out.
-     */
-    isVisible: boolean;
-};
-
 type MenuWidth = "32" | "48" | "64";
 
 /**
@@ -203,8 +156,8 @@ export function MenuButton({
     width = "32",
     offset = defaultTooltipOffset,
     offsetAlong,
-    children: actualChildren,
-    onStateChange: _onStateChange,
+    children,
+    onStateChange,
 }: {
     /**
      * All the actions available in a menu’s popup. When clicking on the button
@@ -246,246 +199,32 @@ export function MenuButton({
      * The button element which opens and closes the menu. Must provide a ref to
      * an HTML `<button>` element or we will throw an error.
      */
-    children: ReactElement | ((props: MenuButtonChildrenProps) => ReactElement);
+    children: ReactElement | ((props: OverlayTriggerButtonChildrenProps) => ReactElement);
 
     /**
      * Observe the menu's internal state.
      */
-    onStateChange?: (state: MenuButtonState) => void;
+    onStateChange?: (state: OverlayTriggerButtonState) => void;
 }) {
-    const menuButtonRef = useRef<HTMLButtonElement>(null);
-    const menuRef = useRef<HTMLDivElement>(null);
-
-    const [state, setState] = useState(initialMenuButtonState);
-
-    const onStateChange = useEvent(_onStateChange);
-    useEffect(() => {
-        onStateChange(state);
-    }, [onStateChange, state]);
-
-    // Make sure to unset `state.isFadingOut` once the fade-out duration has
-    // finished. That way we actually unmount the menu in the DOM.
-    useEffect(() => {
-        if (state.isExpanded || !state.isFadingOut) return;
-
-        const timeout = createTimeout(() => {
-            setState(oldState => {
-                if (oldState.isExpanded) return oldState;
-                return {...oldState, isFadingOut: false};
-            });
-        }, overlayFadeOutAnimationDurationMs);
-
-        return () => {
-            timeout.clear();
-        };
-    }, [state.isExpanded, state.isFadingOut]);
-
-    const isWaitingForOverlayPortalElement = useIsWaitingForOverlayPortalElement(state.isExpanded);
-
-    const menuButtonLifecycleRef = useCallback(
-        (menuButtonElement: HTMLButtonElement) => {
-            // We require an HTML `<button>` element for accessibility. Another option
-            // is allowing arbitrary HTML elements that have the appropriate role and
-            // tab-index.
-            assert(
-                menuButtonElement instanceof HTMLButtonElement,
-                "Expected the children of `<MenuButton>` to render an element with a ref to an HTML `<button>` element",
-            );
-
-            // If the overlay portal element is not ready then `menuRef` will not have
-            // mounted yet even if `state.isExpanded` is true.
-            assert(!state.isExpanded || isWaitingForOverlayPortalElement || menuRef.current);
-            const menuElement = menuRef.current;
-
-            // - With focus on the button:
-            //   - Enter: opens the menu and places focus on the first menu item.
-            //   - Space: Opens the menu and places focus on the first menu item.
-            //   - (Optional) Down Arrow: opens the menu and moves focus to the first menu item.
-            //   - (Optional) Up Arrow: opens the menu and moves focus to the last menu item.
-            //
-            // https://www.w3.org/TR/wai-aria-practices-1.2/#keyboard-interaction-13
-            function handleKeyDown(event: KeyboardEvent) {
-                if (menuButtonElement.disabled) return;
-
-                switch (event.key) {
-                    case "ArrowDown": {
-                        event.preventDefault(); // Don’t scroll
-                        event.stopPropagation();
-                        setState({isExpanded: true, initiallyFocus: "FirstMenuItem"});
-                        break;
-                    }
-                    case "ArrowUp": {
-                        event.preventDefault(); // Don’t scroll
-                        event.stopPropagation();
-                        setState({isExpanded: true, initiallyFocus: "LastMenuItem"});
-                        break;
-                    }
-                    case "Enter": {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        setState({isExpanded: true, initiallyFocus: "FirstMenuItem"});
-                        break;
-                    }
-                    case " ": {
-                        event.preventDefault(); // Don’t scroll
-                        event.stopPropagation();
-                        setState({isExpanded: true, initiallyFocus: "FirstMenuItem"});
-                        break;
-                    }
-                    default:
-                        break;
-                }
-            }
-
-            function handlePointerDown(event: MouseEvent) {
-                if (menuButtonElement.disabled) return;
-                if (isRightClick(event)) return;
-
-                setState(oldState => {
-                    if (!oldState.isExpanded) {
-                        return {isExpanded: true};
-                    } else {
-                        return {
-                            isExpanded: false,
-                            // Don't animate the menu out when the user took a direct action to close
-                            // the menu.
-                            isFadingOut: false,
-                        };
-                    }
-                });
-            }
-
-            const menuId = menuElement?.getAttribute("id") ?? null;
-
-            const menuButtonId =
-                menuButtonElement.getAttribute("id") ??
-                (menuId !== null ? `${menuId}-button` : null);
-
-            const cleanupMenuButtonAttributes = setElementAttributesWithCleanup(menuButtonElement, {
-                // If the button already has an ID, we won’t override that.
-                id: menuButtonId,
-                // - The element that opens the menu has role button.
-                // - The element with role `button` has `aria-haspopup` set to either
-                //   `"menu"` or `true`.
-                // - When the menu is displayed, the element with role button has
-                //   `aria-expanded` set to true. When the menu is hidden, it is
-                //   recommended that `aria-expanded` is not present. If
-                //   `aria-expanded` is specified when the menu is hidden, it is set
-                //   to false.
-                // - The element that contains the menu items displayed by activating
-                //   the button has role `menu`.
-                // - Optionally, the element with role `button` has a value specified
-                //   for `aria-controls` that refers to the element with role `menu`.
-                //
-                // https://www.w3.org/TR/wai-aria-practices-1.2/#menubutton
-                "aria-haspopup": "menu",
-                "aria-expanded": state.isExpanded ? "true" : null,
-                "aria-controls": menuId,
-            });
-
-            const cleanupMenuAttributes = menuElement
-                ? setElementAttributesWithCleanup(menuElement, {
-                      // An element with role menu has `aria-labelledby` set to a value
-                      // that refers to the button that controls its display.
-                      //
-                      // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
-                      //
-                      // We have to set this in our lifecycle ref because we don’t have
-                      // the button’s ID at render time.
-                      "aria-labelledby": menuButtonId,
-                  })
-                : null;
-
-            // Needs to be capture phase because `usePress()` will prevent default and stop
-            // propagation on press events.
-            menuButtonElement.addEventListener("pointerdown", handlePointerDown, {capture: true});
-            menuButtonElement.addEventListener("keydown", handleKeyDown);
-
-            return () => {
-                cleanupMenuButtonAttributes();
-                cleanupMenuAttributes?.();
-
-                menuButtonElement.removeEventListener("pointerdown", handlePointerDown, {
-                    capture: true,
-                });
-                menuButtonElement.removeEventListener("keydown", handleKeyDown);
-            };
-        },
-        [isWaitingForOverlayPortalElement, state.isExpanded],
-    );
-
-    // Close the menu if there’s a click somewhere else in the document outside
-    // the menu or menu button.
-    const outsidePressRef = useOutsidePress(event => {
-        if (!state.isExpanded) return;
-
-        const menuButtonElement = menuButtonRef.current;
-        const menuElement = menuRef.current;
-        const targetElement = event.target as Element;
-
-        if (menuButtonElement?.contains(targetElement)) return;
-        if (menuElement?.contains(targetElement)) return;
-
-        setState({isExpanded: false, isFadingOut: true});
-    });
-
-    const isVisible = state.isExpanded || state.isFadingOut;
-
-    const children = useElementWithRef(
-        useMemo(() => {
-            if (typeof actualChildren !== "function") {
-                return actualChildren;
-            } else {
-                return actualChildren({isVisible});
-            }
-        }, [actualChildren, isVisible]),
-        useMergedRefs(menuButtonRef, useLifecycleRef(menuButtonLifecycleRef)),
-    );
-
     return (
-        <Overlay
-            isVisible={isVisible}
+        <OverlayTriggerButton
+            aria-haspopup="menu"
             placement={placement}
             offset={offset}
             offsetAlong={offsetAlong}
-            overlay={
+            onStateChange={onStateChange}
+            overlay={({onCloseWithAnimation, onCloseWithoutAnimation}) => (
                 <Menu
-                    ref={useMergedRefs<HTMLDivElement>(menuRef, outsidePressRef)}
                     actions={actions}
                     placement={placement}
                     width={width}
-                    isFadingOut={!state.isExpanded && state.isFadingOut}
-                    initiallyFocus={state.initiallyFocus ?? "Menu"}
-                    onClose={({returnFocusTo, withoutAnimation} = {}) => {
-                        setState({isExpanded: false, isFadingOut: !withoutAnimation});
-
-                        const menuButtonElement = assertExists(menuButtonRef.current);
-
-                        switch (returnFocusTo) {
-                            case "TriggerElement": {
-                                menuButtonElement.focus();
-                                break;
-                            }
-                            case "NextElement": {
-                                getNextFocusableElementIfExists(menuButtonElement)?.focus();
-                                break;
-                            }
-                            case "PreviousElement": {
-                                getPreviousFocusableElementIfExists(menuButtonElement)?.focus();
-                                break;
-                            }
-                            case undefined: {
-                                break;
-                            }
-                            default:
-                                throw exhaustive(returnFocusTo);
-                        }
-                    }}
+                    onCloseWithAnimation={onCloseWithAnimation}
+                    onCloseWithoutAnimation={onCloseWithoutAnimation}
                 />
-            }
+            )}
         >
             {children}
-        </Overlay>
+        </OverlayTriggerButton>
     );
 }
 
@@ -502,19 +241,14 @@ const Menu = forwardRef(function Menu(
         actions: nestedActions,
         placement,
         width,
-        isFadingOut,
-        initiallyFocus,
-        onClose,
+        onCloseWithAnimation,
+        onCloseWithoutAnimation,
     }: {
         actions: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
         placement: OverlayPlacement;
         width: MenuWidth;
-        isFadingOut: boolean;
-        initiallyFocus: "Menu" | "FirstMenuItem" | "LastMenuItem";
-        onClose: (opts?: {
-            returnFocusTo?: "TriggerElement" | "NextElement" | "PreviousElement";
-            withoutAnimation?: boolean;
-        }) => void;
+        onCloseWithAnimation: () => void;
+        onCloseWithoutAnimation: () => void;
     },
     ref: Ref<HTMLDivElement>,
 ) {
@@ -542,8 +276,6 @@ const Menu = forwardRef(function Menu(
 
     assert(flattenedActions.length > 0);
 
-    const menuRef = useRef<HTMLDivElement>(null);
-
     const menuItemRefs = useMemo(
         () =>
             flattenedActions.map(action =>
@@ -551,40 +283,6 @@ const Menu = forwardRef(function Menu(
             ),
         [flattenedActions],
     );
-
-    // When a `menu` opens, keyboard focus is placed on the first item.
-    //
-    // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
-    useEffect(() => {
-        switch (initiallyFocus) {
-            case "Menu":
-                menuRef.current?.focus();
-                break;
-            case "FirstMenuItem":
-                for (let index = 0; index < menuItemRefs.length; index++) {
-                    const menuItemRef = menuItemRefs[index]!;
-                    if (menuItemRef) {
-                        menuItemRef.current?.focus();
-                        break;
-                    }
-                }
-                break;
-            case "LastMenuItem":
-                for (let index = menuItemRefs.length - 1; index >= 0; index--) {
-                    const menuItemRef = menuItemRefs[index]!;
-                    if (menuItemRef) {
-                        menuItemRef.current?.focus();
-                        break;
-                    }
-                }
-                break;
-            default:
-                throw exhaustive(initiallyFocus);
-        }
-
-        // Intentionally first render only.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
 
     const [searchText, setSearchText] = useState("");
 
@@ -626,220 +324,182 @@ const Menu = forwardRef(function Menu(
         }
     }
 
-    // While the menu is open, we want to disable all other tooltips in the
-    // application.
-    useShouldDisableTooltips();
-
     return (
-        // While tooltips are disabled outside our menu, we still want to allow
-        // tooltips within our menu.
-        <TooltipCoordinationContextProvider>
-            <div
-                ref={useMergedRefs(menuRef, ref)}
-                role="menu"
-                // The menu container has `tabindex` set to -1 or 0 and
-                // `aria-activedescendant` set to the ID of the focused item.
-                //
-                // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
-                tabIndex={-1}
-                className={overlayAnimateContainerClassName}
-                onFocus={setAriaActiveDescendant}
-                onBlur={setAriaActiveDescendant}
-                onKeyDown={event => {
-                    if (isFadingOut) return;
+        <div
+            ref={ref}
+            role="menu"
+            // The menu container has `tabindex` set to -1 or 0 and
+            // `aria-activedescendant` set to the ID of the focused item.
+            //
+            // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
+            tabIndex={-1}
+            className={sprinkles({
+                minWidth: width,
+                borderRadius: "md",
+                padding: "1",
+                backgroundColor: {light: "grey-0", dark: "grey-5"},
+                boxShadow: "elevation-20",
+            })}
+            onFocus={setAriaActiveDescendant}
+            onBlur={setAriaActiveDescendant}
+            onKeyDown={event => {
+                switch (event.key) {
+                    // When focus is in a menu, moves focus to the next item, optionally
+                    // wrapping from the last to the first.
+                    //
+                    // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
+                    case "ArrowDown": {
+                        event.preventDefault(); // Don’t scroll
+                        event.stopPropagation();
 
-                    switch (event.key) {
-                        // When focus is in a menu, moves focus to the next item, optionally
-                        // wrapping from the last to the first.
-                        //
-                        // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
-                        case "ArrowDown": {
-                            event.preventDefault(); // Don’t scroll
-                            event.stopPropagation();
+                        setInteractionModality("keyboard");
 
-                            setInteractionModality("keyboard");
-
-                            const currentIndex = getFocusedActionIndexIfExists();
-                            if (currentIndex !== null) {
-                                for (
-                                    let index = currentIndex + 1;
-                                    index < menuItemRefs.length;
-                                    index++
-                                ) {
-                                    const menuItemRef = menuItemRefs[index]!;
-                                    if (menuItemRef) {
-                                        menuItemRef.current?.focus();
-                                        return;
-                                    }
-                                }
-                            }
-
-                            // If we did not find a menu item after `currentIndex` then loop back around to
-                            // the first menu item.
-                            for (let index = 0; index < menuItemRefs.length; index++) {
+                        const currentIndex = getFocusedActionIndexIfExists();
+                        if (currentIndex !== null) {
+                            for (
+                                let index = currentIndex + 1;
+                                index < menuItemRefs.length;
+                                index++
+                            ) {
                                 const menuItemRef = menuItemRefs[index]!;
                                 if (menuItemRef) {
                                     menuItemRef.current?.focus();
                                     return;
                                 }
                             }
-                            return;
                         }
-                        // When focus is in a menu, moves focus to the previous item,
-                        // optionally wrapping from the first to the last.
-                        //
-                        // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
-                        case "ArrowUp": {
-                            event.preventDefault(); // Don’t scroll
-                            event.stopPropagation();
 
-                            setInteractionModality("keyboard");
-
-                            const currentIndex = getFocusedActionIndexIfExists();
-                            if (currentIndex !== null) {
-                                for (let index = currentIndex - 1; index >= 0; index--) {
-                                    const menuItemRef = menuItemRefs[index]!;
-                                    if (menuItemRef) {
-                                        menuItemRef.current?.focus();
-                                        return;
-                                    }
-                                }
-                            }
-
-                            // If we did not find a menu item before `currentIndex` then loop back around to
-                            // the first menu item.
-                            for (let index = menuItemRefs.length - 1; index >= 0; index--) {
-                                const menuItemRef = menuItemRefs[index]!;
-                                if (menuItemRef) {
-                                    menuItemRef.current?.focus();
-                                    return;
-                                }
-                            }
-                            return;
-                        }
-                        // Moves focus to the first item in the current menu. Technically, the spec
-                        // says only implement if arrow key wrapping is not supported but it's easy
-                        // to support so why not.
-                        //
-                        // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
-                        case "Home": {
-                            event.preventDefault(); // Don't scroll
-                            event.stopPropagation();
-
-                            for (let index = 0; index < menuItemRefs.length; index++) {
-                                const menuItemRef = menuItemRefs[index]!;
-                                if (menuItemRef) {
-                                    menuItemRef.current?.focus();
-                                    return;
-                                }
-                            }
-                            return;
-                        }
-                        // Moves focus to the last item in the current menu. Technically, the spec
-                        // says only implement if arrow key wrapping is not supported but it's easy
-                        // to support so why not.
-                        //
-                        // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
-                        case "End": {
-                            event.preventDefault(); // Don't scroll
-                            event.stopPropagation();
-
-                            for (let index = menuItemRefs.length - 1; index >= 0; index--) {
-                                const menuItemRef = menuItemRefs[index]!;
-                                if (menuItemRef) {
-                                    menuItemRef.current?.focus();
-                                    return;
-                                }
-                            }
-                            return;
-                        }
-                        // Close the menu that contains focus and return focus to the element
-                        // or context, e.g., menu button, from which the menu was opened.
-                        //
-                        // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
-                        case "Escape": {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            onClose({returnFocusTo: "TriggerElement"});
-                            return;
-                        }
-                        // Moves focus to the next (or previous) element in the tab sequence,
-                        // and closes its `menu` and all open parent menu containers.
-                        //
-                        // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
-                        case "Tab": {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            onClose({
-                                returnFocusTo: event.shiftKey ? "PreviousElement" : "NextElement",
-                            });
-                            return;
-                        }
-                        default: {
-                            // Move focus to the next menu item in the current menu whose label
-                            // begins with that printable character.
-                            //
-                            // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
-                            if (/^[0-9a-zA-Z]$/.test(event.key)) {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                const nextSearchText = searchText + event.key;
-                                const nextIndex = flattenedActions.findIndex(
-                                    action =>
-                                        action.type === "Action" &&
-                                        !action.action.withCustomLayout &&
-                                        action.action.label
-                                            .slice(0, nextSearchText.length)
-                                            .toLowerCase() === nextSearchText.toLowerCase(),
-                                );
-                                if (nextIndex !== -1) menuItemRefs[nextIndex]?.current?.focus();
-                                setSearchText(nextSearchText);
+                        // If we did not find a menu item after `currentIndex` then loop back around to
+                        // the first menu item.
+                        for (let index = 0; index < menuItemRefs.length; index++) {
+                            const menuItemRef = menuItemRefs[index]!;
+                            if (menuItemRef) {
+                                menuItemRef.current?.focus();
                                 return;
                             }
                         }
+                        return;
                     }
-                }}
-            >
-                <Box
-                    minWidth={width}
-                    borderRadius="md"
-                    padding="1"
-                    backgroundColor={{light: "grey-0", dark: "grey-5"}}
-                    boxShadow="elevation-20"
-                    className={isFadingOut ? overlayAnimateFadeOutClassName : undefined}
-                >
-                    {flattenedActions.map((action, index) => {
-                        switch (action.type) {
-                            case "Divider": {
-                                return (
-                                    <Box key={index} paddingX="1" paddingY="1">
-                                        <Box width="full" borderBottom="grey-5" />
-                                    </Box>
-                                );
+                    // When focus is in a menu, moves focus to the previous item,
+                    // optionally wrapping from the first to the last.
+                    //
+                    // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
+                    case "ArrowUp": {
+                        event.preventDefault(); // Don’t scroll
+                        event.stopPropagation();
+
+                        setInteractionModality("keyboard");
+
+                        const currentIndex = getFocusedActionIndexIfExists();
+                        if (currentIndex !== null) {
+                            for (let index = currentIndex - 1; index >= 0; index--) {
+                                const menuItemRef = menuItemRefs[index]!;
+                                if (menuItemRef) {
+                                    menuItemRef.current?.focus();
+                                    return;
+                                }
                             }
-                            case "Action": {
-                                return (
-                                    <MenuItem
-                                        key={index}
-                                        ref={menuItemRefs[index]}
-                                        menuWidth={width}
-                                        action={action.action}
-                                        parentPlacement={placement}
-                                        isFadingOut={isFadingOut}
-                                        onCloseWithAnimation={onClose}
-                                        onCloseWithoutAnimation={() =>
-                                            onClose({withoutAnimation: true})
-                                        }
-                                    />
-                                );
-                            }
-                            default:
-                                throw exhaustive(action);
                         }
-                    })}
-                </Box>
-            </div>
-        </TooltipCoordinationContextProvider>
+
+                        // If we did not find a menu item before `currentIndex` then loop back around to
+                        // the first menu item.
+                        for (let index = menuItemRefs.length - 1; index >= 0; index--) {
+                            const menuItemRef = menuItemRefs[index]!;
+                            if (menuItemRef) {
+                                menuItemRef.current?.focus();
+                                return;
+                            }
+                        }
+                        return;
+                    }
+                    // Moves focus to the first item in the current menu. Technically, the spec
+                    // says only implement if arrow key wrapping is not supported but it's easy
+                    // to support so why not.
+                    //
+                    // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
+                    case "Home": {
+                        event.preventDefault(); // Don't scroll
+                        event.stopPropagation();
+
+                        for (let index = 0; index < menuItemRefs.length; index++) {
+                            const menuItemRef = menuItemRefs[index]!;
+                            if (menuItemRef) {
+                                menuItemRef.current?.focus();
+                                return;
+                            }
+                        }
+                        return;
+                    }
+                    // Moves focus to the last item in the current menu. Technically, the spec
+                    // says only implement if arrow key wrapping is not supported but it's easy
+                    // to support so why not.
+                    //
+                    // https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
+                    case "End": {
+                        event.preventDefault(); // Don't scroll
+                        event.stopPropagation();
+
+                        for (let index = menuItemRefs.length - 1; index >= 0; index--) {
+                            const menuItemRef = menuItemRefs[index]!;
+                            if (menuItemRef) {
+                                menuItemRef.current?.focus();
+                                return;
+                            }
+                        }
+                        return;
+                    }
+                    default: {
+                        // Move focus to the next menu item in the current menu whose label
+                        // begins with that printable character.
+                        //
+                        // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
+                        if (/^[0-9a-zA-Z]$/.test(event.key)) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            const nextSearchText = searchText + event.key;
+                            const nextIndex = flattenedActions.findIndex(
+                                action =>
+                                    action.type === "Action" &&
+                                    !action.action.withCustomLayout &&
+                                    action.action.label
+                                        .slice(0, nextSearchText.length)
+                                        .toLowerCase() === nextSearchText.toLowerCase(),
+                            );
+                            if (nextIndex !== -1) menuItemRefs[nextIndex]?.current?.focus();
+                            setSearchText(nextSearchText);
+                            return;
+                        }
+                    }
+                }
+            }}
+        >
+            {flattenedActions.map((action, index) => {
+                switch (action.type) {
+                    case "Divider": {
+                        return (
+                            <Box key={index} paddingX="1" paddingY="1">
+                                <Box width="full" borderBottom="grey-5" />
+                            </Box>
+                        );
+                    }
+                    case "Action": {
+                        return (
+                            <MenuItem
+                                key={index}
+                                ref={menuItemRefs[index]}
+                                menuWidth={width}
+                                action={action.action}
+                                parentPlacement={placement}
+                                onCloseWithAnimation={onCloseWithAnimation}
+                                onCloseWithoutAnimation={onCloseWithoutAnimation}
+                            />
+                        );
+                    }
+                    default:
+                        throw exhaustive(action);
+                }
+            })}
+        </div>
     );
 });
 
@@ -850,14 +510,12 @@ const MenuItem = forwardRef(function MenuItem(
         menuWidth,
         action,
         parentPlacement,
-        isFadingOut,
         onCloseWithAnimation,
         onCloseWithoutAnimation,
     }: {
         menuWidth: MenuWidth;
         action: MenuAction;
         parentPlacement: OverlayPlacement;
-        isFadingOut: boolean;
         onCloseWithAnimation: () => void;
         onCloseWithoutAnimation: () => void;
     },
@@ -867,11 +525,10 @@ const MenuItem = forwardRef(function MenuItem(
 
     if (action.withCustomLayout) {
         return (
-            <MenuCustomButton
+            <MenuCustomItem
                 menuItemRef={ref}
                 menuItemId={id}
                 action={action}
-                isFadingOut={isFadingOut}
                 onCloseWithAnimation={onCloseWithAnimation}
                 onCloseWithoutAnimation={onCloseWithoutAnimation}
             />
@@ -894,12 +551,11 @@ const MenuItem = forwardRef(function MenuItem(
                 isVisibleAfterPress={true}
             >
                 {({skipHoverDelay}) => (
-                    <MenuStandardButton
+                    <MenuStandardItem
                         ref={ref}
                         menuWidth={menuWidth}
                         menuItemId={id}
                         action={action}
-                        isFadingOut={isFadingOut}
                         onCloseWithAnimation={onCloseWithAnimation}
                         onCloseWithoutAnimation={onCloseWithoutAnimation}
                         skipTooltipHoverDelay={skipHoverDelay}
@@ -909,12 +565,11 @@ const MenuItem = forwardRef(function MenuItem(
         );
     } else {
         return (
-            <MenuStandardButton
+            <MenuStandardItem
                 ref={ref}
                 menuWidth={menuWidth}
                 menuItemId={id}
                 action={action}
-                isFadingOut={isFadingOut}
                 onCloseWithAnimation={onCloseWithAnimation}
                 onCloseWithoutAnimation={onCloseWithoutAnimation}
             />
@@ -922,12 +577,11 @@ const MenuItem = forwardRef(function MenuItem(
     }
 });
 
-const MenuStandardButton = forwardRef(function MenuStandardButton(
+const MenuStandardItem = forwardRef(function MenuStandardItem(
     {
         menuWidth,
         menuItemId,
         action,
-        isFadingOut,
         onCloseWithAnimation,
         onCloseWithoutAnimation,
         skipTooltipHoverDelay,
@@ -935,7 +589,6 @@ const MenuStandardButton = forwardRef(function MenuStandardButton(
         menuWidth: MenuWidth;
         menuItemId: string;
         action: MenuStandardAction;
-        isFadingOut: boolean;
         onCloseWithAnimation: () => void;
         onCloseWithoutAnimation: () => void;
         skipTooltipHoverDelay?: () => void;
@@ -962,7 +615,7 @@ const MenuStandardButton = forwardRef(function MenuStandardButton(
     const {isPressed, pressProps} = usePress({
         // We want visually disabled buttons to be pressable so they can show their
         // tooltip with the reason for why they are disabled.
-        isDisabled: (isDisabled && !isVisuallyDisabled) || isFadingOut,
+        isDisabled: isDisabled && !isVisuallyDisabled,
         onPress: () => {
             if (isVisuallyDisabled) {
                 skipTooltipHoverDelay?.();
@@ -1122,18 +775,16 @@ const MenuStandardButton = forwardRef(function MenuStandardButton(
     );
 });
 
-function MenuCustomButton({
+function MenuCustomItem({
     menuItemRef,
     menuItemId,
     action,
-    isFadingOut,
     onCloseWithAnimation,
     onCloseWithoutAnimation,
 }: {
     menuItemRef: Ref<HTMLDivElement>;
     menuItemId: string;
     action: MenuCustomAction;
-    isFadingOut: boolean;
     onCloseWithAnimation: () => void;
     onCloseWithoutAnimation: () => void;
 }) {
@@ -1144,7 +795,7 @@ function MenuCustomButton({
     >({isPending: false, shouldShowPendingSpinner: false});
 
     const {isPressed, pressProps} = usePress({
-        isDisabled: isFadingOut || pendingState.isPending,
+        isDisabled: pendingState.isPending,
         onPress: () => {
             const {pressErrorTitle} = action;
 
@@ -1261,8 +912,4 @@ function MenuCustomButton({
             </Box>
         </FocusRing>
     );
-}
-
-function isRightClick(event: MouseEvent) {
-    return event.which === 3 || event.button === 2;
 }

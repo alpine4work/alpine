@@ -14,7 +14,7 @@ const focusableElements = [
     "[contenteditable]",
 ];
 
-const focusableElementSelector = `${focusableElements.join(",")},[tabindex]`;
+export const focusableElementSelector = `${focusableElements.join(",")},[tabindex]`;
 
 const tabbableElements = [...focusableElements, '[tabindex]:not([tabindex="-1"])'];
 
