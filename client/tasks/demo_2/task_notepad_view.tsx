@@ -7,7 +7,7 @@ import {
 } from "~/client/tasks/demo_2/internal/task_notepad_grid_view";
 import {TaskNotepadViewActiveSection} from "~/client/tasks/demo_2/internal/task_notepad_view_active_section";
 import {TaskNotepadViewPaginator} from "~/client/tasks/demo_2/internal/task_notepad_view_paginator";
-import {useLocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
+import {LocalTasksMoveTaskFrom, useLocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
 import {TaskGridPresentationalViewRef} from "~/client/tasks/demo_2/task_grid_presentational_view";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -40,38 +40,47 @@ export function TaskNotepadView() {
         unnest: number,
         taskRow: TaskNotepadGridViewRow,
     ) => {
+        const from: LocalTasksMoveTaskFrom = taskRow.position.isRoot
+            ? {type: "Notepad", notepadPage}
+            : {type: "ParentTask"};
+
         if (!belowTaskRow) {
             dispatch({
-                type: "MoveTaskToNotepad",
-                notepadPage: notepadPage,
-                belowOrderKey: null,
+                type: "MoveTask",
                 taskId: taskRow.task.id,
+                from,
+                to: {
+                    type: "Notepad",
+                    notepadPage,
+                    belowOrderKey: null,
+                },
             });
             return;
         }
 
-        const position =
+        const newPosition =
             unnest === 0
                 ? belowTaskRow.position
                 : belowTaskRow.parentPositionStack[
                       belowTaskRow.parentPositionStack.length - unnest
                   ] ?? belowTaskRow.position;
 
-        if (position.isRoot) {
-            dispatch({
-                type: "MoveTaskToNotepad",
-                notepadPage: position.notepad.page,
-                belowOrderKey: position.notepad.orderKey,
-                taskId: taskRow.task.id,
-            });
-        } else {
-            dispatch({
-                type: "MoveTaskToParentTask",
-                parentTaskId: position.parentTask.id,
-                belowOrderKey: position.parentTask.orderKey,
-                taskId: taskRow.task.id,
-            });
-        }
+        dispatch({
+            type: "MoveTask",
+            taskId: taskRow.task.id,
+            from,
+            to: newPosition.isRoot
+                ? {
+                      type: "Notepad",
+                      notepadPage: newPosition.notepad.page,
+                      belowOrderKey: newPosition.notepad.orderKey,
+                  }
+                : {
+                      type: "ParentTask",
+                      parentTaskId: newPosition.parentTask.id,
+                      belowOrderKey: newPosition.parentTask.orderKey,
+                  },
+        });
     };
 
     const moveTaskToParentTop = (
@@ -79,10 +88,10 @@ export function TaskNotepadView() {
         taskRow: TaskNotepadGridViewRow,
     ) => {
         dispatch({
-            type: "MoveTaskToParentTask",
-            parentTaskId: parentTaskRow.task.id,
-            belowOrderKey: null,
+            type: "MoveTask",
             taskId: taskRow.task.id,
+            from: taskRow.position.isRoot ? {type: "Notepad", notepadPage} : {type: "ParentTask"},
+            to: {type: "ParentTask", parentTaskId: parentTaskRow.task.id, belowOrderKey: null},
         });
     };
 
@@ -150,6 +159,7 @@ export function TaskNotepadView() {
                     expandedTaskIds={expandedTaskIds}
                     setExpandedTaskIds={setExpandedTaskIds}
                     moveTaskBelow={moveTaskBelow}
+                    moveTaskToParentTop={moveTaskToParentTop}
                 />
             </Box>
         </TaskGridViewDndContext>

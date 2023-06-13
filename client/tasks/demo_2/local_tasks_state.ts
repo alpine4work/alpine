@@ -1,6 +1,6 @@
 import {toCalendarDate} from "@internationalized/date";
 import {CalendarDate, parseAbsolute, parseDate} from "@internationalized/date";
-import {compareAsc, compareDesc} from "date-fns";
+import {compareAsc} from "date-fns";
 import {MutableRefObject, useEffect, useMemo, useRef} from "react";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
@@ -34,10 +34,10 @@ import {Lazy} from "~/shared/helpers/control/lazy";
 import {noop} from "~/shared/helpers/control/noop";
 import {TimeZone} from "~/shared/helpers/date/time_zone";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
+import {iterableSome} from "~/shared/helpers/iterable/iterable_some";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
 import {OrderKey, generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
 import {generateId} from "~/shared/id/id";
 import {AccountId, LocalTaskCollectionId, LocalTaskId} from "~/shared/id/types/id_types";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
@@ -128,13 +128,7 @@ const LocalTaskSchema = Schema.object({
         .nullable()
         .default(null),
     dueDate: CalendarDateSchema.nullable().default(null),
-    collectionOrderById: Schema.map(
-        Schema.id<LocalTaskCollectionId>(),
-        Schema.object({
-            orderTime: Schema.date,
-            orderKey: OrderKeySchema,
-        }),
-    ).default(new Map()),
+    collectionIds: Schema.set(Schema.id<LocalTaskCollectionId>()).default(new Set()),
     notesContent: TaskNotesContentWithReferencesSchema,
     parentTaskId: Schema.id<LocalTaskId>().nullable(),
     childTaskIdByOrderKey: LocalTaskIdByOrderKeySchema,
@@ -167,6 +161,7 @@ const LocalTaskCollectionSchema = Schema.object({
     // TODO(calebmer): In a production implementation this should be the open
     // task count.
     taskCount: Schema.integer.default(0),
+    taskIdByOrderKey: LocalTaskIdByOrderKeySchema.default(ImmutableMap.empty()),
 });
 
 /**
@@ -175,6 +170,36 @@ const LocalTaskCollectionSchema = Schema.object({
 export function roundDateToDay(time: Date): Date {
     return new Date(time.getFullYear(), time.getMonth(), time.getDate(), 0, 0, 0, 0);
 }
+
+export type LocalTasksMoveTaskFrom =
+    | {
+          readonly type: "ParentTask";
+      }
+    | {
+          readonly type: "Notepad";
+          readonly notepadPage: number;
+      }
+    | {
+          readonly type: "Collection";
+          readonly collectionId: LocalTaskCollectionId;
+      };
+
+export type LocalTasksMoveTaskTo =
+    | {
+          readonly type: "ParentTask";
+          readonly parentTaskId: LocalTaskId;
+          readonly belowOrderKey: OrderKey | null;
+      }
+    | {
+          readonly type: "Notepad";
+          readonly notepadPage: number;
+          readonly belowOrderKey: OrderKey | null;
+      }
+    | {
+          readonly type: "Collection";
+          readonly collectionId: LocalTaskCollectionId;
+          readonly belowOrderKey: OrderKey | null;
+      };
 
 class LocalTasksDatabase {
     private readonly _taskById: ImmutableMap<LocalTaskId, LocalTask>;
@@ -230,6 +255,19 @@ class LocalTasksDatabase {
                 }
                 stack.pop();
 
+                for (const collectionId of task.collectionIds) {
+                    const collection = taskCollectionById.get(collectionId);
+                    assert(collection, "Task collection must exist");
+
+                    assert(
+                        iterableSome(
+                            collection.taskIdByOrderKey.values(),
+                            collectionTaskId => collectionTaskId === task.id,
+                        ),
+                        "Task must exist in collection",
+                    );
+                }
+
                 validTaskIds.add(task.id);
             };
 
@@ -265,6 +303,21 @@ class LocalTasksDatabase {
                     taskCollectionId === taskCollection.id,
                     "Key in `taskCollectionById` does not match value",
                 );
+
+                const collectionTaskIds = new Set<LocalTaskId>();
+
+                for (const taskId of taskCollection.taskIdByOrderKey.values()) {
+                    const task = taskById.get(taskId);
+                    assert(task, "Collection task must exist");
+
+                    assert(
+                        task.collectionIds.has(taskCollectionId),
+                        "Collection task does not include collection ID in `collectionIds`",
+                    );
+
+                    assert(!collectionTaskIds.has(taskId), "Collection task IDs must be unique");
+                    collectionTaskIds.add(taskId);
+                }
             }
         }
 
@@ -361,7 +414,7 @@ class LocalTasksDatabase {
             title: options.title ?? emptyTaskTitle,
             assignee: null,
             dueDate: null,
-            collectionOrderById: new Map(),
+            collectionIds: new Set(),
             notesContent: emptyTaskNotesContentWithReferences,
             parentTaskId: options.parentTask?.id ?? null,
             childTaskIdByOrderKey: ImmutableMap.empty(),
@@ -540,159 +593,239 @@ class LocalTasksDatabase {
         });
     }
 
-    public nestTask(parentTaskId: LocalTaskId, childTaskId: LocalTaskId) {
+    public moveTask(from: LocalTasksMoveTaskFrom, to: LocalTasksMoveTaskTo, taskId: LocalTaskId) {
+        let taskById = this._taskById;
+        let taskIdByOrderKeyByNotepadPage = this._taskIdByOrderKeyByNotepadPage;
+        let taskCollectionById = this._taskCollectionById;
+
+        const oldTask = taskById.get(taskId);
+        if (!oldTask) throw new NotFoundError("Task not found");
+        let task = oldTask;
+
+        switch (from.type) {
+            case "ParentTask": {
+                if (!task.parentTaskId)
+                    throw new FailedPreconditionError("Task does not have a parent task");
+
+                // Noop. Task is moving within the same parent task.
+                if (to.type === "ParentTask" && task.parentTaskId === to.parentTaskId) break;
+
+                taskById = deleteTaskInParentTask(taskById, task);
+
+                task = {
+                    ...task,
+                    parentTaskId: null,
+                };
+                break;
+            }
+            case "Notepad": {
+                this._validateNotepadPage(from.notepadPage);
+
+                // Noop. Task is moving within the same notepad page.
+                if (to.type === "Notepad" && from.notepadPage === to.notepadPage) break;
+
+                taskIdByOrderKeyByNotepadPage = deleteTaskInTaskIdByOrderKeyByNotepadPage(
+                    taskIdByOrderKeyByNotepadPage,
+                    taskId,
+                    from.notepadPage,
+                );
+                break;
+            }
+            case "Collection": {
+                let taskCollection = taskCollectionById.get(from.collectionId);
+                if (!taskCollection) throw new NotFoundError("Task collection not found");
+
+                if (!task.collectionIds.has(from.collectionId))
+                    throw new FailedPreconditionError("Task does not have collection");
+
+                // Noop. Task is moving within the same collection.
+                if (to.type === "Collection" && to.collectionId === from.collectionId) break;
+
+                taskCollection = {
+                    ...taskCollection,
+                    // TODO(calebmer): In a production implementation we should have a reverse
+                    // index since a scan could be expensive.
+                    taskIdByOrderKey: reduceIterable(
+                        taskCollection.taskIdByOrderKey.entries(),
+                        (taskIdByOrderKey, [orderKey, otherTaskId]) =>
+                            otherTaskId === task.id
+                                ? taskIdByOrderKey.delete(orderKey)
+                                : taskIdByOrderKey,
+                        taskCollection.taskIdByOrderKey,
+                    ),
+                };
+
+                taskCollectionById = taskCollectionById.set(taskCollection.id, taskCollection);
+
+                const newCollectionIds = new Set(task.collectionIds);
+                newCollectionIds.delete(from.collectionId);
+
+                task = {
+                    ...task,
+                    collectionIds: newCollectionIds,
+                };
+                break;
+            }
+            default:
+                throw exhaustive(from);
+        }
+
+        switch (to.type) {
+            case "ParentTask": {
+                let parentTask = taskById.get(to.parentTaskId);
+                if (!parentTask) throw new NotFoundError("Parent task not found");
+
+                parentTask = {
+                    ...parentTask,
+                    childTaskIdByOrderKey:
+                        // TODO(calebmer): In a production implementation we should have a reverse
+                        // index since a scan could be expensive.
+                        reduceIterable(
+                            parentTask.childTaskIdByOrderKey.entries(),
+                            (childTaskIdByOrderKey, [orderKey, otherTaskId]) =>
+                                otherTaskId === task.id
+                                    ? childTaskIdByOrderKey.delete(orderKey)
+                                    : childTaskIdByOrderKey,
+                            parentTask.childTaskIdByOrderKey,
+                        ).set(
+                            to.belowOrderKey
+                                ? generateOrderKeyBetween(
+                                      to.belowOrderKey,
+                                      parentTask.childTaskIdByOrderKey.getEntryAfter(
+                                          to.belowOrderKey,
+                                      )?.[0] ?? null,
+                                  )
+                                : generateOrderKeyBetween(
+                                      null,
+                                      parentTask.childTaskIdByOrderKey.getFirstEntry()?.[0] ?? null,
+                                  ),
+                            task.id,
+                        ),
+                };
+
+                taskById = taskById.set(parentTask.id, parentTask);
+
+                if (task.parentTaskId !== to.parentTaskId) {
+                    task = {
+                        ...task,
+                        parentTaskId: to.parentTaskId,
+                    };
+                }
+                break;
+            }
+            case "Notepad": {
+                this._validateNotepadPage(to.notepadPage);
+
+                taskIdByOrderKeyByNotepadPage = deleteTaskInTaskIdByOrderKeyByNotepadPage(
+                    taskIdByOrderKeyByNotepadPage,
+                    taskId,
+                    to.notepadPage,
+                );
+
+                let taskIdByOrderKey =
+                    taskIdByOrderKeyByNotepadPage.get(to.notepadPage) ?? ImmutableMap.empty();
+
+                taskIdByOrderKey = taskIdByOrderKey.set(
+                    to.belowOrderKey
+                        ? generateOrderKeyBetween(
+                              to.belowOrderKey,
+                              taskIdByOrderKey.getEntryAfter(to.belowOrderKey)?.[0] ?? null,
+                          )
+                        : generateOrderKeyBetween(
+                              null,
+                              taskIdByOrderKey.getFirstEntry()?.[0] ?? null,
+                          ),
+                    task.id,
+                );
+
+                taskIdByOrderKeyByNotepadPage = taskIdByOrderKeyByNotepadPage.set(
+                    to.notepadPage,
+                    taskIdByOrderKey,
+                );
+                break;
+            }
+            case "Collection": {
+                let taskCollection = taskCollectionById.get(to.collectionId);
+                if (!taskCollection) throw new NotFoundError("Task collection not found");
+
+                taskCollection = {
+                    ...taskCollection,
+                    taskIdByOrderKey:
+                        // TODO(calebmer): In a production implementation we should have a reverse
+                        // index since a scan could be expensive.
+                        reduceIterable(
+                            taskCollection.taskIdByOrderKey.entries(),
+                            (taskIdByOrderKey, [orderKey, otherTaskId]) =>
+                                otherTaskId === task.id
+                                    ? taskIdByOrderKey.delete(orderKey)
+                                    : taskIdByOrderKey,
+                            taskCollection.taskIdByOrderKey,
+                        ).set(
+                            to.belowOrderKey
+                                ? generateOrderKeyBetween(
+                                      to.belowOrderKey,
+                                      taskCollection.taskIdByOrderKey.getEntryAfter(
+                                          to.belowOrderKey,
+                                      )?.[0] ?? null,
+                                  )
+                                : generateOrderKeyBetween(
+                                      null,
+                                      taskCollection.taskIdByOrderKey.getFirstEntry()?.[0] ?? null,
+                                  ),
+                            task.id,
+                        ),
+                };
+
+                taskCollectionById = taskCollectionById.set(taskCollection.id, taskCollection);
+
+                if (!task.collectionIds.has(to.collectionId)) {
+                    const newCollectionIds = new Set(task.collectionIds);
+                    newCollectionIds.add(to.collectionId);
+
+                    task = {
+                        ...task,
+                        collectionIds: newCollectionIds,
+                    };
+                }
+                break;
+            }
+            default:
+                throw exhaustive(to);
+        }
+
+        if (task !== oldTask) taskById = taskById.set(task.id, task);
+
+        return new LocalTasksDatabase({
+            taskById,
+            taskCollectionById,
+            notepadPageCount: this._notepadPageCount,
+            taskIdByOrderKeyByNotepadPage,
+        });
+    }
+
+    public nestTask(
+        from: LocalTasksMoveTaskFrom,
+        parentTaskId: LocalTaskId,
+        childTaskId: LocalTaskId,
+    ) {
         if (parentTaskId === childTaskId)
             throw new InvalidArgumentError("Can't nest task under itself");
 
-        let taskById = this._taskById;
-        let taskIdByOrderKeyByNotepadPage = this._taskIdByOrderKeyByNotepadPage;
-
-        let childTask = taskById.get(childTaskId);
+        const childTask = this._taskById.get(childTaskId);
         if (!childTask) throw new NotFoundError("Child task not found");
 
-        taskById = deleteTaskInParentTask(taskById, childTask);
+        const parentTask = this._taskById.get(parentTaskId);
+        if (!parentTask) throw new NotFoundError("Parent task not found");
 
-        taskIdByOrderKeyByNotepadPage = deleteTaskInTaskIdByOrderKeyByNotepadPage(
-            taskIdByOrderKeyByNotepadPage,
+        return this.moveTask(
+            from,
+            {
+                type: "ParentTask",
+                parentTaskId,
+                belowOrderKey: parentTask.childTaskIdByOrderKey.getLastEntry()?.[0] ?? null,
+            },
             childTaskId,
         );
-
-        let parentTask = taskById.get(parentTaskId);
-        if (!parentTask) throw new NotFoundError("Parent task not found");
-
-        childTask = {
-            ...childTask,
-            parentTaskId: parentTask.id,
-        };
-
-        parentTask = {
-            ...parentTask,
-            childTaskIdByOrderKey: parentTask.childTaskIdByOrderKey.set(
-                generateOrderKeyBetween(
-                    parentTask.childTaskIdByOrderKey.getLastEntry()?.[0] ?? null,
-                    null,
-                ),
-                childTaskId,
-            ),
-        };
-
-        taskById = taskById.set(childTask.id, childTask);
-        taskById = taskById.set(parentTask.id, parentTask);
-
-        return new LocalTasksDatabase({
-            taskById,
-            taskCollectionById: this._taskCollectionById,
-            notepadPageCount: this._notepadPageCount,
-            taskIdByOrderKeyByNotepadPage,
-        });
-    }
-
-    public moveTaskToNotepad(
-        notepadPage: number,
-        belowOrderKey: OrderKey | null,
-        taskId: LocalTaskId,
-    ) {
-        let taskById = this._taskById;
-        let taskIdByOrderKeyByNotepadPage = this._taskIdByOrderKeyByNotepadPage;
-
-        let task = taskById.get(taskId);
-        if (!task) throw new NotFoundError("Child task not found");
-
-        taskById = deleteTaskInParentTask(taskById, task);
-
-        taskIdByOrderKeyByNotepadPage = deleteTaskInTaskIdByOrderKeyByNotepadPage(
-            taskIdByOrderKeyByNotepadPage,
-            taskId,
-        );
-
-        task = {
-            ...task,
-            parentTaskId: null,
-        };
-
-        taskById = taskById.set(task.id, task);
-
-        this._validateNotepadPage(notepadPage);
-
-        let taskIdByOrderKey =
-            taskIdByOrderKeyByNotepadPage.get(notepadPage) ?? ImmutableMap.empty();
-
-        taskIdByOrderKey = taskIdByOrderKey.set(
-            belowOrderKey
-                ? generateOrderKeyBetween(
-                      belowOrderKey,
-                      taskIdByOrderKey.getEntryAfter(belowOrderKey)?.[0] ?? null,
-                  )
-                : generateOrderKeyBetween(null, taskIdByOrderKey.getFirstEntry()?.[0] ?? null),
-            task.id,
-        );
-
-        taskIdByOrderKeyByNotepadPage = taskIdByOrderKeyByNotepadPage.set(
-            notepadPage,
-            taskIdByOrderKey,
-        );
-
-        return new LocalTasksDatabase({
-            taskById,
-            taskCollectionById: this._taskCollectionById,
-            notepadPageCount: this._notepadPageCount,
-            taskIdByOrderKeyByNotepadPage,
-        });
-    }
-
-    public moveTaskToParentTask(
-        parentTaskId: LocalTaskId,
-        belowOrderKey: OrderKey | null,
-        taskId: LocalTaskId,
-    ) {
-        let taskById = this._taskById;
-        let taskIdByOrderKeyByNotepadPage = this._taskIdByOrderKeyByNotepadPage;
-
-        let task = taskById.get(taskId);
-        if (!task) throw new NotFoundError("Child task not found");
-
-        taskById = deleteTaskInParentTask(taskById, task);
-
-        taskIdByOrderKeyByNotepadPage = deleteTaskInTaskIdByOrderKeyByNotepadPage(
-            taskIdByOrderKeyByNotepadPage,
-            taskId,
-        );
-
-        task = {
-            ...task,
-            parentTaskId,
-        };
-
-        taskById = taskById.set(task.id, task);
-
-        let parentTask = taskById.get(parentTaskId);
-        if (!parentTask) throw new NotFoundError("Parent task not found");
-
-        parentTask = {
-            ...parentTask,
-            childTaskIdByOrderKey: parentTask.childTaskIdByOrderKey.set(
-                belowOrderKey
-                    ? generateOrderKeyBetween(
-                          belowOrderKey,
-                          parentTask.childTaskIdByOrderKey.getEntryAfter(belowOrderKey)?.[0] ??
-                              null,
-                      )
-                    : generateOrderKeyBetween(
-                          null,
-                          parentTask.childTaskIdByOrderKey.getFirstEntry()?.[0] ?? null,
-                      ),
-                task.id,
-            ),
-        };
-
-        taskById = taskById.set(parentTask.id, parentTask);
-
-        return new LocalTasksDatabase({
-            taskById,
-            taskCollectionById: this._taskCollectionById,
-            notepadPageCount: this._notepadPageCount,
-            taskIdByOrderKeyByNotepadPage,
-        });
     }
 
     public deleteTaskAndAllChildren(taskId: LocalTaskId) {
@@ -765,10 +898,7 @@ class LocalTasksDatabase {
                 if (!task) throw new NotFoundError("Task not found");
                 return {
                     ...task,
-                    collectionOrderById: new Map([
-                        ...task.collectionOrderById,
-                        [taskCollection.id, {orderTime: new Date(), orderKey: initialOrderKey}],
-                    ]),
+                    collectionIds: new Set([...task.collectionIds, taskCollection.id]),
                 };
             }),
             taskCollectionById: this._taskCollectionById.update(
@@ -784,6 +914,7 @@ class LocalTasksDatabase {
                         createdTime,
                         lastTaskAddedOrRemovedTimeRoundedToDay: roundDateToDay(createdTime),
                         taskCount: 1,
+                        taskIdByOrderKey: ImmutableMap.from([[initialOrderKey, taskId]]),
                     };
                 },
             ),
@@ -797,23 +928,31 @@ class LocalTasksDatabase {
             taskById: this._taskById.update(taskId, task => {
                 if (!task) throw new NotFoundError("Task not found");
 
-                const newCollectionOrderById = new Map(task.collectionOrderById);
-                newCollectionOrderById.set(taskCollectionId, {
-                    orderTime: new Date(),
-                    orderKey: initialOrderKey,
-                });
+                if (task.collectionIds.has(taskCollectionId))
+                    throw new FailedPreconditionError("Task already has collection");
 
-                return {...task, collectionOrderById: newCollectionOrderById};
+                const newCollectionIds = new Set(task.collectionIds);
+                newCollectionIds.add(taskCollectionId);
+
+                return {...task, collectionIds: newCollectionIds};
             }),
             taskCollectionById: this._taskCollectionById.update(
                 taskCollectionId,
                 taskCollection => {
                     if (!taskCollection) throw new NotFoundError("Task collection not found");
 
+                    const firstEntry = taskCollection.taskIdByOrderKey.getFirstEntry();
+
                     return {
                         ...taskCollection,
                         lastTaskAddedOrRemovedTimeRoundedToDay: roundDateToDay(new Date()),
                         taskCount: taskCollection.taskCount + 1,
+                        taskIdByOrderKey: taskCollection.taskIdByOrderKey.set(
+                            firstEntry
+                                ? generateOrderKeyBetween(null, firstEntry[0])
+                                : initialOrderKey,
+                            taskId,
+                        ),
                     };
                 },
             ),
@@ -830,10 +969,12 @@ class LocalTasksDatabase {
             taskById: this._taskById.update(taskId, task => {
                 if (!task) throw new NotFoundError("Task not found");
 
-                const newCollectionOrderById = new Map(task.collectionOrderById);
-                newCollectionOrderById.delete(taskCollectionId);
+                const newCollectionIds = new Set(task.collectionIds);
 
-                return {...task, collectionIds: newCollectionOrderById};
+                if (!newCollectionIds.delete(taskCollectionId))
+                    throw new FailedPreconditionError("Task does not have collection");
+
+                return {...task, collectionIds: newCollectionIds};
             }),
             taskCollectionById: this._taskCollectionById.update(
                 taskCollectionId,
@@ -844,6 +985,16 @@ class LocalTasksDatabase {
                         ...taskCollection,
                         lastTaskAddedOrRemovedTimeRoundedToDay: roundDateToDay(new Date()),
                         taskCount: taskCollection.taskCount - 1,
+                        // TODO(calebmer): In a production implementation we should have a reverse
+                        // index since a scan could be expensive.
+                        taskIdByOrderKey: reduceIterable(
+                            taskCollection.taskIdByOrderKey.entries(),
+                            (taskIdByOrderKey, [orderKey, otherTaskId]) =>
+                                otherTaskId === taskId
+                                    ? taskIdByOrderKey.delete(orderKey)
+                                    : taskIdByOrderKey,
+                            taskCollection.taskIdByOrderKey,
+                        ),
                     };
                 },
             ),
@@ -885,26 +1036,17 @@ class LocalTasksDatabase {
         filters: ReadonlyArray<TaskQueryFilter>,
         context: {currentAccountId: AccountId; currentDate: CalendarDate},
     ) {
-        const tasks = [];
+        const tasks: Array<{orderKey: OrderKey; task: LocalTask}> = [];
 
-        for (const task of this._taskById.values()) {
-            if (!task.collectionOrderById.has(collectionId)) continue;
+        const taskCollection = this.getTaskCollection(collectionId);
+
+        for (const [orderKey, taskId] of taskCollection.taskIdByOrderKey) {
+            const task = this.getTask(taskId);
 
             if (evaluateTaskQueryFilters(filters, task, context)) {
-                tasks.push(task);
+                tasks.push({orderKey, task});
             }
         }
-
-        tasks.sort((task1, task2) => {
-            const collectionOrder1 = assertExists(task1.collectionOrderById.get(collectionId));
-            const collectionOrder2 = assertExists(task2.collectionOrderById.get(collectionId));
-
-            return (
-                compareDesc(collectionOrder1.orderTime, collectionOrder2.orderTime) ||
-                defaultCompareStrings(collectionOrder1.orderKey, collectionOrder2.orderKey) ||
-                defaultCompareStrings(task1.id, task2.id)
-            );
-        });
 
         return tasks;
     }
@@ -938,10 +1080,13 @@ function deleteTaskInParentTask(taskById: ImmutableMap<LocalTaskId, LocalTask>, 
 function deleteTaskInTaskIdByOrderKeyByNotepadPage(
     taskIdByOrderKeyByNotepadPage: ImmutableMap<number, ImmutableMap<OrderKey, LocalTaskId>>,
     taskId: LocalTaskId,
+    onlyNotepadPage?: number,
 ) {
     // TODO(calebmer): In a production implementation we should have a reverse
     // index since a scan could be expensive.
     for (const [notepadPage, oldTaskIdByOrderKey] of taskIdByOrderKeyByNotepadPage) {
+        if (onlyNotepadPage !== undefined && onlyNotepadPage !== notepadPage) continue;
+
         let newTaskIdByOrderKey = oldTaskIdByOrderKey;
 
         for (const [orderKey, otherTaskId] of oldTaskIdByOrderKey) {
@@ -1066,8 +1211,7 @@ export type LocalTasksAction =
     | LocalTasksUpdateTaskNotesContentAction
     | LocalTasksDeleteTaskAndAllChildrenAction
     | LocalTasksNestTaskAction
-    | LocalTasksMoveTaskToParentTaskAction
-    | LocalTasksMoveTaskToNotepadAction
+    | LocalTasksMoveTaskAction
     | LocalTasksCreateTaskCollectionAndAddToTaskAction
     | LocalTasksAddTaskCollectionToTaskAction
     | LocalTasksRemoveTaskCollectionFromTaskAction;
@@ -1130,22 +1274,15 @@ type LocalTasksNestTaskAction = {
     readonly type: "NestTask";
     readonly parentTaskId: LocalTaskId;
     readonly childTaskId: LocalTaskId;
+    readonly from: LocalTasksMoveTaskFrom;
     readonly onLayoutEffect?: () => void;
 };
 
-type LocalTasksMoveTaskToParentTaskAction = {
-    readonly type: "MoveTaskToParentTask";
-    readonly parentTaskId: LocalTaskId;
-    readonly belowOrderKey: OrderKey | null;
+type LocalTasksMoveTaskAction = {
+    readonly type: "MoveTask";
     readonly taskId: LocalTaskId;
-    readonly onLayoutEffect?: () => void;
-};
-
-type LocalTasksMoveTaskToNotepadAction = {
-    readonly type: "MoveTaskToNotepad";
-    readonly notepadPage: number;
-    readonly belowOrderKey: OrderKey | null;
-    readonly taskId: LocalTaskId;
+    readonly from: LocalTasksMoveTaskFrom;
+    readonly to: LocalTasksMoveTaskTo;
     readonly onLayoutEffect?: () => void;
 };
 
@@ -1269,35 +1406,23 @@ function reduceLocalTasksState(state: LocalTasksState, action: LocalTasksAction)
         }
 
         case "NestTask": {
-            const {parentTaskId, childTaskId, onLayoutEffect} = action;
+            const {from, parentTaskId, childTaskId, onLayoutEffect} = action;
 
             return {
                 ...state,
-                database: state.database.nestTask(parentTaskId, childTaskId),
+                database: state.database.nestTask(from, parentTaskId, childTaskId),
                 layoutEffectRef: onLayoutEffect
                     ? {current: () => onLayoutEffect()}
                     : state.layoutEffectRef,
             };
         }
 
-        case "MoveTaskToParentTask": {
-            const {parentTaskId, belowOrderKey, taskId, onLayoutEffect} = action;
+        case "MoveTask": {
+            const {taskId, from, to, onLayoutEffect} = action;
 
             return {
                 ...state,
-                database: state.database.moveTaskToParentTask(parentTaskId, belowOrderKey, taskId),
-                layoutEffectRef: onLayoutEffect
-                    ? {current: () => onLayoutEffect()}
-                    : state.layoutEffectRef,
-            };
-        }
-
-        case "MoveTaskToNotepad": {
-            const {notepadPage, belowOrderKey, taskId, onLayoutEffect} = action;
-
-            return {
-                ...state,
-                database: state.database.moveTaskToNotepad(notepadPage, belowOrderKey, taskId),
+                database: state.database.moveTask(from, to, taskId),
                 layoutEffectRef: onLayoutEffect
                     ? {current: () => onLayoutEffect()}
                     : state.layoutEffectRef,

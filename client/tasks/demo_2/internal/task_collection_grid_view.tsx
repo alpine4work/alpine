@@ -8,6 +8,7 @@ import {useSpaceContext} from "~/client/spaces/space_context";
 import {
     LocalTask,
     LocalTasksAction,
+    LocalTasksMoveTaskFrom,
     LocalTasksState,
 } from "~/client/tasks/demo_2/local_tasks_state";
 import {
@@ -23,6 +24,7 @@ import {LocalTaskCollectionId, LocalTaskId} from "~/shared/id/types/id_types";
 type TaskCollectionGridViewRowPosition =
     | {
           readonly isRoot: true;
+          readonly collection: {readonly id: LocalTaskCollectionId; readonly orderKey: OrderKey};
       }
     | {
           readonly isRoot: false;
@@ -91,11 +93,12 @@ export function TaskCollectionGridView({
             }
         };
 
-        for (const task of tasks) {
+        for (const {task, orderKey} of tasks) {
             taskRowIds.add(task.id);
 
             const position: TaskCollectionGridViewRowPosition = {
                 isRoot: true,
+                collection: {id: collectionId, orderKey},
             };
 
             taskRows.push({
@@ -110,7 +113,7 @@ export function TaskCollectionGridView({
         }
 
         return {taskRowIds, taskRows};
-    }, [expandedTaskIds, state.database, tasks]);
+    }, [collectionId, expandedTaskIds, state.database, tasks]);
 
     // Remove any `expandedTaskIds` that do not exist in `taskIds`. If we a delete
     // a task this is how we update our expanded task IDs set.
@@ -345,7 +348,7 @@ export function TaskCollectionGridView({
             }}
             nestTaskAndExpandParentRow={(
                 {task: {id: parentTaskId}},
-                {task: {id: childTaskId}},
+                {position: oldPosition, task: {id: childTaskId}},
                 titleSelection,
                 newIndentation,
             ) => {
@@ -357,6 +360,9 @@ export function TaskCollectionGridView({
                         type: "NestTask",
                         parentTaskId,
                         childTaskId,
+                        from: oldPosition.isRoot
+                            ? {type: "Collection", collectionId: oldPosition.collection.id}
+                            : {type: "ParentTask"},
                         onLayoutEffect: () => {
                             // TODO(calebmer): A production implementation probably shouldn't do an
                             // O(n) loop here.
@@ -383,9 +389,13 @@ export function TaskCollectionGridView({
                 });
             }}
             unnestTaskIfNestedRow={(
-                {parentPositionStack, task: {id: childTaskId}},
+                {position, parentPositionStack, task: {id: childTaskId}},
                 titleSelection,
             ) => {
+                const from: LocalTasksMoveTaskFrom = position.isRoot
+                    ? {type: "Collection", collectionId: position.collection.id}
+                    : {type: "ParentTask"};
+
                 const parentPosition = parentPositionStack[parentPositionStack.length - 1] ?? null;
 
                 const onLayoutEffect = () => {
@@ -403,24 +413,23 @@ export function TaskCollectionGridView({
                 };
 
                 if (parentPosition) {
-                    if (parentPosition.isRoot) {
-                        // NOCOMMIT: Do an equivalent thing here?
-                        // dispatch({
-                        //     type: "MoveTaskToNotepad",
-                        //     notepadPage: parentPosition.notepad.page,
-                        //     belowOrderKey: parentPosition.notepad.orderKey,
-                        //     taskId: childTaskId,
-                        //     onLayoutEffect,
-                        // });
-                    } else {
-                        dispatch({
-                            type: "MoveTaskToParentTask",
-                            parentTaskId: parentPosition.parentTask.id,
-                            belowOrderKey: parentPosition.parentTask.orderKey,
-                            taskId: childTaskId,
-                            onLayoutEffect,
-                        });
-                    }
+                    dispatch({
+                        type: "MoveTask",
+                        taskId: childTaskId,
+                        from,
+                        to: parentPosition.isRoot
+                            ? {
+                                  type: "Collection",
+                                  collectionId: parentPosition.collection.id,
+                                  belowOrderKey: parentPosition.collection.orderKey,
+                              }
+                            : {
+                                  type: "ParentTask",
+                                  parentTaskId: parentPosition.parentTask.id,
+                                  belowOrderKey: parentPosition.parentTask.orderKey,
+                              },
+                        onLayoutEffect,
+                    });
                 }
             }}
             deleteTaskAndAllChildrenAndFocusPreviousRow={({
@@ -448,47 +457,62 @@ export function TaskCollectionGridView({
                 });
             }}
             moveTaskBelow={(belowTaskRow, unnest, taskRow) => {
+                const from: LocalTasksMoveTaskFrom = taskRow.position.isRoot
+                    ? {type: "Collection", collectionId: taskRow.position.collection.id}
+                    : {type: "ParentTask"};
+
                 if (!belowTaskRow) {
-                    // NOCOMMIT: Do an equivalent thing here?
-                    // dispatch({
-                    //     type: "MoveTaskToNotepad",
-                    //     notepadPage: notepadPage,
-                    //     belowOrderKey: null,
-                    //     taskId: taskRow.task.id,
-                    // });
+                    dispatch({
+                        type: "MoveTask",
+                        taskId: taskRow.task.id,
+                        from,
+                        to: {
+                            type: "Collection",
+                            collectionId,
+                            belowOrderKey: null,
+                        },
+                    });
                     return;
                 }
 
-                const position =
+                const newPosition =
                     unnest === 0
                         ? belowTaskRow.position
                         : belowTaskRow.parentPositionStack[
                               belowTaskRow.parentPositionStack.length - unnest
                           ] ?? belowTaskRow.position;
 
-                if (position.isRoot) {
-                    // NOCOMMIT: Do an equivalent thing here?
-                    // dispatch({
-                    //     type: "MoveTaskToNotepad",
-                    //     notepadPage: position.notepad.page,
-                    //     belowOrderKey: position.notepad.orderKey,
-                    //     taskId: taskRow.task.id,
-                    // });
-                } else {
-                    dispatch({
-                        type: "MoveTaskToParentTask",
-                        parentTaskId: position.parentTask.id,
-                        belowOrderKey: position.parentTask.orderKey,
-                        taskId: taskRow.task.id,
-                    });
-                }
+                dispatch({
+                    type: "MoveTask",
+                    taskId: taskRow.task.id,
+                    from,
+                    to: newPosition.isRoot
+                        ? {
+                              type: "Collection",
+                              collectionId: newPosition.collection.id,
+                              belowOrderKey: newPosition.collection.orderKey,
+                          }
+                        : {
+                              type: "ParentTask",
+                              parentTaskId: newPosition.parentTask.id,
+                              belowOrderKey: newPosition.parentTask.orderKey,
+                          },
+                });
             }}
             moveTaskToParentTop={(parentTaskRow, taskRow) => {
+                const from: LocalTasksMoveTaskFrom = taskRow.position.isRoot
+                    ? {type: "Collection", collectionId: taskRow.position.collection.id}
+                    : {type: "ParentTask"};
+
                 dispatch({
-                    type: "MoveTaskToParentTask",
-                    parentTaskId: parentTaskRow.task.id,
-                    belowOrderKey: null,
+                    type: "MoveTask",
                     taskId: taskRow.task.id,
+                    from,
+                    to: {
+                        type: "ParentTask",
+                        parentTaskId: parentTaskRow.task.id,
+                        belowOrderKey: null,
+                    },
                 });
             }}
         />

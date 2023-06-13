@@ -9,6 +9,7 @@ import {useSpaceContext} from "~/client/spaces/space_context";
 import {
     LocalTask,
     LocalTasksAction,
+    LocalTasksMoveTaskFrom,
     LocalTasksState,
 } from "~/client/tasks/demo_2/local_tasks_state";
 import {
@@ -148,10 +149,10 @@ export function TaskView({
             allCollections={useMemo(() => state.database.getAllTaskCollections(), [state.database])}
             collections={useMemo(
                 () =>
-                    Array.from(task.collectionOrderById.keys(), collectionId =>
+                    Array.from(task.collectionIds, collectionId =>
                         state.database.getTaskCollection(collectionId),
                     ),
-                [state.database, task.collectionOrderById],
+                [state.database, task.collectionIds],
             )}
             createCollectionAndAddToTask={taskCollection =>
                 dispatch({type: "CreateTaskCollectionAndAddToTask", taskId, taskCollection})
@@ -383,6 +384,7 @@ export function TaskView({
                             type: "NestTask",
                             parentTaskId,
                             childTaskId,
+                            from: {type: "ParentTask"},
                             onLayoutEffect: () => {
                                 // TODO(calebmer): A production implementation probably shouldn't do an
                                 // O(n) loop here.
@@ -415,10 +417,14 @@ export function TaskView({
 
                     if (parentPosition) {
                         dispatch({
-                            type: "MoveTaskToParentTask",
-                            parentTaskId: parentPosition.parentTask.id,
-                            belowOrderKey: parentPosition.parentTask.orderKey,
+                            type: "MoveTask",
                             taskId: childTaskId,
+                            from: {type: "ParentTask"},
+                            to: {
+                                type: "ParentTask",
+                                parentTaskId: parentPosition.parentTask.id,
+                                belowOrderKey: parentPosition.parentTask.orderKey,
+                            },
                             onLayoutEffect: () => {
                                 // TODO(calebmer): A production implementation probably shouldn't do an
                                 // O(n) loop here.
@@ -460,17 +466,23 @@ export function TaskView({
                     });
                 },
                 moveTaskBelow: (belowTaskRow, unnest, taskRow) => {
+                    const from: LocalTasksMoveTaskFrom = {type: "ParentTask"};
+
                     if (!belowTaskRow) {
                         dispatch({
-                            type: "MoveTaskToParentTask",
-                            parentTaskId: taskId,
-                            belowOrderKey: null,
+                            type: "MoveTask",
                             taskId: taskRow.task.id,
+                            from,
+                            to: {
+                                type: "ParentTask",
+                                parentTaskId: taskId,
+                                belowOrderKey: null,
+                            },
                         });
                         return;
                     }
 
-                    const position =
+                    const newPosition =
                         unnest === 0
                             ? belowTaskRow.position
                             : belowTaskRow.parentPositionStack[
@@ -478,18 +490,26 @@ export function TaskView({
                               ] ?? belowTaskRow.position;
 
                     dispatch({
-                        type: "MoveTaskToParentTask",
-                        parentTaskId: position.parentTask.id,
-                        belowOrderKey: position.parentTask.orderKey,
+                        type: "MoveTask",
                         taskId: taskRow.task.id,
+                        from,
+                        to: {
+                            type: "ParentTask",
+                            parentTaskId: newPosition.parentTask.id,
+                            belowOrderKey: newPosition.parentTask.orderKey,
+                        },
                     });
                 },
                 moveTaskToParentTop: (parentTaskRow, taskRow) => {
                     dispatch({
-                        type: "MoveTaskToParentTask",
-                        parentTaskId: parentTaskRow.task.id,
-                        belowOrderKey: null,
+                        type: "MoveTask",
                         taskId: taskRow.task.id,
+                        from: {type: "ParentTask"},
+                        to: {
+                            type: "ParentTask",
+                            parentTaskId: parentTaskRow.task.id,
+                            belowOrderKey: null,
+                        },
                     });
                 },
             }}

@@ -403,33 +403,34 @@ export function TaskQueryGridView({
                 // `setExpandedChildTaskIds()` call and the `dispatch()` which doesn't go
                 // through React state.
                 runWithImmediatePriority(() => {
-                    dispatch({
-                        type: "NestTask",
-                        parentTaskId,
-                        childTaskId,
-                        onLayoutEffect: () => {
-                            // TODO(calebmer): A production implementation probably shouldn't do an
-                            // O(n) loop here.
-                            const newIndex = taskRowsRef.current.findIndex(
-                                ({task, parentPositionStack}) =>
-                                    task.id === childTaskId &&
-                                    parentPositionStack.length === newIndentation,
-                            );
-
-                            if (newIndex >= 0) {
-                                gridViewRef.current?.focusTaskRowTitleSelection(
-                                    newIndex,
-                                    titleSelection,
-                                );
-                            }
-                        },
-                    });
-
-                    setExpandedTaskIds(expandedTaskIds => {
-                        const newExpandedTaskIds = new Set(expandedTaskIds);
-                        newExpandedTaskIds.add(parentTaskId);
-                        return newExpandedTaskIds;
-                    });
+                    // NOCOMMIT: Do an equivalent thing here?
+                    // dispatch({
+                    //     type: "NestTask",
+                    //     parentTaskId,
+                    //     childTaskId,
+                    //     onLayoutEffect: () => {
+                    //         // TODO(calebmer): A production implementation probably shouldn't do an
+                    //         // O(n) loop here.
+                    //         const newIndex = taskRowsRef.current.findIndex(
+                    //             ({task, parentPositionStack}) =>
+                    //                 task.id === childTaskId &&
+                    //                 parentPositionStack.length === newIndentation,
+                    //         );
+                    //
+                    //         if (newIndex >= 0) {
+                    //             gridViewRef.current?.focusTaskRowTitleSelection(
+                    //                 newIndex,
+                    //                 titleSelection,
+                    //             );
+                    //         }
+                    //     },
+                    // });
+                    //
+                    // setExpandedTaskIds(expandedTaskIds => {
+                    //     const newExpandedTaskIds = new Set(expandedTaskIds);
+                    //     newExpandedTaskIds.add(parentTaskId);
+                    //     return newExpandedTaskIds;
+                    // });
                 });
             }}
             unnestTaskIfNestedRow={(
@@ -452,26 +453,26 @@ export function TaskQueryGridView({
                     }
                 };
 
-                if (parentPosition) {
-                    if (parentPosition.isRoot) {
-                        // NOCOMMIT: Do an equivalent thing here?
-                        // dispatch({
-                        //     type: "MoveTaskToNotepad",
-                        //     notepadPage: parentPosition.notepad.page,
-                        //     belowOrderKey: parentPosition.notepad.orderKey,
-                        //     taskId: childTaskId,
-                        //     onLayoutEffect,
-                        // });
-                    } else {
-                        dispatch({
-                            type: "MoveTaskToParentTask",
-                            parentTaskId: parentPosition.parentTask.id,
-                            belowOrderKey: parentPosition.parentTask.orderKey,
-                            taskId: childTaskId,
-                            onLayoutEffect,
-                        });
-                    }
-                }
+                // NOCOMMIT: Do an equivalent thing here?
+                // if (parentPosition) {
+                //     if (parentPosition.isRoot) {
+                //         dispatch({
+                //             type: "MoveTaskToNotepad",
+                //             notepadPage: parentPosition.notepad.page,
+                //             belowOrderKey: parentPosition.notepad.orderKey,
+                //             taskId: childTaskId,
+                //             onLayoutEffect,
+                //         });
+                //     } else {
+                //         dispatch({
+                //             type: "MoveTaskToParentTask",
+                //             parentTaskId: parentPosition.parentTask.id,
+                //             belowOrderKey: parentPosition.parentTask.orderKey,
+                //             taskId: childTaskId,
+                //             onLayoutEffect,
+                //         });
+                //     }
+                // }
             }}
             deleteTaskAndAllChildrenAndFocusPreviousRow={({
                 task: {id: taskId},
@@ -516,30 +517,31 @@ export function TaskQueryGridView({
                               belowTaskRow.parentPositionStack.length - unnest
                           ] ?? belowTaskRow.position;
 
-                if (position.isRoot) {
-                    // NOCOMMIT: Do an equivalent thing here?
-                    // dispatch({
-                    //     type: "MoveTaskToNotepad",
-                    //     notepadPage: position.notepad.page,
-                    //     belowOrderKey: position.notepad.orderKey,
-                    //     taskId: taskRow.task.id,
-                    // });
-                } else {
-                    dispatch({
-                        type: "MoveTaskToParentTask",
-                        parentTaskId: position.parentTask.id,
-                        belowOrderKey: position.parentTask.orderKey,
-                        taskId: taskRow.task.id,
-                    });
-                }
+                // NOCOMMIT: Do an equivalent thing here?
+                // if (position.isRoot) {
+                //     dispatch({
+                //         type: "MoveTaskToNotepad",
+                //         notepadPage: position.notepad.page,
+                //         belowOrderKey: position.notepad.orderKey,
+                //         taskId: taskRow.task.id,
+                //     });
+                // } else {
+                //     dispatch({
+                //         type: "MoveTaskToParentTask",
+                //         parentTaskId: position.parentTask.id,
+                //         belowOrderKey: position.parentTask.orderKey,
+                //         taskId: taskRow.task.id,
+                //     });
+                // }
             }}
             moveTaskToParentTop={(parentTaskRow, taskRow) => {
-                dispatch({
-                    type: "MoveTaskToParentTask",
-                    parentTaskId: parentTaskRow.task.id,
-                    belowOrderKey: null,
-                    taskId: taskRow.task.id,
-                });
+                // NOCOMMIT: Do an equivalent thing here?
+                // dispatch({
+                //     type: "MoveTaskToParentTask",
+                //     parentTaskId: parentTaskRow.task.id,
+                //     belowOrderKey: null,
+                //     taskId: taskRow.task.id,
+                // });
             }}
         />
     );

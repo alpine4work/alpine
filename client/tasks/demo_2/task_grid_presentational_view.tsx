@@ -251,7 +251,7 @@ function TaskGridPresentationalView<TaskRow>(
 
         const droppableIndentations = [];
 
-        if (!getTaskAreChildTasksCollapsed(taskRow)) {
+        if (!getTaskAreChildTasksCollapsed(taskRow) && getTaskChildTaskCount(taskRow) > 0) {
             droppableIndentations.push(taskRowIndentation + 1);
         } else {
             const nextTaskRowIndentation =

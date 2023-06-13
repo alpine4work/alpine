@@ -8,6 +8,7 @@ import {useSpaceContext} from "~/client/spaces/space_context";
 import {
     LocalTask,
     LocalTasksAction,
+    LocalTasksMoveTaskFrom,
     LocalTasksState,
 } from "~/client/tasks/demo_2/local_tasks_state";
 import {
@@ -355,7 +356,7 @@ function TaskNotepadGridView(
             }}
             nestTaskAndExpandParentRow={(
                 {task: {id: parentTaskId}},
-                {task: {id: childTaskId}},
+                {position: oldPosition, task: {id: childTaskId}},
                 titleSelection,
                 newIndentation,
             ) => {
@@ -367,6 +368,9 @@ function TaskNotepadGridView(
                         type: "NestTask",
                         parentTaskId,
                         childTaskId,
+                        from: oldPosition.isRoot
+                            ? {type: "Notepad", notepadPage: oldPosition.notepad.page}
+                            : {type: "ParentTask"},
                         onLayoutEffect: () => {
                             // TODO(calebmer): A production implementation probably shouldn't do an
                             // O(n) loop here.
@@ -393,9 +397,13 @@ function TaskNotepadGridView(
                 });
             }}
             unnestTaskIfNestedRow={(
-                {parentPositionStack, task: {id: childTaskId}},
+                {position, parentPositionStack, task: {id: childTaskId}},
                 titleSelection,
             ) => {
+                const from: LocalTasksMoveTaskFrom = position.isRoot
+                    ? {type: "Notepad", notepadPage: position.notepad.page}
+                    : {type: "ParentTask"};
+
                 const parentPosition = parentPositionStack[parentPositionStack.length - 1] ?? null;
 
                 const onLayoutEffect = () => {
@@ -413,23 +421,23 @@ function TaskNotepadGridView(
                 };
 
                 if (parentPosition) {
-                    if (parentPosition.isRoot) {
-                        dispatch({
-                            type: "MoveTaskToNotepad",
-                            notepadPage: parentPosition.notepad.page,
-                            belowOrderKey: parentPosition.notepad.orderKey,
-                            taskId: childTaskId,
-                            onLayoutEffect,
-                        });
-                    } else {
-                        dispatch({
-                            type: "MoveTaskToParentTask",
-                            parentTaskId: parentPosition.parentTask.id,
-                            belowOrderKey: parentPosition.parentTask.orderKey,
-                            taskId: childTaskId,
-                            onLayoutEffect,
-                        });
-                    }
+                    dispatch({
+                        type: "MoveTask",
+                        taskId: childTaskId,
+                        from,
+                        to: parentPosition.isRoot
+                            ? {
+                                  type: "Notepad",
+                                  notepadPage: parentPosition.notepad.page,
+                                  belowOrderKey: parentPosition.notepad.orderKey,
+                              }
+                            : {
+                                  type: "ParentTask",
+                                  parentTaskId: parentPosition.parentTask.id,
+                                  belowOrderKey: parentPosition.parentTask.orderKey,
+                              },
+                        onLayoutEffect,
+                    });
                 }
             }}
             deleteTaskAndAllChildrenAndFocusPreviousRow={({task: {id: taskId}}) => {
