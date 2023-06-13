@@ -1,6 +1,7 @@
 import {useDraggable} from "@dnd-kit/core";
 import {CalendarDate} from "@internationalized/date";
 import {ArrowsOutSimple, DotsSixVertical} from "phosphor-react";
+import {Selection} from "prosemirror-state";
 import {
     PropsWithoutRef,
     ReactElement,
@@ -73,6 +74,7 @@ export type TaskRowPresentationalViewRef = {
     focusTitleEnd(): void;
     focusTitleAll(): void;
     focusTitleCoord(coord: number): void;
+    focusTitleSelection(selection: Selection): void;
 };
 
 const TaskRowPresentationalViewForwardRef = forwardRef(TaskRowPresentationalView) as <TaskRow>(
@@ -91,6 +93,7 @@ type TaskRowPresentationalViewProps<TaskRow> = {
     assignee: TaskAssignee | null;
     onAssigneeChange: (assignee: TaskAssignee | null) => void;
     parentTaskTitle: TaskTitle | null;
+    shouldShowParentTaskTitle: boolean;
     childTaskCount: number;
     closedChildTaskCount: number;
     areChildTasksCollapsed: boolean;
@@ -102,8 +105,8 @@ type TaskRowPresentationalViewProps<TaskRow> = {
     createTaskAbove: () => void;
     createTaskBelowAndFocus: () => void;
     createTaskChildAtStartAndFocus: () => void;
-    nestWithPreviousTaskRowIfExistsAndExpand: () => void;
-    unnestTaskIfNestedRow: () => void;
+    nestWithPreviousTaskRowIfExistsAndExpand: (titleSelection: Selection) => void;
+    unnestTaskIfNestedRow: (titleSelection: Selection) => void;
     deleteTaskAndAllChildrenAndFocusPreviousRow: () => void;
     focusNextTaskTitleCoord: (coord: number) => void;
     focusPreviousTaskTitleCoord: (coord: number) => void;
@@ -123,6 +126,7 @@ function TaskRowPresentationalView<TaskRow>(
         assignee,
         onAssigneeChange,
         parentTaskTitle,
+        shouldShowParentTaskTitle,
         childTaskCount,
         closedChildTaskCount,
         areChildTasksCollapsed,
@@ -160,15 +164,21 @@ function TaskRowPresentationalView<TaskRow>(
         assertExists(titleInputRef.current).focusAll();
     }, []);
 
-    const focusTitleCoord = useCallback((left: number) => {
-        assertExists(titleInputRef.current).focusCoord(left);
+    const focusTitleCoord = useCallback((coord: number) => {
+        assertExists(titleInputRef.current).focusCoord(coord);
     }, []);
 
-    useImperativeHandle(
-        ref,
-        () => ({focusTitleStart, focusTitleEnd, focusTitleAll, focusTitleCoord}),
-        [focusTitleAll, focusTitleCoord, focusTitleEnd, focusTitleStart],
-    );
+    const focusTitleSelection = useCallback((selection: Selection) => {
+        assertExists(titleInputRef.current).focusSelection(selection);
+    }, []);
+
+    useImperativeHandle(ref, () => ({
+        focusTitleStart,
+        focusTitleEnd,
+        focusTitleAll,
+        focusTitleCoord,
+        focusTitleSelection,
+    }));
 
     const [isHovered, setIsHovered] = useState(false);
 
@@ -402,6 +412,7 @@ function TaskRowPresentationalView<TaskRow>(
                         placeholder={titlePlaceholder}
                         indentation={indentation}
                         parentTaskTitle={parentTaskTitle}
+                        shouldShowParentTaskTitle={shouldShowParentTaskTitle}
                         childTaskCount={childTaskCount}
                         closedChildTaskCount={closedChildTaskCount}
                         areChildTasksCollapsed={areChildTasksCollapsed}

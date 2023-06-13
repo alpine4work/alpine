@@ -1,3 +1,4 @@
+import {Selection} from "prosemirror-state";
 import {
     Key,
     PropsWithoutRef,
@@ -32,6 +33,7 @@ import {TaskTitle, emptyTaskTitle} from "~/shared/tasks/task_title_schema";
 export type TaskGridPresentationalViewRef = {
     focusTaskRowTitleStart(index: number): void;
     focusTaskRowTitleEnd(index: number): void;
+    focusTaskRowTitleSelection(index: number, selection: Selection): void;
     focusStart(): void;
     focusEnd(): void;
 };
@@ -56,6 +58,7 @@ export type TaskGridPresentationalViewProps<TaskRow> = {
     getTaskAssignee: (taskRow: TaskRow) => TaskAssignee | null;
     onTaskAssigneeChange: (taskRow: TaskRow, assignee: TaskAssignee | null) => void;
     getTaskParentTaskTitle: (taskRow: TaskRow) => TaskTitle | null;
+    shouldShowParentTaskTitle: boolean;
     getTaskChildTaskCount: (taskRow: TaskRow) => number;
     getTaskClosedChildTaskCount: (taskRow: TaskRow) => number;
     getTaskAreChildTasksCollapsed: (taskRow: TaskRow) => boolean;
@@ -69,8 +72,13 @@ export type TaskGridPresentationalViewProps<TaskRow> = {
     createTaskAtEndFromBottomGhostAndFocusNewGhost: (title: TaskTitle) => void;
     createTaskAtStartFromTopGhostWithoutNewGhost: (title: TaskTitle) => void;
     createTaskAtStartFromTopGhostAndFocus: (title: TaskTitle) => void;
-    nestTaskAndExpandParentRow: (parentTaskRow: TaskRow, childTaskRow: TaskRow) => void;
-    unnestTaskIfNestedRow: (childTaskRow: TaskRow) => void;
+    nestTaskAndExpandParentRow: (
+        parentTaskRow: TaskRow,
+        childTaskRow: TaskRow,
+        titleSelection: Selection,
+        newTaskRowIndentation: number,
+    ) => void;
+    unnestTaskIfNestedRow: (childTaskRow: TaskRow, titleSelection: Selection) => void;
     deleteTaskAndAllChildrenAndFocusPreviousRow: (taskRow: TaskRow) => void;
     moveTaskBelow: (belowTaskRow: TaskRow | null, unnest: number, taskRow: TaskRow) => void;
     moveTaskToParentTop: (parentTaskRow: TaskRow, taskRow: TaskRow) => void;
@@ -91,6 +99,7 @@ function TaskGridPresentationalView<TaskRow>(
         getTaskAssignee,
         onTaskAssigneeChange,
         getTaskParentTaskTitle,
+        shouldShowParentTaskTitle,
         getTaskChildTaskCount,
         getTaskClosedChildTaskCount,
         getTaskAreChildTasksCollapsed,
@@ -123,8 +132,11 @@ function TaskGridPresentationalView<TaskRow>(
         ref,
         () => ({
             focusTaskRowTitleStart: index =>
-                taskRowRefByIndex.get(index).current?.focusTitleStart(),
-            focusTaskRowTitleEnd: index => taskRowRefByIndex.get(index).current?.focusTitleEnd(),
+                assertExists(taskRowRefByIndex.get(index).current).focusTitleStart(),
+            focusTaskRowTitleEnd: index =>
+                assertExists(taskRowRefByIndex.get(index).current).focusTitleEnd(),
+            focusTaskRowTitleSelection: (index, selection) =>
+                assertExists(taskRowRefByIndex.get(index).current).focusTitleSelection(selection),
             focusStart: () => {
                 const taskRow =
                     topGhostTaskRowRef.current ??
@@ -173,7 +185,7 @@ function TaskGridPresentationalView<TaskRow>(
     if (hasTopGhostTaskRow) {
         taskRows.push(
             <TaskRowPresentationalView
-                key={topGhostTaskKey}
+                key={`${topGhostTaskKey}-0`}
                 ref={topGhostTaskRowRef}
                 taskRow={null}
                 status={null}
@@ -184,6 +196,7 @@ function TaskGridPresentationalView<TaskRow>(
                 assignee={null}
                 onAssigneeChange={noop}
                 parentTaskTitle={null}
+                shouldShowParentTaskTitle={false}
                 childTaskCount={0}
                 closedChildTaskCount={0}
                 areChildTasksCollapsed={false}
@@ -257,12 +270,9 @@ function TaskGridPresentationalView<TaskRow>(
 
         taskRows.push(
             <TaskRowPresentationalView
-                // A child row may appear twice at different indentation levels.
-                //
-                // TODO(calebmer): Remounting when moving between indentation levels is a
-                // little strange when we don't remount for normal moves. Should we consider
-                // keeping some local counter that follows task rows around as they move?
-                key={getTaskKey(taskRow)}
+                // Tasks may appear at both the root level and as a nested subtask.
+                // So disambiguate by adding the indentation level the task is at.
+                key={`${getTaskKey(taskRow)}-${taskRowIndentation}`}
                 ref={taskRowRefByIndex.get(index)}
                 taskRow={taskRow}
                 status={getTaskStatus(taskRow)}
@@ -272,6 +282,7 @@ function TaskGridPresentationalView<TaskRow>(
                 assignee={getTaskAssignee(taskRow)}
                 onAssigneeChange={assignee => onTaskAssigneeChange(taskRow, assignee)}
                 parentTaskTitle={getTaskParentTaskTitle(taskRow)}
+                shouldShowParentTaskTitle={shouldShowParentTaskTitle}
                 childTaskCount={getTaskChildTaskCount(taskRow)}
                 closedChildTaskCount={getTaskClosedChildTaskCount(taskRow)}
                 areChildTasksCollapsed={getTaskAreChildTasksCollapsed(taskRow)}
@@ -283,16 +294,23 @@ function TaskGridPresentationalView<TaskRow>(
                 createTaskAbove={() => createTaskAbove(taskRow)}
                 createTaskBelowAndFocus={() => createTaskBelowAndFocus(taskRow)}
                 createTaskChildAtStartAndFocus={() => createTaskChildAtStartAndFocus(taskRow)}
-                nestWithPreviousTaskRowIfExistsAndExpand={() => {
+                nestWithPreviousTaskRowIfExistsAndExpand={titleSelection => {
                     for (let taskRowIndex = index - 1; taskRowIndex >= 0; taskRowIndex--) {
                         const parentTaskRow = getTaskRow(taskRowIndex);
                         if (getTaskRowIndentation(parentTaskRow) === taskRowIndentation) {
-                            nestTaskAndExpandParentRow(parentTaskRow, taskRow);
+                            nestTaskAndExpandParentRow(
+                                parentTaskRow,
+                                taskRow,
+                                titleSelection,
+                                taskRowIndentation + 1,
+                            );
                             break;
                         }
                     }
                 }}
-                unnestTaskIfNestedRow={() => unnestTaskIfNestedRow(taskRow)}
+                unnestTaskIfNestedRow={titleSelection =>
+                    unnestTaskIfNestedRow(taskRow, titleSelection)
+                }
                 deleteTaskAndAllChildrenAndFocusPreviousRow={() =>
                     deleteTaskAndAllChildrenAndFocusPreviousRow(taskRow)
                 }
@@ -342,7 +360,7 @@ function TaskGridPresentationalView<TaskRow>(
 
     taskRows.push(
         <TaskRowPresentationalView
-            key={bottomGhostTaskKey}
+            key={`${bottomGhostTaskKey}-0`}
             ref={bottomGhostTaskRowRef}
             // If there are no task rows, the padding just makes our ghost row placeholder
             // look misaligned. So remove it.
@@ -356,6 +374,7 @@ function TaskGridPresentationalView<TaskRow>(
             assignee={null}
             onAssigneeChange={noop}
             parentTaskTitle={null}
+            shouldShowParentTaskTitle={false}
             childTaskCount={0}
             closedChildTaskCount={0}
             areChildTasksCollapsed={false}

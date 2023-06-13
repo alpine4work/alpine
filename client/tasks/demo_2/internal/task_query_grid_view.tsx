@@ -56,7 +56,7 @@ export function TaskQueryGridView({
     const gridViewRef = useRef<TaskGridPresentationalViewRef>(null);
 
     const tasks = useMemo(() => {
-        return state.database.query(filters, {
+        return state.database.queryAllTasks(filters, {
             currentAccountId: currentAccount.id,
             currentDate,
         });
@@ -237,6 +237,7 @@ export function TaskQueryGridView({
                     assignee,
                 });
             }}
+            shouldShowParentTaskTitle={true}
             getTaskParentTaskTitle={({task}) =>
                 task.parentTaskId ? state.database.getTask(task.parentTaskId).title : null
             }
@@ -392,7 +393,12 @@ export function TaskQueryGridView({
                     },
                 });
             }}
-            nestTaskAndExpandParentRow={({task: {id: parentTaskId}}, {task: {id: childTaskId}}) => {
+            nestTaskAndExpandParentRow={(
+                {task: {id: parentTaskId}},
+                {task: {id: childTaskId}},
+                titleSelection,
+                newIndentation,
+            ) => {
                 // Immediate priority since we want React to batch the
                 // `setExpandedChildTaskIds()` call and the `dispatch()` which doesn't go
                 // through React state.
@@ -401,6 +407,22 @@ export function TaskQueryGridView({
                         type: "NestTask",
                         parentTaskId,
                         childTaskId,
+                        onLayoutEffect: () => {
+                            // TODO(calebmer): A production implementation probably shouldn't do an
+                            // O(n) loop here.
+                            const newIndex = taskRowsRef.current.findIndex(
+                                ({task, parentPositionStack}) =>
+                                    task.id === childTaskId &&
+                                    parentPositionStack.length === newIndentation,
+                            );
+
+                            if (newIndex >= 0) {
+                                gridViewRef.current?.focusTaskRowTitleSelection(
+                                    newIndex,
+                                    titleSelection,
+                                );
+                            }
+                        },
                     });
 
                     setExpandedTaskIds(expandedTaskIds => {
@@ -410,8 +432,25 @@ export function TaskQueryGridView({
                     });
                 });
             }}
-            unnestTaskIfNestedRow={({parentPositionStack, task: {id: childTaskId}}) => {
+            unnestTaskIfNestedRow={(
+                {parentPositionStack, task: {id: childTaskId}},
+                titleSelection,
+            ) => {
                 const parentPosition = parentPositionStack[parentPositionStack.length - 1] ?? null;
+
+                const onLayoutEffect = () => {
+                    // TODO(calebmer): A production implementation probably shouldn't do an
+                    // O(n) loop here.
+                    const newIndex = taskRowsRef.current.findIndex(
+                        ({task, parentPositionStack: otherParentPositionStack}) =>
+                            task.id === childTaskId &&
+                            otherParentPositionStack.length === parentPositionStack.length - 1,
+                    );
+
+                    if (newIndex >= 0) {
+                        gridViewRef.current?.focusTaskRowTitleSelection(newIndex, titleSelection);
+                    }
+                };
 
                 if (parentPosition) {
                     if (parentPosition.isRoot) {
@@ -421,6 +460,7 @@ export function TaskQueryGridView({
                         //     notepadPage: parentPosition.notepad.page,
                         //     belowOrderKey: parentPosition.notepad.orderKey,
                         //     taskId: childTaskId,
+                        //     onLayoutEffect,
                         // });
                     } else {
                         dispatch({
@@ -428,6 +468,7 @@ export function TaskQueryGridView({
                             parentTaskId: parentPosition.parentTask.id,
                             belowOrderKey: parentPosition.parentTask.orderKey,
                             taskId: childTaskId,
+                            onLayoutEffect,
                         });
                     }
                 }

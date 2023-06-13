@@ -1,6 +1,6 @@
 import {toCalendarDate} from "@internationalized/date";
 import {CalendarDate, parseAbsolute, parseDate} from "@internationalized/date";
-import {compareAsc} from "date-fns";
+import {compareAsc, compareDesc} from "date-fns";
 import {MutableRefObject, useEffect, useMemo, useRef} from "react";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
@@ -36,7 +36,8 @@ import {TimeZone} from "~/shared/helpers/date/time_zone";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
-import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key";
+import {OrderKey, generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
 import {generateId} from "~/shared/id/id";
 import {AccountId, LocalTaskCollectionId, LocalTaskId} from "~/shared/id/types/id_types";
 import {LabelStringSchema} from "~/shared/schema/label_string_schema";
@@ -127,9 +128,13 @@ const LocalTaskSchema = Schema.object({
         .nullable()
         .default(null),
     dueDate: CalendarDateSchema.nullable().default(null),
-    collectionIds: Schema.set(Schema.id<LocalTaskCollectionId>())
-        .default(new Set())
-        .originalPropertyKey("taskCollectionIds"),
+    collectionOrderById: Schema.map(
+        Schema.id<LocalTaskCollectionId>(),
+        Schema.object({
+            orderTime: Schema.date,
+            orderKey: OrderKeySchema,
+        }),
+    ).default(new Map()),
     notesContent: TaskNotesContentWithReferencesSchema,
     parentTaskId: Schema.id<LocalTaskId>().nullable(),
     childTaskIdByOrderKey: LocalTaskIdByOrderKeySchema,
@@ -356,7 +361,7 @@ class LocalTasksDatabase {
             title: options.title ?? emptyTaskTitle,
             assignee: null,
             dueDate: null,
-            collectionIds: new Set(),
+            collectionOrderById: new Map(),
             notesContent: emptyTaskNotesContentWithReferences,
             parentTaskId: options.parentTask?.id ?? null,
             childTaskIdByOrderKey: ImmutableMap.empty(),
@@ -760,7 +765,10 @@ class LocalTasksDatabase {
                 if (!task) throw new NotFoundError("Task not found");
                 return {
                     ...task,
-                    collectionIds: new Set([...task.collectionIds, taskCollection.id]),
+                    collectionOrderById: new Map([
+                        ...task.collectionOrderById,
+                        [taskCollection.id, {orderTime: new Date(), orderKey: initialOrderKey}],
+                    ]),
                 };
             }),
             taskCollectionById: this._taskCollectionById.update(
@@ -789,10 +797,13 @@ class LocalTasksDatabase {
             taskById: this._taskById.update(taskId, task => {
                 if (!task) throw new NotFoundError("Task not found");
 
-                const newCollectionIds = new Set(task.collectionIds);
-                newCollectionIds.add(taskCollectionId);
+                const newCollectionOrderById = new Map(task.collectionOrderById);
+                newCollectionOrderById.set(taskCollectionId, {
+                    orderTime: new Date(),
+                    orderKey: initialOrderKey,
+                });
 
-                return {...task, collectionIds: newCollectionIds};
+                return {...task, collectionOrderById: newCollectionOrderById};
             }),
             taskCollectionById: this._taskCollectionById.update(
                 taskCollectionId,
@@ -819,10 +830,10 @@ class LocalTasksDatabase {
             taskById: this._taskById.update(taskId, task => {
                 if (!task) throw new NotFoundError("Task not found");
 
-                const newCollectionIds = new Set(task.collectionIds);
-                newCollectionIds.delete(taskCollectionId);
+                const newCollectionOrderById = new Map(task.collectionOrderById);
+                newCollectionOrderById.delete(taskCollectionId);
 
-                return {...task, collectionIds: newCollectionIds};
+                return {...task, collectionIds: newCollectionOrderById};
             }),
             taskCollectionById: this._taskCollectionById.update(
                 taskCollectionId,
@@ -847,7 +858,7 @@ class LocalTasksDatabase {
         );
     }
 
-    public query(
+    public queryAllTasks(
         filters: ReadonlyArray<TaskQueryFilter>,
         context: {currentAccountId: AccountId; currentDate: CalendarDate},
     ) {
@@ -863,6 +874,35 @@ class LocalTasksDatabase {
             return -(
                 task1.createdDate.compare(task2.createdDate) ||
                 compareAsc(task1.createdTime, task2.createdTime)
+            );
+        });
+
+        return tasks;
+    }
+
+    public queryCollectionTasks(
+        collectionId: LocalTaskCollectionId,
+        filters: ReadonlyArray<TaskQueryFilter>,
+        context: {currentAccountId: AccountId; currentDate: CalendarDate},
+    ) {
+        const tasks = [];
+
+        for (const task of this._taskById.values()) {
+            if (!task.collectionOrderById.has(collectionId)) continue;
+
+            if (evaluateTaskQueryFilters(filters, task, context)) {
+                tasks.push(task);
+            }
+        }
+
+        tasks.sort((task1, task2) => {
+            const collectionOrder1 = assertExists(task1.collectionOrderById.get(collectionId));
+            const collectionOrder2 = assertExists(task2.collectionOrderById.get(collectionId));
+
+            return (
+                compareDesc(collectionOrder1.orderTime, collectionOrder2.orderTime) ||
+                defaultCompareStrings(collectionOrder1.orderKey, collectionOrder2.orderKey) ||
+                defaultCompareStrings(task1.id, task2.id)
             );
         });
 
@@ -1090,6 +1130,7 @@ type LocalTasksNestTaskAction = {
     readonly type: "NestTask";
     readonly parentTaskId: LocalTaskId;
     readonly childTaskId: LocalTaskId;
+    readonly onLayoutEffect?: () => void;
 };
 
 type LocalTasksMoveTaskToParentTaskAction = {
@@ -1097,6 +1138,7 @@ type LocalTasksMoveTaskToParentTaskAction = {
     readonly parentTaskId: LocalTaskId;
     readonly belowOrderKey: OrderKey | null;
     readonly taskId: LocalTaskId;
+    readonly onLayoutEffect?: () => void;
 };
 
 type LocalTasksMoveTaskToNotepadAction = {
@@ -1104,6 +1146,7 @@ type LocalTasksMoveTaskToNotepadAction = {
     readonly notepadPage: number;
     readonly belowOrderKey: OrderKey | null;
     readonly taskId: LocalTaskId;
+    readonly onLayoutEffect?: () => void;
 };
 
 type LocalTasksCreateTaskCollectionAndAddToTaskAction = {
@@ -1226,31 +1269,38 @@ function reduceLocalTasksState(state: LocalTasksState, action: LocalTasksAction)
         }
 
         case "NestTask": {
+            const {parentTaskId, childTaskId, onLayoutEffect} = action;
+
             return {
                 ...state,
-                database: state.database.nestTask(action.parentTaskId, action.childTaskId),
+                database: state.database.nestTask(parentTaskId, childTaskId),
+                layoutEffectRef: onLayoutEffect
+                    ? {current: () => onLayoutEffect()}
+                    : state.layoutEffectRef,
             };
         }
 
         case "MoveTaskToParentTask": {
+            const {parentTaskId, belowOrderKey, taskId, onLayoutEffect} = action;
+
             return {
                 ...state,
-                database: state.database.moveTaskToParentTask(
-                    action.parentTaskId,
-                    action.belowOrderKey,
-                    action.taskId,
-                ),
+                database: state.database.moveTaskToParentTask(parentTaskId, belowOrderKey, taskId),
+                layoutEffectRef: onLayoutEffect
+                    ? {current: () => onLayoutEffect()}
+                    : state.layoutEffectRef,
             };
         }
 
         case "MoveTaskToNotepad": {
+            const {notepadPage, belowOrderKey, taskId, onLayoutEffect} = action;
+
             return {
                 ...state,
-                database: state.database.moveTaskToNotepad(
-                    action.notepadPage,
-                    action.belowOrderKey,
-                    action.taskId,
-                ),
+                database: state.database.moveTaskToNotepad(notepadPage, belowOrderKey, taskId),
+                layoutEffectRef: onLayoutEffect
+                    ? {current: () => onLayoutEffect()}
+                    : state.layoutEffectRef,
             };
         }
 

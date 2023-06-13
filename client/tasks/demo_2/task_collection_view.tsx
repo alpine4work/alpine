@@ -3,7 +3,7 @@ import {useEffect, useRef, useState} from "react";
 import {Box} from "~/client/design/box";
 import {IconButton} from "~/client/design/icon_button";
 import {MenuButton} from "~/client/design/menu_button";
-import {TaskQueryGridView} from "~/client/tasks/demo_2/internal/task_query_grid_view";
+import {TaskCollectionGridView} from "~/client/tasks/demo_2/internal/task_collection_grid_view";
 import {TaskQueryViewCustomizationBar} from "~/client/tasks/demo_2/internal/task_query_view_customization_bar";
 import {LocalTasksAction, LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
 import {TaskQueryFilter} from "~/client/tasks/demo_2/task_query_filter";
@@ -125,7 +125,12 @@ export function TaskCollectionView({
                     }}
                 />
             </Box>
-            <TaskQueryGridView state={state} dispatch={dispatch} filters={filters} />
+            <TaskCollectionGridView
+                state={state}
+                dispatch={dispatch}
+                collectionId={collectionId}
+                filters={filters}
+            />
         </Box>
     );
 }

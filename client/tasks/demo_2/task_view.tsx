@@ -62,7 +62,7 @@ export function TaskView({
             for (const [orderKey, childTaskId] of parentTask.childTaskIdByOrderKey) {
                 const childTask = state.database.getTask(childTaskId);
 
-                assert(childTaskRowIds.has(childTask.id), "Tasks in child tasks must be unique");
+                assert(!childTaskRowIds.has(childTask.id), "Tasks in child tasks must be unique");
                 childTaskRowIds.add(childTask.id);
 
                 const position: TaskViewChildTasksGridViewRowPosition = {
@@ -148,10 +148,10 @@ export function TaskView({
             allCollections={useMemo(() => state.database.getAllTaskCollections(), [state.database])}
             collections={useMemo(
                 () =>
-                    Array.from(task.collectionIds, collectionId =>
+                    Array.from(task.collectionOrderById.keys(), collectionId =>
                         state.database.getTaskCollection(collectionId),
                     ),
-                [state.database, task.collectionIds],
+                [state.database, task.collectionOrderById],
             )}
             createCollectionAndAddToTask={taskCollection =>
                 dispatch({type: "CreateTaskCollectionAndAddToTask", taskId, taskCollection})
@@ -204,6 +204,7 @@ export function TaskView({
                         assignee,
                     });
                 },
+                shouldShowParentTaskTitle: false,
                 getTaskParentTaskTitle: ({task}) =>
                     task.parentTaskId ? state.database.getTask(task.parentTaskId).title : null,
                 getTaskChildTaskCount: ({task}) => task.childTaskIdByOrderKey.size,
@@ -371,6 +372,8 @@ export function TaskView({
                 nestTaskAndExpandParentRow: (
                     {task: {id: parentTaskId}},
                     {task: {id: childTaskId}},
+                    titleSelection,
+                    newIndentation,
                 ) => {
                     // Immediate priority since we want React to batch the
                     // `setExpandedChildTaskIds()` call and the `dispatch()` which doesn't go
@@ -380,16 +383,34 @@ export function TaskView({
                             type: "NestTask",
                             parentTaskId,
                             childTaskId,
+                            onLayoutEffect: () => {
+                                // TODO(calebmer): A production implementation probably shouldn't do an
+                                // O(n) loop here.
+                                const newIndex = childTaskRowsRef.current.findIndex(
+                                    ({task, parentPositionStack}) =>
+                                        task.id === childTaskId &&
+                                        parentPositionStack.length === newIndentation,
+                                );
+
+                                if (newIndex >= 0) {
+                                    detailViewRef.current
+                                        ?.getChildTasksGridView()
+                                        .focusTaskRowTitleSelection(newIndex, titleSelection);
+                                }
+                            },
                         });
 
-                        setExpandedChildTaskIds(expandedChildTaskIds => {
-                            const newExpandedChildTaskIds = new Set(expandedChildTaskIds);
-                            newExpandedChildTaskIds.add(parentTaskId);
-                            return newExpandedChildTaskIds;
+                        setExpandedChildTaskIds(expandedTaskIds => {
+                            const newExpandedTaskIds = new Set(expandedTaskIds);
+                            newExpandedTaskIds.add(parentTaskId);
+                            return newExpandedTaskIds;
                         });
                     });
                 },
-                unnestTaskIfNestedRow: ({parentPositionStack, task: {id: childTaskId}}) => {
+                unnestTaskIfNestedRow: (
+                    {parentPositionStack, task: {id: childTaskId}},
+                    titleSelection,
+                ) => {
                     const parentPosition = parentPositionStack[parentPositionStack.length - 1];
 
                     if (parentPosition) {
@@ -398,6 +419,22 @@ export function TaskView({
                             parentTaskId: parentPosition.parentTask.id,
                             belowOrderKey: parentPosition.parentTask.orderKey,
                             taskId: childTaskId,
+                            onLayoutEffect: () => {
+                                // TODO(calebmer): A production implementation probably shouldn't do an
+                                // O(n) loop here.
+                                const newIndex = childTaskRowsRef.current.findIndex(
+                                    ({task, parentPositionStack: otherParentPositionStack}) =>
+                                        task.id === childTaskId &&
+                                        otherParentPositionStack.length ===
+                                            parentPositionStack.length - 1,
+                                );
+
+                                if (newIndex >= 0) {
+                                    detailViewRef.current
+                                        ?.getChildTasksGridView()
+                                        .focusTaskRowTitleSelection(newIndex, titleSelection);
+                                }
+                            },
                         });
                     }
                 },

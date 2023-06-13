@@ -67,22 +67,22 @@ function evaluateTaskQueryFilter(
             switch (filter.operation.type) {
                 case "IncludesOneOf": {
                     return iterableSome(filter.operation.collectionIds, collectionId =>
-                        task.collectionIds.has(collectionId),
+                        task.collectionOrderById.has(collectionId),
                     );
                 }
                 case "IncludesAllOf": {
                     return iterableEvery(filter.operation.collectionIds, collectionId =>
-                        task.collectionIds.has(collectionId),
+                        task.collectionOrderById.has(collectionId),
                     );
                 }
                 case "ExcludesAllOf": {
                     return iterableEvery(
                         filter.operation.collectionIds,
-                        collectionId => !task.collectionIds.has(collectionId),
+                        collectionId => !task.collectionOrderById.has(collectionId),
                     );
                 }
                 case "IsEmpty": {
-                    return task.collectionIds.size === 0;
+                    return task.collectionOrderById.size === 0;
                 }
                 default:
                     throw exhaustive(filter.operation);

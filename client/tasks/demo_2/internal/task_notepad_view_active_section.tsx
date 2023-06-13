@@ -154,8 +154,9 @@ export function TaskNotepadViewActiveSection({
                                 title={task.title}
                                 assignee={task.assignee}
                                 dueDate={task.dueDate}
-                                collections={Array.from(task.collectionIds, collectionId =>
-                                    state.database.getTaskCollection(collectionId),
+                                collections={Array.from(
+                                    task.collectionOrderById.keys(),
+                                    collectionId => state.database.getTaskCollection(collectionId),
                                 )}
                                 onExpand={async () => {
                                     await peekStackContext.push(

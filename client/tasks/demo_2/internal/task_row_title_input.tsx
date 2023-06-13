@@ -34,10 +34,12 @@ import {TaskTitle, assertTaskTitle} from "~/shared/tasks/task_title_schema";
 export const taskRowTitleInputHeight: Spacing = "9";
 
 export type TaskRowTitleInputRef = {
+    getSelection(): Selection;
     focusStart(): void;
     focusEnd(): void;
     focusAll(): void;
     focusCoord(coord: number): void;
+    focusSelection(selection: Selection): void;
 };
 
 const taskRowTitleInputAriaLabel = "Title";
@@ -72,6 +74,7 @@ function TaskRowTitleInput(
         placeholder,
         indentation,
         parentTaskTitle,
+        shouldShowParentTaskTitle,
         childTaskCount,
         closedChildTaskCount,
         areChildTasksCollapsed,
@@ -92,6 +95,7 @@ function TaskRowTitleInput(
         placeholder?: string;
         indentation: number;
         parentTaskTitle: TaskTitle | null;
+        shouldShowParentTaskTitle: boolean;
         childTaskCount: number;
         closedChildTaskCount: number;
         areChildTasksCollapsed: boolean;
@@ -99,8 +103,8 @@ function TaskRowTitleInput(
         createTaskAbove: () => void;
         createTaskBelowAndFocus: () => void;
         createTaskChildAtStartAndFocus: () => void;
-        nestWithPreviousTaskRowIfExistsAndExpand: () => void;
-        unnestTaskIfNestedRow: () => void;
+        nestWithPreviousTaskRowIfExistsAndExpand: (selection: Selection) => void;
+        unnestTaskIfNestedRow: (selection: Selection) => void;
         deleteTaskAndAllChildrenAndFocusPreviousRow: () => void;
         focusNextTaskTitleCoord: (coord: number) => void;
         focusPreviousTaskTitleCoord: (coord: number) => void;
@@ -208,12 +212,12 @@ function TaskRowTitleInput(
                     event.preventDefault();
                     event.stopPropagation();
 
-                    unnestTaskIfNestedRow();
+                    unnestTaskIfNestedRow(view.state.selection);
                 } else if (!isModifiedKeyboardEvent(event)) {
                     event.preventDefault();
                     event.stopPropagation();
 
-                    nestWithPreviousTaskRowIfExistsAndExpand();
+                    nestWithPreviousTaskRowIfExistsAndExpand(view.state.selection);
                 }
                 break;
             }
@@ -362,6 +366,8 @@ function TaskRowTitleInput(
         });
     }, [placeholder, runWhenViewIsReady]);
 
+    const getSelection = useCallback(() => titleState.selection, [titleState.selection]);
+
     const focusStart = useCallback(() => {
         runWhenViewIsReady(view => {
             const selection = Selection.atStart(view.state.doc);
@@ -409,16 +415,24 @@ function TaskRowTitleInput(
         [runWhenViewIsReady],
     );
 
-    useImperativeHandle(
-        ref,
-        () => ({
-            focusStart,
-            focusEnd,
-            focusAll,
-            focusCoord,
-        }),
-        [focusAll, focusCoord, focusEnd, focusStart],
+    const focusSelection = useCallback(
+        (selection: Selection) => {
+            runWhenViewIsReady(view => {
+                view.focus();
+                view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
+            });
+        },
+        [runWhenViewIsReady],
     );
+
+    useImperativeHandle(ref, () => ({
+        getSelection,
+        focusStart,
+        focusEnd,
+        focusAll,
+        focusCoord,
+        focusSelection,
+    }));
 
     return (
         <div
@@ -516,7 +530,7 @@ function TaskRowTitleInput(
                     },
                 })}
             >
-                {parentTaskTitle && indentation === 0 && (
+                {shouldShowParentTaskTitle && parentTaskTitle && indentation === 0 && (
                     <div
                         className={sprinkles({
                             pointerEvents: "none",
