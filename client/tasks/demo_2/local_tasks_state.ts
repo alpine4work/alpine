@@ -8,7 +8,8 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {Store} from "~/client/helpers/store/store";
 import {useStore} from "~/client/helpers/store/use_store";
 import {ValueStore} from "~/client/helpers/store/value_store";
-import {evaluateTaskQueryFilters} from "~/client/tasks/demo_2/internal/evaluate_task_query_filters";
+import {evaluateTaskQueryNormalizedFilters} from "~/client/tasks/demo_2/internal/evaluate_task_query_normalized_filters";
+import {normalizeTaskQueryFilters} from "~/client/tasks/demo_2/internal/normalize_task_query_filters";
 import {TaskQueryFilter} from "~/client/tasks/demo_2/task_query_filter";
 import {
     TaskAssignee,
@@ -1080,10 +1081,14 @@ class LocalTasksDatabase {
         filters: ReadonlyArray<TaskQueryFilter>,
         context: {currentAccountId: AccountId; currentDate: CalendarDate},
     ) {
+        const normalizedFiltersResult = normalizeTaskQueryFilters(filters, context);
+        if (normalizedFiltersResult.type === "Impossible") return [];
+        const normalizedFilters = normalizedFiltersResult.normalizedFilters;
+
         const tasks = [];
 
         for (const task of this._taskById.values()) {
-            if (evaluateTaskQueryFilters(filters, task, context)) {
+            if (evaluateTaskQueryNormalizedFilters(normalizedFilters, task)) {
                 tasks.push(task);
             }
         }
@@ -1103,6 +1108,10 @@ class LocalTasksDatabase {
         filters: ReadonlyArray<TaskQueryFilter>,
         context: {currentAccountId: AccountId; currentDate: CalendarDate},
     ) {
+        const normalizedFiltersResult = normalizeTaskQueryFilters(filters, context);
+        if (normalizedFiltersResult.type === "Impossible") return [];
+        const normalizedFilters = normalizedFiltersResult.normalizedFilters;
+
         const tasks: Array<{orderKey: OrderKey; task: LocalTask}> = [];
 
         const taskCollection = this.getTaskCollection(collectionId);
@@ -1110,7 +1119,7 @@ class LocalTasksDatabase {
         for (const [orderKey, taskId] of taskCollection.taskIdByOrderKey) {
             const task = this.getTask(taskId);
 
-            if (evaluateTaskQueryFilters(filters, task, context)) {
+            if (evaluateTaskQueryNormalizedFilters(normalizedFilters, task)) {
                 tasks.push({orderKey, task});
             }
         }
