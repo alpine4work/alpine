@@ -2,7 +2,7 @@ import {isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
 import Fuse from "fuse.js";
 import {CaretDown, MagnifyingGlass, Plus} from "phosphor-react";
-import {ReactNode, RefObject, useMemo, useRef, useState} from "react";
+import {ReactNode, RefObject, cloneElement, isValidElement, useMemo, useRef, useState} from "react";
 import {
     AriaListBoxOptions,
     mergeProps,
@@ -11,18 +11,23 @@ import {
     useListBox,
     useOption,
 } from "react-aria";
-import {ComboBoxState, Item, useListState} from "react-stately";
+import {ComboBoxState, Item, useSingleSelectListState} from "react-stately";
 import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {FocusRing} from "~/client/design/focus_ring";
 import {OverlayTriggerButton} from "~/client/design/overlay_trigger";
+import {useShowToast} from "~/client/design/toast";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
+import {useNavigate} from "~/client/remix/use_navigate";
+import {useSpaceContext} from "~/client/spaces/space_context";
 import {TaskCollectionOption} from "~/client/tasks/demo_2/internal/task_collection_option";
 import {TaskCollectionsListBoxCreateCollectionOption} from "~/client/tasks/demo_2/internal/task_collections_list_box_create_collection_option";
 import {TaskCollectionsListBoxInstructionalPlaceholder} from "~/client/tasks/demo_2/internal/task_collections_list_box_instructional_placeholder";
 import {LocalTaskCollection, LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
 import {spacing} from "~/shared/design/spacing";
+import {assert} from "~/shared/helpers/control/assert";
 import {noop} from "~/shared/helpers/control/noop";
+import {isId} from "~/shared/id/id";
 import {LocalTaskCollectionId} from "~/shared/id/types/id_types";
 import {sprinkles} from "~/shared/styles/styles";
 
@@ -111,7 +116,14 @@ function TaskLayoutTopBarCollectionsComboBoxOverlay({
     allCollections: ReadonlyArray<LocalTaskCollection>;
     onCloseWithoutAnimation: () => void;
 }) {
+    const navigate = useNavigate();
+    const showToast = useShowToast();
+    const {space} = useSpaceContext();
+
     const [inputValue, setInputValue] = useState("");
+    const [pendingCollectionId, setPendingCollectionId] = useState<LocalTaskCollectionId | null>(
+        null,
+    );
 
     const allCollectionsSearchIndex = useMemo(
         () => new Fuse(allCollections, {keys: ["name"]}),
@@ -156,13 +168,48 @@ function TaskLayoutTopBarCollectionsComboBoxOverlay({
             </Item>
         );
 
-    const {collection, selectionManager, disabledKeys} = useListState({
+    const {collection, selectionManager, disabledKeys} = useSingleSelectListState({
         items: searchedItems,
         children: renderItem,
 
-        selectionMode: "single",
-        onSelectionChange: keys => {
-            // NOCOMMIT
+        selectedKey: null,
+        onSelectionChange: key => {
+            if (!key) return;
+
+            assert(typeof key === "string");
+
+            if (key.startsWith("Collection:")) {
+                const collectionId = key.slice("Collection:".length);
+                assert(isId<LocalTaskCollectionId>(collectionId));
+
+                setPendingCollectionId(collectionId);
+
+                navigate(`/s/${space.id}/tasks/demo-2/collections/${collectionId}`).then(
+                    () => {
+                        setPendingCollectionId(pendingCollectionId => {
+                            if (pendingCollectionId !== collectionId) return pendingCollectionId;
+                            return null;
+                        });
+
+                        onCloseWithoutAnimation();
+                    },
+                    error => {
+                        setPendingCollectionId(pendingCollectionId => {
+                            if (pendingCollectionId !== collectionId) return pendingCollectionId;
+                            return null;
+                        });
+
+                        showToast({
+                            type: "Error",
+                            title: "Couldn’t open collection",
+                            error,
+                        });
+                    },
+                );
+            } else {
+                assert(key === "CreateCollection");
+                // NOCOMMIT
+            }
         },
     });
 
@@ -254,6 +301,7 @@ function TaskLayoutTopBarCollectionsComboBoxOverlay({
                     comboBoxState={comboBoxState}
                     listBoxRef={listBoxRef}
                     listBoxProps={listBoxProps}
+                    pendingCollectionId={pendingCollectionId}
                 />
             </Box>
         </>
@@ -264,10 +312,12 @@ function TaskLayoutTopBarCollectionsListBox({
     comboBoxState,
     listBoxRef,
     listBoxProps: _listBoxProps,
+    pendingCollectionId,
 }: {
     comboBoxState: ComboBoxState<TaskLayoutTopBarCollectionsComboBoxItem>;
     listBoxRef: RefObject<HTMLUListElement>;
     listBoxProps: AriaListBoxOptions<TaskLayoutTopBarCollectionsComboBoxItem>;
+    pendingCollectionId: LocalTaskCollectionId | null;
 }) {
     const {listBoxProps} = useListBox(
         {..._listBoxProps, autoFocus: false},
@@ -288,13 +338,14 @@ function TaskLayoutTopBarCollectionsListBox({
                         key={item.key}
                         comboBoxState={comboBoxState}
                         item={item}
+                        pendingCollectionId={pendingCollectionId}
                     />,
                 );
             }
         }
 
         return {itemsWithoutCreateCollectionButton, createCollectionButtonItem};
-    }, [comboBoxState]);
+    }, [comboBoxState, pendingCollectionId]);
 
     return (
         <Box flexGrow="1" overflow="hidden" display="flex" flexDirection="column">
@@ -333,9 +384,11 @@ function TaskLayoutTopBarCollectionsListBox({
 function TaskLayoutTopBarCollectionsListBoxOption({
     comboBoxState,
     item,
+    pendingCollectionId,
 }: {
     comboBoxState: ComboBoxState<TaskLayoutTopBarCollectionsComboBoxItem>;
     item: Node<TaskLayoutTopBarCollectionsComboBoxItem>;
+    pendingCollectionId: LocalTaskCollectionId | null;
 }) {
     const optionRef = useRef(null);
     const {isHovered, hoverProps} = useHover({});
@@ -367,7 +420,13 @@ function TaskLayoutTopBarCollectionsListBoxOption({
                         : undefined,
                 })}
             >
-                {item.rendered}
+                {isValidElement(item.rendered)
+                    ? cloneElement(item.rendered, {
+                          isPending:
+                              item.value.type === "Collection" &&
+                              item.value.collection.id === pendingCollectionId,
+                      } as any)
+                    : item.rendered}
             </li>
         </FocusRing>
     );

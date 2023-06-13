@@ -1,9 +1,41 @@
 import {differenceInMonths, differenceInYears} from "date-fns";
+import {SpinnerGap} from "phosphor-react";
+import {useEffect, useState} from "react";
 import {Box} from "~/client/design/box";
+import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour";
 import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
+import {spacing} from "~/shared/design/spacing";
+import {createTimeout} from "~/shared/helpers/async/timeout";
+import {spinAnimationClassName} from "~/shared/styles/styles";
 
-export function TaskCollectionOption({collection}: {collection: LocalTaskCollection}) {
+export function TaskCollectionOption({
+    collection,
+    isPending,
+}: {
+    collection: LocalTaskCollection;
+    isPending?: boolean;
+}) {
+    // We wait a bit before showing our pending spinner. Some actions are very fast so we
+    // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
+    const [shouldShowPendingSpinner, setShouldShowPendingSpinner] = useState(false);
+    useEffect(() => {
+        if (!isPending) {
+            setShouldShowPendingSpinner(false);
+            return;
+        }
+
+        const timeout = createTimeout(() => {
+            setShouldShowPendingSpinner(true);
+        }, delayLoadingIndicatorLimitMs);
+        return () => {
+            timeout.clear();
+        };
+    }, [isPending]);
+
+    // Only show the pending spinner if we are actually pending.
+    if (!isPending && shouldShowPendingSpinner) setShouldShowPendingSpinner(false);
+
     return (
         <Box flexGrow="1" overflow="hidden" display="flex" alignItems="flex-start" gap="1.5">
             <Box
@@ -31,6 +63,11 @@ export function TaskCollectionOption({collection}: {collection: LocalTaskCollect
                     )}
                 </Box>
             </Box>
+            {shouldShowPendingSpinner && (
+                <Box alignSelf="center" flexShrink="0" marginLeft="0.5">
+                    <SpinnerGap className={spinAnimationClassName} size={spacing["4"]} />
+                </Box>
+            )}
         </Box>
     );
 }

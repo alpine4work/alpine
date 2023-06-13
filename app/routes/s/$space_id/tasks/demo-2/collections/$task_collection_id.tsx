@@ -1,0 +1,82 @@
+import {useState} from "react";
+import {useParams, useSearchParams} from "react-router-dom";
+import TasksViewRouteWrapper from "~/app/routes/s/$space_id/tasks/demo-2/view";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
+import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
+import {useLocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
+import {TaskCollectionView} from "~/client/tasks/demo_2/task_collection_view";
+import {
+    deserializeTaskQueryFiltersSearchParam,
+    serializeTaskQueryFiltersSearchParam,
+} from "~/client/tasks/demo_2/task_query_filter";
+import {getTaskQueryFilterReferences} from "~/server/dynamo/helpers/get_task_query_filter_references";
+import {jsonWithSchema} from "~/server/remix/json_with_schema";
+import {LoaderArgs} from "~/server/remix/loader_context";
+import {LocalTaskCollectionId, SpaceId} from "~/shared/id/types/id_types";
+import {Schema} from "~/shared/schema/schema";
+import {TaskQueryFilterReferencesSchema} from "~/shared/tasks/task_query_filter_references";
+
+const LoaderSchema = Schema.object({
+    filterReferences: TaskQueryFilterReferencesSchema,
+});
+
+export async function loader({request, params, context}: LoaderArgs) {
+    const url = new URL(request.url);
+    const filtersString = url.searchParams.get("filters");
+    const filters = filtersString ? deserializeTaskQueryFiltersSearchParam(filtersString) : [];
+    const spaceId = Schema.id<SpaceId>().deserialize(params.space_id ?? null);
+
+    const filterReferences = await getTaskQueryFilterReferences(
+        await context.actor.authenticate(),
+        spaceId,
+        filters,
+    );
+
+    return jsonWithSchema(LoaderSchema, {filterReferences});
+}
+
+export default function TaskCollectionRoute() {
+    const collectionId = Schema.id<LocalTaskCollectionId>().deserialize(
+        useParams()["task_collection_id"] ?? null,
+    );
+    const [searchParams] = useSearchParams();
+    const [initialFilters] = useState(() => {
+        const filtersString = searchParams.get("filters");
+        if (!filtersString) return [];
+        return deserializeTaskQueryFiltersSearchParam(filtersString);
+    });
+
+    const {filterReferences} = useLoaderDataWithSchema(LoaderSchema);
+    const [state, dispatch] = useLocalTasksState();
+
+    const isInitialAppRender = useIsInitialAppRender();
+
+    // TODO(calebmer): A production implementation should not remount everything on
+    // initial render!
+    if (isInitialAppRender) return <TasksViewRouteWrapper />;
+
+    return (
+        <TaskCollectionView
+            // Remount when the collection changes...
+            key={collectionId}
+            state={state}
+            dispatch={dispatch}
+            collectionId={collectionId}
+            initialFilters={isInitialAppRender ? [] : initialFilters}
+            initialFilterReferences={filterReferences}
+            onFiltersChange={filters => {
+                const url = new URL(window.location.href);
+
+                if (filters.length === 0) {
+                    url.searchParams.delete("filters");
+                } else {
+                    url.searchParams.set("filters", serializeTaskQueryFiltersSearchParam(filters));
+                }
+
+                // Silently update the URL without telling Remix so our component doesn't
+                // re-render unnecessarily.
+                window.history.replaceState(null, "", url);
+            }}
+        />
+    );
+}

@@ -140,6 +140,8 @@ export type LocalTaskCollection = SchemaType<typeof LocalTaskCollectionSchema>;
 const LocalTaskCollectionSchema = Schema.object({
     id: Schema.id<LocalTaskCollectionId>(),
     name: LabelStringSchema,
+    // TODO(calebmer): In our production implementation consider excluding
+    // yellow for now and defaulting to grey.
     color: Schema.enum(themeColors),
     createdTime: Schema.date.default(new Date("2023-06-05T20:28:14.198Z")),
     lastTaskAddedOrRemovedTimeRoundedToDay: Schema.date

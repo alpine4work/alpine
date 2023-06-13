@@ -14,6 +14,7 @@ export function TaskQueryViewCustomizationBar({
     filters,
     filterReferences,
     onFiltersChange,
+    shouldCollapseWhenFiltersAreEmpty,
 }: {
     state: LocalTasksState;
     filters: ReadonlyArray<TaskQueryFilter>;
@@ -22,19 +23,29 @@ export function TaskQueryViewCustomizationBar({
         filters: ReadonlyArray<TaskQueryFilter>,
         mergeFilterReferences?: TaskQueryFilterReferences,
     ) => void;
+    shouldCollapseWhenFiltersAreEmpty: boolean;
 }) {
     const addFilter = (filter: TaskQueryFilter) => {
         onFiltersChange([...filters, filter]);
     };
 
+    const shouldCollapse = shouldCollapseWhenFiltersAreEmpty && filters.length === 0;
+
     return (
         <Box display="flex" alignItems="flex-start">
             {filters.length > 0 && (
-                <Box height="6" display="flex" alignItems="center" paddingRight="3">
+                <Box height="6" display="flex" alignItems="center" paddingRight="2">
                     Filter:
                 </Box>
             )}
-            <Box flexGrow="1" display="flex" flexWrap="wrap" alignItems="center" gap="2">
+            <Box
+                flexGrow={!shouldCollapse ? "1" : undefined}
+                display="flex"
+                flexWrap="wrap"
+                alignItems="center"
+                gap="2"
+                marginLeft={shouldCollapse ? "-2" : undefined}
+            >
                 {filters.map((filter, index) => (
                     <TaskQueryFilterEditor
                         key={index}
@@ -204,9 +215,8 @@ export function TaskQueryViewCustomizationBar({
                         </IconButton>
                     ) : (
                         <Button
-                            variant="neutral"
+                            variant={shouldCollapse ? "quiet" : "neutral"}
                             icon={<Plus />}
-                            iconPlacement="end"
                             height="6"
                             paddingX="2"
                         >
@@ -215,8 +225,11 @@ export function TaskQueryViewCustomizationBar({
                     )}
                 </MenuButton>
             </Box>
-            <Box paddingLeft="5">
-                <Box borderLeft="grey-5" paddingLeft="5">
+            <Box paddingLeft={!shouldCollapse ? "5" : "2"}>
+                <Box
+                    borderLeft={!shouldCollapse ? "grey-5" : undefined}
+                    paddingLeft={!shouldCollapse ? "5" : undefined}
+                >
                     <Button icon={<SortAscending />} height="6" paddingX="2">
                         Sort
                     </Button>
