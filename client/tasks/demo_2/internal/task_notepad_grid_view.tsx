@@ -15,6 +15,7 @@ import {
     TaskGridPresentationalViewRef,
 } from "~/client/tasks/demo_2/task_grid_presentational_view";
 import {useTaskGhostRowPlaceholderTutorial} from "~/client/tasks/demo_2/use_task_ghost_row_placeholder_tutorial";
+import {assert} from "~/shared/helpers/control/assert";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
 import {OrderKey} from "~/shared/helpers/sort/order_key";
 import {generateId} from "~/shared/id/id";
@@ -88,6 +89,7 @@ function TaskNotepadGridView(
             for (const [orderKey, childTaskId] of parentTask.childTaskIdByOrderKey) {
                 const childTask = state.database.getTask(childTaskId);
 
+                assert(!taskRowIds.has(childTask.id), "Tasks in notepad must be unique");
                 taskRowIds.add(childTask.id);
 
                 const position: TaskNotepadGridViewRowPosition = {
@@ -108,6 +110,7 @@ function TaskNotepadGridView(
         };
 
         for (const [orderKey, task] of tasks) {
+            assert(!taskRowIds.has(task.id), "Tasks in notepad must be unique");
             taskRowIds.add(task.id);
 
             const position: TaskNotepadGridViewRowPosition = {

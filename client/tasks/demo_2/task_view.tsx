@@ -15,6 +15,7 @@ import {
     TaskDetailPresentationalView,
     TaskDetailPresentationalViewRef,
 } from "~/client/tasks/demo_2/task_detail_presentational_view";
+import {assert} from "~/shared/helpers/control/assert";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
 import {OrderKey} from "~/shared/helpers/sort/order_key";
 import {generateId} from "~/shared/id/id";
@@ -61,6 +62,7 @@ export function TaskView({
             for (const [orderKey, childTaskId] of parentTask.childTaskIdByOrderKey) {
                 const childTask = state.database.getTask(childTaskId);
 
+                assert(childTaskRowIds.has(childTask.id), "Tasks in child tasks must be unique");
                 childTaskRowIds.add(childTask.id);
 
                 const position: TaskViewChildTasksGridViewRowPosition = {
