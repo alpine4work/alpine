@@ -1,6 +1,5 @@
 import {toCalendarDate} from "@internationalized/date";
 import {CalendarDate, parseAbsolute, parseDate} from "@internationalized/date";
-import {compareAsc} from "date-fns";
 import {MutableRefObject, useEffect, useMemo, useRef} from "react";
 import {useDevConsoleTool} from "~/client/dev/dev_console";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
@@ -8,12 +7,14 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {Store} from "~/client/helpers/store/store";
 import {useStore} from "~/client/helpers/store/use_store";
 import {ValueStore} from "~/client/helpers/store/value_store";
+import {createTaskQuerySortsCompareFunction} from "~/client/tasks/demo_2/internal/create_task_query_sorts_compare_function";
 import {evaluateTaskQueryNormalizedFilters} from "~/client/tasks/demo_2/internal/evaluate_task_query_normalized_filters";
 import {
     TaskQueryNormalizedFilters,
     normalizeTaskQueryFilters,
 } from "~/client/tasks/demo_2/internal/normalize_task_query_filters";
 import {TaskQueryFilter} from "~/client/tasks/demo_2/task_query_filter";
+import {TaskQuerySort} from "~/client/tasks/demo_2/task_query_sort";
 import {
     TaskAssignee,
     TaskAssigneeActiveStatus,
@@ -1172,6 +1173,7 @@ class LocalTasksDatabase {
 
     public queryAllTasks(
         filters: ReadonlyArray<TaskQueryFilter>,
+        sorts: ReadonlyArray<TaskQuerySort>,
         context: {currentAccountId: AccountId; currentDate: CalendarDate},
     ) {
         const normalizedFiltersResult = normalizeTaskQueryFilters(filters, context);
@@ -1186,12 +1188,7 @@ class LocalTasksDatabase {
             }
         }
 
-        tasks.sort((task1, task2) => {
-            return -(
-                task1.createdDate.compare(task2.createdDate) ||
-                compareAsc(task1.createdTime, task2.createdTime)
-            );
-        });
+        tasks.sort(createTaskQuerySortsCompareFunction(sorts));
 
         return tasks;
     }
@@ -1199,6 +1196,7 @@ class LocalTasksDatabase {
     public queryCollectionTasks(
         collectionId: LocalTaskCollectionId,
         filters: ReadonlyArray<TaskQueryFilter>,
+        sorts: ReadonlyArray<TaskQuerySort>,
         context: {currentAccountId: AccountId; currentDate: CalendarDate},
     ) {
         const normalizedFiltersResult = normalizeTaskQueryFilters(filters, context);
@@ -1215,6 +1213,11 @@ class LocalTasksDatabase {
             if (evaluateTaskQueryNormalizedFilters(normalizedFilters, task)) {
                 tasks.push({orderKey, task});
             }
+        }
+
+        if (sorts.length > 0) {
+            const compare = createTaskQuerySortsCompareFunction(sorts);
+            tasks.sort(({task: task1}, {task: task2}) => compare(task1, task2));
         }
 
         return tasks;

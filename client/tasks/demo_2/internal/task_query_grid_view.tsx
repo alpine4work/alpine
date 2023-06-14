@@ -17,6 +17,7 @@ import {
     TaskGridPresentationalViewRef,
 } from "~/client/tasks/demo_2/task_grid_presentational_view";
 import {TaskQueryFilter} from "~/client/tasks/demo_2/task_query_filter";
+import {TaskQuerySort} from "~/client/tasks/demo_2/task_query_sort";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
 import {OrderKey} from "~/shared/helpers/sort/order_key";
 import {generateId} from "~/shared/id/id";
@@ -45,10 +46,12 @@ function TaskQueryGridView(
         state,
         dispatch,
         filters,
+        sorts,
     }: {
         state: LocalTasksState;
         dispatch: (action: LocalTasksAction) => void;
         filters: ReadonlyArray<TaskQueryFilter>;
+        sorts: ReadonlyArray<TaskQuerySort>;
     },
     ref: Ref<TaskGridPresentationalViewRef>,
 ) {
@@ -59,11 +62,11 @@ function TaskQueryGridView(
     const gridViewRef = useRef<TaskGridPresentationalViewRef>(null);
 
     const tasks = useMemo(() => {
-        return state.database.queryAllTasks(filters, {
+        return state.database.queryAllTasks(filters, sorts, {
             currentAccountId: currentAccount.id,
             currentDate,
         });
-    }, [currentAccount.id, currentDate, filters, state.database]);
+    }, [currentAccount.id, currentDate, filters, sorts, state.database]);
 
     const [expandedTaskIds, setExpandedTaskIds] = useState(new Set<LocalTaskId>());
 

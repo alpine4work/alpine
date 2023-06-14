@@ -1,7 +1,7 @@
 import {DndContext, DragOverlay, closestCenter, useDndContext} from "@dnd-kit/core";
 import {SortableContext, arrayMove, useSortable} from "@dnd-kit/sortable";
 import {CaretDown, DotsSixVertical, Plus, X} from "phosphor-react";
-import {Fragment, Key, ReactNode, useState} from "react";
+import {Fragment, Key, ReactNode, useMemo, useState} from "react";
 import {mergeProps} from "react-aria";
 import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box";
@@ -15,18 +15,51 @@ import {spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
 import {noop} from "~/shared/helpers/control/noop";
 import {sprinkles} from "~/shared/styles/styles";
 
 let nextSortId = 1;
 
-export function TaskQuerySortsEditor({defaultOrderSentence}: {defaultOrderSentence: string}) {
-    const [sortsWithId, setSortsWithId] = useState<
+export function TaskQuerySortsEditor({
+    sorts,
+    onSortsChange,
+    defaultOrderSentence,
+}: {
+    sorts: ReadonlyArray<TaskQuerySort>;
+    onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
+    defaultOrderSentence: string;
+}) {
+    const [sortsWithId, _setSortsWithId] = useState<
         Array<{readonly id: Key; readonly sort: TaskQuerySort}>
-    >([]);
+    >(() => sorts.map(sort => ({id: nextSortId++, sort})));
+
+    const setSortsWithId = (
+        sortsWithId: Array<{readonly id: Key; readonly sort: TaskQuerySort}>,
+    ) => {
+        _setSortsWithId(sortsWithId);
+        onSortsChange(sortsWithId.map(({sort}) => sort));
+    };
+
+    // We assign IDs to sort objects within this function. If we receive new sorts
+    // from props that don't match our state then reset our state and
+    // regenerate IDs.
+    if (
+        !useMemo(
+            () =>
+                isDeepEqual(
+                    sortsWithId.map(({sort}) => sort),
+                    sorts,
+                ),
+            [sorts, sortsWithId],
+        )
+    ) {
+        setSortsWithId(sorts.map(sort => ({id: nextSortId++, sort})));
+    }
 
     const addSort = (sort: TaskQuerySort) => {
-        setSortsWithId(sortsWithId => [...sortsWithId, {id: nextSortId++, sort}]);
+        const newSortsWithId = [...sortsWithId, {id: nextSortId++, sort}];
+        setSortsWithId(newSortsWithId);
     };
 
     return (
@@ -42,19 +75,17 @@ export function TaskQuerySortsEditor({defaultOrderSentence}: {defaultOrderSenten
                         const {active, over} = event;
 
                         if (over && active.id !== over.id) {
-                            setSortsWithId(sortsWithId => {
-                                const oldIndex = sortsWithId.findIndex(
-                                    sortWithId => sortWithId.id === active.id,
-                                );
-                                const newIndex = sortsWithId.findIndex(
-                                    sortWithId => sortWithId.id === over.id,
-                                );
+                            const oldIndex = sortsWithId.findIndex(
+                                sortWithId => sortWithId.id === active.id,
+                            );
+                            const newIndex = sortsWithId.findIndex(
+                                sortWithId => sortWithId.id === over.id,
+                            );
 
-                                assert(oldIndex >= 0);
-                                assert(newIndex >= 0);
+                            assert(oldIndex >= 0);
+                            assert(newIndex >= 0);
 
-                                return arrayMove(sortsWithId, oldIndex, newIndex);
-                            });
+                            setSortsWithId(arrayMove(sortsWithId, oldIndex, newIndex));
                         }
                     }}
                 >
@@ -112,8 +143,7 @@ export function TaskQuerySortsEditor({defaultOrderSentence}: {defaultOrderSenten
                             onPress: () => {
                                 addSort({
                                     type: "Assignee",
-                                    // If you are sorting by assignee you probably want to see assigned tasks.
-                                    noAccountSide: "End",
+                                    noAccountSide: "Start",
                                 });
                             },
                         },
@@ -128,8 +158,7 @@ export function TaskQuerySortsEditor({defaultOrderSentence}: {defaultOrderSenten
                             onPress: () => {
                                 addSort({
                                     type: "Assigner",
-                                    // If you are sorting by assigner you probably want to see assigned tasks.
-                                    noAccountSide: "End",
+                                    noAccountSide: "Start",
                                 });
                             },
                         },
@@ -140,8 +169,6 @@ export function TaskQuerySortsEditor({defaultOrderSentence}: {defaultOrderSenten
                             onPress: () => {
                                 addSort({
                                     type: "DueDate",
-                                    // You probably care about overdue tasks or tasks due soon more than tasks due
-                                    // far in the future.
                                     direction: "Ascending",
                                 });
                             },
@@ -151,8 +178,7 @@ export function TaskQuerySortsEditor({defaultOrderSentence}: {defaultOrderSenten
                             onPress: () => {
                                 addSort({
                                     type: "CreatedDate",
-                                    // You probably care about new tasks more than older tasks.
-                                    direction: "Descending",
+                                    direction: "Ascending",
                                 });
                             },
                         },
@@ -161,8 +187,7 @@ export function TaskQuerySortsEditor({defaultOrderSentence}: {defaultOrderSenten
                             onPress: () => {
                                 addSort({
                                     type: "AssignedDate",
-                                    // You probably care about new tasks more than older tasks.
-                                    direction: "Descending",
+                                    direction: "Ascending",
                                 });
                             },
                         },
@@ -171,8 +196,7 @@ export function TaskQuerySortsEditor({defaultOrderSentence}: {defaultOrderSenten
                             onPress: () => {
                                 addSort({
                                     type: "ClosedDate",
-                                    // You probably care about new tasks more than older tasks.
-                                    direction: "Descending",
+                                    direction: "Ascending",
                                 });
                             },
                         },
@@ -181,8 +205,7 @@ export function TaskQuerySortsEditor({defaultOrderSentence}: {defaultOrderSenten
                             onPress: () => {
                                 addSort({
                                     type: "ActivatedDate",
-                                    // You probably care about new tasks more than older tasks.
-                                    direction: "Descending",
+                                    direction: "Ascending",
                                 });
                             },
                         },
@@ -521,14 +544,14 @@ function TaskQuerySortsEditorRowAccountNoAccountSide({
             <MenuButton
                 actions={[
                     {
-                        label: "Nobody last",
-                        isSelected: noAccountSide === "End",
-                        onPress: () => onNoAccountSideChange("End"),
-                    },
-                    {
                         label: "Nobody first",
                         isSelected: noAccountSide === "Start",
                         onPress: () => onNoAccountSideChange("Start"),
+                    },
+                    {
+                        label: "Nobody last",
+                        isSelected: noAccountSide === "End",
+                        onPress: () => onNoAccountSideChange("End"),
                     },
                 ]}
             >

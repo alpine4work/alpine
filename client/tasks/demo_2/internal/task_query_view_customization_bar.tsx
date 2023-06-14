@@ -8,6 +8,7 @@ import {TaskQueryFilterEditor} from "~/client/tasks/demo_2/internal/task_query_f
 import {TaskQuerySortsEditor} from "~/client/tasks/demo_2/internal/task_query_sorts_editor";
 import {LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
 import {TaskQueryFilter} from "~/client/tasks/demo_2/task_query_filter";
+import {TaskQuerySort} from "~/client/tasks/demo_2/task_query_sort";
 import {spacing} from "~/shared/design/spacing";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references";
 
@@ -17,6 +18,8 @@ export function TaskQueryViewCustomizationBar({
     filterReferences,
     onFiltersChange,
     shouldCollapseWhenFiltersAreEmpty,
+    sorts,
+    onSortsChange,
     defaultOrderSentence,
 }: {
     state: LocalTasksState;
@@ -27,6 +30,8 @@ export function TaskQueryViewCustomizationBar({
         mergeFilterReferences?: TaskQueryFilterReferences,
     ) => void;
     shouldCollapseWhenFiltersAreEmpty: boolean;
+    sorts: ReadonlyArray<TaskQuerySort>;
+    onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
     defaultOrderSentence: string;
 }) {
     const addFilter = (filter: TaskQueryFilter) => {
@@ -243,7 +248,11 @@ export function TaskQueryViewCustomizationBar({
                                 backgroundColor={{light: "grey-0", dark: "grey-5"}}
                                 boxShadow="elevation-20"
                             >
-                                <TaskQuerySortsEditor defaultOrderSentence={defaultOrderSentence} />
+                                <TaskQuerySortsEditor
+                                    sorts={sorts}
+                                    onSortsChange={onSortsChange}
+                                    defaultOrderSentence={defaultOrderSentence}
+                                />
                             </Box>
                         }
                     >

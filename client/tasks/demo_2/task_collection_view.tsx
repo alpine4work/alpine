@@ -8,6 +8,7 @@ import {TaskQueryViewCustomizationBar} from "~/client/tasks/demo_2/internal/task
 import {LocalTasksAction, LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
 import {TaskGridPresentationalViewRef} from "~/client/tasks/demo_2/task_grid_presentational_view";
 import {TaskQueryFilter} from "~/client/tasks/demo_2/task_query_filter";
+import {TaskQuerySort} from "~/client/tasks/demo_2/task_query_sort";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {LocalTaskCollectionId} from "~/shared/id/types/id_types";
@@ -22,8 +23,10 @@ export function TaskCollectionView({
     dispatch,
     collectionId,
     initialFilters,
-    onFiltersChange,
     initialFilterReferences,
+    onFiltersChange,
+    initialSorts,
+    onSortsChange,
 }: {
     state: LocalTasksState;
     dispatch: (action: LocalTasksAction) => void;
@@ -31,6 +34,8 @@ export function TaskCollectionView({
     initialFilters: ReadonlyArray<TaskQueryFilter>;
     initialFilterReferences: TaskQueryFilterReferences;
     onFiltersChange: (filters: ReadonlyArray<TaskQueryFilter>) => void;
+    initialSorts: ReadonlyArray<TaskQuerySort>;
+    onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
 }) {
     const gridViewRef = useRef<TaskGridPresentationalViewRef>(null);
 
@@ -41,13 +46,23 @@ export function TaskCollectionView({
         filterReferences: initialFilterReferences,
     });
 
-    const lastFiltersRef = useRef(initialFilters);
+    const lastFiltersRef = useRef(filters);
     useEffect(() => {
         if (lastFiltersRef.current !== filters) {
             onFiltersChange(filters);
             lastFiltersRef.current = filters;
         }
     }, [filters, onFiltersChange]);
+
+    const [sorts, setSorts] = useState(initialSorts);
+
+    const lastSortsRef = useRef(sorts);
+    useEffect(() => {
+        if (lastSortsRef.current !== sorts) {
+            onSortsChange(sorts);
+            lastSortsRef.current = sorts;
+        }
+    }, [onSortsChange, sorts]);
 
     return (
         <Box
@@ -135,6 +150,8 @@ export function TaskCollectionView({
                             };
                         });
                     }}
+                    sorts={sorts}
+                    onSortsChange={setSorts}
                 />
             </Box>
             <TaskCollectionGridView
@@ -143,6 +160,7 @@ export function TaskCollectionView({
                 dispatch={dispatch}
                 collectionId={collectionId}
                 filters={filters}
+                sorts={sorts}
             />
         </Box>
     );
