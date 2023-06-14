@@ -16,6 +16,7 @@ import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
+import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growing_width";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts";
@@ -286,43 +287,14 @@ function TaskDetailAssigneeFieldInput({
                             <TaskNoAccountAvatar />
                         )}
                     </Box>
-                    <Box
-                        maxWidth="full"
-                        overflow="hidden"
-                        // The width of this element is determined by nested text boxes. The `<input>`
-                        // then uses the parent width as its own width.
-                        display="inline-block"
-                    >
-                        <Box height="0" opacity="0" pointerEvents="none" aria-hidden={true}>
-                            {nullAssigneeLabel}
-                        </Box>
-                        <Box
-                            height="0"
-                            opacity="0"
-                            pointerEvents="none"
-                            aria-hidden={true}
-                            // Leading and trailing spaces should contribute to width.
-                            style={{whiteSpace: "pre"}}
-                        >
-                            {inputValue}
-                        </Box>
-                        <input
-                            {...inputProps}
-                            ref={inputRef}
-                            type="text"
-                            className={sprinkles({
-                                display: "inline-block",
-                                width: "full",
-                                backgroundColor: "transparent",
-                            })}
-                            // By default `<input>` elements have a `min-width` determined by the `size`
-                            // property. We want our `<input>`s `min-width` to be determined by our CSS
-                            // so set it to a small value as not to matter.
-                            // https://stackoverflow.com/questions/29470676/why-doesnt-the-input-element-respect-min-width
-                            size={1}
-                            placeholder={nullAssigneeLabel}
-                        />
-                    </Box>
+                    <InputWithAutoGrowingWidth
+                        {...inputProps}
+                        ref={inputRef}
+                        placeholder={nullAssigneeLabel}
+                        className={sprinkles({
+                            backgroundColor: "transparent",
+                        })}
+                    />
                 </Box>
             </FocusRing>
         </OverlayAnimated>

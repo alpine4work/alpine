@@ -27,6 +27,7 @@ import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {ModalDialog} from "~/client/design/modal_dialog";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
+import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growing_width";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
 import {useConfirmSaveAfterLosingFocus} from "~/client/helpers/use_confirm_save_after_losing_focus";
@@ -722,39 +723,13 @@ function TaskDetailCollectionsFieldCreateCollectionInput({
                         <Box
                             height={taskCollectionChipHeight}
                             marginY={`-${taskCollectionChipPaddingY}`}
-                            maxWidth="full"
-                            overflow="hidden"
-                            // The width of this element is determined by nested text boxes. The `<input>`
-                            // then uses the parent width as its own width.
-                            display="inline-block"
-                            style={{verticalAlign: "bottom"}}
                         >
-                            <Box height="0" opacity="0" pointerEvents="none" aria-hidden={true}>
-                                {inputPlaceholder}
-                            </Box>
-                            <Box
-                                height="0"
-                                opacity="0"
-                                pointerEvents="none"
-                                aria-hidden={true}
-                                // Leading and trailing spaces should contribute to width.
-                                style={{whiteSpace: "pre"}}
-                            >
-                                {inputValue}
-                            </Box>
-                            <input
+                            <InputWithAutoGrowingWidth
                                 type="text"
                                 className={sprinkles({
-                                    display: "inline-block",
-                                    width: "full",
                                     height: taskCollectionChipHeight,
                                     backgroundColor: "transparent",
                                 })}
-                                // By default `<input>` elements have a `min-width` determined by the `size`
-                                // property. We want our `<input>`s `min-width` to be determined by our CSS
-                                // so set it to a small value as not to matter.
-                                // https://stackoverflow.com/questions/29470676/why-doesnt-the-input-element-respect-min-width
-                                size={1}
                                 placeholder={inputPlaceholder}
                                 value={inputValue}
                                 onChange={event => setInputValue(event.currentTarget.value)}
