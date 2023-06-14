@@ -71,6 +71,7 @@ function MessageViewEditor<RoomKey extends string>(
         >
             <FocusRing offset="border" isVisibleWhenFocusWithin={true} isVisibleFromAnyFocus={true}>
                 <Box
+                    data-yoyo
                     pointerEvents="auto"
                     maxWidth="160"
                     overflow="hidden"

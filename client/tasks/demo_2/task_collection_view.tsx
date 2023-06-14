@@ -1,9 +1,7 @@
-import {DotsThree} from "phosphor-react";
 import {useEffect, useRef, useState} from "react";
 import {Box} from "~/client/design/box";
-import {IconButton} from "~/client/design/icon_button";
-import {MenuButton} from "~/client/design/menu_button";
 import {TaskCollectionGridView} from "~/client/tasks/demo_2/internal/task_collection_grid_view";
+import {TaskCollectionViewHeader} from "~/client/tasks/demo_2/internal/task_collection_view_header";
 import {TaskQueryViewCustomizationBar} from "~/client/tasks/demo_2/internal/task_query_view_customization_bar";
 import {LocalTasksAction, LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
 import {TaskGridPresentationalViewRef} from "~/client/tasks/demo_2/task_grid_presentational_view";
@@ -78,56 +76,16 @@ export function TaskCollectionView({
                 onSelectAll: () => assertExists(gridViewRef.current).focusEnd(),
             })}
         >
-            <Box
-                paddingTop="5"
-                paddingBottom="3"
-                paddingX="5"
-                display="flex"
-                alignItems="center"
-                gap="2"
-            >
-                <Box display="flex" alignItems="center" gap="1">
-                    <Box display="flex" justifyContent="center" width="3">
-                        <Box
-                            // Carefully positioned so it aligns with the "+" icon in the
-                            // "Add filter" button.
-                            width="2"
-                            height="2"
-                            borderRadius="full"
-                            backgroundColor={`${collection.color}-50-const`}
-                        />
-                    </Box>
-                    <Box fontSize="200" fontStyle="truncate-semi-bold">
-                        {collection.name}
-                    </Box>
-                </Box>
-                <MenuButton
-                    actions={[
-                        {
-                            label: "Copy link",
-                            onPress: () => {
-                                // NOCOMMIT
-                            },
-                        },
-                        {
-                            label: "Edit name",
-                            onPress: () => {
-                                // NOCOMMIT
-                            },
-                        },
-                        {
-                            label: "Edit color",
-                            onPress: () => {
-                                // NOCOMMIT
-                            },
-                        },
-                    ]}
-                >
-                    <IconButton size="sm" description="More" withoutTooltip>
-                        <DotsThree />
-                    </IconButton>
-                </MenuButton>
-            </Box>
+            <TaskCollectionViewHeader
+                collection={collection}
+                onCollectionNameChange={name =>
+                    dispatch({
+                        type: "UpdateTaskCollectionName",
+                        taskCollectionId: collection.id,
+                        name,
+                    })
+                }
+            />
             <Box paddingX="5" paddingBottom="5">
                 <TaskQueryViewCustomizationBar
                     shouldCollapseWhenFiltersAreEmpty={true}

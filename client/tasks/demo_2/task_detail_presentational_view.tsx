@@ -228,7 +228,7 @@ function TaskDetailPresentationalView<ChildTaskRow>(
                             },
                         ]}
                     >
-                        <IconButton description="More" withoutTooltip={true}>
+                        <IconButton size="md" description="More" withoutTooltip={true}>
                             <DotsThree />
                         </IconButton>
                     </MenuButton>

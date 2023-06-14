@@ -1165,6 +1165,21 @@ class LocalTasksDatabase {
         });
     }
 
+    public updateTaskCollectionName(taskCollectionId: LocalTaskCollectionId, name: string) {
+        return new LocalTasksDatabase({
+            taskById: this._taskById,
+            taskCollectionById: this._taskCollectionById.update(
+                taskCollectionId,
+                taskCollection => {
+                    if (!taskCollection) throw new NotFoundError("Task collection not found");
+                    return {...taskCollection, name};
+                },
+            ),
+            notepadPageCount: this._notepadPageCount,
+            taskIdByOrderKeyByNotepadPage: this._taskIdByOrderKeyByNotepadPage,
+        });
+    }
+
     public getAllTaskCollections() {
         return Array.from(this._taskCollectionById.values()).sort((collection1, collection2) =>
             collection1.name.localeCompare(collection2.name),
@@ -1412,7 +1427,8 @@ export type LocalTasksAction =
     | LocalTasksMoveTaskAction
     | LocalTasksCreateTaskCollectionAndAddToTaskAction
     | LocalTasksAddTaskCollectionToTaskAction
-    | LocalTasksRemoveTaskCollectionFromTaskAction;
+    | LocalTasksRemoveTaskCollectionFromTaskAction
+    | LocalTasksUpdateTaskCollectionNameAction;
 
 type LocalTasksRestoreStateAction = {
     readonly type: "RestoreState";
@@ -1504,6 +1520,12 @@ type LocalTasksRemoveTaskCollectionFromTaskAction = {
     readonly type: "RemoveTaskCollectionFromTask";
     readonly taskId: LocalTaskId;
     readonly taskCollectionId: LocalTaskCollectionId;
+};
+
+type LocalTasksUpdateTaskCollectionNameAction = {
+    readonly type: "UpdateTaskCollectionName";
+    readonly taskCollectionId: LocalTaskCollectionId;
+    readonly name: string;
 };
 
 function reduceLocalTasksState(state: LocalTasksState, action: LocalTasksAction): LocalTasksState {
@@ -1653,6 +1675,16 @@ function reduceLocalTasksState(state: LocalTasksState, action: LocalTasksAction)
                 database: state.database.removeTaskCollectionFromTask(
                     action.taskId,
                     action.taskCollectionId,
+                ),
+            };
+        }
+
+        case "UpdateTaskCollectionName": {
+            return {
+                ...state,
+                database: state.database.updateTaskCollectionName(
+                    action.taskCollectionId,
+                    action.name,
                 ),
             };
         }

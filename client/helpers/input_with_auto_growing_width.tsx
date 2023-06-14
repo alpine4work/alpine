@@ -1,3 +1,4 @@
+import classNames from "classnames";
 import {Ref, forwardRef} from "react";
 import {InputHTMLAttributes} from "react";
 
@@ -5,7 +6,7 @@ const InputWithAutoGrowingWidthForwardRef = forwardRef(InputWithAutoGrowingWidth
 export {InputWithAutoGrowingWidthForwardRef as InputWithAutoGrowingWidth};
 
 function InputWithAutoGrowingWidth(
-    props: InputHTMLAttributes<HTMLInputElement>,
+    {textClassName, ...props}: InputHTMLAttributes<HTMLInputElement> & {textClassName?: string},
     ref: Ref<HTMLInputElement>,
 ) {
     return (
@@ -20,6 +21,7 @@ function InputWithAutoGrowingWidth(
         >
             <div
                 aria-hidden={true}
+                className={textClassName}
                 style={{
                     height: 0,
                     opacity: 0,
@@ -32,6 +34,7 @@ function InputWithAutoGrowingWidth(
             </div>
             <div
                 aria-hidden={true}
+                className={textClassName}
                 style={{
                     height: 0,
                     opacity: 0,
@@ -56,6 +59,7 @@ function InputWithAutoGrowingWidth(
                     display: "inline-block",
                     width: "100%",
                 }}
+                className={classNames(props.className, textClassName)}
             />
         </div>
     );

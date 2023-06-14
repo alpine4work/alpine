@@ -386,15 +386,19 @@ export function OverlayTriggerButton({
 
         switch (returnFocusTo) {
             case "TriggerElement": {
-                overlayTriggerElement.focus();
+                overlayTriggerElement.focus({preventScroll: true});
                 break;
             }
             case "NextElement": {
-                getNextFocusableElementIfExists(overlayTriggerElement)?.focus();
+                getNextFocusableElementIfExists(overlayTriggerElement)?.focus({
+                    preventScroll: true,
+                });
                 break;
             }
             case "PreviousElement": {
-                getPreviousFocusableElementIfExists(overlayTriggerElement)?.focus();
+                getPreviousFocusableElementIfExists(overlayTriggerElement)?.focus({
+                    preventScroll: true,
+                });
                 break;
             }
             case undefined: {
@@ -466,7 +470,7 @@ const OverlayTriggerOverlay = forwardRef(function OverlayTriggerOverlay(
         switch (initiallyFocus) {
             case "OverlayElement": {
                 if (overlayElement.matches(focusableElementSelector)) {
-                    overlayElement.focus();
+                    overlayElement.focus({preventScroll: true});
                     break;
                 }
 
@@ -475,7 +479,7 @@ const OverlayTriggerOverlay = forwardRef(function OverlayTriggerOverlay(
             case "FirstFocusableElement": {
                 getNextFocusableElementIfExists(null, {
                     withinElement: overlayElement,
-                })?.focus();
+                })?.focus({preventScroll: true});
                 break;
             }
             case "LastFocusableElement": {
@@ -485,11 +489,11 @@ const OverlayTriggerOverlay = forwardRef(function OverlayTriggerOverlay(
                 }
 
                 if (lastElementChild.matches(focusableElementSelector)) {
-                    (lastElementChild as HTMLElement).focus();
+                    (lastElementChild as HTMLElement).focus({preventScroll: true});
                 } else {
                     getPreviousFocusableElementIfExists(lastElementChild, {
                         withinElement: overlayElement,
-                    })?.focus();
+                    })?.focus({preventScroll: true});
                 }
                 break;
             }

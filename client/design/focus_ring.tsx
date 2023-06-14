@@ -177,9 +177,13 @@ function FocusRing(
                 return isVisibleFromAnyFocus || isFocusVisible();
             };
 
-            let isFocused = isVisibleWhenFocusWithin
-                ? targetElement.contains(document.activeElement)
-                : document.activeElement === targetElement;
+            let isFocused =
+                // If we are initially mounting, don't consider the element to be focused so
+                // `update()` actually updates our state.
+                hasInitiallyMountedRef.current &&
+                (isVisibleWhenFocusWithin
+                    ? targetElement.contains(document.activeElement)
+                    : document.activeElement === targetElement);
 
             const update = (event?: FocusEvent) => {
                 const focusedElement =

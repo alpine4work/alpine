@@ -115,6 +115,11 @@ globalStyle("button, input, optgroup, select, textarea", {
     padding: 0,
 });
 
+globalStyle("input[type='text']", {
+    // Remove default background color.
+    backgroundColor: "transparent",
+});
+
 // Remove the inheritance of text transform in Edge and Firefox.
 globalStyle("button, select", {
     textTransform: "none",
