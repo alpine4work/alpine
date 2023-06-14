@@ -244,6 +244,7 @@ function TaskNotepadGridView(
                     type: "CreateTask",
                     creatorId: currentAccount.id,
                     creatorTimeZone: timeZone,
+                    normalizedFilters: null,
                     ...position,
                     side: "Above",
                 });
@@ -253,6 +254,7 @@ function TaskNotepadGridView(
                     type: "CreateTask",
                     creatorId: currentAccount.id,
                     creatorTimeZone: timeZone,
+                    normalizedFilters: null,
                     ...position,
                     side: "Below",
                     onLayoutEffect: taskId => {
@@ -269,6 +271,7 @@ function TaskNotepadGridView(
                     type: "CreateTask",
                     creatorId: currentAccount.id,
                     creatorTimeZone: timeZone,
+                    normalizedFilters: null,
                     parentTask: {id: taskId, side: "Above"},
                     onLayoutEffect: taskId => {
                         // TODO(calebmer): A production implementation probably shouldn't do an
@@ -291,6 +294,7 @@ function TaskNotepadGridView(
                         type: "CreateTask",
                         creatorId: currentAccount.id,
                         creatorTimeZone: timeZone,
+                        normalizedFilters: null,
                         taskId: bottomTaskGhostRowId,
                         title,
                         notepad: {page: notepadPage, side: "Below"},
@@ -309,6 +313,7 @@ function TaskNotepadGridView(
                         type: "CreateTask",
                         creatorId: currentAccount.id,
                         creatorTimeZone: timeZone,
+                        normalizedFilters: null,
                         taskId: bottomTaskGhostRowId,
                         title,
                         notepad: {page: notepadPage, side: "Below"},
@@ -332,6 +337,7 @@ function TaskNotepadGridView(
                         type: "CreateTask",
                         creatorId: currentAccount.id,
                         creatorTimeZone: timeZone,
+                        normalizedFilters: null,
                         taskId: topTaskGhostRowId,
                         title,
                         notepad: {page: notepadPage, side: "Above"},
@@ -343,6 +349,7 @@ function TaskNotepadGridView(
                     type: "CreateTask",
                     creatorId: currentAccount.id,
                     creatorTimeZone: timeZone,
+                    normalizedFilters: null,
                     title,
                     notepad: {page: notepadPage, side: "Above"},
                     onLayoutEffect: taskId => {

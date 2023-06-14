@@ -9,7 +9,10 @@ import {Store} from "~/client/helpers/store/store";
 import {useStore} from "~/client/helpers/store/use_store";
 import {ValueStore} from "~/client/helpers/store/value_store";
 import {evaluateTaskQueryNormalizedFilters} from "~/client/tasks/demo_2/internal/evaluate_task_query_normalized_filters";
-import {normalizeTaskQueryFilters} from "~/client/tasks/demo_2/internal/normalize_task_query_filters";
+import {
+    TaskQueryNormalizedFilters,
+    normalizeTaskQueryFilters,
+} from "~/client/tasks/demo_2/internal/normalize_task_query_filters";
 import {TaskQueryFilter} from "~/client/tasks/demo_2/task_query_filter";
 import {
     TaskAssignee,
@@ -29,6 +32,7 @@ import {
 import {emptyArray} from "~/shared/helpers/array/empty_array";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {assert} from "~/shared/helpers/control/assert";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {Lazy} from "~/shared/helpers/control/lazy";
@@ -405,7 +409,7 @@ class LocalTasksDatabase {
             parseAbsolute(createdTime.toISOString(), options.creatorTimeZone),
         );
 
-        const task: LocalTask = {
+        let task: LocalTask = {
             id: options.taskId ?? generateId(),
             createdTime: new Date(),
             creatorTimeZone: options.creatorTimeZone,
@@ -554,6 +558,95 @@ class LocalTasksDatabase {
             };
 
             taskCollectionById = taskCollectionById.set(taskCollection.id, taskCollection);
+        }
+
+        // Fill in task fields to match what's in our normalized filters.
+        if (options.normalizedFilters) {
+            // TypeScript errors here when new normalized filters are added. If you add a
+            // new normalized filter you should make sure to update this code.
+            assertEqualTypes<
+                keyof TaskQueryNormalizedFilters,
+                | "statusFilter"
+                | "collectionsFilter"
+                | "assigneeFilter"
+                | "creatorFilter"
+                | "assignerFilter"
+                | "dueDateFilter"
+                | "createdDateFilter"
+                | "assignedDateFilter"
+                | "closedDateFilter"
+                | "activatedDateFilter"
+            >();
+
+            const filters = options.normalizedFilters;
+
+            // NOTE(calebmer): We intentionally don't auto-fill the active status when
+            // creating a new task. New tasks don't have an assignee so we'd have to
+            // auto-assign to the current account. This could create a lot of active task
+            // cards making their active task section less useful.
+            if (!filters.statusFilter.ifOpen && filters.statusFilter.ifClosed) {
+                task = {
+                    ...task,
+                    status: {
+                        type: "Closed",
+                        closedTime: task.createdTime,
+                        closerTimeZone: task.creatorTimeZone,
+                        closedDate: task.createdDate,
+                        closerId: task.creatorId,
+                    },
+                };
+
+                taskById = taskById.set(task.id, task);
+            }
+
+            if (filters.collectionsFilter) {
+                const newCollectionIds = [];
+
+                if (filters.collectionsFilter.type === "IncludesAllOf") {
+                    for (const collectionId of filters.collectionsFilter.collectionIds) {
+                        newCollectionIds.push(collectionId);
+                    }
+                }
+
+                if (filters.collectionsFilter.type === "IncludesOneOf") {
+                    const firstStep =
+                        filters.collectionsFilter.collectionIds[Symbol.iterator]().next();
+                    if (!firstStep.done) {
+                        newCollectionIds.push(firstStep.value);
+                    }
+                }
+
+                const oldCollectionIds = task.collectionIds;
+
+                task = {
+                    ...task,
+                    collectionIds: new Set([...task.collectionIds, ...newCollectionIds]),
+                };
+
+                taskById = taskById.set(task.id, task);
+
+                for (const collectionId of newCollectionIds) {
+                    let taskCollection = taskCollectionById.get(collectionId);
+                    if (!taskCollection) throw new NotFoundError("Task collection not found");
+
+                    if (oldCollectionIds.has(collectionId)) continue;
+
+                    taskCollection = {
+                        ...taskCollection,
+                        taskIdByOrderKey: taskCollection.taskIdByOrderKey.set(
+                            generateOrderKeyBetween(
+                                null,
+                                taskCollection.taskIdByOrderKey.getFirstEntry()?.[0] ?? null,
+                            ),
+                            task.id,
+                        ),
+                    };
+
+                    taskCollectionById = taskCollectionById.set(taskCollection.id, taskCollection);
+                }
+            }
+
+            // TODO(calebmer): Finish filter auto-fills in a production implementation...
         }
 
         return [
@@ -1190,6 +1283,18 @@ type LocalTasksDatabaseCreateTaskOptions = {
      * The time zone the task was created in.
      */
     creatorTimeZone: TimeZone;
+
+    /**
+     * Filters on the view where the task is created. We fill in fields on the
+     * task to match the view's filters when possible.
+     *
+     * If null then we will fill no fields on the task according to filters.
+     *
+     * We require this option so you don't forget to pass it in when creating a
+     * task in a filtered context since it's important for good UX of filtered
+     * views.
+     */
+    normalizedFilters: TaskQueryNormalizedFilters | null;
 
     /**
      * The ID to use for this task. The ID should not yet exist in our database. If

@@ -5,6 +5,7 @@ import {usePeekStackContext} from "~/client/peek/peek_stack";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour";
 import {useSpaceContext} from "~/client/spaces/space_context";
+import {normalizeTaskQueryFilters} from "~/client/tasks/demo_2/internal/normalize_task_query_filters";
 import {
     LocalTask,
     LocalTasksAction,
@@ -266,19 +267,37 @@ export function TaskQueryGridView({
             }}
             getTaskRowIndentation={({parentPositionStack}) => parentPositionStack.length}
             createTaskAbove={({position}) => {
+                const normalizeResult = normalizeTaskQueryFilters(filters, {
+                    currentAccountId: currentAccount.id,
+                    currentDate,
+                });
+
                 dispatch({
                     type: "CreateTask",
                     creatorId: currentAccount.id,
                     creatorTimeZone: timeZone,
+                    normalizedFilters:
+                        normalizeResult.type === "Possible"
+                            ? normalizeResult.normalizedFilters
+                            : null,
                     ...position,
                     side: "Above",
                 });
             }}
             createTaskBelowAndFocus={({position, parentPositionStack}) => {
+                const normalizeResult = normalizeTaskQueryFilters(filters, {
+                    currentAccountId: currentAccount.id,
+                    currentDate,
+                });
+
                 dispatch({
                     type: "CreateTask",
                     creatorId: currentAccount.id,
                     creatorTimeZone: timeZone,
+                    normalizedFilters:
+                        normalizeResult.type === "Possible"
+                            ? normalizeResult.normalizedFilters
+                            : null,
                     ...position,
                     side: "Below",
                     onLayoutEffect: taskId => {
@@ -295,10 +314,19 @@ export function TaskQueryGridView({
                 });
             }}
             createTaskChildAtStartAndFocus={({task: {id: taskId}, parentPositionStack}) => {
+                const normalizeResult = normalizeTaskQueryFilters(filters, {
+                    currentAccountId: currentAccount.id,
+                    currentDate,
+                });
+
                 dispatch({
                     type: "CreateTask",
                     creatorId: currentAccount.id,
                     creatorTimeZone: timeZone,
+                    normalizedFilters:
+                        normalizeResult.type === "Possible"
+                            ? normalizeResult.normalizedFilters
+                            : null,
                     parentTask: {id: taskId, side: "Above"},
                     onLayoutEffect: taskId => {
                         // TODO(calebmer): A production implementation probably shouldn't do an
@@ -319,6 +347,11 @@ export function TaskQueryGridView({
                 // `setBottomTaskGhostRowId()` call and the `dispatch()` which doesn't go
                 // through React state.
                 runWithImmediatePriority(() => {
+                    const normalizeResult = normalizeTaskQueryFilters(filters, {
+                        currentAccountId: currentAccount.id,
+                        currentDate,
+                    });
+
                     // Generate a new ghost row...
                     setBottomTaskGhostRowId(generateId<LocalTaskId>());
 
@@ -326,6 +359,10 @@ export function TaskQueryGridView({
                         type: "CreateTask",
                         creatorId: currentAccount.id,
                         creatorTimeZone: timeZone,
+                        normalizedFilters:
+                            normalizeResult.type === "Possible"
+                                ? normalizeResult.normalizedFilters
+                                : null,
                         taskId: bottomTaskGhostRowId,
                         title,
                         // NOCOMMIT: Do an equivalent thing here?
@@ -338,6 +375,11 @@ export function TaskQueryGridView({
                 // `setBottomTaskGhostRowId()` call and the `dispatch()` which doesn't go
                 // through React state.
                 runWithImmediatePriority(() => {
+                    const normalizeResult = normalizeTaskQueryFilters(filters, {
+                        currentAccountId: currentAccount.id,
+                        currentDate,
+                    });
+
                     // Generate a new ghost row...
                     setBottomTaskGhostRowId(generateId<LocalTaskId>());
 
@@ -345,6 +387,10 @@ export function TaskQueryGridView({
                         type: "CreateTask",
                         creatorId: currentAccount.id,
                         creatorTimeZone: timeZone,
+                        normalizedFilters:
+                            normalizeResult.type === "Possible"
+                                ? normalizeResult.normalizedFilters
+                                : null,
                         taskId: bottomTaskGhostRowId,
                         title,
                         // NOCOMMIT: Do an equivalent thing here?
@@ -362,6 +408,11 @@ export function TaskQueryGridView({
                 // `setTopTaskGhostRowId()` call and the `dispatch()` which doesn't go
                 // through React state.
                 runWithImmediatePriority(() => {
+                    const normalizeResult = normalizeTaskQueryFilters(filters, {
+                        currentAccountId: currentAccount.id,
+                        currentDate,
+                    });
+
                     // Don't create a new top ghost row.
                     setTopTaskGhostRowId(null);
 
@@ -369,6 +420,10 @@ export function TaskQueryGridView({
                         type: "CreateTask",
                         creatorId: currentAccount.id,
                         creatorTimeZone: timeZone,
+                        normalizedFilters:
+                            normalizeResult.type === "Possible"
+                                ? normalizeResult.normalizedFilters
+                                : null,
                         taskId: topTaskGhostRowId,
                         title,
                         // NOCOMMIT: Do an equivalent thing here?
@@ -377,10 +432,19 @@ export function TaskQueryGridView({
                 });
             }}
             createTaskAtStartFromTopGhostAndFocus={title => {
+                const normalizeResult = normalizeTaskQueryFilters(filters, {
+                    currentAccountId: currentAccount.id,
+                    currentDate,
+                });
+
                 dispatch({
                     type: "CreateTask",
                     creatorId: currentAccount.id,
                     creatorTimeZone: timeZone,
+                    normalizedFilters:
+                        normalizeResult.type === "Possible"
+                            ? normalizeResult.normalizedFilters
+                            : null,
                     title,
                     // NOCOMMIT: Do an equivalent thing here?
                     // notepad: {page: notepadPage, side: "Below"},

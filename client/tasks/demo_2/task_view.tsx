@@ -242,6 +242,7 @@ export function TaskView({
                         type: "CreateTask",
                         creatorId: currentAccount.id,
                         creatorTimeZone: timeZone,
+                        normalizedFilters: null,
                         ...position,
                         side: "Above",
                     });
@@ -251,6 +252,7 @@ export function TaskView({
                         type: "CreateTask",
                         creatorId: currentAccount.id,
                         creatorTimeZone: timeZone,
+                        normalizedFilters: null,
                         ...position,
                         side: "Below",
                         onLayoutEffect: taskId => {
@@ -273,6 +275,7 @@ export function TaskView({
                         type: "CreateTask",
                         creatorId: currentAccount.id,
                         creatorTimeZone: timeZone,
+                        normalizedFilters: null,
                         parentTask: {id: taskId, side: "Above"},
                         onLayoutEffect: taskId => {
                             // TODO(calebmer): A production implementation probably shouldn't do an
@@ -301,6 +304,7 @@ export function TaskView({
                             type: "CreateTask",
                             creatorId: currentAccount.id,
                             creatorTimeZone: timeZone,
+                            normalizedFilters: null,
                             taskId: bottomTaskGhostRowId,
                             title,
                             parentTask: {id: task.id, side: "Below"},
@@ -319,6 +323,7 @@ export function TaskView({
                             type: "CreateTask",
                             creatorId: currentAccount.id,
                             creatorTimeZone: timeZone,
+                            normalizedFilters: null,
                             taskId: bottomTaskGhostRowId,
                             title,
                             parentTask: {id: task.id, side: "Below"},
@@ -342,6 +347,7 @@ export function TaskView({
                             type: "CreateTask",
                             creatorId: currentAccount.id,
                             creatorTimeZone: timeZone,
+                            normalizedFilters: null,
                             taskId: topTaskGhostRowId,
                             title,
                             parentTask: {id: task.id, side: "Above"},
@@ -353,6 +359,7 @@ export function TaskView({
                         type: "CreateTask",
                         creatorId: currentAccount.id,
                         creatorTimeZone: timeZone,
+                        normalizedFilters: null,
                         title,
                         parentTask: {id: task.id, side: "Above"},
                         onLayoutEffect: taskId => {
