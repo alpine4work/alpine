@@ -10,15 +10,18 @@ export const taskCollectionChipContainerMaxWidth = `calc(50% - ${spacing["2.5"]}
 
 export function TaskCollectionChip({
     collection,
+    onPress,
     onRemove,
 }: {
     collection: LocalTaskCollection;
-    onRemove: (() => void) | null;
+    onPress?: () => void;
+    onRemove?: () => void;
 }) {
     return (
         <TaskCollectionChipBase
             color={collection.color}
             name={collection.name}
+            onPress={onPress}
             onRemove={onRemove}
         />
     );

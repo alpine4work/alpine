@@ -1,5 +1,6 @@
 import {X} from "phosphor-react";
 import {ReactNode, Ref, forwardRef} from "react";
+import {usePress} from "react-aria";
 import {Box} from "~/client/design/box";
 import {IconButton} from "~/client/design/icon_button";
 import {Spacing, addRemLengths, spacing} from "~/shared/design/spacing";
@@ -15,18 +16,23 @@ function TaskCollectionChipBase(
     {
         color,
         name,
+        onPress,
         onRemove,
     }: {
         color: ThemeColor;
         name: ReactNode;
-        onRemove: (() => void) | null;
+        onPress?: () => void;
+        onRemove?: () => void;
     },
     ref: Ref<HTMLDivElement>,
 ) {
+    const {pressProps, isPressed} = usePress({isDisabled: !onPress, onPress});
+
     return (
         <Box
+            {...pressProps}
             ref={ref}
-            backgroundColor="grey-5"
+            backgroundColor={isPressed ? "grey-10" : "grey-5"}
             height={taskCollectionChipHeight}
             fontSize="75"
             paddingRight={onRemove ? "0.5" : "1.5"}

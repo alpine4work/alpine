@@ -208,7 +208,7 @@ export function TaskCardPresentationalView({
                     marginLeft="-0.5"
                     style={{maxWidth: taskCollectionChipContainerMaxWidth}}
                 >
-                    <TaskCollectionChip collection={collection} onRemove={null} />
+                    <TaskCollectionChip collection={collection} />
                 </Box>,
             );
         }

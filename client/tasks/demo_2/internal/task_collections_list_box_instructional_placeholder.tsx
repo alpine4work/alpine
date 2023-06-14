@@ -26,11 +26,11 @@ export function TaskCollectionsListBoxInstructionalPlaceholder({
                     gap="1"
                 >
                     <Box display="flex" gap="1">
-                        <TaskCollectionChipBase color="red" name="Bugs" onRemove={null} />
-                        <TaskCollectionChipBase color="green" name="Q3" onRemove={null} />
+                        <TaskCollectionChipBase color="red" name="Bugs" />
+                        <TaskCollectionChipBase color="green" name="Q3" />
                     </Box>
                     <Box>
-                        <TaskCollectionChipBase color="cyan" name="Marketing" onRemove={null} />
+                        <TaskCollectionChipBase color="cyan" name="Marketing" />
                     </Box>
                 </Box>
             </Box>

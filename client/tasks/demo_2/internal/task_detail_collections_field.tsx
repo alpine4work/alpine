@@ -27,10 +27,13 @@ import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {ModalDialog} from "~/client/design/modal_dialog";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
+import {useShowToast} from "~/client/design/toast";
 import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growing_width";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
 import {useConfirmSaveAfterLosingFocus} from "~/client/helpers/use_confirm_save_after_losing_focus";
+import {useRootNavigate} from "~/client/remix/use_navigate";
+import {useSpaceContext} from "~/client/spaces/space_context";
 import {
     TaskCollectionChip,
     taskCollectionChipContainerMaxWidth,
@@ -99,6 +102,10 @@ export function TaskDetailCollectionsField({
     removeCollectionFromTask: (collection: LocalTaskCollectionId) => void;
     "aria-labelledby": string;
 }) {
+    const rootNavigate = useRootNavigate();
+    const showToast = useShowToast();
+    const {space} = useSpaceContext();
+
     const allCollectionsWithoutSelection = useMemo(
         () =>
             allCollections.filter(otherCollection =>
@@ -400,6 +407,18 @@ export function TaskDetailCollectionsField({
                 >
                     <TaskCollectionChip
                         collection={collection}
+                        onPress={() => {
+                            // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
+                            rootNavigate(
+                                `/s/${space.id}/tasks/demo-2/collections/${collection.id}`,
+                            ).catch(error => {
+                                showToast({
+                                    type: "Error",
+                                    title: "Can’t open collection",
+                                    error,
+                                });
+                            });
+                        }}
                         onRemove={() => removeCollectionFromTask(collection.id)}
                     />
                 </Box>
@@ -768,7 +787,6 @@ function TaskDetailCollectionsFieldCreateCollectionInput({
                             />
                         </Box>
                     }
-                    onRemove={null}
                 />
             </FocusRing>
             {shouldShowConfirmSaveDialog && (
