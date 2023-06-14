@@ -114,16 +114,8 @@ export function TaskNotepadView() {
                 backgroundColor="grey-0"
                 className={tasksStyles.textCursorNotInheritedClassName}
                 {...useOutOfBoundsClickSelection({
-                    onSelect: event => {
-                        // Only select from clicks on area without children.
-                        if (event.target !== event.currentTarget) return;
-                        assertExists(gridViewRef.current).focusEnd();
-                    },
-                    onSelectAll: event => {
-                        // Only select from clicks on area without children.
-                        if (event.target !== event.currentTarget) return;
-                        assertExists(gridViewRef.current).focusEnd();
-                    },
+                    onSelect: () => assertExists(gridViewRef.current).focusEnd(),
+                    onSelectAll: () => assertExists(gridViewRef.current).focusEnd(),
                 })}
             >
                 <Box height="7" />
@@ -161,6 +153,7 @@ export function TaskNotepadView() {
                     moveTaskBelow={moveTaskBelow}
                     moveTaskToParentTop={moveTaskToParentTop}
                 />
+                <Box height="5" pointerEvents="none" />
             </Box>
         </TaskGridViewDndContext>
     );

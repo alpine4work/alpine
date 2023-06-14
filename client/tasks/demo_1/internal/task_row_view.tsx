@@ -192,18 +192,8 @@ function TaskRowView(
                     // by keyboard.
                     className={tasksStyles.textCursorNotInheritedClassName}
                     {...useOutOfBoundsClickSelection({
-                        onSelect: event => {
-                            // Only handle clicks on the background not covered by content.
-                            if (event.target === event.currentTarget) {
-                                focusTitleStart();
-                            }
-                        },
-                        onSelectAll: event => {
-                            // Only handle clicks on the background not covered by content.
-                            if (event.target === event.currentTarget) {
-                                focusTitleAll();
-                            }
-                        },
+                        onSelect: focusTitleStart,
+                        onSelectAll: focusTitleAll,
                     })}
                 >
                     <Box

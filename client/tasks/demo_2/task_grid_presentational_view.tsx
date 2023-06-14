@@ -449,6 +449,7 @@ function TaskGridPresentationalView<TaskRow>(
             <Box
                 width="full"
                 height="full"
+                pointerEvents="none"
                 style={{
                     // Draw the top and bottom border with a shadow so it:
                     //

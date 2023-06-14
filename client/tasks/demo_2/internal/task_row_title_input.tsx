@@ -518,16 +518,8 @@ function TaskRowTitleInput(
                     }),
                 )}
                 {...useOutOfBoundsClickSelection({
-                    onSelect: event => {
-                        // Only select from clicks on area without children.
-                        if (event.target !== event.currentTarget) return;
-                        focusEnd();
-                    },
-                    onSelectAll: event => {
-                        // Only select from clicks on area without children.
-                        if (event.target !== event.currentTarget) return;
-                        focusAll();
-                    },
+                    onSelect: focusEnd,
+                    onSelectAll: focusAll,
                 })}
             >
                 {shouldShowParentTaskTitle && parentTaskTitle && indentation === 0 && (

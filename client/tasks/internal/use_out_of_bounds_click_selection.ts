@@ -13,34 +13,54 @@ export function useOutOfBoundsClickSelection({
     onSelect,
     onSelectAll,
 }: {
-    onSelect: (event: MouseEvent) => void;
-    onSelectAll: (event: MouseEvent) => void;
+    onSelect: () => void;
+    onSelectAll: () => void;
 }): {
     onClick: (event: MouseEvent) => void;
     onDoubleClick: (event: MouseEvent) => void;
+    onMouseDown: (event: MouseEvent) => void;
 } {
     const lastDoubleClickTimeRef = useRef<number | null>(null);
 
     return {
         onClick: event => {
+            // Only accept direct clicks on the element.
+            if (event.target !== event.currentTarget) return;
+
             if (
                 lastDoubleClickTimeRef.current === null ||
                 Date.now() - lastDoubleClickTimeRef.current > doubleClickSelectThrottleMs
             ) {
-                onSelect(event);
+                onSelect();
             } else {
                 lastDoubleClickTimeRef.current = Date.now();
             }
         },
         onDoubleClick: event => {
+            // Only accept direct clicks on the element.
+            if (event.target !== event.currentTarget) return;
+
             if (
                 lastDoubleClickTimeRef.current === null ||
                 Date.now() - lastDoubleClickTimeRef.current > doubleClickSelectThrottleMs
             ) {
-                onSelectAll(event);
+                onSelectAll();
             }
 
             lastDoubleClickTimeRef.current = Date.now();
+        },
+        onMouseDown: event => {
+            // Only accept direct clicks on the element.
+            if (event.target !== event.currentTarget) return;
+
+            // `mousedown` will unfocus whatever is focused. If the user is actively
+            // double, triple, whatever clicking don't unfocus.
+            if (
+                lastDoubleClickTimeRef.current !== null &&
+                Date.now() - lastDoubleClickTimeRef.current <= doubleClickSelectThrottleMs
+            ) {
+                event.preventDefault();
+            }
         },
     };
 }

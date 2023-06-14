@@ -1,5 +1,6 @@
-import {useMemo, useRef, useState} from "react";
+import {Ref, forwardRef, useMemo, useRef, useState} from "react";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
 import {usePeekStackContext} from "~/client/peek/peek_stack";
 import {useClientInfo} from "~/client/remix/client_info_context";
@@ -38,17 +39,23 @@ export type TaskCollectionGridViewRow = {
     readonly task: LocalTask;
 };
 
-export function TaskCollectionGridView({
-    state,
-    dispatch,
-    collectionId,
-    filters,
-}: {
-    state: LocalTasksState;
-    dispatch: (action: LocalTasksAction) => void;
-    collectionId: LocalTaskCollectionId;
-    filters: ReadonlyArray<TaskQueryFilter>;
-}) {
+const TaskCollectionGridViewForwardRef = forwardRef(TaskCollectionGridView);
+export {TaskCollectionGridViewForwardRef as TaskCollectionGridView};
+
+function TaskCollectionGridView(
+    {
+        state,
+        dispatch,
+        collectionId,
+        filters,
+    }: {
+        state: LocalTasksState;
+        dispatch: (action: LocalTasksAction) => void;
+        collectionId: LocalTaskCollectionId;
+        filters: ReadonlyArray<TaskQueryFilter>;
+    },
+    ref: Ref<TaskGridPresentationalViewRef>,
+) {
     const {timeZone} = useClientInfo();
     const currentDate = useCurrentDate();
     const {currentAccount, space} = useSpaceContext();
@@ -161,7 +168,7 @@ export function TaskCollectionGridView({
 
     return (
         <TaskGridPresentationalView<TaskCollectionGridViewRow>
-            ref={gridViewRef}
+            ref={useMergedRefs(ref, gridViewRef)}
             taskRowCount={taskRows.length}
             getTaskRow={index => taskRows[index]!}
             topGhostTaskKey={topTaskGhostRowId}

@@ -179,17 +179,15 @@ export function TasksView() {
             // by keyboard.
             className={tasksStyles.textCursorNotInheritedClassName}
             {...useOutOfBoundsClickSelection({
-                onSelect: event => {
-                    // Only handle clicks on the background not covered by content.
-                    if (event.target === event.currentTarget && taskRows.length > 0) {
+                onSelect: () => {
+                    if (taskRows.length > 0) {
                         assertExists(
                             taskRowRefByIndex.get(taskRows.length - 1).current,
                         ).focusTitleEnd();
                     }
                 },
-                onSelectAll: event => {
-                    // Only handle clicks on the background not covered by content.
-                    if (event.target === event.currentTarget && taskRows.length > 0) {
+                onSelectAll: () => {
+                    if (taskRows.length > 0) {
                         assertExists(
                             taskRowRefByIndex.get(taskRows.length - 1).current,
                         ).focusTitleAll();

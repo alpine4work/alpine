@@ -1,5 +1,6 @@
-import {Key, useMemo, useRef, useState} from "react";
+import {Ref, forwardRef, useMemo, useRef, useState} from "react";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
 import {usePeekStackContext} from "~/client/peek/peek_stack";
 import {useClientInfo} from "~/client/remix/client_info_context";
@@ -17,9 +18,8 @@ import {
 } from "~/client/tasks/demo_2/task_grid_presentational_view";
 import {TaskQueryFilter} from "~/client/tasks/demo_2/task_query_filter";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
 import {OrderKey} from "~/shared/helpers/sort/order_key";
-import {Id, generateId} from "~/shared/id/id";
+import {generateId} from "~/shared/id/id";
 import {LocalTaskId} from "~/shared/id/types/id_types";
 
 type TaskQueryGridViewRowPosition =
@@ -34,22 +34,24 @@ type TaskQueryGridViewRowPosition =
 export type TaskQueryGridViewRow = {
     readonly position: TaskQueryGridViewRowPosition;
     readonly parentPositionStack: ReadonlyArray<TaskQueryGridViewRowPosition>;
-    readonly key: Key;
     readonly task: LocalTask;
 };
 
-// NOCOMMIT: Not loving this key generation...
-let nextTaskKeysByIdGeneration = 0;
+const TaskQueryGridViewForwardRef = forwardRef(TaskQueryGridView);
+export {TaskQueryGridViewForwardRef as TaskQueryGridView};
 
-export function TaskQueryGridView({
-    state,
-    dispatch,
-    filters,
-}: {
-    state: LocalTasksState;
-    dispatch: (action: LocalTasksAction) => void;
-    filters: ReadonlyArray<TaskQueryFilter>;
-}) {
+function TaskQueryGridView(
+    {
+        state,
+        dispatch,
+        filters,
+    }: {
+        state: LocalTasksState;
+        dispatch: (action: LocalTasksAction) => void;
+        filters: ReadonlyArray<TaskQueryFilter>;
+    },
+    ref: Ref<TaskGridPresentationalViewRef>,
+) {
     const {timeZone} = useClientInfo();
     const currentDate = useCurrentDate();
     const {currentAccount, space} = useSpaceContext();
@@ -65,54 +67,10 @@ export function TaskQueryGridView({
 
     const [expandedTaskIds, setExpandedTaskIds] = useState(new Set<LocalTaskId>());
 
-    const taskKeysByIdRef = useRef<
-        Map<LocalTaskId, Array<{key: Id; indentation: number; generation: number}>>
-    >(new Map());
-
     const {taskRowIds, taskRows} = useMemo(() => {
         const taskRowIds = new Set<LocalTaskId>();
-        const generation = nextTaskKeysByIdGeneration++;
 
         const taskRows: Array<TaskQueryGridViewRow> = [];
-
-        // Danger zone: We are mutating in React render! We may have multiple task rows
-        // with the same `LocalTaskId` in our grid view. So we need to generate unique
-        // keys somehow.
-        //
-        // We do this by generating a unique key for the task at every indentation
-        // level. If we see a new task at an unknown indentation level then we steal
-        // the key from a different indentation level and use that. (To support
-        // maintaining focus while the user indents/dedents tasks.)
-        //
-        // This probably has all kinds of problems but seems to support most cases we
-        // care about for now.
-        const getTaskKey = (taskId: LocalTaskId, indentation: number) => {
-            const taskKeys = getOrSetDefaultMapValue(taskKeysByIdRef.current, taskId, () => []);
-
-            const existingTaskKey = taskKeys.find(taskKey => taskKey.indentation === indentation);
-            if (existingTaskKey) {
-                existingTaskKey.generation = generation;
-                return existingTaskKey.key;
-            }
-
-            const reuseTaskKey = taskKeys.find(taskKey => taskKey.generation !== generation);
-            if (reuseTaskKey) {
-                reuseTaskKey.indentation = indentation;
-                reuseTaskKey.generation = generation;
-                return reuseTaskKey.key;
-            }
-
-            const newTaskKey = {
-                // The first time we see the task it gets to reuse the `LocalTaskId` as its
-                // key. To avoid the overhead of `generateId()` and so ghost rows maintain
-                // proper identity.
-                key: taskKeys.length === 0 ? taskId : generateId(),
-                indentation,
-                generation,
-            };
-            taskKeys.push(newTaskKey);
-            return newTaskKey.key;
-        };
 
         const addChildTasks = (
             parentPositionStack: ReadonlyArray<TaskQueryGridViewRowPosition>,
@@ -131,7 +89,6 @@ export function TaskQueryGridView({
                 taskRows.push({
                     position,
                     parentPositionStack,
-                    key: getTaskKey(childTask.id, parentPositionStack.length),
                     task: childTask,
                 });
 
@@ -151,7 +108,6 @@ export function TaskQueryGridView({
             taskRows.push({
                 position,
                 parentPositionStack: [],
-                key: getTaskKey(task.id, 0),
                 task,
             });
 
@@ -208,12 +164,12 @@ export function TaskQueryGridView({
 
     return (
         <TaskGridPresentationalView<TaskQueryGridViewRow>
-            ref={gridViewRef}
+            ref={useMergedRefs(ref, gridViewRef)}
             taskRowCount={taskRows.length}
             getTaskRow={index => taskRows[index]!}
             topGhostTaskKey={topTaskGhostRowId}
             bottomGhostTaskKey={bottomTaskGhostRowId}
-            getTaskKey={({key}) => key}
+            getTaskKey={({task}) => task.id}
             getTaskStatus={({task}) => task.status}
             onTaskStatusChange={({task: {id: taskId}}, status) => {
                 dispatch({

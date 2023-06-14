@@ -6,8 +6,12 @@ import {MenuButton} from "~/client/design/menu_button";
 import {TaskCollectionGridView} from "~/client/tasks/demo_2/internal/task_collection_grid_view";
 import {TaskQueryViewCustomizationBar} from "~/client/tasks/demo_2/internal/task_query_view_customization_bar";
 import {LocalTasksAction, LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
+import {TaskGridPresentationalViewRef} from "~/client/tasks/demo_2/task_grid_presentational_view";
 import {TaskQueryFilter} from "~/client/tasks/demo_2/task_query_filter";
+import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {LocalTaskCollectionId} from "~/shared/id/types/id_types";
+import {tasksStyles} from "~/shared/styles/styles";
 import {
     TaskQueryFilterReferences,
     mergeTaskQueryFilterReferences,
@@ -28,6 +32,8 @@ export function TaskCollectionView({
     initialFilterReferences: TaskQueryFilterReferences;
     onFiltersChange: (filters: ReadonlyArray<TaskQueryFilter>) => void;
 }) {
+    const gridViewRef = useRef<TaskGridPresentationalViewRef>(null);
+
     const collection = state.database.getTaskCollection(collectionId);
 
     const [{filters, filterReferences}, setFiltersState] = useState({
@@ -51,6 +57,11 @@ export function TaskCollectionView({
             backgroundColor="grey-0"
             paddingBottom="5"
             overflowY="scroll"
+            className={tasksStyles.textCursorNotInheritedClassName}
+            {...useOutOfBoundsClickSelection({
+                onSelect: () => assertExists(gridViewRef.current).focusEnd(),
+                onSelectAll: () => assertExists(gridViewRef.current).focusEnd(),
+            })}
         >
             <Box
                 paddingTop="5"
@@ -126,6 +137,7 @@ export function TaskCollectionView({
                 />
             </Box>
             <TaskCollectionGridView
+                ref={gridViewRef}
                 state={state}
                 dispatch={dispatch}
                 collectionId={collectionId}
