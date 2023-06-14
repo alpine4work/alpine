@@ -257,7 +257,11 @@ export function TaskQueryViewCustomizationBar({
                         }
                     >
                         <Button icon={<SortAscending />} height="6" paddingX="2">
-                            Sort
+                            {sorts.length === 0
+                                ? "Sort"
+                                : sorts.length === 1
+                                ? "Sort: 1"
+                                : `Sorts: ${sorts.length}`}
                         </Button>
                     </OverlayTriggerButton>
                 </Box>

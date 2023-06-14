@@ -7,8 +7,17 @@ import {useSpaceContext} from "~/client/spaces/space_context";
 import {TaskLayoutTopBarCollectionsButton} from "~/client/tasks/demo_2/internal/task_layout_top_bar_collections_button";
 import {useLocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
 import {serializeTaskQueryFiltersSearchParam} from "~/client/tasks/demo_2/task_query_filter";
+import {serializeTaskQuerySortsSearchParam} from "~/client/tasks/demo_2/task_query_sort";
 
-export function TaskLayoutTopBar() {
+export function TaskLayoutTopBar({
+    isNotepadTabActive,
+    isCollectionsTabActive,
+    isViewsTabActive,
+}: {
+    isNotepadTabActive: boolean;
+    isCollectionsTabActive: boolean;
+    isViewsTabActive: boolean;
+}) {
     const navigate = useNavigate();
     const {space} = useSpaceContext();
     const [state] = useLocalTasksState();
@@ -27,7 +36,7 @@ export function TaskLayoutTopBar() {
             paddingX="2"
         >
             <Button
-                variant="quiet-on"
+                variant={isNotepadTabActive ? "quiet-on" : "quieter"}
                 height="6"
                 paddingX="2"
                 pressErrorTitle="Couldn’t open notepad"
@@ -35,7 +44,10 @@ export function TaskLayoutTopBar() {
             >
                 Notepad
             </Button>
-            <TaskLayoutTopBarCollectionsButton state={state} />
+            <TaskLayoutTopBarCollectionsButton
+                state={state}
+                isCollectionsTabActive={isCollectionsTabActive}
+            />
             <MenuButton
                 width="64"
                 actions={[
@@ -65,8 +77,15 @@ export function TaskLayoutTopBar() {
                                     },
                                 ]);
 
+                                const sortsSearchParam = serializeTaskQuerySortsSearchParam([
+                                    {
+                                        type: "CreatedDate",
+                                        direction: "Descending",
+                                    },
+                                ]);
+
                                 await navigate(
-                                    `/s/${space.id}/tasks/demo-2/view?filters=${filtersSearchParam}`,
+                                    `/s/${space.id}/tasks/demo-2/view?filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
                                 );
                             },
                         },
@@ -85,8 +104,15 @@ export function TaskLayoutTopBar() {
                                     },
                                 ]);
 
+                                const sortsSearchParam = serializeTaskQuerySortsSearchParam([
+                                    {
+                                        type: "CreatedDate",
+                                        direction: "Descending",
+                                    },
+                                ]);
+
                                 await navigate(
-                                    `/s/${space.id}/tasks/demo-2/view?filters=${filtersSearchParam}`,
+                                    `/s/${space.id}/tasks/demo-2/view?filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
                                 );
                             },
                         },
@@ -105,8 +131,15 @@ export function TaskLayoutTopBar() {
                                     },
                                 ]);
 
+                                const sortsSearchParam = serializeTaskQuerySortsSearchParam([
+                                    {
+                                        type: "CreatedDate",
+                                        direction: "Descending",
+                                    },
+                                ]);
+
                                 await navigate(
-                                    `/s/${space.id}/tasks/demo-2/view?filters=${filtersSearchParam}`,
+                                    `/s/${space.id}/tasks/demo-2/view?filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
                                 );
                             },
                         },
@@ -114,7 +147,7 @@ export function TaskLayoutTopBar() {
                 ]}
             >
                 <Button
-                    variant="quieter"
+                    variant={isViewsTabActive ? "quiet-on" : "quieter"}
                     height="6"
                     paddingX="2"
                     icon={<CaretDown />}

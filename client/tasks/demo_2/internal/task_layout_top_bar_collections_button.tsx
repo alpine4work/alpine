@@ -31,7 +31,13 @@ import {isId} from "~/shared/id/id";
 import {LocalTaskCollectionId} from "~/shared/id/types/id_types";
 import {sprinkles} from "~/shared/styles/styles";
 
-export function TaskLayoutTopBarCollectionsButton({state}: {state: LocalTasksState}) {
+export function TaskLayoutTopBarCollectionsButton({
+    state,
+    isCollectionsTabActive,
+}: {
+    state: LocalTasksState;
+    isCollectionsTabActive: boolean;
+}) {
     const allCollections = useMemo(
         () =>
             state.database
@@ -82,7 +88,7 @@ export function TaskLayoutTopBarCollectionsButton({state}: {state: LocalTasksSta
             )}
         >
             <Button
-                variant="quieter"
+                variant={isCollectionsTabActive ? "quiet-on" : "quieter"}
                 height="6"
                 paddingX="2"
                 icon={<CaretDown />}
