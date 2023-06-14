@@ -19,6 +19,7 @@ import {
 } from "~/client/tasks/demo_2/task_status_button";
 import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length";
+import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
 import {
     colorSchemeVars,
     hideScrollbarClassName,
@@ -156,6 +157,17 @@ export function TaskNotepadViewActiveSection({
                                 dueDate={task.dueDate}
                                 collections={Array.from(task.collectionIds, collectionId =>
                                     state.database.getTaskCollection(collectionId),
+                                )}
+                                childTaskCount={task.childTaskIdByOrderKey.size}
+                                closedChildTaskCount={reduceIterable(
+                                    task.childTaskIdByOrderKey.values(),
+                                    (closedChildTaskCount, childTaskId) =>
+                                        closedChildTaskCount +
+                                        (state.database.getTask(childTaskId).status.type ===
+                                        "Closed"
+                                            ? 1
+                                            : 0),
+                                    0,
                                 )}
                                 onExpand={async () => {
                                     await peekStackContext.push(

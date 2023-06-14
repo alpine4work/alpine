@@ -51,6 +51,8 @@ export type TaskGridViewDraggableData<TaskRow> =
           readonly assignee: TaskAssignee | null;
           readonly dueDate: CalendarDate | null;
           readonly collections: ReadonlyArray<LocalTaskCollection>;
+          readonly childTaskCount: number;
+          readonly closedChildTaskCount: number;
       };
 
 export type TaskGridViewDroppableData<TaskRow> =
@@ -522,6 +524,8 @@ function TaskRowViewDragOverlay<TaskRow>({
                     assignee={data.assignee}
                     dueDate={data.dueDate}
                     collections={data.collections}
+                    childTaskCount={data.childTaskCount}
+                    closedChildTaskCount={data.closedChildTaskCount}
                     onExpand={async () => {}}
                 />
             );

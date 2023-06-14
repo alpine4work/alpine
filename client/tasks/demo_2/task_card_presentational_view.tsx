@@ -10,6 +10,7 @@ import {FocusRing} from "~/client/design/focus_ring";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour";
 import {formatTaskDate} from "~/client/tasks/demo_2/internal/format_task_date";
+import {TaskChildTasksProgressWheel} from "~/client/tasks/demo_2/internal/task_child_tasks_progress_wheel";
 import {
     TaskCollectionChip,
     taskCollectionChipContainerMaxWidth,
@@ -51,6 +52,8 @@ export function TaskCardPresentationalView({
     assignee,
     dueDate,
     collections,
+    childTaskCount,
+    closedChildTaskCount,
     onExpand,
     shouldFillHeight,
     isDragOverlay,
@@ -62,6 +65,8 @@ export function TaskCardPresentationalView({
     assignee: TaskAssignee | null;
     dueDate: CalendarDate | null;
     collections: ReadonlyArray<LocalTaskCollection>;
+    childTaskCount: number;
+    closedChildTaskCount: number;
     onExpand: () => Promise<void>;
     shouldFillHeight?: boolean;
     isDragOverlay?: boolean;
@@ -96,6 +101,8 @@ export function TaskCardPresentationalView({
             assignee,
             dueDate,
             collections,
+            childTaskCount,
+            closedChildTaskCount,
         } satisfies TaskGridViewDraggableData<never>,
     });
 
@@ -110,15 +117,16 @@ export function TaskCardPresentationalView({
                     gap="2"
                     maxWidth="32"
                     style={{
-                        paddingRight: !dueDate
-                            ? addRemLengths(
-                                  spacing["2"],
-                                  // A little extra padding to offset the negative margin of collection chips.
-                                  // Only when the next field is collections. If we have a due date the extra
-                                  // padding will be added there.
-                                  spacing["0.5"],
-                              )
-                            : spacing["2"],
+                        paddingRight:
+                            !dueDate && childTaskCount === 0
+                                ? addRemLengths(
+                                      spacing["2"],
+                                      // A little extra padding to offset the negative margin of collection chips.
+                                      // Only when the next field is collections. If we have a due date the extra
+                                      // padding will be added there.
+                                      spacing["0.5"],
+                                  )
+                                : spacing["2"],
                     }}
                 >
                     <Box position="relative" width="4" height="4">
@@ -149,6 +157,31 @@ export function TaskCardPresentationalView({
                     gap="1"
                     color={status.type === "Open" && isAfterDueDate ? "red-60" : "grey-60"}
                     style={{
+                        paddingRight:
+                            childTaskCount === 0
+                                ? addRemLengths(
+                                      spacing["2"],
+                                      // A little extra padding to offset the negative margin of collection chips.
+                                      // Only when the next field is collections. If we have a due date the extra
+                                      // padding will be added there.
+                                      spacing["0.5"],
+                                  )
+                                : spacing["2"],
+                    }}
+                >
+                    <CalendarBlank size={spacing["4"]} />
+                    <Box fontStyle="truncate">{dueDateString}</Box>
+                </Box>,
+            );
+        }
+
+        if (childTaskCount > 0) {
+            fieldElements.push(
+                <Box
+                    display="flex"
+                    alignItems="center"
+                    gap="1"
+                    style={{
                         paddingRight: addRemLengths(
                             spacing["2"],
                             // A little extra padding to offset the negative margin of collection chips.
@@ -156,8 +189,13 @@ export function TaskCardPresentationalView({
                         ),
                     }}
                 >
-                    <CalendarBlank size={spacing["4"]} />
-                    <Box fontStyle="truncate">{dueDateString}</Box>
+                    <TaskChildTasksProgressWheel
+                        childTaskCount={childTaskCount}
+                        closedChildTaskCount={closedChildTaskCount}
+                    />
+                    <Box color="grey-70">
+                        {closedChildTaskCount}/{childTaskCount}
+                    </Box>
                 </Box>,
             );
         }
@@ -176,7 +214,17 @@ export function TaskCardPresentationalView({
         }
 
         return fieldElements;
-    }, [assignee, collections, currentDate, dueDate, locale, status, timeZone]);
+    }, [
+        assignee,
+        childTaskCount,
+        closedChildTaskCount,
+        collections,
+        currentDate,
+        dueDate,
+        locale,
+        status.type,
+        timeZone,
+    ]);
 
     return (
         <FocusRing offset="0">
