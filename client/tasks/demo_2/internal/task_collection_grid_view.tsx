@@ -72,10 +72,9 @@ function TaskCollectionGridView(
         });
     }, [collectionId, currentAccount.id, currentDate, filters, sorts, state.database]);
 
-    const [expandedTaskIds, setExpandedTaskIds] = useState(new Set<LocalTaskId>());
+    const [expandedTaskIds, setExpandedTaskIds] = useState(new Set<`${LocalTaskId}-${number}`>());
 
-    const {taskRowIds, taskRows} = useMemo(() => {
-        const taskRowIds = new Set<LocalTaskId>();
+    const taskRows = useMemo(() => {
         const taskRows: Array<TaskCollectionGridViewRow> = [];
 
         const addChildTasks = (
@@ -84,8 +83,6 @@ function TaskCollectionGridView(
         ) => {
             for (const [orderKey, childTaskId] of parentTask.childTaskIdByOrderKey) {
                 const childTask = state.database.getTask(childTaskId);
-
-                taskRowIds.add(childTask.id);
 
                 const position: TaskCollectionGridViewRowPosition = {
                     isRoot: false,
@@ -98,15 +95,13 @@ function TaskCollectionGridView(
                     task: childTask,
                 });
 
-                if (expandedTaskIds.has(childTask.id)) {
+                if (expandedTaskIds.has(`${childTask.id}-${parentPositionStack.length}`)) {
                     addChildTasks([...parentPositionStack, position], childTask);
                 }
             }
         };
 
         for (const {task, orderKey} of tasks) {
-            taskRowIds.add(task.id);
-
             const position: TaskCollectionGridViewRowPosition = {
                 isRoot: true,
                 collection: {id: collectionId, orderKey},
@@ -118,38 +113,13 @@ function TaskCollectionGridView(
                 task,
             });
 
-            if (expandedTaskIds.has(task.id)) {
+            if (expandedTaskIds.has(`${task.id}-0`)) {
                 addChildTasks([position], task);
             }
         }
 
-        return {taskRowIds, taskRows};
+        return taskRows;
     }, [collectionId, expandedTaskIds, state.database, tasks]);
-
-    // Remove any `expandedTaskIds` that do not exist in `taskIds`. If we a delete
-    // a task this is how we update our expanded task IDs set.
-    //
-    // NOTE(calebmer): This isn't the most efficient! In a production
-    // implementation maybe we use `symmetricDiffTree()` to get deleted tasks from
-    // our database.
-    {
-        const newExpandedTaskIds = useMemo(() => {
-            let newExpandedTaskIds: Set<LocalTaskId> | null = null;
-
-            for (const taskId of expandedTaskIds) {
-                if (!taskRowIds.has(taskId)) {
-                    if (!newExpandedTaskIds) newExpandedTaskIds = new Set(expandedTaskIds);
-                    newExpandedTaskIds.delete(taskId);
-                }
-            }
-
-            return newExpandedTaskIds;
-        }, [expandedTaskIds, taskRowIds]);
-
-        if (newExpandedTaskIds) {
-            setExpandedTaskIds(newExpandedTaskIds);
-        }
-    }
 
     const taskRowsRef = useRef(taskRows);
     useLayoutEffectWithoutServerSideWarning(() => {
@@ -215,12 +185,14 @@ function TaskCollectionGridView(
                     0,
                 )
             }
-            getTaskAreChildTasksCollapsed={({task}) => !expandedTaskIds.has(task.id)}
-            onTaskAreChildTasksCollapsedToggle={({task: {id: taskId}}) => {
+            getTaskAreChildTasksCollapsed={({parentPositionStack, task}) =>
+                !expandedTaskIds.has(`${task.id}-${parentPositionStack.length}`)
+            }
+            onTaskAreChildTasksCollapsedToggle={({parentPositionStack, task: {id: taskId}}) => {
                 setExpandedTaskIds(expandedTaskIds => {
                     const newExpandedTaskIds = new Set(expandedTaskIds);
-                    if (!newExpandedTaskIds.delete(taskId)) {
-                        newExpandedTaskIds.add(taskId);
+                    if (!newExpandedTaskIds.delete(`${taskId}-${parentPositionStack.length}`)) {
+                        newExpandedTaskIds.add(`${taskId}-${parentPositionStack.length}`);
                     }
                     return newExpandedTaskIds;
                 });
@@ -417,8 +389,8 @@ function TaskCollectionGridView(
                 });
             }}
             nestTaskAndExpandParentRow={(
-                {task: {id: parentTaskId}},
-                {position: oldPosition, task: {id: childTaskId}},
+                parentTaskRow,
+                childTaskRow,
                 titleSelection,
                 newIndentation,
             ) => {
@@ -428,17 +400,20 @@ function TaskCollectionGridView(
                 runWithImmediatePriority(() => {
                     dispatch({
                         type: "NestTask",
-                        parentTaskId,
-                        childTaskId,
-                        from: oldPosition.isRoot
-                            ? {type: "Collection", collectionId: oldPosition.collection.id}
+                        parentTaskId: parentTaskRow.task.id,
+                        childTaskId: childTaskRow.task.id,
+                        from: childTaskRow.position.isRoot
+                            ? {
+                                  type: "Collection",
+                                  collectionId: childTaskRow.position.collection.id,
+                              }
                             : {type: "ParentTask"},
                         onLayoutEffect: () => {
                             // TODO(calebmer): A production implementation probably shouldn't do an
                             // O(n) loop here.
                             const newIndex = taskRowsRef.current.findIndex(
                                 ({task, parentPositionStack}) =>
-                                    task.id === childTaskId &&
+                                    task.id === childTaskRow.task.id &&
                                     parentPositionStack.length === newIndentation,
                             );
 
@@ -453,28 +428,46 @@ function TaskCollectionGridView(
 
                     setExpandedTaskIds(expandedTaskIds => {
                         const newExpandedTaskIds = new Set(expandedTaskIds);
-                        newExpandedTaskIds.add(parentTaskId);
+
+                        newExpandedTaskIds.add(
+                            `${parentTaskRow.task.id}-${parentTaskRow.parentPositionStack.length}`,
+                        );
+
+                        // Remove the expanded task entry from the current indentation level and add it
+                        // to its new indentation level.
+                        //
+                        // TODO(calebmer): I'd love to have a better identification mechanism for
+                        // multiple of the same task in a grid...If another user is watching in
+                        // realtime this would not preserve the expansion state of their task.
+                        if (
+                            newExpandedTaskIds.delete(
+                                `${childTaskRow.task.id}-${childTaskRow.parentPositionStack.length}`,
+                            )
+                        ) {
+                            newExpandedTaskIds.add(`${childTaskRow.task.id}-${newIndentation}`);
+                        }
+
                         return newExpandedTaskIds;
                     });
                 });
             }}
-            unnestTaskIfNestedRow={(
-                {position, parentPositionStack, task: {id: childTaskId}},
-                titleSelection,
-            ) => {
-                const from: LocalTasksMoveTaskFrom = position.isRoot
-                    ? {type: "Collection", collectionId: position.collection.id}
+            unnestTaskIfNestedRow={(childTaskRow, titleSelection) => {
+                const from: LocalTasksMoveTaskFrom = childTaskRow.position.isRoot
+                    ? {type: "Collection", collectionId: childTaskRow.position.collection.id}
                     : {type: "ParentTask"};
 
-                const parentPosition = parentPositionStack[parentPositionStack.length - 1] ?? null;
+                const parentPosition =
+                    childTaskRow.parentPositionStack[childTaskRow.parentPositionStack.length - 1] ??
+                    null;
 
                 const onLayoutEffect = () => {
                     // TODO(calebmer): A production implementation probably shouldn't do an
                     // O(n) loop here.
                     const newIndex = taskRowsRef.current.findIndex(
                         ({task, parentPositionStack: otherParentPositionStack}) =>
-                            task.id === childTaskId &&
-                            otherParentPositionStack.length === parentPositionStack.length - 1,
+                            task.id === childTaskRow.task.id &&
+                            otherParentPositionStack.length ===
+                                childTaskRow.parentPositionStack.length - 1,
                     );
 
                     if (newIndex >= 0) {
@@ -483,22 +476,51 @@ function TaskCollectionGridView(
                 };
 
                 if (parentPosition) {
-                    dispatch({
-                        type: "MoveTask",
-                        taskId: childTaskId,
-                        from,
-                        to: parentPosition.isRoot
-                            ? {
-                                  type: "Collection",
-                                  collectionId: parentPosition.collection.id,
-                                  belowOrderKey: parentPosition.collection.orderKey,
-                              }
-                            : {
-                                  type: "ParentTask",
-                                  parentTaskId: parentPosition.parentTask.id,
-                                  belowOrderKey: parentPosition.parentTask.orderKey,
-                              },
-                        onLayoutEffect,
+                    // Immediate priority since we want React to batch the
+                    // `setExpandedChildTaskIds()` call and the `dispatch()` which doesn't go
+                    // through React state.
+                    runWithImmediatePriority(() => {
+                        dispatch({
+                            type: "MoveTask",
+                            taskId: childTaskRow.task.id,
+                            from,
+                            to: parentPosition.isRoot
+                                ? {
+                                      type: "Collection",
+                                      collectionId: parentPosition.collection.id,
+                                      belowOrderKey: parentPosition.collection.orderKey,
+                                  }
+                                : {
+                                      type: "ParentTask",
+                                      parentTaskId: parentPosition.parentTask.id,
+                                      belowOrderKey: parentPosition.parentTask.orderKey,
+                                  },
+                            onLayoutEffect,
+                        });
+
+                        setExpandedTaskIds(expandedTaskIds => {
+                            const newExpandedTaskIds = new Set(expandedTaskIds);
+
+                            // Remove the expanded task entry from the current indentation level and add it
+                            // to its new indentation level.
+                            //
+                            // TODO(calebmer): I'd love to have a better identification mechanism for
+                            // multiple of the same task in a grid...If another user is watching in
+                            // realtime this would not preserve the expansion state of their task.
+                            if (
+                                newExpandedTaskIds.delete(
+                                    `${childTaskRow.task.id}-${childTaskRow.parentPositionStack.length}`,
+                                )
+                            ) {
+                                newExpandedTaskIds.add(
+                                    `${childTaskRow.task.id}-${
+                                        childTaskRow.parentPositionStack.length - 1
+                                    }`,
+                                );
+                            }
+
+                            return newExpandedTaskIds;
+                        });
                     });
                 }
             }}

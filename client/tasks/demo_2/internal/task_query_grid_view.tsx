@@ -68,11 +68,9 @@ function TaskQueryGridView(
         });
     }, [currentAccount.id, currentDate, filters, sorts, state.database]);
 
-    const [expandedTaskIds, setExpandedTaskIds] = useState(new Set<LocalTaskId>());
+    const [expandedTaskIds, setExpandedTaskIds] = useState(new Set<`${LocalTaskId}-${number}`>());
 
-    const {taskRowIds, taskRows} = useMemo(() => {
-        const taskRowIds = new Set<LocalTaskId>();
-
+    const taskRows = useMemo(() => {
         const taskRows: Array<TaskQueryGridViewRow> = [];
 
         const addChildTasks = (
@@ -81,8 +79,6 @@ function TaskQueryGridView(
         ) => {
             for (const [orderKey, childTaskId] of parentTask.childTaskIdByOrderKey) {
                 const childTask = state.database.getTask(childTaskId);
-
-                taskRowIds.add(childTask.id);
 
                 const position: TaskQueryGridViewRowPosition = {
                     isRoot: false,
@@ -95,15 +91,13 @@ function TaskQueryGridView(
                     task: childTask,
                 });
 
-                if (expandedTaskIds.has(childTask.id)) {
+                if (expandedTaskIds.has(`${childTask.id}-${parentPositionStack.length}`)) {
                     addChildTasks([...parentPositionStack, position], childTask);
                 }
             }
         };
 
         for (const task of tasks) {
-            taskRowIds.add(task.id);
-
             const position: TaskQueryGridViewRowPosition = {
                 isRoot: true,
             };
@@ -114,38 +108,13 @@ function TaskQueryGridView(
                 task,
             });
 
-            if (expandedTaskIds.has(task.id)) {
+            if (expandedTaskIds.has(`${task.id}-0`)) {
                 addChildTasks([position], task);
             }
         }
 
-        return {taskRowIds, taskRows};
+        return taskRows;
     }, [expandedTaskIds, state.database, tasks]);
-
-    // Remove any `expandedTaskIds` that do not exist in `taskIds`. If we a delete
-    // a task this is how we update our expanded task IDs set.
-    //
-    // NOTE(calebmer): This isn't the most efficient! In a production
-    // implementation maybe we use `symmetricDiffTree()` to get deleted tasks from
-    // our database.
-    {
-        const newExpandedTaskIds = useMemo(() => {
-            let newExpandedTaskIds: Set<LocalTaskId> | null = null;
-
-            for (const taskId of expandedTaskIds) {
-                if (!taskRowIds.has(taskId)) {
-                    if (!newExpandedTaskIds) newExpandedTaskIds = new Set(expandedTaskIds);
-                    newExpandedTaskIds.delete(taskId);
-                }
-            }
-
-            return newExpandedTaskIds;
-        }, [expandedTaskIds, taskRowIds]);
-
-        if (newExpandedTaskIds) {
-            setExpandedTaskIds(newExpandedTaskIds);
-        }
-    }
 
     const taskRowsRef = useRef(taskRows);
     useLayoutEffectWithoutServerSideWarning(() => {
@@ -211,12 +180,14 @@ function TaskQueryGridView(
                     0,
                 )
             }
-            getTaskAreChildTasksCollapsed={({task}) => !expandedTaskIds.has(task.id)}
-            onTaskAreChildTasksCollapsedToggle={({task: {id: taskId}}) => {
+            getTaskAreChildTasksCollapsed={({task, parentPositionStack}) =>
+                !expandedTaskIds.has(`${task.id}-${parentPositionStack.length}`)
+            }
+            onTaskAreChildTasksCollapsedToggle={({task: {id: taskId}, parentPositionStack}) => {
                 setExpandedTaskIds(expandedTaskIds => {
                     const newExpandedTaskIds = new Set(expandedTaskIds);
-                    if (!newExpandedTaskIds.delete(taskId)) {
-                        newExpandedTaskIds.add(taskId);
+                    if (!newExpandedTaskIds.delete(`${taskId}-${parentPositionStack.length}`)) {
+                        newExpandedTaskIds.add(`${taskId}-${parentPositionStack.length}`);
                     }
                     return newExpandedTaskIds;
                 });
