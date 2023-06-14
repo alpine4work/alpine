@@ -9,6 +9,7 @@ ts_project(
     deps = [
         "//:node_modules/@dnd-kit/core",
         "//:node_modules/@dnd-kit/modifiers",
+        "//:node_modules/@dnd-kit/sortable",
         "//:node_modules/@internationalized/date",
         "//:node_modules/@types/react",
         "//:node_modules/classnames",

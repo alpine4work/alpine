@@ -3,7 +3,9 @@ import {Box} from "~/client/design/box";
 import {Button} from "~/client/design/button";
 import {IconButton} from "~/client/design/icon_button";
 import {MenuButton} from "~/client/design/menu_button";
+import {OverlayTriggerButton} from "~/client/design/overlay_trigger";
 import {TaskQueryFilterEditor} from "~/client/tasks/demo_2/internal/task_query_filter_editor";
+import {TaskQuerySortsEditor} from "~/client/tasks/demo_2/internal/task_query_sorts_editor";
 import {LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
 import {TaskQueryFilter} from "~/client/tasks/demo_2/task_query_filter";
 import {spacing} from "~/shared/design/spacing";
@@ -15,6 +17,7 @@ export function TaskQueryViewCustomizationBar({
     filterReferences,
     onFiltersChange,
     shouldCollapseWhenFiltersAreEmpty,
+    defaultOrderSentence,
 }: {
     state: LocalTasksState;
     filters: ReadonlyArray<TaskQueryFilter>;
@@ -24,6 +27,7 @@ export function TaskQueryViewCustomizationBar({
         mergeFilterReferences?: TaskQueryFilterReferences,
     ) => void;
     shouldCollapseWhenFiltersAreEmpty: boolean;
+    defaultOrderSentence: string;
 }) {
     const addFilter = (filter: TaskQueryFilter) => {
         onFiltersChange([...filters, filter]);
@@ -230,9 +234,23 @@ export function TaskQueryViewCustomizationBar({
                     borderLeft={!shouldCollapse ? "grey-5" : undefined}
                     paddingLeft={!shouldCollapse ? "5" : undefined}
                 >
-                    <Button icon={<SortAscending />} height="6" paddingX="2">
-                        Sort
-                    </Button>
+                    <OverlayTriggerButton
+                        aria-haspopup={true}
+                        overlay={
+                            <Box
+                                overflow="hidden"
+                                borderRadius="md"
+                                backgroundColor={{light: "grey-0", dark: "grey-5"}}
+                                boxShadow="elevation-20"
+                            >
+                                <TaskQuerySortsEditor defaultOrderSentence={defaultOrderSentence} />
+                            </Box>
+                        }
+                    >
+                        <Button icon={<SortAscending />} height="6" paddingX="2">
+                            Sort
+                        </Button>
+                    </OverlayTriggerButton>
                 </Box>
             </Box>
         </Box>

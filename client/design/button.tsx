@@ -12,7 +12,12 @@ import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
 import {Spacing, spacing} from "~/shared/design/spacing";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
-import {Sprinkles, spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
+import {
+    Sprinkles,
+    colorSchemeVars,
+    spinAnimationClassName,
+    sprinkles,
+} from "~/shared/styles/styles";
 
 export const buttonPressedOverlayOpacity = 0.2;
 
@@ -27,7 +32,8 @@ type ButtonVariant =
     | "quiet-above-grey-5-dark-background"
     | "neutral"
     | "accent"
-    | "accent-even-when-disabled";
+    | "accent-even-when-disabled"
+    | "outline";
 
 function Button(
     props: Omit<AriaButtonProps<"button">, "onPress"> & {
@@ -309,6 +315,15 @@ function Button(
             backgroundColor: "theme-40-const",
             color: "grey-0-const",
         },
+        outline: !isDisabled
+            ? {
+                  backgroundColor: isPressed ? "grey-10" : undefined,
+                  color: "grey-text",
+              }
+            : {
+                  backgroundColor: undefined,
+                  color: "grey-30",
+              },
     };
 
     const isQuietVariant =
@@ -317,6 +332,10 @@ function Button(
         variant === "quiet-on" ||
         variant === "quiet-off" ||
         variant === "quiet-above-grey-5-dark-background";
+
+    const isOutlineVariant = variant === "outline";
+
+    const willDarkenWithOverlayOnPress = !isQuietVariant && !isOutlineVariant;
 
     let node = (
         <FocusRing offset={isQuietVariant ? "0" : "0.5"}>
@@ -344,8 +363,14 @@ function Button(
                     // on other contents.
                     flexShrink: "0",
                 })}
+                style={{
+                    // Use a box-shadow for drawing the border so it doesn't affect layout.
+                    boxShadow: isOutlineVariant
+                        ? `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`
+                        : undefined,
+                }}
             >
-                {isPressed && !isQuietVariant && (
+                {isPressed && willDarkenWithOverlayOnPress && (
                     // For accent buttons, instead of choosing a darker background color shade when
                     // pressed we add a black overlay at a lowered opacity. We accomplish this with
                     // an overlay element since such a color is not in our color scheme.

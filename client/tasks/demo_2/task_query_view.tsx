@@ -59,6 +59,7 @@ export function TaskQueryView({
             <Box paddingX="5">
                 <TaskQueryViewCustomizationBar
                     shouldCollapseWhenFiltersAreEmpty={false}
+                    defaultOrderSentence="By default, tasks are ordered by created date."
                     state={state}
                     filters={filters}
                     filterReferences={filterReferences}

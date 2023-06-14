@@ -99,6 +99,7 @@ specifiers:
   '@cloudflare/workers-types': ^3.18.0
   '@dnd-kit/core': ^6.0.8
   '@dnd-kit/modifiers': ^6.0.1
+  '@dnd-kit/sortable': ^7.0.2
   '@internationalized/date': ^3.2.0
   '@juggle/resize-observer': ^3.4.0
   '@miniflare/http-server': 2.13.0
@@ -257,6 +258,7 @@ dependencies:
   '@cloudflare/workers-types': 3.18.0
   '@dnd-kit/core': 6.0.8_biqbaboplfbrettd7655fr4n2y
   '@dnd-kit/modifiers': 6.0.1_52scne4zmdeyjh2otzkgz2xfvu
+  '@dnd-kit/sortable': 7.0.2_52scne4zmdeyjh2otzkgz2xfvu
   '@internationalized/date': 3.2.0
   '@juggle/resize-observer': 3.4.0
   '@miniflare/http-server': 2.13.0_6x6w46dlwznsuawn4plb2tsdfq
@@ -3884,6 +3886,18 @@ packages:
       '@dnd-kit/utilities': 3.2.1_react@18.2.0
       react: 18.2.0
       tslib: 2.4.0
+    dev: false
+
+  /@dnd-kit/sortable/7.0.2_52scne4zmdeyjh2otzkgz2xfvu:
+    resolution: {integrity: sha512-wDkBHHf9iCi1veM834Gbk1429bd4lHX4RpAwT0y2cHLf246GAvU2sVw/oxWNpPKQNQRQaeGXhAVgrOl1IT+iyA==}
+    peerDependencies:
+      '@dnd-kit/core': ^6.0.7
+      react: '>=16.8.0 || 18'
+    dependencies:
+      '@dnd-kit/core': 6.0.8_biqbaboplfbrettd7655fr4n2y
+      '@dnd-kit/utilities': 3.2.1_react@18.2.0
+      react: 18.2.0
+      tslib: 2.5.0
     dev: false
 
   /@dnd-kit/utilities/3.2.1_react@18.2.0:

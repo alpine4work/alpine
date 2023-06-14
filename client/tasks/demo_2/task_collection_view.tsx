@@ -116,6 +116,7 @@ export function TaskCollectionView({
             <Box paddingX="5" paddingBottom="5">
                 <TaskQueryViewCustomizationBar
                     shouldCollapseWhenFiltersAreEmpty={true}
+                    defaultOrderSentence="You can order tasks manually by dragging them."
                     state={state}
                     filters={filters}
                     filterReferences={filterReferences}
