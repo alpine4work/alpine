@@ -106,6 +106,7 @@ export function TaskStatusButton({
                 {...buttonProps}
                 ref={buttonRef}
                 className={sprinkles({
+                    display: "block",
                     width: size,
                     height: size,
                     borderRadius: "full",

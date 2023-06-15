@@ -3,6 +3,7 @@ import {spacing} from "~/shared/design/spacing";
 import {omitObject} from "~/shared/helpers/object/omit_object";
 import {colorSchemeVars} from "~/shared/styles/internal/color_scheme.css";
 import {inputPlaceholderStyles} from "~/shared/styles/internal/input_placeholder.css";
+import {sprinkles} from "~/shared/styles/internal/sprinkles.css";
 
 export const textCursorNotInheritedClassName = style({
     cursor: "text",
@@ -16,9 +17,17 @@ export const pointerEventsNoneNotInheritedClassName = style({
     pointerEvents: "none",
 });
 
-globalStyle(`${pointerEventsNoneNotInheritedClassName} > *`, {
-    pointerEvents: "initial",
-});
+const pointerEventsNoneSprinklesNotSelector = sprinkles({pointerEvents: "none"})
+    .split(" ")
+    .map(className => `:not(${className})`)
+    .join("");
+
+globalStyle(
+    `${pointerEventsNoneNotInheritedClassName} > *:not(${pointerEventsNoneNotInheritedClassName})${pointerEventsNoneSprinklesNotSelector}`,
+    {
+        pointerEvents: "initial",
+    },
+);
 
 export const detailTitleInputEmptyContainerClassName = style({});
 

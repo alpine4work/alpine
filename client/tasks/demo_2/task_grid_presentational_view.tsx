@@ -1,3 +1,4 @@
+import {CalendarDate} from "@internationalized/date";
 import {Selection} from "prosemirror-state";
 import {
     Key,
@@ -19,11 +20,10 @@ import {TaskRowViewDroppable} from "~/client/tasks/demo_2/internal/task_row_view
 import {
     TaskRowPresentationalView,
     TaskRowPresentationalViewRef,
-    taskRowViewHeight,
+    taskRowViewMinHeight,
 } from "~/client/tasks/demo_2/task_row_presentational_view";
 import {TaskAssignee, TaskStatus} from "~/client/tasks/demo_2/task_status_button";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
-import {emptyArray} from "~/shared/helpers/array/empty_array";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {LazyMap} from "~/shared/helpers/control/lazy_map";
 import {noop} from "~/shared/helpers/control/noop";
@@ -57,8 +57,12 @@ export type TaskGridPresentationalViewProps<TaskRow> = {
     onTaskStatusChange: (taskRow: TaskRow, status: TaskStatus) => void;
     getTaskTitle: (taskRow: TaskRow) => TaskTitle;
     onTaskTitleChange: (taskRow: TaskRow, title: TaskTitle) => void;
+    shouldRenderMultilineTitle: boolean;
     getTaskAssignee: (taskRow: TaskRow) => TaskAssignee | null;
     onTaskAssigneeChange: (taskRow: TaskRow, assignee: TaskAssignee | null) => void;
+    getTaskDueDate: (taskRow: TaskRow) => CalendarDate | null;
+    onTaskDueDateChange: (taskRow: TaskRow, dueDate: CalendarDate | null) => void;
+    shouldShowDenseAssigneeAndDueDate: boolean;
     getTaskParentTaskTitle: (taskRow: TaskRow) => TaskTitle | null;
     shouldShowParentTaskTitle: boolean;
     getTaskChildTaskCount: (taskRow: TaskRow) => number;
@@ -98,8 +102,12 @@ function TaskGridPresentationalView<TaskRow>(
         onTaskStatusChange,
         getTaskTitle,
         onTaskTitleChange,
+        shouldRenderMultilineTitle,
         getTaskAssignee,
         onTaskAssigneeChange,
+        getTaskDueDate,
+        onTaskDueDateChange,
+        shouldShowDenseAssigneeAndDueDate,
         getTaskParentTaskTitle,
         shouldShowParentTaskTitle,
         getTaskChildTaskCount,
@@ -195,8 +203,12 @@ function TaskGridPresentationalView<TaskRow>(
                 title={emptyTaskTitle}
                 onTitleChange={title => createTaskAtStartFromTopGhostWithoutNewGhost(title)}
                 titlePlaceholder="Add a task…"
+                shouldRenderMultilineTitle={shouldRenderMultilineTitle}
                 assignee={null}
                 onAssigneeChange={noop}
+                dueDate={null}
+                onDueDateChange={noop}
+                shouldShowDenseAssigneeAndDueDate={false}
                 parentTaskTitle={null}
                 shouldShowParentTaskTitle={false}
                 childTaskCount={0}
@@ -206,7 +218,6 @@ function TaskGridPresentationalView<TaskRow>(
                 onExpand={null}
                 indentation={0}
                 droppableIndentations={[0]}
-                cells={emptyArray}
                 createTaskAbove={() => createTaskAtStartFromTopGhostAndFocus(emptyTaskTitle)}
                 createTaskBelowAndFocus={() =>
                     createTaskAtStartFromTopGhostAndFocus(emptyTaskTitle)
@@ -281,8 +292,12 @@ function TaskGridPresentationalView<TaskRow>(
                 onStatusChange={status => onTaskStatusChange(taskRow, status)}
                 title={getTaskTitle(taskRow)}
                 onTitleChange={title => onTaskTitleChange(taskRow, title)}
+                shouldRenderMultilineTitle={shouldRenderMultilineTitle}
                 assignee={getTaskAssignee(taskRow)}
                 onAssigneeChange={assignee => onTaskAssigneeChange(taskRow, assignee)}
+                dueDate={getTaskDueDate(taskRow)}
+                onDueDateChange={dueDate => onTaskDueDateChange(taskRow, dueDate)}
+                shouldShowDenseAssigneeAndDueDate={shouldShowDenseAssigneeAndDueDate}
                 parentTaskTitle={getTaskParentTaskTitle(taskRow)}
                 shouldShowParentTaskTitle={shouldShowParentTaskTitle}
                 childTaskCount={getTaskChildTaskCount(taskRow)}
@@ -292,7 +307,6 @@ function TaskGridPresentationalView<TaskRow>(
                 onExpand={onTaskExpand ? () => onTaskExpand(taskRow) : null}
                 indentation={taskRowIndentation}
                 droppableIndentations={droppableIndentations}
-                cells={emptyArray}
                 createTaskAbove={() => createTaskAbove(taskRow)}
                 createTaskBelowAndFocus={() => createTaskBelowAndFocus(taskRow)}
                 createTaskChildAtStartAndFocus={() => createTaskChildAtStartAndFocus(taskRow)}
@@ -373,8 +387,12 @@ function TaskGridPresentationalView<TaskRow>(
             title={emptyTaskTitle}
             onTitleChange={title => createTaskAtEndFromBottomGhost(title)}
             titlePlaceholder={taskGhostRowPlaceholder}
+            shouldRenderMultilineTitle={shouldRenderMultilineTitle}
             assignee={null}
             onAssigneeChange={noop}
+            dueDate={null}
+            onDueDateChange={noop}
+            shouldShowDenseAssigneeAndDueDate={false}
             parentTaskTitle={null}
             shouldShowParentTaskTitle={false}
             childTaskCount={0}
@@ -384,7 +402,6 @@ function TaskGridPresentationalView<TaskRow>(
             onExpand={null}
             indentation={0}
             droppableIndentations={[]}
-            cells={emptyArray}
             createTaskAbove={() => createTaskAtEndFromBottomGhostAndFocusNewGhost(emptyTaskTitle)}
             createTaskBelowAndFocus={() =>
                 createTaskAtEndFromBottomGhostAndFocusNewGhost(emptyTaskTitle)
@@ -435,7 +452,7 @@ function TaskGridPresentationalView<TaskRow>(
     const decorativeGhostTaskRow = (
         <Box
             paddingX="5"
-            height={taskRowViewHeight}
+            height={taskRowViewMinHeight}
             // Create an illusion that the text editor extends into the margins by giving
             // the margin a text cursor and making it clickable putting focus in the task.
             // A double click selects the task text.

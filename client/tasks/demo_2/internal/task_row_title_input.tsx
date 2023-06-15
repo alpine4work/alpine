@@ -19,6 +19,7 @@ import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_prio
 import {TaskRowTitleChildTasksButton} from "~/client/tasks/demo_2/internal/task_row_title_child_tasks_button";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
 import {Spacing, spacing} from "~/shared/design/spacing";
+import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {noop} from "~/shared/helpers/control/noop";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
@@ -31,7 +32,7 @@ import {
 } from "~/shared/styles/styles";
 import {TaskTitle, assertTaskTitle} from "~/shared/tasks/task_title_schema";
 
-export const taskRowTitleInputHeight: Spacing = "9";
+export const taskRowTitleInputSingleLineHeight: Spacing = "9";
 
 export type TaskRowTitleInputRef = {
     getSelection(): Selection;
@@ -44,24 +45,47 @@ export type TaskRowTitleInputRef = {
 
 const taskRowTitleInputAriaLabel = "Title";
 
-const taskRowTitleInputClassName = `ProseMirror ${sprinkles({
+const taskRowTitleInputSingleLineClassName = `ProseMirror ${sprinkles({
     // Use an `inline-block` display so the `<div>` width is equal to our content width.
     display: "inline-block",
     maxWidth: "full",
-    height: taskRowTitleInputHeight,
+    height: taskRowTitleInputSingleLineHeight,
     overflowY: "hidden",
     overflowX: "scroll",
     paddingY: "2",
     backgroundColor: "transparent",
 })} ${hideScrollbarClassName}`;
 
-const taskRowTitleInputStyle: CSSProperties = {
+const taskRowTitleInputSingleLineStyle: CSSProperties = {
     ...contentSchemaStyles.paragraphFontSize,
     // Make sure we have room to render the cursor.
     minWidth: "1ch",
     // Turn off text wrapping. This component emulates a single-line input.
     // https://developer.mozilla.org/en-US/docs/Web/CSS/white-space
     whiteSpace: "pre",
+    // `display: inline-block` creates an inline layout which adds extra space
+    // below the element. Adding `vertical-align` stops the space from being added.
+    // https://stackoverflow.com/questions/27536428/inline-block-element-height-issue
+    verticalAlign: "top",
+};
+
+const taskRowTitleInputMultilineClassName = `ProseMirror ${sprinkles({
+    // Use an `inline-block` display so the `<div>` width is equal to our content width.
+    display: "inline-block",
+    maxWidth: "full",
+    minHeight: taskRowTitleInputSingleLineHeight,
+    paddingY: "2",
+    backgroundColor: "transparent",
+})}`;
+
+const taskRowTitleInputMultilineStyle: CSSProperties = {
+    ...contentSchemaStyles.paragraphFontSize,
+    // Make sure we have room to render the cursor.
+    minWidth: "1ch",
+    // `display: inline-block` creates an inline layout which adds extra space
+    // below the element. Adding `vertical-align` stops the space from being added.
+    // https://stackoverflow.com/questions/27536428/inline-block-element-height-issue
+    verticalAlign: "top",
 };
 
 const TaskRowTitleInputForwardRef = forwardRef(TaskRowTitleInput);
@@ -71,6 +95,7 @@ function TaskRowTitleInput(
     {
         title,
         onTitleChange,
+        shouldRenderMultilineTitle,
         placeholder,
         indentation,
         parentTaskTitle,
@@ -92,6 +117,7 @@ function TaskRowTitleInput(
     }: {
         title: TaskTitle;
         onTitleChange: (title: TaskTitle) => void;
+        shouldRenderMultilineTitle: boolean;
         placeholder?: string;
         indentation: number;
         parentTaskTitle: TaskTitle | null;
@@ -113,6 +139,11 @@ function TaskRowTitleInput(
     },
     ref: Ref<TaskRowTitleInputRef>,
 ) {
+    assert(
+        !shouldRenderMultilineTitle || !shouldShowParentTaskTitle,
+        "Can't set both `shouldRenderMultilineTitle` and `shouldShowParentTaskTitle` to true, they are incompatible",
+    );
+
     const isInitialAppRender = useIsInitialAppRender();
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -302,8 +333,15 @@ function TaskRowTitleInput(
         });
 
         view.dom.ariaLabel = taskRowTitleInputAriaLabel;
-        view.dom.className = taskRowTitleInputClassName;
-        Object.assign(view.dom.style, taskRowTitleInputStyle);
+        view.dom.className = shouldRenderMultilineTitle
+            ? taskRowTitleInputMultilineClassName
+            : taskRowTitleInputSingleLineClassName;
+        Object.assign(
+            view.dom.style,
+            shouldRenderMultilineTitle
+                ? taskRowTitleInputMultilineStyle
+                : taskRowTitleInputSingleLineStyle,
+        );
 
         const updateFullyScrolledState = () => {
             setIsFullyScrolledLeft(view.dom.scrollLeft === 0);
@@ -337,7 +375,7 @@ function TaskRowTitleInput(
         // IMPORTANT: We want to maintain the `EditorView` instance during updates. Be
         // careful about what you put in here. Ideally we never destroy the
         // `EditorView` while this component is mounted.
-    }, [isInitialAppRender]);
+    }, [isInitialAppRender, shouldRenderMultilineTitle]);
 
     // Update our `EditorView`'s `EditorState` whenever it changes.
     useLayoutEffectWithoutServerSideWarning(() => {
@@ -450,7 +488,7 @@ function TaskRowTitleInput(
                         position: "relative",
                         zIndex: "0",
                         overflow: "hidden",
-                        height: taskRowTitleInputHeight,
+                        minHeight: taskRowTitleInputSingleLineHeight,
                         color: "grey-text",
                     }),
                     !isFullyScrolledLeft &&
@@ -469,8 +507,16 @@ function TaskRowTitleInput(
                     // On server-side render serialize our title to HTML since we can't mount an
                     // `EditorView` until we are on the client.
                     <div
-                        className={taskRowTitleInputClassName}
-                        style={taskRowTitleInputStyle}
+                        className={
+                            shouldRenderMultilineTitle
+                                ? taskRowTitleInputMultilineClassName
+                                : taskRowTitleInputSingleLineClassName
+                        }
+                        style={
+                            shouldRenderMultilineTitle
+                                ? taskRowTitleInputMultilineStyle
+                                : taskRowTitleInputSingleLineStyle
+                        }
                         aria-label={taskRowTitleInputAriaLabel}
                         aria-placeholder={placeholder}
                         // See why we set this attribute on `EditorView`.
@@ -493,14 +539,16 @@ function TaskRowTitleInput(
                         position: "absolute",
                         left: "0",
                         top: "0",
-                        height: taskRowTitleInputHeight,
+                        bottom: "0",
                         paddingY: "2",
                         pointerEvents: "none",
                         // Make sure placeholder is rendered underneath cursor.
                         zIndex: "-10",
                     })}
                     style={{
-                        ...taskRowTitleInputStyle,
+                        ...(shouldRenderMultilineTitle
+                            ? taskRowTitleInputMultilineStyle
+                            : taskRowTitleInputSingleLineStyle),
                         ...inputPlaceholderStyles,
                     }}
                 >
@@ -512,9 +560,7 @@ function TaskRowTitleInput(
                     tasksStyles.textCursorNotInheritedClassName,
                     sprinkles({
                         flexGrow: "1",
-                        height: taskRowTitleInputHeight,
-                        display: "flex",
-                        alignItems: "center",
+                        alignSelf: "stretch",
                     }),
                 )}
                 {...useOutOfBoundsClickSelection({
@@ -522,37 +568,50 @@ function TaskRowTitleInput(
                     onSelectAll: focusAll,
                 })}
             >
-                {shouldShowParentTaskTitle && parentTaskTitle && indentation === 0 && (
-                    <div
-                        className={sprinkles({
-                            pointerEvents: "none",
-                            color: "grey-50",
+                <div
+                    className={classNames(
+                        tasksStyles.pointerEventsNoneNotInheritedClassName,
+                        sprinkles({
                             display: "flex",
                             alignItems: "center",
-                            gap: "0.5",
-                            marginLeft: "1.5",
-                        })}
-                    >
-                        <CaretLeft size={spacing["3"]} />
+                            height: taskRowTitleInputSingleLineHeight,
+                        }),
+                    )}
+                >
+                    {shouldShowParentTaskTitle && parentTaskTitle && indentation === 0 && (
                         <div
                             className={sprinkles({
-                                fontStyle: "truncate",
-                                maxWidth: "48",
+                                pointerEvents: "none",
+                                color: "grey-50",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "0.5",
+                                marginLeft: "1.5",
                             })}
-                            dangerouslySetInnerHTML={{
-                                __html: serializeProsemirrorFragmentToHtml(parentTaskTitle.content),
-                            }}
+                        >
+                            <CaretLeft size={spacing["3"]} />
+                            <div
+                                className={sprinkles({
+                                    fontStyle: "truncate",
+                                    maxWidth: "48",
+                                })}
+                                dangerouslySetInnerHTML={{
+                                    __html: serializeProsemirrorFragmentToHtml(
+                                        parentTaskTitle.content,
+                                    ),
+                                }}
+                            />
+                        </div>
+                    )}
+                    {childTaskCount > 0 && (
+                        <TaskRowTitleChildTasksButton
+                            childTaskCount={childTaskCount}
+                            closedChildTaskCount={closedChildTaskCount}
+                            areChildTasksCollapsed={areChildTasksCollapsed}
+                            onAreChildTasksCollapsedToggle={onAreChildTasksCollapsedToggle}
                         />
-                    </div>
-                )}
-                {childTaskCount > 0 && (
-                    <TaskRowTitleChildTasksButton
-                        childTaskCount={childTaskCount}
-                        closedChildTaskCount={closedChildTaskCount}
-                        areChildTasksCollapsed={areChildTasksCollapsed}
-                        onAreChildTasksCollapsedToggle={onAreChildTasksCollapsedToggle}
-                    />
-                )}
+                    )}
+                </div>
             </div>
         </div>
     );

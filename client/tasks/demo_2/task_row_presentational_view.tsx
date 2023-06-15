@@ -22,9 +22,9 @@ import {TaskGridViewDraggableData} from "~/client/tasks/demo_2/internal/task_gri
 import {
     TaskRowTitleInput,
     TaskRowTitleInputRef,
+    taskRowTitleInputSingleLineHeight,
 } from "~/client/tasks/demo_2/internal/task_row_title_input";
 import {TaskRowViewDroppable} from "~/client/tasks/demo_2/internal/task_row_view_droppable";
-import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
 import {TaskAssignee, TaskStatus, TaskStatusButton} from "~/client/tasks/demo_2/task_status_button";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
 import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
@@ -45,29 +45,7 @@ import {TaskTitle} from "~/shared/tasks/task_title_schema";
 // [x] Open detail interaction
 // [ ] Dark mode pass
 
-export const taskRowViewHeight: Spacing = "9";
-
-export type TaskRowViewCell =
-    | TaskRowViewAssigneeCell
-    | TaskRowViewDueDateCell
-    | TaskRowViewCollectionsCell;
-
-export type TaskRowViewAssigneeCell = {
-    readonly type: "Assignee";
-    readonly dueDate: CalendarDate | null;
-    readonly onDueDateChange: (dueDate: CalendarDate | null) => void;
-};
-
-export type TaskRowViewDueDateCell = {
-    readonly type: "DueDate";
-    readonly dueDate: CalendarDate | null;
-    readonly onDueDateChange: (dueDate: CalendarDate | null) => void;
-};
-
-export type TaskRowViewCollectionsCell = {
-    readonly type: "Collections";
-    readonly collections: ReadonlyArray<LocalTaskCollection>;
-};
+export const taskRowViewMinHeight: Spacing = taskRowTitleInputSingleLineHeight;
 
 export type TaskRowPresentationalViewRef = {
     focusTitleStart(): void;
@@ -89,9 +67,13 @@ type TaskRowPresentationalViewProps<TaskRow> = {
     onStatusChange: (status: TaskStatus) => void;
     title: TaskTitle;
     onTitleChange: (title: TaskTitle) => void;
+    shouldRenderMultilineTitle: boolean;
     titlePlaceholder?: string;
     assignee: TaskAssignee | null;
     onAssigneeChange: (assignee: TaskAssignee | null) => void;
+    dueDate: CalendarDate | null;
+    onDueDateChange: (dueDate: CalendarDate | null) => void;
+    shouldShowDenseAssigneeAndDueDate: boolean;
     parentTaskTitle: TaskTitle | null;
     shouldShowParentTaskTitle: boolean;
     childTaskCount: number;
@@ -101,7 +83,6 @@ type TaskRowPresentationalViewProps<TaskRow> = {
     onExpand: (() => Promise<void>) | null;
     indentation: number;
     droppableIndentations: ReadonlyArray<number>;
-    cells: ReadonlyArray<TaskRowViewCell>;
     createTaskAbove: () => void;
     createTaskBelowAndFocus: () => void;
     createTaskChildAtStartAndFocus: () => void;
@@ -123,8 +104,13 @@ function TaskRowPresentationalView<TaskRow>(
         title,
         onTitleChange,
         titlePlaceholder,
+        shouldRenderMultilineTitle,
         assignee,
         onAssigneeChange,
+        dueDate,
+        onDueDateChange,
+        // NOCOMMIT: Do something with this!
+        shouldShowDenseAssigneeAndDueDate,
         parentTaskTitle,
         shouldShowParentTaskTitle,
         childTaskCount,
@@ -134,7 +120,6 @@ function TaskRowPresentationalView<TaskRow>(
         onExpand,
         indentation,
         droppableIndentations,
-        cells,
         createTaskAbove,
         createTaskBelowAndFocus,
         createTaskChildAtStartAndFocus,
@@ -240,6 +225,7 @@ function TaskRowPresentationalView<TaskRow>(
             })}
             ref={setDraggableNodeRef}
             className={sprinkles({
+                display: "block",
                 width: "4",
                 height: "4",
                 padding: "0.5",
@@ -263,9 +249,6 @@ function TaskRowPresentationalView<TaskRow>(
         <Box
             position="relative"
             flexShrink="0"
-            display="flex"
-            justifyContent="flex-end"
-            alignItems="center"
             style={{
                 width: `${
                     parseRemLengthNumber(spacing["5"]) +
@@ -285,51 +268,58 @@ function TaskRowPresentationalView<TaskRow>(
                 onSelectAll: focusTitleAll,
             })}
         >
-            {indentation > 0 && (
+            <Box
+                display="flex"
+                justifyContent="flex-end"
+                alignItems="center"
+                height={taskRowViewMinHeight}
+                className={tasksStyles.pointerEventsNoneNotInheritedClassName}
+            >
+                {indentation > 0 && (
+                    <Box
+                        paddingRight="0.5"
+                        className={tasksStyles.pointerEventsNoneNotInheritedClassName}
+                    >
+                        {isHovered && dragHandleNode}
+                    </Box>
+                )}
                 <Box
-                    paddingRight="0.5"
+                    width="5"
+                    paddingRight="1"
                     className={tasksStyles.pointerEventsNoneNotInheritedClassName}
                 >
-                    {isHovered && dragHandleNode}
+                    {onExpand && isHovered && (
+                        <IconButton
+                            size="xs"
+                            description="Expand"
+                            pressErrorTitle="Couldn’t expand task"
+                            onPress={onExpand}
+                        >
+                            <ArrowsOutSimple />
+                        </IconButton>
+                    )}
                 </Box>
-            )}
-            <Box
-                width="5"
-                paddingRight="1"
-                className={tasksStyles.pointerEventsNoneNotInheritedClassName}
-            >
-                {onExpand && isHovered && (
-                    <IconButton
-                        size="xs"
-                        description="Expand"
-                        pressErrorTitle="Couldn’t expand task"
-                        onPress={onExpand}
-                    >
-                        <ArrowsOutSimple />
-                    </IconButton>
-                )}
-            </Box>
-            <Box
-                width="6"
-                paddingRight="2"
-                className={tasksStyles.pointerEventsNoneNotInheritedClassName}
-            >
-                {status !== null ? (
-                    <TaskStatusButton
-                        status={status}
-                        onStatusChange={onStatusChange}
-                        assignee={assignee}
-                    />
-                ) : (
-                    <Box
-                        width="4"
-                        height="4"
-                        borderRadius="full"
-                        border="grey-10"
-                        // Needs to be an inline style to have higher precedence than parent class.
-                        style={{pointerEvents: "none"}}
-                    />
-                )}
+                <Box
+                    width="6"
+                    paddingRight="2"
+                    className={tasksStyles.pointerEventsNoneNotInheritedClassName}
+                >
+                    {status !== null ? (
+                        <TaskStatusButton
+                            status={status}
+                            onStatusChange={onStatusChange}
+                            assignee={assignee}
+                        />
+                    ) : (
+                        <Box
+                            width="4"
+                            height="4"
+                            borderRadius="full"
+                            border="grey-10"
+                            pointerEvents="none"
+                        />
+                    )}
+                </Box>
             </Box>
         </Box>
     );
@@ -338,16 +328,13 @@ function TaskRowPresentationalView<TaskRow>(
         <Box
             ref={rowRef}
             display="flex"
-            height={taskRowViewHeight}
+            minHeight={taskRowViewMinHeight}
             backgroundColor="grey-0"
             position="relative"
         >
             <Box
                 flexShrink="0"
                 width="5"
-                display="flex"
-                justifyContent="flex-end"
-                alignItems="center"
                 // Create an illusion that the text editor extends into the margins by giving
                 // the margin a text cursor and making it clickable putting focus in the task.
                 // A double click selects the task text.
@@ -362,6 +349,11 @@ function TaskRowPresentationalView<TaskRow>(
             >
                 {indentation === 0 && (
                     <Box
+                        width="full"
+                        height={taskRowViewMinHeight}
+                        display="flex"
+                        justifyContent="flex-end"
+                        alignItems="center"
                         paddingRight="0.5"
                         className={tasksStyles.pointerEventsNoneNotInheritedClassName}
                     >
@@ -389,6 +381,7 @@ function TaskRowPresentationalView<TaskRow>(
                         ref={titleInputRef}
                         title={title}
                         onTitleChange={onTitleChange}
+                        shouldRenderMultilineTitle={shouldRenderMultilineTitle}
                         placeholder={titlePlaceholder}
                         indentation={indentation}
                         parentTaskTitle={parentTaskTitle}

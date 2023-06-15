@@ -196,6 +196,7 @@ function TaskNotepadGridView(
                     status,
                 });
             }}
+            shouldRenderMultilineTitle={false}
             getTaskTitle={({task}) => task.title}
             onTaskTitleChange={({task: {id: taskId}}, title) => {
                 dispatch({
@@ -204,12 +205,21 @@ function TaskNotepadGridView(
                     title,
                 });
             }}
+            shouldShowDenseAssigneeAndDueDate={false}
             getTaskAssignee={({task}) => task.assignee}
             onTaskAssigneeChange={({task: {id: taskId}}, assignee) => {
                 dispatch({
                     type: "UpdateTaskAssignee",
                     taskId,
                     assignee,
+                });
+            }}
+            getTaskDueDate={({task}) => task.dueDate}
+            onTaskDueDateChange={({task: {id: taskId}}, dueDate) => {
+                dispatch({
+                    type: "UpdateTaskDueDate",
+                    taskId,
+                    dueDate,
                 });
             }}
             shouldShowParentTaskTitle={true}

@@ -2,7 +2,7 @@ import {useDroppable} from "@dnd-kit/core";
 import {useId} from "react";
 import {Box} from "~/client/design/box";
 import {TaskGridViewDroppableData} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
-import {taskRowViewHeight} from "~/client/tasks/demo_2/task_row_presentational_view";
+import {taskRowViewMinHeight} from "~/client/tasks/demo_2/task_row_presentational_view";
 import {parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {contentSchemaStyles} from "~/shared/styles/styles";
 
@@ -40,7 +40,8 @@ export function TaskRowViewDroppable<TaskRow>({
             right="0"
             zIndex="10"
             pointerEvents="none"
-            height={taskRowViewHeight}
+            // NOCOMMIT: Probably wrong?
+            height={taskRowViewMinHeight}
         >
             <Box
                 ref={setDroppableNodeRef}

@@ -16,6 +16,7 @@ import {Button} from "~/client/design/button";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element";
 import {IconButton} from "~/client/design/icon_button";
 import {MenuButton} from "~/client/design/menu_button";
+import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {useSpaceContext} from "~/client/spaces/space_context";
@@ -94,7 +95,10 @@ export type TaskDetailPresentationalViewProps<ChildTaskRow> = {
     onNotesContentChange: (notesContent: TaskNotesContentWithReferences) => void;
     childTaskCount: number;
     closedChildTaskCount: number;
-    childTasksGridViewProps: TaskGridPresentationalViewProps<ChildTaskRow>;
+    childTasksGridView: ReactElement<
+        TaskGridPresentationalViewProps<ChildTaskRow>,
+        typeof TaskGridPresentationalView
+    >;
 };
 
 function TaskDetailPresentationalView<ChildTaskRow>(
@@ -116,7 +120,7 @@ function TaskDetailPresentationalView<ChildTaskRow>(
         onNotesContentChange,
         childTaskCount,
         closedChildTaskCount,
-        childTasksGridViewProps,
+        childTasksGridView,
     }: TaskDetailPresentationalViewProps<ChildTaskRow>,
     ref: Ref<TaskDetailPresentationalViewRef>,
 ) {
@@ -303,10 +307,7 @@ function TaskDetailPresentationalView<ChildTaskRow>(
                         </Box>
                     )}
                 </label>
-                <TaskGridPresentationalView
-                    {...childTasksGridViewProps}
-                    ref={childTasksGridViewRef}
-                />
+                {useElementWithRef(childTasksGridView, childTasksGridViewRef)}
             </Box>
         </Box>
     );

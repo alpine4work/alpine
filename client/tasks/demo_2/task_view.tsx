@@ -16,7 +16,10 @@ import {
     TaskDetailPresentationalView,
     TaskDetailPresentationalViewRef,
 } from "~/client/tasks/demo_2/task_detail_presentational_view";
-import {minTaskCountToShowTopGhostTask} from "~/client/tasks/demo_2/task_grid_presentational_view";
+import {
+    TaskGridPresentationalView,
+    minTaskCountToShowTopGhostTask,
+} from "~/client/tasks/demo_2/task_grid_presentational_view";
 import {assert} from "~/shared/helpers/control/assert";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
 import {OrderKey} from "~/shared/helpers/sort/order_key";
@@ -176,351 +179,371 @@ export function TaskView({
                     (state.database.getTask(childTaskId).status.type === "Closed" ? 1 : 0),
                 0,
             )}
-            childTasksGridViewProps={{
-                taskRowCount: childTaskRows.length,
-                getTaskRow: index => childTaskRows[index]!,
-                topGhostTaskKey: topTaskGhostRowId,
-                bottomGhostTaskKey: bottomTaskGhostRowId,
-                getTaskKey: ({task}) => task.id,
-                getTaskStatus: ({task}) => task.status,
-                onTaskStatusChange: ({task: {id: taskId}}, status) => {
-                    dispatch({
-                        type: "UpdateTaskStatus",
-                        taskId,
-                        status,
-                    });
-                },
-                getTaskTitle: ({task}) => task.title,
-                onTaskTitleChange: ({task: {id: taskId}}, title) => {
-                    dispatch({
-                        type: "UpdateTaskTitle",
-                        taskId,
-                        title,
-                    });
-                },
-                getTaskAssignee: ({task}) => task.assignee,
-                onTaskAssigneeChange: ({task: {id: taskId}}, assignee) => {
-                    dispatch({
-                        type: "UpdateTaskAssignee",
-                        taskId,
-                        assignee,
-                    });
-                },
-                shouldShowParentTaskTitle: false,
-                getTaskParentTaskTitle: ({task}) =>
-                    task.parentTaskId ? state.database.getTask(task.parentTaskId).title : null,
-                getTaskChildTaskCount: ({task}) => task.childTaskIdByOrderKey.size,
-                getTaskClosedChildTaskCount: ({task}) =>
-                    reduceIterable(
-                        task.childTaskIdByOrderKey.values(),
-                        (closedChildTaskCount, childTaskId) =>
-                            closedChildTaskCount +
-                            (state.database.getTask(childTaskId).status.type === "Closed" ? 1 : 0),
-                        0,
-                    ),
-                getTaskAreChildTasksCollapsed: ({task}) => !expandedChildTaskIds.has(task.id),
-                onTaskAreChildTasksCollapsedToggle: ({task: {id: taskId}}) => {
-                    setExpandedChildTaskIds(expandedTaskIds => {
-                        const newExpandedTaskIds = new Set(expandedTaskIds);
-                        if (!newExpandedTaskIds.delete(taskId)) {
-                            newExpandedTaskIds.add(taskId);
-                        }
-                        return newExpandedTaskIds;
-                    });
-                },
-                onTaskExpand: async ({task: {id: taskId}}) => {
-                    // If we are already in a peek then navigate the peek instead of opening a
-                    // new one.
-                    if (peekContext?.withMobileLayout) {
-                        await navigate(`/s/${space.id}/tasks/demo-2/${taskId}`);
-                    } else {
-                        await peekStackContext.push(`/s/${space.id}/tasks/demo-2/${taskId}`);
+            childTasksGridView={
+                <TaskGridPresentationalView<{
+                    position: TaskViewChildTasksGridViewRowPosition;
+                    parentPositionStack: ReadonlyArray<TaskViewChildTasksGridViewRowPosition>;
+                    task: LocalTask;
+                }>
+                    taskRowCount={childTaskRows.length}
+                    getTaskRow={index => childTaskRows[index]!}
+                    topGhostTaskKey={topTaskGhostRowId}
+                    bottomGhostTaskKey={bottomTaskGhostRowId}
+                    getTaskKey={({task}) => task.id}
+                    getTaskStatus={({task}) => task.status}
+                    onTaskStatusChange={({task: {id: taskId}}, status) => {
+                        dispatch({
+                            type: "UpdateTaskStatus",
+                            taskId,
+                            status,
+                        });
+                    }}
+                    shouldRenderMultilineTitle={true}
+                    getTaskTitle={({task}) => task.title}
+                    onTaskTitleChange={({task: {id: taskId}}, title) => {
+                        dispatch({
+                            type: "UpdateTaskTitle",
+                            taskId,
+                            title,
+                        });
+                    }}
+                    shouldShowDenseAssigneeAndDueDate={true}
+                    getTaskAssignee={({task}) => task.assignee}
+                    onTaskAssigneeChange={({task: {id: taskId}}, assignee) => {
+                        dispatch({
+                            type: "UpdateTaskAssignee",
+                            taskId,
+                            assignee,
+                        });
+                    }}
+                    getTaskDueDate={({task}) => task.dueDate}
+                    onTaskDueDateChange={({task: {id: taskId}}, dueDate) => {
+                        dispatch({
+                            type: "UpdateTaskDueDate",
+                            taskId,
+                            dueDate,
+                        });
+                    }}
+                    shouldShowParentTaskTitle={false}
+                    getTaskParentTaskTitle={({task}) =>
+                        task.parentTaskId ? state.database.getTask(task.parentTaskId).title : null
                     }
-                },
-                getTaskRowIndentation: ({parentPositionStack}) => parentPositionStack.length,
-                createTaskAbove: ({position}) => {
-                    dispatch({
-                        type: "CreateTask",
-                        creatorId: currentAccount.id,
-                        creatorTimeZone: timeZone,
-                        normalizedFilters: null,
-                        ...position,
-                        side: "Above",
-                    });
-                },
-                createTaskBelowAndFocus: ({position}) => {
-                    dispatch({
-                        type: "CreateTask",
-                        creatorId: currentAccount.id,
-                        creatorTimeZone: timeZone,
-                        normalizedFilters: null,
-                        ...position,
-                        side: "Below",
-                        onLayoutEffect: taskId => {
-                            // TODO(calebmer): A production implementation probably shouldn't do an
-                            // O(n) loop here.
-                            const index = childTaskRowsRef.current.findIndex(
-                                ({task}) => task.id === taskId,
-                            );
-
-                            if (index >= 0) {
-                                detailViewRef.current
-                                    ?.getChildTasksGridView()
-                                    .focusTaskRowTitleStart(index);
-                            }
-                        },
-                    });
-                },
-                createTaskChildAtStartAndFocus: ({task: {id: taskId}}) => {
-                    dispatch({
-                        type: "CreateTask",
-                        creatorId: currentAccount.id,
-                        creatorTimeZone: timeZone,
-                        normalizedFilters: null,
-                        parentTask: {id: taskId, side: "Above"},
-                        onLayoutEffect: taskId => {
-                            // TODO(calebmer): A production implementation probably shouldn't do an
-                            // O(n) loop here.
-                            const index = childTaskRowsRef.current.findIndex(
-                                ({task}) => task.id === taskId,
-                            );
-
-                            if (index >= 0) {
-                                detailViewRef.current
-                                    ?.getChildTasksGridView()
-                                    .focusTaskRowTitleStart(index);
-                            }
-                        },
-                    });
-                },
-                createTaskAtEndFromBottomGhost: title => {
-                    // Immediate priority since we want React to batch the
-                    // `setBottomTaskGhostRowId()` call and the `dispatch()` which doesn't go
-                    // through React state.
-                    runWithImmediatePriority(() => {
-                        // Generate a new ghost row...
-                        setBottomTaskGhostRowId(generateId<LocalTaskId>());
-
-                        dispatch({
-                            type: "CreateTask",
-                            creatorId: currentAccount.id,
-                            creatorTimeZone: timeZone,
-                            normalizedFilters: null,
-                            taskId: bottomTaskGhostRowId,
-                            title,
-                            parentTask: {id: task.id, side: "Below"},
-                        });
-                    });
-                },
-                createTaskAtEndFromBottomGhostAndFocusNewGhost: title => {
-                    // Immediate priority since we want React to batch the
-                    // `setBottomTaskGhostRowId()` call and the `dispatch()` which doesn't go
-                    // through React state.
-                    runWithImmediatePriority(() => {
-                        // Generate a new ghost row...
-                        setBottomTaskGhostRowId(generateId<LocalTaskId>());
-
-                        dispatch({
-                            type: "CreateTask",
-                            creatorId: currentAccount.id,
-                            creatorTimeZone: timeZone,
-                            normalizedFilters: null,
-                            taskId: bottomTaskGhostRowId,
-                            title,
-                            parentTask: {id: task.id, side: "Below"},
-                            onLayoutEffect: () => {
-                                detailViewRef.current?.getChildTasksGridView().focusEnd();
-                            },
-                        });
-                    });
-                },
-                createTaskAtStartFromTopGhostWithoutNewGhost: title => {
-                    if (!topTaskGhostRowId) return;
-
-                    // Immediate priority since we want React to batch the
-                    // `setTopTaskGhostRowId()` call and the `dispatch()` which doesn't go
-                    // through React state.
-                    runWithImmediatePriority(() => {
-                        // Don't create a new top ghost row.
-                        setTopTaskGhostRowId(null);
-
-                        dispatch({
-                            type: "CreateTask",
-                            creatorId: currentAccount.id,
-                            creatorTimeZone: timeZone,
-                            normalizedFilters: null,
-                            taskId: topTaskGhostRowId,
-                            title,
-                            parentTask: {id: task.id, side: "Above"},
-                        });
-                    });
-                },
-                createTaskAtStartFromTopGhostAndFocus: title => {
-                    dispatch({
-                        type: "CreateTask",
-                        creatorId: currentAccount.id,
-                        creatorTimeZone: timeZone,
-                        normalizedFilters: null,
-                        title,
-                        parentTask: {id: task.id, side: "Above"},
-                        onLayoutEffect: taskId => {
-                            // TODO(calebmer): A production implementation probably shouldn't do an
-                            // O(n) loop here.
-                            const index = childTaskRowsRef.current.findIndex(
-                                ({task}) => task.id === taskId,
-                            );
-
-                            if (index >= 0) {
-                                detailViewRef.current
-                                    ?.getChildTasksGridView()
-                                    .focusTaskRowTitleStart(index);
-                            }
-                        },
-                    });
-                },
-                nestTaskAndExpandParentRow: (
-                    {task: {id: parentTaskId}},
-                    {task: {id: childTaskId}},
-                    titleSelection,
-                    newIndentation,
-                ) => {
-                    // Immediate priority since we want React to batch the
-                    // `setExpandedChildTaskIds()` call and the `dispatch()` which doesn't go
-                    // through React state.
-                    runWithImmediatePriority(() => {
-                        dispatch({
-                            type: "NestTask",
-                            parentTaskId,
-                            childTaskId,
-                            from: {type: "ParentTask"},
-                            onLayoutEffect: () => {
-                                // TODO(calebmer): A production implementation probably shouldn't do an
-                                // O(n) loop here.
-                                const newIndex = childTaskRowsRef.current.findIndex(
-                                    ({task, parentPositionStack}) =>
-                                        task.id === childTaskId &&
-                                        parentPositionStack.length === newIndentation,
-                                );
-
-                                if (newIndex >= 0) {
-                                    detailViewRef.current
-                                        ?.getChildTasksGridView()
-                                        .focusTaskRowTitleSelection(newIndex, titleSelection);
-                                }
-                            },
-                        });
-
+                    getTaskChildTaskCount={({task}) => task.childTaskIdByOrderKey.size}
+                    getTaskClosedChildTaskCount={({task}) =>
+                        reduceIterable(
+                            task.childTaskIdByOrderKey.values(),
+                            (closedChildTaskCount, childTaskId) =>
+                                closedChildTaskCount +
+                                (state.database.getTask(childTaskId).status.type === "Closed"
+                                    ? 1
+                                    : 0),
+                            0,
+                        )
+                    }
+                    getTaskAreChildTasksCollapsed={({task}) => !expandedChildTaskIds.has(task.id)}
+                    onTaskAreChildTasksCollapsedToggle={({task: {id: taskId}}) => {
                         setExpandedChildTaskIds(expandedTaskIds => {
                             const newExpandedTaskIds = new Set(expandedTaskIds);
-                            newExpandedTaskIds.add(parentTaskId);
+                            if (!newExpandedTaskIds.delete(taskId)) {
+                                newExpandedTaskIds.add(taskId);
+                            }
                             return newExpandedTaskIds;
                         });
-                    });
-                },
-                unnestTaskIfNestedRow: (
-                    {parentPositionStack, task: {id: childTaskId}},
-                    titleSelection,
-                ) => {
-                    const parentPosition = parentPositionStack[parentPositionStack.length - 1];
-
-                    if (parentPosition) {
+                    }}
+                    onTaskExpand={async ({task: {id: taskId}}) => {
+                        // If we are already in a peek then navigate the peek instead of opening a
+                        // new one.
+                        if (peekContext?.withMobileLayout) {
+                            await navigate(`/s/${space.id}/tasks/demo-2/${taskId}`);
+                        } else {
+                            await peekStackContext.push(`/s/${space.id}/tasks/demo-2/${taskId}`);
+                        }
+                    }}
+                    getTaskRowIndentation={({parentPositionStack}) => parentPositionStack.length}
+                    createTaskAbove={({position}) => {
                         dispatch({
-                            type: "MoveTask",
-                            taskId: childTaskId,
-                            from: {type: "ParentTask"},
-                            to: {
-                                type: "ParentTask",
-                                parentTaskId: parentPosition.parentTask.id,
-                                belowOrderKey: parentPosition.parentTask.orderKey,
-                            },
-                            onLayoutEffect: () => {
+                            type: "CreateTask",
+                            creatorId: currentAccount.id,
+                            creatorTimeZone: timeZone,
+                            normalizedFilters: null,
+                            ...position,
+                            side: "Above",
+                        });
+                    }}
+                    createTaskBelowAndFocus={({position}) => {
+                        dispatch({
+                            type: "CreateTask",
+                            creatorId: currentAccount.id,
+                            creatorTimeZone: timeZone,
+                            normalizedFilters: null,
+                            ...position,
+                            side: "Below",
+                            onLayoutEffect: taskId => {
                                 // TODO(calebmer): A production implementation probably shouldn't do an
                                 // O(n) loop here.
-                                const newIndex = childTaskRowsRef.current.findIndex(
-                                    ({task, parentPositionStack: otherParentPositionStack}) =>
-                                        task.id === childTaskId &&
-                                        otherParentPositionStack.length ===
-                                            parentPositionStack.length - 1,
+                                const index = childTaskRowsRef.current.findIndex(
+                                    ({task}) => task.id === taskId,
                                 );
 
-                                if (newIndex >= 0) {
+                                if (index >= 0) {
                                     detailViewRef.current
                                         ?.getChildTasksGridView()
-                                        .focusTaskRowTitleSelection(newIndex, titleSelection);
+                                        .focusTaskRowTitleStart(index);
                                 }
                             },
                         });
-                    }
-                },
-                deleteTaskAndAllChildrenAndFocusPreviousRow: ({task: {id: taskId}}) => {
-                    // TODO(calebmer): A production implementation probably shouldn't do an
-                    // O(n) loop here.
-                    const oldIndex = childTaskRowsRef.current.findIndex(
-                        ({task}) => task.id === taskId,
-                    );
+                    }}
+                    createTaskChildAtStartAndFocus={({task: {id: taskId}}) => {
+                        dispatch({
+                            type: "CreateTask",
+                            creatorId: currentAccount.id,
+                            creatorTimeZone: timeZone,
+                            normalizedFilters: null,
+                            parentTask: {id: taskId, side: "Above"},
+                            onLayoutEffect: taskId => {
+                                // TODO(calebmer): A production implementation probably shouldn't do an
+                                // O(n) loop here.
+                                const index = childTaskRowsRef.current.findIndex(
+                                    ({task}) => task.id === taskId,
+                                );
 
-                    dispatch({
-                        type: "DeleteTaskAndAllChildren",
-                        taskId,
-                        onLayoutEffect: () => {
-                            if (childTaskRowsRef.current.length === 0 || oldIndex === 0) {
-                                detailViewRef.current?.getChildTasksGridView().focusStart();
-                            } else {
-                                detailViewRef.current
-                                    ?.getChildTasksGridView()
-                                    .focusTaskRowTitleEnd(oldIndex - 1);
-                            }
-                        },
-                    });
-                },
-                moveTaskBelow: (belowTaskRow, unnest, taskRow) => {
-                    const from: LocalTasksMoveTaskFrom = {type: "ParentTask"};
+                                if (index >= 0) {
+                                    detailViewRef.current
+                                        ?.getChildTasksGridView()
+                                        .focusTaskRowTitleStart(index);
+                                }
+                            },
+                        });
+                    }}
+                    createTaskAtEndFromBottomGhost={title => {
+                        // Immediate priority since we want React to batch the
+                        // `setBottomTaskGhostRowId()` call and the `dispatch()` which doesn't go
+                        // through React state.
+                        runWithImmediatePriority(() => {
+                            // Generate a new ghost row...
+                            setBottomTaskGhostRowId(generateId<LocalTaskId>());
 
-                    if (!belowTaskRow) {
+                            dispatch({
+                                type: "CreateTask",
+                                creatorId: currentAccount.id,
+                                creatorTimeZone: timeZone,
+                                normalizedFilters: null,
+                                taskId: bottomTaskGhostRowId,
+                                title,
+                                parentTask: {id: task.id, side: "Below"},
+                            });
+                        });
+                    }}
+                    createTaskAtEndFromBottomGhostAndFocusNewGhost={title => {
+                        // Immediate priority since we want React to batch the
+                        // `setBottomTaskGhostRowId()` call and the `dispatch()` which doesn't go
+                        // through React state.
+                        runWithImmediatePriority(() => {
+                            // Generate a new ghost row...
+                            setBottomTaskGhostRowId(generateId<LocalTaskId>());
+
+                            dispatch({
+                                type: "CreateTask",
+                                creatorId: currentAccount.id,
+                                creatorTimeZone: timeZone,
+                                normalizedFilters: null,
+                                taskId: bottomTaskGhostRowId,
+                                title,
+                                parentTask: {id: task.id, side: "Below"},
+                                onLayoutEffect: () => {
+                                    detailViewRef.current?.getChildTasksGridView().focusEnd();
+                                },
+                            });
+                        });
+                    }}
+                    createTaskAtStartFromTopGhostWithoutNewGhost={title => {
+                        if (!topTaskGhostRowId) return;
+
+                        // Immediate priority since we want React to batch the
+                        // `setTopTaskGhostRowId()` call and the `dispatch()` which doesn't go
+                        // through React state.
+                        runWithImmediatePriority(() => {
+                            // Don't create a new top ghost row.
+                            setTopTaskGhostRowId(null);
+
+                            dispatch({
+                                type: "CreateTask",
+                                creatorId: currentAccount.id,
+                                creatorTimeZone: timeZone,
+                                normalizedFilters: null,
+                                taskId: topTaskGhostRowId,
+                                title,
+                                parentTask: {id: task.id, side: "Above"},
+                            });
+                        });
+                    }}
+                    createTaskAtStartFromTopGhostAndFocus={title => {
+                        dispatch({
+                            type: "CreateTask",
+                            creatorId: currentAccount.id,
+                            creatorTimeZone: timeZone,
+                            normalizedFilters: null,
+                            title,
+                            parentTask: {id: task.id, side: "Above"},
+                            onLayoutEffect: taskId => {
+                                // TODO(calebmer): A production implementation probably shouldn't do an
+                                // O(n) loop here.
+                                const index = childTaskRowsRef.current.findIndex(
+                                    ({task}) => task.id === taskId,
+                                );
+
+                                if (index >= 0) {
+                                    detailViewRef.current
+                                        ?.getChildTasksGridView()
+                                        .focusTaskRowTitleStart(index);
+                                }
+                            },
+                        });
+                    }}
+                    nestTaskAndExpandParentRow={(
+                        {task: {id: parentTaskId}},
+                        {task: {id: childTaskId}},
+                        titleSelection,
+                        newIndentation,
+                    ) => {
+                        // Immediate priority since we want React to batch the
+                        // `setExpandedChildTaskIds()` call and the `dispatch()` which doesn't go
+                        // through React state.
+                        runWithImmediatePriority(() => {
+                            dispatch({
+                                type: "NestTask",
+                                parentTaskId,
+                                childTaskId,
+                                from: {type: "ParentTask"},
+                                onLayoutEffect: () => {
+                                    // TODO(calebmer): A production implementation probably shouldn't do an
+                                    // O(n) loop here.
+                                    const newIndex = childTaskRowsRef.current.findIndex(
+                                        ({task, parentPositionStack}) =>
+                                            task.id === childTaskId &&
+                                            parentPositionStack.length === newIndentation,
+                                    );
+
+                                    if (newIndex >= 0) {
+                                        detailViewRef.current
+                                            ?.getChildTasksGridView()
+                                            .focusTaskRowTitleSelection(newIndex, titleSelection);
+                                    }
+                                },
+                            });
+
+                            setExpandedChildTaskIds(expandedTaskIds => {
+                                const newExpandedTaskIds = new Set(expandedTaskIds);
+                                newExpandedTaskIds.add(parentTaskId);
+                                return newExpandedTaskIds;
+                            });
+                        });
+                    }}
+                    unnestTaskIfNestedRow={(
+                        {parentPositionStack, task: {id: childTaskId}},
+                        titleSelection,
+                    ) => {
+                        const parentPosition = parentPositionStack[parentPositionStack.length - 1];
+
+                        if (parentPosition) {
+                            dispatch({
+                                type: "MoveTask",
+                                taskId: childTaskId,
+                                from: {type: "ParentTask"},
+                                to: {
+                                    type: "ParentTask",
+                                    parentTaskId: parentPosition.parentTask.id,
+                                    belowOrderKey: parentPosition.parentTask.orderKey,
+                                },
+                                onLayoutEffect: () => {
+                                    // TODO(calebmer): A production implementation probably shouldn't do an
+                                    // O(n) loop here.
+                                    const newIndex = childTaskRowsRef.current.findIndex(
+                                        ({task, parentPositionStack: otherParentPositionStack}) =>
+                                            task.id === childTaskId &&
+                                            otherParentPositionStack.length ===
+                                                parentPositionStack.length - 1,
+                                    );
+
+                                    if (newIndex >= 0) {
+                                        detailViewRef.current
+                                            ?.getChildTasksGridView()
+                                            .focusTaskRowTitleSelection(newIndex, titleSelection);
+                                    }
+                                },
+                            });
+                        }
+                    }}
+                    deleteTaskAndAllChildrenAndFocusPreviousRow={({task: {id: taskId}}) => {
+                        // TODO(calebmer): A production implementation probably shouldn't do an
+                        // O(n) loop here.
+                        const oldIndex = childTaskRowsRef.current.findIndex(
+                            ({task}) => task.id === taskId,
+                        );
+
+                        dispatch({
+                            type: "DeleteTaskAndAllChildren",
+                            taskId,
+                            onLayoutEffect: () => {
+                                if (childTaskRowsRef.current.length === 0 || oldIndex === 0) {
+                                    detailViewRef.current?.getChildTasksGridView().focusStart();
+                                } else {
+                                    detailViewRef.current
+                                        ?.getChildTasksGridView()
+                                        .focusTaskRowTitleEnd(oldIndex - 1);
+                                }
+                            },
+                        });
+                    }}
+                    moveTaskBelow={(belowTaskRow, unnest, taskRow) => {
+                        const from: LocalTasksMoveTaskFrom = {type: "ParentTask"};
+
+                        if (!belowTaskRow) {
+                            dispatch({
+                                type: "MoveTask",
+                                taskId: taskRow.task.id,
+                                from,
+                                to: {
+                                    type: "ParentTask",
+                                    parentTaskId: taskId,
+                                    belowOrderKey: null,
+                                },
+                            });
+                            return;
+                        }
+
+                        const newPosition =
+                            unnest === 0
+                                ? belowTaskRow.position
+                                : belowTaskRow.parentPositionStack[
+                                      belowTaskRow.parentPositionStack.length - unnest
+                                  ] ?? belowTaskRow.position;
+
                         dispatch({
                             type: "MoveTask",
                             taskId: taskRow.task.id,
                             from,
                             to: {
                                 type: "ParentTask",
-                                parentTaskId: taskId,
+                                parentTaskId: newPosition.parentTask.id,
+                                belowOrderKey: newPosition.parentTask.orderKey,
+                            },
+                        });
+                    }}
+                    moveTaskToParentTop={(parentTaskRow, taskRow) => {
+                        dispatch({
+                            type: "MoveTask",
+                            taskId: taskRow.task.id,
+                            from: {type: "ParentTask"},
+                            to: {
+                                type: "ParentTask",
+                                parentTaskId: parentTaskRow.task.id,
                                 belowOrderKey: null,
                             },
                         });
-                        return;
-                    }
-
-                    const newPosition =
-                        unnest === 0
-                            ? belowTaskRow.position
-                            : belowTaskRow.parentPositionStack[
-                                  belowTaskRow.parentPositionStack.length - unnest
-                              ] ?? belowTaskRow.position;
-
-                    dispatch({
-                        type: "MoveTask",
-                        taskId: taskRow.task.id,
-                        from,
-                        to: {
-                            type: "ParentTask",
-                            parentTaskId: newPosition.parentTask.id,
-                            belowOrderKey: newPosition.parentTask.orderKey,
-                        },
-                    });
-                },
-                moveTaskToParentTop: (parentTaskRow, taskRow) => {
-                    dispatch({
-                        type: "MoveTask",
-                        taskId: taskRow.task.id,
-                        from: {type: "ParentTask"},
-                        to: {
-                            type: "ParentTask",
-                            parentTaskId: parentTaskRow.task.id,
-                            belowOrderKey: null,
-                        },
-                    });
-                },
-            }}
+                    }}
+                />
+            }
         />
     );
 }
