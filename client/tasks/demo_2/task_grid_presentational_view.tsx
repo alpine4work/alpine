@@ -30,6 +30,8 @@ import {noop} from "~/shared/helpers/control/noop";
 import {colorSchemeVars} from "~/shared/styles/styles";
 import {TaskTitle, emptyTaskTitle} from "~/shared/tasks/task_title_schema";
 
+export const minTaskCountToShowTopGhostTask = 7;
+
 export type TaskGridPresentationalViewRef = {
     focusTaskRowTitleStart(index: number): void;
     focusTaskRowTitleEnd(index: number): void;

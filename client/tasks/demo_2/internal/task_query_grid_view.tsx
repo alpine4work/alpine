@@ -15,6 +15,7 @@ import {
 import {
     TaskGridPresentationalView,
     TaskGridPresentationalViewRef,
+    minTaskCountToShowTopGhostTask,
 } from "~/client/tasks/demo_2/task_grid_presentational_view";
 import {TaskQueryFilter} from "~/client/tasks/demo_2/task_query_filter";
 import {TaskQuerySort} from "~/client/tasks/demo_2/task_query_sort";
@@ -125,7 +126,7 @@ function TaskQueryGridView(
     // ghost row is consumed it doesn't come back until the component is
     // mounted again.
     const [topTaskGhostRowId, setTopTaskGhostRowId] = useState(() =>
-        taskRows.length >= 3 ? generateId<LocalTaskId>() : null,
+        taskRows.length >= minTaskCountToShowTopGhostTask ? generateId<LocalTaskId>() : null,
     );
 
     if (taskRows.length < 1 && topTaskGhostRowId) setTopTaskGhostRowId(null);

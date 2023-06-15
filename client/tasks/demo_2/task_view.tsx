@@ -16,6 +16,7 @@ import {
     TaskDetailPresentationalView,
     TaskDetailPresentationalViewRef,
 } from "~/client/tasks/demo_2/task_detail_presentational_view";
+import {minTaskCountToShowTopGhostTask} from "~/client/tasks/demo_2/task_grid_presentational_view";
 import {assert} from "~/shared/helpers/control/assert";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
 import {OrderKey} from "~/shared/helpers/sort/order_key";
@@ -122,7 +123,7 @@ export function TaskView({
     // ghost row is consumed it doesn't come back until the component is
     // mounted again.
     const [topTaskGhostRowId, setTopTaskGhostRowId] = useState(() =>
-        childTaskRows.length >= 3 ? generateId<LocalTaskId>() : null,
+        childTaskRows.length >= minTaskCountToShowTopGhostTask ? generateId<LocalTaskId>() : null,
     );
 
     if (childTaskRows.length < 1 && topTaskGhostRowId) setTopTaskGhostRowId(null);
