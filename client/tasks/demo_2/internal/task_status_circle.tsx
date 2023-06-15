@@ -2,7 +2,7 @@ import {Check} from "phosphor-react";
 import {Box} from "~/client/design/box";
 import {buttonPressedOverlayOpacity} from "~/client/design/button";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
-import {sprinkles} from "~/shared/styles/styles";
+import {colorSchemeVars, sprinkles} from "~/shared/styles/styles";
 
 export function TaskStatusCircle({
     status,
@@ -28,7 +28,6 @@ export function TaskStatusCircle({
                 border: status === "Open" || status === "Active" ? "grey-40" : undefined,
                 backgroundColor:
                     status === "Closed" ? "theme-50-const" : isPressed ? "grey-10" : "grey-0",
-                color: status === "Open" || status === "Active" ? "grey-text" : "grey-0-const",
             })}
         >
             {isPressed && status === "Closed" && (
@@ -58,6 +57,7 @@ export function TaskStatusCircle({
                     weight="bold"
                     size={addRemLengths(spacing["2"], spacing["0.5"])}
                     style={{transform: `scale(${parseInt(size, 10) / 4})`}}
+                    color={colorSchemeVars["grey-0-const"]}
                 />
             )}
             {status === "Active" && (

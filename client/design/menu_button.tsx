@@ -154,9 +154,13 @@ type MenuCustomAction = {
     }) => ReactNode;
 };
 
-type MenuWidth = "32" | "48" | "64";
+export type MenuWidth = "32" | "48" | "64";
 
 export const defaultMenuWidth: MenuWidth = "32";
+
+export type MenuIconSize = "3" | "4";
+
+export const defaultMenuIconSize: MenuIconSize = "3";
 
 /**
  * A menu button is a button which opens a menu overlay. The menu overlay
@@ -170,6 +174,7 @@ export function MenuButton({
     actions,
     placement = "bottom-start",
     width = defaultMenuWidth,
+    iconSize = defaultMenuIconSize,
     offset = defaultTooltipOffset,
     offsetAlong,
     children,
@@ -194,6 +199,12 @@ export function MenuButton({
      * The width of items in our menu. Defaults to `32`.
      */
     width?: MenuWidth;
+
+    /**
+     * The size of icons in the menu. Defaults to `3` which means items with icons
+     * will have the same layout as items without icons.
+     */
+    iconSize?: MenuIconSize;
 
     /**
      * Offset of the menu from the target.
@@ -234,6 +245,7 @@ export function MenuButton({
                     actions={actions}
                     placement={placement}
                     width={width}
+                    iconSize={iconSize}
                     onCloseWithAnimation={onCloseWithAnimation}
                     onCloseWithoutAnimation={onCloseWithoutAnimation}
                 />
@@ -257,12 +269,14 @@ export const Menu = forwardRef(function Menu(
         actions: nestedActions,
         placement,
         width = defaultMenuWidth,
+        iconSize = defaultMenuIconSize,
         onCloseWithAnimation,
         onCloseWithoutAnimation,
     }: {
         actions: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
         placement?: OverlayPlacement;
         width?: MenuWidth;
+        iconSize?: MenuIconSize;
         onCloseWithAnimation: () => void;
         onCloseWithoutAnimation: () => void;
     },
@@ -507,7 +521,8 @@ export const Menu = forwardRef(function Menu(
                             <MenuItem
                                 key={index}
                                 ref={menuItemRefs[index]}
-                                menuWidth={width}
+                                width={width}
+                                iconSize={iconSize}
                                 action={action.action}
                                 parentPlacement={placement}
                                 onCloseWithAnimation={onCloseWithAnimation}
@@ -527,7 +542,8 @@ const defaultMenuItemPressErrorTitle = "The menu option you pressed didn’t wor
 
 export const MenuItem = forwardRef(function MenuItem(
     {
-        menuWidth = defaultMenuWidth,
+        width = defaultMenuWidth,
+        iconSize = defaultMenuIconSize,
         action,
         parentPlacement,
         onCloseWithAnimation,
@@ -535,7 +551,8 @@ export const MenuItem = forwardRef(function MenuItem(
         isNotFocusable = false,
         isFocusRingVisible = false,
     }: {
-        menuWidth?: MenuWidth;
+        width?: MenuWidth;
+        iconSize?: MenuIconSize;
         action: MenuAction;
         parentPlacement?: OverlayPlacement;
         onCloseWithAnimation: () => void;
@@ -580,7 +597,8 @@ export const MenuItem = forwardRef(function MenuItem(
                 {({skipHoverDelay}) => (
                     <MenuStandardItem
                         ref={ref}
-                        menuWidth={menuWidth}
+                        width={width}
+                        iconSize={iconSize}
                         menuItemId={id}
                         action={action}
                         onCloseWithAnimation={onCloseWithAnimation}
@@ -596,7 +614,8 @@ export const MenuItem = forwardRef(function MenuItem(
         return (
             <MenuStandardItem
                 ref={ref}
-                menuWidth={menuWidth}
+                width={width}
+                iconSize={iconSize}
                 menuItemId={id}
                 action={action}
                 onCloseWithAnimation={onCloseWithAnimation}
@@ -610,7 +629,8 @@ export const MenuItem = forwardRef(function MenuItem(
 
 const MenuStandardItem = forwardRef(function MenuStandardItem(
     {
-        menuWidth,
+        width,
+        iconSize,
         menuItemId,
         action,
         onCloseWithAnimation,
@@ -619,7 +639,8 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
         isNotFocusable,
         isFocusRingVisible,
     }: {
-        menuWidth: MenuWidth;
+        width: MenuWidth;
+        iconSize: MenuIconSize;
         menuItemId: string;
         action: MenuStandardAction;
         onCloseWithAnimation: () => void;
@@ -749,9 +770,9 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                           tabIndex: -1,
                       }
                     : {})}
-                width={menuWidth}
+                width={width}
                 paddingX="2"
-                paddingY={action.icon ? "1.5" : "1"}
+                paddingY={action.icon && iconSize === "4" ? "1.5" : "1"}
                 borderRadius="base"
                 // NOTE(calebmer): We don't have a red destructive menu item style because it
                 // seems silly to call attention to the destructive action with color.
@@ -771,7 +792,12 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                 alignItems="center"
             >
                 {action.icon && (
-                    <Box flexShrink="0" width="4" height="4" marginRight="2">
+                    <Box
+                        flexShrink="0"
+                        width={iconSize}
+                        height={iconSize}
+                        marginRight={iconSize === "4" ? "2" : "1.5"}
+                    >
                         <IconContext.Provider
                             value={{
                                 color: isVisuallyDisabled
@@ -779,7 +805,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                                     : isPressed
                                     ? colorSchemeVars["grey-text"]
                                     : colorSchemeVars["grey-70"],
-                                size: spacing["4"],
+                                size: spacing[iconSize],
                                 weight: "regular",
                             }}
                         >

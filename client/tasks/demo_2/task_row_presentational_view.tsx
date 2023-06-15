@@ -1,5 +1,5 @@
 import {useDraggable} from "@dnd-kit/core";
-import {CalendarDate} from "@internationalized/date";
+import {CalendarDate, parseAbsolute, toCalendarDate} from "@internationalized/date";
 import {ArrowsOutSimple, DotsSixVertical} from "phosphor-react";
 import {Selection} from "prosemirror-state";
 import {
@@ -17,7 +17,11 @@ import {
 } from "react";
 import {mergeProps} from "react-aria";
 import {Box} from "~/client/design/box";
+import {ContextMenuActions} from "~/client/design/context_menu";
 import {IconButton} from "~/client/design/icon_button";
+import {MenuAction} from "~/client/design/menu_button";
+import {useClientInfo} from "~/client/remix/client_info_context";
+import {useSpaceContext} from "~/client/spaces/space_context";
 import {TaskGridViewDraggableData} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
 import {
     TaskRowTitleInput,
@@ -25,10 +29,12 @@ import {
     taskRowTitleInputSingleLineHeight,
 } from "~/client/tasks/demo_2/internal/task_row_title_input";
 import {TaskRowViewDroppable} from "~/client/tasks/demo_2/internal/task_row_view_droppable";
+import {TaskStatusCircle} from "~/client/tasks/demo_2/internal/task_status_circle";
 import {TaskAssignee, TaskStatus, TaskStatusButton} from "~/client/tasks/demo_2/task_status_button";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
 import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key";
 import {colorSchemeVars, contentSchemaStyles, sprinkles, tasksStyles} from "~/shared/styles/styles";
 import {TaskTitle} from "~/shared/tasks/task_title_schema";
 
@@ -134,6 +140,9 @@ function TaskRowPresentationalView<TaskRow>(
     }: TaskRowPresentationalViewProps<TaskRow>,
     ref: Ref<TaskRowPresentationalViewRef>,
 ) {
+    const {timeZone} = useClientInfo();
+    const {currentAccount} = useSpaceContext();
+
     const rowRef = useRef<HTMLDivElement>(null);
     const titleInputRef = useRef<TaskRowTitleInputRef>(null);
 
@@ -324,117 +333,253 @@ function TaskRowPresentationalView<TaskRow>(
         </Box>
     );
 
+    const contextMenuActions = (() => {
+        const contextMenuActions: Array<ReadonlyArray<MenuAction>> = [];
+
+        if (status) {
+            if (status.type === "Closed") {
+                contextMenuActions.push([
+                    {
+                        label: "Mark open",
+                        icon: <TaskStatusCircle status="Open" size="3" />,
+                        onPress: () => {
+                            onStatusChange({type: "Open"});
+                        },
+                    },
+                    {
+                        label: "Mark active",
+                        icon: <TaskStatusCircle status="Active" size="3" />,
+                        onPress: () => {
+                            const assignedTime = new Date();
+                            const assignedDate = toCalendarDate(
+                                parseAbsolute(assignedTime.toISOString(), timeZone),
+                            );
+
+                            onStatusChange({type: "Open"});
+
+                            onAssigneeChange({
+                                account: currentAccount,
+                                assignerId: currentAccount.id,
+                                assignedTime,
+                                assignerTimeZone: timeZone,
+                                assignedDate,
+                                ...assignee,
+                                status: {
+                                    type: "Active",
+                                    orderTime: new Date(),
+                                    orderKey: initialOrderKey,
+                                    activatorId: currentAccount.id,
+                                    activatedTime: assignedTime,
+                                    activatorTimeZone: timeZone,
+                                    activatedDate: assignedDate,
+                                },
+                            });
+                        },
+                    },
+                ]);
+            } else {
+                if (assignee?.status.type === "Active") {
+                    contextMenuActions.push([
+                        {
+                            label: "Mark inactive",
+                            icon: <TaskStatusCircle status="Open" size="3" />,
+                            onPress: () => {
+                                onAssigneeChange({
+                                    ...assignee,
+                                    status: {type: "Inactive"},
+                                });
+                            },
+                        },
+                        {
+                            label: "Mark closed",
+                            icon: <TaskStatusCircle status="Closed" size="3" />,
+                            onPress: () => {
+                                const closedTime = new Date();
+                                const closedDate = toCalendarDate(
+                                    parseAbsolute(closedTime.toISOString(), timeZone),
+                                );
+
+                                onStatusChange({
+                                    type: "Closed",
+                                    closerId: currentAccount.id,
+                                    closedTime,
+                                    closerTimeZone: timeZone,
+                                    closedDate,
+                                });
+                            },
+                        },
+                    ]);
+                } else {
+                    contextMenuActions.push([
+                        {
+                            label: "Mark active",
+                            icon: <TaskStatusCircle status="Active" size="3" />,
+                            onPress: () => {
+                                const assignedTime = new Date();
+                                const assignedDate = toCalendarDate(
+                                    parseAbsolute(assignedTime.toISOString(), timeZone),
+                                );
+
+                                onAssigneeChange({
+                                    account: currentAccount,
+                                    assignerId: currentAccount.id,
+                                    assignedTime,
+                                    assignerTimeZone: timeZone,
+                                    assignedDate,
+                                    ...assignee,
+                                    status: {
+                                        type: "Active",
+                                        orderTime: new Date(),
+                                        orderKey: initialOrderKey,
+                                        activatorId: currentAccount.id,
+                                        activatedTime: assignedTime,
+                                        activatorTimeZone: timeZone,
+                                        activatedDate: assignedDate,
+                                    },
+                                });
+                            },
+                        },
+                        {
+                            label: "Mark closed",
+                            icon: <TaskStatusCircle status="Closed" size="3" />,
+                            onPress: () => {
+                                const closedTime = new Date();
+                                const closedDate = toCalendarDate(
+                                    parseAbsolute(closedTime.toISOString(), timeZone),
+                                );
+
+                                onStatusChange({
+                                    type: "Closed",
+                                    closerId: currentAccount.id,
+                                    closedTime,
+                                    closerTimeZone: timeZone,
+                                    closedDate,
+                                });
+                            },
+                        },
+                    ]);
+                }
+            }
+        }
+
+        return contextMenuActions;
+    })();
+
     return (
-        <Box
-            ref={rowRef}
-            display="flex"
-            minHeight={taskRowViewMinHeight}
-            backgroundColor="grey-0"
-            position="relative"
-        >
+        <ContextMenuActions actions={contextMenuActions}>
             <Box
-                flexShrink="0"
-                width="5"
-                // Create an illusion that the text editor extends into the margins by giving
-                // the margin a text cursor and making it clickable putting focus in the task.
-                // A double click selects the task text.
-                //
-                // This is an affordance for mouse users, does not need to be usable
-                // by keyboard.
-                className={tasksStyles.textCursorNotInheritedClassName}
-                {...useOutOfBoundsClickSelection({
-                    onSelect: focusTitleStart,
-                    onSelectAll: focusTitleAll,
-                })}
-            >
-                {indentation === 0 && (
-                    <Box
-                        width="full"
-                        height={taskRowViewMinHeight}
-                        display="flex"
-                        justifyContent="flex-end"
-                        alignItems="center"
-                        paddingRight="0.5"
-                        className={tasksStyles.pointerEventsNoneNotInheritedClassName}
-                    >
-                        {isHovered && dragHandleNode}
-                    </Box>
-                )}
-            </Box>
-            <Box
-                position="relative"
-                zIndex="0"
-                flexGrow="1"
-                overflow="hidden"
+                ref={rowRef}
                 display="flex"
-                style={{
-                    // Draw the top and bottom border with a shadow so it:
-                    //
-                    // 1. Doesn't add 2px to layout
-                    // 2. Adjacent borders share the same space so we don't get 2px dividers
-                    boxShadow: `0 -1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 -1px 0 0 ${colorSchemeVars["grey-5"]}`,
-                }}
+                minHeight={taskRowViewMinHeight}
+                backgroundColor="grey-0"
+                position="relative"
             >
-                {!withoutPaddingLeft && paddingLeftNode}
-                <Box flexGrow="1" overflow="hidden">
-                    <TaskRowTitleInput
-                        ref={titleInputRef}
-                        title={title}
-                        onTitleChange={onTitleChange}
-                        shouldRenderMultilineTitle={shouldRenderMultilineTitle}
-                        placeholder={titlePlaceholder}
-                        indentation={indentation}
-                        parentTaskTitle={parentTaskTitle}
-                        shouldShowParentTaskTitle={shouldShowParentTaskTitle}
-                        childTaskCount={childTaskCount}
-                        closedChildTaskCount={closedChildTaskCount}
-                        areChildTasksCollapsed={areChildTasksCollapsed}
-                        onAreChildTasksCollapsedToggle={onAreChildTasksCollapsedToggle}
-                        createTaskAbove={createTaskAbove}
-                        createTaskBelowAndFocus={createTaskBelowAndFocus}
-                        createTaskChildAtStartAndFocus={createTaskChildAtStartAndFocus}
-                        nestWithPreviousTaskRowIfExistsAndExpand={
-                            nestWithPreviousTaskRowIfExistsAndExpand
-                        }
-                        unnestTaskIfNestedRow={unnestTaskIfNestedRow}
-                        deleteTaskAndAllChildrenAndFocusPreviousRow={
-                            deleteTaskAndAllChildrenAndFocusPreviousRow
-                        }
-                        focusNextTaskTitleCoord={focusNextTaskTitleCoord}
-                        focusPreviousTaskTitleCoord={focusPreviousTaskTitleCoord}
-                        focusFirstTaskTitleStart={focusFirstTaskTitleStart}
-                        focusLastTaskTitleEnd={focusLastTaskTitleEnd}
-                    />
+                <Box
+                    flexShrink="0"
+                    width="5"
+                    // Create an illusion that the text editor extends into the margins by giving
+                    // the margin a text cursor and making it clickable putting focus in the task.
+                    // A double click selects the task text.
+                    //
+                    // This is an affordance for mouse users, does not need to be usable
+                    // by keyboard.
+                    className={tasksStyles.textCursorNotInheritedClassName}
+                    {...useOutOfBoundsClickSelection({
+                        onSelect: focusTitleStart,
+                        onSelectAll: focusTitleAll,
+                    })}
+                >
+                    {indentation === 0 && (
+                        <Box
+                            width="full"
+                            height={taskRowViewMinHeight}
+                            display="flex"
+                            justifyContent="flex-end"
+                            alignItems="center"
+                            paddingRight="0.5"
+                            className={tasksStyles.pointerEventsNoneNotInheritedClassName}
+                        >
+                            {isHovered && dragHandleNode}
+                        </Box>
+                    )}
                 </Box>
+                <Box
+                    position="relative"
+                    zIndex="0"
+                    flexGrow="1"
+                    overflow="hidden"
+                    display="flex"
+                    style={{
+                        // Draw the top and bottom border with a shadow so it:
+                        //
+                        // 1. Doesn't add 2px to layout
+                        // 2. Adjacent borders share the same space so we don't get 2px dividers
+                        boxShadow: `0 -1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 -1px 0 0 ${colorSchemeVars["grey-5"]}`,
+                    }}
+                >
+                    {!withoutPaddingLeft && paddingLeftNode}
+                    <Box flexGrow="1" overflow="hidden">
+                        <TaskRowTitleInput
+                            ref={titleInputRef}
+                            title={title}
+                            onTitleChange={onTitleChange}
+                            shouldRenderMultilineTitle={shouldRenderMultilineTitle}
+                            placeholder={titlePlaceholder}
+                            indentation={indentation}
+                            parentTaskTitle={parentTaskTitle}
+                            shouldShowParentTaskTitle={shouldShowParentTaskTitle}
+                            childTaskCount={childTaskCount}
+                            closedChildTaskCount={closedChildTaskCount}
+                            areChildTasksCollapsed={areChildTasksCollapsed}
+                            onAreChildTasksCollapsedToggle={onAreChildTasksCollapsedToggle}
+                            createTaskAbove={createTaskAbove}
+                            createTaskBelowAndFocus={createTaskBelowAndFocus}
+                            createTaskChildAtStartAndFocus={createTaskChildAtStartAndFocus}
+                            nestWithPreviousTaskRowIfExistsAndExpand={
+                                nestWithPreviousTaskRowIfExistsAndExpand
+                            }
+                            unnestTaskIfNestedRow={unnestTaskIfNestedRow}
+                            deleteTaskAndAllChildrenAndFocusPreviousRow={
+                                deleteTaskAndAllChildrenAndFocusPreviousRow
+                            }
+                            focusNextTaskTitleCoord={focusNextTaskTitleCoord}
+                            focusPreviousTaskTitleCoord={focusPreviousTaskTitleCoord}
+                            focusFirstTaskTitleStart={focusFirstTaskTitleStart}
+                            focusLastTaskTitleEnd={focusLastTaskTitleEnd}
+                        />
+                    </Box>
+                </Box>
+                <Box
+                    flexShrink="0"
+                    width="5"
+                    // Create an illusion that the text editor extends into the margins by giving
+                    // the margin a text cursor and making it clickable putting focus in the task.
+                    // A double click selects the task text.
+                    //
+                    // This is an affordance for mouse users, does not need to be usable
+                    // by keyboard.
+                    cursor="text"
+                    {...useOutOfBoundsClickSelection({
+                        onSelect: focusTitleEnd,
+                        onSelectAll: focusTitleAll,
+                    })}
+                />
+                {droppableIndentations
+                    .slice()
+                    .sort((a, b) => a - b)
+                    .map((droppableIndentation, index, sortedDroppableIndentations) => (
+                        <TaskRowViewDroppable
+                            key={droppableIndentation}
+                            taskRow={taskRow}
+                            indentation={droppableIndentation}
+                            nextAdjacentIndentation={sortedDroppableIndentations[index + 1] ?? null}
+                            previousAdjacentIndentation={
+                                sortedDroppableIndentations[index - 1] ?? null
+                            }
+                            isVerticallyFlipped={droppableIndentation > indentation}
+                        />
+                    ))}
             </Box>
-            <Box
-                flexShrink="0"
-                width="5"
-                // Create an illusion that the text editor extends into the margins by giving
-                // the margin a text cursor and making it clickable putting focus in the task.
-                // A double click selects the task text.
-                //
-                // This is an affordance for mouse users, does not need to be usable
-                // by keyboard.
-                cursor="text"
-                {...useOutOfBoundsClickSelection({
-                    onSelect: focusTitleEnd,
-                    onSelectAll: focusTitleAll,
-                })}
-            />
-            {droppableIndentations
-                .slice()
-                .sort((a, b) => a - b)
-                .map((droppableIndentation, index, sortedDroppableIndentations) => (
-                    <TaskRowViewDroppable
-                        key={droppableIndentation}
-                        taskRow={taskRow}
-                        indentation={droppableIndentation}
-                        nextAdjacentIndentation={sortedDroppableIndentations[index + 1] ?? null}
-                        previousAdjacentIndentation={sortedDroppableIndentations[index - 1] ?? null}
-                        isVerticallyFlipped={droppableIndentation > indentation}
-                    />
-                ))}
-        </Box>
+        </ContextMenuActions>
     );
 }

@@ -50,6 +50,7 @@ export function TaskLayoutTopBar({
             />
             <MenuButton
                 width="64"
+                iconSize="4"
                 actions={[
                     [
                         {
