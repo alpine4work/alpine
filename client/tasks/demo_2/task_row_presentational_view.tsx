@@ -225,114 +225,6 @@ function TaskRowPresentationalView<TaskRow>(
 
     const [isDragHandlePressed, setIsDragHandlePressed] = useState(false);
 
-    const dragHandleNode = taskRow && (
-        <button
-            {...mergeProps(draggableAttributes, draggableListeners ?? {}, {
-                onPointerDown: () => setIsDragHandlePressed(true),
-                onPointerUp: () => setIsDragHandlePressed(false),
-                onPointerOut: () => setIsDragHandlePressed(false),
-            })}
-            ref={setDraggableNodeRef}
-            className={sprinkles({
-                display: "block",
-                width: "4",
-                height: "4",
-                padding: "0.5",
-                borderRadius: "full",
-                // Dragging doesn't activate until the mouse moves. Set the grabbing cursor
-                // immediately on press.
-                cursor: isDragHandlePressed ? "grabbing" : "grab",
-            })}
-            // Drag handle is not tab focusable. Keyboard navigation within a task grid is
-            // not done with tab navigation.
-            tabIndex={-1}
-        >
-            <DotsSixVertical size={spacing["3"]} />
-        </button>
-    );
-
-    // Small naming note: The whitespace area outside of the task row border we
-    // call "margin" and the whitespace area inside the task row border we
-    // call "padding". Similar to the CSS box model.
-    const paddingLeftNode = (
-        <Box
-            position="relative"
-            flexShrink="0"
-            style={{
-                width: `${
-                    parseRemLengthNumber(spacing["5"]) +
-                    parseRemLengthNumber(spacing["6"]) +
-                    parseRemLengthNumber(contentSchemaStyles.listItemIndentation) * indentation
-                }rem`,
-            }}
-            // Create an illusion that the text editor extends into the margins by giving
-            // the margin a text cursor and making it clickable putting focus in the task.
-            // A double click selects the task text.
-            //
-            // This is an affordance for mouse users, does not need to be usable
-            // by keyboard.
-            className={tasksStyles.textCursorNotInheritedClassName}
-            {...useOutOfBoundsClickSelection({
-                onSelect: focusTitleStart,
-                onSelectAll: focusTitleAll,
-            })}
-        >
-            <Box
-                display="flex"
-                justifyContent="flex-end"
-                alignItems="center"
-                height={taskRowViewMinHeight}
-                className={tasksStyles.pointerEventsNoneNotInheritedClassName}
-            >
-                {indentation > 0 && (
-                    <Box
-                        paddingRight="0.5"
-                        className={tasksStyles.pointerEventsNoneNotInheritedClassName}
-                    >
-                        {isHovered && dragHandleNode}
-                    </Box>
-                )}
-                <Box
-                    width="5"
-                    paddingRight="1"
-                    className={tasksStyles.pointerEventsNoneNotInheritedClassName}
-                >
-                    {onExpand && isHovered && (
-                        <IconButton
-                            size="xs"
-                            description="Expand"
-                            pressErrorTitle="Couldn’t expand task"
-                            onPress={onExpand}
-                        >
-                            <ArrowsOutSimple />
-                        </IconButton>
-                    )}
-                </Box>
-                <Box
-                    width="6"
-                    paddingRight="2"
-                    className={tasksStyles.pointerEventsNoneNotInheritedClassName}
-                >
-                    {status !== null ? (
-                        <TaskStatusButton
-                            status={status}
-                            onStatusChange={onStatusChange}
-                            assignee={assignee}
-                        />
-                    ) : (
-                        <Box
-                            width="4"
-                            height="4"
-                            borderRadius="full"
-                            border="grey-10"
-                            pointerEvents="none"
-                        />
-                    )}
-                </Box>
-            </Box>
-        </Box>
-    );
-
     const contextMenuActions = (() => {
         const contextMenuActions: Array<ReadonlyArray<MenuAction>> = [];
 
@@ -467,48 +359,15 @@ function TaskRowPresentationalView<TaskRow>(
 
     return (
         <ContextMenuActions actions={contextMenuActions}>
-            <Box
-                ref={rowRef}
-                display="flex"
-                minHeight={taskRowViewMinHeight}
-                backgroundColor="grey-0"
-                position="relative"
-            >
+            <Box ref={rowRef} minHeight={taskRowViewMinHeight} position="relative" zIndex="0">
                 <Box
-                    flexShrink="0"
-                    width="5"
-                    // Create an illusion that the text editor extends into the margins by giving
-                    // the margin a text cursor and making it clickable putting focus in the task.
-                    // A double click selects the task text.
-                    //
-                    // This is an affordance for mouse users, does not need to be usable
-                    // by keyboard.
-                    className={tasksStyles.textCursorNotInheritedClassName}
-                    {...useOutOfBoundsClickSelection({
-                        onSelect: focusTitleStart,
-                        onSelectAll: focusTitleAll,
-                    })}
-                >
-                    {indentation === 0 && (
-                        <Box
-                            width="full"
-                            height={taskRowViewMinHeight}
-                            display="flex"
-                            justifyContent="flex-end"
-                            alignItems="center"
-                            paddingRight="0.5"
-                            className={tasksStyles.pointerEventsNoneNotInheritedClassName}
-                        >
-                            {isHovered && dragHandleNode}
-                        </Box>
-                    )}
-                </Box>
-                <Box
-                    position="relative"
-                    zIndex="0"
-                    flexGrow="1"
-                    overflow="hidden"
-                    display="flex"
+                    position="absolute"
+                    zIndex="-10"
+                    top="0"
+                    bottom="0"
+                    left="5"
+                    right="5"
+                    pointerEvents="none"
                     style={{
                         // Draw the top and bottom border with a shadow so it:
                         //
@@ -516,8 +375,121 @@ function TaskRowPresentationalView<TaskRow>(
                         // 2. Adjacent borders share the same space so we don't get 2px dividers
                         boxShadow: `0 -1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 -1px 0 0 ${colorSchemeVars["grey-5"]}`,
                     }}
-                >
-                    {!withoutPaddingLeft && paddingLeftNode}
+                />
+                <Box position="relative" zIndex="0" flexGrow="1" overflow="hidden" display="flex">
+                    <Box
+                        position="relative"
+                        flexShrink="0"
+                        style={{
+                            width: `${
+                                parseRemLengthNumber(spacing["5"]) +
+                                (!withoutPaddingLeft
+                                    ? parseRemLengthNumber(spacing["5"]) +
+                                      parseRemLengthNumber(spacing["6"]) +
+                                      parseRemLengthNumber(
+                                          contentSchemaStyles.listItemIndentation,
+                                      ) *
+                                          indentation
+                                    : 0)
+                            }rem`,
+                        }}
+                        // Create an illusion that the text editor extends into the margins by giving
+                        // the margin a text cursor and making it clickable putting focus in the task.
+                        // A double click selects the task text.
+                        //
+                        // This is an affordance for mouse users, does not need to be usable
+                        // by keyboard.
+                        className={tasksStyles.textCursorNotInheritedClassName}
+                        {...useOutOfBoundsClickSelection({
+                            onSelect: focusTitleStart,
+                            onSelectAll: focusTitleAll,
+                        })}
+                    >
+                        {!withoutPaddingLeft && (
+                            <Box
+                                display="flex"
+                                justifyContent="flex-end"
+                                alignItems="center"
+                                height={taskRowViewMinHeight}
+                                className={tasksStyles.pointerEventsNoneNotInheritedClassName}
+                            >
+                                <Box
+                                    paddingRight="0.5"
+                                    className={tasksStyles.pointerEventsNoneNotInheritedClassName}
+                                >
+                                    {isHovered && taskRow && (
+                                        <button
+                                            {...mergeProps(
+                                                draggableAttributes,
+                                                draggableListeners ?? {},
+                                                {
+                                                    onPointerDown: () =>
+                                                        setIsDragHandlePressed(true),
+                                                    onPointerUp: () =>
+                                                        setIsDragHandlePressed(false),
+                                                    onPointerOut: () =>
+                                                        setIsDragHandlePressed(false),
+                                                },
+                                            )}
+                                            ref={setDraggableNodeRef}
+                                            className={sprinkles({
+                                                display: "block",
+                                                width: "4",
+                                                height: "4",
+                                                padding: "0.5",
+                                                borderRadius: "full",
+                                                // Dragging doesn't activate until the mouse moves. Set the grabbing cursor
+                                                // immediately on press.
+                                                cursor: isDragHandlePressed ? "grabbing" : "grab",
+                                            })}
+                                            // Drag handle is not tab focusable. Keyboard navigation within a task grid is
+                                            // not done with tab navigation.
+                                            tabIndex={-1}
+                                        >
+                                            <DotsSixVertical size={spacing["3"]} />
+                                        </button>
+                                    )}
+                                </Box>
+                                <Box
+                                    width="5"
+                                    paddingRight="1"
+                                    className={tasksStyles.pointerEventsNoneNotInheritedClassName}
+                                >
+                                    {onExpand && isHovered && (
+                                        <IconButton
+                                            size="xs"
+                                            description="Expand"
+                                            pressErrorTitle="Couldn’t expand task"
+                                            onPress={onExpand}
+                                        >
+                                            <ArrowsOutSimple />
+                                        </IconButton>
+                                    )}
+                                </Box>
+                                <Box
+                                    width="6"
+                                    paddingRight="2"
+                                    className={tasksStyles.pointerEventsNoneNotInheritedClassName}
+                                >
+                                    {status !== null ? (
+                                        <TaskStatusButton
+                                            status={status}
+                                            onStatusChange={onStatusChange}
+                                            assignee={assignee}
+                                        />
+                                    ) : (
+                                        <Box
+                                            width="4"
+                                            height="4"
+                                            borderRadius="full"
+                                            border="grey-10"
+                                            pointerEvents="none"
+                                        />
+                                    )}
+                                </Box>
+                            </Box>
+                        )}
+                    </Box>
                     <Box flexGrow="1" overflow="hidden">
                         <TaskRowTitleInput
                             ref={titleInputRef}
@@ -548,22 +520,22 @@ function TaskRowPresentationalView<TaskRow>(
                             focusLastTaskTitleEnd={focusLastTaskTitleEnd}
                         />
                     </Box>
+                    <Box
+                        flexShrink="0"
+                        width="5"
+                        // Create an illusion that the text editor extends into the margins by giving
+                        // the margin a text cursor and making it clickable putting focus in the task.
+                        // A double click selects the task text.
+                        //
+                        // This is an affordance for mouse users, does not need to be usable
+                        // by keyboard.
+                        cursor="text"
+                        {...useOutOfBoundsClickSelection({
+                            onSelect: focusTitleEnd,
+                            onSelectAll: focusTitleAll,
+                        })}
+                    />
                 </Box>
-                <Box
-                    flexShrink="0"
-                    width="5"
-                    // Create an illusion that the text editor extends into the margins by giving
-                    // the margin a text cursor and making it clickable putting focus in the task.
-                    // A double click selects the task text.
-                    //
-                    // This is an affordance for mouse users, does not need to be usable
-                    // by keyboard.
-                    cursor="text"
-                    {...useOutOfBoundsClickSelection({
-                        onSelect: focusTitleEnd,
-                        onSelectAll: focusTitleAll,
-                    })}
-                />
                 {droppableIndentations
                     .slice()
                     .sort((a, b) => a - b)

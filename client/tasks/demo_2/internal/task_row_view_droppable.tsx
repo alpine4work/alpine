@@ -36,12 +36,12 @@ export function TaskRowViewDroppable<TaskRow>({
         <Box
             position="absolute"
             top={!isPositionedAbove ? "3" : "-6"}
+            bottom={!isPositionedAbove ? "-3" : undefined}
             left="0"
             right="0"
             zIndex="10"
             pointerEvents="none"
-            // NOCOMMIT: Probably wrong?
-            height={taskRowViewMinHeight}
+            height={isPositionedAbove ? taskRowViewMinHeight : undefined}
         >
             <Box
                 ref={setDroppableNodeRef}
