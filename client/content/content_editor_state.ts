@@ -1,5 +1,5 @@
 import {collab, getVersion, receiveTransaction, sendableSteps} from "prosemirror-collab";
-import {history} from "prosemirror-history";
+import {history, redoDepth, undoDepth} from "prosemirror-history";
 import {Node} from "prosemirror-model";
 import {Command, EditorState, Plugin, PluginKey, Selection, Transaction} from "prosemirror-state";
 import {Step} from "prosemirror-transform";
@@ -430,6 +430,20 @@ export class ContentEditorState<Content extends ContentWithReferences> {
         return new ContentEditorState(
             this._state.apply(updateContentEditorReferences(this._state.tr, action)),
         );
+    }
+
+    /**
+     * The amount of undoable events available.
+     */
+    public undoDepth() {
+        return undoDepth(this._state);
+    }
+
+    /**
+     * The amount of redoable events available.
+     */
+    public redoDepth() {
+        return redoDepth(this._state);
     }
 }
 

@@ -171,7 +171,7 @@ export function Modal({
                             >
                                 <Box
                                     flexShrink="0"
-                                    paddingX="5"
+                                    marginX="5"
                                     paddingTop="5"
                                     borderBottom="grey-5"
                                 >

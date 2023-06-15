@@ -1,6 +1,13 @@
 import classNames from "classnames";
 import {Node, Slice} from "prosemirror-model";
-import {AllSelection, EditorState, Selection, TextSelection, Transaction} from "prosemirror-state";
+import {
+    AllSelection,
+    Command,
+    EditorState,
+    Selection,
+    TextSelection,
+    Transaction,
+} from "prosemirror-state";
 import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
 import {
     FocusEvent,
@@ -115,6 +122,11 @@ export type ContentEditorRef = {
      * [1]: https://prosemirror.net/docs/ref/#view.EditorView.coordsAtPos
      */
     coordsAtPos(pos: number): {left: number; right: number; top: number; bottom: number};
+
+    /**
+     * Execute a ProseMirror command against this editor.
+     */
+    dispatchCommand(command: Command): void;
 };
 
 const ContentEditorForwardRef = forwardRef(ContentEditorWrapper) as <
@@ -306,6 +318,11 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
                     "Getting coordinates for position in content editor on initial render is not implemented",
                 );
             },
+            dispatchCommand: () => {
+                throw new UnimplementedError(
+                    "Dispatching a command on initial render is not implemented",
+                );
+            },
         }),
         [],
     );
@@ -411,6 +428,10 @@ function ContentEditor<Content extends ContentWithReferences>(
                 const view = assertExists(viewRef.current);
                 return view.coordsAtPos(pos);
             },
+            dispatchCommand: command => {
+                const view = assertExists(viewRef.current);
+                command(view.state, view.dispatch.bind(view), view);
+            },
         }),
         [],
     );
@@ -446,9 +467,11 @@ function ContentEditor<Content extends ContentWithReferences>(
                 // squiggly under names, nouns, industry terms, and oddly sometimes
                 // contractions (like "they're", maybe has to do with curly quotes?).
                 //
+                // It's also inconsistent with `<input>`s which don't have spellcheck on by
+                // default.
+                //
                 // NOTE(calebmer, 2022-12-29): Someday in the future we should build our own
-                // spellchecker with (maybe) fancy large language model (GPT-3 style)
-                // autocomplete.
+                // spellchecker.
                 spellcheck: "false",
             },
 

@@ -1,9 +1,11 @@
 import {AnimationControls, spring, timeline} from "motion";
 import {CaretDown, CaretUp, SpinnerGap, X} from "phosphor-react";
+import {redo, undo} from "prosemirror-history";
 import {Memo, Ref, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
 import {createCommentThreadMetaKey} from "~/client/content/content_editor_state";
 import {Box} from "~/client/design/box";
+import {ContextMenuActions} from "~/client/design/context_menu";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px";
 import {IconButton} from "~/client/design/icon_button";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";
@@ -686,149 +688,173 @@ function DocumentContentEditorStateful({
     }
 
     return (
-        <Box
-            ref={containerResizeRef}
-            flexGrow="1"
-            position="relative"
-            zIndex="0"
-            overflowX="hidden"
-            display="flex"
-            flexDirection="column"
-            backgroundColor="grey-0"
+        <ContextMenuActions
+            actions={[
+                [
+                    {
+                        label: "Undo",
+                        isDisabled: editorState.undoDepth() === 0,
+                        keyboardShortcutHint: isMac ? "⌘+Z" : "Ctrl+Z",
+                        onPress: () => assertExists(editorRef.current).dispatchCommand(undo),
+                    },
+                    {
+                        label: "Redo",
+                        isDisabled: editorState.redoDepth() === 0,
+                        keyboardShortcutHint: isMac ? "⌘+Y" : "Ctrl+Y",
+                        onPress: () => assertExists(editorRef.current).dispatchCommand(redo),
+                    },
+                ],
+            ]}
         >
             <Box
-                ref={editorContainerRef}
-                id={editorContainerId}
-                data-testid="DocumentContentEditorMain"
+                ref={containerResizeRef}
                 flexGrow="1"
                 position="relative"
                 zIndex="0"
                 overflowX="hidden"
-                overflowY="scroll"
-                style={{
-                    width:
-                        sidebarState.isOpen && sidebarState.animationState !== "Closing"
-                            ? `calc(100% - ${documentContentEditorSidebarWidth})`
-                            : "100%",
-                }}
+                display="flex"
+                flexDirection="column"
+                backgroundColor="grey-0"
             >
-                <OverlayScopeContextProvider>
-                    <ContentEditor
-                        ref={editorRef}
-                        state={editorState}
-                        onChange={(state, transaction) => {
-                            onChangeEditorState(state);
-
-                            const createCommentThread: {
-                                commentThreadId: DocumentCommentThreadId;
-                                initialCommentContent: MessageContentWithReferences;
-                                openCommentThreadPromiseRef: {current: Promise<void> | null};
-                            } | null = transaction.getMeta(createCommentThreadMetaKey) ?? null;
-                            if (
-                                createCommentThread &&
-                                sidebarState.isOpen &&
-                                sidebarState.animationState !== "Closing"
-                            ) {
-                                // `<ContentEditorCommentInput>` will wait on this promise before closing after
-                                // creating a comment thread when it exists. If the sidebar is not already open
-                                // then we rely on our document's global loading indicator to tell us when
-                                // comments have successfully saved.
-                                createCommentThread.openCommentThreadPromiseRef.current =
-                                    openCommentThread(createCommentThread.commentThreadId);
-                            }
-                        }}
-                        aria-label="Document"
-                        placeholder="Share your ideas…"
-                        className={documentContentClassName}
-                        phantomSelections={phantomSelections}
-                        openCommentThread={openCommentThread}
-                        onCommentThreadPressedChange={(commentThreadId, isHovered) => {
-                            setPressedCommentThreadId(pressedCommentThreadId => {
-                                if (isHovered) return commentThreadId;
-                                if (!isHovered && pressedCommentThreadId === commentThreadId)
-                                    return null;
-                                return pressedCommentThreadId;
-                            });
-                        }}
-                    />
-                    {useMemo(
-                        // Memoize side decorations since it can be an expensive component
-                        // to re-render. Especially during animations.
-                        () => (
-                            <DocumentContentEditorSideDecorations
-                                editorContainerWidth={editorContainerWidth}
-                                contentReferences={content.references}
-                                decorations={decorations}
-                                openCommentThread={openCommentThread}
-                            />
-                        ),
-                        [content.references, decorations, editorContainerWidth, openCommentThread],
-                    )}
-                </OverlayScopeContextProvider>
-            </Box>
-            {sidebarState.isOpen && (
                 <Box
-                    ref={sidebarRef}
-                    position="absolute"
-                    top="0"
-                    bottom="0"
-                    // A bit of grace room at the end for a spring bounce.
-                    right="-4"
-                    paddingRight="4"
-                    borderLeft="grey-10"
-                    backgroundColor="grey-0"
+                    ref={editorContainerRef}
+                    id={editorContainerId}
+                    data-testid="DocumentContentEditorMain"
+                    flexGrow="1"
+                    position="relative"
+                    zIndex="0"
+                    overflowX="hidden"
+                    overflowY="scroll"
                     style={{
-                        width: addRemLengths(documentContentEditorSidebarWidth, spacing["4"]),
+                        width:
+                            sidebarState.isOpen && sidebarState.animationState !== "Closing"
+                                ? `calc(100% - ${documentContentEditorSidebarWidth})`
+                                : "100%",
                     }}
                 >
-                    <DocumentContentEditorSidebar
-                        documentId={documentId}
-                        content={content}
-                        onCommentThreadSnippetPress={handleCommentThreadSnippetPress}
-                        commentThreadId={sidebarState.commentThreadId}
-                        initialDataPromise={sidebarState.dataPromise}
-                        isConnected={isConnected}
-                        procedures={procedures}
-                        subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
-                        decorations={decorations}
-                        commentThreadListViewRef={commentThreadListViewRef}
-                        onClose={() => {
-                            setSidebarState(sidebarState => {
-                                if (!sidebarState.isOpen) return sidebarState;
-                                return {...sidebarState, animationState: "Closing" as const};
-                            });
-                        }}
-                        openCommentThread={openCommentThread}
-                    />
-                </Box>
-            )}
-            {useMemo(
-                // We style hovered and active comments with a `<style>` element containing
-                // CSS with a dynamic selector that changes when our state changes. We do this
-                // for two reasons:
-                //
-                // 1. All marks for a `DocumentCommentThreadId` should light up when we hover
-                //    even if they are different elements in the DOM
-                // 2. Changing DOM properties (e.g. `class`) of comment elements triggers
-                //    ProseMirror's mutation observer and since the observer doesn't know why
-                //    the change happened it destroys and recreates the mark elements
-                () =>
-                    activeCommentThreadId && (
-                        <style
-                            key={activeCommentThreadId}
-                            dangerouslySetInnerHTML={{
-                                __html: contentSchemaStyles.commentActiveDynamicCssTemplate
-                                    .replaceAll(
-                                        "$containerId",
-                                        editorContainerId.replaceAll(":", "\\:"),
-                                    )
-                                    .replaceAll("$commentThreadId", activeCommentThreadId),
+                    <OverlayScopeContextProvider>
+                        <ContentEditor
+                            ref={editorRef}
+                            state={editorState}
+                            onChange={(state, transaction) => {
+                                onChangeEditorState(state);
+
+                                const createCommentThread: {
+                                    commentThreadId: DocumentCommentThreadId;
+                                    initialCommentContent: MessageContentWithReferences;
+                                    openCommentThreadPromiseRef: {current: Promise<void> | null};
+                                } | null = transaction.getMeta(createCommentThreadMetaKey) ?? null;
+                                if (
+                                    createCommentThread &&
+                                    sidebarState.isOpen &&
+                                    sidebarState.animationState !== "Closing"
+                                ) {
+                                    // `<ContentEditorCommentInput>` will wait on this promise before closing after
+                                    // creating a comment thread when it exists. If the sidebar is not already open
+                                    // then we rely on our document's global loading indicator to tell us when
+                                    // comments have successfully saved.
+                                    createCommentThread.openCommentThreadPromiseRef.current =
+                                        openCommentThread(createCommentThread.commentThreadId);
+                                }
+                            }}
+                            aria-label="Document"
+                            placeholder="Share your ideas…"
+                            className={documentContentClassName}
+                            phantomSelections={phantomSelections}
+                            openCommentThread={openCommentThread}
+                            onCommentThreadPressedChange={(commentThreadId, isHovered) => {
+                                setPressedCommentThreadId(pressedCommentThreadId => {
+                                    if (isHovered) return commentThreadId;
+                                    if (!isHovered && pressedCommentThreadId === commentThreadId)
+                                        return null;
+                                    return pressedCommentThreadId;
+                                });
                             }}
                         />
-                    ),
-                [activeCommentThreadId, editorContainerId],
-            )}
-        </Box>
+                        {useMemo(
+                            // Memoize side decorations since it can be an expensive component
+                            // to re-render. Especially during animations.
+                            () => (
+                                <DocumentContentEditorSideDecorations
+                                    editorContainerWidth={editorContainerWidth}
+                                    contentReferences={content.references}
+                                    decorations={decorations}
+                                    openCommentThread={openCommentThread}
+                                />
+                            ),
+                            [
+                                content.references,
+                                decorations,
+                                editorContainerWidth,
+                                openCommentThread,
+                            ],
+                        )}
+                    </OverlayScopeContextProvider>
+                </Box>
+                {sidebarState.isOpen && (
+                    <Box
+                        ref={sidebarRef}
+                        position="absolute"
+                        top="0"
+                        bottom="0"
+                        // A bit of grace room at the end for a spring bounce.
+                        right="-4"
+                        paddingRight="4"
+                        borderLeft="grey-10"
+                        backgroundColor="grey-0"
+                        style={{
+                            width: addRemLengths(documentContentEditorSidebarWidth, spacing["4"]),
+                        }}
+                    >
+                        <DocumentContentEditorSidebar
+                            documentId={documentId}
+                            content={content}
+                            onCommentThreadSnippetPress={handleCommentThreadSnippetPress}
+                            commentThreadId={sidebarState.commentThreadId}
+                            initialDataPromise={sidebarState.dataPromise}
+                            isConnected={isConnected}
+                            procedures={procedures}
+                            subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
+                            decorations={decorations}
+                            commentThreadListViewRef={commentThreadListViewRef}
+                            onClose={() => {
+                                setSidebarState(sidebarState => {
+                                    if (!sidebarState.isOpen) return sidebarState;
+                                    return {...sidebarState, animationState: "Closing" as const};
+                                });
+                            }}
+                            openCommentThread={openCommentThread}
+                        />
+                    </Box>
+                )}
+                {useMemo(
+                    // We style hovered and active comments with a `<style>` element containing
+                    // CSS with a dynamic selector that changes when our state changes. We do this
+                    // for two reasons:
+                    //
+                    // 1. All marks for a `DocumentCommentThreadId` should light up when we hover
+                    //    even if they are different elements in the DOM
+                    // 2. Changing DOM properties (e.g. `class`) of comment elements triggers
+                    //    ProseMirror's mutation observer and since the observer doesn't know why
+                    //    the change happened it destroys and recreates the mark elements
+                    () =>
+                        activeCommentThreadId && (
+                            <style
+                                key={activeCommentThreadId}
+                                dangerouslySetInnerHTML={{
+                                    __html: contentSchemaStyles.commentActiveDynamicCssTemplate
+                                        .replaceAll(
+                                            "$containerId",
+                                            editorContainerId.replaceAll(":", "\\:"),
+                                        )
+                                        .replaceAll("$commentThreadId", activeCommentThreadId),
+                                }}
+                            />
+                        ),
+                    [activeCommentThreadId, editorContainerId],
+                )}
+            </Box>
+        </ContextMenuActions>
     );
 }
 

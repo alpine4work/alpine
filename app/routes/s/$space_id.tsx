@@ -2,6 +2,7 @@ import {Outlet, ShouldReloadFunction} from "@remix-run/react";
 import {LinkDescriptor} from "@remix-run/server-runtime";
 import {useEffect} from "react";
 import {Box} from "~/client/design/box";
+import {ContextMenuManager} from "~/client/design/context_menu";
 import {attachDevConsoleForAccountInProduction} from "~/client/dev/dev_console";
 import {PeekStackContextProvider} from "~/client/peek/peek_stack";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
@@ -99,6 +100,7 @@ export default function SpaceLayout() {
             space={space}
             currentAccount={currentAccount}
         >
+            <ContextMenuManager />
             <Box
                 display="flex"
                 flexDirection="column"

@@ -23,6 +23,7 @@ import {
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {useShowToast} from "~/client/design/toast";
 import {Tooltip, defaultTooltipOffset} from "~/client/design/tooltip";
+import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event";
 import {Spacing, spacing} from "~/shared/design/spacing";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array";
 import {createTimeout} from "~/shared/helpers/async/timeout";
@@ -58,11 +59,24 @@ type MenuStandardAction = {
     readonly isSelected?: boolean;
 
     /**
+     * Is the action disabled? Does not display a reason tooltip like when you use
+     * `disabledReason`. Generally you should prefer `disabledReason`. If you set
+     * `disabledReason` then you don't have to set `isDisabled`. Disabled actions
+     * may not be selected.
+     */
+    readonly isDisabled?: boolean;
+
+    /**
      * Is this action disabled? If so, for what reason? We will display the reason
      * as a tooltip if the user tries to interact with a disabled action. Disabled
      * actions may not be selected.
      */
     readonly disabledReason?: string;
+
+    /**
+     * A keyboard shortcut that will display next to the menu item.
+     */
+    readonly keyboardShortcutHint?: ReactNode;
 
     /**
      * When the user chooses this action through either the keyboard or mouse we
@@ -142,6 +156,8 @@ type MenuCustomAction = {
 
 type MenuWidth = "32" | "48" | "64";
 
+export const defaultMenuWidth: MenuWidth = "32";
+
 /**
  * A menu button is a button which opens a menu overlay. The menu overlay
  * contains a list of actions which may be selected by the user.
@@ -153,7 +169,7 @@ type MenuWidth = "32" | "48" | "64";
 export function MenuButton({
     actions,
     placement = "bottom-start",
-    width = "32",
+    width = defaultMenuWidth,
     offset = defaultTooltipOffset,
     offsetAlong,
     children,
@@ -236,17 +252,17 @@ export function MenuButton({
  *
  * [1]: https://www.w3.org/TR/wai-aria-practices-1.2/#menu
  */
-const Menu = forwardRef(function Menu(
+export const Menu = forwardRef(function Menu(
     {
         actions: nestedActions,
         placement,
-        width,
+        width = defaultMenuWidth,
         onCloseWithAnimation,
         onCloseWithoutAnimation,
     }: {
         actions: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
-        placement: OverlayPlacement;
-        width: MenuWidth;
+        placement?: OverlayPlacement;
+        width?: MenuWidth;
         onCloseWithAnimation: () => void;
         onCloseWithoutAnimation: () => void;
     },
@@ -453,7 +469,11 @@ const Menu = forwardRef(function Menu(
                         // begins with that printable character.
                         //
                         // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
-                        if (/^[0-9a-zA-Z]$/.test(event.key)) {
+                        if (
+                            /^[0-9a-zA-Z]$/.test(event.key) &&
+                            // Keyboard shortcuts like Cmd-C shouldn't search.
+                            (event.shiftKey || !isModifiedKeyboardEvent(event))
+                        ) {
                             event.preventDefault();
                             event.stopPropagation();
                             const nextSearchText = searchText + event.key;
@@ -505,19 +525,23 @@ const Menu = forwardRef(function Menu(
 
 const defaultMenuItemPressErrorTitle = "The menu option you pressed didn’t work";
 
-const MenuItem = forwardRef(function MenuItem(
+export const MenuItem = forwardRef(function MenuItem(
     {
-        menuWidth,
+        menuWidth = defaultMenuWidth,
         action,
         parentPlacement,
         onCloseWithAnimation,
         onCloseWithoutAnimation,
+        isNotFocusable = false,
+        isFocusRingVisible = false,
     }: {
-        menuWidth: MenuWidth;
+        menuWidth?: MenuWidth;
         action: MenuAction;
-        parentPlacement: OverlayPlacement;
+        parentPlacement?: OverlayPlacement;
         onCloseWithAnimation: () => void;
         onCloseWithoutAnimation: () => void;
+        isNotFocusable?: boolean;
+        isFocusRingVisible?: boolean;
     },
     ref: Ref<HTMLDivElement>,
 ) {
@@ -531,6 +555,8 @@ const MenuItem = forwardRef(function MenuItem(
                 action={action}
                 onCloseWithAnimation={onCloseWithAnimation}
                 onCloseWithoutAnimation={onCloseWithoutAnimation}
+                isNotFocusable={isNotFocusable}
+                isFocusRingVisible={isFocusRingVisible}
             />
         );
     }
@@ -539,9 +565,10 @@ const MenuItem = forwardRef(function MenuItem(
         return (
             <Tooltip
                 placement={
-                    parentPlacement.startsWith("left") ||
-                    parentPlacement === "top-end" ||
-                    parentPlacement === "bottom-end"
+                    parentPlacement &&
+                    (parentPlacement.startsWith("left") ||
+                        parentPlacement === "top-end" ||
+                        parentPlacement === "bottom-end")
                         ? "left"
                         : "right"
                 }
@@ -559,6 +586,8 @@ const MenuItem = forwardRef(function MenuItem(
                         onCloseWithAnimation={onCloseWithAnimation}
                         onCloseWithoutAnimation={onCloseWithoutAnimation}
                         skipTooltipHoverDelay={skipHoverDelay}
+                        isNotFocusable={isNotFocusable}
+                        isFocusRingVisible={isFocusRingVisible}
                     />
                 )}
             </Tooltip>
@@ -572,6 +601,8 @@ const MenuItem = forwardRef(function MenuItem(
                 action={action}
                 onCloseWithAnimation={onCloseWithAnimation}
                 onCloseWithoutAnimation={onCloseWithoutAnimation}
+                isNotFocusable={isNotFocusable}
+                isFocusRingVisible={isFocusRingVisible}
             />
         );
     }
@@ -585,6 +616,8 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
         onCloseWithAnimation,
         onCloseWithoutAnimation,
         skipTooltipHoverDelay,
+        isNotFocusable,
+        isFocusRingVisible,
     }: {
         menuWidth: MenuWidth;
         menuItemId: string;
@@ -592,6 +625,8 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
         onCloseWithAnimation: () => void;
         onCloseWithoutAnimation: () => void;
         skipTooltipHoverDelay?: () => void;
+        isNotFocusable: boolean;
+        isFocusRingVisible: boolean;
     },
     ref: Ref<HTMLDivElement>,
 ) {
@@ -600,7 +635,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
         | {isPending: false; shouldShowPendingSpinner: false}
         | {isPending: true; shouldShowPendingSpinner: boolean}
     >({isPending: false, shouldShowPendingSpinner: false});
-    const isVisuallyDisabled = action.disabledReason !== undefined;
+    const isVisuallyDisabled = action.isDisabled || action.disabledReason !== undefined;
     const isDisabled = isVisuallyDisabled || pendingState.isPending;
 
     const {isHovered, hoverProps} = useHover({
@@ -699,17 +734,21 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
     }, [pendingState]);
 
     return (
-        <FocusRing offset="0">
+        <FocusRing isVisible={isFocusRingVisible} offset="0">
             <Box
                 {...mergeProps(hoverProps, pressProps)}
                 ref={ref}
                 id={menuItemId}
-                role="menuitem"
-                // Each item in the menu has `tabindex` set to -1. (Even disabled items
-                // are focusable.)
-                //
-                // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
-                tabIndex={-1}
+                {...(!isNotFocusable
+                    ? {
+                          role: "menuitem",
+                          // Each item in the menu has `tabindex` set to -1. (Even disabled items
+                          // are focusable.)
+                          //
+                          // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
+                          tabIndex: -1,
+                      }
+                    : {})}
                 width={menuWidth}
                 paddingX="2"
                 paddingY={action.icon ? "1.5" : "1"}
@@ -753,6 +792,20 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                 <Box flexGrow="1" fontStyle="truncate">
                     {action.label}
                 </Box>
+                {action.keyboardShortcutHint && (
+                    <Box flexShrink="0" marginLeft="2">
+                        <Box color={isVisuallyDisabled ? "grey-30" : "grey-50"} fontSize="50">
+                            <IconContext.Provider
+                                value={{
+                                    color: "currentColor",
+                                    size: spacing["3"],
+                                }}
+                            >
+                                {action.keyboardShortcutHint}
+                            </IconContext.Provider>
+                        </Box>
+                    </Box>
+                )}
                 {action.isSelected && (
                     <Box flexShrink="0" marginLeft="2">
                         <Check
@@ -781,12 +834,16 @@ function MenuCustomItem({
     action,
     onCloseWithAnimation,
     onCloseWithoutAnimation,
+    isNotFocusable,
+    isFocusRingVisible,
 }: {
     menuItemRef: Ref<HTMLDivElement>;
     menuItemId: string;
     action: MenuCustomAction;
     onCloseWithAnimation: () => void;
     onCloseWithoutAnimation: () => void;
+    isNotFocusable: boolean;
+    isFocusRingVisible: boolean;
 }) {
     const showToast = useShowToast();
     const [pendingState, setPendingState] = useState<
@@ -880,17 +937,21 @@ function MenuCustomItem({
     }, [pendingState]);
 
     return (
-        <FocusRing offset="0">
+        <FocusRing isVisible={isFocusRingVisible} offset="0">
             <Box
                 {...mergeProps(hoverProps, pressProps)}
                 ref={menuItemRef}
                 id={menuItemId}
-                role="menuitem"
-                // Each item in the menu has `tabindex` set to -1. (Even disabled items
-                // are focusable.)
-                //
-                // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
-                tabIndex={-1}
+                {...(!isNotFocusable
+                    ? {
+                          role: "menuitem",
+                          // Each item in the menu has `tabindex` set to -1. (Even disabled items
+                          // are focusable.)
+                          //
+                          // https://www.w3.org/TR/wai-aria-practices-1.2/#menu
+                          tabIndex: -1,
+                      }
+                    : {})}
                 borderRadius="base"
                 backgroundColor={
                     isPressed

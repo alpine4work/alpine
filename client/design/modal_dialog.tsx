@@ -27,6 +27,7 @@ export function ModalDialog({
     onPrimaryButtonPress,
     cancelButtonLabel = "Cancel",
     onCancelButtonPress,
+    shouldHideCancelButton,
     onClose,
 }: {
     title: string;
@@ -36,6 +37,7 @@ export function ModalDialog({
     onPrimaryButtonPress: () => void | Promise<void>;
     cancelButtonLabel?: string;
     onCancelButtonPress?: () => void;
+    shouldHideCancelButton?: boolean;
     onClose: () => void;
 }) {
     const descriptionId = useId();
@@ -58,6 +60,7 @@ export function ModalDialog({
             onPrimaryButtonPress={onPrimaryButtonPress}
             cancelButtonLabel={cancelButtonLabel}
             onCancelButtonPress={onCancelButtonPress}
+            shouldHideCancelButton={shouldHideCancelButton}
         >
             <Box
                 id={descriptionId}

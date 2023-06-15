@@ -29,6 +29,7 @@ function ModalWithButtons(
         onPrimaryButtonPress,
         cancelButtonLabel = "Cancel",
         onCancelButtonPress,
+        shouldHideCancelButton,
         onClose,
         disableCloseAnimation,
         "aria-describedby": ariaDescribedBy,
@@ -44,6 +45,7 @@ function ModalWithButtons(
         onPrimaryButtonPress: () => void | Promise<void>;
         cancelButtonLabel?: string;
         onCancelButtonPress?: () => void;
+        shouldHideCancelButton?: boolean;
         onClose: () => void;
         disableCloseAnimation?: boolean;
         "aria-describedby"?: string;
@@ -135,14 +137,16 @@ function ModalWithButtons(
                             justifyContent="flex-end"
                             gap="2"
                         >
-                            <Button
-                                onPress={() => {
-                                    onCancelButtonPress?.();
-                                    onCloseWithoutAnimation();
-                                }}
-                            >
-                                {cancelButtonLabel}
-                            </Button>
+                            {!shouldHideCancelButton && (
+                                <Button
+                                    onPress={() => {
+                                        onCancelButtonPress?.();
+                                        onCloseWithoutAnimation();
+                                    }}
+                                >
+                                    {cancelButtonLabel}
+                                </Button>
+                            )}
                             <Button
                                 ref={primaryButtonRef}
                                 variant="accent"

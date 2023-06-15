@@ -44,8 +44,8 @@ const GlobalKeyDownEventContext = createContext<GlobalKeyDownEventContext | null
  * is called then `<GlobalKeyDownEvent>` respects that and stops bubbling.
  *
  * If you have multiple sibling `<GlobalKeyDownEvent>` then their listeners are
- * called in the order in which the components were mounted. So if the last
- * component to mount calls `event.stopPropagation()` we will not call the
+ * called in the reverse order in which the components were mounted. So if the
+ * last component to mount calls `event.stopPropagation()` we will not call the
  * listeners of components that mounted later.
  *
  * You may use `onGlobalKeyDownBeforeChildren` if you want an event listener
@@ -244,7 +244,7 @@ function createListener(
 
         // We call child listeners in reverse order so that components mounted later
         // have the opportunity to intercept keyboard events first.
-        for (const listener of childListeners) {
+        for (const listener of Array.from(childListeners).reverse()) {
             listener(childEvent);
             if (wasPropagationStopped) return;
         }

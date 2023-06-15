@@ -19,6 +19,7 @@ export function useOutOfBoundsClickSelection({
     onClick: (event: MouseEvent) => void;
     onDoubleClick: (event: MouseEvent) => void;
     onMouseDown: (event: MouseEvent) => void;
+    onContextMenu: (event: MouseEvent) => void;
 } {
     const lastDoubleClickTimeRef = useRef<number | null>(null);
 
@@ -61,6 +62,15 @@ export function useOutOfBoundsClickSelection({
             ) {
                 event.preventDefault();
             }
+        },
+        // When the user right-clicks, focus the text input. Just like clicking on the
+        // area would. This also will make sure we open up the context menu when the
+        // event finishes bubbling up.
+        onContextMenu: event => {
+            // Only accept direct clicks on the element.
+            if (event.target !== event.currentTarget) return;
+
+            onSelect();
         },
     };
 }

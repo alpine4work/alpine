@@ -298,6 +298,17 @@ function TaskRowTitleInput(
                 // Once focus is in a single task the user can navigate it entirely with
                 // the keyboard.
                 tabindex: "-1",
+
+                // Native spellcheck is often more distracting then it's worth. It puts a red
+                // squiggly under names, nouns, industry terms, and oddly sometimes
+                // contractions (like "they're", maybe has to do with curly quotes?).
+                //
+                // It's also inconsistent with `<input>`s which don't have spellcheck on by
+                // default.
+                //
+                // NOTE(calebmer, 2022-12-29): Someday in the future we should build our own
+                // spellchecker.
+                spellcheck: "false",
             },
 
             handleKeyDown: (view, event) => {
