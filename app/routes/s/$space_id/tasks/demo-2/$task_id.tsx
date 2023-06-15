@@ -23,30 +23,32 @@ export default function TaskRoute({withMobileLayout}: {withMobileLayout?: boolea
     if (isInitialAppRender) return null;
 
     return (
-        <SpaceRouteScrollView>
+        <Box
+            flexGrow="1"
+            overflow="hidden"
+            position="relative"
+            zIndex="0"
+            display="flex"
+            justifyContent="center"
+            padding={!withMobileLayout ? {desktop: "4"} : undefined}
+        >
             <Box
                 width="full"
-                display="flex"
-                justifyContent="center"
-                padding={!withMobileLayout ? {desktop: "4"} : undefined}
+                maxWidth={taskDetailPresentationalViewMaxWidth}
+                overflowX="hidden"
+                overflowY="scroll"
+                borderRadius={!withMobileLayout ? {desktop: "md"} : undefined}
+                boxShadow={!withMobileLayout ? {desktop: "elevation-5"} : undefined}
+                backgroundColor="grey-0"
             >
-                <Box
-                    width="full"
-                    maxWidth={taskDetailPresentationalViewMaxWidth}
-                    overflow="hidden"
-                    borderRadius={!withMobileLayout ? {desktop: "md"} : undefined}
-                    boxShadow={!withMobileLayout ? {desktop: "elevation-5"} : undefined}
-                    backgroundColor="grey-0"
-                >
-                    <TaskView
-                        // Remount when the task ID changes.
-                        key={taskId}
-                        state={state}
-                        dispatch={dispatch}
-                        taskId={taskId}
-                    />
-                </Box>
+                <TaskView
+                    // Remount when the task ID changes.
+                    key={taskId}
+                    state={state}
+                    dispatch={dispatch}
+                    taskId={taskId}
+                />
             </Box>
-        </SpaceRouteScrollView>
+        </Box>
     );
 }
