@@ -114,9 +114,11 @@ export function TaskStatusButton({
             >
                 <TaskStatusCircle
                     status={
-                        status.type === "Open" && assignee?.status.type === "Active"
-                            ? "Active"
-                            : status.type
+                        status.type === "Open"
+                            ? assignee?.status.type === "Active"
+                                ? "OpenActive"
+                                : "OpenInactive"
+                            : "Closed"
                     }
                     size={size}
                     isPressed={isPressed}

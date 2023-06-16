@@ -9,10 +9,24 @@ export function TaskStatusCircle({
     size,
     isPressed,
 }: {
-    status: "Open" | "Closed" | "Active";
+    status: "OpenInactive" | "OpenActive" | "Closed";
     size: "3" | "4" | "5" | "6";
     isPressed?: boolean;
 }) {
+    const sizeInt = parseInt(size, 10);
+    const activeHalfCircleMargin =
+        sizeInt >= 6
+            ? 2
+            : sizeInt >= 5
+            ? // On high-pixel density devices round up to 1.5 and on low-pixel density devices round
+              // down to 1.
+              1.49
+            : sizeInt >= 4
+            ? // On high-pixel density devices round up to 1.5 and on low-pixel density devices round
+              // down to 1.
+              1.48
+            : 1;
+
     return (
         <Box
             className={sprinkles({
@@ -25,7 +39,8 @@ export function TaskStatusCircle({
                 justifyContent: "center",
                 alignItems: "center",
                 overflow: "hidden",
-                border: status === "Open" || status === "Active" ? "grey-40" : undefined,
+                border:
+                    status === "OpenInactive" || status === "OpenActive" ? "grey-40" : undefined,
                 backgroundColor:
                     status === "Closed" ? "theme-50-const" : isPressed ? "grey-10" : "grey-0",
             })}
@@ -56,11 +71,11 @@ export function TaskStatusCircle({
                 <Check
                     weight="bold"
                     size={addRemLengths(spacing["2"], spacing["0.5"])}
-                    style={{transform: `scale(${parseInt(size, 10) / 4})`}}
+                    style={{transform: `scale(${sizeInt / 4})`}}
                     color={colorSchemeVars["grey-0-const"]}
                 />
             )}
-            {status === "Active" && (
+            {status === "OpenActive" && (
                 <Box
                     position="absolute"
                     top="0"
@@ -68,21 +83,25 @@ export function TaskStatusCircle({
                     height={size}
                     overflow="hidden"
                     style={{
-                        width: `${parseRemLengthNumber(spacing[size]) / 2}rem`,
-                        transform: `translate(-1px, -1px) translateX(${
+                        width: `calc(${parseRemLengthNumber(spacing[size]) / 2}rem - ${
+                            1 + activeHalfCircleMargin
+                        }px)`,
+                        height: `calc(${spacing[size]} - ${2 + activeHalfCircleMargin * 2}px)`,
+                        transform: `translateY(${activeHalfCircleMargin}px) translateX(${
                             parseRemLengthNumber(spacing[size]) / 2
-                        }rem) scale(${(16 - 5) / 16})`,
-                        transformOrigin: "center left",
+                        }rem) translateX(-1px)`,
                     }}
                 >
                     <Box
                         position="absolute"
                         top="0"
                         right="0"
-                        width={size}
-                        height={size}
                         borderRadius="full"
                         backgroundColor={{light: "theme-20-const", dark: "theme-30-const"}}
+                        style={{
+                            width: `calc(${spacing[size]} - ${2 + activeHalfCircleMargin * 2}px)`,
+                            height: `calc(${spacing[size]} - ${2 + activeHalfCircleMargin * 2}px)`,
+                        }}
                     />
                     {isPressed && (
                         // For accent buttons, instead of choosing a darker background color shade when

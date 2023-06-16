@@ -12,10 +12,10 @@ import {
     useRef,
 } from "react";
 import {Box} from "~/client/design/box";
-import {Button} from "~/client/design/button";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element";
 import {IconButton} from "~/client/design/icon_button";
 import {MenuButton} from "~/client/design/menu_button";
+import {Spacer} from "~/client/design/spacer";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
@@ -26,6 +26,7 @@ import {TaskDateInput} from "~/client/tasks/demo_2/internal/task_date_input";
 import {TaskDetailCollectionsField} from "~/client/tasks/demo_2/internal/task_detail_collections_field";
 import {TaskDetailNotesField} from "~/client/tasks/demo_2/internal/task_detail_notes_field";
 import {TaskDetailTitleInput} from "~/client/tasks/demo_2/internal/task_detail_title_input";
+import {TaskSwitch} from "~/client/tasks/demo_2/internal/task_switch";
 import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
 import {
     TaskGridPresentationalView,
@@ -33,7 +34,6 @@ import {
     TaskGridPresentationalViewRef,
 } from "~/client/tasks/demo_2/task_grid_presentational_view";
 import {TaskAssignee, TaskStatus, TaskStatusButton} from "~/client/tasks/demo_2/task_status_button";
-import {AccountModel} from "~/shared/accounts/account_model";
 import {Spacing, assertSpacing} from "~/shared/design/spacing";
 import {ThemeColor} from "~/shared/design/theme_colors";
 import {UnimplementedError} from "~/shared/error/error";
@@ -109,8 +109,6 @@ function TaskDetailPresentationalView<ChildTaskRow>(
     }: TaskDetailPresentationalViewProps<ChildTaskRow>,
     ref: Ref<TaskDetailPresentationalViewRef>,
 ) {
-    const {timeZone} = useClientInfo();
-    const {currentAccount} = useSpaceContext();
     const isMobile = useIsMobile();
     const padding: Spacing = isMobile ? "3" : "5";
 
@@ -132,66 +130,15 @@ function TaskDetailPresentationalView<ChildTaskRow>(
             paddingY={padding}
             display="flex"
             flexDirection="column"
-            gap="10"
             position="relative"
         >
             <Box paddingX={padding} display="flex" flexDirection="column" gap="3">
-                <Box display="flex" alignItems="center" gap="1">
-                    <TaskStatusButton
-                        size="5"
-                        status={status}
-                        onStatusChange={onStatusChange}
-                        assignee={assignee}
-                    />
-                    <Box marginY="-0.5">
-                        {status.type === "Closed" ? (
-                            <Box
-                                display="flex"
-                                alignItems="center"
-                                height="6"
-                                paddingX="2"
-                                color="grey-50"
-                            >
-                                Closed
-                            </Box>
-                        ) : (
-                            <Button
-                                variant="quiet-off"
-                                height="6"
-                                paddingX="1.5"
-                                onPress={() => {
-                                    const assignedTime = new Date();
-                                    const assignedDate = toCalendarDate(
-                                        parseAbsolute(assignedTime.toISOString(), timeZone),
-                                    );
-
-                                    onAssigneeChange({
-                                        account: currentAccount,
-                                        assignerId: currentAccount.id,
-                                        assignedTime,
-                                        assignerTimeZone: timeZone,
-                                        assignedDate,
-                                        ...assignee,
-                                        status:
-                                            assignee?.status.type === "Active"
-                                                ? {type: "Inactive"}
-                                                : {
-                                                      type: "Active",
-                                                      orderTime: new Date(),
-                                                      orderKey: initialOrderKey,
-                                                      activatorId: currentAccount.id,
-                                                      activatedTime: assignedTime,
-                                                      activatorTimeZone: timeZone,
-                                                      activatedDate: assignedDate,
-                                                  },
-                                    });
-                                }}
-                            >
-                                {assignee?.status.type === "Active" ? "Active" : "Inactive"}
-                            </Button>
-                        )}
-                    </Box>
-                </Box>
+                <TaskStatusButton
+                    size="5"
+                    status={status}
+                    onStatusChange={onStatusChange}
+                    assignee={assignee}
+                />
                 <Box
                     position="absolute"
                     top={assertSpacing(`${parseInt(padding, 10) - 2}`)}
@@ -228,28 +175,11 @@ function TaskDetailPresentationalView<ChildTaskRow>(
                     placeholder="Untitled task"
                 />
             </Box>
+            <Spacer space="8" />
             <TaskDetailViewDenseFields
                 status={status}
-                assigneeAccount={assignee?.account ?? null}
-                onAssigneeAccountChange={assigneeAccount => {
-                    const assignedTime = new Date();
-                    const assignedDate = toCalendarDate(
-                        parseAbsolute(assignedTime.toISOString(), timeZone),
-                    );
-
-                    onAssigneeChange(
-                        assigneeAccount
-                            ? {
-                                  account: assigneeAccount,
-                                  assignerId: currentAccount.id,
-                                  assignedTime,
-                                  assignerTimeZone: timeZone,
-                                  assignedDate,
-                                  status: {type: "Inactive"},
-                              }
-                            : null,
-                    );
-                }}
+                assignee={assignee}
+                onAssigneeChange={onAssigneeChange}
                 dueDate={dueDate}
                 onDueDateChange={onDueDateChange}
                 allCollections={allCollections}
@@ -259,11 +189,13 @@ function TaskDetailPresentationalView<ChildTaskRow>(
                 removeCollectionFromTask={removeCollectionFromTask}
                 padding={padding}
             />
+            <Spacer space="10" />
             <TaskDetailNotesField
                 notesContent={notesContent}
                 onNotesContentChange={onNotesContentChange}
                 padding={padding}
             />
+            <Spacer space="12" />
             <Box>
                 <label
                     className={sprinkles({
@@ -311,8 +243,8 @@ function TaskDetailPresentationalView<ChildTaskRow>(
  */
 function TaskDetailViewDenseFields({
     status,
-    assigneeAccount,
-    onAssigneeAccountChange,
+    assignee,
+    onAssigneeChange,
     dueDate,
     onDueDateChange,
     allCollections,
@@ -323,8 +255,8 @@ function TaskDetailViewDenseFields({
     padding,
 }: {
     status: TaskStatus;
-    assigneeAccount: AccountModel | null;
-    onAssigneeAccountChange: (assigneeAccount: AccountModel | null) => void;
+    assignee: TaskAssignee | null;
+    onAssigneeChange: (assignee: TaskAssignee | null) => void;
     dueDate: CalendarDate | null;
     onDueDateChange: (dueDate: CalendarDate | null) => void;
     allCollections: ReadonlyArray<LocalTaskCollection>;
@@ -338,6 +270,9 @@ function TaskDetailViewDenseFields({
     removeCollectionFromTask: (collectionId: LocalTaskCollectionId) => void;
     padding: Spacing;
 }) {
+    const {timeZone} = useClientInfo();
+    const {currentAccount} = useSpaceContext();
+
     return (
         <Box
             paddingX={padding}
@@ -351,11 +286,76 @@ function TaskDetailViewDenseFields({
         >
             <TaskDetailViewField label="Assignee">
                 {({"aria-labelledby": ariaLabelledBy}) => (
-                    <TaskAssigneeInput
-                        assigneeAccount={assigneeAccount}
-                        onAssigneeAccountChange={onAssigneeAccountChange}
-                        aria-labelledby={ariaLabelledBy}
-                    />
+                    <Box display="flex" alignItems="center" gap="4">
+                        <Box
+                            style={{
+                                // Prevent `<div>` from growing and overflowing container.
+                                // https://stackoverflow.com/questions/36230944/prevent-flex-items-from-overflowing-a-container
+                                minWidth: 0,
+                            }}
+                        >
+                            <TaskAssigneeInput
+                                aria-labelledby={ariaLabelledBy}
+                                assigneeAccount={assignee?.account ?? null}
+                                onAssigneeAccountChange={assigneeAccount => {
+                                    const assignedTime = new Date();
+                                    const assignedDate = toCalendarDate(
+                                        parseAbsolute(assignedTime.toISOString(), timeZone),
+                                    );
+
+                                    onAssigneeChange(
+                                        assigneeAccount
+                                            ? {
+                                                  account: assigneeAccount,
+                                                  assignerId: currentAccount.id,
+                                                  assignedTime,
+                                                  assignerTimeZone: timeZone,
+                                                  assignedDate,
+                                                  status: {type: "Inactive"},
+                                              }
+                                            : null,
+                                    );
+                                }}
+                            />
+                        </Box>
+                        <TaskSwitch
+                            // Remount, don't animate when assignee changes.
+                            key={assignee?.account.id}
+                            label="Active"
+                            isDisabled={!assignee}
+                            isSelected={assignee?.status.type === "Active"}
+                            onSelectionChange={isSelected => {
+                                if (!assignee) return;
+
+                                if (isSelected && assignee?.status.type !== "Active") {
+                                    const assignedTime = new Date();
+                                    const assignedDate = toCalendarDate(
+                                        parseAbsolute(assignedTime.toISOString(), timeZone),
+                                    );
+
+                                    onAssigneeChange({
+                                        ...assignee,
+                                        status: {
+                                            type: "Active",
+                                            orderTime: new Date(),
+                                            orderKey: initialOrderKey,
+                                            activatorId: currentAccount.id,
+                                            activatedTime: assignedTime,
+                                            activatorTimeZone: timeZone,
+                                            activatedDate: assignedDate,
+                                        },
+                                    });
+                                }
+
+                                if (!isSelected && assignee?.status.type === "Active") {
+                                    onAssigneeChange({
+                                        ...assignee,
+                                        status: {type: "Inactive"},
+                                    });
+                                }
+                            }}
+                        />
+                    </Box>
                 )}
             </TaskDetailViewField>
             <TaskDetailViewField label="Due date">

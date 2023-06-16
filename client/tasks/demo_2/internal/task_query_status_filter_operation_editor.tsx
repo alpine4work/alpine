@@ -24,13 +24,13 @@ export function TaskQueryStatusFilterOperationEditor({
     const statuses = [
         filter.operation.statuses.has("Open") && (
             <>
-                <TaskStatusCircle status="Open" size="3" />
+                <TaskStatusCircle status="OpenInactive" size="3" />
                 <Box paddingLeft="1">open</Box>
             </>
         ),
         filter.operation.statuses.has("Active") && (
             <>
-                <TaskStatusCircle status="Active" size="3" />
+                <TaskStatusCircle status="OpenActive" size="3" />
                 <Box paddingLeft="1">active</Box>
             </>
         ),
@@ -85,7 +85,7 @@ export function TaskQueryStatusFilterOperationEditor({
                         render: () => (
                             <Box padding="1.5" display="flex" alignItems="center" gap="1.5">
                                 <TaskCheckbox isChecked={filter.operation.statuses.has("Open")} />
-                                <TaskStatusCircle status="Open" size="4" />
+                                <TaskStatusCircle status="OpenInactive" size="4" />
                                 <Box>Open</Box>
                             </Box>
                         ),
@@ -104,7 +104,7 @@ export function TaskQueryStatusFilterOperationEditor({
                         render: () => (
                             <Box padding="1.5" display="flex" alignItems="center" gap="1.5">
                                 <TaskCheckbox isChecked={filter.operation.statuses.has("Active")} />
-                                <TaskStatusCircle status="Active" size="4" />
+                                <TaskStatusCircle status="OpenActive" size="4" />
                                 <Box>Active</Box>
                             </Box>
                         ),

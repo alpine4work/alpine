@@ -232,7 +232,7 @@ function TaskRowPresentationalView<TaskRow>(
                 contextMenuActions.push([
                     {
                         label: "Mark open",
-                        icon: <TaskStatusCircle status="Open" size="3" />,
+                        icon: <TaskStatusCircle status="OpenInactive" size="3" />,
                         iconPlacement: "end",
                         onPress: () => {
                             onStatusChange({type: "Open"});
@@ -240,7 +240,7 @@ function TaskRowPresentationalView<TaskRow>(
                     },
                     {
                         label: "Mark active",
-                        icon: <TaskStatusCircle status="Active" size="3" />,
+                        icon: <TaskStatusCircle status="OpenActive" size="3" />,
                         iconPlacement: "end",
                         onPress: () => {
                             const assignedTime = new Date();
@@ -275,7 +275,7 @@ function TaskRowPresentationalView<TaskRow>(
                     contextMenuActions.push([
                         {
                             label: "Mark inactive",
-                            icon: <TaskStatusCircle status="Open" size="3" />,
+                            icon: <TaskStatusCircle status="OpenInactive" size="3" />,
                             iconPlacement: "end",
                             onPress: () => {
                                 onAssigneeChange({
@@ -308,7 +308,7 @@ function TaskRowPresentationalView<TaskRow>(
                     contextMenuActions.push([
                         {
                             label: "Mark active",
-                            icon: <TaskStatusCircle status="Active" size="3" />,
+                            icon: <TaskStatusCircle status="OpenActive" size="3" />,
                             iconPlacement: "end",
                             onPress: () => {
                                 const assignedTime = new Date();
