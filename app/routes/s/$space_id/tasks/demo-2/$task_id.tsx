@@ -1,6 +1,7 @@
 import {json} from "@remix-run/server-runtime";
 import {useParams} from "react-router";
 import {Box} from "~/client/design/box";
+import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useLocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
 import {taskDetailPresentationalViewMaxWidth} from "~/client/tasks/demo_2/task_detail_presentational_view";
@@ -40,13 +41,15 @@ export default function TaskRoute({withMobileLayout}: {withMobileLayout?: boolea
                 boxShadow={!withMobileLayout ? {desktop: "elevation-5"} : undefined}
                 backgroundColor="grey-0"
             >
-                <TaskView
-                    // Remount when the task ID changes.
-                    key={taskId}
-                    state={state}
-                    dispatch={dispatch}
-                    taskId={taskId}
-                />
+                <OverlayScopeContextProvider>
+                    <TaskView
+                        // Remount when the task ID changes.
+                        key={taskId}
+                        state={state}
+                        dispatch={dispatch}
+                        taskId={taskId}
+                    />
+                </OverlayScopeContextProvider>
             </Box>
         </Box>
     );

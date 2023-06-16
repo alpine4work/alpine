@@ -54,6 +54,11 @@ type MenuStandardAction = {
     readonly icon?: ReactNode | ((props: {isDisabled: boolean}) => ReactNode);
 
     /**
+     * Is the icon at the front or back of the menu item? Defaults to `start`.
+     */
+    readonly iconPlacement?: "start" | "end";
+
+    /**
      * Render a checkmark next to this action since it is already selected.
      */
     readonly isSelected?: boolean;
@@ -754,6 +759,24 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
         };
     }, [pendingState]);
 
+    const icon = action.icon && (
+        <Box flexShrink="0" width={iconSize} height={iconSize}>
+            <IconContext.Provider
+                value={{
+                    color: isVisuallyDisabled
+                        ? colorSchemeVars["grey-40"]
+                        : isPressed
+                        ? colorSchemeVars["grey-text"]
+                        : colorSchemeVars["grey-70"],
+                    size: spacing[iconSize],
+                    weight: "regular",
+                }}
+            >
+                {typeof action.icon === "function" ? action.icon({isDisabled}) : action.icon}
+            </IconContext.Provider>
+        </Box>
+    );
+
     return (
         <FocusRing isVisible={isFocusRingVisible} offset="0">
             <Box
@@ -790,36 +813,14 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                 aria-disabled={isDisabled ? true : undefined}
                 display="flex"
                 alignItems="center"
+                gap="2"
             >
-                {action.icon && (
-                    <Box
-                        flexShrink="0"
-                        width={iconSize}
-                        height={iconSize}
-                        marginRight={iconSize === "4" ? "2" : "1.5"}
-                    >
-                        <IconContext.Provider
-                            value={{
-                                color: isVisuallyDisabled
-                                    ? colorSchemeVars["grey-40"]
-                                    : isPressed
-                                    ? colorSchemeVars["grey-text"]
-                                    : colorSchemeVars["grey-70"],
-                                size: spacing[iconSize],
-                                weight: "regular",
-                            }}
-                        >
-                            {typeof action.icon === "function"
-                                ? action.icon({isDisabled})
-                                : action.icon}
-                        </IconContext.Provider>
-                    </Box>
-                )}
+                {(!action.iconPlacement || action.iconPlacement === "start") && icon}
                 <Box flexGrow="1" fontStyle="truncate">
                     {action.label}
                 </Box>
                 {action.keyboardShortcutHint && (
-                    <Box flexShrink="0" marginLeft="2">
+                    <Box flexShrink="0">
                         <Box color={isVisuallyDisabled ? "grey-30" : "grey-50"} fontSize="50">
                             <IconContext.Provider
                                 value={{
@@ -833,7 +834,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                     </Box>
                 )}
                 {action.isSelected && (
-                    <Box flexShrink="0" marginLeft="2">
+                    <Box flexShrink="0">
                         <Check
                             size={spacing["3"]}
                             color={
@@ -844,8 +845,9 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                         />
                     </Box>
                 )}
+                {action.iconPlacement === "end" && icon}
                 {pendingState.shouldShowPendingSpinner && (
-                    <Box flexShrink="0" marginLeft="2">
+                    <Box flexShrink="0">
                         <SpinnerGap className={spinAnimationClassName} size={spacing["4"]} />
                     </Box>
                 )}

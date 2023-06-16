@@ -20,9 +20,9 @@ import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {useSpaceContext} from "~/client/spaces/space_context";
+import {TaskAssigneeInput} from "~/client/tasks/demo_2/internal/task_assignee_input";
 import {TaskChildTasksProgressWheel} from "~/client/tasks/demo_2/internal/task_child_tasks_progress_wheel";
-import {TaskDateField} from "~/client/tasks/demo_2/internal/task_date_field";
-import {TaskDetailAssigneeField} from "~/client/tasks/demo_2/internal/task_detail_assignee_field";
+import {TaskDateInput} from "~/client/tasks/demo_2/internal/task_date_input";
 import {TaskDetailCollectionsField} from "~/client/tasks/demo_2/internal/task_detail_collections_field";
 import {TaskDetailNotesField} from "~/client/tasks/demo_2/internal/task_detail_notes_field";
 import {TaskDetailTitleInput} from "~/client/tasks/demo_2/internal/task_detail_title_input";
@@ -43,21 +43,6 @@ import {LocalTaskCollectionId} from "~/shared/id/types/id_types";
 import {sprinkles} from "~/shared/styles/styles";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema";
 import {TaskTitle} from "~/shared/tasks/task_title_schema";
-
-// TODO(calebmer): Needs:
-//
-// [x] Title
-// [x] Open/close button
-// [ ] Assignee field
-// [x] Due date field
-// [ ] Collections field
-// [ ] Custom fields
-// [ ] Mark as in progress
-// [ ] Subtasks
-// [x] Notes
-// [ ] Comments
-// [ ] Activity
-// [ ] Dark mode pass
 
 export const taskDetailPresentationalViewMaxWidth: Spacing = "160";
 
@@ -357,7 +342,6 @@ function TaskDetailViewDenseFields({
         <Box
             paddingX={padding}
             display="grid"
-            flexDirection="column"
             gap="5"
             style={{
                 gridTemplateColumns: "auto minmax(0, 1fr)",
@@ -367,7 +351,7 @@ function TaskDetailViewDenseFields({
         >
             <TaskDetailViewField label="Assignee">
                 {({"aria-labelledby": ariaLabelledBy}) => (
-                    <TaskDetailAssigneeField
+                    <TaskAssigneeInput
                         assigneeAccount={assigneeAccount}
                         onAssigneeAccountChange={onAssigneeAccountChange}
                         aria-labelledby={ariaLabelledBy}
@@ -382,7 +366,7 @@ function TaskDetailViewDenseFields({
                     //
                     // Maybe we do something like: Show due date by default in personal views but
                     // not in team views.
-                    <TaskDateField
+                    <TaskDateInput
                         date={dueDate}
                         onDateChange={onDueDateChange}
                         shouldIncludeCalendarIcon={true}

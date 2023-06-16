@@ -18,10 +18,14 @@ import {
 import {mergeProps} from "react-aria";
 import {Box} from "~/client/design/box";
 import {ContextMenuActions} from "~/client/design/context_menu";
+import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element";
 import {IconButton} from "~/client/design/icon_button";
 import {MenuAction} from "~/client/design/menu_button";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {useSpaceContext} from "~/client/spaces/space_context";
+import {TaskAssigneeInput} from "~/client/tasks/demo_2/internal/task_assignee_input";
+import {TaskDateInput} from "~/client/tasks/demo_2/internal/task_date_input";
 import {TaskGridViewDraggableData} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
 import {
     TaskRowTitleInput,
@@ -32,24 +36,18 @@ import {TaskRowViewDroppable} from "~/client/tasks/demo_2/internal/task_row_view
 import {TaskStatusCircle} from "~/client/tasks/demo_2/internal/task_status_circle";
 import {TaskAssignee, TaskStatus, TaskStatusButton} from "~/client/tasks/demo_2/task_status_button";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
-import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
+import {AccountModel} from "~/shared/accounts/account_model";
+import {
+    RemLength,
+    Spacing,
+    addRemLengths,
+    parseRemLengthNumber,
+    spacing,
+} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key";
 import {colorSchemeVars, contentSchemaStyles, sprinkles, tasksStyles} from "~/shared/styles/styles";
 import {TaskTitle} from "~/shared/tasks/task_title_schema";
-
-// TODO(calebmer): Needs:
-//
-// [x] Title
-// [x] Open/close button
-// [ ] Assignee field
-// [ ] Due date field
-// [ ] Collections field
-// [ ] Custom fields
-// [x] Mark as in progress
-// [x] Subtasks
-// [x] Open detail interaction
-// [ ] Dark mode pass
 
 export const taskRowViewMinHeight: Spacing = taskRowTitleInputSingleLineHeight;
 
@@ -145,6 +143,7 @@ function TaskRowPresentationalView<TaskRow>(
 
     const rowRef = useRef<HTMLDivElement>(null);
     const titleInputRef = useRef<TaskRowTitleInputRef>(null);
+    const denseAssigneeAndDueDateRef = useRef<TaskRowViewDenseAssigneeAndDueDateFieldsRef>(null);
 
     const focusTitleStart = useCallback(() => {
         assertExists(titleInputRef.current).focusStart();
@@ -234,6 +233,7 @@ function TaskRowPresentationalView<TaskRow>(
                     {
                         label: "Mark open",
                         icon: <TaskStatusCircle status="Open" size="3" />,
+                        iconPlacement: "end",
                         onPress: () => {
                             onStatusChange({type: "Open"});
                         },
@@ -241,6 +241,7 @@ function TaskRowPresentationalView<TaskRow>(
                     {
                         label: "Mark active",
                         icon: <TaskStatusCircle status="Active" size="3" />,
+                        iconPlacement: "end",
                         onPress: () => {
                             const assignedTime = new Date();
                             const assignedDate = toCalendarDate(
@@ -275,6 +276,7 @@ function TaskRowPresentationalView<TaskRow>(
                         {
                             label: "Mark inactive",
                             icon: <TaskStatusCircle status="Open" size="3" />,
+                            iconPlacement: "end",
                             onPress: () => {
                                 onAssigneeChange({
                                     ...assignee,
@@ -285,6 +287,7 @@ function TaskRowPresentationalView<TaskRow>(
                         {
                             label: "Mark closed",
                             icon: <TaskStatusCircle status="Closed" size="3" />,
+                            iconPlacement: "end",
                             onPress: () => {
                                 const closedTime = new Date();
                                 const closedDate = toCalendarDate(
@@ -306,6 +309,7 @@ function TaskRowPresentationalView<TaskRow>(
                         {
                             label: "Mark active",
                             icon: <TaskStatusCircle status="Active" size="3" />,
+                            iconPlacement: "end",
                             onPress: () => {
                                 const assignedTime = new Date();
                                 const assignedDate = toCalendarDate(
@@ -334,6 +338,7 @@ function TaskRowPresentationalView<TaskRow>(
                         {
                             label: "Mark closed",
                             icon: <TaskStatusCircle status="Closed" size="3" />,
+                            iconPlacement: "end",
                             onPress: () => {
                                 const closedTime = new Date();
                                 const closedDate = toCalendarDate(
@@ -354,8 +359,34 @@ function TaskRowPresentationalView<TaskRow>(
             }
         }
 
+        if (shouldShowDenseAssigneeAndDueDate) {
+            contextMenuActions.push([
+                {
+                    label: assignee ? "Edit assignee" : "Add assignee",
+                    onPress: () => {
+                        assertExists(denseAssigneeAndDueDateRef.current).focusAssignee();
+                    },
+                },
+                {
+                    label: dueDate ? "Edit due date" : "Add due date",
+                    onPress: () => {
+                        assertExists(denseAssigneeAndDueDateRef.current).focusDueDate();
+                    },
+                },
+            ]);
+        }
+
         return contextMenuActions;
     })();
+
+    const marginLeft: RemLength = `${
+        parseRemLengthNumber(spacing["5"]) +
+        (!withoutPaddingLeft
+            ? parseRemLengthNumber(spacing["5"]) +
+              parseRemLengthNumber(spacing["6"]) +
+              parseRemLengthNumber(contentSchemaStyles.listItemIndentation) * indentation
+            : 0)
+    }rem`;
 
     return (
         <ContextMenuActions actions={contextMenuActions}>
@@ -380,19 +411,7 @@ function TaskRowPresentationalView<TaskRow>(
                     <Box
                         position="relative"
                         flexShrink="0"
-                        style={{
-                            width: `${
-                                parseRemLengthNumber(spacing["5"]) +
-                                (!withoutPaddingLeft
-                                    ? parseRemLengthNumber(spacing["5"]) +
-                                      parseRemLengthNumber(spacing["6"]) +
-                                      parseRemLengthNumber(
-                                          contentSchemaStyles.listItemIndentation,
-                                      ) *
-                                          indentation
-                                    : 0)
-                            }rem`,
-                        }}
+                        style={{width: marginLeft}}
                         // Create an illusion that the text editor extends into the margins by giving
                         // the margin a text cursor and making it clickable putting focus in the task.
                         // A double click selects the task text.
@@ -536,6 +555,38 @@ function TaskRowPresentationalView<TaskRow>(
                         })}
                     />
                 </Box>
+                {shouldShowDenseAssigneeAndDueDate && (
+                    <TaskRowViewDenseAssigneeAndDueDateFields
+                        ref={denseAssigneeAndDueDateRef}
+                        status={status}
+                        assigneeAccount={assignee?.account ?? null}
+                        onAssigneeAccountChange={assigneeAccount => {
+                            const assignedTime = new Date();
+                            const assignedDate = toCalendarDate(
+                                parseAbsolute(assignedTime.toISOString(), timeZone),
+                            );
+
+                            onAssigneeChange(
+                                assigneeAccount
+                                    ? {
+                                          account: assigneeAccount,
+                                          assignerId: currentAccount.id,
+                                          assignedTime,
+                                          assignerTimeZone: timeZone,
+                                          assignedDate,
+                                          status: {type: "Inactive"},
+                                      }
+                                    : null,
+                            );
+                        }}
+                        dueDate={dueDate}
+                        onDueDateChange={onDueDateChange}
+                        marginLeft={marginLeft}
+                        focusTitleStart={focusTitleStart}
+                        focusTitleEnd={focusTitleEnd}
+                        focusTitleAll={focusTitleAll}
+                    />
+                )}
                 {droppableIndentations
                     .slice()
                     .sort((a, b) => a - b)
@@ -555,3 +606,256 @@ function TaskRowPresentationalView<TaskRow>(
         </ContextMenuActions>
     );
 }
+
+type TaskRowViewDenseAssigneeAndDueDateFieldsRef = {
+    focusAssignee(): void;
+    focusDueDate(): void;
+};
+
+const TaskRowViewDenseAssigneeAndDueDateFields = forwardRef(
+    function TaskRowViewDenseAssigneeAndDueDateFields(
+        {
+            status,
+            assigneeAccount,
+            onAssigneeAccountChange,
+            dueDate,
+            onDueDateChange,
+            marginLeft,
+            focusTitleStart,
+            focusTitleEnd,
+            focusTitleAll,
+        }: {
+            status: TaskStatus | null;
+            assigneeAccount: AccountModel | null;
+            onAssigneeAccountChange: (assigneeAccount: AccountModel | null) => void;
+            dueDate: CalendarDate | null;
+            onDueDateChange: (dueDate: CalendarDate | null) => void;
+            marginLeft: RemLength;
+            focusTitleEnd: () => void;
+            focusTitleStart: () => void;
+            focusTitleAll: () => void;
+        },
+        ref: Ref<TaskRowViewDenseAssigneeAndDueDateFieldsRef>,
+    ) {
+        const assigneeInputRef = useRef<HTMLDivElement>(null);
+        const dueDateInputRef = useRef<HTMLDivElement>(null);
+
+        const fieldMaxWidth = `calc(50% - ${
+            parseRemLengthNumber(
+                addRemLengths(
+                    marginLeft, // Margin left
+                    spacing["2"], // Gap
+                    spacing["5"], // Margin right
+                ),
+            ) / 2
+        }rem)`;
+
+        const [assigneeInputState, setAssigneeInputState] = useState<
+            {isVisible: false} | {isVisible: true; shouldFocus: boolean; isFocused: boolean}
+        >(
+            assigneeAccount
+                ? {isVisible: true, shouldFocus: false, isFocused: false}
+                : {isVisible: false},
+        );
+
+        if (
+            assigneeInputState.isVisible &&
+            !assigneeInputState.isFocused &&
+            !assigneeInputState.shouldFocus &&
+            !assigneeAccount
+        ) {
+            setAssigneeInputState({isVisible: false});
+        }
+
+        if (!assigneeInputState.isVisible && assigneeAccount) {
+            setAssigneeInputState({isVisible: true, shouldFocus: false, isFocused: false});
+        }
+
+        const [dueDateInputState, setDueDateInputState] = useState<
+            {isVisible: false} | {isVisible: true; shouldFocus: boolean; isFocused: boolean}
+        >(dueDate ? {isVisible: true, shouldFocus: false, isFocused: false} : {isVisible: false});
+
+        if (
+            dueDateInputState.isVisible &&
+            !dueDateInputState.isFocused &&
+            !dueDateInputState.shouldFocus &&
+            !dueDate
+        ) {
+            setDueDateInputState({isVisible: false});
+        }
+
+        if (!dueDateInputState.isVisible && dueDate) {
+            setDueDateInputState({isVisible: true, shouldFocus: false, isFocused: false});
+        }
+
+        useLayoutEffectWithoutServerSideWarning(() => {
+            if (assigneeInputState.isVisible && assigneeInputState.shouldFocus) {
+                assertExists(
+                    getNextFocusableElementIfExists(null, {
+                        withinElement: assertExists(assigneeInputRef.current),
+                    }),
+                ).focus({preventScroll: true});
+
+                setAssigneeInputState(assigneeInputState => {
+                    if (!assigneeInputState.isVisible) return assigneeInputState;
+                    return {...assigneeInputState, shouldFocus: false};
+                });
+            }
+        }, [assigneeInputState]);
+
+        useLayoutEffectWithoutServerSideWarning(() => {
+            if (dueDateInputState.isVisible && dueDateInputState.shouldFocus) {
+                assertExists(
+                    getNextFocusableElementIfExists(null, {
+                        withinElement: assertExists(dueDateInputRef.current),
+                    }),
+                ).focus({preventScroll: true});
+
+                setDueDateInputState(dueDateInputState => {
+                    if (!dueDateInputState.isVisible) return dueDateInputState;
+                    return {...dueDateInputState, shouldFocus: false};
+                });
+            }
+        }, [dueDateInputState]);
+
+        useImperativeHandle(
+            ref,
+            () => ({
+                focusAssignee: () => {
+                    if (assigneeInputState.isVisible) {
+                        assertExists(
+                            getNextFocusableElementIfExists(null, {
+                                withinElement: assertExists(assigneeInputRef.current),
+                            }),
+                        ).focus({preventScroll: true});
+                    } else {
+                        setAssigneeInputState({
+                            isVisible: true,
+                            shouldFocus: true,
+                            isFocused: false,
+                        });
+                    }
+                },
+                focusDueDate: () => {
+                    if (dueDateInputState.isVisible) {
+                        assertExists(
+                            getNextFocusableElementIfExists(null, {
+                                withinElement: assertExists(dueDateInputRef.current),
+                            }),
+                        ).focus({preventScroll: true});
+                    } else {
+                        setDueDateInputState({
+                            isVisible: true,
+                            shouldFocus: true,
+                            isFocused: false,
+                        });
+                    }
+                },
+            }),
+            [assigneeInputState.isVisible, dueDateInputState.isVisible],
+        );
+
+        const node = (
+            <Box display="flex" alignItems="stretch">
+                <Box
+                    flexShrink="0"
+                    cursor="text"
+                    style={{width: marginLeft}}
+                    {...useOutOfBoundsClickSelection({
+                        onSelect: focusTitleStart,
+                        onSelectAll: focusTitleAll,
+                    })}
+                />
+                <Box
+                    flexGrow="1"
+                    display="flex"
+                    gap="5"
+                    // I find some negative `marginLeft` helps the fields feel optically aligned.
+                    marginLeft="-0.5"
+                    // I find some negative `marginTop` helps the fields feel optically aligned.
+                    // Since above us is text, not a divider line.
+                    marginTop="-0.5"
+                    paddingBottom="2"
+                    className={tasksStyles.textCursorNotInheritedClassName}
+                    {...useOutOfBoundsClickSelection({
+                        onSelect: focusTitleEnd,
+                        onSelectAll: focusTitleAll,
+                    })}
+                >
+                    {assigneeInputState.isVisible && (
+                        <Box
+                            ref={assigneeInputRef}
+                            flexShrink="0"
+                            style={{maxWidth: fieldMaxWidth}}
+                            className={tasksStyles.pointerEventsNoneNotInheritedClassName}
+                            onFocus={() => {
+                                setAssigneeInputState(assigneeInputState => {
+                                    if (!assigneeInputState.isVisible) return assigneeInputState;
+                                    if (assigneeInputState.isFocused) return assigneeInputState;
+                                    return {...assigneeInputState, isFocused: true};
+                                });
+                            }}
+                            onBlur={event => {
+                                // If focus is moving within the element, don't unfocus.
+                                if (event.currentTarget.contains(event.relatedTarget)) return;
+
+                                setAssigneeInputState(assigneeInputState => {
+                                    if (!assigneeInputState.isVisible) return assigneeInputState;
+                                    if (!assigneeInputState.isFocused) return assigneeInputState;
+                                    return {...assigneeInputState, isFocused: false};
+                                });
+                            }}
+                        >
+                            <TaskAssigneeInput
+                                aria-label="Assignee"
+                                assigneeAccount={assigneeAccount}
+                                onAssigneeAccountChange={onAssigneeAccountChange}
+                                color="grey-60"
+                                avatarSize="4"
+                                shouldDisplayShortName={true}
+                            />
+                        </Box>
+                    )}
+                    {dueDateInputState.isVisible && (
+                        <Box
+                            ref={dueDateInputRef}
+                            flexShrink="0"
+                            style={{maxWidth: fieldMaxWidth}}
+                            className={tasksStyles.pointerEventsNoneNotInheritedClassName}
+                            onFocus={() => {
+                                setDueDateInputState(dueDateInputState => {
+                                    if (!dueDateInputState.isVisible) return dueDateInputState;
+                                    if (dueDateInputState.isFocused) return dueDateInputState;
+                                    return {...dueDateInputState, isFocused: true};
+                                });
+                            }}
+                            onBlur={event => {
+                                // If focus is moving within the element, don't unfocus.
+                                if (event.currentTarget.contains(event.relatedTarget)) return;
+
+                                setDueDateInputState(dueDateInputState => {
+                                    if (!dueDateInputState.isVisible) return dueDateInputState;
+                                    if (!dueDateInputState.isFocused) return dueDateInputState;
+                                    return {...dueDateInputState, isFocused: false};
+                                });
+                            }}
+                        >
+                            <TaskDateInput
+                                aria-labelledby="Due date"
+                                date={dueDate}
+                                onDateChange={onDueDateChange}
+                                shouldIncludeCalendarIcon={true}
+                                shouldWarnIfAfterDate={status?.type === "Open"}
+                                shouldFormatToday={true}
+                                color="grey-60"
+                            />
+                        </Box>
+                    )}
+                </Box>
+            </Box>
+        );
+
+        if (!assigneeInputState.isVisible && !dueDateInputState.isVisible) return null;
+        return node;
+    },
+);

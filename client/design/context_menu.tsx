@@ -260,6 +260,10 @@ export function ContextMenuManager() {
                 </OverlayAnimated>,
                 document.body,
             )}
+            {contextMenuState.isOpen &&
+                // Add a cover to the document to prevent scrolling and hover effects while the
+                // context menu is open.
+                createPortal(<Box position="absolute" inset="0" zIndex="40" />, document.body)}
             {shouldShowPasteWarningDialog && (
                 <ModalDialog
                     title={`Can only paste with ${isMac ? "⌘+V" : "Ctrl+V"}`}

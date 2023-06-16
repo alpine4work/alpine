@@ -4,7 +4,7 @@ import {useSpacingPx} from "~/client/design/helpers/use_spacing_px";
 import {spacing} from "~/shared/design/spacing";
 import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles";
 
-export function TaskNoAccountAvatar({size = "5"}: {size?: "3" | "5"}) {
+export function TaskNoAccountAvatar({size = "5"}: {size?: "3" | "4" | "5"}) {
     return (
         <Box flexShrink="0" position="relative" width={size} height={size} borderRadius="full">
             <TaskNoAccountAvatarDashedCircle size={size} />
@@ -26,7 +26,7 @@ export function TaskNoAccountAvatar({size = "5"}: {size?: "3" | "5"}) {
     );
 }
 
-export function TaskNoAccountAvatarDashedCircle({size}: {size: "3" | "5"}) {
+export function TaskNoAccountAvatarDashedCircle({size}: {size: "3" | "4" | "5"}) {
     const radius = useSpacingPx(size) / 2;
     const strokeWidth = 1;
     const viewBoxSize = radius * 2 + strokeWidth;
@@ -38,6 +38,7 @@ export function TaskNoAccountAvatarDashedCircle({size}: {size: "3" | "5"}) {
         <svg
             xmlns="http://www.w3.org/2000/svg"
             className={sprinkles({
+                display: "block",
                 width: size,
                 height: size,
             })}

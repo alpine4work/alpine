@@ -24,19 +24,6 @@ import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize
 import {contentSchemaStyles, pressOpacityOverlayClassName} from "~/shared/styles/styles";
 import {TaskTitle} from "~/shared/tasks/task_title_schema";
 
-// TODO(calebmer): Needs:
-//
-// [x] Title
-// [x] Open/close button
-// [x] Assignee field
-// [x] Due date field
-// [x] Collections field
-// [ ] Custom fields
-// [ ] Subtasks
-// [ ] Open detail interaction
-// [ ] Mark as in progress
-// [ ] Dark mode pass
-
 export const taskCardViewMaxWidth = "96";
 
 /**

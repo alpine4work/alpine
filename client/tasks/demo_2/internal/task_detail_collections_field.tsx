@@ -28,6 +28,7 @@ import {FocusRing} from "~/client/design/focus_ring";
 import {ModalDialog} from "~/client/design/modal_dialog";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
 import {useShowToast} from "~/client/design/toast";
+import {defaultTooltipOffset} from "~/client/design/tooltip";
 import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growing_width";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
@@ -447,7 +448,7 @@ export function TaskDetailCollectionsField({
             )}
             <OverlayAnimated
                 isVisible={comboBoxState.isOpen}
-                offset="2"
+                offset={defaultTooltipOffset}
                 disableAnimationIn={true}
                 disableAnimationOut={
                     inputState.type === "Unfocused" && inputState.disableAnimationOut

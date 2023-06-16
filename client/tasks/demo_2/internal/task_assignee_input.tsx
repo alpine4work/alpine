@@ -13,9 +13,11 @@ import {
 } from "react-aria";
 import {ComboBoxState, ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
+import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
+import {defaultTooltipOffset} from "~/client/design/tooltip";
 import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growing_width";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useSpaceContext} from "~/client/spaces/space_context";
@@ -33,7 +35,7 @@ import {colorSchemeVars, sprinkles, tasksStyles} from "~/shared/styles/styles";
 
 const nullAssigneeLabel = "Nobody";
 
-type TaskDetailAssigneeFieldItem =
+type TaskAssigneeInputItem =
     | {
           readonly type: "Account";
           readonly key: `Account:${AccountId}`;
@@ -45,7 +47,7 @@ type TaskDetailAssigneeFieldItem =
           readonly account?: undefined;
       };
 
-type TaskDetailAssigneeFieldInputState =
+type TaskAssigneeInputState =
     | {
           readonly type: "Selection";
           readonly disableAnimationOut: boolean;
@@ -56,53 +58,37 @@ type TaskDetailAssigneeFieldInputState =
           readonly hasChanged: boolean;
       };
 
-export function TaskDetailAssigneeField({
+export function TaskAssigneeInput({
     assigneeAccount,
     onAssigneeAccountChange,
+    "aria-label": ariaLabel,
     "aria-labelledby": ariaLabelledBy,
+    color = "grey-text",
+    avatarSize = "5",
+    shouldDisplayShortName,
 }: {
     assigneeAccount: AccountModel | null;
     onAssigneeAccountChange: (assigneeAccount: AccountModel | null) => void;
-    "aria-labelledby": string;
-}) {
-    return (
-        <Box height="4" marginTop="-1" marginLeft="-0.5">
-            <Box
-                height="6"
-                width="full"
-                overflow="hidden"
-                display="flex"
-                alignItems="center"
-                gap="5"
-            >
-                <TaskDetailAssigneeFieldInput
-                    assigneeAccount={assigneeAccount}
-                    onAssigneeAccountChange={onAssigneeAccountChange}
-                    aria-labelledby={ariaLabelledBy}
-                />
-            </Box>
-        </Box>
-    );
-}
-
-function TaskDetailAssigneeFieldInput({
-    assigneeAccount,
-    onAssigneeAccountChange,
-    "aria-labelledby": ariaLabelledBy,
-}: {
-    assigneeAccount: AccountModel | null;
-    onAssigneeAccountChange: (assigneeAccount: AccountModel | null) => void;
-    "aria-labelledby": string;
+    "aria-label"?: string;
+    "aria-labelledby"?: string;
+    color?: "grey-text" | "grey-60";
+    avatarSize?: "5" | "4";
+    shouldDisplayShortName?: boolean;
 }) {
     const {currentAccount} = useSpaceContext();
 
-    const [inputState, setInputState] = useState<TaskDetailAssigneeFieldInputState>({
+    const [inputState, setInputState] = useState<TaskAssigneeInputState>({
         type: "Selection",
         disableAnimationOut: false,
     });
 
-    const inputValue =
-        inputState.type === "Selection" ? assigneeAccount?.name ?? "" : inputState.value;
+    const selectionInputValue = assigneeAccount
+        ? shouldDisplayShortName
+            ? getAccountShortNameWithoutFullNameTooltip(assigneeAccount)
+            : assigneeAccount.name
+        : "";
+
+    const inputValue = inputState.type === "Selection" ? selectionInputValue : inputState.value;
 
     const allUnsortedAccounts = useExpensivelyLoadAllSpaceAccounts() ?? emptyArray;
 
@@ -113,7 +99,7 @@ function TaskDetailAssigneeFieldInput({
     }, [allUnsortedAccounts]);
 
     const allItems = useMemo(() => {
-        const allItems: Array<TaskDetailAssigneeFieldItem> = allUnsortedAccounts.map(account => ({
+        const allItems: Array<TaskAssigneeInputItem> = allUnsortedAccounts.map(account => ({
             type: "Account",
             key: `Account:${account.id}`,
             account,
@@ -153,7 +139,7 @@ function TaskDetailAssigneeFieldInput({
 
     const selectedKey = assigneeAccount ? `Account:${assigneeAccount.id}` : "Null";
 
-    const comboBoxProps: ComboBoxStateOptions<TaskDetailAssigneeFieldItem> = {
+    const comboBoxProps: ComboBoxStateOptions<TaskAssigneeInputItem> = {
         menuTrigger: "focus",
         // Don't close when there are no items.
         allowsEmptyCollection: true,
@@ -190,7 +176,7 @@ function TaskDetailAssigneeFieldInput({
         items: searchedItems,
         children: item => (
             <Item textValue={item.account?.name ?? nullAssigneeLabel}>
-                <TaskDetailAssigneeFieldListBoxOptionItem item={item} />
+                <TaskAssigneeInputListBoxOptionItem item={item} />
             </Item>
         ),
 
@@ -231,85 +217,96 @@ function TaskDetailAssigneeFieldInput({
             inputRef,
             popoverRef,
             listBoxRef,
+            "aria-label": ariaLabel,
             "aria-labelledby": ariaLabelledBy,
         },
         comboBoxState,
     );
 
     return (
-        <OverlayAnimated
-            isVisible={comboBoxState.isOpen}
-            offset="2"
-            offsetAlong="-2.5"
-            disableAnimationIn={true}
-            disableAnimationOut={inputState.type === "Selection" && inputState.disableAnimationOut}
-            placement="bottom-start"
-            overlay={
-                <Box ref={popoverRef} position="relative">
-                    <TaskDetailAssigneeFieldListBox
-                        comboBoxState={comboBoxState}
-                        listBoxRef={listBoxRef}
-                        listBoxProps={listBoxProps}
-                        selectedKey={selectedKey}
-                    />
-                </Box>
-            }
-        >
-            <FocusRing isVisibleWhenFocusWithin>
-                <Box
-                    maxWidth="full"
-                    overflow="hidden"
-                    display="inline-flex"
-                    alignItems="center"
-                    gap="1.5"
-                    className={tasksStyles.textCursorNotInheritedClassName}
-                    onClick={event => {
-                        // If the backdrop of this element was clicked, focus our combobox input.
-                        if (event.target === event.currentTarget) {
-                            assertExists(inputRef.current).focus();
-                        }
-                    }}
-                    onPointerDown={event => {
-                        // If the backdrop of this element was clicked and the input is focused then
-                        // don't let a click unfocus it.
-                        if (
-                            event.target === event.currentTarget &&
-                            document.activeElement === inputRef.current
-                        ) {
-                            event.preventDefault();
-                        }
-                    }}
-                >
-                    <Box flexShrink="0" pointerEvents="none">
-                        {assigneeAccount ? (
-                            <AccountAvatar size="5" account={assigneeAccount} />
-                        ) : (
-                            <TaskNoAccountAvatar />
-                        )}
+        <Box marginLeft={avatarSize === "5" ? "-0.5" : undefined}>
+            <OverlayAnimated
+                isVisible={comboBoxState.isOpen}
+                offset={defaultTooltipOffset}
+                offsetAlong={avatarSize === "5" ? "-2.5" : "-3"}
+                disableAnimationIn={true}
+                disableAnimationOut={
+                    inputState.type === "Selection" && inputState.disableAnimationOut
+                }
+                placement="bottom-start"
+                overlay={
+                    <Box ref={popoverRef} position="relative">
+                        <TaskAssigneeInputListBox
+                            comboBoxState={comboBoxState}
+                            listBoxRef={listBoxRef}
+                            listBoxProps={listBoxProps}
+                            selectedKey={selectedKey}
+                        />
                     </Box>
-                    <InputWithAutoGrowingWidth
-                        {...inputProps}
-                        ref={inputRef}
-                        placeholder={nullAssigneeLabel}
-                        className={sprinkles({
-                            backgroundColor: "transparent",
-                        })}
-                    />
-                </Box>
-            </FocusRing>
-        </OverlayAnimated>
+                }
+            >
+                <FocusRing isVisibleWhenFocusWithin>
+                    <Box
+                        maxWidth="full"
+                        height={avatarSize}
+                        marginY={avatarSize === "5" ? "-0.5" : undefined}
+                        overflow="hidden"
+                        display="inline-flex"
+                        alignItems="center"
+                        gap={avatarSize === "5" ? "1.5" : "1"}
+                        className={tasksStyles.textCursorNotInheritedClassName}
+                        style={{
+                            // `display: inline-block` creates an inline layout which adds extra space
+                            // below the element. Adding `vertical-align` stops the space from being added.
+                            // https://stackoverflow.com/questions/27536428/inline-block-element-height-issue
+                            verticalAlign: "top",
+                        }}
+                        onClick={event => {
+                            // If the backdrop of this element was clicked, focus our combobox input.
+                            if (event.target === event.currentTarget) {
+                                assertExists(inputRef.current).focus();
+                            }
+                        }}
+                        onPointerDown={event => {
+                            // If the backdrop of this element was clicked and the input is focused then
+                            // don't let a click unfocus it.
+                            if (
+                                event.target === event.currentTarget &&
+                                document.activeElement === inputRef.current
+                            ) {
+                                event.preventDefault();
+                            }
+                        }}
+                    >
+                        <Box flexShrink="0" pointerEvents="none">
+                            {assigneeAccount ? (
+                                <AccountAvatar size={avatarSize} account={assigneeAccount} />
+                            ) : (
+                                <TaskNoAccountAvatar size={avatarSize} />
+                            )}
+                        </Box>
+                        <InputWithAutoGrowingWidth
+                            {...inputProps}
+                            ref={inputRef}
+                            placeholder={assigneeAccount ? selectionInputValue : nullAssigneeLabel}
+                            className={sprinkles({color, height: "4"})}
+                        />
+                    </Box>
+                </FocusRing>
+            </OverlayAnimated>
+        </Box>
     );
 }
 
-function TaskDetailAssigneeFieldListBox({
+function TaskAssigneeInputListBox({
     comboBoxState,
     listBoxRef,
     listBoxProps: _listBoxProps,
     selectedKey,
 }: {
-    comboBoxState: ComboBoxState<TaskDetailAssigneeFieldItem>;
+    comboBoxState: ComboBoxState<TaskAssigneeInputItem>;
     listBoxRef: RefObject<HTMLUListElement>;
-    listBoxProps: AriaListBoxOptions<TaskDetailAssigneeFieldItem>;
+    listBoxProps: AriaListBoxOptions<TaskAssigneeInputItem>;
     selectedKey: string;
 }) {
     const {listBoxProps} = useListBox(_listBoxProps, comboBoxState, listBoxRef);
@@ -338,7 +335,7 @@ function TaskDetailAssigneeFieldListBox({
                 </Box>
             ) : (
                 Array.from(comboBoxState.collection, item => (
-                    <TaskDetailAssigneeFieldListBoxOption
+                    <TaskAssigneeInputListBoxOption
                         key={item.key}
                         comboBoxState={comboBoxState}
                         item={item}
@@ -350,13 +347,13 @@ function TaskDetailAssigneeFieldListBox({
     );
 }
 
-function TaskDetailAssigneeFieldListBoxOption({
+function TaskAssigneeInputListBoxOption({
     comboBoxState,
     item,
     selectedKey,
 }: {
-    comboBoxState: ComboBoxState<TaskDetailAssigneeFieldItem>;
-    item: Node<TaskDetailAssigneeFieldItem>;
+    comboBoxState: ComboBoxState<TaskAssigneeInputItem>;
+    item: Node<TaskAssigneeInputItem>;
     selectedKey: string;
 }) {
     const optionRef = useRef(null);
@@ -400,12 +397,12 @@ function TaskDetailAssigneeFieldListBoxOption({
     );
 }
 
-function TaskDetailAssigneeFieldListBoxOptionItem({
+function TaskAssigneeInputListBoxOptionItem({
     item,
     isSelected,
     isPressed,
 }: {
-    item: TaskDetailAssigneeFieldItem;
+    item: TaskAssigneeInputItem;
     isSelected?: boolean;
     isPressed?: boolean;
 }) {

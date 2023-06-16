@@ -4,7 +4,7 @@ import {useHover} from "react-aria";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {TaskDateField} from "~/client/tasks/demo_2/internal/task_date_field";
+import {TaskDateInput} from "~/client/tasks/demo_2/internal/task_date_input";
 import {TaskQueryFilterOperatorEditor} from "~/client/tasks/demo_2/internal/task_query_filter_operator_editor";
 import {
     TaskQueryFilterDateOperation,
@@ -394,7 +394,7 @@ function TaskQueryFilterDateOperationEditorDate({
 
     return (
         <Box {...hoverProps} height="full" position="relative" zIndex="0">
-            <TaskDateField
+            <TaskDateInput
                 aria-label="Date"
                 date={date}
                 onDateChange={onDateChange}

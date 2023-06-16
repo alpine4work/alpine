@@ -35,7 +35,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
 import {sprinkles} from "~/shared/styles/styles";
 
-export function TaskDateFieldCalendar({
+export function TaskDateInputCalendar({
     date,
     onDateChange,
 }: {
@@ -167,7 +167,7 @@ export function TaskDateFieldCalendar({
             </Box>
             <Box display="flex" gap="3">
                 <Box>
-                    <TaskDateFieldCalendarGrid
+                    <TaskDateInputCalendarGrid
                         state={state}
                         actualStartDate={actualStartDate}
                         actualEndDate={actualEndDate}
@@ -175,7 +175,7 @@ export function TaskDateFieldCalendar({
                     />
                 </Box>
                 <Box>
-                    <TaskDateFieldCalendarGrid
+                    <TaskDateInputCalendarGrid
                         state={state}
                         actualStartDate={actualStartDate}
                         actualEndDate={actualEndDate}
@@ -204,7 +204,7 @@ export function TaskDateFieldCalendar({
     );
 }
 
-function TaskDateFieldCalendarGrid({
+function TaskDateInputCalendarGrid({
     state,
     actualStartDate,
     actualEndDate,
@@ -257,7 +257,7 @@ function TaskDateFieldCalendarGrid({
                             .getDatesInWeek(weekIndex, startDate)
                             .map((date, i) =>
                                 date ? (
-                                    <TaskDateFieldCalendarCell
+                                    <TaskDateInputCalendarCell
                                         key={i}
                                         state={state}
                                         actualStartDate={actualStartDate}
@@ -277,7 +277,7 @@ function TaskDateFieldCalendarGrid({
     );
 }
 
-function TaskDateFieldCalendarCell({
+function TaskDateInputCalendarCell({
     state,
     actualStartDate,
     actualEndDate,

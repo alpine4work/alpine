@@ -5,11 +5,12 @@ import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
+import {defaultTooltipOffset} from "~/client/design/tooltip";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour";
 import {formatTaskDate} from "~/client/tasks/demo_2/internal/format_task_date";
-import {TaskDateFieldCalendar} from "~/client/tasks/demo_2/internal/task_date_field_calendar";
-import {TaskDateFieldInput} from "~/client/tasks/demo_2/internal/task_date_field_input";
+import {TaskDateInputCalendar} from "~/client/tasks/demo_2/internal/task_date_input_calendar";
+import {TaskDateInputText} from "~/client/tasks/demo_2/internal/task_date_input_text";
 import {spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 
@@ -18,7 +19,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
  * you click or focus we reveal a text input where you can type the date in
  * your locale.
  */
-export function TaskDateField({
+export function TaskDateInput({
     date,
     onDateChange,
     shouldIncludeCalendarIcon = false,
@@ -29,6 +30,7 @@ export function TaskDateField({
     height = "4",
     paddingX = "0",
     focusRingOffset,
+    color = "grey-text",
 }: {
     date: CalendarDate | null;
     onDateChange: (date: CalendarDate | null) => void;
@@ -40,6 +42,7 @@ export function TaskDateField({
     height?: "full" | "4";
     paddingX?: "0" | "1";
     focusRingOffset?: "0";
+    color?: "grey-text" | "grey-60";
 }) {
     const {timeZone, locale} = useClientInfo();
     const currentDate = useCurrentDate();
@@ -75,9 +78,7 @@ export function TaskDateField({
                     height="full"
                     paddingX={paddingX}
                     gap="1"
-                    color={
-                        shouldWarnIfAfterDate && formattedDate.isAfterDate ? "red-60" : "grey-text"
-                    }
+                    color={shouldWarnIfAfterDate && formattedDate.isAfterDate ? "red-60" : color}
                     cursor="text"
                     onClick={() => {
                         getNextFocusableElementIfExists(null, {
@@ -95,7 +96,7 @@ export function TaskDateField({
                 // user clicks somewhere else which is an indirect interaction so animate.
                 disableAnimationIn
                 placement="bottom-start"
-                offset="2"
+                offset={defaultTooltipOffset}
                 overlay={
                     <Box
                         borderRadius="md"
@@ -113,13 +114,14 @@ export function TaskDateField({
                             );
                         }}
                     >
-                        <TaskDateFieldCalendar date={date} onDateChange={onDateChange} />
+                        <TaskDateInputCalendar date={date} onDateChange={onDateChange} />
                     </Box>
                 }
             >
                 <FocusRing offset={focusRingOffset} isVisibleWhenFocusWithin>
                     <Box
                         ref={inputRef}
+                        width="full"
                         height={height}
                         position={!isEditing && formattedDate ? "absolute" : "relative"}
                         top={!isEditing && formattedDate ? "0" : undefined}
@@ -134,7 +136,7 @@ export function TaskDateField({
                             );
                         }}
                     >
-                        <TaskDateFieldInput
+                        <TaskDateInputText
                             date={date}
                             onDateChange={onDateChange}
                             aria-label={ariaLabel}
@@ -143,6 +145,7 @@ export function TaskDateField({
                             shouldIncludeCalendarIcon={shouldIncludeCalendarIcon}
                             height={height}
                             paddingX={paddingX}
+                            color={color}
                         />
                     </Box>
                 </FocusRing>

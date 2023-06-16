@@ -9,7 +9,7 @@ import {useClientInfo} from "~/client/remix/client_info_context";
 import {spacing} from "~/shared/design/spacing";
 import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles";
 
-export function TaskDateFieldInput({
+export function TaskDateInputText({
     date,
     onDateChange,
     "aria-label": ariaLabel,
@@ -18,6 +18,7 @@ export function TaskDateFieldInput({
     shouldIncludeCalendarIcon,
     height,
     paddingX,
+    color,
 }: {
     date: CalendarDate | null;
     onDateChange: (date: CalendarDate | null) => void;
@@ -27,6 +28,7 @@ export function TaskDateFieldInput({
     shouldIncludeCalendarIcon: boolean;
     height: "full" | "4";
     paddingX: "0" | "1";
+    color: "grey-text" | "grey-60";
 }) {
     const {locale} = useClientInfo();
 
@@ -65,7 +67,7 @@ export function TaskDateFieldInput({
                 paddingX={paddingX}
                 alignItems="center"
                 gap="1"
-                color="grey-text"
+                color={color}
                 cursor="text"
                 onPointerDown={event => {
                     if (event.target === event.currentTarget) {
@@ -88,16 +90,16 @@ export function TaskDateFieldInput({
                     <CalendarBlank
                         size={spacing["4"]}
                         className={sprinkles({pointerEvents: "none"})}
-                        color={!isEditing ? inputPlaceholderStyles.color : undefined}
+                        color={!isEditing && !date ? inputPlaceholderStyles.color : undefined}
                     />
                 )}
                 <Box {...fieldProps} ref={ref} display="inline-flex">
                     {state.segments.map((segment, i) => (
-                        <TaskDateFieldInputSegment
+                        <TaskDateInputTextSegment
                             key={i}
                             state={state}
                             segment={segment}
-                            areAllSegmentsPlaceholders={!isEditing}
+                            areAllSegmentsPlaceholders={!isEditing && !date}
                         />
                     ))}
                 </Box>
@@ -106,7 +108,7 @@ export function TaskDateFieldInput({
     );
 }
 
-function TaskDateFieldInputSegment({
+function TaskDateInputTextSegment({
     state,
     segment,
     areAllSegmentsPlaceholders,
