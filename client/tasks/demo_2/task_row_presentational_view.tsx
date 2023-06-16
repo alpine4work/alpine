@@ -24,6 +24,7 @@ import {MenuAction} from "~/client/design/menu_button";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {useSpaceContext} from "~/client/spaces/space_context";
+import {getTaskStatusMenuActions} from "~/client/tasks/demo_2/internal/get_task_status_menu_actions";
 import {TaskAssigneeInput} from "~/client/tasks/demo_2/internal/task_assignee_input";
 import {TaskDateInput} from "~/client/tasks/demo_2/internal/task_date_input";
 import {TaskGridViewDraggableData} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
@@ -33,7 +34,6 @@ import {
     taskRowTitleInputSingleLineHeight,
 } from "~/client/tasks/demo_2/internal/task_row_title_input";
 import {TaskRowViewDroppable} from "~/client/tasks/demo_2/internal/task_row_view_droppable";
-import {TaskStatusCircle} from "~/client/tasks/demo_2/internal/task_status_circle";
 import {TaskAssignee, TaskStatus, TaskStatusButton} from "~/client/tasks/demo_2/task_status_button";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
 import {AccountModel} from "~/shared/accounts/account_model";
@@ -45,7 +45,6 @@ import {
     spacing,
 } from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key";
 import {colorSchemeVars, contentSchemaStyles, sprinkles, tasksStyles} from "~/shared/styles/styles";
 import {TaskTitle} from "~/shared/tasks/task_title_schema";
 
@@ -227,136 +226,26 @@ function TaskRowPresentationalView<TaskRow>(
     const contextMenuActions = (() => {
         const contextMenuActions: Array<ReadonlyArray<MenuAction>> = [];
 
+        contextMenuActions.push([
+            {
+                label: "Copy link",
+                onPress: () => {
+                    // NOCOMMIT
+                },
+            },
+        ]);
+
         if (status) {
-            if (status.type === "Closed") {
-                contextMenuActions.push([
-                    {
-                        label: "Mark open",
-                        icon: <TaskStatusCircle status="OpenInactive" size="3" />,
-                        iconPlacement: "end",
-                        onPress: () => {
-                            onStatusChange({type: "Open"});
-                        },
-                    },
-                    {
-                        label: "Mark active",
-                        icon: <TaskStatusCircle status="OpenActive" size="3" />,
-                        iconPlacement: "end",
-                        onPress: () => {
-                            const assignedTime = new Date();
-                            const assignedDate = toCalendarDate(
-                                parseAbsolute(assignedTime.toISOString(), timeZone),
-                            );
-
-                            onStatusChange({type: "Open"});
-
-                            onAssigneeChange({
-                                account: currentAccount,
-                                assignerId: currentAccount.id,
-                                assignedTime,
-                                assignerTimeZone: timeZone,
-                                assignedDate,
-                                ...assignee,
-                                status: {
-                                    type: "Active",
-                                    orderTime: new Date(),
-                                    orderKey: initialOrderKey,
-                                    activatorId: currentAccount.id,
-                                    activatedTime: assignedTime,
-                                    activatorTimeZone: timeZone,
-                                    activatedDate: assignedDate,
-                                },
-                            });
-                        },
-                    },
-                ]);
-            } else {
-                if (assignee?.status.type === "Active") {
-                    contextMenuActions.push([
-                        {
-                            label: "Mark inactive",
-                            icon: <TaskStatusCircle status="OpenInactive" size="3" />,
-                            iconPlacement: "end",
-                            onPress: () => {
-                                onAssigneeChange({
-                                    ...assignee,
-                                    status: {type: "Inactive"},
-                                });
-                            },
-                        },
-                        {
-                            label: "Mark closed",
-                            icon: <TaskStatusCircle status="Closed" size="3" />,
-                            iconPlacement: "end",
-                            onPress: () => {
-                                const closedTime = new Date();
-                                const closedDate = toCalendarDate(
-                                    parseAbsolute(closedTime.toISOString(), timeZone),
-                                );
-
-                                onStatusChange({
-                                    type: "Closed",
-                                    closerId: currentAccount.id,
-                                    closedTime,
-                                    closerTimeZone: timeZone,
-                                    closedDate,
-                                });
-                            },
-                        },
-                    ]);
-                } else {
-                    contextMenuActions.push([
-                        {
-                            label: "Mark active",
-                            icon: <TaskStatusCircle status="OpenActive" size="3" />,
-                            iconPlacement: "end",
-                            onPress: () => {
-                                const assignedTime = new Date();
-                                const assignedDate = toCalendarDate(
-                                    parseAbsolute(assignedTime.toISOString(), timeZone),
-                                );
-
-                                onAssigneeChange({
-                                    account: currentAccount,
-                                    assignerId: currentAccount.id,
-                                    assignedTime,
-                                    assignerTimeZone: timeZone,
-                                    assignedDate,
-                                    ...assignee,
-                                    status: {
-                                        type: "Active",
-                                        orderTime: new Date(),
-                                        orderKey: initialOrderKey,
-                                        activatorId: currentAccount.id,
-                                        activatedTime: assignedTime,
-                                        activatorTimeZone: timeZone,
-                                        activatedDate: assignedDate,
-                                    },
-                                });
-                            },
-                        },
-                        {
-                            label: "Mark closed",
-                            icon: <TaskStatusCircle status="Closed" size="3" />,
-                            iconPlacement: "end",
-                            onPress: () => {
-                                const closedTime = new Date();
-                                const closedDate = toCalendarDate(
-                                    parseAbsolute(closedTime.toISOString(), timeZone),
-                                );
-
-                                onStatusChange({
-                                    type: "Closed",
-                                    closerId: currentAccount.id,
-                                    closedTime,
-                                    closerTimeZone: timeZone,
-                                    closedDate,
-                                });
-                            },
-                        },
-                    ]);
-                }
-            }
+            contextMenuActions.push(
+                getTaskStatusMenuActions({
+                    timeZone,
+                    currentAccount,
+                    status,
+                    onStatusChange,
+                    assignee,
+                    onAssigneeChange,
+                }),
+            );
         }
 
         if (shouldShowDenseAssigneeAndDueDate) {
@@ -375,6 +264,15 @@ function TaskRowPresentationalView<TaskRow>(
                 },
             ]);
         }
+
+        contextMenuActions.push([
+            {
+                label: "Delete",
+                onPress: () => {
+                    // NOCOMMIT
+                },
+            },
+        ]);
 
         return contextMenuActions;
     })();

@@ -20,13 +20,13 @@ import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
 import {useSpaceContext} from "~/client/spaces/space_context";
+import {getTaskStatusMenuActions} from "~/client/tasks/demo_2/internal/get_task_status_menu_actions";
 import {TaskAssigneeInput} from "~/client/tasks/demo_2/internal/task_assignee_input";
 import {TaskChildTasksProgressWheel} from "~/client/tasks/demo_2/internal/task_child_tasks_progress_wheel";
 import {TaskDateInput} from "~/client/tasks/demo_2/internal/task_date_input";
 import {TaskDetailCollectionsField} from "~/client/tasks/demo_2/internal/task_detail_collections_field";
 import {TaskDetailNotesField} from "~/client/tasks/demo_2/internal/task_detail_notes_field";
 import {TaskDetailTitleInput} from "~/client/tasks/demo_2/internal/task_detail_title_input";
-import {TaskSwitch} from "~/client/tasks/demo_2/internal/task_switch";
 import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
 import {
     TaskGridPresentationalView,
@@ -36,9 +36,7 @@ import {
 import {TaskAssignee, TaskStatus, TaskStatusButton} from "~/client/tasks/demo_2/task_status_button";
 import {Spacing, assertSpacing} from "~/shared/design/spacing";
 import {ThemeColor} from "~/shared/design/theme_colors";
-import {UnimplementedError} from "~/shared/error/error";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key";
 import {LocalTaskCollectionId} from "~/shared/id/types/id_types";
 import {sprinkles} from "~/shared/styles/styles";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema";
@@ -110,6 +108,9 @@ function TaskDetailPresentationalView<ChildTaskRow>(
     ref: Ref<TaskDetailPresentationalViewRef>,
 ) {
     const isMobile = useIsMobile();
+    const {timeZone} = useClientInfo();
+    const {currentAccount} = useSpaceContext();
+
     const padding: Spacing = isMobile ? "3" : "5";
 
     const childTasksGridViewRef = useRef<TaskGridPresentationalViewRef>(null);
@@ -146,22 +147,30 @@ function TaskDetailPresentationalView<ChildTaskRow>(
                 >
                     <MenuButton
                         actions={[
-                            {
-                                label: "Copy link",
-                                pressErrorTitle: "Couldn’t copy task link",
-                                onPress: async () => {
-                                    // NOCOMMIT
-                                    throw new UnimplementedError("TODO");
+                            [
+                                {
+                                    label: "Copy link",
+                                    onPress: () => {
+                                        // NOCOMMIT
+                                    },
                                 },
-                            },
-                            {
-                                label: "Delete task",
-                                pressErrorTitle: "Couldn’t delete task",
-                                onPress: async () => {
-                                    // NOCOMMIT
-                                    throw new UnimplementedError("TODO");
+                            ],
+                            getTaskStatusMenuActions({
+                                timeZone,
+                                currentAccount,
+                                status,
+                                onStatusChange,
+                                assignee,
+                                onAssigneeChange,
+                            }),
+                            [
+                                {
+                                    label: "Delete",
+                                    onPress: () => {
+                                        // NOCOMMIT
+                                    },
                                 },
-                            },
+                            ],
                         ]}
                     >
                         <IconButton size="md" description="More" withoutTooltip={true}>
@@ -286,76 +295,29 @@ function TaskDetailViewDenseFields({
         >
             <TaskDetailViewField label="Assignee">
                 {({"aria-labelledby": ariaLabelledBy}) => (
-                    <Box display="flex" alignItems="center" gap="4">
-                        <Box
-                            style={{
-                                // Prevent `<div>` from growing and overflowing container.
-                                // https://stackoverflow.com/questions/36230944/prevent-flex-items-from-overflowing-a-container
-                                minWidth: 0,
-                            }}
-                        >
-                            <TaskAssigneeInput
-                                aria-labelledby={ariaLabelledBy}
-                                assigneeAccount={assignee?.account ?? null}
-                                onAssigneeAccountChange={assigneeAccount => {
-                                    const assignedTime = new Date();
-                                    const assignedDate = toCalendarDate(
-                                        parseAbsolute(assignedTime.toISOString(), timeZone),
-                                    );
+                    <TaskAssigneeInput
+                        aria-labelledby={ariaLabelledBy}
+                        assigneeAccount={assignee?.account ?? null}
+                        onAssigneeAccountChange={assigneeAccount => {
+                            const assignedTime = new Date();
+                            const assignedDate = toCalendarDate(
+                                parseAbsolute(assignedTime.toISOString(), timeZone),
+                            );
 
-                                    onAssigneeChange(
-                                        assigneeAccount
-                                            ? {
-                                                  account: assigneeAccount,
-                                                  assignerId: currentAccount.id,
-                                                  assignedTime,
-                                                  assignerTimeZone: timeZone,
-                                                  assignedDate,
-                                                  status: {type: "Inactive"},
-                                              }
-                                            : null,
-                                    );
-                                }}
-                            />
-                        </Box>
-                        <TaskSwitch
-                            // Remount, don't animate when assignee changes.
-                            key={assignee?.account.id}
-                            label="Active"
-                            isDisabled={!assignee}
-                            isSelected={assignee?.status.type === "Active"}
-                            onSelectionChange={isSelected => {
-                                if (!assignee) return;
-
-                                if (isSelected && assignee?.status.type !== "Active") {
-                                    const assignedTime = new Date();
-                                    const assignedDate = toCalendarDate(
-                                        parseAbsolute(assignedTime.toISOString(), timeZone),
-                                    );
-
-                                    onAssigneeChange({
-                                        ...assignee,
-                                        status: {
-                                            type: "Active",
-                                            orderTime: new Date(),
-                                            orderKey: initialOrderKey,
-                                            activatorId: currentAccount.id,
-                                            activatedTime: assignedTime,
-                                            activatorTimeZone: timeZone,
-                                            activatedDate: assignedDate,
-                                        },
-                                    });
-                                }
-
-                                if (!isSelected && assignee?.status.type === "Active") {
-                                    onAssigneeChange({
-                                        ...assignee,
-                                        status: {type: "Inactive"},
-                                    });
-                                }
-                            }}
-                        />
-                    </Box>
+                            onAssigneeChange(
+                                assigneeAccount
+                                    ? {
+                                          account: assigneeAccount,
+                                          assignerId: currentAccount.id,
+                                          assignedTime,
+                                          assignerTimeZone: timeZone,
+                                          assignedDate,
+                                          status: {type: "Inactive"},
+                                      }
+                                    : null,
+                            );
+                        }}
+                    />
                 )}
             </TaskDetailViewField>
             <TaskDetailViewField label="Due date">

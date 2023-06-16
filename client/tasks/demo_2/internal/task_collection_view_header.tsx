@@ -81,7 +81,7 @@ export function TaskCollectionViewHeader({
                     ],
                     [
                         {
-                            label: "Delete collection",
+                            label: "Delete",
                             onPress: () => {
                                 // NOCOMMIT
                             },
