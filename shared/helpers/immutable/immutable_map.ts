@@ -237,6 +237,20 @@ export class ImmutableMap<Key extends string | number, Value> implements Readonl
     }
 
     /**
+     * Returns a new iterator of all the keys in the map.
+     *
+     * Iterates in reverse key order.
+     */
+    public *keysReverse(): IterableIterator<Key> {
+        const iterator = this._tree.end;
+
+        while (iterator.valid) {
+            yield iterator.key!;
+            iterator.prev();
+        }
+    }
+
+    /**
      * Returns a new iterator of all the values in the map.
      *
      * Iterates in key order, not insertion order.
@@ -251,6 +265,20 @@ export class ImmutableMap<Key extends string | number, Value> implements Readonl
     }
 
     /**
+     * Returns a new iterator of all the values in the map.
+     *
+     * Iterates in reverse key order.
+     */
+    public *valuesReverse(): IterableIterator<Value> {
+        const iterator = this._tree.end;
+
+        while (iterator.valid) {
+            yield iterator.value!;
+            iterator.prev();
+        }
+    }
+
+    /**
      * Returns a new iterator of all the entries in the map.
      *
      * Iterates in key order, not insertion order.
@@ -261,6 +289,20 @@ export class ImmutableMap<Key extends string | number, Value> implements Readonl
         while (iterator.valid) {
             yield [iterator.key!, iterator.value!];
             iterator.next();
+        }
+    }
+
+    /**
+     * Returns a new iterator of all the entries in the map.
+     *
+     * Iterates in reverse key order.
+     */
+    public *entriesReverse(): IterableIterator<[Key, Value]> {
+        const iterator = this._tree.end;
+
+        while (iterator.valid) {
+            yield [iterator.key!, iterator.value!];
+            iterator.prev();
         }
     }
 

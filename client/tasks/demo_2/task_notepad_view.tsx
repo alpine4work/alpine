@@ -1,4 +1,4 @@
-import {useRef, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {Box} from "~/client/design/box";
 import {TaskGridViewDndContext} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
 import {
@@ -7,33 +7,55 @@ import {
 } from "~/client/tasks/demo_2/internal/task_notepad_grid_view";
 import {TaskNotepadViewActiveSection} from "~/client/tasks/demo_2/internal/task_notepad_view_active_section";
 import {TaskNotepadViewPaginator} from "~/client/tasks/demo_2/internal/task_notepad_view_paginator";
-import {LocalTasksMoveTaskFrom, useLocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
+import {
+    LocalTasksAction,
+    LocalTasksMoveTaskFrom,
+    LocalTasksState,
+    useLocalTasksState,
+} from "~/client/tasks/demo_2/local_tasks_state";
 import {TaskGridPresentationalViewRef} from "~/client/tasks/demo_2/task_grid_presentational_view";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {clamp} from "~/shared/helpers/number/clamp";
 import {LocalTaskId} from "~/shared/id/types/id_types";
 import {tasksStyles} from "~/shared/styles/styles";
 
-// TODO(calebmer): Some stuff this view needs:
-//
-// - Shift-tab on a task that's about to move keeps it in place then animate
-// - Due date
-// - Assignee
-// - Drag selection should select multiple tasks
-// - Select all
-// - Undo
-// - Save expanded tasks on server for browser so we can re-expand them on reload
-
 export function TaskNotepadView() {
-    const gridViewRef = useRef<TaskGridPresentationalViewRef>(null);
     const [state, dispatch] = useLocalTasksState();
-    const [notepadPage, setNotepadPage] = useState(state.database.getNotepadPageCount());
+    const [notepadPageId, setNotepadPageId] = useState(state.database.getLatestNotepadPageId());
 
+    useEffect(() => {
+        if (notepadPageId === null) {
+            const newNotepadPageId = Math.floor(Date.now() / 1000);
+            dispatch({type: "CreateNotepadPage", notepadPageId: newNotepadPageId});
+            setNotepadPageId(newNotepadPageId);
+        }
+    }, [dispatch, notepadPageId]);
+
+    if (notepadPageId === null) return <Box flexGrow="1" backgroundColor="grey-0" />;
+
+    return (
+        <TaskNotepadViewInner
+            state={state}
+            dispatch={dispatch}
+            notepadPageId={notepadPageId}
+            setNotepadPageId={setNotepadPageId}
+        />
+    );
+}
+
+function TaskNotepadViewInner({
+    state,
+    dispatch,
+    notepadPageId,
+    setNotepadPageId,
+}: {
+    state: LocalTasksState;
+    dispatch: (action: LocalTasksAction) => void;
+    notepadPageId: number;
+    setNotepadPageId: (notepadPageId: number) => void;
+}) {
+    const gridViewRef = useRef<TaskGridPresentationalViewRef>(null);
     const [expandedTaskIds, setExpandedTaskIds] = useState<ReadonlySet<LocalTaskId>>(new Set());
-
-    const clampedNotepadPage = clamp(1, notepadPage, state.database.getNotepadPageCount());
-    if (clampedNotepadPage !== notepadPage) setNotepadPage(clampedNotepadPage);
 
     const moveTaskBelow = (
         belowTaskRow: TaskNotepadGridViewRow | null,
@@ -41,7 +63,7 @@ export function TaskNotepadView() {
         taskRow: TaskNotepadGridViewRow,
     ) => {
         const from: LocalTasksMoveTaskFrom = taskRow.position.isRoot
-            ? {type: "Notepad", notepadPage}
+            ? {type: "Notepad", notepadPageId}
             : {type: "ParentTask"};
 
         if (!belowTaskRow) {
@@ -51,7 +73,7 @@ export function TaskNotepadView() {
                 from,
                 to: {
                     type: "Notepad",
-                    notepadPage,
+                    notepadPageId,
                     belowOrderKey: null,
                 },
             });
@@ -72,7 +94,7 @@ export function TaskNotepadView() {
             to: newPosition.isRoot
                 ? {
                       type: "Notepad",
-                      notepadPage: newPosition.notepad.page,
+                      notepadPageId: newPosition.notepad.pageId,
                       belowOrderKey: newPosition.notepad.orderKey,
                   }
                 : {
@@ -90,7 +112,7 @@ export function TaskNotepadView() {
         dispatch({
             type: "MoveTask",
             taskId: taskRow.task.id,
-            from: taskRow.position.isRoot ? {type: "Notepad", notepadPage} : {type: "ParentTask"},
+            from: taskRow.position.isRoot ? {type: "Notepad", notepadPageId} : {type: "ParentTask"},
             to: {type: "ParentTask", parentTaskId: parentTaskRow.task.id, belowOrderKey: null},
         });
     };
@@ -132,22 +154,19 @@ export function TaskNotepadView() {
                         Notepad
                     </Box>
                     <TaskNotepadViewPaginator
-                        notepadPage={notepadPage}
-                        onNotepadPageChange={setNotepadPage}
-                        notepadPageCount={state.database.getNotepadPageCount()}
-                        onNotepadPageCreate={() => {
-                            dispatch({type: "CreateNotepadPage"});
-                            setNotepadPage(state.database.getNotepadPageCount() + 1);
-                        }}
+                        state={state}
+                        dispatch={dispatch}
+                        notepadPageId={notepadPageId}
+                        onNotepadPageIdChange={setNotepadPageId}
                     />
                 </Box>
                 <TaskNotepadGridView
                     // Remount when the notepad page changes...
-                    key={notepadPage}
+                    key={notepadPageId}
                     ref={gridViewRef}
                     state={state}
                     dispatch={dispatch}
-                    notepadPage={notepadPage}
+                    notepadPageId={notepadPageId}
                     expandedTaskIds={expandedTaskIds}
                     setExpandedTaskIds={setExpandedTaskIds}
                     moveTaskBelow={moveTaskBelow}

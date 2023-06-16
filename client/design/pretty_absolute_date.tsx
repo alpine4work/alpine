@@ -10,35 +10,84 @@ import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_round
  * Renders in an absolute style like "Jan 15, 2023". As opposed to rendering in
  * a relative style like "5 days ago".
  */
-export function PrettyAbsoluteDate({date, placement}: {date: Date; placement?: OverlayPlacement}) {
-    const {timeZone, locale} = useClientInfo();
-    const currentTime = useCurrentTimeRoundedToHour();
+export function PrettyAbsoluteDate({
+    date,
+    shouldExcludeTime,
+    shouldIncludeSeconds,
+    shouldIncludeWeekday,
+    tooltipPlacement,
+}: {
+    date: Date;
+    shouldExcludeTime?: boolean;
+    shouldIncludeSeconds?: boolean;
+    shouldIncludeWeekday?: boolean;
+    tooltipPlacement?: OverlayPlacement;
+}) {
+    const formatDate = usePrettyAbsoluteDateFormatter({
+        shouldExcludeTime,
+        shouldIncludeSeconds,
+        shouldIncludeWeekday,
+    });
 
-    const formattedDate = useMemo(() => {
-        const isCurrentYear = currentTime.getFullYear() === date.getFullYear();
-
-        const formatter = new Intl.DateTimeFormat(locale, {
-            timeZone,
-            calendar: "iso8601",
-            year: !isCurrentYear ? "numeric" : undefined,
-            month: !isCurrentYear ? "long" : "short",
-            day: "numeric",
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-        });
-
-        return formatter
-            .format(date)
-            .replace(/, (\d+:\d+)/, " at $1")
-            .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
-    }, [currentTime, date, locale, timeZone]);
+    const formattedDate = useMemo(() => formatDate(date), [date, formatDate]);
 
     return (
-        <Tooltip content={<PrettyAbsoluteDateTooltipContent date={date} />} placement={placement}>
+        <Tooltip
+            content={<PrettyAbsoluteDateTooltipContent date={date} />}
+            placement={tooltipPlacement}
+        >
             <span>{formattedDate}</span>
         </Tooltip>
     );
+}
+
+export function usePrettyAbsoluteDateFormatter({
+    shouldExcludeTime,
+    shouldIncludeSeconds,
+    shouldIncludeWeekday,
+}: {
+    shouldExcludeTime?: boolean;
+    shouldIncludeSeconds?: boolean;
+    shouldIncludeWeekday?: boolean;
+} = {}) {
+    const {timeZone, locale} = useClientInfo();
+    const currentTime = useCurrentTimeRoundedToHour();
+
+    return useMemo(() => {
+        const baseOptions: Intl.DateTimeFormatOptions = {
+            timeZone,
+            calendar: "iso8601",
+            day: "numeric",
+            weekday: shouldIncludeWeekday ? "short" : undefined,
+            hour: !shouldExcludeTime ? "numeric" : undefined,
+            minute: !shouldExcludeTime ? "2-digit" : undefined,
+            second: shouldIncludeSeconds ? "2-digit" : undefined,
+            hour12: true,
+        };
+
+        const formatterWithoutYear = new Intl.DateTimeFormat(locale, {
+            ...baseOptions,
+            month: "short",
+        });
+
+        const formatterWithYear = new Intl.DateTimeFormat(locale, {
+            ...baseOptions,
+            year: "numeric",
+            // If we include a short weekday, always use short months as well.
+            month: !shouldIncludeWeekday ? "long" : "short",
+        });
+
+        return (date: Date) => {
+            const isCurrentYear = currentTime.getFullYear() === date.getFullYear();
+
+            const formatter = isCurrentYear ? formatterWithoutYear : formatterWithYear;
+
+            return formatter
+                .format(date)
+                .replace(/, (\d+:\d+)/, " at $1")
+                .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
+        };
+    }, [currentTime, locale, shouldExcludeTime, shouldIncludeSeconds, timeZone]);
 }
 
 /**

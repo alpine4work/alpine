@@ -29,7 +29,7 @@ export {TaskNotepadGridViewForwardRef as TaskNotepadGridView};
 type TaskNotepadGridViewRowPosition =
     | {
           readonly isRoot: true;
-          readonly notepad: {readonly page: number; readonly orderKey: OrderKey};
+          readonly notepad: {readonly pageId: number; readonly orderKey: OrderKey};
       }
     | {
           readonly isRoot: false;
@@ -46,7 +46,7 @@ function TaskNotepadGridView(
     {
         state,
         dispatch,
-        notepadPage,
+        notepadPageId,
         expandedTaskIds,
         setExpandedTaskIds,
         moveTaskBelow,
@@ -54,7 +54,7 @@ function TaskNotepadGridView(
     }: {
         state: LocalTasksState;
         dispatch: (action: LocalTasksAction) => void;
-        notepadPage: number;
+        notepadPageId: number;
         expandedTaskIds: ReadonlySet<LocalTaskId>;
         setExpandedTaskIds: Dispatch<SetStateAction<ReadonlySet<LocalTaskId>>>;
         moveTaskBelow: (
@@ -75,8 +75,8 @@ function TaskNotepadGridView(
     const gridViewRef = useRef<TaskGridPresentationalViewRef>(null);
 
     const tasks = useMemo(
-        () => Array.from(state.database.getNotepadPageTasks(notepadPage)),
-        [notepadPage, state.database],
+        () => Array.from(state.database.getNotepadPageTasks(notepadPageId)),
+        [notepadPageId, state.database],
     );
 
     const {taskRowIds, taskRows} = useMemo(() => {
@@ -117,7 +117,7 @@ function TaskNotepadGridView(
 
             const position: TaskNotepadGridViewRowPosition = {
                 isRoot: true,
-                notepad: {page: notepadPage, orderKey},
+                notepad: {pageId: notepadPageId, orderKey},
             };
 
             taskRows.push({
@@ -132,7 +132,7 @@ function TaskNotepadGridView(
         }
 
         return {taskRowIds, taskRows};
-    }, [expandedTaskIds, notepadPage, state.database, tasks]);
+    }, [expandedTaskIds, notepadPageId, state.database, tasks]);
 
     // Remove any `expandedTaskIds` that do not exist in `taskIds`. If we a delete
     // a task this is how we update our expanded task IDs set.
@@ -308,7 +308,7 @@ function TaskNotepadGridView(
                         normalizedFilters: null,
                         taskId: bottomTaskGhostRowId,
                         title,
-                        notepad: {page: notepadPage, side: "Below"},
+                        notepad: {pageId: notepadPageId, side: "Below"},
                     });
                 });
             }}
@@ -327,7 +327,7 @@ function TaskNotepadGridView(
                         normalizedFilters: null,
                         taskId: bottomTaskGhostRowId,
                         title,
-                        notepad: {page: notepadPage, side: "Below"},
+                        notepad: {pageId: notepadPageId, side: "Below"},
                         onLayoutEffect: () => {
                             gridViewRef.current?.focusEnd();
                         },
@@ -351,7 +351,7 @@ function TaskNotepadGridView(
                         normalizedFilters: null,
                         taskId: topTaskGhostRowId,
                         title,
-                        notepad: {page: notepadPage, side: "Above"},
+                        notepad: {pageId: notepadPageId, side: "Above"},
                     });
                 });
             }}
@@ -362,7 +362,7 @@ function TaskNotepadGridView(
                     creatorTimeZone: timeZone,
                     normalizedFilters: null,
                     title,
-                    notepad: {page: notepadPage, side: "Above"},
+                    notepad: {pageId: notepadPageId, side: "Above"},
                     onLayoutEffect: taskId => {
                         // TODO(calebmer): A production implementation probably shouldn't do an
                         // O(n) loop here.
@@ -387,7 +387,7 @@ function TaskNotepadGridView(
                         parentTaskId,
                         childTaskId,
                         from: oldPosition.isRoot
-                            ? {type: "Notepad", notepadPage: oldPosition.notepad.page}
+                            ? {type: "Notepad", notepadPageId: oldPosition.notepad.pageId}
                             : {type: "ParentTask"},
                         onLayoutEffect: () => {
                             // TODO(calebmer): A production implementation probably shouldn't do an
@@ -419,7 +419,7 @@ function TaskNotepadGridView(
                 titleSelection,
             ) => {
                 const from: LocalTasksMoveTaskFrom = position.isRoot
-                    ? {type: "Notepad", notepadPage: position.notepad.page}
+                    ? {type: "Notepad", notepadPageId: position.notepad.pageId}
                     : {type: "ParentTask"};
 
                 const parentPosition = parentPositionStack[parentPositionStack.length - 1] ?? null;
@@ -446,7 +446,7 @@ function TaskNotepadGridView(
                         to: parentPosition.isRoot
                             ? {
                                   type: "Notepad",
-                                  notepadPage: parentPosition.notepad.page,
+                                  notepadPageId: parentPosition.notepad.pageId,
                                   belowOrderKey: parentPosition.notepad.orderKey,
                               }
                             : {

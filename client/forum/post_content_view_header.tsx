@@ -45,7 +45,7 @@ export function PostContentViewHeader({
                     )}
                 </Box>
                 <Box fontSize="50" fontStyle="truncate" color="grey-50">
-                    <PrettyAbsoluteDate placement="bottom" date={post.createdTime} />
+                    <PrettyAbsoluteDate tooltipPlacement="bottom" date={post.createdTime} />
                 </Box>
             </Box>
         </Box>

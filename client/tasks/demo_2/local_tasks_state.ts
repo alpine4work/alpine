@@ -28,9 +28,7 @@ import {
     FailedPreconditionError,
     InvalidArgumentError,
     NotFoundError,
-    OutOfRangeError,
 } from "~/shared/error/error";
-import {emptyArray} from "~/shared/helpers/array/empty_array";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types";
@@ -183,7 +181,7 @@ export type LocalTasksMoveTaskFrom =
       }
     | {
           readonly type: "Notepad";
-          readonly notepadPage: number;
+          readonly notepadPageId: number;
       }
     | {
           readonly type: "Collection";
@@ -198,7 +196,7 @@ export type LocalTasksMoveTaskTo =
       }
     | {
           readonly type: "Notepad";
-          readonly notepadPage: number;
+          readonly notepadPageId: number;
           readonly belowOrderKey: OrderKey | null;
       }
     | {
@@ -211,9 +209,7 @@ class LocalTasksDatabase {
     private readonly _taskById: ImmutableMap<LocalTaskId, LocalTask>;
     private readonly _taskCollectionById: ImmutableMap<LocalTaskCollectionId, LocalTaskCollection>;
 
-    private readonly _notepadPageCount: number;
-
-    private readonly _taskIdByOrderKeyByNotepadPage: ImmutableMap<
+    private readonly _taskIdByOrderKeyByNotepadPageId: ImmutableMap<
         number,
         ImmutableMap<OrderKey, LocalTaskId>
     >;
@@ -221,13 +217,11 @@ class LocalTasksDatabase {
     private constructor({
         taskById,
         taskCollectionById,
-        notepadPageCount,
-        taskIdByOrderKeyByNotepadPage,
+        taskIdByOrderKeyByNotepadPageId,
     }: {
         taskById: ImmutableMap<LocalTaskId, LocalTask>;
         taskCollectionById: ImmutableMap<LocalTaskCollectionId, LocalTaskCollection>;
-        notepadPageCount: number;
-        taskIdByOrderKeyByNotepadPage: ImmutableMap<number, ImmutableMap<OrderKey, LocalTaskId>>;
+        taskIdByOrderKeyByNotepadPageId: ImmutableMap<number, ImmutableMap<OrderKey, LocalTaskId>>;
     }) {
         // Validations that only run in local development to ensure the data structure
         // is formatted properly.
@@ -282,17 +276,10 @@ class LocalTasksDatabase {
                 validateTask([], task);
             }
 
-            assert(
-                Number.isInteger(notepadPageCount) && notepadPageCount >= 1,
-                "Notepad page count must be a positive non-zero integer",
-            );
-
-            for (const [notepadPage, taskIdByOrderKey] of taskIdByOrderKeyByNotepadPage) {
+            for (const [notepadPageId, taskIdByOrderKey] of taskIdByOrderKeyByNotepadPageId) {
                 assert(
-                    Number.isInteger(notepadPage) &&
-                        1 <= notepadPage &&
-                        notepadPage <= notepadPageCount,
-                    "Notepad page must be in notepad page count range",
+                    notepadPageId >= 0 && Number.isSafeInteger(notepadPageId),
+                    "Notepad page ID must be a positive integer",
                 );
 
                 const notepadPageTaskIds = new Set<LocalTaskId>();
@@ -329,23 +316,20 @@ class LocalTasksDatabase {
 
         this._taskById = taskById;
         this._taskCollectionById = taskCollectionById;
-        this._notepadPageCount = notepadPageCount;
-        this._taskIdByOrderKeyByNotepadPage = taskIdByOrderKeyByNotepadPage;
+        this._taskIdByOrderKeyByNotepadPageId = taskIdByOrderKeyByNotepadPageId;
     }
 
     public static readonly empty = new LocalTasksDatabase({
         taskById: ImmutableMap.empty(),
         taskCollectionById: ImmutableMap.empty(),
-        notepadPageCount: 1,
-        taskIdByOrderKeyByNotepadPage: ImmutableMap.empty(),
+        taskIdByOrderKeyByNotepadPageId: ImmutableMap.empty(),
     });
 
     public serialize(): SchemaType<typeof LocalTasksDatabaseInternalSchema> {
         return {
             taskById: new Map(this._taskById),
             taskCollectionById: new Map(this._taskCollectionById),
-            notepadPageCount: this._notepadPageCount,
-            taskIdByOrderKeyByNotepadPage: new Map(this._taskIdByOrderKeyByNotepadPage),
+            taskIdByOrderKeyByNotepadPageId: new Map(this._taskIdByOrderKeyByNotepadPageId),
         };
     }
 
@@ -353,8 +337,9 @@ class LocalTasksDatabase {
         return new LocalTasksDatabase({
             taskById: ImmutableMap.from(data.taskById),
             taskCollectionById: ImmutableMap.from(data.taskCollectionById),
-            notepadPageCount: data.notepadPageCount,
-            taskIdByOrderKeyByNotepadPage: ImmutableMap.from(data.taskIdByOrderKeyByNotepadPage),
+            taskIdByOrderKeyByNotepadPageId: ImmutableMap.from(
+                data.taskIdByOrderKeyByNotepadPageId,
+            ),
         });
     }
 
@@ -370,34 +355,40 @@ class LocalTasksDatabase {
         return taskCollection;
     }
 
-    public getNotepadPageCount() {
-        return this._notepadPageCount;
+    public getLatestNotepadPageId() {
+        return this._taskIdByOrderKeyByNotepadPageId.getLastEntry()?.[0] ?? null;
     }
 
-    public createNotepadPage() {
+    public getNotepadPageIds() {
+        return this._taskIdByOrderKeyByNotepadPageId.keysReverse();
+    }
+
+    public createNotepadPage(notepadPageId: number) {
+        const latestNotepadPageId = this.getLatestNotepadPageId();
+
+        assert(
+            latestNotepadPageId === null || notepadPageId > latestNotepadPageId,
+            "`notepadPageId` must be greater than the latest notepad page ID",
+        );
+
         return new LocalTasksDatabase({
             taskById: this._taskById,
             taskCollectionById: this._taskCollectionById,
-            notepadPageCount: this._notepadPageCount + 1,
-            taskIdByOrderKeyByNotepadPage: this._taskIdByOrderKeyByNotepadPage,
+            taskIdByOrderKeyByNotepadPageId: this._taskIdByOrderKeyByNotepadPageId.set(
+                notepadPageId,
+                ImmutableMap.empty(),
+            ),
         });
     }
 
-    private _validateNotepadPage(notepadPage: number) {
-        if (!Number.isInteger(notepadPage))
-            throw new InvalidArgumentError("Notepad page must be an integer");
+    public getNotepadPageTasks(notepadPageId: number): Iterable<[OrderKey, LocalTask]> {
+        const taskIdByOrderKey = this._taskIdByOrderKeyByNotepadPageId.get(notepadPageId);
+        if (!taskIdByOrderKey) throw new NotFoundError("Notepad page does not exist");
 
-        if (!(1 <= notepadPage && notepadPage <= this._notepadPageCount))
-            throw new OutOfRangeError("Notepad page is out of range");
-    }
-
-    public getNotepadPageTasks(notepadPage: number): Iterable<[OrderKey, LocalTask]> {
-        this._validateNotepadPage(notepadPage);
-
-        return mapIterable(
-            this._taskIdByOrderKeyByNotepadPage.get(notepadPage) ?? emptyArray,
-            ([orderKey, taskId]) => [orderKey, assertExists(this._taskById.get(taskId))],
-        );
+        return mapIterable(taskIdByOrderKey, ([orderKey, taskId]) => [
+            orderKey,
+            assertExists(this._taskById.get(taskId)),
+        ]);
     }
 
     public createTask(options: LocalTasksDatabaseCreateTaskOptions) {
@@ -427,7 +418,7 @@ class LocalTasksDatabase {
         };
 
         let taskById = this._taskById;
-        let taskIdByOrderKeyByNotepadPage = this._taskIdByOrderKeyByNotepadPage;
+        let taskIdByOrderKeyByNotepadPageId = this._taskIdByOrderKeyByNotepadPageId;
         let taskCollectionById = this._taskCollectionById;
 
         if (taskById.has(task.id)) throw new FailedPreconditionError("Task IDs must be unique");
@@ -478,10 +469,8 @@ class LocalTasksDatabase {
         }
 
         if (options.notepad) {
-            this._validateNotepadPage(options.notepad.page);
-
-            let taskIdByOrderKey =
-                taskIdByOrderKeyByNotepadPage.get(options.notepad.page) ?? ImmutableMap.empty();
+            let taskIdByOrderKey = taskIdByOrderKeyByNotepadPageId.get(options.notepad.pageId);
+            if (!taskIdByOrderKey) throw new NotFoundError("Notepad page not found");
 
             let orderKey: OrderKey;
             if ((options.notepad.side ?? options.side ?? "Below") === "Above") {
@@ -512,8 +501,8 @@ class LocalTasksDatabase {
 
             taskIdByOrderKey = taskIdByOrderKey.set(orderKey, task.id);
 
-            taskIdByOrderKeyByNotepadPage = taskIdByOrderKeyByNotepadPage.set(
-                options.notepad.page,
+            taskIdByOrderKeyByNotepadPageId = taskIdByOrderKeyByNotepadPageId.set(
+                options.notepad.pageId,
                 taskIdByOrderKey,
             );
         }
@@ -654,8 +643,7 @@ class LocalTasksDatabase {
             new LocalTasksDatabase({
                 taskById,
                 taskCollectionById,
-                notepadPageCount: this._notepadPageCount,
-                taskIdByOrderKeyByNotepadPage,
+                taskIdByOrderKeyByNotepadPageId,
             }),
             task,
         ] as const;
@@ -668,8 +656,7 @@ class LocalTasksDatabase {
                 return {...task, title};
             }),
             taskCollectionById: this._taskCollectionById,
-            notepadPageCount: this._notepadPageCount,
-            taskIdByOrderKeyByNotepadPage: this._taskIdByOrderKeyByNotepadPage,
+            taskIdByOrderKeyByNotepadPageId: this._taskIdByOrderKeyByNotepadPageId,
         });
     }
 
@@ -684,8 +671,7 @@ class LocalTasksDatabase {
                 };
             }),
             taskCollectionById: this._taskCollectionById,
-            notepadPageCount: this._notepadPageCount,
-            taskIdByOrderKeyByNotepadPage: this._taskIdByOrderKeyByNotepadPage,
+            taskIdByOrderKeyByNotepadPageId: this._taskIdByOrderKeyByNotepadPageId,
         });
     }
 
@@ -700,8 +686,7 @@ class LocalTasksDatabase {
                 };
             }),
             taskCollectionById: this._taskCollectionById,
-            notepadPageCount: this._notepadPageCount,
-            taskIdByOrderKeyByNotepadPage: this._taskIdByOrderKeyByNotepadPage,
+            taskIdByOrderKeyByNotepadPageId: this._taskIdByOrderKeyByNotepadPageId,
         });
     }
 
@@ -712,8 +697,7 @@ class LocalTasksDatabase {
                 return {...task, dueDate};
             }),
             taskCollectionById: this._taskCollectionById,
-            notepadPageCount: this._notepadPageCount,
-            taskIdByOrderKeyByNotepadPage: this._taskIdByOrderKeyByNotepadPage,
+            taskIdByOrderKeyByNotepadPageId: this._taskIdByOrderKeyByNotepadPageId,
         });
     }
 
@@ -727,14 +711,13 @@ class LocalTasksDatabase {
                 return {...task, notesContent};
             }),
             taskCollectionById: this._taskCollectionById,
-            notepadPageCount: this._notepadPageCount,
-            taskIdByOrderKeyByNotepadPage: this._taskIdByOrderKeyByNotepadPage,
+            taskIdByOrderKeyByNotepadPageId: this._taskIdByOrderKeyByNotepadPageId,
         });
     }
 
     public moveTask(from: LocalTasksMoveTaskFrom, to: LocalTasksMoveTaskTo, taskId: LocalTaskId) {
         let taskById = this._taskById;
-        let taskIdByOrderKeyByNotepadPage = this._taskIdByOrderKeyByNotepadPage;
+        let taskIdByOrderKeyByNotepadPageId = this._taskIdByOrderKeyByNotepadPageId;
         let taskCollectionById = this._taskCollectionById;
 
         const oldTask = taskById.get(taskId);
@@ -758,15 +741,13 @@ class LocalTasksDatabase {
                 break;
             }
             case "Notepad": {
-                this._validateNotepadPage(from.notepadPage);
-
                 // Noop. Task is moving within the same notepad page.
-                if (to.type === "Notepad" && from.notepadPage === to.notepadPage) break;
+                if (to.type === "Notepad" && from.notepadPageId === to.notepadPageId) break;
 
-                taskIdByOrderKeyByNotepadPage = deleteTaskInTaskIdByOrderKeyByNotepadPage(
-                    taskIdByOrderKeyByNotepadPage,
+                taskIdByOrderKeyByNotepadPageId = deleteTaskInTaskIdByOrderKeyByNotepadPageId(
+                    taskIdByOrderKeyByNotepadPageId,
                     taskId,
-                    from.notepadPage,
+                    from.notepadPageId,
                 );
                 break;
             }
@@ -853,16 +834,14 @@ class LocalTasksDatabase {
                 break;
             }
             case "Notepad": {
-                this._validateNotepadPage(to.notepadPage);
-
-                taskIdByOrderKeyByNotepadPage = deleteTaskInTaskIdByOrderKeyByNotepadPage(
-                    taskIdByOrderKeyByNotepadPage,
+                taskIdByOrderKeyByNotepadPageId = deleteTaskInTaskIdByOrderKeyByNotepadPageId(
+                    taskIdByOrderKeyByNotepadPageId,
                     taskId,
-                    to.notepadPage,
+                    to.notepadPageId,
                 );
 
-                let taskIdByOrderKey =
-                    taskIdByOrderKeyByNotepadPage.get(to.notepadPage) ?? ImmutableMap.empty();
+                let taskIdByOrderKey = taskIdByOrderKeyByNotepadPageId.get(to.notepadPageId);
+                if (!taskIdByOrderKey) throw new NotFoundError("Notepad page not found");
 
                 taskIdByOrderKey = taskIdByOrderKey.set(
                     to.belowOrderKey
@@ -877,8 +856,8 @@ class LocalTasksDatabase {
                     task.id,
                 );
 
-                taskIdByOrderKeyByNotepadPage = taskIdByOrderKeyByNotepadPage.set(
-                    to.notepadPage,
+                taskIdByOrderKeyByNotepadPageId = taskIdByOrderKeyByNotepadPageId.set(
+                    to.notepadPageId,
                     taskIdByOrderKey,
                 );
                 break;
@@ -937,8 +916,7 @@ class LocalTasksDatabase {
         return new LocalTasksDatabase({
             taskById,
             taskCollectionById,
-            notepadPageCount: this._notepadPageCount,
-            taskIdByOrderKeyByNotepadPage,
+            taskIdByOrderKeyByNotepadPageId,
         });
     }
 
@@ -969,7 +947,7 @@ class LocalTasksDatabase {
 
     public deleteTaskAndAllChildren(taskId: LocalTaskId) {
         let taskById = this._taskById;
-        let taskIdByOrderKeyByNotepadPage = this._taskIdByOrderKeyByNotepadPage;
+        let taskIdByOrderKeyByNotepadPageId = this._taskIdByOrderKeyByNotepadPageId;
         let taskCollectionById = this._taskCollectionById;
 
         const deleteTask = (taskId: LocalTaskId, shouldDeleteFromParent: boolean) => {
@@ -982,8 +960,8 @@ class LocalTasksDatabase {
                 taskById = deleteTaskInParentTask(taskById, task);
             }
 
-            taskIdByOrderKeyByNotepadPage = deleteTaskInTaskIdByOrderKeyByNotepadPage(
-                taskIdByOrderKeyByNotepadPage,
+            taskIdByOrderKeyByNotepadPageId = deleteTaskInTaskIdByOrderKeyByNotepadPageId(
+                taskIdByOrderKeyByNotepadPageId,
                 taskId,
             );
 
@@ -1019,8 +997,7 @@ class LocalTasksDatabase {
         return new LocalTasksDatabase({
             taskById,
             taskCollectionById,
-            notepadPageCount: this._notepadPageCount,
-            taskIdByOrderKeyByNotepadPage,
+            taskIdByOrderKeyByNotepadPageId,
         });
     }
 
@@ -1080,8 +1057,7 @@ class LocalTasksDatabase {
                     };
                 },
             ),
-            notepadPageCount: this._notepadPageCount,
-            taskIdByOrderKeyByNotepadPage: this._taskIdByOrderKeyByNotepadPage,
+            taskIdByOrderKeyByNotepadPageId: this._taskIdByOrderKeyByNotepadPageId,
         });
     }
 
@@ -1118,8 +1094,7 @@ class LocalTasksDatabase {
                     };
                 },
             ),
-            notepadPageCount: this._notepadPageCount,
-            taskIdByOrderKeyByNotepadPage: this._taskIdByOrderKeyByNotepadPage,
+            taskIdByOrderKeyByNotepadPageId: this._taskIdByOrderKeyByNotepadPageId,
         });
     }
 
@@ -1160,8 +1135,7 @@ class LocalTasksDatabase {
                     };
                 },
             ),
-            notepadPageCount: this._notepadPageCount,
-            taskIdByOrderKeyByNotepadPage: this._taskIdByOrderKeyByNotepadPage,
+            taskIdByOrderKeyByNotepadPageId: this._taskIdByOrderKeyByNotepadPageId,
         });
     }
 
@@ -1175,8 +1149,7 @@ class LocalTasksDatabase {
                     return {...taskCollection, name};
                 },
             ),
-            notepadPageCount: this._notepadPageCount,
-            taskIdByOrderKeyByNotepadPage: this._taskIdByOrderKeyByNotepadPage,
+            taskIdByOrderKeyByNotepadPageId: this._taskIdByOrderKeyByNotepadPageId,
         });
     }
 
@@ -1264,15 +1237,15 @@ function deleteTaskInParentTask(taskById: ImmutableMap<LocalTaskId, LocalTask>, 
     return taskById;
 }
 
-function deleteTaskInTaskIdByOrderKeyByNotepadPage(
-    taskIdByOrderKeyByNotepadPage: ImmutableMap<number, ImmutableMap<OrderKey, LocalTaskId>>,
+function deleteTaskInTaskIdByOrderKeyByNotepadPageId(
+    taskIdByOrderKeyByNotepadPageId: ImmutableMap<number, ImmutableMap<OrderKey, LocalTaskId>>,
     taskId: LocalTaskId,
     onlyNotepadPage?: number,
 ) {
     // TODO(calebmer): In a production implementation we should have a reverse
     // index since a scan could be expensive.
-    for (const [notepadPage, oldTaskIdByOrderKey] of taskIdByOrderKeyByNotepadPage) {
-        if (onlyNotepadPage !== undefined && onlyNotepadPage !== notepadPage) continue;
+    for (const [notepadPageId, oldTaskIdByOrderKey] of taskIdByOrderKeyByNotepadPageId) {
+        if (onlyNotepadPage !== undefined && onlyNotepadPage !== notepadPageId) continue;
 
         let newTaskIdByOrderKey = oldTaskIdByOrderKey;
 
@@ -1281,14 +1254,14 @@ function deleteTaskInTaskIdByOrderKeyByNotepadPage(
         }
 
         if (oldTaskIdByOrderKey !== newTaskIdByOrderKey) {
-            taskIdByOrderKeyByNotepadPage = taskIdByOrderKeyByNotepadPage.set(
-                notepadPage,
+            taskIdByOrderKeyByNotepadPageId = taskIdByOrderKeyByNotepadPageId.set(
+                notepadPageId,
                 newTaskIdByOrderKey,
             );
         }
     }
 
-    return taskIdByOrderKeyByNotepadPage;
+    return taskIdByOrderKeyByNotepadPageId;
 }
 
 type LocalTasksDatabaseCreateTaskOptions = {
@@ -1351,7 +1324,7 @@ type LocalTasksDatabaseCreateTaskOptions = {
      *
      * `side` defaults to `Below`.
      */
-    notepad?: {page: number; orderKey?: OrderKey; side?: "Above" | "Below"};
+    notepad?: {pageId: number; orderKey?: OrderKey; side?: "Above" | "Below"};
 
     /**
      * Set this to create a task in a collection.
@@ -1383,8 +1356,16 @@ const LocalTasksDatabaseInternalSchema = Schema.object({
         Schema.id<LocalTaskCollectionId>(),
         LocalTaskCollectionSchema,
     ).default(new Map()),
-    notepadPageCount: Schema.integer.min(1),
-    taskIdByOrderKeyByNotepadPage: Schema.map(Schema.integer.min(1), LocalTaskIdByOrderKeySchema),
+    // TODO(calebmer): In a production implementation I'm thinking about storing
+    // all notepad IDs for an account in a single DynamoDB item. Given notepad IDs
+    // are sorted, unique, timestamps. We can compress them with vtenc which is
+    // relatively simple and has great compression benchmarks. Space here is more
+    // of an issue for us than speed.
+    // https://vteromero.github.io/2019/07/28/vtenc.html
+    taskIdByOrderKeyByNotepadPageId: Schema.map(
+        Schema.integer,
+        LocalTaskIdByOrderKeySchema,
+    ).default(new Map()),
 });
 
 const LocalTasksDatabaseSchema = LocalTasksDatabaseInternalSchema.transform<LocalTasksDatabase>({
@@ -1441,6 +1422,7 @@ type LocalTasksResetStateAction = {
 
 type LocalTasksCreateNotepadPageAction = {
     readonly type: "CreateNotepadPage";
+    readonly notepadPageId: number;
 };
 
 type LocalTasksCreateTaskAction = LocalTasksDatabaseCreateTaskOptions & {
@@ -1560,7 +1542,7 @@ function reduceLocalTasksState(state: LocalTasksState, action: LocalTasksAction)
         case "CreateNotepadPage": {
             return {
                 ...state,
-                database: state.database.createNotepadPage(),
+                database: state.database.createNotepadPage(action.notepadPageId),
             };
         }
 

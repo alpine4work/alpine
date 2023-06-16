@@ -8,7 +8,9 @@ import {
     forwardRef,
     useEffect,
     useId,
+    useLayoutEffect,
     useMemo,
+    useRef,
     useState,
 } from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
@@ -24,10 +26,13 @@ import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {useShowToast} from "~/client/design/toast";
 import {Tooltip, defaultTooltipOffset} from "~/client/design/tooltip";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
 import {Spacing, spacing} from "~/shared/design/spacing";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
 
@@ -160,11 +165,10 @@ type MenuCustomAction = {
 };
 
 export type MenuWidth = "32" | "48" | "64";
-
-export const defaultMenuWidth: MenuWidth = "32";
-
+export type MenuMaxHeight = "48" | "64" | "96";
 export type MenuIconSize = "3" | "4";
 
+export const defaultMenuWidth: MenuWidth = "32";
 export const defaultMenuIconSize: MenuIconSize = "3";
 
 /**
@@ -179,6 +183,7 @@ export function MenuButton({
     actions,
     placement = "bottom-start",
     width = defaultMenuWidth,
+    maxHeight,
     iconSize = defaultMenuIconSize,
     offset = defaultTooltipOffset,
     offsetAlong,
@@ -192,7 +197,10 @@ export function MenuButton({
      * If you have nested arrays then each sub-array will form a section with a
      * divider between sections.
      */
-    actions: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
+    actions:
+        | ReadonlyArray<MenuAction>
+        | ReadonlyArray<ReadonlyArray<MenuAction>>
+        | (() => ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>);
 
     /**
      * Where should the menu overlay be placed relative to the target element?
@@ -204,6 +212,12 @@ export function MenuButton({
      * The width of items in our menu. Defaults to `32`.
      */
     width?: MenuWidth;
+
+    /**
+     * The maximum height of the menu. If none is provided the menu will grow
+     * indefinitely.
+     */
+    maxHeight?: MenuMaxHeight;
 
     /**
      * The size of icons in the menu. Defaults to `3` which means items with icons
@@ -250,6 +264,7 @@ export function MenuButton({
                     actions={actions}
                     placement={placement}
                     width={width}
+                    maxHeight={maxHeight}
                     iconSize={iconSize}
                     onCloseWithAnimation={onCloseWithAnimation}
                     onCloseWithoutAnimation={onCloseWithoutAnimation}
@@ -274,13 +289,17 @@ export const Menu = forwardRef(function Menu(
         actions: nestedActions,
         placement,
         width = defaultMenuWidth,
+        maxHeight,
         iconSize = defaultMenuIconSize,
         onCloseWithAnimation,
         onCloseWithoutAnimation,
     }: {
-        actions: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
+        actions:
+            | (ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>)
+            | (() => ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>);
         placement?: OverlayPlacement;
         width?: MenuWidth;
+        maxHeight?: MenuMaxHeight;
         iconSize?: MenuIconSize;
         onCloseWithAnimation: () => void;
         onCloseWithoutAnimation: () => void;
@@ -291,7 +310,9 @@ export const Menu = forwardRef(function Menu(
         const flattenedActions: Array<{type: "Action"; action: MenuAction} | {type: "Divider"}> =
             [];
 
-        for (const nestedAction of nestedActions) {
+        for (const nestedAction of typeof nestedActions === "function"
+            ? nestedActions()
+            : nestedActions) {
             if (!isReadonlyArray(nestedAction)) {
                 flattenedActions.push({type: "Action", action: nestedAction});
                 continue;
@@ -311,6 +332,7 @@ export const Menu = forwardRef(function Menu(
 
     assert(flattenedActions.length > 0);
 
+    const menuRef = useRef<HTMLDivElement>(null);
     const menuItemRefs = useMemo(
         () =>
             flattenedActions.map(action =>
@@ -359,9 +381,40 @@ export const Menu = forwardRef(function Menu(
         }
     }
 
+    const hasInitiallyRenderedRef = useRef(false);
+
+    // If our menu is large enough to scroll, automatically scroll to the first
+    // `isSelected` item on initial mount.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (hasInitiallyRenderedRef.current) return;
+        hasInitiallyRenderedRef.current = true;
+
+        const menuElement = assertExists(menuRef.current);
+
+        // Menu not long enough to scroll.
+        if (menuElement.scrollHeight <= menuElement.clientHeight) return;
+
+        for (let index = 0; index < flattenedActions.length; index++) {
+            const action = flattenedActions[index]!;
+
+            if (
+                action.type === "Action" &&
+                !action.action.withCustomLayout &&
+                action.action.isSelected
+            ) {
+                assertExists(menuItemRefs[index]?.current).scrollIntoView({
+                    // @ts-expect-error: This value is allowed according to the spec but not in the
+                    // TypeScript types.
+                    behavior: "instant",
+                    block: "center",
+                });
+            }
+        }
+    }, [flattenedActions, menuItemRefs]);
+
     return (
         <div
-            ref={ref}
+            ref={useMergedRefs(ref, menuRef)}
             role="menu"
             // The menu container has `tabindex` set to -1 or 0 and
             // `aria-activedescendant` set to the ID of the focused item.
@@ -370,6 +423,9 @@ export const Menu = forwardRef(function Menu(
             tabIndex={-1}
             className={sprinkles({
                 minWidth: width,
+                maxHeight: maxHeight,
+                overflowX: "hidden",
+                overflowY: "scroll",
                 borderRadius: "md",
                 padding: "1",
                 backgroundColor: {light: "grey-0", dark: "grey-5"},
@@ -669,7 +725,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
         // When the mouse hovers over a menu item, we focus it so if the user
         // then uses the keyboard (presses enter or an arrow key) we navigate
         // using the hovered menu item.
-        onHoverStart: event => event.target.focus(),
+        onHoverStart: event => event.target.focus({preventScroll: true}),
         onHoverEnd: event => event.target.blur(),
     });
 

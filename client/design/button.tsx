@@ -114,6 +114,12 @@ function Button(
          * How tall is this button? Default is `7`.
          */
         height?: "5" | "6" | "7";
+
+        /**
+         * Amount of border radius to apply to the left of the button. Defaults to
+         * `base`. Only really used to remove border radius.
+         */
+        borderRightRadius?: "base" | "none";
     },
     foreignRef: Ref<HTMLButtonElement>,
 ) {
@@ -131,6 +137,7 @@ function Button(
         pressErrorTitle,
         paddingX = "3",
         height = "7",
+        borderRightRadius = "base",
     } = props;
     const showToast = useShowToast();
     const localRef = useRef<HTMLButtonElement>(null);
@@ -355,7 +362,8 @@ function Button(
                     width: fullWidth ? "full" : undefined,
                     paddingX,
                     fontSize: "75",
-                    borderRadius: "base",
+                    borderLeftRadius: "base",
+                    borderRightRadius,
                     // You may notice our button doesn't have a pointer cursor. See:
                     // https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
                     cursor: "default",
