@@ -10,12 +10,14 @@ import {
     useId,
     useImperativeHandle,
     useRef,
+    useState,
 } from "react";
 import {Box} from "~/client/design/box";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element";
 import {IconButton} from "~/client/design/icon_button";
 import {MenuButton} from "~/client/design/menu_button";
 import {Spacer} from "~/client/design/spacer";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
@@ -113,6 +115,7 @@ function TaskDetailPresentationalView<ChildTaskRow>(
 
     const padding: Spacing = isMobile ? "3" : "5";
 
+    const denseFieldsRef = useRef<TaskDetailViewDenseFieldsRef>(null);
     const childTasksGridViewRef = useRef<TaskGridPresentationalViewRef>(null);
 
     useImperativeHandle(
@@ -165,6 +168,20 @@ function TaskDetailPresentationalView<ChildTaskRow>(
                             }),
                             [
                                 {
+                                    label: "Add due date",
+                                    onPress: () => {
+                                        assertExists(denseFieldsRef.current).focusDueDate();
+                                    },
+                                },
+                                {
+                                    label: "Add priority",
+                                    onPress: () => {
+                                        // NOCOMMIT
+                                    },
+                                },
+                            ],
+                            [
+                                {
                                     label: "Delete",
                                     onPress: () => {
                                         // NOCOMMIT
@@ -186,6 +203,7 @@ function TaskDetailPresentationalView<ChildTaskRow>(
             </Box>
             <Spacer space="8" />
             <TaskDetailViewDenseFields
+                ref={denseFieldsRef}
                 status={status}
                 assignee={assignee}
                 onAssigneeChange={onAssigneeChange}
@@ -198,13 +216,13 @@ function TaskDetailPresentationalView<ChildTaskRow>(
                 removeCollectionFromTask={removeCollectionFromTask}
                 padding={padding}
             />
-            <Spacer space="10" />
+            <Spacer space="9" />
             <TaskDetailNotesField
                 notesContent={notesContent}
                 onNotesContentChange={onNotesContentChange}
                 padding={padding}
             />
-            <Spacer space="12" />
+            <Spacer space="10" />
             <Box>
                 <label
                     className={sprinkles({
@@ -239,6 +257,10 @@ function TaskDetailPresentationalView<ChildTaskRow>(
     );
 }
 
+type TaskDetailViewDenseFieldsRef = {
+    focusDueDate(): void;
+};
+
 /**
  * IMPORTANT: While programming task detail fields, keep the following in mind:
  *
@@ -250,37 +272,98 @@ function TaskDetailPresentationalView<ChildTaskRow>(
  *   appropriately truncated. Our use of CSS grid may mean you need to fiddle
  *   around a bit to get truncation right.
  */
-function TaskDetailViewDenseFields({
-    status,
-    assignee,
-    onAssigneeChange,
-    dueDate,
-    onDueDateChange,
-    allCollections,
-    collections,
-    createCollectionAndAddToTask,
-    addCollectionToTask,
-    removeCollectionFromTask,
-    padding,
-}: {
-    status: TaskStatus;
-    assignee: TaskAssignee | null;
-    onAssigneeChange: (assignee: TaskAssignee | null) => void;
-    dueDate: CalendarDate | null;
-    onDueDateChange: (dueDate: CalendarDate | null) => void;
-    allCollections: ReadonlyArray<LocalTaskCollection>;
-    collections: ReadonlyArray<LocalTaskCollection>;
-    createCollectionAndAddToTask: (collection: {
-        id: LocalTaskCollectionId;
-        name: string;
-        color: ThemeColor;
-    }) => void;
-    addCollectionToTask: (collectionId: LocalTaskCollectionId) => void;
-    removeCollectionFromTask: (collectionId: LocalTaskCollectionId) => void;
-    padding: Spacing;
-}) {
+const TaskDetailViewDenseFields = forwardRef(function TaskDetailViewDenseFields(
+    {
+        status,
+        assignee,
+        onAssigneeChange,
+        dueDate,
+        onDueDateChange,
+        allCollections,
+        collections,
+        createCollectionAndAddToTask,
+        addCollectionToTask,
+        removeCollectionFromTask,
+        padding,
+    }: {
+        status: TaskStatus;
+        assignee: TaskAssignee | null;
+        onAssigneeChange: (assignee: TaskAssignee | null) => void;
+        dueDate: CalendarDate | null;
+        onDueDateChange: (dueDate: CalendarDate | null) => void;
+        allCollections: ReadonlyArray<LocalTaskCollection>;
+        collections: ReadonlyArray<LocalTaskCollection>;
+        createCollectionAndAddToTask: (collection: {
+            id: LocalTaskCollectionId;
+            name: string;
+            color: ThemeColor;
+        }) => void;
+        addCollectionToTask: (collectionId: LocalTaskCollectionId) => void;
+        removeCollectionFromTask: (collectionId: LocalTaskCollectionId) => void;
+        padding: Spacing;
+    },
+    ref: Ref<TaskDetailViewDenseFieldsRef>,
+) {
     const {timeZone} = useClientInfo();
     const {currentAccount} = useSpaceContext();
+
+    const dueDateInputRef = useRef<HTMLDivElement>(null);
+
+    const [dueDateInputState, setDueDateInputState] = useState<
+        {isVisible: false} | {isVisible: true; shouldFocus: boolean; isFocused: boolean}
+    >(dueDate ? {isVisible: true, shouldFocus: false, isFocused: false} : {isVisible: false});
+
+    if (
+        dueDateInputState.isVisible &&
+        !dueDateInputState.isFocused &&
+        !dueDateInputState.shouldFocus &&
+        !dueDate
+    ) {
+        // In task row dense fields we hide the due date field when the value is set to
+        // null. But since the user may actively be editing the field in detail view,
+        // keep it around.
+    }
+
+    if (!dueDateInputState.isVisible && dueDate) {
+        setDueDateInputState({isVisible: true, shouldFocus: false, isFocused: false});
+    }
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (dueDateInputState.isVisible && dueDateInputState.shouldFocus) {
+            assertExists(
+                getNextFocusableElementIfExists(null, {
+                    withinElement: assertExists(dueDateInputRef.current),
+                }),
+            ).focus({preventScroll: true});
+
+            setDueDateInputState(dueDateInputState => {
+                if (!dueDateInputState.isVisible) return dueDateInputState;
+                return {...dueDateInputState, shouldFocus: false};
+            });
+        }
+    }, [dueDateInputState]);
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            focusDueDate: () => {
+                if (dueDateInputState.isVisible) {
+                    assertExists(
+                        getNextFocusableElementIfExists(null, {
+                            withinElement: assertExists(dueDateInputRef.current),
+                        }),
+                    ).focus({preventScroll: true});
+                } else {
+                    setDueDateInputState({
+                        isVisible: true,
+                        shouldFocus: true,
+                        isFocused: false,
+                    });
+                }
+            },
+        }),
+        [dueDateInputState.isVisible],
+    );
 
     return (
         <Box
@@ -289,7 +372,7 @@ function TaskDetailViewDenseFields({
             gap="5"
             style={{
                 gridTemplateColumns: "auto minmax(0, 1fr)",
-                gridTemplateRows: "repeat(3, auto)",
+                gridTemplateRows: "repeat(auto-fill, auto)",
                 gridAutoFlow: "row dense",
             }}
         >
@@ -320,24 +403,6 @@ function TaskDetailViewDenseFields({
                     />
                 )}
             </TaskDetailViewField>
-            <TaskDetailViewField label="Due date">
-                {({"aria-labelledby": ariaLabelledBy}) => (
-                    // TODO(calebmer): Should due date be visible or hidden by default? It is good
-                    // for personal workflows but I'd wager unnecessary in many team workflows. If
-                    // anything I imagine due dates can be harmful in team workflows!
-                    //
-                    // Maybe we do something like: Show due date by default in personal views but
-                    // not in team views.
-                    <TaskDateInput
-                        date={dueDate}
-                        onDateChange={onDueDateChange}
-                        shouldIncludeCalendarIcon={true}
-                        shouldWarnIfAfterDate={status.type === "Open"}
-                        shouldFormatToday={true}
-                        aria-labelledby={ariaLabelledBy}
-                    />
-                )}
-            </TaskDetailViewField>
             <TaskDetailViewField label="Collections">
                 {({"aria-labelledby": ariaLabelledBy}) => (
                     <TaskDetailCollectionsField
@@ -350,9 +415,44 @@ function TaskDetailViewDenseFields({
                     />
                 )}
             </TaskDetailViewField>
+            {dueDateInputState.isVisible && (
+                <TaskDetailViewField label="Due date">
+                    {({"aria-labelledby": ariaLabelledBy}) => (
+                        <Box
+                            ref={dueDateInputRef}
+                            onFocus={() => {
+                                setDueDateInputState(dueDateInputState => {
+                                    if (!dueDateInputState.isVisible) return dueDateInputState;
+                                    if (dueDateInputState.isFocused) return dueDateInputState;
+                                    return {...dueDateInputState, isFocused: true};
+                                });
+                            }}
+                            onBlur={event => {
+                                // If focus is moving within the element, don't unfocus.
+                                if (event.currentTarget.contains(event.relatedTarget)) return;
+
+                                setDueDateInputState(dueDateInputState => {
+                                    if (!dueDateInputState.isVisible) return dueDateInputState;
+                                    if (!dueDateInputState.isFocused) return dueDateInputState;
+                                    return {...dueDateInputState, isFocused: false};
+                                });
+                            }}
+                        >
+                            <TaskDateInput
+                                date={dueDate}
+                                onDateChange={onDueDateChange}
+                                shouldIncludeCalendarIcon={true}
+                                shouldWarnIfAfterDate={status.type === "Open"}
+                                shouldFormatToday={true}
+                                aria-labelledby={ariaLabelledBy}
+                            />
+                        </Box>
+                    )}
+                </TaskDetailViewField>
+            )}
         </Box>
     );
-}
+});
 
 function TaskDetailViewField({
     label,

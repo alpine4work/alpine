@@ -262,6 +262,12 @@ function TaskRowPresentationalView<TaskRow>(
                         assertExists(denseAssigneeAndDueDateRef.current).focusDueDate();
                     },
                 },
+                {
+                    label: "Add priority",
+                    onPress: () => {
+                        // NOCOMMIT
+                    },
+                },
             ]);
         }
 
@@ -569,6 +575,21 @@ const TaskRowViewDenseAssigneeAndDueDateFields = forwardRef(
             setAssigneeInputState({isVisible: true, shouldFocus: false, isFocused: false});
         }
 
+        useLayoutEffectWithoutServerSideWarning(() => {
+            if (assigneeInputState.isVisible && assigneeInputState.shouldFocus) {
+                assertExists(
+                    getNextFocusableElementIfExists(null, {
+                        withinElement: assertExists(assigneeInputRef.current),
+                    }),
+                ).focus({preventScroll: true});
+
+                setAssigneeInputState(assigneeInputState => {
+                    if (!assigneeInputState.isVisible) return assigneeInputState;
+                    return {...assigneeInputState, shouldFocus: false};
+                });
+            }
+        }, [assigneeInputState]);
+
         const [dueDateInputState, setDueDateInputState] = useState<
             {isVisible: false} | {isVisible: true; shouldFocus: boolean; isFocused: boolean}
         >(dueDate ? {isVisible: true, shouldFocus: false, isFocused: false} : {isVisible: false});
@@ -585,21 +606,6 @@ const TaskRowViewDenseAssigneeAndDueDateFields = forwardRef(
         if (!dueDateInputState.isVisible && dueDate) {
             setDueDateInputState({isVisible: true, shouldFocus: false, isFocused: false});
         }
-
-        useLayoutEffectWithoutServerSideWarning(() => {
-            if (assigneeInputState.isVisible && assigneeInputState.shouldFocus) {
-                assertExists(
-                    getNextFocusableElementIfExists(null, {
-                        withinElement: assertExists(assigneeInputRef.current),
-                    }),
-                ).focus({preventScroll: true});
-
-                setAssigneeInputState(assigneeInputState => {
-                    if (!assigneeInputState.isVisible) return assigneeInputState;
-                    return {...assigneeInputState, shouldFocus: false};
-                });
-            }
-        }, [assigneeInputState]);
 
         useLayoutEffectWithoutServerSideWarning(() => {
             if (dueDateInputState.isVisible && dueDateInputState.shouldFocus) {
