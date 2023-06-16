@@ -74,20 +74,50 @@ export function TaskDateInput({
                     // Inline flex so the clickable range doesn't extend beyond the
                     // input's contents.
                     display="inline-flex"
-                    alignItems="center"
+                    alignItems="stretch"
                     height="full"
                     paddingX={paddingX}
-                    gap="1"
                     color={shouldWarnIfAfterDate && formattedDate.isAfterDate ? "red-60" : color}
                     cursor="text"
-                    onClick={() => {
-                        getNextFocusableElementIfExists(null, {
-                            withinElement: assertExists(inputRef.current),
-                        })?.focus();
-                    }}
                 >
-                    {shouldIncludeCalendarIcon && <CalendarBlank size={spacing["4"]} />}
-                    <Box>{formattedDate.dateString}</Box>
+                    {shouldIncludeCalendarIcon && (
+                        <Box
+                            paddingRight="1"
+                            onClick={() => {
+                                getNextFocusableElementIfExists(null, {
+                                    withinElement: assertExists(inputRef.current),
+                                })?.focus();
+                            }}
+                        >
+                            <CalendarBlank size={spacing["4"]} />
+                        </Box>
+                    )}
+                    {formattedDate.dateString.split(" ").map((segment, index, segments) => (
+                        <Box
+                            key={index}
+                            style={{
+                                // Don't collapse space.
+                                whiteSpace: "pre",
+                            }}
+                            onClick={() => {
+                                getNextFocusableElementIfExists(null, {
+                                    withinElement: assertExists(inputRef.current),
+                                    // NOTE(calebmer): Small UX improvement, focus the input segment the user
+                                    // clicked on. It's a little strange how the preview text transforms into
+                                    // editable text. Especially disorienting when you click the end and the start
+                                    // is focused. So attempt to focus the same segment the user clicked.
+                                    //
+                                    // We hope that the words separated by spaces in our date line up with the
+                                    // editable input segments which is the case with the en-US locale but this
+                                    // heuristic may need to be hardened for other locales.
+                                    skipElements: index,
+                                })?.focus();
+                            }}
+                        >
+                            {segment}
+                            {index < segments.length - 1 && " "}
+                        </Box>
+                    ))}
                 </Box>
             )}
             <OverlayAnimated

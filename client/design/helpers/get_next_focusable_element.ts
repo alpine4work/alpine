@@ -67,10 +67,21 @@ export function getNextFocusableElementIfExists(
     options?: {
         withinElement?: Element;
         includeElementsThatAreNotTabbable?: boolean;
+        skipElements?: number;
     },
 ) {
     const walker = createFocusableTreeWalker(element, options);
-    return walker.nextNode() as HTMLElement | null;
+
+    let lastNode: HTMLElement | null = null;
+    for (let i = 0; i < (options?.skipElements ?? 0); i++) {
+        const node = walker.nextNode() as HTMLElement | null;
+        if (!node) return lastNode;
+        lastNode = node;
+    }
+
+    const node = walker.nextNode() as HTMLElement | null;
+    if (!node) return lastNode;
+    return node;
 }
 
 /**
