@@ -10,30 +10,33 @@ overrides:
 packageExtensionsChecksum: 134339c503a39e28c3322a8ad2b3c9a3
 
 patchedDependencies:
-  prosemirror-view@1.27.2:
-    hash: ep5td2fcl7fty7i23lgflvirku
-    path: admin/patches/prosemirror-view@1.27.2.patch
-  media-query-parser@2.0.2:
-    hash: saj64dz6s226nfs27aiqrqatfi
-    path: admin/patches/media-query-parser@2.0.2.patch
-  outdent@0.8.0:
-    hash: ybnbpvk42g5zpvi2kytcsdr4wu
-    path: admin/patches/outdent@0.8.0.patch
-  '@types/react@18.0.15':
-    hash: x4axwesafhl3flpnwlimhsgpk4
-    path: admin/patches/@types__react@18.0.15.patch
-  '@vanilla-extract/integration@5.0.1':
-    hash: 47jehzj4xj72gvnvadwkoykrme
-    path: admin/patches/@vanilla-extract__integration@5.0.1.patch
   browserify-zlib@0.1.4:
     hash: lhhf4zowvg4ngxldsy5aala7hu
     path: admin/patches/browserify-zlib@0.1.4.patch
-  '@vanilla-extract/sprinkles@1.5.0':
-    hash: njeywewejjkyja35mwody6s2pu
-    path: admin/patches/@vanilla-extract__sprinkles@1.5.0.patch
+  prosemirror-view@1.27.2:
+    hash: ep5td2fcl7fty7i23lgflvirku
+    path: admin/patches/prosemirror-view@1.27.2.patch
+  '@types/react@18.0.15':
+    hash: x4axwesafhl3flpnwlimhsgpk4
+    path: admin/patches/@types__react@18.0.15.patch
+  outdent@0.8.0:
+    hash: ybnbpvk42g5zpvi2kytcsdr4wu
+    path: admin/patches/outdent@0.8.0.patch
+  '@vanilla-extract/integration@5.0.1':
+    hash: 47jehzj4xj72gvnvadwkoykrme
+    path: admin/patches/@vanilla-extract__integration@5.0.1.patch
+  media-query-parser@2.0.2:
+    hash: saj64dz6s226nfs27aiqrqatfi
+    path: admin/patches/media-query-parser@2.0.2.patch
+  esbuild-jest@0.5.0:
+    hash: ngae2o7jbonwtjb5i3flctr4hq
+    path: admin/patches/esbuild-jest@0.5.0.patch
   '@remix-run/dev@1.7.5':
     hash: 4olztkg4l7wnk6vzdbfg2xh6pa
     path: admin/patches/@remix-run__dev@1.7.5.patch
+  '@vanilla-extract/sprinkles@1.5.0':
+    hash: njeywewejjkyja35mwody6s2pu
+    path: admin/patches/@vanilla-extract__sprinkles@1.5.0.patch
   '@miniflare/http-server@2.13.0':
     hash: 6x6w46dlwznsuawn4plb2tsdfq
     path: admin/patches/@miniflare__http-server@2.13.0.patch
@@ -49,42 +52,42 @@ patchedDependencies:
   clean-css@4.2.4:
     hash: n3d2r36xwr47tsyk4dqv5u5mbq
     path: admin/patches/clean-css@4.2.4.patch
-  '@types/functional-red-black-tree@1.0.1':
-    hash: sxycuhdxvf4ubkm5bkuezvuy6i
-    path: admin/patches/@types__functional-red-black-tree@1.0.1.patch
   uglify-js@3.17.4:
     hash: bqi7bgi4a6wcjt6ky5jy76rsrm
     path: admin/patches/uglify-js@3.17.4.patch
   mjml-parser-xml@4.13.0:
     hash: rdjh57cizesp5jd5a5v3n76apa
     path: admin/patches/mjml-parser-xml@4.13.0.patch
-  react-router@6.3.0:
-    hash: 422wocmxisgbpbzt6il5lmbhd4
-    path: admin/patches/react-router@6.3.0.patch
+  '@types/functional-red-black-tree@1.0.1':
+    hash: sxycuhdxvf4ubkm5bkuezvuy6i
+    path: admin/patches/@types__functional-red-black-tree@1.0.1.patch
   '@react-aria/interactions@3.12.0':
     hash: 2s5t4derzlr6pbwch3ibe7ygq4
     path: admin/patches/@react-aria__interactions@3.12.0.patch
   '@playwright/test@1.31.1':
     hash: 645z6zzf2yttz7gk24haek5rhi
     path: admin/patches/@playwright__test@1.31.1.patch
-  '@react-aria/selection@3.11.0':
-    hash: efw4sigcsm4ik2szgtkptekf2y
-    path: admin/patches/@react-aria__selection@3.11.0.patch
+  react-router@6.3.0:
+    hash: 422wocmxisgbpbzt6il5lmbhd4
+    path: admin/patches/react-router@6.3.0.patch
+  history@5.3.0:
+    hash: 3tktwzl76qc3alrennhuishjra
+    path: admin/patches/history@5.3.0.patch
   swr@2.1.0:
     hash: fjssuecdvmfeujlug2i3x2lofe
     path: admin/patches/swr@2.1.0.patch
   '@react-aria/ssr@3.3.0':
     hash: stsdfpy5crzid2ixw2fh72n3cm
     path: admin/patches/@react-aria__ssr@3.3.0.patch
+  '@react-aria/selection@3.11.0':
+    hash: efw4sigcsm4ik2szgtkptekf2y
+    path: admin/patches/@react-aria__selection@3.11.0.patch
   '@miniflare/queues@2.13.0':
     hash: sjifuztox2uqhemppgko3mhkgy
     path: admin/patches/@miniflare__queues@2.13.0.patch
-  history@5.3.0:
-    hash: 3tktwzl76qc3alrennhuishjra
-    path: admin/patches/history@5.3.0.patch
-  esbuild-jest@0.5.0:
-    hash: ngae2o7jbonwtjb5i3flctr4hq
-    path: admin/patches/esbuild-jest@0.5.0.patch
+  '@react-aria/datepicker@3.1.2':
+    hash: gzxlgz7xxhcjwzuplds7npnmr4
+    path: admin/patches/@react-aria__datepicker@3.1.2.patch
   phosphor-react@1.4.1:
     hash: rehavg4vjut6avpq34cx6ugszq
     path: admin/patches/phosphor-react@1.4.1.patch
@@ -107,6 +110,7 @@ specifiers:
   '@miniflare/web-sockets': 2.13.0
   '@playwright/test': ^1.31.1
   '@popperjs/core': ^2.11.6
+  '@react-aria/datepicker': 3.1.2
   '@react-aria/interactions': 3.12.0
   '@react-aria/selection': 3.11.0
   '@react-aria/ssr': 3.3.0
@@ -266,6 +270,7 @@ dependencies:
   '@miniflare/web-sockets': 2.13.0
   '@playwright/test': 1.31.1_645z6zzf2yttz7gk24haek5rhi
   '@popperjs/core': 2.11.6
+  '@react-aria/datepicker': 3.1.2_gzxlgz7xxhcjwzuplds7npnmr4_biqbaboplfbrettd7655fr4n2y
   '@react-aria/interactions': 3.12.0_2s5t4derzlr6pbwch3ibe7ygq4_react@18.2.0
   '@react-aria/selection': 3.11.0_efw4sigcsm4ik2szgtkptekf2y_react@18.2.0
   '@react-aria/ssr': 3.3.0_stsdfpy5crzid2ixw2fh72n3cm_react@18.2.0
@@ -5179,7 +5184,7 @@ packages:
       react-dom: 18.2.0_react@18.2.0
     dev: false
 
-  /@react-aria/datepicker/3.1.2_biqbaboplfbrettd7655fr4n2y:
+  /@react-aria/datepicker/3.1.2_gzxlgz7xxhcjwzuplds7npnmr4_biqbaboplfbrettd7655fr4n2y:
     resolution: {integrity: sha512-jzO3yTSbOlLVBo1Omw3xNXBg0HfpmObI1w5qzlfkQt7rK2nzToKnA5/XNsjiEODDwv7l03nOj+100a6trdLOTw==}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
@@ -5204,6 +5209,7 @@ packages:
       react: 18.2.0
       react-dom: 18.2.0_react@18.2.0
     dev: false
+    patched: true
 
   /@react-aria/dialog/3.4.0_biqbaboplfbrettd7655fr4n2y:
     resolution: {integrity: sha512-h1D7OOe20PhSb4DD40ABVgHMbSA2Y9rSU5lrGf9zuNSYkQIwDz6pTSXp/9roy7SEvf5KAN6zPa1inSVBOTzf3w==}
@@ -13836,7 +13842,7 @@ packages:
       '@react-aria/calendar': 3.0.3_biqbaboplfbrettd7655fr4n2y
       '@react-aria/checkbox': 3.6.0_react@18.2.0
       '@react-aria/combobox': 3.4.2_biqbaboplfbrettd7655fr4n2y
-      '@react-aria/datepicker': 3.1.2_biqbaboplfbrettd7655fr4n2y
+      '@react-aria/datepicker': 3.1.2_gzxlgz7xxhcjwzuplds7npnmr4_biqbaboplfbrettd7655fr4n2y
       '@react-aria/dialog': 3.4.0_biqbaboplfbrettd7655fr4n2y
       '@react-aria/focus': 3.9.0_react@18.2.0
       '@react-aria/gridlist': 3.1.0_biqbaboplfbrettd7655fr4n2y

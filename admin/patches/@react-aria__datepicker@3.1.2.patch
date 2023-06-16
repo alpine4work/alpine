@@ -1,0 +1,126 @@
+diff --git a/dist/main.js b/dist/main.js
+index 3c967413e5a0ecf09b06100b0032aac53f8fa740..d2760ff995111186a8f078514d0a3ba2a65905a5 100644
+--- a/dist/main.js
++++ b/dist/main.js
+@@ -918,10 +918,13 @@ function $715562ad3b4cced4$export$4a931266a3838b86(state, ref1, disableArrowNavi
+         }
+     };
+     // Focus the first placeholder segment from the end on mouse down/touch up in the field.
+-    let focusLast = ()=>{
+-        var ref;
++    //
++    // NOTE(calebmer): `window.event` is unreliable for getting the element to
++    // focus on. In development we've found a global `MessageEvent` here with a
++    // non-DOM element target that causes errors. Instead, explicitly pass in the
++    // target from the event we care about.
++    let focusLast = (target)=>{
+         // Try to find the segment prior to the element that was clicked on.
+-        let target = (ref = window.event) === null || ref === void 0 ? void 0 : ref.target;
+         let walker = $IwcIq$reactariafocus.getFocusableTreeWalker(ref1.current, {
+             tabbable: true
+         });
+@@ -948,15 +951,15 @@ function $715562ad3b4cced4$export$4a931266a3838b86(state, ref1, disableArrowNavi
+     let { pressProps: pressProps  } = $IwcIq$reactariainteractions.usePress({
+         preventFocusOnPress: true,
+         allowTextSelectionOnPress: true,
+-        onPressStart (e) {
+-            if (e.pointerType === 'mouse') focusLast();
+-        },
+         onPress (e) {
+             if (e.pointerType !== 'mouse') focusLast();
+         }
+     });
+     return $IwcIq$reactariautils.mergeProps(pressProps, {
+-        onKeyDown: onKeyDown
++        onKeyDown: onKeyDown,
++        onMouseDown (e) {
++            focusLast(e.target);
++        }
+     });
+ }
+ 
+diff --git a/dist/module.js b/dist/module.js
+index 612c05945301af631fd476816757f377d6880d28..19ccbac4e02433fc18658743fad5db97acaf7e17 100644
+--- a/dist/module.js
++++ b/dist/module.js
+@@ -908,10 +908,13 @@ function $3dfb0f96be0d6a08$export$4a931266a3838b86(state, ref1, disableArrowNavi
+         }
+     };
+     // Focus the first placeholder segment from the end on mouse down/touch up in the field.
+-    let focusLast = ()=>{
+-        var ref;
++    //
++    // NOTE(calebmer): `window.event` is unreliable for getting the element to
++    // focus on. In development we've found a global `MessageEvent` here with a
++    // non-DOM element target that causes errors. Instead, explicitly pass in the
++    // target from the event we care about.
++    let focusLast = (target)=>{
+         // Try to find the segment prior to the element that was clicked on.
+-        let target = (ref = window.event) === null || ref === void 0 ? void 0 : ref.target;
+         let walker = $cIPI0$getFocusableTreeWalker(ref1.current, {
+             tabbable: true
+         });
+@@ -938,15 +941,15 @@ function $3dfb0f96be0d6a08$export$4a931266a3838b86(state, ref1, disableArrowNavi
+     let { pressProps: pressProps  } = $cIPI0$usePress({
+         preventFocusOnPress: true,
+         allowTextSelectionOnPress: true,
+-        onPressStart (e) {
+-            if (e.pointerType === 'mouse') focusLast();
+-        },
+         onPress (e) {
+             if (e.pointerType !== 'mouse') focusLast();
+         }
+     });
+     return $cIPI0$mergeProps(pressProps, {
+-        onKeyDown: onKeyDown
++        onKeyDown: onKeyDown,
++        onMouseDown (e) {
++            focusLast(e.target);
++        }
+     });
+ }
+ 
+diff --git a/src/useDatePickerGroup.ts b/src/useDatePickerGroup.ts
+index d09cbc5cc433adc6016a100526be39c460933033..04c31d1ebea546235ae6979ff6117e06309bd108 100644
+--- a/src/useDatePickerGroup.ts
++++ b/src/useDatePickerGroup.ts
+@@ -45,9 +45,13 @@ export function useDatePickerGroup(state: DatePickerState | DateRangePickerState
+   };
+ 
+   // Focus the first placeholder segment from the end on mouse down/touch up in the field.
+-  let focusLast = () => {
++  //
++  // NOTE(calebmer): `window.event` is unreliable for getting the element to
++  // focus on. In development we've found a global `MessageEvent` here with a
++  // non-DOM element target that causes errors. Instead, explicitly pass in the
++  // target from the event we care about.
++  let focusLast = (target?: FocusableElement) => {
+     // Try to find the segment prior to the element that was clicked on.
+-    let target = window.event?.target as FocusableElement;
+     let walker = getFocusableTreeWalker(ref.current, {tabbable: true});
+     if (target) {
+       walker.currentNode = target;
+@@ -83,11 +87,6 @@ export function useDatePickerGroup(state: DatePickerState | DateRangePickerState
+   let {pressProps} = usePress({
+     preventFocusOnPress: true,
+     allowTextSelectionOnPress: true,
+-    onPressStart(e) {
+-      if (e.pointerType === 'mouse') {
+-        focusLast();
+-      }
+-    },
+     onPress(e) {
+       if (e.pointerType !== 'mouse') {
+         focusLast();
+@@ -95,5 +94,10 @@ export function useDatePickerGroup(state: DatePickerState | DateRangePickerState
+     }
+   });
+ 
+-  return mergeProps(pressProps, {onKeyDown});
++  return mergeProps(pressProps, {
++    onKeyDown,
++    onMouseDown(e) {
++      focusLast(e.target);
++    }
++  });
+ }
