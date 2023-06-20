@@ -716,3 +716,22 @@ By adopting this recommendation we get the benefit that parent components can _r
 event propagation. When writing a parent component you don’t have to wonder “what happens if a child
 stops propagation on this” since we have a shared style guide recommendation that child components
 shouldn’t stop event propagation in the first place.
+
+### When using `z-index` create a component local stacking context for local reasoning
+
+If two elements are overlapping, the browser picks one to render on top of the other using the
+`z-index` CSS property (or DOM position if the `z-index` CSS property doesn’t exist). The `z-index`
+only applies in the nearest
+[stacking context](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_positioned_layout/Understanding_z-index/Stacking_context).
+There are many ways to create a new stacking context, such as the CSS
+`position: relative; z-index: 0` or the CSS `isolation: isolate`.
+
+If you are using `z-index` you should create a new stacking context at the root of the nearest
+component which contains the two element’s whose z-order you’re trying to influence.
+
+We typically use `<Box position="relative" zIndex="0">` to create a new stacking context.
+
+**Why?** Creating a new stacking context allows you to reason about z-order locally and use small
+values like 10, 20, and 30 instead of trying to find the highest z-index globally like 999999 or
+`Number.MAX_SAFE_INTEGER` as used in some CSS. It also reduces the chance of their being bugs as
+adjacent components evolve since their z-order should be isolated from your component’s z-order.

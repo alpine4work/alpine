@@ -293,7 +293,15 @@ function TaskRowPresentationalView<TaskRow>(
 
     return (
         <ContextMenuActions actions={contextMenuActions}>
-            <Box ref={rowRef} minHeight={taskRowViewMinHeight} position="relative" zIndex="0">
+            <Box
+                ref={rowRef}
+                minHeight={taskRowViewMinHeight}
+                position="relative"
+                // NOTE(calebmer): Setting z-index here creates a new stacking context which
+                // means the task row drop indicator lines can't render on top of
+                // adjacent rows.
+                zIndex={undefined}
+            >
                 <Box
                     position="absolute"
                     zIndex="-10"
