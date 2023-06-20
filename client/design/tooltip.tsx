@@ -873,7 +873,7 @@ function Tooltip(
                         className={overlayAnimateContainerClassName}
                     >
                         <Box
-                            maxWidth="48"
+                            maxWidth="64"
                             paddingX="1.5"
                             paddingY="0.5"
                             fontSize="50"

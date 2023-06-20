@@ -1,19 +1,12 @@
 import {CaretDown, Plus} from "phosphor-react";
-import {useCallback, useRef} from "react";
-import {useButton} from "react-aria";
+import {useCallback} from "react";
 import {Box} from "~/client/design/box";
-import {Button, buttonPressedOverlayOpacity} from "~/client/design/button";
-import {FocusRing} from "~/client/design/focus_ring";
+import {Button} from "~/client/design/button";
 import {MenuAction, MenuButton} from "~/client/design/menu_button";
-import {
-    PrettyAbsoluteDate,
-    usePrettyAbsoluteDateFormatter,
-} from "~/client/design/pretty_absolute_date";
+import {usePrettyAbsoluteDateFormatter} from "~/client/design/pretty_absolute_date";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
 import {LocalTasksAction, LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
-import {spacing} from "~/shared/design/spacing";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
-import {sprinkles} from "~/shared/styles/styles";
 
 export function TaskNotepadViewPaginator({
     state,
@@ -26,12 +19,6 @@ export function TaskNotepadViewPaginator({
     notepadPageId: number;
     onNotepadPageIdChange: (notepadPageId: number) => void;
 }) {
-    const menuButtonRef = useRef<HTMLButtonElement>(null);
-    const {buttonProps: menuButtonProps, isPressed: isMenuButtonPressed} = useButton(
-        {},
-        menuButtonRef,
-    );
-
     const formatDateWithoutTime = usePrettyAbsoluteDateFormatter({
         shouldIncludeWeekday: true,
         shouldExcludeTime: true,
@@ -49,154 +36,114 @@ export function TaskNotepadViewPaginator({
     const onNotepadPageIdChange = useEvent(_onNotepadPageIdChange);
 
     return (
-        <Box display="flex" alignItems="center" gap="4">
-            <Box color="grey-50" fontSize="50">
-                Page created{" "}
-                <PrettyAbsoluteDate
-                    date={new Date(notepadPageId * 1000)}
-                    tooltipPlacement="bottom-end"
-                    shouldExcludeTime={true}
-                />
-            </Box>
-            <Box display="flex">
+        <Box display="flex" alignItems="center" gap="3">
+            <Button
+                variant="neutral"
+                icon={<Plus />}
+                height="6"
+                paddingX="2"
+                onPress={() => {
+                    const newNotepadPageId = Math.max(
+                        (state.database.getLatestNotepadPageId() ?? -1) + 1,
+                        Math.floor(Date.now() / 1000),
+                    );
+                    dispatch({type: "CreateNotepadPage", notepadPageId: newNotepadPageId});
+
+                    onNotepadPageIdChange(newNotepadPageId);
+                }}
+            >
+                Fresh page
+            </Button>
+            <MenuButton
+                width="48"
+                maxHeight="64"
+                placement="bottom-end"
+                actions={useCallback(() => {
+                    return Array.from(
+                        mapIterable(
+                            iterateWithAdjacents(
+                                mapIterable(
+                                    iterateWithAdjacents(
+                                        mapIterable(
+                                            state.database.getNotepadPageIds(),
+                                            notepadPageId => {
+                                                const date = new Date(notepadPageId * 1000);
+                                                const dateString = formatDateWithoutTime(date);
+                                                return {id: notepadPageId, date, dateString};
+                                            },
+                                        ),
+                                    ),
+                                    // If page was in the same day as adjacent pages then add minutes to the page
+                                    // date string.
+                                    ([previousNotepadPage, notepadPage, nextNotepadPage]) => {
+                                        if (
+                                            notepadPage.dateString ===
+                                            previousNotepadPage?.dateString
+                                        ) {
+                                            return {
+                                                ...notepadPage,
+                                                dateString: formatDateWithTimeWithoutSeconds(
+                                                    notepadPage.date,
+                                                ),
+                                            };
+                                        }
+                                        if (
+                                            notepadPage.dateString === nextNotepadPage?.dateString
+                                        ) {
+                                            return {
+                                                ...notepadPage,
+                                                dateString: formatDateWithTimeWithoutSeconds(
+                                                    notepadPage.date,
+                                                ),
+                                            };
+                                        }
+                                        return notepadPage;
+                                    },
+                                ),
+                            ),
+                            // If page was in the same minute as adjacent pages then add seconds to the page
+                            // date string.
+                            ([previousNotepadPage, notepadPage, nextNotepadPage]) => {
+                                if (notepadPage.dateString === previousNotepadPage?.dateString) {
+                                    return {
+                                        ...notepadPage,
+                                        dateString: formatDateWithTimeWithSeconds(notepadPage.date),
+                                    };
+                                }
+                                if (notepadPage.dateString === nextNotepadPage?.dateString) {
+                                    return {
+                                        ...notepadPage,
+                                        dateString: formatDateWithTimeWithSeconds(notepadPage.date),
+                                    };
+                                }
+                                return notepadPage;
+                            },
+                        ),
+                        (notepadPage): MenuAction => ({
+                            label: notepadPage.dateString,
+                            isSelected: notepadPageId === notepadPage.id,
+                            onPress: () => onNotepadPageIdChange(notepadPage.id),
+                        }),
+                    );
+                }, [
+                    formatDateWithTimeWithSeconds,
+                    formatDateWithTimeWithoutSeconds,
+                    formatDateWithoutTime,
+                    notepadPageId,
+                    onNotepadPageIdChange,
+                    state.database,
+                ])}
+            >
                 <Button
-                    variant="neutral"
-                    icon={<Plus />}
+                    variant="quieter"
                     height="6"
                     paddingX="2"
-                    borderRightRadius="none"
-                    onPress={() => {
-                        const newNotepadPageId = Math.max(
-                            (state.database.getLatestNotepadPageId() ?? -1) + 1,
-                            Math.floor(Date.now() / 1000),
-                        );
-                        dispatch({type: "CreateNotepadPage", notepadPageId: newNotepadPageId});
-
-                        onNotepadPageIdChange(newNotepadPageId);
-                    }}
+                    icon={<CaretDown />}
+                    iconPlacement="end"
                 >
-                    Fresh page
+                    Pages
                 </Button>
-                <MenuButton
-                    width="48"
-                    maxHeight="64"
-                    actions={useCallback(() => {
-                        return Array.from(
-                            mapIterable(
-                                iterateWithAdjacents(
-                                    mapIterable(
-                                        iterateWithAdjacents(
-                                            mapIterable(
-                                                state.database.getNotepadPageIds(),
-                                                notepadPageId => {
-                                                    const date = new Date(notepadPageId * 1000);
-                                                    const dateString = formatDateWithoutTime(date);
-                                                    return {id: notepadPageId, date, dateString};
-                                                },
-                                            ),
-                                        ),
-                                        // If page was in the same day as adjacent pages then add minutes to the page
-                                        // date string.
-                                        ([previousNotepadPage, notepadPage, nextNotepadPage]) => {
-                                            if (
-                                                notepadPage.dateString ===
-                                                previousNotepadPage?.dateString
-                                            ) {
-                                                return {
-                                                    ...notepadPage,
-                                                    dateString: formatDateWithTimeWithoutSeconds(
-                                                        notepadPage.date,
-                                                    ),
-                                                };
-                                            }
-                                            if (
-                                                notepadPage.dateString ===
-                                                nextNotepadPage?.dateString
-                                            ) {
-                                                return {
-                                                    ...notepadPage,
-                                                    dateString: formatDateWithTimeWithoutSeconds(
-                                                        notepadPage.date,
-                                                    ),
-                                                };
-                                            }
-                                            return notepadPage;
-                                        },
-                                    ),
-                                ),
-                                // If page was in the same minute as adjacent pages then add seconds to the page
-                                // date string.
-                                ([previousNotepadPage, notepadPage, nextNotepadPage]) => {
-                                    if (
-                                        notepadPage.dateString === previousNotepadPage?.dateString
-                                    ) {
-                                        return {
-                                            ...notepadPage,
-                                            dateString: formatDateWithTimeWithSeconds(
-                                                notepadPage.date,
-                                            ),
-                                        };
-                                    }
-                                    if (notepadPage.dateString === nextNotepadPage?.dateString) {
-                                        return {
-                                            ...notepadPage,
-                                            dateString: formatDateWithTimeWithSeconds(
-                                                notepadPage.date,
-                                            ),
-                                        };
-                                    }
-                                    return notepadPage;
-                                },
-                            ),
-                            (notepadPage): MenuAction => ({
-                                label: notepadPage.dateString,
-                                isSelected: notepadPageId === notepadPage.id,
-                                onPress: () => onNotepadPageIdChange(notepadPage.id),
-                            }),
-                        );
-                    }, [
-                        formatDateWithTimeWithSeconds,
-                        formatDateWithTimeWithoutSeconds,
-                        formatDateWithoutTime,
-                        notepadPageId,
-                        onNotepadPageIdChange,
-                        state.database,
-                    ])}
-                >
-                    <FocusRing>
-                        <button
-                            {...menuButtonProps}
-                            ref={menuButtonRef}
-                            className={sprinkles({
-                                display: "block",
-                                height: "6",
-                                paddingX: "1",
-                                backgroundColor: {light: "grey-80", dark: "grey-90"},
-                                color: "grey-0",
-                                borderRightRadius: "base",
-                                overflow: "hidden",
-                                position: "relative",
-                            })}
-                            style={{
-                                marginLeft: 1,
-                            }}
-                        >
-                            {isMenuButtonPressed && (
-                                <span
-                                    className={sprinkles({
-                                        position: "absolute",
-                                        inset: "0",
-                                        backgroundColor: "grey-dark",
-                                        pointerEvents: "none",
-                                    })}
-                                    style={{opacity: buttonPressedOverlayOpacity}}
-                                />
-                            )}
-                            <CaretDown size={spacing["3"]} weight="bold" />
-                        </button>
-                    </FocusRing>
-                </MenuButton>
-            </Box>
+            </MenuButton>
         </Box>
     );
 }

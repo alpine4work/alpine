@@ -140,7 +140,7 @@ function TaskNotepadViewInner({
                     onSelectAll: () => assertExists(gridViewRef.current).focusEnd(),
                 })}
             >
-                <Box height="7" />
+                <Box height="5" />
                 <TaskNotepadViewActiveSection state={state} dispatch={dispatch} />
                 <Box height="16" />
                 <Box
