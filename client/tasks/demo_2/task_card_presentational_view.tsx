@@ -1,15 +1,19 @@
 import {useDraggable} from "@dnd-kit/core";
 import {CalendarDate} from "@internationalized/date";
 import {CalendarBlank} from "phosphor-react";
-import {cloneElement, useId, useMemo, useState} from "react";
+import {PointerEvent, cloneElement, useId, useMemo, useState} from "react";
 import {mergeProps} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar";
 import {AccountShortName} from "~/client/accounts/account_short_name";
 import {Box} from "~/client/design/box";
+import {ContextMenuActions} from "~/client/design/context_menu";
 import {FocusRing} from "~/client/design/focus_ring";
+import {MenuAction} from "~/client/design/menu_button";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour";
+import {useSpaceContext} from "~/client/spaces/space_context";
 import {formatTaskDate} from "~/client/tasks/demo_2/internal/format_task_date";
+import {getTaskStatusMenuActions} from "~/client/tasks/demo_2/internal/get_task_status_menu_actions";
 import {TaskChildTasksProgressWheel} from "~/client/tasks/demo_2/internal/task_child_tasks_progress_wheel";
 import {
     TaskCollectionChip,
@@ -37,6 +41,7 @@ export function TaskCardPresentationalView({
     onStatusChange,
     title,
     assignee,
+    onAssigneeChange,
     dueDate,
     collections,
     childTaskCount,
@@ -50,6 +55,7 @@ export function TaskCardPresentationalView({
     onStatusChange: (status: TaskStatus) => void;
     title: TaskTitle;
     assignee: TaskAssignee | null;
+    onAssigneeChange: (assignee: TaskAssignee | null) => void;
     dueDate: CalendarDate | null;
     collections: ReadonlyArray<LocalTaskCollection>;
     childTaskCount: number;
@@ -60,6 +66,7 @@ export function TaskCardPresentationalView({
 }) {
     const {timeZone, locale} = useClientInfo();
     const currentDate = useCurrentDate();
+    const {currentAccount} = useSpaceContext();
 
     // We manually implement `usePress()` so to play nice with drag-and-drop.
     const [isPressed, setIsPressed] = useState(false);
@@ -214,104 +221,141 @@ export function TaskCardPresentationalView({
     ]);
 
     return (
-        <FocusRing offset="0">
-            <Box
-                {...mergeProps(draggableListeners ?? {}, draggableAttributes, {
-                    onPointerDown: () => setIsPressed(true),
-                    onPointerUp: () => {
-                        setIsPressed(false);
-                        if (isPressed) onPress();
+        <ContextMenuActions
+            actions={[
+                [
+                    {
+                        label: "Copy link",
+                        onPress: () => {
+                            // NOCOMMIT: Needs production implementation
+                        },
                     },
-                    onPointerOut: () => setIsPressed(false),
-                })}
-                ref={setDraggableNodeRef}
-                tabIndex={0}
-                width="full"
-                maxWidth={taskCardViewMaxWidth}
-                minHeight={shouldFillHeight ? "full" : undefined}
-                overflow="hidden"
-                backgroundColor="grey-0"
-                boxShadow={isDragOverlay ? "elevation-30" : "elevation-5"}
-                borderRadius="lg"
-                padding="4"
-                display="flex"
-                flexDirection="column"
-                justifyContent="space-between"
-                gap="4"
-                position="relative"
-                zIndex="0"
-                opacity={isDragging ? "0" : undefined}
-                pointerEvents={isDragging || isDragOverlay ? "none" : undefined}
-            >
-                {isPressed && (
-                    <Box
-                        position="absolute"
-                        zIndex="10"
-                        inset="0"
-                        pointerEvents="none"
-                        borderWidth="thick"
-                        border="grey-0"
-                        borderRadius="lg"
-                        className={pressOpacityOverlayClassName}
-                    />
-                )}
+                ],
+                getTaskStatusMenuActions({
+                    timeZone,
+                    currentAccount,
+                    status,
+                    onStatusChange,
+                    assignee,
+                    onAssigneeChange,
+                }),
+                [
+                    {
+                        label: "Delete",
+                        onPress: () => {
+                            // NOCOMMIT
+                        },
+                    },
+                ],
+            ]}
+        >
+            <FocusRing offset="0">
                 <Box
+                    {...mergeProps(draggableListeners ?? {}, draggableAttributes, {
+                        onPointerDown: (event: PointerEvent) => {
+                            // Only count left clicks.
+                            if (event.button !== 0) return;
+
+                            setIsPressed(true);
+                        },
+                        onPointerUp: (event: PointerEvent) => {
+                            // Only count left clicks.
+                            if (event.button !== 0) return;
+
+                            setIsPressed(false);
+                            if (isPressed) onPress();
+                        },
+                        onPointerOut: () => setIsPressed(false),
+                    })}
+                    ref={setDraggableNodeRef}
+                    tabIndex={0}
+                    width="full"
+                    maxWidth={taskCardViewMaxWidth}
+                    minHeight={shouldFillHeight ? "full" : undefined}
+                    overflow="hidden"
+                    backgroundColor="grey-0"
+                    boxShadow={isDragOverlay ? "elevation-30" : "elevation-5"}
+                    borderRadius="lg"
+                    padding="4"
                     display="flex"
-                    gap="2"
-                    // Extra margin on the right to balance margin on the left from status button.
-                    paddingRight="3"
+                    flexDirection="column"
+                    justifyContent="space-between"
+                    gap="4"
+                    position="relative"
+                    zIndex="0"
+                    opacity={isDragging ? "0" : undefined}
+                    pointerEvents={isDragging || isDragOverlay ? "none" : undefined}
                 >
+                    {isPressed && (
+                        <Box
+                            position="absolute"
+                            zIndex="10"
+                            inset="0"
+                            pointerEvents="none"
+                            borderWidth="thick"
+                            border="grey-0"
+                            borderRadius="lg"
+                            className={pressOpacityOverlayClassName}
+                        />
+                    )}
                     <Box
-                        flexShrink="0"
                         display="flex"
-                        alignItems="center"
-                        style={{height: contentSchemaStyles.paragraphFontSize.lineHeight}}
-                        // Render status button on top of the press overlay to try and communicate that
-                        // it is independently clickable from the rest of the card.
-                        position="relative"
-                        zIndex="20"
+                        gap="2"
+                        // Extra margin on the right to balance margin on the left from status button.
+                        paddingRight="3"
                     >
-                        <TaskStatusButton
-                            status={status}
-                            onStatusChange={onStatusChange}
-                            assignee={assignee}
-                            isDisabled={isDragging || isDragOverlay}
+                        <Box
+                            flexShrink="0"
+                            display="flex"
+                            alignItems="center"
+                            style={{height: contentSchemaStyles.paragraphFontSize.lineHeight}}
+                            // Render status button on top of the press overlay to try and communicate that
+                            // it is independently clickable from the rest of the card.
+                            position="relative"
+                            zIndex="20"
+                        >
+                            <TaskStatusButton
+                                status={status}
+                                onStatusChange={onStatusChange}
+                                assignee={assignee}
+                                isDisabled={isDragging || isDragOverlay}
+                            />
+                        </Box>
+                        <Box
+                            flexGrow="1"
+                            color="grey-text"
+                            style={{
+                                overflow: "hidden",
+                                ...contentSchemaStyles.paragraphFontSize,
+                                maxHeight: `${
+                                    parseRemLengthNumber(
+                                        contentSchemaStyles.paragraphFontSize.lineHeight,
+                                    ) * 3
+                                }rem`,
+                                // Truncate after 3 lines of text. Unofficial syntax that works in all browsers
+                                // except IE.
+                                // https://stackoverflow.com/questions/3922739/limit-text-length-to-n-lines-using-css
+                                display: "-webkit-box",
+                                WebkitLineClamp: 3,
+                                lineClamp: 3,
+                                WebkitBoxOrient: "vertical",
+                                textOverflow: "ellipsis",
+                            }}
+                            dangerouslySetInnerHTML={useMemo(
+                                () => ({
+                                    __html: serializeProsemirrorFragmentToHtml(title.content),
+                                }),
+                                [title],
+                            )}
                         />
                     </Box>
-                    <Box
-                        flexGrow="1"
-                        color="grey-text"
-                        style={{
-                            overflow: "hidden",
-                            ...contentSchemaStyles.paragraphFontSize,
-                            maxHeight: `${
-                                parseRemLengthNumber(
-                                    contentSchemaStyles.paragraphFontSize.lineHeight,
-                                ) * 3
-                            }rem`,
-                            // Truncate after 3 lines of text. Unofficial syntax that works in all browsers
-                            // except IE.
-                            // https://stackoverflow.com/questions/3922739/limit-text-length-to-n-lines-using-css
-                            display: "-webkit-box",
-                            WebkitLineClamp: 3,
-                            lineClamp: 3,
-                            WebkitBoxOrient: "vertical",
-                            textOverflow: "ellipsis",
-                        }}
-                        dangerouslySetInnerHTML={useMemo(
-                            () => ({
-                                __html: serializeProsemirrorFragmentToHtml(title.content),
-                            }),
-                            [title],
-                        )}
-                    />
+                    {fieldElements.length > 0 && (
+                        <Box display="flex" flexWrap="wrap" gap="3">
+                            {fieldElements.map((node, index) => cloneElement(node, {key: index}))}
+                        </Box>
+                    )}
                 </Box>
-                {fieldElements.length > 0 && (
-                    <Box display="flex" flexWrap="wrap" gap="3">
-                        {fieldElements.map((node, index) => cloneElement(node, {key: index}))}
-                    </Box>
-                )}
-            </Box>
-        </FocusRing>
+            </FocusRing>
+        </ContextMenuActions>
     );
 }

@@ -522,6 +522,7 @@ function TaskRowViewDragOverlay<TaskRow>({
                     onStatusChange={noop}
                     title={data.title}
                     assignee={data.assignee}
+                    onAssigneeChange={noop}
                     dueDate={data.dueDate}
                     collections={data.collections}
                     childTaskCount={data.childTaskCount}

@@ -149,6 +149,13 @@ export function TaskNotepadViewActiveSection({
                                 }
                                 title={task.title}
                                 assignee={task.assignee}
+                                onAssigneeChange={assignee =>
+                                    dispatch({
+                                        type: "UpdateTaskAssignee",
+                                        taskId: task.id,
+                                        assignee,
+                                    })
+                                }
                                 dueDate={task.dueDate}
                                 collections={Array.from(task.collectionIds, collectionId =>
                                     state.database.getTaskCollection(collectionId),
