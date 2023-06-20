@@ -2,7 +2,6 @@ import {CalendarDate} from "@internationalized/date";
 import {CalendarBlank} from "phosphor-react";
 import {useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box";
-import {FocusRing} from "~/client/design/focus_ring";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element";
 import {OverlayPlacement} from "~/client/design/overlay";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
@@ -186,38 +185,35 @@ export function TaskDateInput({
                     </Box>
                 }
             >
-                <FocusRing offset={focusRingOffset} isVisibleWhenFocusWithin>
-                    <Box
-                        ref={inputRef}
-                        width="full"
+                <Box
+                    ref={inputRef}
+                    width="full"
+                    height={height}
+                    position={!isEditing && formattedDate ? "absolute" : "relative"}
+                    top={!isEditing && formattedDate ? "0" : undefined}
+                    pointerEvents={!isEditing && formattedDate ? "none" : undefined}
+                    style={{opacity: !isEditing && formattedDate ? 0 : undefined}}
+                    onFocus={event => {
+                        setIsFocusWithinInput(event.currentTarget.contains(event.target));
+                    }}
+                    onBlur={event => {
+                        setIsFocusWithinInput(event.currentTarget.contains(event.relatedTarget));
+                    }}
+                >
+                    <TaskDateInputText
+                        date={date}
+                        onDateChange={onDateChange}
+                        aria-label={ariaLabel}
+                        aria-labelledby={ariaLabelledBy}
+                        isEditing={isEditing}
+                        shouldIncludeCalendarIcon={shouldIncludeCalendarIcon}
+                        display={display}
                         height={height}
-                        position={!isEditing && formattedDate ? "absolute" : "relative"}
-                        top={!isEditing && formattedDate ? "0" : undefined}
-                        pointerEvents={!isEditing && formattedDate ? "none" : undefined}
-                        style={{opacity: !isEditing && formattedDate ? 0 : undefined}}
-                        onFocus={event => {
-                            setIsFocusWithinInput(event.currentTarget.contains(event.target));
-                        }}
-                        onBlur={event => {
-                            setIsFocusWithinInput(
-                                event.currentTarget.contains(event.relatedTarget),
-                            );
-                        }}
-                    >
-                        <TaskDateInputText
-                            date={date}
-                            onDateChange={onDateChange}
-                            aria-label={ariaLabel}
-                            aria-labelledby={ariaLabelledBy}
-                            isEditing={isEditing}
-                            shouldIncludeCalendarIcon={shouldIncludeCalendarIcon}
-                            display={display}
-                            height={height}
-                            paddingX={paddingX}
-                            color={color}
-                        />
-                    </Box>
-                </FocusRing>
+                        paddingX={paddingX}
+                        color={color}
+                        focusRingOffset={focusRingOffset}
+                    />
+                </Box>
             </OverlayAnimated>
         </Box>
     );

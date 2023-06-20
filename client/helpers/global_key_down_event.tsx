@@ -163,9 +163,15 @@ export function GlobalKeyDownRootContextProvider({children}: {children?: ReactNo
     useEffect(() => {
         const listener = createListener(childContext.childListeners, null, null);
 
-        document.addEventListener("keydown", listener);
+        // IMPORTANT: Attaching to `window` instead of `document` is important here!
+        // React attaches its `keydown` listener on `document` so if a React handler
+        // calls `event.stopPropagation()` it stops bubbling to `window` but doesn't
+        // stop another listener on `document` from being called.
+        //
+        // See: https://github.com/facebook/react/issues/4335#issuecomment-421705171
+        window.addEventListener("keydown", listener);
         return () => {
-            document.removeEventListener("keydown", listener);
+            window.removeEventListener("keydown", listener);
         };
     }, [childContext.childListeners]);
 

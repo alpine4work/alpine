@@ -26,12 +26,14 @@ import {
     taskRowViewMinHeight,
 } from "~/client/tasks/demo_2/internal/task_row_shared_styles";
 import {TaskRowViewDroppable} from "~/client/tasks/demo_2/internal/task_row_view_droppable";
+import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
 import {
     TaskRowPresentationalView,
     TaskRowPresentationalViewRef,
 } from "~/client/tasks/demo_2/task_row_presentational_view";
 import {TaskAssignee, TaskStatus} from "~/client/tasks/demo_2/task_status_button";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
+import {emptyArray} from "~/shared/helpers/array/empty_array";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {LazyMap} from "~/shared/helpers/control/lazy_map";
 import {noop} from "~/shared/helpers/control/noop";
@@ -70,6 +72,7 @@ export type TaskGridPresentationalViewProps<TaskRow> = {
     onTaskAssigneeChange: (taskRow: TaskRow, assignee: TaskAssignee | null) => void;
     getTaskDueDate: (taskRow: TaskRow) => CalendarDate | null;
     onTaskDueDateChange: (taskRow: TaskRow, dueDate: CalendarDate | null) => void;
+    getTaskCollections: (taskRow: TaskRow) => ReadonlyArray<LocalTaskCollection>;
     getTaskParentTaskTitle: (taskRow: TaskRow) => TaskTitle | null;
     getTaskChildTaskCount: (taskRow: TaskRow) => number;
     getTaskClosedChildTaskCount: (taskRow: TaskRow) => number;
@@ -80,9 +83,17 @@ export type TaskGridPresentationalViewProps<TaskRow> = {
     createTaskAbove: (taskRow: TaskRow) => void;
     createTaskBelowAndFocus: (taskRow: TaskRow) => void;
     createTaskChildAtStartAndFocus: (taskRow: TaskRow) => void;
-    createTaskAtEndFromBottomGhost: (title: TaskTitle) => void;
+    createTaskAtEndFromBottomGhost: (options?: {
+        title?: TaskTitle;
+        assignee?: TaskAssignee;
+        dueDate?: CalendarDate;
+    }) => void;
     createTaskAtEndFromBottomGhostAndFocusNewGhost: (title: TaskTitle) => void;
-    createTaskAtStartFromTopGhostWithoutNewGhost: (title: TaskTitle) => void;
+    createTaskAtStartFromTopGhostWithoutNewGhost: (options: {
+        title?: TaskTitle;
+        assignee?: TaskAssignee;
+        dueDate?: CalendarDate;
+    }) => void;
     createTaskAtStartFromTopGhostAndFocus: (title: TaskTitle) => void;
     nestTaskAndExpandParentRow: (
         parentTaskRow: TaskRow,
@@ -113,6 +124,7 @@ function TaskGridPresentationalView<TaskRow>(
         onTaskAssigneeChange,
         getTaskDueDate,
         onTaskDueDateChange,
+        getTaskCollections,
         getTaskParentTaskTitle,
         getTaskChildTaskCount,
         getTaskClosedChildTaskCount,
@@ -206,12 +218,21 @@ function TaskGridPresentationalView<TaskRow>(
                 status={null}
                 onStatusChange={noop}
                 title={emptyTaskTitle}
-                onTitleChange={title => createTaskAtStartFromTopGhostWithoutNewGhost(title)}
+                onTitleChange={title => createTaskAtStartFromTopGhostWithoutNewGhost({title})}
                 titlePlaceholder="Add a task…"
                 assignee={null}
-                onAssigneeChange={noop}
+                onAssigneeChange={assignee => {
+                    if (assignee) {
+                        createTaskAtStartFromTopGhostWithoutNewGhost({assignee});
+                    }
+                }}
                 dueDate={null}
-                onDueDateChange={noop}
+                onDueDateChange={dueDate => {
+                    if (dueDate) {
+                        createTaskAtStartFromTopGhostWithoutNewGhost({dueDate});
+                    }
+                }}
+                collections={emptyArray}
                 parentTaskTitle={null}
                 childTaskCount={0}
                 closedChildTaskCount={0}
@@ -299,6 +320,7 @@ function TaskGridPresentationalView<TaskRow>(
                 onAssigneeChange={assignee => onTaskAssigneeChange(taskRow, assignee)}
                 dueDate={getTaskDueDate(taskRow)}
                 onDueDateChange={dueDate => onTaskDueDateChange(taskRow, dueDate)}
+                collections={getTaskCollections(taskRow)}
                 parentTaskTitle={getTaskParentTaskTitle(taskRow)}
                 childTaskCount={getTaskChildTaskCount(taskRow)}
                 closedChildTaskCount={getTaskClosedChildTaskCount(taskRow)}
@@ -386,12 +408,21 @@ function TaskGridPresentationalView<TaskRow>(
             status={null}
             onStatusChange={noop}
             title={emptyTaskTitle}
-            onTitleChange={title => createTaskAtEndFromBottomGhost(title)}
+            onTitleChange={title => createTaskAtEndFromBottomGhost({title})}
             titlePlaceholder={taskGhostRowPlaceholder}
             assignee={null}
-            onAssigneeChange={noop}
+            onAssigneeChange={assignee => {
+                if (assignee) {
+                    createTaskAtEndFromBottomGhost({assignee});
+                }
+            }}
             dueDate={null}
-            onDueDateChange={noop}
+            onDueDateChange={dueDate => {
+                if (dueDate) {
+                    createTaskAtEndFromBottomGhost({dueDate});
+                }
+            }}
+            collections={emptyArray}
             parentTaskTitle={null}
             childTaskCount={0}
             closedChildTaskCount={0}
@@ -504,8 +535,10 @@ function TaskGridPresentationalView<TaskRow>(
                         <Box flexGrow="1" />
                         <Box
                             flexShrink="0"
-                            style={{width: taskRowViewFirstColumnWidth}}
-                            paddingLeft={taskRowViewFirstColumnPaddingLeft}
+                            style={{
+                                width: taskRowViewFirstColumnWidth,
+                                paddingLeft: taskRowViewFirstColumnPaddingLeft,
+                            }}
                             paddingX={taskRowViewColumnPaddingX}
                             paddingBottom="1"
                             color="grey-50"

@@ -25,8 +25,8 @@ import {useSpaceContext} from "~/client/spaces/space_context";
 import {getTaskStatusMenuActions} from "~/client/tasks/demo_2/internal/get_task_status_menu_actions";
 import {TaskAssigneeInput} from "~/client/tasks/demo_2/internal/task_assignee_input";
 import {TaskChildTasksProgressWheel} from "~/client/tasks/demo_2/internal/task_child_tasks_progress_wheel";
+import {TaskCollectionsInput} from "~/client/tasks/demo_2/internal/task_collections_input";
 import {TaskDateInput} from "~/client/tasks/demo_2/internal/task_date_input";
-import {TaskDetailCollectionsField} from "~/client/tasks/demo_2/internal/task_detail_collections_field";
 import {TaskDetailNotesField} from "~/client/tasks/demo_2/internal/task_detail_notes_field";
 import {TaskDetailTitleInput} from "~/client/tasks/demo_2/internal/task_detail_title_input";
 import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
@@ -405,7 +405,7 @@ const TaskDetailViewDenseFields = forwardRef(function TaskDetailViewDenseFields(
             </TaskDetailViewField>
             <TaskDetailViewField label="Collections">
                 {({"aria-labelledby": ariaLabelledBy}) => (
-                    <TaskDetailCollectionsField
+                    <TaskCollectionsInput
                         allCollections={allCollections}
                         collections={collections}
                         createCollectionAndAddToTask={createCollectionAndAddToTask}

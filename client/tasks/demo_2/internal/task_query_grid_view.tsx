@@ -184,6 +184,11 @@ function TaskQueryGridView(
                     dueDate,
                 });
             }}
+            getTaskCollections={({task}) =>
+                Array.from(task.collectionIds, collectionId =>
+                    state.database.getTaskCollection(collectionId),
+                )
+            }
             getTaskParentTaskTitle={({task}) =>
                 task.parentTaskId ? state.database.getTask(task.parentTaskId).title : null
             }
@@ -289,7 +294,7 @@ function TaskQueryGridView(
                     },
                 });
             }}
-            createTaskAtEndFromBottomGhost={title => {
+            createTaskAtEndFromBottomGhost={options => {
                 // Immediate priority since we want React to batch the
                 // `setBottomTaskGhostRowId()` call and the `dispatch()` which doesn't go
                 // through React state.
@@ -311,7 +316,7 @@ function TaskQueryGridView(
                                 ? normalizeResult.normalizedFilters
                                 : null,
                         taskId: bottomTaskGhostRowId,
-                        title,
+                        ...options,
                         // NOCOMMIT: Do an equivalent thing here?
                         // notepad: {page: notepadPage, side: "Below"},
                     });
@@ -348,7 +353,7 @@ function TaskQueryGridView(
                     });
                 });
             }}
-            createTaskAtStartFromTopGhostWithoutNewGhost={title => {
+            createTaskAtStartFromTopGhostWithoutNewGhost={options => {
                 if (!topTaskGhostRowId) return;
 
                 // Immediate priority since we want React to batch the
@@ -372,7 +377,7 @@ function TaskQueryGridView(
                                 ? normalizeResult.normalizedFilters
                                 : null,
                         taskId: topTaskGhostRowId,
-                        title,
+                        ...options,
                         // NOCOMMIT: Do an equivalent thing here?
                         // notepad: {page: notepadPage, side: "Below"},
                     });

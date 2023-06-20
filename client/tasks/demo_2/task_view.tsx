@@ -231,6 +231,11 @@ export function TaskView({
                             dueDate,
                         });
                     }}
+                    getTaskCollections={({task}) =>
+                        Array.from(task.collectionIds, collectionId =>
+                            state.database.getTaskCollection(collectionId),
+                        )
+                    }
                     getTaskParentTaskTitle={({task}) =>
                         task.parentTaskId ? state.database.getTask(task.parentTaskId).title : null
                     }
@@ -321,7 +326,7 @@ export function TaskView({
                             },
                         });
                     }}
-                    createTaskAtEndFromBottomGhost={title => {
+                    createTaskAtEndFromBottomGhost={options => {
                         // Immediate priority since we want React to batch the
                         // `setBottomTaskGhostRowId()` call and the `dispatch()` which doesn't go
                         // through React state.
@@ -335,8 +340,8 @@ export function TaskView({
                                 creatorTimeZone: timeZone,
                                 normalizedFilters: null,
                                 taskId: bottomTaskGhostRowId,
-                                title,
                                 parentTask: {id: task.id, side: "Below"},
+                                ...options,
                             });
                         });
                     }}
@@ -362,7 +367,7 @@ export function TaskView({
                             });
                         });
                     }}
-                    createTaskAtStartFromTopGhostWithoutNewGhost={title => {
+                    createTaskAtStartFromTopGhostWithoutNewGhost={options => {
                         if (!topTaskGhostRowId) return;
 
                         // Immediate priority since we want React to batch the
@@ -378,8 +383,8 @@ export function TaskView({
                                 creatorTimeZone: timeZone,
                                 normalizedFilters: null,
                                 taskId: topTaskGhostRowId,
-                                title,
                                 parentTask: {id: task.id, side: "Above"},
+                                ...options,
                             });
                         });
                     }}

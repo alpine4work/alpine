@@ -357,6 +357,7 @@ function IconButton(
                     )}
                     ref={useMergedRefs(foreignRef, localRef)}
                     className={sprinkles({
+                        flexShrink: "0",
                         display: "flex",
                         justifyContent: "center",
                         alignItems: "center",

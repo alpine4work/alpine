@@ -252,7 +252,18 @@ function TaskAssigneeInput(
     );
 
     return (
-        <Box marginLeft={avatarSize === "5" ? "-0.5" : undefined}>
+        <Box
+            marginLeft={avatarSize === "5" ? "-0.5" : undefined}
+            onKeyDown={event => {
+                // Blur the input when escape is pressed which closes the dropdown.
+                if (event.key === "Escape") {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    event.target.blur();
+                    return;
+                }
+            }}
+        >
             <OverlayAnimated
                 isVisible={comboBoxState.isOpen}
                 offset={defaultTooltipOffset}

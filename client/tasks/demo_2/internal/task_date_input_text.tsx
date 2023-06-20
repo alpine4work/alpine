@@ -4,6 +4,7 @@ import {useRef, useState} from "react";
 import {AriaDateFieldProps, mergeProps, useDateField, useDateSegment} from "react-aria";
 import {DateFieldState, DateFieldStateOptions, DateSegment, useDateFieldState} from "react-stately";
 import {Box} from "~/client/design/box";
+import {FocusRing} from "~/client/design/focus_ring";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {spacing} from "~/shared/design/spacing";
@@ -21,6 +22,7 @@ export function TaskDateInputText({
     height,
     paddingX,
     color,
+    focusRingOffset,
 }: {
     date: CalendarDate | null;
     onDateChange: (date: CalendarDate | null) => void;
@@ -32,6 +34,7 @@ export function TaskDateInputText({
     height: "full" | "4";
     paddingX: "0" | "1" | "1.5";
     color: "grey-text" | "grey-60";
+    focusRingOffset: "0" | undefined;
 }) {
     const {locale} = useClientInfo();
 
@@ -61,73 +64,87 @@ export function TaskDateInputText({
     const {fieldProps} = useDateField(datePickerProps, state, ref);
 
     return (
-        <Box height={height}>
-            <Box
-                // Inline flex so the clickable range doesn't extend beyond the
-                // input's contents.
-                display={display === "inline" ? "inline-flex" : "flex"}
-                height="full"
-                alignItems="center"
-                color={color}
-                cursor="text"
-            >
-                {shouldIncludeCalendarIcon && (
-                    <Box
-                        alignSelf="stretch"
-                        display="flex"
-                        alignItems="center"
-                        paddingLeft={paddingX}
-                        paddingRight="1"
-                        onPointerDown={event => {
-                            if (
-                                document.activeElement &&
-                                assertExists(ref.current).contains(document.activeElement)
-                            ) {
-                                // Don't unfocus field segments when clicking on icon.
-                                event.preventDefault();
-                            }
-                        }}
-                        onClick={event => {
-                            getNextFocusableElementIfExists(null, {
-                                withinElement: assertExists(ref.current),
-                            })?.focus();
-                        }}
-                    >
-                        <CalendarBlank
-                            size={spacing["4"]}
-                            className={sprinkles({pointerEvents: "none"})}
-                            color={!isEditing && !date ? inputPlaceholderStyles.color : undefined}
-                        />
-                    </Box>
-                )}
+        <Box
+            height={height}
+            onKeyDown={event => {
+                if (event.key === "Escape") {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    event.target.blur();
+                    return;
+                }
+            }}
+        >
+            <FocusRing offset={focusRingOffset} isVisibleWhenFocusWithin>
                 <Box
-                    {...fieldProps}
-                    ref={ref}
+                    // Inline flex so the clickable range doesn't extend beyond the
+                    // input's contents.
                     display={display === "inline" ? "inline-flex" : "flex"}
-                    flexGrow={display === "block" ? "1" : undefined}
                     height="full"
+                    alignItems="center"
+                    color={color}
+                    cursor="text"
                 >
-                    {state.segments.map((segment, index) => (
-                        <TaskDateInputTextSegment
-                            key={index}
-                            state={state}
-                            segment={segment}
-                            areAllSegmentsPlaceholders={!isEditing && !date}
-                            flexGrow={
-                                display === "block" && index === state.segments.length - 1
-                                    ? "1"
-                                    : undefined
-                            }
-                            paddingLeft={
-                                !shouldIncludeCalendarIcon && index === 0 ? paddingX : undefined
-                            }
-                            paddingRight={
-                                index === state.segments.length - 1 ? paddingX : undefined
-                            }
-                        />
-                    ))}
+                    {shouldIncludeCalendarIcon && (
+                        <Box
+                            alignSelf="stretch"
+                            display="flex"
+                            alignItems="center"
+                            paddingLeft={paddingX}
+                            paddingRight="1"
+                            onPointerDown={event => {
+                                if (
+                                    document.activeElement &&
+                                    assertExists(ref.current).contains(document.activeElement)
+                                ) {
+                                    // Don't unfocus field segments when clicking on icon.
+                                    event.preventDefault();
+                                }
+                            }}
+                            onClick={event => {
+                                getNextFocusableElementIfExists(null, {
+                                    withinElement: assertExists(ref.current),
+                                })?.focus();
+                            }}
+                        >
+                            <CalendarBlank
+                                size={spacing["4"]}
+                                className={sprinkles({pointerEvents: "none"})}
+                                color={
+                                    !isEditing && !date ? inputPlaceholderStyles.color : undefined
+                                }
+                            />
+                        </Box>
+                    )}
+                    <Box
+                        {...fieldProps}
+                        ref={ref}
+                        display={display === "inline" ? "inline-flex" : "flex"}
+                        flexGrow={display === "block" ? "1" : undefined}
+                        height="full"
+                    >
+                        {state.segments.map((segment, index) => (
+                            <TaskDateInputTextSegment
+                                key={index}
+                                state={state}
+                                segment={segment}
+                                areAllSegmentsPlaceholders={!isEditing && !date}
+                                flexGrow={
+                                    display === "block" && index === state.segments.length - 1
+                                        ? "1"
+                                        : undefined
+                                }
+                                paddingLeft={
+                                    !shouldIncludeCalendarIcon && index === 0 ? paddingX : undefined
+                                }
+                                paddingRight={
+                                    index === state.segments.length - 1 ? paddingX : undefined
+                                }
+                            />
+                        ))}
+                    </Box>
                 </Box>
-            </Box>
+            </FocusRing>
         </Box>
     );
 }

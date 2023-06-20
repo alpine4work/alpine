@@ -409,8 +409,8 @@ class LocalTasksDatabase {
             creatorId: options.creatorId,
             status: {type: "Open"},
             title: options.title ?? emptyTaskTitle,
-            assignee: null,
-            dueDate: null,
+            assignee: options.assignee ?? null,
+            dueDate: options.dueDate ?? null,
             collectionIds: options.collection ? new Set([options.collection.id]) : new Set(),
             notesContent: emptyTaskNotesContentWithReferences,
             parentTaskId: options.parentTask?.id ?? null,
@@ -1297,6 +1297,16 @@ type LocalTasksDatabaseCreateTaskOptions = {
      * The title of the new task.
      */
     title?: TaskTitle;
+
+    /**
+     * The initial assignee for this task.
+     */
+    assignee?: TaskAssignee;
+
+    /**
+     * The initial due date for this task.
+     */
+    dueDate?: CalendarDate;
 
     /**
      * Set this to create a task with another task as its parent.

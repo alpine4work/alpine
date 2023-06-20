@@ -30,6 +30,7 @@ import {TaskDateInput} from "~/client/tasks/demo_2/internal/task_date_input";
 import {TaskGridViewCapabilities} from "~/client/tasks/demo_2/internal/task_grid_view_capabilities";
 import {TaskGridViewDraggableData} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
 import {TaskRowAssigneeCell} from "~/client/tasks/demo_2/internal/task_row_assignee_cell";
+import {TaskRowCollectionsCell} from "~/client/tasks/demo_2/internal/task_row_collections_cell";
 import {TaskRowDueDateCell} from "~/client/tasks/demo_2/internal/task_row_due_date_cell";
 import {taskRowViewMinHeight} from "~/client/tasks/demo_2/internal/task_row_shared_styles";
 import {
@@ -37,6 +38,7 @@ import {
     TaskRowTitleInputRef,
 } from "~/client/tasks/demo_2/internal/task_row_title_input";
 import {TaskRowViewDroppable} from "~/client/tasks/demo_2/internal/task_row_view_droppable";
+import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
 import {TaskAssignee, TaskStatus, TaskStatusButton} from "~/client/tasks/demo_2/task_status_button";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
 import {AccountModel} from "~/shared/accounts/account_model";
@@ -71,6 +73,7 @@ type TaskRowPresentationalViewProps<TaskRow> = {
     onAssigneeChange: (assignee: TaskAssignee | null) => void;
     dueDate: CalendarDate | null;
     onDueDateChange: (dueDate: CalendarDate | null) => void;
+    collections: ReadonlyArray<LocalTaskCollection>;
     parentTaskTitle: TaskTitle | null;
     childTaskCount: number;
     closedChildTaskCount: number;
@@ -105,6 +108,7 @@ function TaskRowPresentationalView<TaskRow>(
         onAssigneeChange,
         dueDate,
         onDueDateChange,
+        collections,
         parentTaskTitle,
         childTaskCount,
         closedChildTaskCount,
@@ -415,7 +419,7 @@ function TaskRowPresentationalView<TaskRow>(
                                 dueDate={dueDate}
                                 onDueDateChange={onDueDateChange}
                             />
-                            <Box flexShrink="0" width="48" paddingX="1.5" overflow="hidden"></Box>
+                            <TaskRowCollectionsCell collections={collections} />
                         </>
                     )}
                     <Box

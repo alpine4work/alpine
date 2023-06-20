@@ -84,7 +84,7 @@ type TaskDetailCollectionsFieldInputState =
           readonly value: string;
       };
 
-export function TaskDetailCollectionsField({
+export function TaskCollectionsInput({
     allCollections,
     collections,
     createCollectionAndAddToTask,

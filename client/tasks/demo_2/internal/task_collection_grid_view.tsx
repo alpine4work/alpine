@@ -189,6 +189,11 @@ function TaskCollectionGridView(
                     dueDate,
                 });
             }}
+            getTaskCollections={({task}) =>
+                Array.from(task.collectionIds, collectionId =>
+                    state.database.getTaskCollection(collectionId),
+                )
+            }
             getTaskParentTaskTitle={({task}) =>
                 task.parentTaskId ? state.database.getTask(task.parentTaskId).title : null
             }
@@ -294,7 +299,7 @@ function TaskCollectionGridView(
                     },
                 });
             }}
-            createTaskAtEndFromBottomGhost={title => {
+            createTaskAtEndFromBottomGhost={options => {
                 // Immediate priority since we want React to batch the
                 // `setBottomTaskGhostRowId()` call and the `dispatch()` which doesn't go
                 // through React state.
@@ -316,8 +321,8 @@ function TaskCollectionGridView(
                                 ? normalizeResult.normalizedFilters
                                 : null,
                         taskId: bottomTaskGhostRowId,
-                        title,
                         collection: {id: collectionId, side: "Below"},
+                        ...options,
                     });
                 });
             }}
@@ -351,7 +356,7 @@ function TaskCollectionGridView(
                     });
                 });
             }}
-            createTaskAtStartFromTopGhostWithoutNewGhost={title => {
+            createTaskAtStartFromTopGhostWithoutNewGhost={options => {
                 if (!topTaskGhostRowId) return;
 
                 // Immediate priority since we want React to batch the
@@ -375,8 +380,8 @@ function TaskCollectionGridView(
                                 ? normalizeResult.normalizedFilters
                                 : null,
                         taskId: topTaskGhostRowId,
-                        title,
                         collection: {id: collectionId, side: "Above"},
+                        ...options,
                     });
                 });
             }}

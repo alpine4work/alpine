@@ -19,6 +19,8 @@ import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_b
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {tasksStyles} from "~/shared/styles/styles";
 
+// NOCOMMIT: Arrow key navigation
+
 export function TaskRowAssigneeCell({
     assignee,
     onAssigneeChange,
@@ -37,8 +39,10 @@ export function TaskRowAssigneeCell({
         <Box
             ref={hoverRef}
             flexShrink="0"
-            style={{width: taskRowViewFirstColumnWidth}}
-            paddingLeft={taskRowViewFirstColumnPaddingLeft}
+            style={{
+                width: taskRowViewFirstColumnWidth,
+                paddingLeft: taskRowViewFirstColumnPaddingLeft,
+            }}
             paddingRight={taskRowViewColumnPaddingX}
             overflow="hidden"
             className={tasksStyles.textCursorNotInheritedClassName}
