@@ -54,10 +54,6 @@ export function TaskNotepadViewActiveSection({
         (tasks.length > 3 ? parseRemLengthNumber(spacing["4"]) : 0)
     }rem)`;
 
-    const cardDroppableWidth = `calc(${(1 / 3) * 100}% - ${
-        tasks.length > 3 ? parseRemLengthNumber(spacing["4"]) : 0
-    }rem)`;
-
     return (
         <Box marginBottom="-2">
             <Box paddingX="5" fontSize="100" fontStyle="semi-bold">
@@ -211,17 +207,11 @@ export function TaskNotepadViewActiveSection({
                     position="absolute"
                     top="2"
                     bottom="2"
+                    left="0"
+                    right="0"
+                    paddingX="5"
                     display="flex"
-                    style={{
-                        left: `${
-                            parseRemLengthNumber(spacing["5"]) -
-                            parseRemLengthNumber(spacing[taskNotepadViewActiveSectionCardGap]) / 2
-                        }rem`,
-                        right: `${
-                            parseRemLengthNumber(spacing["5"]) -
-                            parseRemLengthNumber(spacing[taskNotepadViewActiveSectionCardGap]) / 2
-                        }rem`,
-                    }}
+                    gap={taskNotepadViewActiveSectionCardGap}
                 >
                     {tasks.length === 0 ? (
                         <TaskNotepadViewActiveSectionDroppable
@@ -244,14 +234,15 @@ export function TaskNotepadViewActiveSection({
                                     tasks[index + 1]?.assigneeActiveStatus ?? null
                                 }
                                 {...(index === tasks.length - 1 &&
-                                tasks.length < 3 &&
+                                tasks.length <= 3 &&
                                 activeDraggableData?.type !== "Row"
                                     ? {
                                           flexGrow: "1",
                                       }
                                     : {
                                           flexShrink: "0",
-                                          widthStyle: cardDroppableWidth,
+                                          maxWidthStyle: spacing[taskCardViewMaxWidth],
+                                          widthStyle: cardWidth,
                                       })}
                             />
                         ))
@@ -270,7 +261,8 @@ export function TaskNotepadViewActiveSection({
                                   }
                                 : {
                                       flexShrink: "0",
-                                      widthStyle: cardDroppableWidth,
+                                      maxWidthStyle: spacing[taskCardViewMaxWidth],
+                                      widthStyle: cardWidth,
                                   })}
                         />
                     )}
@@ -331,6 +323,7 @@ function TaskNotepadViewActiveSectionDroppable({
     flexShrink,
     flexGrow,
     widthStyle,
+    maxWidthStyle,
 }: {
     showHintIndex: number;
     previousAssigneeActiveStatus: TaskAssigneeActiveStatus | null;
@@ -339,6 +332,7 @@ function TaskNotepadViewActiveSectionDroppable({
     flexShrink?: "0" | "1";
     flexGrow?: "0" | "1";
     widthStyle?: number | string;
+    maxWidthStyle?: number | string;
 }) {
     // Switch this to `true` if you're in a development environment and need to see
     // the droppable area bounds. Switch back to `false` before committing!
@@ -363,6 +357,7 @@ function TaskNotepadViewActiveSectionDroppable({
             height="full"
             style={{
                 width: widthStyle,
+                maxWidth: maxWidthStyle,
                 // Debug with a box-shadow to not affect layout.
                 boxShadow: shouldDebug ? `0 0 0 1px ${colorSchemeVars["red-10"]}` : undefined,
             }}
