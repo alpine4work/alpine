@@ -112,7 +112,6 @@ function TaskRowPresentationalView<TaskRow>(
         onAssigneeChange,
         dueDate,
         onDueDateChange,
-        // NOCOMMIT: Do something with this!
         shouldShowDenseAssigneeAndDueDate,
         parentTaskTitle,
         shouldShowParentTaskTitle,
@@ -230,7 +229,7 @@ function TaskRowPresentationalView<TaskRow>(
             {
                 label: "Copy link",
                 onPress: () => {
-                    // NOCOMMIT
+                    // NOCOMMIT: Needs production implementation
                 },
             },
         ]);
