@@ -17,6 +17,7 @@ import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_a
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
 import {TaskGridViewCapabilities} from "~/client/tasks/demo_2/internal/task_grid_view_capabilities";
+import {taskRowViewMinHeight} from "~/client/tasks/demo_2/internal/task_row_shared_styles";
 import {TaskRowTitleChildTasksButton} from "~/client/tasks/demo_2/internal/task_row_title_child_tasks_button";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
 import {Spacing, spacing} from "~/shared/design/spacing";
@@ -32,7 +33,7 @@ import {
 } from "~/shared/styles/styles";
 import {TaskTitle, assertTaskTitle} from "~/shared/tasks/task_title_schema";
 
-export const taskRowTitleInputSingleLineHeight: Spacing = "9";
+const taskRowTitleInputSingleLineHeight: Spacing = taskRowViewMinHeight;
 
 export type TaskRowTitleInputRef = {
     getSelection(): Selection;

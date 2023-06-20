@@ -2,7 +2,7 @@ import {useDroppable} from "@dnd-kit/core";
 import {useId} from "react";
 import {Box} from "~/client/design/box";
 import {TaskGridViewDroppableData} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
-import {taskRowViewMinHeight} from "~/client/tasks/demo_2/task_row_presentational_view";
+import {taskRowViewMinHeight} from "~/client/tasks/demo_2/internal/task_row_shared_styles";
 import {parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {contentSchemaStyles} from "~/shared/styles/styles";
 

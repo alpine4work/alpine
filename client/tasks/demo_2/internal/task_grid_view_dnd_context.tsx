@@ -16,9 +16,9 @@ import {Box} from "~/client/design/box";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {useSpaceContext} from "~/client/spaces/space_context";
+import {taskRowViewMinHeight} from "~/client/tasks/demo_2/internal/task_row_shared_styles";
 import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
 import {TaskCardPresentationalView} from "~/client/tasks/demo_2/task_card_presentational_view";
-import {taskRowViewMinHeight} from "~/client/tasks/demo_2/task_row_presentational_view";
 import {
     TaskAssignee,
     TaskAssigneeActiveStatus,

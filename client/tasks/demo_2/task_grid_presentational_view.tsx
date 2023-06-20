@@ -17,15 +17,21 @@ import {Box} from "~/client/design/box";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
 import {TaskGridViewCapabilities} from "~/client/tasks/demo_2/internal/task_grid_view_capabilities";
 import {TaskGridViewDndContext} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
+import {
+    taskRowViewFirstColumnPaddingLeft,
+    taskRowViewFirstColumnWidth,
+    taskRowViewCollectionsColumnWidth,
+    taskRowViewColumnPaddingX,
+    taskRowViewColumnWidth,
+    taskRowViewMinHeight,
+} from "~/client/tasks/demo_2/internal/task_row_shared_styles";
 import {TaskRowViewDroppable} from "~/client/tasks/demo_2/internal/task_row_view_droppable";
 import {
     TaskRowPresentationalView,
     TaskRowPresentationalViewRef,
-    taskRowViewMinHeight,
 } from "~/client/tasks/demo_2/task_row_presentational_view";
 import {TaskAssignee, TaskStatus} from "~/client/tasks/demo_2/task_status_button";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
-import {addRemLengths, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {LazyMap} from "~/shared/helpers/control/lazy_map";
 import {noop} from "~/shared/helpers/control/noop";
@@ -498,15 +504,9 @@ function TaskGridPresentationalView<TaskRow>(
                         <Box flexGrow="1" />
                         <Box
                             flexShrink="0"
-                            style={{
-                                width: `calc(${addRemLengths(
-                                    spacing["32"],
-                                    spacing["1.5"],
-                                    spacing["3"],
-                                )})`,
-                            }}
-                            paddingLeft="6"
-                            paddingRight="1.5"
+                            style={{width: taskRowViewFirstColumnWidth}}
+                            paddingLeft={taskRowViewFirstColumnPaddingLeft}
+                            paddingX={taskRowViewColumnPaddingX}
                             paddingBottom="1"
                             color="grey-50"
                             fontSize="50"
@@ -515,18 +515,8 @@ function TaskGridPresentationalView<TaskRow>(
                         </Box>
                         <Box
                             flexShrink="0"
-                            width="32"
-                            paddingX="1.5"
-                            paddingBottom="1"
-                            color="grey-50"
-                            fontSize="50"
-                        >
-                            Due date
-                        </Box>
-                        <Box
-                            flexShrink="0"
-                            width="32"
-                            paddingX="1.5"
+                            width={taskRowViewColumnWidth}
+                            paddingX={taskRowViewColumnPaddingX}
                             paddingBottom="1"
                             color="grey-50"
                             fontSize="50"
@@ -535,8 +525,18 @@ function TaskGridPresentationalView<TaskRow>(
                         </Box>
                         <Box
                             flexShrink="0"
-                            width="48"
-                            paddingX="1.5"
+                            width={taskRowViewColumnWidth}
+                            paddingX={taskRowViewColumnPaddingX}
+                            paddingBottom="1"
+                            color="grey-50"
+                            fontSize="50"
+                        >
+                            Due date
+                        </Box>
+                        <Box
+                            flexShrink="0"
+                            width={taskRowViewCollectionsColumnWidth}
+                            paddingX={taskRowViewColumnPaddingX}
                             paddingBottom="1"
                             color="grey-50"
                             fontSize="50"
