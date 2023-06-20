@@ -30,6 +30,7 @@ import {TaskDateInput} from "~/client/tasks/demo_2/internal/task_date_input";
 import {TaskGridViewCapabilities} from "~/client/tasks/demo_2/internal/task_grid_view_capabilities";
 import {TaskGridViewDraggableData} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
 import {TaskRowAssigneeCell} from "~/client/tasks/demo_2/internal/task_row_assignee_cell";
+import {TaskRowDueDateCell} from "~/client/tasks/demo_2/internal/task_row_due_date_cell";
 import {taskRowViewMinHeight} from "~/client/tasks/demo_2/internal/task_row_shared_styles";
 import {
     TaskRowTitleInput,
@@ -410,7 +411,10 @@ function TaskRowPresentationalView<TaskRow>(
                                 onAssigneeChange={onAssigneeChange}
                             />
                             <Box flexShrink="0" width="32" paddingX="1.5" overflow="hidden"></Box>
-                            <Box flexShrink="0" width="32" paddingX="1.5" overflow="hidden"></Box>
+                            <TaskRowDueDateCell
+                                dueDate={dueDate}
+                                onDueDateChange={onDueDateChange}
+                            />
                             <Box flexShrink="0" width="48" paddingX="1.5" overflow="hidden"></Box>
                         </>
                     )}
@@ -721,7 +725,7 @@ const TaskRowViewDenseAssigneeAndDueDateFields = forwardRef(
                                 onDateChange={onDueDateChange}
                                 shouldIncludeCalendarIcon={true}
                                 shouldWarnIfAfterDate={status?.type === "Open"}
-                                shouldFormatToday={true}
+                                shouldFormatAroundToday={true}
                                 color="grey-60"
                             />
                         </Box>

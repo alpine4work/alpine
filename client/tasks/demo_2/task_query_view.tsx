@@ -1,5 +1,6 @@
 import {useEffect, useRef, useState} from "react";
 import {Box} from "~/client/design/box";
+import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {TaskQueryGridView} from "~/client/tasks/demo_2/internal/task_query_grid_view";
 import {TaskQueryViewCustomizationBar} from "~/client/tasks/demo_2/internal/task_query_view_customization_bar";
 import {LocalTasksAction, LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
@@ -70,39 +71,41 @@ export function TaskQueryView({
                 onSelectAll: () => assertExists(gridViewRef.current).focusEnd(),
             })}
         >
-            <Box paddingTop="5" paddingBottom="7" paddingX="5">
-                <TaskQueryViewCustomizationBar
-                    shouldCollapseWhenFiltersAreEmpty={false}
-                    defaultOrderSentence="By default, tasks are ordered by created date."
-                    state={state}
-                    filters={filters}
-                    filterReferences={filterReferences}
-                    onFiltersChange={(filters, mergeFilterReferences) => {
-                        setFiltersState(({filterReferences}) => {
-                            const newFilterReferences = mergeFilterReferences
-                                ? mergeTaskQueryFilterReferences(
-                                      filterReferences,
-                                      mergeFilterReferences,
-                                  )
-                                : filterReferences;
+            <OverlayScopeContextProvider>
+                <Box paddingTop="5" paddingBottom="7" paddingX="5">
+                    <TaskQueryViewCustomizationBar
+                        shouldCollapseWhenFiltersAreEmpty={false}
+                        defaultOrderSentence="By default, tasks are ordered by created date."
+                        state={state}
+                        filters={filters}
+                        filterReferences={filterReferences}
+                        onFiltersChange={(filters, mergeFilterReferences) => {
+                            setFiltersState(({filterReferences}) => {
+                                const newFilterReferences = mergeFilterReferences
+                                    ? mergeTaskQueryFilterReferences(
+                                          filterReferences,
+                                          mergeFilterReferences,
+                                      )
+                                    : filterReferences;
 
-                            return {
-                                filters,
-                                filterReferences: newFilterReferences,
-                            };
-                        });
-                    }}
+                                return {
+                                    filters,
+                                    filterReferences: newFilterReferences,
+                                };
+                            });
+                        }}
+                        sorts={sorts}
+                        onSortsChange={setSorts}
+                    />
+                </Box>
+                <TaskQueryGridView
+                    ref={gridViewRef}
+                    state={state}
+                    dispatch={dispatch}
+                    filters={filters}
                     sorts={sorts}
-                    onSortsChange={setSorts}
                 />
-            </Box>
-            <TaskQueryGridView
-                ref={gridViewRef}
-                state={state}
-                dispatch={dispatch}
-                filters={filters}
-                sorts={sorts}
-            />
+            </OverlayScopeContextProvider>
         </Box>
     );
 }

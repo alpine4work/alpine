@@ -12,6 +12,7 @@ import {
 } from "react";
 import {
     focusableElementSelector,
+    getLastFocusableElementIfExists,
     getNextFocusableElementIfExists,
     getPreviousFocusableElementIfExists,
 } from "~/client/design/helpers/get_next_focusable_element";
@@ -483,18 +484,9 @@ const OverlayTriggerOverlay = forwardRef(function OverlayTriggerOverlay(
                 break;
             }
             case "LastFocusableElement": {
-                let lastElementChild: Element = overlayElement;
-                while (lastElementChild.lastElementChild) {
-                    lastElementChild = lastElementChild.lastElementChild;
-                }
-
-                if (lastElementChild.matches(focusableElementSelector)) {
-                    (lastElementChild as HTMLElement).focus({preventScroll: true});
-                } else {
-                    getPreviousFocusableElementIfExists(lastElementChild, {
-                        withinElement: overlayElement,
-                    })?.focus({preventScroll: true});
-                }
+                getLastFocusableElementIfExists({withinElement: overlayElement})?.focus({
+                    preventScroll: true,
+                });
                 break;
             }
             default:

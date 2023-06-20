@@ -26,7 +26,7 @@ function createFocusableTreeWalker(
         withinElement,
         includeElementsThatAreNotTabbable = false,
     }: {
-        withinElement?: Element;
+        withinElement?: Element | null;
         includeElementsThatAreNotTabbable?: boolean;
     } = {},
 ) {
@@ -65,11 +65,11 @@ function createFocusableTreeWalker(
 export function getNextFocusableElementIfExists(
     element: Element | null,
     options?: {
-        withinElement?: Element;
+        withinElement?: Element | null;
         includeElementsThatAreNotTabbable?: boolean;
         skipElements?: number;
     },
-) {
+): HTMLElement | null {
     const walker = createFocusableTreeWalker(element, options);
 
     let lastNode: HTMLElement | null = null;
@@ -93,10 +93,36 @@ export function getNextFocusableElementIfExists(
 export function getPreviousFocusableElementIfExists(
     element: Element | null,
     options?: {
-        withinElement?: Element;
+        withinElement?: Element | null;
         includeElementsThatAreNotTabbable?: boolean;
     },
-) {
+): HTMLElement | null {
     const walker = createFocusableTreeWalker(element, options);
     return walker.previousNode() as HTMLElement | null;
+}
+
+/**
+ * Get the last focusable element in the tab sequence.
+ *
+ * You may also choose to include elements that are focusable but not a part of
+ * the tab sequence (have `tabindex="-1"`).
+ */
+export function getLastFocusableElementIfExists(options?: {
+    withinElement?: Element | null;
+    includeElementsThatAreNotTabbable?: boolean;
+}): HTMLElement | null {
+    const selector = options?.includeElementsThatAreNotTabbable
+        ? tabbableElementSelector
+        : focusableElementSelector;
+
+    let lastElementChild: Element = options?.withinElement ?? document.body;
+    while (lastElementChild.lastElementChild) {
+        lastElementChild = lastElementChild.lastElementChild;
+    }
+
+    if (lastElementChild.matches(selector)) {
+        return lastElementChild as HTMLElement;
+    } else {
+        return getPreviousFocusableElementIfExists(lastElementChild, options);
+    }
 }

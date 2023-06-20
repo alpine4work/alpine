@@ -1,5 +1,6 @@
 import {useEffect, useRef, useState} from "react";
 import {Box} from "~/client/design/box";
+import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {TaskCollectionGridView} from "~/client/tasks/demo_2/internal/task_collection_grid_view";
 import {TaskCollectionViewHeader} from "~/client/tasks/demo_2/internal/task_collection_view_header";
 import {TaskQueryViewCustomizationBar} from "~/client/tasks/demo_2/internal/task_query_view_customization_bar";
@@ -76,50 +77,52 @@ export function TaskCollectionView({
                 onSelectAll: () => assertExists(gridViewRef.current).focusEnd(),
             })}
         >
-            <TaskCollectionViewHeader
-                collection={collection}
-                onCollectionNameChange={name =>
-                    dispatch({
-                        type: "UpdateTaskCollectionName",
-                        taskCollectionId: collection.id,
-                        name,
-                    })
-                }
-            />
-            <Box paddingX="5" paddingBottom="6">
-                <TaskQueryViewCustomizationBar
-                    shouldCollapseWhenFiltersAreEmpty={true}
-                    defaultOrderSentence="You can order tasks manually by dragging them."
-                    state={state}
-                    filters={filters}
-                    filterReferences={filterReferences}
-                    onFiltersChange={(filters, mergeFilterReferences) => {
-                        setFiltersState(({filterReferences}) => {
-                            const newFilterReferences = mergeFilterReferences
-                                ? mergeTaskQueryFilterReferences(
-                                      filterReferences,
-                                      mergeFilterReferences,
-                                  )
-                                : filterReferences;
-
-                            return {
-                                filters,
-                                filterReferences: newFilterReferences,
-                            };
-                        });
-                    }}
-                    sorts={sorts}
-                    onSortsChange={setSorts}
+            <OverlayScopeContextProvider>
+                <TaskCollectionViewHeader
+                    collection={collection}
+                    onCollectionNameChange={name =>
+                        dispatch({
+                            type: "UpdateTaskCollectionName",
+                            taskCollectionId: collection.id,
+                            name,
+                        })
+                    }
                 />
-            </Box>
-            <TaskCollectionGridView
-                ref={gridViewRef}
-                state={state}
-                dispatch={dispatch}
-                collectionId={collectionId}
-                filters={filters}
-                sorts={sorts}
-            />
+                <Box paddingX="5" paddingBottom="6">
+                    <TaskQueryViewCustomizationBar
+                        shouldCollapseWhenFiltersAreEmpty={true}
+                        defaultOrderSentence="You can order tasks manually by dragging them."
+                        state={state}
+                        filters={filters}
+                        filterReferences={filterReferences}
+                        onFiltersChange={(filters, mergeFilterReferences) => {
+                            setFiltersState(({filterReferences}) => {
+                                const newFilterReferences = mergeFilterReferences
+                                    ? mergeTaskQueryFilterReferences(
+                                          filterReferences,
+                                          mergeFilterReferences,
+                                      )
+                                    : filterReferences;
+
+                                return {
+                                    filters,
+                                    filterReferences: newFilterReferences,
+                                };
+                            });
+                        }}
+                        sorts={sorts}
+                        onSortsChange={setSorts}
+                    />
+                </Box>
+                <TaskCollectionGridView
+                    ref={gridViewRef}
+                    state={state}
+                    dispatch={dispatch}
+                    collectionId={collectionId}
+                    filters={filters}
+                    sorts={sorts}
+                />
+            </OverlayScopeContextProvider>
         </Box>
     );
 }

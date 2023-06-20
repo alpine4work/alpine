@@ -1,5 +1,6 @@
 import {useEffect, useRef, useState} from "react";
 import {Box} from "~/client/design/box";
+import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {TaskGridViewDndContext} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
 import {
     TaskNotepadGridView,
@@ -140,39 +141,41 @@ function TaskNotepadViewInner({
                     onSelectAll: () => assertExists(gridViewRef.current).focusEnd(),
                 })}
             >
-                <Box height="5" />
-                <TaskNotepadViewActiveSection state={state} dispatch={dispatch} />
-                <Box height="16" />
-                <Box
-                    paddingX="5"
-                    paddingBottom="6"
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="space-between"
-                >
-                    <Box fontSize="100" fontStyle="semi-bold">
-                        Notepad
+                <OverlayScopeContextProvider>
+                    <Box height="5" />
+                    <TaskNotepadViewActiveSection state={state} dispatch={dispatch} />
+                    <Box height="16" />
+                    <Box
+                        paddingX="5"
+                        paddingBottom="6"
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="space-between"
+                    >
+                        <Box fontSize="100" fontStyle="semi-bold">
+                            Notepad
+                        </Box>
+                        <TaskNotepadViewPaginator
+                            state={state}
+                            dispatch={dispatch}
+                            notepadPageId={notepadPageId}
+                            onNotepadPageIdChange={setNotepadPageId}
+                        />
                     </Box>
-                    <TaskNotepadViewPaginator
+                    <TaskNotepadGridView
+                        // Remount when the notepad page changes...
+                        key={notepadPageId}
+                        ref={gridViewRef}
                         state={state}
                         dispatch={dispatch}
                         notepadPageId={notepadPageId}
-                        onNotepadPageIdChange={setNotepadPageId}
+                        expandedTaskIds={expandedTaskIds}
+                        setExpandedTaskIds={setExpandedTaskIds}
+                        moveTaskBelow={moveTaskBelow}
+                        moveTaskToParentTop={moveTaskToParentTop}
                     />
-                </Box>
-                <TaskNotepadGridView
-                    // Remount when the notepad page changes...
-                    key={notepadPageId}
-                    ref={gridViewRef}
-                    state={state}
-                    dispatch={dispatch}
-                    notepadPageId={notepadPageId}
-                    expandedTaskIds={expandedTaskIds}
-                    setExpandedTaskIds={setExpandedTaskIds}
-                    moveTaskBelow={moveTaskBelow}
-                    moveTaskToParentTop={moveTaskToParentTop}
-                />
-                <Box height="5" pointerEvents="none" />
+                    <Box height="5" pointerEvents="none" />
+                </OverlayScopeContextProvider>
             </Box>
         </TaskGridViewDndContext>
     );

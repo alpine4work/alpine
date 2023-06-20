@@ -4,6 +4,7 @@ import {useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element";
+import {OverlayPlacement} from "~/client/design/overlay";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
 import {defaultTooltipOffset} from "~/client/design/tooltip";
 import {useClientInfo} from "~/client/remix/client_info_context";
@@ -24,25 +25,29 @@ export function TaskDateInput({
     onDateChange,
     shouldIncludeCalendarIcon = false,
     shouldWarnIfAfterDate = false,
-    shouldFormatToday = false,
+    shouldFormatAroundToday = false,
     "aria-label": ariaLabel,
     "aria-labelledby": ariaLabelledBy,
+    display = "inline",
     height = "4",
     paddingX = "0",
-    focusRingOffset,
     color = "grey-text",
+    overlayPlacement = "bottom-end",
+    focusRingOffset,
 }: {
     date: CalendarDate | null;
     onDateChange: (date: CalendarDate | null) => void;
     shouldIncludeCalendarIcon?: boolean;
     shouldWarnIfAfterDate?: boolean;
-    shouldFormatToday?: boolean;
+    shouldFormatAroundToday?: boolean;
     "aria-label"?: string;
     "aria-labelledby"?: string;
+    display?: "inline" | "block";
     height?: "full" | "4";
-    paddingX?: "0" | "1";
-    focusRingOffset?: "0";
+    paddingX?: "0" | "1" | "1.5";
     color?: "grey-text" | "grey-60";
+    overlayPlacement?: OverlayPlacement;
+    focusRingOffset?: "0";
 }) {
     const {timeZone, locale} = useClientInfo();
     const currentDate = useCurrentDate();
@@ -56,10 +61,10 @@ export function TaskDateInput({
                       locale,
                       currentDate,
                       date,
-                      shouldFormatToday,
+                      shouldFormatAroundToday,
                   })
                 : null,
-        [currentDate, date, locale, shouldFormatToday, timeZone],
+        [currentDate, date, locale, shouldFormatAroundToday, timeZone],
     );
 
     const [isFocusWithinInput, setIsFocusWithinInput] = useState(false);
@@ -68,20 +73,22 @@ export function TaskDateInput({
     const isEditing = isFocusWithinInput || isFocusWithinOverlay;
 
     return (
-        <Box position="relative" height={height}>
+        <Box position="relative" height={height} width={display === "block" ? "full" : undefined}>
             {!isEditing && formattedDate && (
                 <Box
                     // Inline flex so the clickable range doesn't extend beyond the
                     // input's contents.
-                    display="inline-flex"
+                    display={display === "inline" ? "inline-flex" : "flex"}
                     alignItems="stretch"
                     height="full"
-                    paddingX={paddingX}
                     color={shouldWarnIfAfterDate && formattedDate.isAfterDate ? "red-60" : color}
                     cursor="text"
                 >
                     {shouldIncludeCalendarIcon && (
                         <Box
+                            display="flex"
+                            alignItems="center"
+                            paddingLeft={paddingX}
                             paddingRight="1"
                             onClick={() => {
                                 getNextFocusableElementIfExists(null, {
@@ -92,32 +99,63 @@ export function TaskDateInput({
                             <CalendarBlank size={spacing["4"]} />
                         </Box>
                     )}
-                    {formattedDate.dateString.split(" ").map((segment, index, segments) => (
+                    {formattedDate.isFormattedAroundToday ? (
                         <Box
-                            key={index}
-                            style={{
-                                // Don't collapse space.
-                                whiteSpace: "pre",
-                            }}
+                            flexGrow={display === "block" ? "1" : undefined}
+                            display="flex"
+                            alignItems="center"
+                            paddingLeft={!shouldIncludeCalendarIcon ? paddingX : undefined}
+                            paddingRight={paddingX}
                             onClick={() => {
                                 getNextFocusableElementIfExists(null, {
                                     withinElement: assertExists(inputRef.current),
-                                    // NOTE(calebmer): Small UX improvement, focus the input segment the user
-                                    // clicked on. It's a little strange how the preview text transforms into
-                                    // editable text. Especially disorienting when you click the end and the start
-                                    // is focused. So attempt to focus the same segment the user clicked.
-                                    //
-                                    // We hope that the words separated by spaces in our date line up with the
-                                    // editable input segments which is the case with the en-US locale but this
-                                    // heuristic may need to be hardened for other locales.
-                                    skipElements: index,
+                                    // NOTE(calebmer): Small UX improvement, focus the day input segment if the
+                                    // text is "Today" or "Yesterday".
+                                    skipElements: 1,
                                 })?.focus();
                             }}
                         >
-                            {segment}
-                            {index < segments.length - 1 && " "}
+                            {formattedDate.dateString}
                         </Box>
-                    ))}
+                    ) : (
+                        formattedDate.dateString.split(" ").map((segment, index, segments) => (
+                            <Box
+                                key={index}
+                                flexGrow={
+                                    display === "block" && index === segments.length - 1
+                                        ? "1"
+                                        : undefined
+                                }
+                                display="flex"
+                                alignItems="center"
+                                style={{
+                                    // Don't collapse space.
+                                    whiteSpace: "pre",
+                                }}
+                                paddingLeft={
+                                    !shouldIncludeCalendarIcon && index === 0 ? paddingX : undefined
+                                }
+                                paddingRight={index === segments.length - 1 ? paddingX : undefined}
+                                onClick={() => {
+                                    getNextFocusableElementIfExists(null, {
+                                        withinElement: assertExists(inputRef.current),
+                                        // NOTE(calebmer): Small UX improvement, focus the input segment the user
+                                        // clicked on. It's a little strange how the preview text transforms into
+                                        // editable text. Especially disorienting when you click the end and the start
+                                        // is focused. So attempt to focus the same segment the user clicked.
+                                        //
+                                        // We hope that the words separated by spaces in our date line up with the
+                                        // editable input segments which is the case with the en-US locale but this
+                                        // heuristic may need to be hardened for other locales.
+                                        skipElements: index,
+                                    })?.focus();
+                                }}
+                            >
+                                {segment}
+                                {index < segments.length - 1 && " "}
+                            </Box>
+                        ))
+                    )}
                 </Box>
             )}
             <OverlayAnimated
@@ -125,7 +163,7 @@ export function TaskDateInput({
                 // Focusing is a direct user interaction so don't animate. To focus out the
                 // user clicks somewhere else which is an indirect interaction so animate.
                 disableAnimationIn
-                placement="bottom-start"
+                placement={overlayPlacement}
                 offset={defaultTooltipOffset}
                 overlay={
                     <Box
@@ -173,6 +211,7 @@ export function TaskDateInput({
                             aria-labelledby={ariaLabelledBy}
                             isEditing={isEditing}
                             shouldIncludeCalendarIcon={shouldIncludeCalendarIcon}
+                            display={display}
                             height={height}
                             paddingX={paddingX}
                             color={color}

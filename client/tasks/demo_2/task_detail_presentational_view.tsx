@@ -443,7 +443,7 @@ const TaskDetailViewDenseFields = forwardRef(function TaskDetailViewDenseFields(
                                 onDateChange={onDueDateChange}
                                 shouldIncludeCalendarIcon={true}
                                 shouldWarnIfAfterDate={status.type === "Open"}
-                                shouldFormatToday={true}
+                                shouldFormatAroundToday={true}
                                 aria-labelledby={ariaLabelledBy}
                             />
                         </Box>

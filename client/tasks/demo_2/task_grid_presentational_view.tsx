@@ -18,11 +18,11 @@ import {useConstant} from "~/client/helpers/lifecycle/use_constant";
 import {TaskGridViewCapabilities} from "~/client/tasks/demo_2/internal/task_grid_view_capabilities";
 import {TaskGridViewDndContext} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
 import {
-    taskRowViewFirstColumnPaddingLeft,
-    taskRowViewFirstColumnWidth,
     taskRowViewCollectionsColumnWidth,
     taskRowViewColumnPaddingX,
     taskRowViewColumnWidth,
+    taskRowViewFirstColumnPaddingLeft,
+    taskRowViewFirstColumnWidth,
     taskRowViewMinHeight,
 } from "~/client/tasks/demo_2/internal/task_row_shared_styles";
 import {TaskRowViewDroppable} from "~/client/tasks/demo_2/internal/task_row_view_droppable";

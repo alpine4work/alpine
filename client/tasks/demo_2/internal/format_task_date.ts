@@ -6,15 +6,16 @@ export function formatTaskDate({
     locale,
     currentDate,
     date,
-    shouldFormatToday,
+    shouldFormatAroundToday,
 }: {
     timeZone: TimeZone;
     locale: string;
     currentDate: CalendarDate;
     date: CalendarDate;
-    shouldFormatToday: boolean;
+    shouldFormatAroundToday: boolean;
 }): {
     isAfterDate: boolean;
+    isFormattedAroundToday: boolean;
     dateString: string;
 } {
     const currentDateComparedWithDate = currentDate.compare(date);
@@ -22,12 +23,20 @@ export function formatTaskDate({
     const isAfterDate = currentDateComparedWithDate > 0;
 
     let dateString: string;
-    if (shouldFormatToday && currentDateComparedWithDate === 0) {
+    let isFormattedAroundToday: boolean;
+
+    if (shouldFormatAroundToday && currentDateComparedWithDate === 0) {
         dateString = "Today";
-    } else if (shouldFormatToday && currentDate.copy().subtract({days: 1}).compare(date) === 0) {
+        isFormattedAroundToday = true;
+    } else if (
+        shouldFormatAroundToday &&
+        currentDate.copy().subtract({days: 1}).compare(date) === 0
+    ) {
         dateString = "Yesterday";
-    } else if (shouldFormatToday && currentDate.copy().add({days: 1}).compare(date) === 0) {
+        isFormattedAroundToday = true;
+    } else if (shouldFormatAroundToday && currentDate.copy().add({days: 1}).compare(date) === 0) {
         dateString = "Tomorrow";
+        isFormattedAroundToday = true;
     } else {
         const isCurrentYear = currentDate.year === date.year;
 
@@ -40,10 +49,12 @@ export function formatTaskDate({
         });
 
         dateString = formatter.format(date.toDate(timeZone));
+        isFormattedAroundToday = false;
     }
 
     return {
         isAfterDate,
+        isFormattedAroundToday,
         dateString,
     };
 }

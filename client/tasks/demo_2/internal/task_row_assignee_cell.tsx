@@ -9,9 +9,9 @@ import {
     TaskAssigneeInputRef,
 } from "~/client/tasks/demo_2/internal/task_assignee_input";
 import {
+    taskRowViewColumnPaddingX,
     taskRowViewFirstColumnPaddingLeft,
     taskRowViewFirstColumnWidth,
-    taskRowViewColumnPaddingX,
     taskRowViewMinHeight,
 } from "~/client/tasks/demo_2/internal/task_row_shared_styles";
 import {TaskAssignee} from "~/client/tasks/demo_2/task_status_button";
@@ -48,9 +48,7 @@ export function TaskRowAssigneeCell({
             })}
             onFocus={() => setIsFocusWithin(true)}
             onBlur={event => {
-                if (!event.currentTarget.contains(event.relatedTarget)) {
-                    setIsFocusWithin(false);
-                }
+                setIsFocusWithin(event.currentTarget.contains(event.relatedTarget));
             }}
         >
             <Box
