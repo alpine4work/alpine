@@ -15,6 +15,7 @@ import {
 } from "react";
 import {Box} from "~/client/design/box";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
+import {TaskGridViewCapabilities} from "~/client/tasks/demo_2/internal/task_grid_view_capabilities";
 import {TaskGridViewDndContext} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
 import {TaskRowViewDroppable} from "~/client/tasks/demo_2/internal/task_row_view_droppable";
 import {
@@ -24,6 +25,7 @@ import {
 } from "~/client/tasks/demo_2/task_row_presentational_view";
 import {TaskAssignee, TaskStatus} from "~/client/tasks/demo_2/task_status_button";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
+import {addRemLengths, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {LazyMap} from "~/shared/helpers/control/lazy_map";
 import {noop} from "~/shared/helpers/control/noop";
@@ -47,6 +49,7 @@ const TaskGridPresentationalViewForwardRef = forwardRef(TaskGridPresentationalVi
 export {TaskGridPresentationalViewForwardRef as TaskGridPresentationalView};
 
 export type TaskGridPresentationalViewProps<TaskRow> = {
+    capabilities: TaskGridViewCapabilities;
     taskGhostRowPlaceholder?: string;
     taskRowCount: number;
     getTaskRow: (index: number) => TaskRow;
@@ -57,14 +60,11 @@ export type TaskGridPresentationalViewProps<TaskRow> = {
     onTaskStatusChange: (taskRow: TaskRow, status: TaskStatus) => void;
     getTaskTitle: (taskRow: TaskRow) => TaskTitle;
     onTaskTitleChange: (taskRow: TaskRow, title: TaskTitle) => void;
-    shouldRenderMultilineTitle: boolean;
     getTaskAssignee: (taskRow: TaskRow) => TaskAssignee | null;
     onTaskAssigneeChange: (taskRow: TaskRow, assignee: TaskAssignee | null) => void;
     getTaskDueDate: (taskRow: TaskRow) => CalendarDate | null;
     onTaskDueDateChange: (taskRow: TaskRow, dueDate: CalendarDate | null) => void;
-    shouldShowDenseAssigneeAndDueDate: boolean;
     getTaskParentTaskTitle: (taskRow: TaskRow) => TaskTitle | null;
-    shouldShowParentTaskTitle: boolean;
     getTaskChildTaskCount: (taskRow: TaskRow) => number;
     getTaskClosedChildTaskCount: (taskRow: TaskRow) => number;
     getTaskAreChildTasksCollapsed: (taskRow: TaskRow) => boolean;
@@ -92,6 +92,7 @@ export type TaskGridPresentationalViewProps<TaskRow> = {
 
 function TaskGridPresentationalView<TaskRow>(
     {
+        capabilities,
         taskGhostRowPlaceholder = "Add a task…",
         taskRowCount,
         getTaskRow,
@@ -102,14 +103,11 @@ function TaskGridPresentationalView<TaskRow>(
         onTaskStatusChange,
         getTaskTitle,
         onTaskTitleChange,
-        shouldRenderMultilineTitle,
         getTaskAssignee,
         onTaskAssigneeChange,
         getTaskDueDate,
         onTaskDueDateChange,
-        shouldShowDenseAssigneeAndDueDate,
         getTaskParentTaskTitle,
-        shouldShowParentTaskTitle,
         getTaskChildTaskCount,
         getTaskClosedChildTaskCount,
         getTaskAreChildTasksCollapsed,
@@ -197,20 +195,18 @@ function TaskGridPresentationalView<TaskRow>(
             <TaskRowPresentationalView
                 key={`${topGhostTaskKey}-0`}
                 ref={topGhostTaskRowRef}
+                capabilities={capabilities}
                 taskRow={null}
                 status={null}
                 onStatusChange={noop}
                 title={emptyTaskTitle}
                 onTitleChange={title => createTaskAtStartFromTopGhostWithoutNewGhost(title)}
                 titlePlaceholder="Add a task…"
-                shouldRenderMultilineTitle={shouldRenderMultilineTitle}
                 assignee={null}
                 onAssigneeChange={noop}
                 dueDate={null}
                 onDueDateChange={noop}
-                shouldShowDenseAssigneeAndDueDate={false}
                 parentTaskTitle={null}
-                shouldShowParentTaskTitle={false}
                 childTaskCount={0}
                 closedChildTaskCount={0}
                 areChildTasksCollapsed={false}
@@ -287,19 +283,17 @@ function TaskGridPresentationalView<TaskRow>(
                 // So disambiguate by adding the indentation level the task is at.
                 key={`${getTaskKey(taskRow)}-${taskRowIndentation}`}
                 ref={taskRowRefByIndex.get(index)}
+                capabilities={capabilities}
                 taskRow={taskRow}
                 status={getTaskStatus(taskRow)}
                 onStatusChange={status => onTaskStatusChange(taskRow, status)}
                 title={getTaskTitle(taskRow)}
                 onTitleChange={title => onTaskTitleChange(taskRow, title)}
-                shouldRenderMultilineTitle={shouldRenderMultilineTitle}
                 assignee={getTaskAssignee(taskRow)}
                 onAssigneeChange={assignee => onTaskAssigneeChange(taskRow, assignee)}
                 dueDate={getTaskDueDate(taskRow)}
                 onDueDateChange={dueDate => onTaskDueDateChange(taskRow, dueDate)}
-                shouldShowDenseAssigneeAndDueDate={shouldShowDenseAssigneeAndDueDate}
                 parentTaskTitle={getTaskParentTaskTitle(taskRow)}
-                shouldShowParentTaskTitle={shouldShowParentTaskTitle}
                 childTaskCount={getTaskChildTaskCount(taskRow)}
                 closedChildTaskCount={getTaskClosedChildTaskCount(taskRow)}
                 areChildTasksCollapsed={getTaskAreChildTasksCollapsed(taskRow)}
@@ -378,6 +372,7 @@ function TaskGridPresentationalView<TaskRow>(
         <TaskRowPresentationalView
             key={`${bottomGhostTaskKey}-0`}
             ref={bottomGhostTaskRowRef}
+            capabilities={capabilities}
             // If there are no task rows, the padding just makes our ghost row placeholder
             // look misaligned. So remove it.
             withoutPaddingLeft={taskRowCount === 0}
@@ -387,14 +382,11 @@ function TaskGridPresentationalView<TaskRow>(
             title={emptyTaskTitle}
             onTitleChange={title => createTaskAtEndFromBottomGhost(title)}
             titlePlaceholder={taskGhostRowPlaceholder}
-            shouldRenderMultilineTitle={shouldRenderMultilineTitle}
             assignee={null}
             onAssigneeChange={noop}
             dueDate={null}
             onDueDateChange={noop}
-            shouldShowDenseAssigneeAndDueDate={false}
             parentTaskTitle={null}
-            shouldShowParentTaskTitle={false}
             childTaskCount={0}
             closedChildTaskCount={0}
             areChildTasksCollapsed={false}
@@ -491,6 +483,69 @@ function TaskGridPresentationalView<TaskRow>(
             moveTaskToParentTop={moveTaskToParentTop}
         >
             <Box position="relative" zIndex="0">
+                {capabilities.hasColumns && (
+                    <Box display="flex">
+                        <Box
+                            flexShrink="0"
+                            width="32"
+                            paddingLeft="5"
+                            paddingBottom="1"
+                            color="grey-50"
+                            fontSize="50"
+                        >
+                            Name
+                        </Box>
+                        <Box flexGrow="1" />
+                        <Box
+                            flexShrink="0"
+                            style={{
+                                width: `calc(${addRemLengths(
+                                    spacing["32"],
+                                    spacing["1.5"],
+                                    spacing["3"],
+                                )})`,
+                            }}
+                            paddingLeft="6"
+                            paddingRight="1.5"
+                            paddingBottom="1"
+                            color="grey-50"
+                            fontSize="50"
+                        >
+                            Assignee
+                        </Box>
+                        <Box
+                            flexShrink="0"
+                            width="32"
+                            paddingX="1.5"
+                            paddingBottom="1"
+                            color="grey-50"
+                            fontSize="50"
+                        >
+                            Due date
+                        </Box>
+                        <Box
+                            flexShrink="0"
+                            width="32"
+                            paddingX="1.5"
+                            paddingBottom="1"
+                            color="grey-50"
+                            fontSize="50"
+                        >
+                            Priority
+                        </Box>
+                        <Box
+                            flexShrink="0"
+                            width="48"
+                            paddingX="1.5"
+                            paddingBottom="1"
+                            color="grey-50"
+                            fontSize="50"
+                        >
+                            Collections
+                        </Box>
+                        <Box flexShrink="0" width="5" />
+                    </Box>
+                )}
                 {!hasTopGhostTaskRow && (
                     <Box position="relative" height="0">
                         <TaskRowViewDroppable

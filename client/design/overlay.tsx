@@ -450,7 +450,13 @@ const OverlaySinkContext = createContext<{
  * That way the overlays naturally scroll with the element and can't render
  * outside the element.
  */
-export function OverlayScopeContextProvider({children}: {children: ReactNode}) {
+export function OverlayScopeContextProvider({
+    children,
+    zIndex = "50",
+}: {
+    children: ReactNode;
+    zIndex?: "50" | "60" | "70";
+}) {
     const parentOverlaySink = useContext(OverlaySinkContext);
     const portalRef = useRef<HTMLDivElement>(null);
 
@@ -476,7 +482,7 @@ export function OverlayScopeContextProvider({children}: {children: ReactNode}) {
                 // to the bottom of the nested scroll view.
                 height="0"
                 // Render above anything on the page.
-                zIndex="50"
+                zIndex={zIndex}
             />
         </OverlaySinkContext.Provider>
     );

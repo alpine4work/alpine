@@ -182,6 +182,15 @@ function TaskNotepadGridView(
     return (
         <TaskGridPresentationalView<TaskNotepadGridViewRow>
             ref={useMergedRefs(ref, gridViewRef)}
+            capabilities={useMemo(
+                () => ({
+                    hasColumns: true,
+                    hasParentTaskTitle: false,
+                    hasMultilineTitle: false,
+                    hasDenseAssigneeAndDueDate: false,
+                }),
+                [],
+            )}
             taskGhostRowPlaceholder={taskGhostRowPlaceholder}
             taskRowCount={taskRows.length}
             getTaskRow={index => taskRows[index]!}
@@ -196,7 +205,6 @@ function TaskNotepadGridView(
                     status,
                 });
             }}
-            shouldRenderMultilineTitle={false}
             getTaskTitle={({task}) => task.title}
             onTaskTitleChange={({task: {id: taskId}}, title) => {
                 dispatch({
@@ -205,7 +213,6 @@ function TaskNotepadGridView(
                     title,
                 });
             }}
-            shouldShowDenseAssigneeAndDueDate={false}
             getTaskAssignee={({task}) => task.assignee}
             onTaskAssigneeChange={({task: {id: taskId}}, assignee) => {
                 dispatch({
@@ -222,7 +229,6 @@ function TaskNotepadGridView(
                     dueDate,
                 });
             }}
-            shouldShowParentTaskTitle={true}
             getTaskParentTaskTitle={({task}) =>
                 task.parentTaskId ? state.database.getTask(task.parentTaskId).title : null
             }

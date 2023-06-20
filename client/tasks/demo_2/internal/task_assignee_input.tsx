@@ -2,7 +2,17 @@ import {isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
 import Fuse from "fuse.js";
 import {Check, MagnifyingGlass} from "phosphor-react";
-import {RefObject, cloneElement, isValidElement, useMemo, useRef, useState} from "react";
+import {
+    Ref,
+    RefObject,
+    cloneElement,
+    forwardRef,
+    isValidElement,
+    useImperativeHandle,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {
     AriaListBoxOptions,
     mergeProps,
@@ -58,23 +68,33 @@ type TaskAssigneeInputState =
           readonly hasChanged: boolean;
       };
 
-export function TaskAssigneeInput({
-    assigneeAccount,
-    onAssigneeAccountChange,
-    "aria-label": ariaLabel,
-    "aria-labelledby": ariaLabelledBy,
-    color = "grey-text",
-    avatarSize = "5",
-    shouldDisplayShortName,
-}: {
-    assigneeAccount: AccountModel | null;
-    onAssigneeAccountChange: (assigneeAccount: AccountModel | null) => void;
-    "aria-label"?: string;
-    "aria-labelledby"?: string;
-    color?: "grey-text" | "grey-60";
-    avatarSize?: "5" | "4";
-    shouldDisplayShortName?: boolean;
-}) {
+export type TaskAssigneeInputRef = {
+    focus(): void;
+};
+
+const TaskAssigneeInputForwardRef = forwardRef(TaskAssigneeInput);
+export {TaskAssigneeInputForwardRef as TaskAssigneeInput};
+
+function TaskAssigneeInput(
+    {
+        assigneeAccount,
+        onAssigneeAccountChange,
+        "aria-label": ariaLabel,
+        "aria-labelledby": ariaLabelledBy,
+        color = "grey-text",
+        avatarSize = "5",
+        shouldDisplayShortName,
+    }: {
+        assigneeAccount: AccountModel | null;
+        onAssigneeAccountChange: (assigneeAccount: AccountModel | null) => void;
+        "aria-label"?: string;
+        "aria-labelledby"?: string;
+        color?: "grey-text" | "grey-60";
+        avatarSize?: "5" | "4";
+        shouldDisplayShortName?: boolean;
+    },
+    ref: Ref<TaskAssigneeInputRef>,
+) {
     const {currentAccount} = useSpaceContext();
 
     const [inputState, setInputState] = useState<TaskAssigneeInputState>({
@@ -221,6 +241,14 @@ export function TaskAssigneeInput({
             "aria-labelledby": ariaLabelledBy,
         },
         comboBoxState,
+    );
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            focus: () => assertExists(inputRef.current).focus(),
+        }),
+        [],
     );
 
     return (

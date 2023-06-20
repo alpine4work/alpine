@@ -185,6 +185,15 @@ export function TaskView({
                     parentPositionStack: ReadonlyArray<TaskViewChildTasksGridViewRowPosition>;
                     task: LocalTask;
                 }>
+                    capabilities={useMemo(
+                        () => ({
+                            hasMultilineTitle: true,
+                            hasDenseAssigneeAndDueDate: true,
+                            hasParentTaskTitle: false,
+                            hasColumns: false,
+                        }),
+                        [],
+                    )}
                     taskRowCount={childTaskRows.length}
                     getTaskRow={index => childTaskRows[index]!}
                     topGhostTaskKey={topTaskGhostRowId}
@@ -198,7 +207,6 @@ export function TaskView({
                             status,
                         });
                     }}
-                    shouldRenderMultilineTitle={true}
                     getTaskTitle={({task}) => task.title}
                     onTaskTitleChange={({task: {id: taskId}}, title) => {
                         dispatch({
@@ -207,7 +215,6 @@ export function TaskView({
                             title,
                         });
                     }}
-                    shouldShowDenseAssigneeAndDueDate={true}
                     getTaskAssignee={({task}) => task.assignee}
                     onTaskAssigneeChange={({task: {id: taskId}}, assignee) => {
                         dispatch({
@@ -224,7 +231,6 @@ export function TaskView({
                             dueDate,
                         });
                     }}
-                    shouldShowParentTaskTitle={false}
                     getTaskParentTaskTitle={({task}) =>
                         task.parentTaskId ? state.database.getTask(task.parentTaskId).title : null
                     }

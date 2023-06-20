@@ -138,6 +138,15 @@ function TaskQueryGridView(
     return (
         <TaskGridPresentationalView<TaskQueryGridViewRow>
             ref={useMergedRefs(ref, gridViewRef)}
+            capabilities={useMemo(
+                () => ({
+                    hasParentTaskTitle: true,
+                    hasColumns: true,
+                    hasMultilineTitle: false,
+                    hasDenseAssigneeAndDueDate: false,
+                }),
+                [],
+            )}
             taskRowCount={taskRows.length}
             getTaskRow={index => taskRows[index]!}
             topGhostTaskKey={topTaskGhostRowId}
@@ -151,7 +160,6 @@ function TaskQueryGridView(
                     status,
                 });
             }}
-            shouldRenderMultilineTitle={false}
             getTaskTitle={({task}) => task.title}
             onTaskTitleChange={({task: {id: taskId}}, title) => {
                 dispatch({
@@ -160,7 +168,6 @@ function TaskQueryGridView(
                     title,
                 });
             }}
-            shouldShowDenseAssigneeAndDueDate={false}
             getTaskAssignee={({task}) => task.assignee}
             onTaskAssigneeChange={({task: {id: taskId}}, assignee) => {
                 dispatch({
@@ -177,7 +184,6 @@ function TaskQueryGridView(
                     dueDate,
                 });
             }}
-            shouldShowParentTaskTitle={true}
             getTaskParentTaskTitle={({task}) =>
                 task.parentTaskId ? state.database.getTask(task.parentTaskId).title : null
             }

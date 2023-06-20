@@ -70,7 +70,7 @@ export function TaskQueryView({
                 onSelectAll: () => assertExists(gridViewRef.current).focusEnd(),
             })}
         >
-            <Box paddingY="5" paddingX="5">
+            <Box paddingTop="5" paddingBottom="7" paddingX="5">
                 <TaskQueryViewCustomizationBar
                     shouldCollapseWhenFiltersAreEmpty={false}
                     defaultOrderSentence="By default, tasks are ordered by created date."

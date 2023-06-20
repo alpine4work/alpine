@@ -1,0 +1,47 @@
+/**
+ * Type for describing the various capabilities of the grid view you're working
+ * with. Different grid view variants will have different capabilities. Some
+ * capabilities are not compatible with others.
+ *
+ * Capabilities and variants are two different code styles for configuring a
+ * component that renders in many different contexts. For variants you
+ * enumerate what contexts the component renders in (detail view subtasks,
+ * collection view, query view, notepad view). For capabilities you enumerate
+ * the features that change across contexts and let the contexts enable/disable
+ * features.
+ *
+ * Generally I've found capabilities configuration to be cleaner since when
+ * writing code that's toggled on a capability you have one boolean to check
+ * instead of doing `variant === X || variant === Y`. The interface of the
+ * component is more clear.
+ */
+export type TaskGridViewCapabilities =
+    // Can't set both `hasParentTaskTitle` and `hasMultilineTitle` to true.
+    (
+        | {
+              hasParentTaskTitle: false;
+              hasMultilineTitle: false;
+          }
+        | {
+              hasParentTaskTitle: true;
+              hasMultilineTitle: false;
+          }
+        | {
+              hasParentTaskTitle: false;
+              hasMultilineTitle: true;
+          }
+    ) &
+        // Can't set both `hasDenseAssigneeAndDueDate` and `hasColumns` to true.
+        (| {
+                  hasDenseAssigneeAndDueDate: false;
+                  hasColumns: false;
+              }
+            | {
+                  hasDenseAssigneeAndDueDate: true;
+                  hasColumns: false;
+              }
+            | {
+                  hasDenseAssigneeAndDueDate: false;
+                  hasColumns: true;
+              }
+        );

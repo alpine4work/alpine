@@ -9,7 +9,6 @@ import {
     RefAttributes,
     forwardRef,
     useCallback,
-    useEffect,
     useId,
     useImperativeHandle,
     useRef,
@@ -22,12 +21,15 @@ import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_
 import {IconButton} from "~/client/design/icon_button";
 import {MenuAction} from "~/client/design/menu_button";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
+import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {getTaskStatusMenuActions} from "~/client/tasks/demo_2/internal/get_task_status_menu_actions";
 import {TaskAssigneeInput} from "~/client/tasks/demo_2/internal/task_assignee_input";
 import {TaskDateInput} from "~/client/tasks/demo_2/internal/task_date_input";
+import {TaskGridViewCapabilities} from "~/client/tasks/demo_2/internal/task_grid_view_capabilities";
 import {TaskGridViewDraggableData} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
+import {TaskRowAssigneeCell} from "~/client/tasks/demo_2/internal/task_row_assignee_cell";
 import {
     TaskRowTitleInput,
     TaskRowTitleInputRef,
@@ -65,20 +67,18 @@ const TaskRowPresentationalViewForwardRef = forwardRef(TaskRowPresentationalView
 export {TaskRowPresentationalViewForwardRef as TaskRowPresentationalView};
 
 type TaskRowPresentationalViewProps<TaskRow> = {
+    capabilities: TaskGridViewCapabilities;
     taskRow: TaskRow | null;
     status: TaskStatus | null;
     onStatusChange: (status: TaskStatus) => void;
     title: TaskTitle;
     onTitleChange: (title: TaskTitle) => void;
-    shouldRenderMultilineTitle: boolean;
     titlePlaceholder?: string;
     assignee: TaskAssignee | null;
     onAssigneeChange: (assignee: TaskAssignee | null) => void;
     dueDate: CalendarDate | null;
     onDueDateChange: (dueDate: CalendarDate | null) => void;
-    shouldShowDenseAssigneeAndDueDate: boolean;
     parentTaskTitle: TaskTitle | null;
-    shouldShowParentTaskTitle: boolean;
     childTaskCount: number;
     closedChildTaskCount: number;
     areChildTasksCollapsed: boolean;
@@ -101,20 +101,18 @@ type TaskRowPresentationalViewProps<TaskRow> = {
 
 function TaskRowPresentationalView<TaskRow>(
     {
+        capabilities,
         taskRow,
         status,
         onStatusChange,
         title,
         onTitleChange,
         titlePlaceholder,
-        shouldRenderMultilineTitle,
         assignee,
         onAssigneeChange,
         dueDate,
         onDueDateChange,
-        shouldShowDenseAssigneeAndDueDate,
         parentTaskTitle,
-        shouldShowParentTaskTitle,
         childTaskCount,
         closedChildTaskCount,
         areChildTasksCollapsed,
@@ -139,7 +137,6 @@ function TaskRowPresentationalView<TaskRow>(
     const {timeZone} = useClientInfo();
     const {currentAccount} = useSpaceContext();
 
-    const rowRef = useRef<HTMLDivElement>(null);
     const titleInputRef = useRef<TaskRowTitleInputRef>(null);
     const denseAssigneeAndDueDateRef = useRef<TaskRowViewDenseAssigneeAndDueDateFieldsRef>(null);
 
@@ -171,42 +168,7 @@ function TaskRowPresentationalView<TaskRow>(
         focusTitleSelection,
     }));
 
-    const [isHovered, setIsHovered] = useState(false);
-
-    useEffect(() => {
-        const rowElement = assertExists(rowRef.current);
-
-        const handlePointerEnter = () => setIsHovered(true);
-        const handlePointerLeave = () => setIsHovered(false);
-
-        rowElement.addEventListener("pointerenter", handlePointerEnter);
-        rowElement.addEventListener("pointerleave", handlePointerLeave);
-        return () => {
-            rowElement.removeEventListener("pointerenter", handlePointerEnter);
-            rowElement.removeEventListener("pointerleave", handlePointerLeave);
-        };
-    }, []);
-
-    // If we have received a `pointerenter` event, then listen for `pointerenter`
-    // events on `document` which will happen if the mouse enters an element that
-    // occludes our own. If the pointer enters an occluding element we should set
-    // `isHovered` to false.
-    useEffect(() => {
-        if (!isHovered) return;
-
-        const rowElement = assertExists(rowRef.current);
-
-        const handleDocumentPointerEnter = (event: PointerEvent) => {
-            if (!event.currentTarget || event.currentTarget instanceof Node) {
-                setIsHovered(rowElement.contains(event.currentTarget));
-            }
-        };
-
-        document.addEventListener("pointerenter", handleDocumentPointerEnter);
-        return () => {
-            document.removeEventListener("pointerenter", handleDocumentPointerEnter);
-        };
-    }, [isHovered]);
+    const [isHovered, hoverRef] = useHoverWithOverlaySupport();
 
     const {
         attributes: draggableAttributes,
@@ -247,7 +209,7 @@ function TaskRowPresentationalView<TaskRow>(
             );
         }
 
-        if (shouldShowDenseAssigneeAndDueDate) {
+        if (capabilities.hasDenseAssigneeAndDueDate) {
             contextMenuActions.push([
                 {
                     label: assignee ? "Edit assignee" : "Add assignee",
@@ -294,7 +256,7 @@ function TaskRowPresentationalView<TaskRow>(
     return (
         <ContextMenuActions actions={contextMenuActions}>
             <Box
-                ref={rowRef}
+                ref={hoverRef}
                 minHeight={taskRowViewMinHeight}
                 position="relative"
                 // NOTE(calebmer): Setting z-index here creates a new stacking context which
@@ -423,13 +385,12 @@ function TaskRowPresentationalView<TaskRow>(
                     <Box flexGrow="1" overflow="hidden">
                         <TaskRowTitleInput
                             ref={titleInputRef}
+                            capabilities={capabilities}
                             title={title}
                             onTitleChange={onTitleChange}
-                            shouldRenderMultilineTitle={shouldRenderMultilineTitle}
                             placeholder={titlePlaceholder}
                             indentation={indentation}
                             parentTaskTitle={parentTaskTitle}
-                            shouldShowParentTaskTitle={shouldShowParentTaskTitle}
                             childTaskCount={childTaskCount}
                             closedChildTaskCount={closedChildTaskCount}
                             areChildTasksCollapsed={areChildTasksCollapsed}
@@ -450,6 +411,17 @@ function TaskRowPresentationalView<TaskRow>(
                             focusLastTaskTitleEnd={focusLastTaskTitleEnd}
                         />
                     </Box>
+                    {capabilities.hasColumns && (
+                        <>
+                            <TaskRowAssigneeCell
+                                assignee={assignee}
+                                onAssigneeChange={onAssigneeChange}
+                            />
+                            <Box flexShrink="0" width="32" paddingX="1.5" overflow="hidden"></Box>
+                            <Box flexShrink="0" width="32" paddingX="1.5" overflow="hidden"></Box>
+                            <Box flexShrink="0" width="48" paddingX="1.5" overflow="hidden"></Box>
+                        </>
+                    )}
                     <Box
                         flexShrink="0"
                         width="5"
@@ -466,7 +438,7 @@ function TaskRowPresentationalView<TaskRow>(
                         })}
                     />
                 </Box>
-                {shouldShowDenseAssigneeAndDueDate && (
+                {capabilities.hasDenseAssigneeAndDueDate && (
                     <TaskRowViewDenseAssigneeAndDueDateFields
                         ref={denseAssigneeAndDueDateRef}
                         status={status}

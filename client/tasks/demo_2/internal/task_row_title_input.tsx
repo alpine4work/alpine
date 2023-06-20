@@ -16,10 +16,10 @@ import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keybo
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
+import {TaskGridViewCapabilities} from "~/client/tasks/demo_2/internal/task_grid_view_capabilities";
 import {TaskRowTitleChildTasksButton} from "~/client/tasks/demo_2/internal/task_row_title_child_tasks_button";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
 import {Spacing, spacing} from "~/shared/design/spacing";
-import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {noop} from "~/shared/helpers/control/noop";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
@@ -93,13 +93,12 @@ export {TaskRowTitleInputForwardRef as TaskRowTitleInput};
 
 function TaskRowTitleInput(
     {
+        capabilities,
         title,
         onTitleChange,
-        shouldRenderMultilineTitle,
         placeholder,
         indentation,
         parentTaskTitle,
-        shouldShowParentTaskTitle,
         childTaskCount,
         closedChildTaskCount,
         areChildTasksCollapsed,
@@ -115,13 +114,12 @@ function TaskRowTitleInput(
         focusFirstTaskTitleStart,
         focusLastTaskTitleEnd,
     }: {
+        capabilities: TaskGridViewCapabilities;
         title: TaskTitle;
         onTitleChange: (title: TaskTitle) => void;
-        shouldRenderMultilineTitle: boolean;
         placeholder?: string;
         indentation: number;
         parentTaskTitle: TaskTitle | null;
-        shouldShowParentTaskTitle: boolean;
         childTaskCount: number;
         closedChildTaskCount: number;
         areChildTasksCollapsed: boolean;
@@ -139,11 +137,6 @@ function TaskRowTitleInput(
     },
     ref: Ref<TaskRowTitleInputRef>,
 ) {
-    assert(
-        !shouldRenderMultilineTitle || !shouldShowParentTaskTitle,
-        "Can't set both `shouldRenderMultilineTitle` and `shouldShowParentTaskTitle` to true, they are incompatible",
-    );
-
     const isInitialAppRender = useIsInitialAppRender();
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -344,12 +337,12 @@ function TaskRowTitleInput(
         });
 
         view.dom.ariaLabel = taskRowTitleInputAriaLabel;
-        view.dom.className = shouldRenderMultilineTitle
+        view.dom.className = capabilities.hasMultilineTitle
             ? taskRowTitleInputMultilineClassName
             : taskRowTitleInputSingleLineClassName;
         Object.assign(
             view.dom.style,
-            shouldRenderMultilineTitle
+            capabilities.hasMultilineTitle
                 ? taskRowTitleInputMultilineStyle
                 : taskRowTitleInputSingleLineStyle,
         );
@@ -386,7 +379,7 @@ function TaskRowTitleInput(
         // IMPORTANT: We want to maintain the `EditorView` instance during updates. Be
         // careful about what you put in here. Ideally we never destroy the
         // `EditorView` while this component is mounted.
-    }, [isInitialAppRender, shouldRenderMultilineTitle]);
+    }, [capabilities.hasMultilineTitle, isInitialAppRender]);
 
     // Update our `EditorView`'s `EditorState` whenever it changes.
     useLayoutEffectWithoutServerSideWarning(() => {
@@ -519,12 +512,12 @@ function TaskRowTitleInput(
                     // `EditorView` until we are on the client.
                     <div
                         className={
-                            shouldRenderMultilineTitle
+                            capabilities.hasMultilineTitle
                                 ? taskRowTitleInputMultilineClassName
                                 : taskRowTitleInputSingleLineClassName
                         }
                         style={
-                            shouldRenderMultilineTitle
+                            capabilities.hasMultilineTitle
                                 ? taskRowTitleInputMultilineStyle
                                 : taskRowTitleInputSingleLineStyle
                         }
@@ -557,7 +550,7 @@ function TaskRowTitleInput(
                         zIndex: "-10",
                     })}
                     style={{
-                        ...(shouldRenderMultilineTitle
+                        ...(capabilities.hasMultilineTitle
                             ? taskRowTitleInputMultilineStyle
                             : taskRowTitleInputSingleLineStyle),
                         ...inputPlaceholderStyles,
@@ -589,7 +582,7 @@ function TaskRowTitleInput(
                         }),
                     )}
                 >
-                    {shouldShowParentTaskTitle && parentTaskTitle && indentation === 0 && (
+                    {capabilities.hasParentTaskTitle && parentTaskTitle && indentation === 0 && (
                         <div
                             className={sprinkles({
                                 pointerEvents: "none",

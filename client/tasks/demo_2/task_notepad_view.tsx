@@ -145,7 +145,7 @@ function TaskNotepadViewInner({
                 <Box height="16" />
                 <Box
                     paddingX="5"
-                    paddingBottom="4"
+                    paddingBottom="6"
                     display="flex"
                     alignItems="center"
                     justifyContent="space-between"
