@@ -61,6 +61,7 @@ export function TaskRowDueDateCell({
                     height="full"
                     paddingX={taskRowViewColumnPaddingX}
                     overlayPlacement="bottom"
+                    overlayOffset="-1"
                     focusRingAroundText={true}
                     shouldIncludeCalendarIcon={true}
                     shouldWarnIfAfterDate={true}

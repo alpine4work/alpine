@@ -11,7 +11,7 @@ import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour";
 import {formatTaskDate} from "~/client/tasks/demo_2/internal/format_task_date";
 import {TaskDateInputCalendar} from "~/client/tasks/demo_2/internal/task_date_input_calendar";
 import {TaskDateInputText} from "~/client/tasks/demo_2/internal/task_date_input_text";
-import {spacing} from "~/shared/design/spacing";
+import {RemLength, Spacing, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 
 /**
@@ -32,6 +32,7 @@ export function TaskDateInput({
     paddingX = "0",
     color = "grey-text",
     overlayPlacement = "bottom-end",
+    overlayOffset = defaultTooltipOffset,
     focusRingOffset,
     focusRingAroundText = false,
 }: {
@@ -47,6 +48,7 @@ export function TaskDateInput({
     paddingX?: "0" | "1" | "1.5";
     color?: "grey-text" | "grey-60";
     overlayPlacement?: OverlayPlacement;
+    overlayOffset?: Spacing | `-${Spacing}` | RemLength;
     focusRingOffset?: "0";
     focusRingAroundText?: boolean;
 }) {
@@ -165,7 +167,7 @@ export function TaskDateInput({
                 // user clicks somewhere else which is an indirect interaction so animate.
                 disableAnimationIn
                 placement={overlayPlacement}
-                offset={defaultTooltipOffset}
+                offset={overlayOffset}
                 overlay={
                     <Box
                         borderRadius="md"
