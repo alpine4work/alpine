@@ -11,7 +11,7 @@ import {
     taskRowViewMinHeight,
 } from "~/client/tasks/demo_2/internal/task_row_shared_styles";
 import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
-import {addRemLengths, spacing} from "~/shared/design/spacing";
+import {addRemLengths, spacing, subtractRemLengths} from "~/shared/design/spacing";
 import {emptyArray} from "~/shared/helpers/array/empty_array";
 import {colorSchemeVars, inputPlaceholderStyles} from "~/shared/styles/styles";
 
@@ -46,7 +46,8 @@ export function TaskRowCollectionsCell({
                         height={taskRowViewMinHeight}
                         display="flex"
                         alignItems="center"
-                        gap="3"
+                        rowGap="3"
+                        columnGap="2.5"
                         pointerEvents="none"
                     >
                         {collections.length === 0 ? (
@@ -96,24 +97,25 @@ export function TaskRowCollectionsCell({
                 backgroundColor="grey-0"
                 minHeight={taskRowViewMinHeight}
                 // NOCOMMIT: Max height and scroll
-                paddingY="2.5"
                 opacity={!isEditing ? "0" : "100"}
                 pointerEvents={!isEditing ? "none" : undefined}
                 borderRadius="sm"
                 style={{
-                    width: addRemLengths(spacing[taskRowViewCollectionsColumnWidth], spacing["1"]),
-                    paddingLeft: addRemLengths(spacing[taskRowViewColumnPaddingX], spacing["1"]),
-                    paddingRight: addRemLengths(
-                        spacing[taskRowViewLastColumnPaddingRight],
-                        spacing["2.5"],
+                    width: addRemLengths(
+                        spacing[taskRowViewCollectionsColumnWidth],
+                        subtractRemLengths(spacing["2.5"], spacing[taskRowViewColumnPaddingX]),
                     ),
                     // Draw the top and bottom border with a shadow so it lines up with rows.
                     boxShadow: `0 -1px 0 0 ${colorSchemeVars["grey-0"]}, 0 0 0 2px ${colorSchemeVars["theme-30-const"]}, 0 -1px 0 2px ${colorSchemeVars["theme-30-const"]}`,
                 }}
+                onFocus={() => onEditingChange(true)}
             >
                 <TaskCollectionsInput
                     aria-label="Collections"
                     isReadOnly={!isEditing}
+                    areMarginsClickable={true}
+                    paddingX="2.5"
+                    paddingY="2.5"
                     allCollections={emptyArray}
                     collections={collections}
                     createCollectionAndAddToTask={() => {

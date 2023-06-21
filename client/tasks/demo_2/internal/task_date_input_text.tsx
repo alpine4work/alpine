@@ -101,7 +101,7 @@ export function TaskDateInputText({
                                     event.preventDefault();
                                 }
                             }}
-                            onClick={event => {
+                            onClick={() => {
                                 getNextFocusableElementIfExists(null, {
                                     withinElement: assertExists(ref.current),
                                 })?.focus();

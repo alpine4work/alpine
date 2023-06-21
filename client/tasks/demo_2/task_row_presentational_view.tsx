@@ -453,7 +453,8 @@ function TaskRowPresentationalView<TaskRow>(
                         //
                         // This is an affordance for mouse users, does not need to be usable
                         // by keyboard.
-                        cursor="text"
+                        cursor={capabilities.hasColumns ? undefined : "text"}
+                        pointerEvents={capabilities.hasColumns ? "none" : undefined}
                         {...useOutOfBoundsClickSelection({
                             onSelect: focusTitleEnd,
                             onSelectAll: focusTitleAll,

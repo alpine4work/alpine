@@ -125,6 +125,13 @@ export function addRemLengths(...remLengths: Array<RemLength>): RemLength {
 }
 
 /**
+ * Subtract one `RemLength` from another.
+ */
+export function subtractRemLengths(remLength1: RemLength, remLength2: RemLength): RemLength {
+    return `${parseRemLengthNumber(remLength1) - parseRemLengthNumber(remLength2)}rem`;
+}
+
+/**
  * Flips a positive `RemLength` to a negative `RemLength` and flips a negative
  * `RemLength` to a positive `RemLength`.
  */

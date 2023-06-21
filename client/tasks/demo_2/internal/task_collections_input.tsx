@@ -41,6 +41,7 @@ import {
 } from "~/client/tasks/demo_2/internal/task_collection_chip";
 import {
     TaskCollectionChipBase,
+    taskCollectionChipBorderRadius,
     taskCollectionChipHeight,
     taskCollectionChipPaddingY,
 } from "~/client/tasks/demo_2/internal/task_collection_chip_base";
@@ -56,7 +57,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {randomInteger} from "~/shared/helpers/number/random_integer";
 import {generateId, isId} from "~/shared/id/id";
 import {LocalTaskCollectionId} from "~/shared/id/types/id_types";
-import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles";
+import {inputPlaceholderStyles, sprinkles, tasksStyles} from "~/shared/styles/styles";
 
 type TaskDetailCollectionsFieldItem =
     | TaskDetailCollectionsFieldCollectionItem
@@ -93,6 +94,9 @@ export function TaskCollectionsInput({
     "aria-label": ariaLabel,
     "aria-labelledby": ariaLabelledBy,
     isReadOnly,
+    areMarginsClickable = false,
+    paddingX,
+    paddingY,
 }: {
     allCollections: ReadonlyArray<LocalTaskCollection>;
     collections: ReadonlyArray<LocalTaskCollection>;
@@ -108,6 +112,9 @@ export function TaskCollectionsInput({
     // The difference between being disabled and being read-only is that read-only
     // fields are still focusable.
     isReadOnly?: boolean;
+    areMarginsClickable?: boolean;
+    paddingX?: "2.5";
+    paddingY?: "2.5";
 }) {
     const rootNavigate = useRootNavigate();
     const showToast = useShowToast();
@@ -416,8 +423,13 @@ export function TaskCollectionsInput({
                 <Box
                     ref={collectionRefs[index]}
                     overflow="hidden"
+                    // Chips have a height of 5 but a single-line field input should have a height
+                    // of 4. Use negative margin to position correctly.
                     marginY="-0.5"
+                    // Use horizontal margin to properly align collection ships vertically with
+                    // other detail view input fields like assignee and due date.
                     marginLeft="-0.5"
+                    borderRadius={taskCollectionChipBorderRadius}
                     style={{maxWidth: taskCollectionChipContainerMaxWidth}}
                     // The first selected account is focusable via tab and you can use arrow keys
                     // to focus the others.
@@ -451,7 +463,27 @@ export function TaskCollectionsInput({
     });
 
     return (
-        <Box display="flex" alignItems="center" flexWrap="wrap" gap="3">
+        <Box
+            display="flex"
+            alignItems="center"
+            flexWrap="wrap"
+            rowGap="3"
+            columnGap="2.5"
+            paddingX={paddingX}
+            paddingY={paddingY}
+            className={
+                areMarginsClickable ? tasksStyles.textCursorNotInheritedClassName : undefined
+            }
+            onPointerDown={event => {
+                if (!areMarginsClickable) return;
+
+                if (event.target === event.currentTarget) {
+                    // Don't unfocus as a result of clicking.
+                    event.preventDefault();
+                    assertExists(inputRef.current).focus({preventScroll: true});
+                }
+            }}
+        >
             {collectionsChildren}
             {createCollectionInputState.isVisible && (
                 <Box
@@ -496,8 +528,8 @@ export function TaskCollectionsInput({
                     zIndex="0"
                     maxWidth="full"
                     overflow="hidden"
-                    // The width of this element is determined by nested text boxes. The `<input>`
-                    // then uses the parent width as its own width.
+                    // The width of this element is determined by nested text boxes when `inline`.
+                    // The `<input>` then uses the parent width as its own width.
                     display="inline-block"
                 >
                     <Box
@@ -517,7 +549,7 @@ export function TaskCollectionsInput({
                         {shouldShowPrivatePlaceholder ? (
                             <Lock size={spacing["4"]} />
                         ) : (
-                            <Box padding="0.5">
+                            <Box paddingRight="0.5">
                                 <Plus size={spacing["3"]} />
                             </Box>
                         )}
@@ -544,10 +576,8 @@ export function TaskCollectionsInput({
                                 display: "inline-block",
                                 backgroundColor: "transparent",
                                 paddingLeft:
-                                    inputState.value.length === 0
-                                        ? shouldShowPrivatePlaceholder
-                                            ? "5"
-                                            : "4"
+                                    inputState.value.length === 0 && shouldShowPrivatePlaceholder
+                                        ? "5"
                                         : undefined,
                             })}
                             // By default `<input>` elements have a `min-width` determined by the `size`

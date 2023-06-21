@@ -17,6 +17,7 @@ import {
 import {Box} from "~/client/design/box";
 import {useOutsideInteraction} from "~/client/design/helpers/use_outside_interaction";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
+import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
 import {TaskGridViewCapabilities} from "~/client/tasks/demo_2/internal/task_grid_view_capabilities";
 import {TaskGridViewDndContext} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
 import {
@@ -211,7 +212,11 @@ function TaskGridPresentationalView<TaskRow>(
         useState<Key | null>(null);
 
     const editingTaskRowCollectionsContainerRef = useOutsideInteraction(() => {
-        setEditingCollectionsOfTaskRowKey(null);
+        // When focus changes, focus rings are updated with immediate priority. Make
+        // sure we unfocus our collection cell as well.
+        runWithImmediatePriority(() => {
+            setEditingCollectionsOfTaskRowKey(null);
+        });
     });
 
     const taskRows: Array<ReactNode> = [];

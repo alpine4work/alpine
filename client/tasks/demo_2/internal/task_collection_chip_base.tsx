@@ -8,6 +8,7 @@ import {ThemeColor} from "~/shared/design/theme_colors";
 
 export const taskCollectionChipHeight: Spacing = "5";
 export const taskCollectionChipPaddingY: Spacing = "0.5";
+export const taskCollectionChipBorderRadius = "base";
 
 const TaskCollectionChipBaseForwardRef = forwardRef(TaskCollectionChipBase);
 export {TaskCollectionChipBaseForwardRef as TaskCollectionChipBase};
@@ -37,7 +38,7 @@ function TaskCollectionChipBase(
             fontSize="75"
             paddingRight={onRemove ? "0.5" : "1.5"}
             paddingY={taskCollectionChipPaddingY}
-            borderRadius="base"
+            borderRadius={taskCollectionChipBorderRadius}
             display="inline-flex"
             alignItems="center"
             // These two properties are particularly important for

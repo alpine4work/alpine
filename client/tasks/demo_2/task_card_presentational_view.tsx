@@ -117,7 +117,7 @@ export function TaskCardPresentationalView({
                                       // A little extra padding to offset the negative margin of collection chips.
                                       // Only when the next field is collections. If we have a due date the extra
                                       // padding will be added there.
-                                      spacing["0.5"],
+                                      spacing["1"],
                                   )
                                 : spacing["2"],
                     }}
@@ -157,7 +157,7 @@ export function TaskCardPresentationalView({
                                       // A little extra padding to offset the negative margin of collection chips.
                                       // Only when the next field is collections. If we have a due date the extra
                                       // padding will be added there.
-                                      spacing["0.5"],
+                                      spacing["1"],
                                   )
                                 : spacing["2"],
                     }}
@@ -178,7 +178,7 @@ export function TaskCardPresentationalView({
                         paddingRight: addRemLengths(
                             spacing["2"],
                             // A little extra padding to offset the negative margin of collection chips.
-                            spacing["0.5"],
+                            spacing["1"],
                         ),
                     }}
                 >
@@ -198,7 +198,7 @@ export function TaskCardPresentationalView({
                 <Box
                     overflow="hidden"
                     marginY="-0.5"
-                    marginLeft="-0.5"
+                    marginLeft="-1"
                     style={{maxWidth: taskCollectionChipContainerMaxWidth}}
                 >
                     <TaskCollectionChip collection={collection} />
