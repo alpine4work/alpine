@@ -2,10 +2,12 @@ import {isFocusVisible} from "@react-aria/interactions";
 import {
     ReactElement,
     Ref,
+    RefCallback,
     RefObject,
     forwardRef,
     useCallback,
     useLayoutEffect,
+    useMemo,
     useRef,
     useState,
 } from "react";
@@ -16,7 +18,6 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {assignRef} from "~/client/helpers/refs/assign_ref";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref";
-import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
 import {Spacing} from "~/shared/design/spacing";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
@@ -41,7 +42,7 @@ function FocusRing(
         offset,
         insetX,
         insetBottom,
-        isVisible = false,
+        isVisible: isAlwaysVisible = false,
         isDisabled = false,
         shouldIgnoreFocusEvents = false,
         isVisibleWhenFocusWithin = false,
@@ -137,6 +138,60 @@ function FocusRing(
     },
     foreignRef: Ref<HTMLElement>,
 ) {
+    const targetRef = useRef<HTMLElement | null>(null);
+
+    const [isVisible, visibilityRef] = useFocusRingVisibility({
+        shouldIgnoreFocusEvents,
+        isVisibleWhenFocusWithin,
+        isVisibleFromAnyFocus,
+    });
+
+    const mergedTargetRef = useMemo(() => {
+        return (element: HTMLElement | null) => {
+            assignRef(foreignRef, element);
+            targetRef.current = element;
+            visibilityRef(element);
+        };
+    }, [foreignRef, visibilityRef]);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (!targetElement) return;
+        assignRef(mergedTargetRef, targetElement);
+        return () => assignRef(mergedTargetRef, null);
+    }, [mergedTargetRef, targetElement]);
+
+    return (
+        <Overlay
+            isVisible={(isAlwaysVisible || isVisible) && !isDisabled}
+            placement="center"
+            preventOverflow={false}
+            sameWidth={true}
+            sameHeight={true}
+            overlay={
+                <Box pointerEvents="none" position="relative" zIndex={overlayZIndex}>
+                    <FocusRingBox
+                        offset={offset}
+                        insetX={insetX}
+                        insetBottom={insetBottom}
+                        targetRef={targetRef}
+                    />
+                </Box>
+            }
+            children={useElementWithRef(children, mergedTargetRef)}
+            targetElement={targetElement}
+        />
+    );
+}
+
+export function useFocusRingVisibility({
+    shouldIgnoreFocusEvents = false,
+    isVisibleWhenFocusWithin = false,
+    isVisibleFromAnyFocus = false,
+}: {
+    shouldIgnoreFocusEvents?: boolean;
+    isVisibleWhenFocusWithin?: boolean;
+    isVisibleFromAnyFocus?: boolean;
+} = {}): [isVisible: boolean, targetRef: RefCallback<HTMLElement>] {
     const [isActive, setIsActive] = useState(false);
     const targetRef = useRef<HTMLElement | null>(null);
 
@@ -248,38 +303,10 @@ function FocusRing(
         [isVisibleFromAnyFocus, isVisibleWhenFocusWithin, shouldIgnoreFocusEvents],
     );
 
-    const mergedTargetRef = useMergedRefs(foreignRef, useLifecycleRef(targetLifecycleRef));
-
-    useLayoutEffectWithoutServerSideWarning(() => {
-        if (!targetElement) return;
-        assignRef(mergedTargetRef, targetElement);
-        return () => assignRef(mergedTargetRef, null);
-    }, [mergedTargetRef, targetElement]);
-
-    return (
-        <Overlay
-            isVisible={(isVisible || isActive) && !isDisabled}
-            placement="center"
-            preventOverflow={false}
-            sameWidth={true}
-            sameHeight={true}
-            overlay={
-                <Box pointerEvents="none" position="relative" zIndex={overlayZIndex}>
-                    <FocusRingBox
-                        offset={offset}
-                        insetX={insetX}
-                        insetBottom={insetBottom}
-                        targetRef={targetRef}
-                    />
-                </Box>
-            }
-            children={useElementWithRef(children, mergedTargetRef)}
-            targetElement={targetElement}
-        />
-    );
+    return [isActive, useLifecycleRef(targetLifecycleRef)];
 }
 
-function FocusRingBox({
+export function FocusRingBox({
     offset = "0.5",
     insetX = "0",
     insetBottom = "0",

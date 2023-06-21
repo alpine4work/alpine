@@ -4,8 +4,10 @@ import {useRef, useState} from "react";
 import {AriaDateFieldProps, mergeProps, useDateField, useDateSegment} from "react-aria";
 import {DateFieldState, DateFieldStateOptions, DateSegment, useDateFieldState} from "react-stately";
 import {Box} from "~/client/design/box";
-import {FocusRing} from "~/client/design/focus_ring";
+import {FocusRingBox, useFocusRingVisibility} from "~/client/design/focus_ring";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element";
+import {Overlay} from "~/client/design/overlay";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
@@ -23,6 +25,7 @@ export function TaskDateInputText({
     paddingX,
     color,
     focusRingOffset,
+    focusRingAroundText,
 }: {
     date: CalendarDate | null;
     onDateChange: (date: CalendarDate | null) => void;
@@ -35,6 +38,9 @@ export function TaskDateInputText({
     paddingX: "0" | "1" | "1.5";
     color: "grey-text" | "grey-60";
     focusRingOffset: "0" | undefined;
+    // By default the focus ring is around the full area of the input but if you
+    // want it just around the text (excluding margins) you may set this to true.
+    focusRingAroundText: boolean;
 }) {
     const {locale} = useClientInfo();
 
@@ -63,6 +69,13 @@ export function TaskDateInputText({
     const ref = useRef<HTMLDivElement>(null);
     const {fieldProps} = useDateField(datePickerProps, state, ref);
 
+    const areAllSegmentsPlaceholders = !isEditing && !date;
+
+    const focusRingTargetRef = useRef<HTMLDivElement>(null);
+    const [isFocusRingVisible, focusRingVisibilityRef] = useFocusRingVisibility({
+        isVisibleWhenFocusWithin: true,
+    });
+
     return (
         <Box
             height={height}
@@ -75,8 +88,23 @@ export function TaskDateInputText({
                 }
             }}
         >
-            <FocusRing offset={focusRingOffset} isVisibleWhenFocusWithin>
+            <Overlay
+                isVisible={!focusRingAroundText && isFocusRingVisible}
+                placement="center"
+                preventOverflow={false}
+                sameWidth={true}
+                sameHeight={true}
+                overlay={
+                    <Box pointerEvents="none" position="relative">
+                        <FocusRingBox offset={focusRingOffset} targetRef={focusRingTargetRef} />
+                    </Box>
+                }
+            >
                 <Box
+                    ref={useMergedRefs<HTMLDivElement>(
+                        !focusRingAroundText ? focusRingTargetRef : null,
+                        focusRingVisibilityRef,
+                    )}
                     // Inline flex so the clickable range doesn't extend beyond the
                     // input's contents.
                     display={display === "inline" ? "inline-flex" : "flex"}
@@ -111,7 +139,9 @@ export function TaskDateInputText({
                                 size={spacing["4"]}
                                 className={sprinkles({pointerEvents: "none"})}
                                 color={
-                                    !isEditing && !date ? inputPlaceholderStyles.color : undefined
+                                    areAllSegmentsPlaceholders
+                                        ? inputPlaceholderStyles.color
+                                        : undefined
                                 }
                             />
                         </Box>
@@ -128,7 +158,7 @@ export function TaskDateInputText({
                                 key={index}
                                 state={state}
                                 segment={segment}
-                                areAllSegmentsPlaceholders={!isEditing && !date}
+                                areAllSegmentsPlaceholders={areAllSegmentsPlaceholders}
                                 flexGrow={
                                     display === "block" && index === state.segments.length - 1
                                         ? "1"
@@ -143,8 +173,50 @@ export function TaskDateInputText({
                             />
                         ))}
                     </Box>
+                    {focusRingAroundText && (
+                        <Overlay
+                            isVisible={isFocusRingVisible}
+                            placement="center"
+                            preventOverflow={false}
+                            sameWidth={true}
+                            sameHeight={true}
+                            overlay={
+                                <Box pointerEvents="none" position="relative">
+                                    <FocusRingBox
+                                        offset={focusRingOffset}
+                                        targetRef={focusRingTargetRef}
+                                    />
+                                </Box>
+                            }
+                        >
+                            <Box
+                                ref={focusRingTargetRef}
+                                position="absolute"
+                                left={paddingX}
+                                display="inline-flex"
+                                height="4"
+                                paddingLeft={shouldIncludeCalendarIcon ? "5" : undefined}
+                                pointerEvents="none"
+                                opacity="0"
+                            >
+                                {state.segments.map((segment, index) => (
+                                    <Box
+                                        key={index}
+                                        style={{
+                                            fontVariantNumeric: "tabular-nums",
+                                            ...(areAllSegmentsPlaceholders || segment.isPlaceholder
+                                                ? inputPlaceholderStyles
+                                                : {}),
+                                        }}
+                                    >
+                                        {segment.text}
+                                    </Box>
+                                ))}
+                            </Box>
+                        </Overlay>
+                    )}
                 </Box>
-            </FocusRing>
+            </Overlay>
         </Box>
     );
 }

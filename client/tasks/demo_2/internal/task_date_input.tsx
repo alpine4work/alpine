@@ -33,6 +33,7 @@ export function TaskDateInput({
     color = "grey-text",
     overlayPlacement = "bottom-end",
     focusRingOffset,
+    focusRingAroundText = false,
 }: {
     date: CalendarDate | null;
     onDateChange: (date: CalendarDate | null) => void;
@@ -47,6 +48,7 @@ export function TaskDateInput({
     color?: "grey-text" | "grey-60";
     overlayPlacement?: OverlayPlacement;
     focusRingOffset?: "0";
+    focusRingAroundText?: boolean;
 }) {
     const {timeZone, locale} = useClientInfo();
     const currentDate = useCurrentDate();
@@ -212,6 +214,7 @@ export function TaskDateInput({
                         paddingX={paddingX}
                         color={color}
                         focusRingOffset={focusRingOffset}
+                        focusRingAroundText={focusRingAroundText}
                     />
                 </Box>
             </OverlayAnimated>
