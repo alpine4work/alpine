@@ -40,7 +40,7 @@ export type TaskRowTitleInputRef = {
     focusStart(): void;
     focusEnd(): void;
     focusAll(): void;
-    focusCoord(coord: number): void;
+    focusCoord(coord: number, side: "top" | "bottom"): void;
     focusSelection(selection: Selection): void;
 };
 
@@ -112,6 +112,7 @@ function TaskRowTitleInput(
         deleteTaskAndAllChildrenAndFocusPreviousRow,
         focusNextTaskTitleCoord,
         focusPreviousTaskTitleCoord,
+        preserveLastTaskTitleArrowNavigationCoord,
         focusFirstTaskTitleStart,
         focusLastTaskTitleEnd,
     }: {
@@ -133,6 +134,7 @@ function TaskRowTitleInput(
         deleteTaskAndAllChildrenAndFocusPreviousRow: () => void;
         focusNextTaskTitleCoord: (coord: number) => void;
         focusPreviousTaskTitleCoord: (coord: number) => void;
+        preserveLastTaskTitleArrowNavigationCoord: () => void;
         focusFirstTaskTitleStart: () => void;
         focusLastTaskTitleEnd: () => void;
     },
@@ -197,38 +199,66 @@ function TaskRowTitleInput(
                 break;
             }
             case "ArrowUp": {
-                event.preventDefault();
-                event.stopPropagation();
-
                 if (isMac ? event.metaKey : event.ctrlKey) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
                     focusFirstTaskTitleStart();
                 } else if (event.altKey) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
                     view.dispatch(
                         view.state.tr
                             .setSelection(Selection.atStart(view.state.doc))
                             .scrollIntoView(),
                     );
                 } else if (!isModifiedKeyboardEvent(event)) {
+                    const viewRect = view.dom.getBoundingClientRect();
                     const coords = view.coordsAtPos(view.state.selection.from);
-                    focusPreviousTaskTitleCoord(coords.left);
+                    const height = coords.bottom - coords.top;
+
+                    // Only navigate to the previous task if our selection is at the top of
+                    // the view.
+                    if (coords.top - height <= viewRect.top) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        focusPreviousTaskTitleCoord(coords.left);
+                    } else {
+                        preserveLastTaskTitleArrowNavigationCoord();
+                    }
                 }
                 break;
             }
             case "ArrowDown": {
-                event.preventDefault();
-                event.stopPropagation();
-
                 if (isMac ? event.metaKey : event.ctrlKey) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
                     focusLastTaskTitleEnd();
                 } else if (event.altKey) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
                     view.dispatch(
                         view.state.tr
                             .setSelection(Selection.atEnd(view.state.doc))
                             .scrollIntoView(),
                     );
                 } else if (!isModifiedKeyboardEvent(event)) {
+                    const viewRect = view.dom.getBoundingClientRect();
                     const coords = view.coordsAtPos(view.state.selection.from);
-                    focusNextTaskTitleCoord(coords.left);
+                    const height = coords.bottom - coords.top;
+
+                    // Only navigate to the next task if our selection is at the bottom of
+                    // the view.
+                    if (coords.bottom + height >= viewRect.bottom) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        focusNextTaskTitleCoord(coords.left);
+                    } else {
+                        preserveLastTaskTitleArrowNavigationCoord();
+                    }
                 }
                 break;
             }
@@ -439,15 +469,23 @@ function TaskRowTitleInput(
     }, [runWhenViewIsReady]);
 
     const focusCoord = useCallback(
-        (coord: number) => {
+        (coord: number, side: "top" | "bottom") => {
             runWhenViewIsReady(view => {
-                const rect = view.dom.getBoundingClientRect();
-                const top = rect.top + rect.height / 2;
-                const posResult = view.posAtCoords({left: coord, top});
+                const viewRect = view.dom.getBoundingClientRect();
+
+                const posResult = view.posAtCoords({
+                    left: coord,
+                    top:
+                        side === "top"
+                            ? viewRect.top + parseFloat(getComputedStyle(view.dom).paddingTop) + 1
+                            : viewRect.bottom -
+                              parseFloat(getComputedStyle(view.dom).paddingBottom) -
+                              1,
+                });
 
                 const selection = posResult
                     ? new TextSelection(view.state.doc.resolve(posResult.pos))
-                    : coord > rect.right
+                    : coord > viewRect.right
                     ? Selection.atEnd(view.state.doc)
                     : Selection.atStart(view.state.doc);
 

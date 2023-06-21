@@ -312,7 +312,7 @@ function TaskGridPresentationalView<TaskRow>(
                 focusNextTaskTitleCoord={coord => {
                     coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
 
-                    taskRowRefByIndex.get(0)?.current?.focusTitleCoord(coord);
+                    taskRowRefByIndex.get(0)?.current?.focusTitleCoord(coord, "top");
 
                     lastArrowNavigationCoordRef.current = {
                         setTime: new Date(),
@@ -328,6 +328,14 @@ function TaskGridPresentationalView<TaskRow>(
                         setTime: new Date(),
                         coord,
                     };
+                }}
+                preserveLastTaskTitleArrowNavigationCoord={() => {
+                    if (lastArrowNavigationCoordRef.current) {
+                        lastArrowNavigationCoordRef.current = {
+                            setTime: new Date(),
+                            coord: lastArrowNavigationCoordRef.current.coord,
+                        };
+                    }
                 }}
                 focusFirstTaskTitleStart={() => {
                     topGhostTaskRowRef.current?.focusTitleStart();
@@ -437,9 +445,9 @@ function TaskGridPresentationalView<TaskRow>(
                     coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
 
                     if (index >= taskRowCount - 1) {
-                        bottomGhostTaskRowRef.current?.focusTitleCoord(coord);
+                        bottomGhostTaskRowRef.current?.focusTitleCoord(coord, "top");
                     } else {
-                        taskRowRefByIndex.get(index + 1)?.current?.focusTitleCoord(coord);
+                        taskRowRefByIndex.get(index + 1)?.current?.focusTitleCoord(coord, "top");
                     }
 
                     lastArrowNavigationCoordRef.current = {
@@ -451,15 +459,23 @@ function TaskGridPresentationalView<TaskRow>(
                     coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
 
                     if (index === 0) {
-                        topGhostTaskRowRef.current?.focusTitleCoord(coord);
+                        topGhostTaskRowRef.current?.focusTitleCoord(coord, "bottom");
                     } else {
-                        taskRowRefByIndex.get(index - 1)?.current?.focusTitleCoord(coord);
+                        taskRowRefByIndex.get(index - 1)?.current?.focusTitleCoord(coord, "bottom");
                     }
 
                     lastArrowNavigationCoordRef.current = {
                         setTime: new Date(),
                         coord,
                     };
+                }}
+                preserveLastTaskTitleArrowNavigationCoord={() => {
+                    if (lastArrowNavigationCoordRef.current) {
+                        lastArrowNavigationCoordRef.current = {
+                            setTime: new Date(),
+                            coord: lastArrowNavigationCoordRef.current.coord,
+                        };
+                    }
                 }}
                 focusFirstTaskTitleStart={() => {
                     if (topGhostTaskRowRef.current) {
@@ -565,12 +581,22 @@ function TaskGridPresentationalView<TaskRow>(
                 focusPreviousTaskTitleCoord={coord => {
                     coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
 
-                    taskRowRefByIndex.get(taskRowCount - 1)?.current?.focusTitleCoord(coord);
+                    taskRowRefByIndex
+                        .get(taskRowCount - 1)
+                        ?.current?.focusTitleCoord(coord, "bottom");
 
                     lastArrowNavigationCoordRef.current = {
                         setTime: new Date(),
                         coord,
                     };
+                }}
+                preserveLastTaskTitleArrowNavigationCoord={() => {
+                    if (lastArrowNavigationCoordRef.current) {
+                        lastArrowNavigationCoordRef.current = {
+                            setTime: new Date(),
+                            coord: lastArrowNavigationCoordRef.current.coord,
+                        };
+                    }
                 }}
                 focusFirstTaskTitleStart={() => {
                     if (topGhostTaskRowRef.current) {

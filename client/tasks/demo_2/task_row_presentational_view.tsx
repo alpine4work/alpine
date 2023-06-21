@@ -54,7 +54,7 @@ export type TaskRowPresentationalViewRef = {
     focusTitleStart(): void;
     focusTitleEnd(): void;
     focusTitleAll(): void;
-    focusTitleCoord(coord: number): void;
+    focusTitleCoord(coord: number, side: "top" | "bottom"): void;
     focusTitleSelection(selection: Selection): void;
 };
 
@@ -104,6 +104,7 @@ type TaskRowPresentationalViewProps<TaskRow> = {
     deleteTaskAndAllChildrenAndFocusPreviousRow: () => void;
     focusNextTaskTitleCoord: (coord: number) => void;
     focusPreviousTaskTitleCoord: (coord: number) => void;
+    preserveLastTaskTitleArrowNavigationCoord: () => void;
     focusFirstTaskTitleStart: () => void;
     focusLastTaskTitleEnd: () => void;
     withoutPaddingLeft?: boolean;
@@ -146,6 +147,7 @@ function TaskRowPresentationalView<TaskRow>(
         deleteTaskAndAllChildrenAndFocusPreviousRow,
         focusNextTaskTitleCoord,
         focusPreviousTaskTitleCoord,
+        preserveLastTaskTitleArrowNavigationCoord,
         focusFirstTaskTitleStart,
         focusLastTaskTitleEnd,
         withoutPaddingLeft,
@@ -170,8 +172,8 @@ function TaskRowPresentationalView<TaskRow>(
         assertExists(titleInputRef.current).focusAll();
     }, []);
 
-    const focusTitleCoord = useCallback((coord: number) => {
-        assertExists(titleInputRef.current).focusCoord(coord);
+    const focusTitleCoord = useCallback((coord: number, side: "top" | "bottom") => {
+        assertExists(titleInputRef.current).focusCoord(coord, side);
     }, []);
 
     const focusTitleSelection = useCallback((selection: Selection) => {
@@ -435,6 +437,9 @@ function TaskRowPresentationalView<TaskRow>(
                             }
                             focusNextTaskTitleCoord={focusNextTaskTitleCoord}
                             focusPreviousTaskTitleCoord={focusPreviousTaskTitleCoord}
+                            preserveLastTaskTitleArrowNavigationCoord={
+                                preserveLastTaskTitleArrowNavigationCoord
+                            }
                             focusFirstTaskTitleStart={focusFirstTaskTitleStart}
                             focusLastTaskTitleEnd={focusLastTaskTitleEnd}
                         />
