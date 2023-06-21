@@ -4,7 +4,7 @@ import {useRef, useState} from "react";
 import {AriaDateFieldProps, mergeProps, useDateField, useDateSegment} from "react-aria";
 import {DateFieldState, DateFieldStateOptions, DateSegment, useDateFieldState} from "react-stately";
 import {Box} from "~/client/design/box";
-import {FocusRingBox, useFocusRingVisibility} from "~/client/design/focus_ring";
+import {FocusRingBox, useIsFocusRingVisible} from "~/client/design/focus_ring";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element";
 import {Overlay} from "~/client/design/overlay";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
@@ -72,7 +72,7 @@ export function TaskDateInputText({
     const areAllSegmentsPlaceholders = !isEditing && !date;
 
     const focusRingTargetRef = useRef<HTMLDivElement>(null);
-    const [isFocusRingVisible, focusRingVisibilityRef] = useFocusRingVisibility({
+    const [isFocusRingVisible, focusRingVisibilityRef] = useIsFocusRingVisible({
         isVisibleWhenFocusWithin: true,
     });
 

@@ -140,7 +140,7 @@ function FocusRing(
 ) {
     const targetRef = useRef<HTMLElement | null>(null);
 
-    const [isVisible, visibilityRef] = useFocusRingVisibility({
+    const [isVisible, visibilityRef] = useIsFocusRingVisible({
         shouldIgnoreFocusEvents,
         isVisibleWhenFocusWithin,
         isVisibleFromAnyFocus,
@@ -183,7 +183,11 @@ function FocusRing(
     );
 }
 
-export function useFocusRingVisibility({
+/**
+ * State that controls `<FocusRing>`'s visibility in case you need to build a
+ * custom focus ring out of `useIsFocusRingVisible()` and `<FocusRingBox>`.
+ */
+export function useIsFocusRingVisible({
     shouldIgnoreFocusEvents = false,
     isVisibleWhenFocusWithin = false,
     isVisibleFromAnyFocus = false,
@@ -193,14 +197,11 @@ export function useFocusRingVisibility({
     isVisibleFromAnyFocus?: boolean;
 } = {}): [isVisible: boolean, targetRef: RefCallback<HTMLElement>] {
     const [isActive, setIsActive] = useState(false);
-    const targetRef = useRef<HTMLElement | null>(null);
 
     const hasInitiallyMountedRef = useRef(false);
 
     const targetLifecycleRef = useCallback(
         (targetElement: HTMLElement) => {
-            targetRef.current = targetElement;
-
             if (shouldIgnoreFocusEvents) {
                 if (currentActiveElement === targetElement) currentActiveElement = null;
                 setIsActive(false);
@@ -304,6 +305,44 @@ export function useFocusRingVisibility({
     );
 
     return [isActive, useLifecycleRef(targetLifecycleRef)];
+}
+
+/**
+ * Is a child rendering a focus ring?
+ */
+export function useIsChildFocusRingVisible(): [
+    isVisible: boolean,
+    targetRef: RefCallback<HTMLElement>,
+] {
+    const [isChildFocusRingVisible, setIsChildFocusRingVisible] = useState(false);
+
+    const hasInitiallyMountedRef = useRef(false);
+
+    const targetLifecycleRef = useCallback((targetElement: HTMLElement) => {
+        const update = () => {
+            // Immediately re-render since focus rings are rendered immediately.
+            runWithImmediatePriority(() => {
+                setIsChildFocusRingVisible(targetElement.contains(currentActiveElement));
+            });
+        };
+
+        // Update our focus state on initial mount.
+        if (!hasInitiallyMountedRef.current) {
+            hasInitiallyMountedRef.current = true;
+            update();
+        }
+
+        // Use `focusin`/`focusout` instead of `focus`/`blur` because the
+        // former bubbles.
+        targetElement.addEventListener("focusin", update);
+        targetElement.addEventListener("focusout", update);
+        return () => {
+            targetElement.removeEventListener("focusin", update);
+            targetElement.removeEventListener("focusout", update);
+        };
+    }, []);
+
+    return [isChildFocusRingVisible, useLifecycleRef(targetLifecycleRef)];
 }
 
 export function FocusRingBox({

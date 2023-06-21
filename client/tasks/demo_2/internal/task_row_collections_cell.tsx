@@ -1,6 +1,8 @@
 import {Lock} from "phosphor-react";
 import {RefCallback} from "react";
 import {Box} from "~/client/design/box";
+import {useIsChildFocusRingVisible} from "~/client/design/focus_ring";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support";
 import {TaskCollectionChip} from "~/client/tasks/demo_2/internal/task_collection_chip";
 import {TaskCollectionsInput} from "~/client/tasks/demo_2/internal/task_collections_input";
@@ -40,6 +42,7 @@ export function TaskRowCollectionsCell({
     editingContainerRef: RefCallback<HTMLElement> | null;
 }) {
     const [isHovered, hoverRef] = useHoverWithOverlaySupport();
+    const [isChildFocusRingVisible, childFocusRingTargetRef] = useIsChildFocusRingVisible();
 
     return (
         <Box
@@ -102,40 +105,53 @@ export function TaskRowCollectionsCell({
                 </Box>
             )}
             <Box
-                ref={editingContainerRef}
+                ref={useMergedRefs<HTMLDivElement>(editingContainerRef, childFocusRingTargetRef)}
                 position="absolute"
                 zIndex="30"
-                top="0"
+                style={{top: -1}}
                 right="0"
-                backgroundColor="grey-0"
-                minHeight={taskRowViewMinHeight}
-                maxHeight={isEditing ? "48" : taskRowViewMinHeight}
-                overflowY="scroll"
                 opacity={!isEditing ? "0" : "100"}
                 pointerEvents={!isEditing ? "none" : undefined}
                 borderRadius="sm"
-                style={{
-                    width: addRemLengths(
-                        spacing[taskRowViewCollectionsColumnWidth],
-                        subtractRemLengths(spacing["2.5"], spacing[taskRowViewColumnPaddingX]),
-                    ),
-                    // Draw the top and bottom border with a shadow so it lines up with rows.
-                    boxShadow: `0 -1px 0 0 ${colorSchemeVars["grey-0"]}, 0 0 0 2px ${colorSchemeVars["theme-30-const"]}, 0 -1px 0 2px ${colorSchemeVars["theme-30-const"]}`,
-                }}
+                boxShadow="elevation-20"
                 onFocus={() => onEditingChange(true)}
             >
-                <TaskCollectionsInput
-                    aria-label="Collections"
-                    isReadOnly={!isEditing}
-                    areMarginsClickable={true}
-                    paddingX="2.5"
-                    paddingY="2.5"
-                    allCollections={allCollections}
-                    collections={collections}
-                    createCollectionAndAddToTask={createCollectionAndAddToTask}
-                    addCollectionToTask={addCollectionToTask}
-                    removeCollectionFromTask={removeCollectionFromTask}
-                />
+                <Box
+                    backgroundColor="grey-0"
+                    overflowY="scroll"
+                    borderRadius="sm"
+                    style={{
+                        width: addRemLengths(
+                            spacing[taskRowViewCollectionsColumnWidth],
+                            subtractRemLengths(spacing["2.5"], spacing[taskRowViewColumnPaddingX]),
+                        ),
+                        // We add an extra 1px of padding to the top to render on top of the row's
+                        // `box-shadow` border.
+                        minHeight: `calc(${spacing[taskRowViewMinHeight]} + 1px)`,
+                        maxHeight: isEditing
+                            ? spacing["48"]
+                            : `calc(${spacing[taskRowViewMinHeight]} + 1px)`,
+                        paddingTop: 1,
+                        // The focus ring is rendered on the inner `<div>` so it renders on top of the
+                        // elevation shadow.
+                        boxShadow: !isChildFocusRingVisible
+                            ? `0 0 0 2px ${colorSchemeVars["theme-30-const"]}`
+                            : undefined,
+                    }}
+                >
+                    <TaskCollectionsInput
+                        aria-label="Collections"
+                        isReadOnly={!isEditing}
+                        areMarginsClickable={true}
+                        paddingX="2.5"
+                        paddingY="2.5"
+                        allCollections={allCollections}
+                        collections={collections}
+                        createCollectionAndAddToTask={createCollectionAndAddToTask}
+                        addCollectionToTask={addCollectionToTask}
+                        removeCollectionFromTask={removeCollectionFromTask}
+                    />
+                </Box>
             </Box>
         </Box>
     );
