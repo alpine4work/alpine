@@ -44,7 +44,9 @@ import {TaskAssignee, TaskStatus, TaskStatusButton} from "~/client/tasks/demo_2/
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
 import {AccountModel} from "~/shared/accounts/account_model";
 import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
+import {ThemeColor} from "~/shared/design/theme_colors";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {LocalTaskCollectionId} from "~/shared/id/types/id_types";
 import {colorSchemeVars, contentSchemaStyles, sprinkles, tasksStyles} from "~/shared/styles/styles";
 import {TaskTitle} from "~/shared/tasks/task_title_schema";
 
@@ -74,7 +76,15 @@ type TaskRowPresentationalViewProps<TaskRow> = {
     onAssigneeChange: (assignee: TaskAssignee | null) => void;
     dueDate: CalendarDate | null;
     onDueDateChange: (dueDate: CalendarDate | null) => void;
+    allCollections: ReadonlyArray<LocalTaskCollection>;
     collections: ReadonlyArray<LocalTaskCollection>;
+    createCollectionAndAddToTask: (collection: {
+        id: LocalTaskCollectionId;
+        name: string;
+        color: ThemeColor;
+    }) => void;
+    addCollectionToTask: (collectionId: LocalTaskCollectionId) => void;
+    removeCollectionFromTask: (collectionId: LocalTaskCollectionId) => void;
     isEditingCollections: boolean;
     onEditingCollectionsChange: (isEditingCollections: boolean) => void;
     editingCollectionsContainerRef: RefCallback<HTMLElement> | null;
@@ -112,7 +122,11 @@ function TaskRowPresentationalView<TaskRow>(
         onAssigneeChange,
         dueDate,
         onDueDateChange,
+        allCollections,
         collections,
+        createCollectionAndAddToTask,
+        addCollectionToTask,
+        removeCollectionFromTask,
         isEditingCollections,
         onEditingCollectionsChange,
         editingCollectionsContainerRef,
@@ -437,7 +451,11 @@ function TaskRowPresentationalView<TaskRow>(
                                 onDueDateChange={onDueDateChange}
                             />
                             <TaskRowCollectionsCell
+                                allCollections={allCollections}
                                 collections={collections}
+                                createCollectionAndAddToTask={createCollectionAndAddToTask}
+                                addCollectionToTask={addCollectionToTask}
+                                removeCollectionFromTask={removeCollectionFromTask}
                                 isEditing={isEditingCollections}
                                 onEditingChange={onEditingCollectionsChange}
                                 editingContainerRef={editingCollectionsContainerRef}

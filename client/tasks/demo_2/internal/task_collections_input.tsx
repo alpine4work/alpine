@@ -9,7 +9,6 @@ import {
     cloneElement,
     createRef,
     isValidElement,
-    useEffect,
     useMemo,
     useRef,
     useState,
@@ -145,21 +144,6 @@ export function TaskCollectionsInput({
         isVisible: false,
     });
 
-    // When the create collection input goes from `isVisible` `true` to `false`
-    // then we want to refocus the input ref if we opened the create collection
-    // input with the keyboard.
-    useEffect(() => {
-        return () => {
-            if (
-                createCollectionInputState.isVisible &&
-                createCollectionInputState.shouldReturnFocusToInput
-            ) {
-                // eslint-disable-next-line react-hooks/exhaustive-deps
-                inputRef.current?.focus();
-            }
-        };
-    }, [createCollectionInputState]);
-
     const searchedCollections = useMemo(
         () =>
             inputState.value === ""
@@ -235,7 +219,7 @@ export function TaskCollectionsInput({
         onSelectionChange: key => {
             if (typeof key !== "string") return;
 
-            const shouldReturnFocusToInput = getInteractionModality() === "pointer";
+            const shouldReturnFocusToInput = getInteractionModality() !== "pointer";
 
             if (key.startsWith("Collection:")) {
                 const collectionId = key.slice("Collection:".length);
@@ -245,15 +229,15 @@ export function TaskCollectionsInput({
                 if (shouldReturnFocusToInput) {
                     setInputState(inputState => {
                         if (inputState.type === "Unfocused") return inputState;
+                        return {type: "Focused", value: ""};
+                    });
+                } else {
+                    setInputState(inputState => {
+                        if (inputState.type === "Unfocused") return inputState;
                         return {type: "Unfocused", value: "", disableAnimationOut: true};
                     });
 
                     assertExists(inputRef.current).blur();
-                } else {
-                    setInputState(inputState => {
-                        if (inputState.type === "Unfocused") return inputState;
-                        return {type: "Focused", value: ""};
-                    });
                 }
             }
 
@@ -280,15 +264,15 @@ export function TaskCollectionsInput({
                     if (shouldReturnFocusToInput) {
                         setInputState(inputState => {
                             if (inputState.type === "Unfocused") return inputState;
+                            return {type: "Focused", value: ""};
+                        });
+                    } else {
+                        setInputState(inputState => {
+                            if (inputState.type === "Unfocused") return inputState;
                             return {type: "Unfocused", value: "", disableAnimationOut: true};
                         });
 
                         assertExists(inputRef.current).blur();
-                    } else {
-                        setInputState(inputState => {
-                            if (inputState.type === "Unfocused") return inputState;
-                            return {type: "Focused", value: ""};
-                        });
                     }
                 }
             }
@@ -493,10 +477,20 @@ export function TaskCollectionsInput({
                     style={{maxWidth: taskCollectionChipContainerMaxWidth}}
                 >
                     <TaskDetailCollectionsFieldCreateCollectionInput
-                        onCancel={() => setCreateCollectionInputState({isVisible: false})}
+                        onCancel={() => {
+                            setCreateCollectionInputState({isVisible: false});
+
+                            if (createCollectionInputState.shouldReturnFocusToInput) {
+                                assertExists(inputRef.current).focus({preventScroll: true});
+                            }
+                        }}
                         createCollectionAndAddToTask={collection => {
                             setCreateCollectionInputState({isVisible: false});
                             createCollectionAndAddToTask(collection);
+
+                            if (createCollectionInputState.shouldReturnFocusToInput) {
+                                assertExists(inputRef.current).focus({preventScroll: true});
+                            }
                         }}
                     />
                 </Box>
@@ -531,6 +525,14 @@ export function TaskCollectionsInput({
                     // The width of this element is determined by nested text boxes when `inline`.
                     // The `<input>` then uses the parent width as its own width.
                     display="inline-block"
+                    onKeyDown={event => {
+                        if (event.key === "Escape") {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            event.target.blur();
+                            return;
+                        }
+                    }}
                 >
                     <Box
                         position="relative"
@@ -836,8 +838,14 @@ function TaskDetailCollectionsFieldCreateCollectionInput({
                                                 event.preventDefault();
                                                 event.stopPropagation();
                                                 onCancel();
-                                                break;
                                             }
+                                            break;
+                                        }
+                                        case "Escape": {
+                                            event.preventDefault();
+                                            event.stopPropagation();
+                                            onCancel();
+                                            break;
                                         }
                                     }
                                 }}

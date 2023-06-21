@@ -12,16 +12,29 @@ import {
 } from "~/client/tasks/demo_2/internal/task_row_shared_styles";
 import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
 import {addRemLengths, spacing, subtractRemLengths} from "~/shared/design/spacing";
-import {emptyArray} from "~/shared/helpers/array/empty_array";
+import {ThemeColor} from "~/shared/design/theme_colors";
+import {LocalTaskCollectionId} from "~/shared/id/types/id_types";
 import {colorSchemeVars, inputPlaceholderStyles} from "~/shared/styles/styles";
 
 export function TaskRowCollectionsCell({
+    allCollections,
     collections,
+    createCollectionAndAddToTask,
+    addCollectionToTask,
+    removeCollectionFromTask,
     isEditing,
     onEditingChange,
     editingContainerRef,
 }: {
+    allCollections: ReadonlyArray<LocalTaskCollection>;
     collections: ReadonlyArray<LocalTaskCollection>;
+    createCollectionAndAddToTask: (collection: {
+        id: LocalTaskCollectionId;
+        name: string;
+        color: ThemeColor;
+    }) => void;
+    addCollectionToTask: (collectionId: LocalTaskCollectionId) => void;
+    removeCollectionFromTask: (collectionId: LocalTaskCollectionId) => void;
     isEditing: boolean;
     onEditingChange: (isEditing: boolean) => void;
     editingContainerRef: RefCallback<HTMLElement> | null;
@@ -96,7 +109,8 @@ export function TaskRowCollectionsCell({
                 right="0"
                 backgroundColor="grey-0"
                 minHeight={taskRowViewMinHeight}
-                // NOCOMMIT: Max height and scroll
+                maxHeight={isEditing ? "48" : taskRowViewMinHeight}
+                overflowY="scroll"
                 opacity={!isEditing ? "0" : "100"}
                 pointerEvents={!isEditing ? "none" : undefined}
                 borderRadius="sm"
@@ -116,17 +130,11 @@ export function TaskRowCollectionsCell({
                     areMarginsClickable={true}
                     paddingX="2.5"
                     paddingY="2.5"
-                    allCollections={emptyArray}
+                    allCollections={allCollections}
                     collections={collections}
-                    createCollectionAndAddToTask={() => {
-                        // NOCOMMIT
-                    }}
-                    addCollectionToTask={() => {
-                        // NOCOMMIT
-                    }}
-                    removeCollectionFromTask={() => {
-                        // NOCOMMIT
-                    }}
+                    createCollectionAndAddToTask={createCollectionAndAddToTask}
+                    addCollectionToTask={addCollectionToTask}
+                    removeCollectionFromTask={removeCollectionFromTask}
                 />
             </Box>
         </Box>

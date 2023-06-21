@@ -5,6 +5,7 @@ import {Box} from "~/client/design/box";
 import {IconButton} from "~/client/design/icon_button";
 import {Spacing, addRemLengths, spacing} from "~/shared/design/spacing";
 import {ThemeColor} from "~/shared/design/theme_colors";
+import {omitObject} from "~/shared/helpers/object/omit_object";
 
 export const taskCollectionChipHeight: Spacing = "5";
 export const taskCollectionChipPaddingY: Spacing = "0.5";
@@ -27,11 +28,15 @@ function TaskCollectionChipBase(
     },
     ref: Ref<HTMLDivElement>,
 ) {
-    const {pressProps, isPressed} = usePress({isDisabled: !onPress, onPress});
+    const isDisabled = !onPress;
+    const {pressProps, isPressed} = usePress({isDisabled, onPress});
 
     return (
         <Box
-            {...pressProps}
+            // `react-aria` has a bug where `usePress()` will call `event.preventDefault()`
+            // on `keydown` events even when disabled. Given a chip could include a text
+            // `<input>` we don't want to prevent enter/space keypresses.
+            {...(isDisabled ? omitObject(pressProps, ["onKeyDown", "onKeyUp"]) : pressProps)}
             ref={ref}
             backgroundColor={isPressed ? "grey-10" : "grey-5"}
             height={taskCollectionChipHeight}

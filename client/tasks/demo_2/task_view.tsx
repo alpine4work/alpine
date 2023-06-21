@@ -231,10 +231,23 @@ export function TaskView({
                             dueDate,
                         });
                     }}
+                    allCollections={useMemo(
+                        () => state.database.getAllTaskCollections(),
+                        [state.database],
+                    )}
                     getTaskCollections={({task}) =>
                         Array.from(task.collectionIds, collectionId =>
                             state.database.getTaskCollection(collectionId),
                         )
+                    }
+                    createCollectionAndAddToTask={({task: {id: taskId}}, taskCollection) =>
+                        dispatch({type: "CreateTaskCollectionAndAddToTask", taskId, taskCollection})
+                    }
+                    addCollectionToTask={({task: {id: taskId}}, taskCollectionId) =>
+                        dispatch({type: "AddTaskCollectionToTask", taskId, taskCollectionId})
+                    }
+                    removeCollectionFromTask={({task: {id: taskId}}, taskCollectionId) =>
+                        dispatch({type: "RemoveTaskCollectionFromTask", taskId, taskCollectionId})
                     }
                     getTaskParentTaskTitle={({task}) =>
                         task.parentTaskId ? state.database.getTask(task.parentTaskId).title : null

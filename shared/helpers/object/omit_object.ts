@@ -2,10 +2,10 @@
  * Clones an object but removes any keys in the key array. An implementation of
  * the TypeScript `Omit` type. Only copies object own properties.
  */
-export function omitObject<
-    Value extends {[key: string]: unknown},
-    Keys extends string & keyof Value,
->(value: Value, keys: ReadonlyArray<Keys>): Omit<Value, Keys> {
+export function omitObject<Value extends {}, Keys extends string & keyof Value>(
+    value: Value,
+    keys: ReadonlyArray<Keys>,
+): Omit<Value, Keys> {
     const keySet = new Set<string>(keys);
     const newValue: {[key: string]: unknown} = {};
 

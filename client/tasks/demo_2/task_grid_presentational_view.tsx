@@ -16,6 +16,7 @@ import {
 } from "react";
 import {Box} from "~/client/design/box";
 import {useOutsideInteraction} from "~/client/design/helpers/use_outside_interaction";
+import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
 import {TaskGridViewCapabilities} from "~/client/tasks/demo_2/internal/task_grid_view_capabilities";
@@ -37,10 +38,12 @@ import {
 } from "~/client/tasks/demo_2/task_row_presentational_view";
 import {TaskAssignee, TaskStatus} from "~/client/tasks/demo_2/task_status_button";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
+import {ThemeColor} from "~/shared/design/theme_colors";
 import {emptyArray} from "~/shared/helpers/array/empty_array";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {LazyMap} from "~/shared/helpers/control/lazy_map";
 import {noop} from "~/shared/helpers/control/noop";
+import {LocalTaskCollectionId} from "~/shared/id/types/id_types";
 import {colorSchemeVars} from "~/shared/styles/styles";
 import {TaskTitle, emptyTaskTitle} from "~/shared/tasks/task_title_schema";
 
@@ -76,7 +79,18 @@ export type TaskGridPresentationalViewProps<TaskRow> = {
     onTaskAssigneeChange: (taskRow: TaskRow, assignee: TaskAssignee | null) => void;
     getTaskDueDate: (taskRow: TaskRow) => CalendarDate | null;
     onTaskDueDateChange: (taskRow: TaskRow, dueDate: CalendarDate | null) => void;
+    allCollections: ReadonlyArray<LocalTaskCollection>;
     getTaskCollections: (taskRow: TaskRow) => ReadonlyArray<LocalTaskCollection>;
+    createCollectionAndAddToTask: (
+        taskRow: TaskRow,
+        collection: {
+            id: LocalTaskCollectionId;
+            name: string;
+            color: ThemeColor;
+        },
+    ) => void;
+    addCollectionToTask: (taskRow: TaskRow, collectionId: LocalTaskCollectionId) => void;
+    removeCollectionFromTask: (taskRow: TaskRow, collectionId: LocalTaskCollectionId) => void;
     getTaskParentTaskTitle: (taskRow: TaskRow) => TaskTitle | null;
     getTaskChildTaskCount: (taskRow: TaskRow) => number;
     getTaskClosedChildTaskCount: (taskRow: TaskRow) => number;
@@ -128,7 +142,11 @@ function TaskGridPresentationalView<TaskRow>(
         onTaskAssigneeChange,
         getTaskDueDate,
         onTaskDueDateChange,
+        allCollections,
         getTaskCollections,
+        createCollectionAndAddToTask,
+        addCollectionToTask,
+        removeCollectionFromTask,
         getTaskParentTaskTitle,
         getTaskChildTaskCount,
         getTaskClosedChildTaskCount,
@@ -251,7 +269,17 @@ function TaskGridPresentationalView<TaskRow>(
                         createTaskAtStartFromTopGhostWithoutNewGhost({dueDate});
                     }
                 }}
+                allCollections={allCollections}
                 collections={emptyArray}
+                createCollectionAndAddToTask={() => {
+                    // NOCOMMIT
+                }}
+                addCollectionToTask={() => {
+                    // NOCOMMIT
+                }}
+                removeCollectionFromTask={() => {
+                    // NOCOMMIT
+                }}
                 isEditingCollections={isEditingCollections}
                 onEditingCollectionsChange={isEditingCollections => {
                     if (isEditingCollections) {
@@ -354,7 +382,15 @@ function TaskGridPresentationalView<TaskRow>(
                 onAssigneeChange={assignee => onTaskAssigneeChange(taskRow, assignee)}
                 dueDate={getTaskDueDate(taskRow)}
                 onDueDateChange={dueDate => onTaskDueDateChange(taskRow, dueDate)}
+                allCollections={allCollections}
                 collections={getTaskCollections(taskRow)}
+                createCollectionAndAddToTask={collection =>
+                    createCollectionAndAddToTask(taskRow, collection)
+                }
+                addCollectionToTask={collectionId => addCollectionToTask(taskRow, collectionId)}
+                removeCollectionFromTask={collectionId =>
+                    removeCollectionFromTask(taskRow, collectionId)
+                }
                 isEditingCollections={isEditingCollections}
                 onEditingCollectionsChange={isEditingCollections => {
                     if (isEditingCollections) {
@@ -472,7 +508,17 @@ function TaskGridPresentationalView<TaskRow>(
                         createTaskAtEndFromBottomGhost({dueDate});
                     }
                 }}
+                allCollections={allCollections}
                 collections={emptyArray}
+                createCollectionAndAddToTask={() => {
+                    // NOCOMMIT
+                }}
+                addCollectionToTask={() => {
+                    // NOCOMMIT
+                }}
+                removeCollectionFromTask={() => {
+                    // NOCOMMIT
+                }}
                 isEditingCollections={isEditingCollections}
                 onEditingCollectionsChange={isEditingCollections => {
                     if (isEditingCollections) {
@@ -583,83 +629,94 @@ function TaskGridPresentationalView<TaskRow>(
             moveTaskBelow={moveTaskBelow}
             moveTaskToParentTop={moveTaskToParentTop}
         >
-            <Box position="relative" zIndex="0">
-                {capabilities.hasColumns && (
-                    <Box display="flex">
-                        <Box
-                            flexShrink="0"
-                            width="32"
-                            paddingLeft="5"
-                            paddingBottom="1"
-                            color="grey-50"
-                            fontSize="50"
-                        >
-                            Name
+            <GlobalKeyDownEvent
+                onGlobalKeyDown={event => {
+                    if (editingCollectionsOfTaskRowKey && event.key === "Escape") {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setEditingCollectionsOfTaskRowKey(null);
+                        return;
+                    }
+                }}
+            >
+                <Box position="relative" zIndex="0">
+                    {capabilities.hasColumns && (
+                        <Box display="flex">
+                            <Box
+                                flexShrink="0"
+                                width="32"
+                                paddingLeft="5"
+                                paddingBottom="1"
+                                color="grey-50"
+                                fontSize="50"
+                            >
+                                Name
+                            </Box>
+                            <Box flexGrow="1" />
+                            <Box
+                                flexShrink="0"
+                                style={{
+                                    width: taskRowViewFirstColumnWidth,
+                                    paddingLeft: taskRowViewFirstColumnPaddingLeft,
+                                }}
+                                paddingX={taskRowViewColumnPaddingX}
+                                paddingBottom="1"
+                                color="grey-50"
+                                fontSize="50"
+                            >
+                                Assignee
+                            </Box>
+                            <Box
+                                flexShrink="0"
+                                width={taskRowViewColumnWidth}
+                                paddingX={taskRowViewColumnPaddingX}
+                                paddingBottom="1"
+                                color="grey-50"
+                                fontSize="50"
+                            >
+                                Priority
+                            </Box>
+                            <Box
+                                flexShrink="0"
+                                width={taskRowViewColumnWidth}
+                                paddingX={taskRowViewColumnPaddingX}
+                                paddingBottom="1"
+                                color="grey-50"
+                                fontSize="50"
+                            >
+                                Due date
+                            </Box>
+                            <Box
+                                flexShrink="0"
+                                width={taskRowViewCollectionsColumnWidth}
+                                paddingLeft={taskRowViewColumnPaddingX}
+                                paddingRight={taskRowViewLastColumnPaddingRight}
+                                paddingBottom="1"
+                                color="grey-50"
+                                fontSize="50"
+                            >
+                                Collections
+                            </Box>
+                            <Box flexShrink="0" width="5" />
                         </Box>
-                        <Box flexGrow="1" />
-                        <Box
-                            flexShrink="0"
-                            style={{
-                                width: taskRowViewFirstColumnWidth,
-                                paddingLeft: taskRowViewFirstColumnPaddingLeft,
-                            }}
-                            paddingX={taskRowViewColumnPaddingX}
-                            paddingBottom="1"
-                            color="grey-50"
-                            fontSize="50"
-                        >
-                            Assignee
+                    )}
+                    {!hasTopGhostTaskRow && (
+                        <Box position="relative" height="0">
+                            <TaskRowViewDroppable
+                                taskRow={null}
+                                indentation={0}
+                                nextAdjacentIndentation={null}
+                                previousAdjacentIndentation={null}
+                                isPositionedAbove={true}
+                                isVerticallyFlipped={true}
+                            />
                         </Box>
-                        <Box
-                            flexShrink="0"
-                            width={taskRowViewColumnWidth}
-                            paddingX={taskRowViewColumnPaddingX}
-                            paddingBottom="1"
-                            color="grey-50"
-                            fontSize="50"
-                        >
-                            Priority
-                        </Box>
-                        <Box
-                            flexShrink="0"
-                            width={taskRowViewColumnWidth}
-                            paddingX={taskRowViewColumnPaddingX}
-                            paddingBottom="1"
-                            color="grey-50"
-                            fontSize="50"
-                        >
-                            Due date
-                        </Box>
-                        <Box
-                            flexShrink="0"
-                            width={taskRowViewCollectionsColumnWidth}
-                            paddingLeft={taskRowViewColumnPaddingX}
-                            paddingRight={taskRowViewLastColumnPaddingRight}
-                            paddingBottom="1"
-                            color="grey-50"
-                            fontSize="50"
-                        >
-                            Collections
-                        </Box>
-                        <Box flexShrink="0" width="5" />
-                    </Box>
-                )}
-                {!hasTopGhostTaskRow && (
-                    <Box position="relative" height="0">
-                        <TaskRowViewDroppable
-                            taskRow={null}
-                            indentation={0}
-                            nextAdjacentIndentation={null}
-                            previousAdjacentIndentation={null}
-                            isPositionedAbove={true}
-                            isVerticallyFlipped={true}
-                        />
-                    </Box>
-                )}
-                {taskRows}
-                {taskRows.length <= 1 && decorativeGhostTaskRow}
-                {taskRows.length <= 2 && decorativeGhostTaskRow}
-            </Box>
+                    )}
+                    {taskRows}
+                    {taskRows.length <= 1 && decorativeGhostTaskRow}
+                    {taskRows.length <= 2 && decorativeGhostTaskRow}
+                </Box>
+            </GlobalKeyDownEvent>
         </TaskGridViewDndContext>
     );
 }
