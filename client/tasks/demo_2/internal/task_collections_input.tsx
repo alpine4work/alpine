@@ -90,7 +90,9 @@ export function TaskCollectionsInput({
     createCollectionAndAddToTask,
     addCollectionToTask,
     removeCollectionFromTask,
+    "aria-label": ariaLabel,
     "aria-labelledby": ariaLabelledBy,
+    isReadOnly,
 }: {
     allCollections: ReadonlyArray<LocalTaskCollection>;
     collections: ReadonlyArray<LocalTaskCollection>;
@@ -101,7 +103,11 @@ export function TaskCollectionsInput({
     }) => void;
     addCollectionToTask: (collection: LocalTaskCollectionId) => void;
     removeCollectionFromTask: (collection: LocalTaskCollectionId) => void;
-    "aria-labelledby": string;
+    "aria-label"?: string;
+    "aria-labelledby"?: string;
+    // The difference between being disabled and being read-only is that read-only
+    // fields are still focusable.
+    isReadOnly?: boolean;
 }) {
     const rootNavigate = useRootNavigate();
     const showToast = useShowToast();
@@ -178,6 +184,7 @@ export function TaskCollectionsInput({
         menuTrigger: "focus",
         // Don't close when there are no items.
         allowsEmptyCollection: true,
+        isReadOnly,
 
         inputValue: inputState.value,
         onInputChange: inputValue => {
@@ -283,6 +290,9 @@ export function TaskCollectionsInput({
 
     const comboBoxState = useComboBoxState(comboBoxProps);
 
+    // If we are read-only, the combobox shouldn't be open.
+    if (comboBoxState.isOpen && isReadOnly) comboBoxState.close();
+
     const inputRef = useRef<HTMLInputElement>(null);
     const popoverRef = useRef<HTMLDivElement>(null);
     const listBoxRef = useRef<HTMLUListElement>(null);
@@ -298,6 +308,7 @@ export function TaskCollectionsInput({
             inputRef,
             popoverRef,
             listBoxRef,
+            "aria-label": ariaLabel,
             "aria-labelledby": ariaLabelledBy,
             onKeyDown: event => {
                 assert(event.currentTarget instanceof HTMLInputElement);
@@ -306,6 +317,7 @@ export function TaskCollectionsInput({
                     // will delete the last collection.
                     case "Backspace": {
                         if (
+                            !isReadOnly &&
                             collections.length > 0 &&
                             event.currentTarget.selectionStart ===
                                 event.currentTarget.selectionEnd &&
@@ -349,11 +361,14 @@ export function TaskCollectionsInput({
                 case "Delete": {
                     event.preventDefault();
                     event.stopPropagation();
-                    removeCollectionFromTask(collection.id);
-                    if (index + 1 < collectionRefs.length) {
-                        collectionRefs[index + 1]?.current?.focus();
-                    } else {
-                        inputRef.current?.focus();
+
+                    if (!isReadOnly) {
+                        removeCollectionFromTask(collection.id);
+                        if (index + 1 < collectionRefs.length) {
+                            collectionRefs[index + 1]?.current?.focus();
+                        } else {
+                            inputRef.current?.focus();
+                        }
                     }
                     break;
                 }
@@ -384,9 +399,12 @@ export function TaskCollectionsInput({
                     if (/^[0-9a-zA-Z]$/.test(event.key)) {
                         event.preventDefault();
                         event.stopPropagation();
-                        removeCollectionFromTask(collection.id);
-                        setInputState({type: "Focused", value: event.key});
-                        inputRef.current?.focus();
+
+                        if (!isReadOnly) {
+                            removeCollectionFromTask(collection.id);
+                            setInputState({type: "Focused", value: event.key});
+                            inputRef.current?.focus();
+                        }
                     }
                     break;
                 }
@@ -420,7 +438,12 @@ export function TaskCollectionsInput({
                                 });
                             });
                         }}
-                        onRemove={() => removeCollectionFromTask(collection.id)}
+                        onRemove={() => {
+                            // We don't remove the "x" button so layout doesn't shift when toggling `isReadOnly`.
+                            if (!isReadOnly) {
+                                removeCollectionFromTask(collection.id);
+                            }
+                        }}
                     />
                 </Box>
             </FocusRing>
@@ -454,6 +477,9 @@ export function TaskCollectionsInput({
                     inputState.type === "Unfocused" && inputState.disableAnimationOut
                 }
                 placement="bottom-start"
+                // If we're approaching the edge of the screen (like in a row cell) don't allow
+                // flipping horizontally but still allow flipping vertically.
+                fallbackPlacements={["top-start"]}
                 overlay={
                     <Box ref={popoverRef} position="relative">
                         <TaskDetailCollectionsFieldListBox

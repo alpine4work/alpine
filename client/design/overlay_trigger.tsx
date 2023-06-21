@@ -17,7 +17,7 @@ import {
     getPreviousFocusableElementIfExists,
 } from "~/client/design/helpers/get_next_focusable_element";
 import {setElementAttributesWithCleanup} from "~/client/design/helpers/set_element_attributes_with_cleanup";
-import {useOutsidePress} from "~/client/design/helpers/use_outside_press";
+import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction";
 import {OverlayPlacement, useIsWaitingForOverlayPortalElement} from "~/client/design/overlay";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants";

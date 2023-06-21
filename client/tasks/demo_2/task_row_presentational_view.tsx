@@ -7,6 +7,7 @@ import {
     ReactElement,
     Ref,
     RefAttributes,
+    RefCallback,
     forwardRef,
     useCallback,
     useId,
@@ -74,6 +75,9 @@ type TaskRowPresentationalViewProps<TaskRow> = {
     dueDate: CalendarDate | null;
     onDueDateChange: (dueDate: CalendarDate | null) => void;
     collections: ReadonlyArray<LocalTaskCollection>;
+    isEditingCollections: boolean;
+    onEditingCollectionsChange: (isEditingCollections: boolean) => void;
+    editingCollectionsContainerRef: RefCallback<HTMLElement> | null;
     parentTaskTitle: TaskTitle | null;
     childTaskCount: number;
     closedChildTaskCount: number;
@@ -109,6 +113,9 @@ function TaskRowPresentationalView<TaskRow>(
         dueDate,
         onDueDateChange,
         collections,
+        isEditingCollections,
+        onEditingCollectionsChange,
+        editingCollectionsContainerRef,
         parentTaskTitle,
         childTaskCount,
         closedChildTaskCount,
@@ -277,7 +284,17 @@ function TaskRowPresentationalView<TaskRow>(
                         boxShadow: `0 -1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 -1px 0 0 ${colorSchemeVars["grey-5"]}`,
                     }}
                 />
-                <Box position="relative" zIndex="0" flexGrow="1" overflow="hidden" display="flex">
+                <Box
+                    position="relative"
+                    // NOTE(calebmer): Setting z-index here creates a new stacking context which
+                    // means the editable collection overlay can't render on top of adjacent rows.
+                    zIndex={undefined}
+                    flexGrow="1"
+                    // Important not to set `overflow="hidden"` here so that the collections overlay
+                    // we open in edit mode can render outside the bounds of the row.
+                    overflow={undefined}
+                    display="flex"
+                >
                     <Box
                         position="relative"
                         flexShrink="0"
@@ -419,7 +436,12 @@ function TaskRowPresentationalView<TaskRow>(
                                 dueDate={dueDate}
                                 onDueDateChange={onDueDateChange}
                             />
-                            <TaskRowCollectionsCell collections={collections} />
+                            <TaskRowCollectionsCell
+                                collections={collections}
+                                isEditing={isEditingCollections}
+                                onEditingChange={onEditingCollectionsChange}
+                                editingContainerRef={editingCollectionsContainerRef}
+                            />
                         </>
                     )}
                     <Box

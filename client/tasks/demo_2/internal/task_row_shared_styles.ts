@@ -17,3 +17,5 @@ export const taskRowViewFirstColumnWidth: RemLength = addRemLengths(
     spacing["32"],
     taskRowViewFirstColumnExtraPaddingLeft,
 );
+
+export const taskRowViewLastColumnPaddingRight: Spacing = "0";

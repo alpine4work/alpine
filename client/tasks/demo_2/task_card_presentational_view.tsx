@@ -8,7 +8,6 @@ import {AccountShortName} from "~/client/accounts/account_short_name";
 import {Box} from "~/client/design/box";
 import {ContextMenuActions} from "~/client/design/context_menu";
 import {FocusRing} from "~/client/design/focus_ring";
-import {MenuAction} from "~/client/design/menu_button";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour";
 import {useSpaceContext} from "~/client/spaces/space_context";

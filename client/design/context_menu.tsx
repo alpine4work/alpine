@@ -10,7 +10,7 @@ import {
 } from "react";
 import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box";
-import {useOutsidePress} from "~/client/design/helpers/use_outside_press";
+import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction";
 import {MenuAction, MenuItem, defaultMenuWidth} from "~/client/design/menu_button";
 import {ModalDialog} from "~/client/design/modal_dialog";
 import {OverlayScopeContextProvider} from "~/client/design/overlay";

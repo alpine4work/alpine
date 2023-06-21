@@ -1,5 +1,5 @@
 import {Ref, useCallback, useRef} from "react";
-import {useOutsidePress} from "~/client/design/helpers/use_outside_press";
+import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref";

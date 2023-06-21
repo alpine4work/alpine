@@ -32,7 +32,7 @@ import {
     getMarksSpanningAcrossEntireRange,
 } from "~/client/content/internal/content_editor_prosemirror_helpers";
 import {Box} from "~/client/design/box";
-import {useOutsidePress} from "~/client/design/helpers/use_outside_press";
+import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction";
 import {Overlay, OverlayRef} from "~/client/design/overlay";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
 import {Tooltip, TooltipRef, TooltipState} from "~/client/design/tooltip";

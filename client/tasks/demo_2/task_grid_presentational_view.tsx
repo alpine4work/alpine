@@ -12,8 +12,10 @@ import {
     useEffect,
     useImperativeHandle,
     useRef,
+    useState,
 } from "react";
 import {Box} from "~/client/design/box";
+import {useOutsideInteraction} from "~/client/design/helpers/use_outside_interaction";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant";
 import {TaskGridViewCapabilities} from "~/client/tasks/demo_2/internal/task_grid_view_capabilities";
 import {TaskGridViewDndContext} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
@@ -23,6 +25,7 @@ import {
     taskRowViewColumnWidth,
     taskRowViewFirstColumnPaddingLeft,
     taskRowViewFirstColumnWidth,
+    taskRowViewLastColumnPaddingRight,
     taskRowViewMinHeight,
 } from "~/client/tasks/demo_2/internal/task_row_shared_styles";
 import {TaskRowViewDroppable} from "~/client/tasks/demo_2/internal/task_row_view_droppable";
@@ -204,14 +207,25 @@ function TaskGridPresentationalView<TaskRow>(
         };
     }, []);
 
+    const [editingCollectionsOfTaskRowKey, setEditingCollectionsOfTaskRowKey] =
+        useState<Key | null>(null);
+
+    const editingTaskRowCollectionsContainerRef = useOutsideInteraction(() => {
+        setEditingCollectionsOfTaskRowKey(null);
+    });
+
     const taskRows: Array<ReactNode> = [];
 
     const hasTopGhostTaskRow = topGhostTaskKey !== null && taskRowCount >= 1;
 
     if (hasTopGhostTaskRow) {
+        const taskRowKey = `${topGhostTaskKey}-0`;
+
+        const isEditingCollections = editingCollectionsOfTaskRowKey === taskRowKey;
+
         taskRows.push(
             <TaskRowPresentationalView
-                key={`${topGhostTaskKey}-0`}
+                key={taskRowKey}
                 ref={topGhostTaskRowRef}
                 capabilities={capabilities}
                 taskRow={null}
@@ -233,6 +247,17 @@ function TaskGridPresentationalView<TaskRow>(
                     }
                 }}
                 collections={emptyArray}
+                isEditingCollections={isEditingCollections}
+                onEditingCollectionsChange={isEditingCollections => {
+                    if (isEditingCollections) {
+                        setEditingCollectionsOfTaskRowKey(taskRowKey);
+                    } else if (editingCollectionsOfTaskRowKey === taskRowKey) {
+                        setEditingCollectionsOfTaskRowKey(null);
+                    }
+                }}
+                editingCollectionsContainerRef={
+                    isEditingCollections ? editingTaskRowCollectionsContainerRef : null
+                }
                 parentTaskTitle={null}
                 childTaskCount={0}
                 closedChildTaskCount={0}
@@ -304,11 +329,15 @@ function TaskGridPresentationalView<TaskRow>(
             }
         }
 
+        // Tasks may appear at both the root level and as a nested subtask.
+        // So disambiguate by adding the indentation level the task is at.
+        const taskRowKey = `${getTaskKey(taskRow)}-${taskRowIndentation}`;
+
+        const isEditingCollections = editingCollectionsOfTaskRowKey === taskRowKey;
+
         taskRows.push(
             <TaskRowPresentationalView
-                // Tasks may appear at both the root level and as a nested subtask.
-                // So disambiguate by adding the indentation level the task is at.
-                key={`${getTaskKey(taskRow)}-${taskRowIndentation}`}
+                key={taskRowKey}
                 ref={taskRowRefByIndex.get(index)}
                 capabilities={capabilities}
                 taskRow={taskRow}
@@ -321,6 +350,17 @@ function TaskGridPresentationalView<TaskRow>(
                 dueDate={getTaskDueDate(taskRow)}
                 onDueDateChange={dueDate => onTaskDueDateChange(taskRow, dueDate)}
                 collections={getTaskCollections(taskRow)}
+                isEditingCollections={isEditingCollections}
+                onEditingCollectionsChange={isEditingCollections => {
+                    if (isEditingCollections) {
+                        setEditingCollectionsOfTaskRowKey(taskRowKey);
+                    } else if (editingCollectionsOfTaskRowKey === taskRowKey) {
+                        setEditingCollectionsOfTaskRowKey(null);
+                    }
+                }}
+                editingCollectionsContainerRef={
+                    isEditingCollections ? editingTaskRowCollectionsContainerRef : null
+                }
                 parentTaskTitle={getTaskParentTaskTitle(taskRow)}
                 childTaskCount={getTaskChildTaskCount(taskRow)}
                 closedChildTaskCount={getTaskClosedChildTaskCount(taskRow)}
@@ -396,87 +436,106 @@ function TaskGridPresentationalView<TaskRow>(
         );
     }
 
-    taskRows.push(
-        <TaskRowPresentationalView
-            key={`${bottomGhostTaskKey}-0`}
-            ref={bottomGhostTaskRowRef}
-            capabilities={capabilities}
-            // If there are no task rows, the padding just makes our ghost row placeholder
-            // look misaligned. So remove it.
-            withoutPaddingLeft={taskRowCount === 0}
-            taskRow={null}
-            status={null}
-            onStatusChange={noop}
-            title={emptyTaskTitle}
-            onTitleChange={title => createTaskAtEndFromBottomGhost({title})}
-            titlePlaceholder={taskGhostRowPlaceholder}
-            assignee={null}
-            onAssigneeChange={assignee => {
-                if (assignee) {
-                    createTaskAtEndFromBottomGhost({assignee});
+    {
+        const taskRowKey = `${bottomGhostTaskKey}-0`;
+
+        const isEditingCollections = editingCollectionsOfTaskRowKey === taskRowKey;
+
+        taskRows.push(
+            <TaskRowPresentationalView
+                key={taskRowKey}
+                ref={bottomGhostTaskRowRef}
+                capabilities={capabilities}
+                // If there are no task rows, the padding just makes our ghost row placeholder
+                // look misaligned. So remove it.
+                withoutPaddingLeft={taskRowCount === 0}
+                taskRow={null}
+                status={null}
+                onStatusChange={noop}
+                title={emptyTaskTitle}
+                onTitleChange={title => createTaskAtEndFromBottomGhost({title})}
+                titlePlaceholder={taskGhostRowPlaceholder}
+                assignee={null}
+                onAssigneeChange={assignee => {
+                    if (assignee) {
+                        createTaskAtEndFromBottomGhost({assignee});
+                    }
+                }}
+                dueDate={null}
+                onDueDateChange={dueDate => {
+                    if (dueDate) {
+                        createTaskAtEndFromBottomGhost({dueDate});
+                    }
+                }}
+                collections={emptyArray}
+                isEditingCollections={isEditingCollections}
+                onEditingCollectionsChange={isEditingCollections => {
+                    if (isEditingCollections) {
+                        setEditingCollectionsOfTaskRowKey(taskRowKey);
+                    } else if (editingCollectionsOfTaskRowKey === taskRowKey) {
+                        setEditingCollectionsOfTaskRowKey(null);
+                    }
+                }}
+                editingCollectionsContainerRef={
+                    isEditingCollections ? editingTaskRowCollectionsContainerRef : null
                 }
-            }}
-            dueDate={null}
-            onDueDateChange={dueDate => {
-                if (dueDate) {
-                    createTaskAtEndFromBottomGhost({dueDate});
+                parentTaskTitle={null}
+                childTaskCount={0}
+                closedChildTaskCount={0}
+                areChildTasksCollapsed={false}
+                onAreChildTasksCollapsedToggle={noop}
+                onExpand={null}
+                indentation={0}
+                droppableIndentations={[]}
+                createTaskAbove={() =>
+                    createTaskAtEndFromBottomGhostAndFocusNewGhost(emptyTaskTitle)
                 }
-            }}
-            collections={emptyArray}
-            parentTaskTitle={null}
-            childTaskCount={0}
-            closedChildTaskCount={0}
-            areChildTasksCollapsed={false}
-            onAreChildTasksCollapsedToggle={noop}
-            onExpand={null}
-            indentation={0}
-            droppableIndentations={[]}
-            createTaskAbove={() => createTaskAtEndFromBottomGhostAndFocusNewGhost(emptyTaskTitle)}
-            createTaskBelowAndFocus={() =>
-                createTaskAtEndFromBottomGhostAndFocusNewGhost(emptyTaskTitle)
-            }
-            createTaskChildAtStartAndFocus={() =>
-                createTaskAtEndFromBottomGhostAndFocusNewGhost(emptyTaskTitle)
-            }
-            nestWithPreviousTaskRowIfExistsAndExpand={noop}
-            unnestTaskIfNestedRow={noop}
-            deleteTaskAndAllChildrenAndFocusPreviousRow={() => {
-                taskRowRefByIndex.get(taskRowCount - 1)?.current?.focusTitleEnd();
-            }}
-            focusNextTaskTitleCoord={coord => {
-                coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
+                createTaskBelowAndFocus={() =>
+                    createTaskAtEndFromBottomGhostAndFocusNewGhost(emptyTaskTitle)
+                }
+                createTaskChildAtStartAndFocus={() =>
+                    createTaskAtEndFromBottomGhostAndFocusNewGhost(emptyTaskTitle)
+                }
+                nestWithPreviousTaskRowIfExistsAndExpand={noop}
+                unnestTaskIfNestedRow={noop}
+                deleteTaskAndAllChildrenAndFocusPreviousRow={() => {
+                    taskRowRefByIndex.get(taskRowCount - 1)?.current?.focusTitleEnd();
+                }}
+                focusNextTaskTitleCoord={coord => {
+                    coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
 
-                // No next task...
+                    // No next task...
 
-                lastArrowNavigationCoordRef.current = {
-                    setTime: new Date(),
-                    coord,
-                };
-            }}
-            focusPreviousTaskTitleCoord={coord => {
-                coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
+                    lastArrowNavigationCoordRef.current = {
+                        setTime: new Date(),
+                        coord,
+                    };
+                }}
+                focusPreviousTaskTitleCoord={coord => {
+                    coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
 
-                taskRowRefByIndex.get(taskRowCount - 1)?.current?.focusTitleCoord(coord);
+                    taskRowRefByIndex.get(taskRowCount - 1)?.current?.focusTitleCoord(coord);
 
-                lastArrowNavigationCoordRef.current = {
-                    setTime: new Date(),
-                    coord,
-                };
-            }}
-            focusFirstTaskTitleStart={() => {
-                if (topGhostTaskRowRef.current) {
-                    topGhostTaskRowRef.current.focusTitleStart();
-                } else if (taskRowCount === 0) {
+                    lastArrowNavigationCoordRef.current = {
+                        setTime: new Date(),
+                        coord,
+                    };
+                }}
+                focusFirstTaskTitleStart={() => {
+                    if (topGhostTaskRowRef.current) {
+                        topGhostTaskRowRef.current.focusTitleStart();
+                    } else if (taskRowCount === 0) {
+                        bottomGhostTaskRowRef.current?.focusTitleEnd();
+                    } else {
+                        taskRowRefByIndex.get(0).current?.focusTitleStart();
+                    }
+                }}
+                focusLastTaskTitleEnd={() => {
                     bottomGhostTaskRowRef.current?.focusTitleEnd();
-                } else {
-                    taskRowRefByIndex.get(0).current?.focusTitleStart();
-                }
-            }}
-            focusLastTaskTitleEnd={() => {
-                bottomGhostTaskRowRef.current?.focusTitleEnd();
-            }}
-        />,
-    );
+                }}
+            />,
+        );
+    }
 
     const decorativeGhostTaskRow = (
         <Box
@@ -569,7 +628,8 @@ function TaskGridPresentationalView<TaskRow>(
                         <Box
                             flexShrink="0"
                             width={taskRowViewCollectionsColumnWidth}
-                            paddingX={taskRowViewColumnPaddingX}
+                            paddingLeft={taskRowViewColumnPaddingX}
+                            paddingRight={taskRowViewLastColumnPaddingRight}
                             paddingBottom="1"
                             color="grey-50"
                             fontSize="50"

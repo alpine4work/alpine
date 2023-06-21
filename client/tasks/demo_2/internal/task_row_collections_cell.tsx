@@ -1,66 +1,131 @@
-import {useRef, useState} from "react";
+import {Lock} from "phosphor-react";
+import {RefCallback} from "react";
 import {Box} from "~/client/design/box";
-import {getLastFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support";
 import {TaskCollectionChip} from "~/client/tasks/demo_2/internal/task_collection_chip";
+import {TaskCollectionsInput} from "~/client/tasks/demo_2/internal/task_collections_input";
 import {
     taskRowViewCollectionsColumnWidth,
+    taskRowViewColumnPaddingX,
+    taskRowViewLastColumnPaddingRight,
     taskRowViewMinHeight,
 } from "~/client/tasks/demo_2/internal/task_row_shared_styles";
 import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
-import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {tasksStyles} from "~/shared/styles/styles";
+import {addRemLengths, spacing} from "~/shared/design/spacing";
+import {emptyArray} from "~/shared/helpers/array/empty_array";
+import {colorSchemeVars, inputPlaceholderStyles} from "~/shared/styles/styles";
 
 export function TaskRowCollectionsCell({
     collections,
+    isEditing,
+    onEditingChange,
+    editingContainerRef,
 }: {
     collections: ReadonlyArray<LocalTaskCollection>;
+    isEditing: boolean;
+    onEditingChange: (isEditing: boolean) => void;
+    editingContainerRef: RefCallback<HTMLElement> | null;
 }) {
-    const inputContainerRef = useRef<HTMLDivElement>(null);
     const [isHovered, hoverRef] = useHoverWithOverlaySupport();
-    const [isFocusWithin, setIsFocusWithin] = useState(false);
 
     return (
         <Box
             ref={hoverRef}
             flexShrink="0"
             width={taskRowViewCollectionsColumnWidth}
-            overflow="hidden"
-            className={tasksStyles.textCursorNotInheritedClassName}
-            {...useOutOfBoundsClickSelection({
-                onSelect: () => {
-                    getLastFocusableElementIfExists({
-                        withinElement: assertExists(inputContainerRef.current),
-                    })?.focus({preventScroll: true});
-                },
-                onSelectAll: () => {
-                    getLastFocusableElementIfExists({
-                        withinElement: assertExists(inputContainerRef.current),
-                    })?.focus({preventScroll: true});
-                },
-            })}
-            onFocus={() => setIsFocusWithin(true)}
-            onBlur={event => {
-                setIsFocusWithin(event.currentTarget.contains(event.relatedTarget));
-            }}
+            paddingLeft={taskRowViewColumnPaddingX}
+            paddingRight={taskRowViewLastColumnPaddingRight}
+            // Important not to set `overflow="hidden"` here so that the editable
+            // collections overlay can render outside the bounds of this cell.
+            overflow={undefined}
+            position="relative"
         >
-            <Box
-                ref={inputContainerRef}
-                height={taskRowViewMinHeight}
-                display="flex"
-                alignItems="center"
-                gap="2"
-                opacity={collections.length > 0 || isHovered || isFocusWithin ? "100" : "0"}
-            >
-                {collections.slice(0, 2).map(collection => (
-                    <TaskCollectionChip key={collection.id} collection={collection} />
-                ))}
-                {collections.length > 2 && (
-                    <Box color="grey-70" style={{fontFeatureSettings: '"calt"'}}>
-                        +{collections.length - 2}
+            {!isEditing && (
+                <Box cursor="pointer" onClick={() => onEditingChange(true)}>
+                    <Box
+                        height={taskRowViewMinHeight}
+                        display="flex"
+                        alignItems="center"
+                        gap="3"
+                        pointerEvents="none"
+                    >
+                        {collections.length === 0 ? (
+                            <Box
+                                style={inputPlaceholderStyles}
+                                display="flex"
+                                alignItems="center"
+                                gap="1"
+                                opacity={isHovered ? "100" : "0"}
+                            >
+                                <Lock size={spacing["4"]} />
+                                <Box>Private</Box>
+                            </Box>
+                        ) : (
+                            <>
+                                {collections.slice(0, 2).map(collection => (
+                                    <Box
+                                        key={collection.id}
+                                        marginY="-0.5"
+                                        marginLeft="-0.5"
+                                        style={{
+                                            // Don't allow item to grow beyond flexbox bounds. By default flexbox items
+                                            // have `min-width: auto` which extends with content.
+                                            // https://stackoverflow.com/a/66689926/1568890
+                                            minWidth: 0,
+                                        }}
+                                    >
+                                        <TaskCollectionChip collection={collection} />
+                                    </Box>
+                                ))}
+                                {collections.length > 2 && (
+                                    <Box color="grey-70" style={{fontFeatureSettings: '"calt"'}}>
+                                        +{collections.length - 2}
+                                    </Box>
+                                )}
+                            </>
+                        )}
                     </Box>
-                )}
+                </Box>
+            )}
+            <Box
+                ref={editingContainerRef}
+                position="absolute"
+                zIndex="30"
+                top="0"
+                right="0"
+                backgroundColor="grey-0"
+                minHeight={taskRowViewMinHeight}
+                // NOCOMMIT: Max height and scroll
+                paddingY="2.5"
+                opacity={!isEditing ? "0" : "100"}
+                pointerEvents={!isEditing ? "none" : undefined}
+                borderRadius="sm"
+                style={{
+                    width: addRemLengths(spacing[taskRowViewCollectionsColumnWidth], spacing["1"]),
+                    paddingLeft: addRemLengths(spacing[taskRowViewColumnPaddingX], spacing["1"]),
+                    paddingRight: addRemLengths(
+                        spacing[taskRowViewLastColumnPaddingRight],
+                        spacing["2.5"],
+                    ),
+                    // Draw the top and bottom border with a shadow so it lines up with rows.
+                    boxShadow: `0 -1px 0 0 ${colorSchemeVars["grey-0"]}, 0 0 0 2px ${colorSchemeVars["theme-30-const"]}, 0 -1px 0 2px ${colorSchemeVars["theme-30-const"]}`,
+                }}
+            >
+                <TaskCollectionsInput
+                    aria-label="Collections"
+                    isReadOnly={!isEditing}
+                    allCollections={emptyArray}
+                    collections={collections}
+                    createCollectionAndAddToTask={() => {
+                        // NOCOMMIT
+                    }}
+                    addCollectionToTask={() => {
+                        // NOCOMMIT
+                    }}
+                    removeCollectionFromTask={() => {
+                        // NOCOMMIT
+                    }}
+                />
             </Box>
         </Box>
     );
