@@ -202,7 +202,7 @@ function Button(
 
     // We wait a bit before showing our pending spinner. Some actions are very fast so we
     // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
-    const [_shouldShowPendingSpinner, setShouldShowPendingSpinner] = useState(false);
+    const [shouldShowPendingSpinner, setShouldShowPendingSpinner] = useState(false);
     useEffect(() => {
         if (!isPending) {
             setShouldShowPendingSpinner(false);
@@ -218,7 +218,7 @@ function Button(
     }, [isPending]);
 
     // Only show the pending spinner if we are actually pending.
-    const shouldShowPendingSpinner = _shouldShowPendingSpinner && isPending;
+    if (shouldShowPendingSpinner && !isPending) setShouldShowPendingSpinner(false);
 
     const isBold = variant === "neutral";
 

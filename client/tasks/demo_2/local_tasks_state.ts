@@ -354,6 +354,10 @@ class LocalTasksDatabase {
         return task;
     }
 
+    public getTaskCollectionIfExists(taskCollectionId: LocalTaskCollectionId) {
+        return this._taskCollectionById.get(taskCollectionId) ?? null;
+    }
+
     public getTaskCollection(taskCollectionId: LocalTaskCollectionId) {
         const taskCollection = this._taskCollectionById.get(taskCollectionId);
         if (!taskCollection) throw new NotFoundError("Task collection not found");
@@ -1042,6 +1046,34 @@ class LocalTasksDatabase {
         return activeTasks;
     }
 
+    public createTaskCollection(taskCollection: {
+        id: LocalTaskCollectionId;
+        name: string;
+        color: ThemeColor;
+    }) {
+        return new LocalTasksDatabase({
+            taskById: this._taskById,
+            taskCollectionById: this._taskCollectionById.update(
+                taskCollection.id,
+                oldTaskCollection => {
+                    if (oldTaskCollection)
+                        throw new FailedPreconditionError("Task collection already exists");
+
+                    const createdTime = new Date();
+
+                    return {
+                        ...taskCollection,
+                        createdTime,
+                        lastTaskAddedOrRemovedTimeRoundedToDay: null,
+                        taskCount: 0,
+                        taskIdByOrderKey: ImmutableMap.empty(),
+                    };
+                },
+            ),
+            taskIdByOrderKeyByNotepadPageId: this._taskIdByOrderKeyByNotepadPageId,
+        });
+    }
+
     public createTaskCollectionAndAddToTask(
         taskId: LocalTaskId,
         taskCollection: {
@@ -1199,7 +1231,7 @@ class LocalTasksDatabase {
         return tasks;
     }
 
-    public queryCollectionTasks(
+    public queryCollectionTasksIfExists(
         collectionId: LocalTaskCollectionId,
         filters: ReadonlyArray<TaskQueryFilter>,
         sorts: ReadonlyArray<TaskQuerySort>,
@@ -1211,13 +1243,15 @@ class LocalTasksDatabase {
 
         const tasks: Array<{orderKey: OrderKey; task: LocalTask}> = [];
 
-        const taskCollection = this.getTaskCollection(collectionId);
+        const taskCollection = this.getTaskCollectionIfExists(collectionId);
 
-        for (const [orderKey, taskId] of taskCollection.taskIdByOrderKey) {
-            const task = this.getTask(taskId);
+        if (taskCollection) {
+            for (const [orderKey, taskId] of taskCollection.taskIdByOrderKey) {
+                const task = this.getTask(taskId);
 
-            if (evaluateTaskQueryNormalizedFilters(normalizedFilters, task)) {
-                tasks.push({orderKey, task});
+                if (evaluateTaskQueryNormalizedFilters(normalizedFilters, task)) {
+                    tasks.push({orderKey, task});
+                }
             }
         }
 
@@ -1440,6 +1474,7 @@ export type LocalTasksAction =
     | LocalTasksDeleteTaskAndAllChildrenAction
     | LocalTasksNestTaskAction
     | LocalTasksMoveTaskAction
+    | LocalTasksCreateTaskCollectionAction
     | LocalTasksCreateTaskCollectionAndAddToTaskAction
     | LocalTasksAddTaskCollectionToTaskAction
     | LocalTasksRemoveTaskCollectionFromTaskAction
@@ -1520,6 +1555,13 @@ type LocalTasksMoveTaskAction = {
     readonly from: LocalTasksMoveTaskFrom;
     readonly to: LocalTasksMoveTaskTo;
     readonly onLayoutEffect?: () => void;
+};
+
+type LocalTasksCreateTaskCollectionAction = {
+    readonly type: "CreateTaskCollection";
+    readonly id: LocalTaskCollectionId;
+    readonly name: string;
+    readonly color: ThemeColor;
 };
 
 type LocalTasksCreateTaskCollectionAndAddToTaskAction = {
@@ -1675,6 +1717,13 @@ function reduceLocalTasksState(state: LocalTasksState, action: LocalTasksAction)
                 layoutEffectRef: onLayoutEffect
                     ? {current: () => onLayoutEffect()}
                     : state.layoutEffectRef,
+            };
+        }
+
+        case "CreateTaskCollection": {
+            return {
+                ...state,
+                database: state.database.createTaskCollection(action),
             };
         }
 

@@ -4,12 +4,18 @@ import {OverlayScopeContextProvider} from "~/client/design/overlay";
 import {TaskCollectionGridView} from "~/client/tasks/demo_2/internal/task_collection_grid_view";
 import {TaskCollectionViewHeader} from "~/client/tasks/demo_2/internal/task_collection_view_header";
 import {TaskQueryViewCustomizationBar} from "~/client/tasks/demo_2/internal/task_query_view_customization_bar";
-import {LocalTasksAction, LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
+import {
+    LocalTaskCollection,
+    LocalTasksAction,
+    LocalTasksState,
+} from "~/client/tasks/demo_2/local_tasks_state";
 import {TaskGridPresentationalViewRef} from "~/client/tasks/demo_2/task_grid_presentational_view";
 import {TaskQueryFilter} from "~/client/tasks/demo_2/task_query_filter";
 import {TaskQuerySort} from "~/client/tasks/demo_2/task_query_sort";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
+import {themeColors} from "~/shared/design/theme_colors";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {randomInteger} from "~/shared/helpers/number/random_integer";
 import {LocalTaskCollectionId} from "~/shared/id/types/id_types";
 import {tasksStyles} from "~/shared/styles/styles";
 import {
@@ -21,6 +27,7 @@ export function TaskCollectionView({
     state,
     dispatch,
     collectionId,
+    initialIsCreating,
     initialFilters,
     initialFilterReferences,
     onFiltersChange,
@@ -30,6 +37,7 @@ export function TaskCollectionView({
     state: LocalTasksState;
     dispatch: (action: LocalTasksAction) => void;
     collectionId: LocalTaskCollectionId;
+    initialIsCreating: boolean;
     initialFilters: ReadonlyArray<TaskQueryFilter>;
     initialFilterReferences: TaskQueryFilterReferences;
     onFiltersChange: (filters: ReadonlyArray<TaskQueryFilter>) => void;
@@ -38,7 +46,19 @@ export function TaskCollectionView({
 }) {
     const gridViewRef = useRef<TaskGridPresentationalViewRef>(null);
 
-    const collection = state.database.getTaskCollection(collectionId);
+    const [optimisticCollection, setOptimisticCollection] = useState(
+        (): Pick<LocalTaskCollection, "id" | "name" | "color"> | null => {
+            if (!initialIsCreating) return null;
+
+            return {
+                id: collectionId,
+                name: "",
+                color: themeColors[randomInteger(themeColors.length)]!,
+            };
+        },
+    );
+
+    const collection = optimisticCollection ?? state.database.getTaskCollection(collectionId);
 
     const [{filters, filterReferences}, setFiltersState] = useState({
         filters: initialFilters,
@@ -80,13 +100,24 @@ export function TaskCollectionView({
             <OverlayScopeContextProvider>
                 <TaskCollectionViewHeader
                     collection={collection}
-                    onCollectionNameChange={name =>
-                        dispatch({
-                            type: "UpdateTaskCollectionName",
-                            taskCollectionId: collection.id,
-                            name,
-                        })
-                    }
+                    onCollectionNameChange={name => {
+                        if (optimisticCollection) {
+                            dispatch({
+                                type: "CreateTaskCollection",
+                                id: collection.id,
+                                name,
+                                color: collection.color,
+                            });
+
+                            setOptimisticCollection(null);
+                        } else {
+                            dispatch({
+                                type: "UpdateTaskCollectionName",
+                                taskCollectionId: collection.id,
+                                name,
+                            });
+                        }
+                    }}
                 />
                 <Box paddingX="5" paddingBottom="6">
                     <TaskQueryViewCustomizationBar

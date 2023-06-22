@@ -27,7 +27,7 @@ import {LocalTaskCollection, LocalTasksState} from "~/client/tasks/demo_2/local_
 import {spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 import {noop} from "~/shared/helpers/control/noop";
-import {isId} from "~/shared/id/id";
+import {generateId, isId} from "~/shared/id/id";
 import {LocalTaskCollectionId} from "~/shared/id/types/id_types";
 import {sprinkles} from "~/shared/styles/styles";
 
@@ -38,6 +38,9 @@ export function TaskLayoutTopBarCollectionsButton({
     state: LocalTasksState;
     isCollectionsTabActive: boolean;
 }) {
+    const navigate = useNavigate();
+    const {space} = useSpaceContext();
+
     const allCollections = useMemo(
         () =>
             state.database
@@ -70,8 +73,13 @@ export function TaskLayoutTopBarCollectionsButton({
                                     fullWidth={true}
                                     height="7"
                                     icon={<Plus />}
-                                    onPress={() => {
-                                        // NOCOMMIT
+                                    pressErrorTitle="Couldn’t create collection"
+                                    onPress={async () => {
+                                        await navigate(
+                                            `/s/${
+                                                space.id
+                                            }/tasks/demo-2/collections/${generateId()}?create`,
+                                        );
                                     }}
                                 >
                                     Create collection
@@ -127,9 +135,9 @@ function TaskLayoutTopBarCollectionsComboBoxOverlay({
     const {space} = useSpaceContext();
 
     const [inputValue, setInputValue] = useState("");
-    const [pendingCollectionId, setPendingCollectionId] = useState<LocalTaskCollectionId | null>(
-        null,
-    );
+    const [pendingKey, setPendingKey] = useState<
+        TaskLayoutTopBarCollectionsComboBoxItem["key"] | null
+    >(null);
 
     const allCollectionsSearchIndex = useMemo(
         () => new Fuse(allCollections, {keys: ["name"]}),
@@ -188,20 +196,20 @@ function TaskLayoutTopBarCollectionsComboBoxOverlay({
                 const collectionId = key.slice("Collection:".length);
                 assert(isId<LocalTaskCollectionId>(collectionId));
 
-                setPendingCollectionId(collectionId);
+                setPendingKey(`Collection:${collectionId}`);
 
                 navigate(`/s/${space.id}/tasks/demo-2/collections/${collectionId}`).then(
                     () => {
-                        setPendingCollectionId(pendingCollectionId => {
-                            if (pendingCollectionId !== collectionId) return pendingCollectionId;
+                        setPendingKey(pendingKey => {
+                            if (pendingKey !== `Collection:${collectionId}`) return pendingKey;
                             return null;
                         });
 
                         onCloseWithoutAnimation();
                     },
                     error => {
-                        setPendingCollectionId(pendingCollectionId => {
-                            if (pendingCollectionId !== collectionId) return pendingCollectionId;
+                        setPendingKey(pendingKey => {
+                            if (pendingKey !== `Collection:${collectionId}`) return pendingKey;
                             return null;
                         });
 
@@ -214,7 +222,31 @@ function TaskLayoutTopBarCollectionsComboBoxOverlay({
                 );
             } else {
                 assert(key === "CreateCollection");
-                // NOCOMMIT
+
+                setPendingKey("CreateCollection");
+
+                navigate(`/s/${space.id}/tasks/demo-2/collections/${generateId()}?create`).then(
+                    () => {
+                        setPendingKey(pendingKey => {
+                            if (pendingKey !== "CreateCollection") return pendingKey;
+                            return null;
+                        });
+
+                        onCloseWithoutAnimation();
+                    },
+                    error => {
+                        setPendingKey(pendingKey => {
+                            if (pendingKey !== "CreateCollection") return pendingKey;
+                            return null;
+                        });
+
+                        showToast({
+                            type: "Error",
+                            title: "Couldn’t create collection",
+                            error,
+                        });
+                    },
+                );
             }
         },
     });
@@ -307,7 +339,7 @@ function TaskLayoutTopBarCollectionsComboBoxOverlay({
                     comboBoxState={comboBoxState}
                     listBoxRef={listBoxRef}
                     listBoxProps={listBoxProps}
-                    pendingCollectionId={pendingCollectionId}
+                    pendingKey={pendingKey}
                 />
             </Box>
         </>
@@ -318,12 +350,12 @@ function TaskLayoutTopBarCollectionsListBox({
     comboBoxState,
     listBoxRef,
     listBoxProps: _listBoxProps,
-    pendingCollectionId,
+    pendingKey,
 }: {
     comboBoxState: ComboBoxState<TaskLayoutTopBarCollectionsComboBoxItem>;
     listBoxRef: RefObject<HTMLUListElement>;
     listBoxProps: AriaListBoxOptions<TaskLayoutTopBarCollectionsComboBoxItem>;
-    pendingCollectionId: LocalTaskCollectionId | null;
+    pendingKey: TaskLayoutTopBarCollectionsComboBoxItem["key"] | null;
 }) {
     const {listBoxProps} = useListBox(
         {..._listBoxProps, autoFocus: false},
@@ -344,14 +376,14 @@ function TaskLayoutTopBarCollectionsListBox({
                         key={item.key}
                         comboBoxState={comboBoxState}
                         item={item}
-                        pendingCollectionId={pendingCollectionId}
+                        pendingKey={pendingKey}
                     />,
                 );
             }
         }
 
         return {itemsWithoutCreateCollectionButton, createCollectionButtonItem};
-    }, [comboBoxState, pendingCollectionId]);
+    }, [comboBoxState, pendingKey]);
 
     return (
         <Box flexGrow="1" overflow="hidden" display="flex" flexDirection="column">
@@ -380,6 +412,7 @@ function TaskLayoutTopBarCollectionsListBox({
                         comboBoxState={comboBoxState}
                         item={createCollectionButtonItem}
                         isQuiet={true}
+                        isPending={createCollectionButtonItem.key === pendingKey}
                     />
                 </Box>
             )}
@@ -390,11 +423,11 @@ function TaskLayoutTopBarCollectionsListBox({
 function TaskLayoutTopBarCollectionsListBoxOption({
     comboBoxState,
     item,
-    pendingCollectionId,
+    pendingKey,
 }: {
     comboBoxState: ComboBoxState<TaskLayoutTopBarCollectionsComboBoxItem>;
     item: Node<TaskLayoutTopBarCollectionsComboBoxItem>;
-    pendingCollectionId: LocalTaskCollectionId | null;
+    pendingKey: TaskLayoutTopBarCollectionsComboBoxItem["key"] | null;
 }) {
     const optionRef = useRef(null);
     const {isHovered, hoverProps} = useHover({});
@@ -428,9 +461,7 @@ function TaskLayoutTopBarCollectionsListBoxOption({
             >
                 {isValidElement(item.rendered)
                     ? cloneElement(item.rendered, {
-                          isPending:
-                              item.value.type === "Collection" &&
-                              item.value.collection.id === pendingCollectionId,
+                          isPending: item.key === pendingKey,
                       } as any)
                     : item.rendered}
             </li>

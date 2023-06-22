@@ -1,4 +1,4 @@
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {useParams, useSearchParams} from "react-router-dom";
 import TasksViewRouteWrapper from "~/app/routes/s/$space_id/tasks/demo-2/view";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
@@ -43,6 +43,17 @@ export default function TaskCollectionRoute() {
     const collectionId = Schema.id<LocalTaskCollectionId>().deserialize(
         useParams()["task_collection_id"] ?? null,
     );
+
+    return (
+        <TaskCollectionRouteInner
+            // Remount when the collection changes...
+            key={collectionId}
+            collectionId={collectionId}
+        />
+    );
+}
+
+function TaskCollectionRouteInner({collectionId}: {collectionId: LocalTaskCollectionId}) {
     const [searchParams] = useSearchParams();
 
     const [initialFilters] = useState(() => {
@@ -57,6 +68,21 @@ export default function TaskCollectionRoute() {
         return deserializeTaskQuerySortsSearchParam(sortsString);
     });
 
+    const [initialIsCreating] = useState(() => searchParams.has("create"));
+
+    // Remove the `create` search param on mount.
+    useEffect(() => {
+        const url = new URL(window.location.href);
+
+        if (url.searchParams.has("create")) {
+            url.searchParams.delete("create");
+
+            // Silently update the URL without telling Remix so our component doesn't
+            // re-render unnecessarily.
+            window.history.replaceState(null, "", url);
+        }
+    }, []);
+
     const {filterReferences} = useLoaderDataWithSchema(LoaderSchema);
     const [state, dispatch] = useLocalTasksState();
 
@@ -68,11 +94,10 @@ export default function TaskCollectionRoute() {
 
     return (
         <TaskCollectionView
-            // Remount when the collection changes...
-            key={collectionId}
             state={state}
             dispatch={dispatch}
             collectionId={collectionId}
+            initialIsCreating={initialIsCreating}
             initialFilters={isInitialAppRender ? [] : initialFilters}
             initialFilterReferences={filterReferences}
             onFiltersChange={filters => {

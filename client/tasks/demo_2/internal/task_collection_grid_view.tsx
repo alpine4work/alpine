@@ -67,7 +67,7 @@ function TaskCollectionGridView(
     const gridViewRef = useRef<TaskGridPresentationalViewRef>(null);
 
     const tasks = useMemo(() => {
-        return state.database.queryCollectionTasks(collectionId, filters, sorts, {
+        return state.database.queryCollectionTasksIfExists(collectionId, filters, sorts, {
             currentAccountId: currentAccount.id,
             currentDate,
         });

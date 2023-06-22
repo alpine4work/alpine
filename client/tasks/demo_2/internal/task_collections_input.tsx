@@ -672,6 +672,7 @@ function TaskDetailCollectionsFieldListBox({
                                     comboBoxState={comboBoxState}
                                     item={createCollectionButtonItem}
                                     isQuiet={false}
+                                    isPending={false}
                                 />
                             ) : null
                         }
@@ -711,6 +712,7 @@ function TaskDetailCollectionsFieldListBox({
                                 comboBoxState={comboBoxState}
                                 item={createCollectionButtonItem}
                                 isQuiet={true}
+                                isPending={false}
                             />
                         </Box>
                     )}

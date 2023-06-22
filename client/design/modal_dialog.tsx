@@ -2,6 +2,7 @@ import {useEffect, useId, useRef} from "react";
 import {Box} from "~/client/design/box";
 import {ModalWithButtons, ModalWithButtonsRef} from "~/client/design/modal_with_buttons";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
 
 /**
  * Present information to the user, blocking their experience, and ask them to
@@ -23,9 +24,11 @@ export function ModalDialog({
     title,
     description,
     primaryButtonLabel,
+    isPrimaryButtonDisabled,
     primaryButtonPressErrorTitle,
     onPrimaryButtonPress,
     cancelButtonLabel = "Cancel",
+    cancelButtonPressErrorTitle,
     onCancelButtonPress,
     shouldHideCancelButton,
     onClose,
@@ -33,10 +36,12 @@ export function ModalDialog({
     title: string;
     description: string;
     primaryButtonLabel: string;
+    isPrimaryButtonDisabled?: boolean;
     primaryButtonPressErrorTitle?: string;
-    onPrimaryButtonPress: () => void | Promise<void>;
+    onPrimaryButtonPress: () => MaybePromise<void>;
     cancelButtonLabel?: string;
-    onCancelButtonPress?: () => void;
+    cancelButtonPressErrorTitle?: string;
+    onCancelButtonPress?: () => MaybePromise<void>;
     shouldHideCancelButton?: boolean;
     onClose: () => void;
 }) {
@@ -56,9 +61,11 @@ export function ModalDialog({
             aria-describedby={descriptionId}
             onClose={onClose}
             primaryButtonLabel={primaryButtonLabel}
+            isPrimaryButtonDisabled={isPrimaryButtonDisabled}
             primaryButtonPressErrorTitle={primaryButtonPressErrorTitle}
             onPrimaryButtonPress={onPrimaryButtonPress}
             cancelButtonLabel={cancelButtonLabel}
+            cancelButtonPressErrorTitle={cancelButtonPressErrorTitle}
             onCancelButtonPress={onCancelButtonPress}
             shouldHideCancelButton={shouldHideCancelButton}
         >

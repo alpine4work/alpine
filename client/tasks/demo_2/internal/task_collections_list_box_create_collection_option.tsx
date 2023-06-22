@@ -1,24 +1,28 @@
 import {isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
-import {Plus} from "phosphor-react";
-import {useRef, useState} from "react";
+import {Plus, SpinnerGap} from "phosphor-react";
+import {useEffect, useRef, useState} from "react";
 import {mergeProps, useHover, useOption} from "react-aria";
 import {ComboBoxState} from "react-stately";
 import {Box} from "~/client/design/box";
 import {buttonPressedOverlayOpacity} from "~/client/design/button";
 import {FocusRing} from "~/client/design/focus_ring";
+import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {spacing} from "~/shared/design/spacing";
-import {sprinkles} from "~/shared/styles/styles";
+import {createTimeout} from "~/shared/helpers/async/timeout";
+import {spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
 
 export function TaskCollectionsListBoxCreateCollectionOption<T>({
     comboBoxState,
     item,
     isQuiet,
+    isPending,
 }: {
     comboBoxState: ComboBoxState<T>;
     item: Node<T>;
     isQuiet: boolean;
+    isPending: boolean;
 }) {
     const optionRef = useRef(null);
     const {isHovered, hoverProps} = useHover({});
@@ -32,6 +36,26 @@ export function TaskCollectionsListBoxCreateCollectionOption<T>({
     useLayoutEffectWithoutServerSideWarning(() => {
         if (isFocused) setWasFocusVisibleWhenFocused(isFocusVisible());
     }, [isFocused]);
+
+    // We wait a bit before showing our pending spinner. Some actions are very fast so we
+    // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
+    const [shouldShowPendingSpinner, setShouldShowPendingSpinner] = useState(false);
+    useEffect(() => {
+        if (!isPending) {
+            setShouldShowPendingSpinner(false);
+            return;
+        }
+
+        const timeout = createTimeout(() => {
+            setShouldShowPendingSpinner(true);
+        }, delayLoadingIndicatorLimitMs);
+        return () => {
+            timeout.clear();
+        };
+    }, [isPending]);
+
+    // Only show the pending spinner if we are actually pending.
+    if (shouldShowPendingSpinner && !isPending) setShouldShowPendingSpinner(false);
 
     return (
         <FocusRing
@@ -81,11 +105,15 @@ export function TaskCollectionsListBoxCreateCollectionOption<T>({
                         style={{opacity: buttonPressedOverlayOpacity}}
                     />
                 )}
-                <Plus
-                    size={spacing["3"]}
-                    weight={!isQuiet ? "bold" : undefined}
-                    className={sprinkles({flexShrink: "0"})}
-                />
+                {shouldShowPendingSpinner ? (
+                    <SpinnerGap className={spinAnimationClassName} size={spacing["3"]} />
+                ) : (
+                    <Plus
+                        size={spacing["3"]}
+                        weight={!isQuiet ? "bold" : undefined}
+                        className={sprinkles({flexShrink: "0"})}
+                    />
+                )}
                 <Box fontStyle={!isQuiet ? "truncate-semi-bold" : "truncate"}>{item.rendered}</Box>
             </Box>
         </FocusRing>

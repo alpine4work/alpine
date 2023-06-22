@@ -7,6 +7,7 @@ import {useShowToast} from "~/client/design/toast";
 import {RemLength, Spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
 
 export type ModalWithButtonsRef = {
     focusPrimaryButton(): void;
@@ -28,6 +29,7 @@ function ModalWithButtons(
         primaryButtonPressErrorTitle,
         onPrimaryButtonPress,
         cancelButtonLabel = "Cancel",
+        cancelButtonPressErrorTitle,
         onCancelButtonPress,
         shouldHideCancelButton,
         onClose,
@@ -42,9 +44,10 @@ function ModalWithButtons(
         primaryButtonLabel: string;
         isPrimaryButtonDisabled?: boolean;
         primaryButtonPressErrorTitle?: string;
-        onPrimaryButtonPress: () => void | Promise<void>;
+        onPrimaryButtonPress: () => MaybePromise<void>;
         cancelButtonLabel?: string;
-        onCancelButtonPress?: () => void;
+        cancelButtonPressErrorTitle?: string;
+        onCancelButtonPress?: () => MaybePromise<void>;
         shouldHideCancelButton?: boolean;
         onClose: () => void;
         disableCloseAnimation?: boolean;
@@ -55,7 +58,7 @@ function ModalWithButtons(
 ) {
     const showToast = useShowToast();
     const primaryButtonRef = useRef<HTMLButtonElement>(null);
-    const [isPending, setIsPending] = useState(false);
+    const [isPrimaryButtonPending, setIsPrimaryButtonPending] = useState(false);
 
     useImperativeHandle(
         ref,
@@ -85,7 +88,7 @@ function ModalWithButtons(
                     if (!(promise instanceof Promise)) {
                         onCloseWithoutAnimation();
                     } else {
-                        setIsPending(true);
+                        setIsPrimaryButtonPending(true);
 
                         assert(
                             primaryButtonPressErrorTitle,
@@ -96,7 +99,7 @@ function ModalWithButtons(
 
                         promise.then(
                             () => {
-                                setIsPending(false);
+                                setIsPrimaryButtonPending(false);
 
                                 // Our animation principle is to respond to user input immediately
                                 // without animation.
@@ -113,7 +116,7 @@ function ModalWithButtons(
                                 }
                             },
                             error => {
-                                setIsPending(false);
+                                setIsPrimaryButtonPending(false);
 
                                 showToast({
                                     type: "Error",
@@ -128,7 +131,7 @@ function ModalWithButtons(
                 return (
                     <>
                         {typeof children === "function"
-                            ? children({isPending, pressPrimaryButton})
+                            ? children({isPending: isPrimaryButtonPending, pressPrimaryButton})
                             : children}
                         <Box
                             paddingX="5"
@@ -139,9 +142,32 @@ function ModalWithButtons(
                         >
                             {!shouldHideCancelButton && (
                                 <Button
+                                    pressErrorTitle={cancelButtonPressErrorTitle}
                                     onPress={() => {
-                                        onCancelButtonPress?.();
-                                        onCloseWithoutAnimation();
+                                        const promise = onCancelButtonPress?.();
+
+                                        if (!(promise instanceof Promise)) {
+                                            onCloseWithoutAnimation();
+                                        } else {
+                                            const promiseStartTime = new Date();
+
+                                            return promise.then(() => {
+                                                // Our animation principle is to respond to user input immediately
+                                                // without animation.
+                                                //
+                                                // If the button had to go into a loading state we consider the click long
+                                                // enough ago that it is no longer a direct action.
+                                                if (
+                                                    new Date().getTime() -
+                                                        promiseStartTime.getTime() >
+                                                    delayLoadingIndicatorLimitMs
+                                                ) {
+                                                    onCloseWithAnimation();
+                                                } else {
+                                                    onCloseWithoutAnimation();
+                                                }
+                                            });
+                                        }
                                     }}
                                 >
                                     {cancelButtonLabel}
@@ -151,7 +177,7 @@ function ModalWithButtons(
                                 ref={primaryButtonRef}
                                 variant="accent"
                                 isDisabled={isPrimaryButtonDisabled}
-                                isPending={isPending}
+                                isPending={isPrimaryButtonPending}
                                 pressErrorTitle={primaryButtonPressErrorTitle}
                                 onPress={pressPrimaryButton}
                             >
