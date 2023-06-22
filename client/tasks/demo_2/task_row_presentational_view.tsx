@@ -34,6 +34,7 @@ import {TaskPriorityInput} from "~/client/tasks/demo_2/internal/task_priority_in
 import {TaskRowAssigneeCell} from "~/client/tasks/demo_2/internal/task_row_assignee_cell";
 import {TaskRowCollectionsCell} from "~/client/tasks/demo_2/internal/task_row_collections_cell";
 import {TaskRowDueDateCell} from "~/client/tasks/demo_2/internal/task_row_due_date_cell";
+import {TaskRowPriorityCell} from "~/client/tasks/demo_2/internal/task_row_priority_cell";
 import {taskRowViewMinHeight} from "~/client/tasks/demo_2/internal/task_row_shared_styles";
 import {
     TaskRowTitleInput,
@@ -455,7 +456,10 @@ function TaskRowPresentationalView<TaskRow>(
                                 assignee={assignee}
                                 onAssigneeChange={onAssigneeChange}
                             />
-                            <Box flexShrink="0" width="32" paddingX="1.5" overflow="hidden"></Box>
+                            <TaskRowPriorityCell
+                                priority={priority}
+                                onPriorityChange={onPriorityChange}
+                            />
                             <TaskRowDueDateCell
                                 dueDate={dueDate}
                                 onDueDateChange={onDueDateChange}
