@@ -102,6 +102,18 @@ export function TaskQueryViewCustomizationBar({
                                     });
                                 },
                             },
+                            {
+                                label: "Priority",
+                                onPress: () => {
+                                    addFilter({
+                                        type: "Priority",
+                                        operation: {
+                                            type: "OneOf",
+                                            priorities: new Set(),
+                                        },
+                                    });
+                                },
+                            },
                         ],
                         [
                             {

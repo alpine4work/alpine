@@ -18,6 +18,7 @@ assertEqualTypes<
     keyof TaskQueryNormalizedFilters,
     | "statusFilter"
     | "collectionsFilter"
+    | "priorityFilter"
     | "assigneeFilter"
     | "creatorFilter"
     | "assignerFilter"
@@ -70,6 +71,17 @@ export function evaluateTaskQueryNormalizedFilters(
             default:
                 throw exhaustive(filters.collectionsFilter);
         }
+    }
+
+    if (filters.priorityFilter !== undefined) {
+        const pass =
+            (filters.priorityFilter.ifNull && task.priority === null) ||
+            (filters.priorityFilter.ifLow && task.priority === "Low") ||
+            (filters.priorityFilter.ifMedium && task.priority === "Medium") ||
+            (filters.priorityFilter.ifHigh && task.priority === "High") ||
+            (filters.priorityFilter.ifUrgent && task.priority === "Urgent");
+
+        if (!pass) return false;
     }
 
     if (

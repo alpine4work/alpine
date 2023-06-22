@@ -564,6 +564,7 @@ class LocalTasksDatabase {
                 keyof TaskQueryNormalizedFilters,
                 | "statusFilter"
                 | "collectionsFilter"
+                | "priorityFilter"
                 | "assigneeFilter"
                 | "creatorFilter"
                 | "assignerFilter"

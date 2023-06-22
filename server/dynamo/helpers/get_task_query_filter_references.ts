@@ -20,6 +20,7 @@ export async function getTaskQueryFilterReferences(
         switch (filter.type) {
             case "Status":
             case "Collections":
+            case "Priority":
             case "DueDate":
             case "CreatedDate":
             case "AssignedDate":

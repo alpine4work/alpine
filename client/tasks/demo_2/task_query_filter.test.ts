@@ -161,6 +161,192 @@ const testCases: Array<{name: string; filters: Array<TaskQueryFilter>}> = [
             },
         ],
     },
+    {
+        name: "one of empty priorities",
+        filters: [
+            {
+                type: "Priority",
+                operation: {type: "OneOf", priorities: new Set()},
+            },
+        ],
+    },
+    {
+        name: "one of null priority",
+        filters: [
+            {
+                type: "Priority",
+                operation: {type: "OneOf", priorities: new Set([null])},
+            },
+        ],
+    },
+    {
+        name: "one of low priority",
+        filters: [
+            {
+                type: "Priority",
+                operation: {type: "OneOf", priorities: new Set(["Low"])},
+            },
+        ],
+    },
+    {
+        name: "one of medium priority",
+        filters: [
+            {
+                type: "Priority",
+                operation: {type: "OneOf", priorities: new Set(["Medium"])},
+            },
+        ],
+    },
+    {
+        name: "one of high priority",
+        filters: [
+            {
+                type: "Priority",
+                operation: {type: "OneOf", priorities: new Set(["High"])},
+            },
+        ],
+    },
+    {
+        name: "one of urgent priority",
+        filters: [
+            {
+                type: "Priority",
+                operation: {type: "OneOf", priorities: new Set(["Urgent"])},
+            },
+        ],
+    },
+    {
+        name: "one of null and low priority",
+        filters: [
+            {
+                type: "Priority",
+                operation: {type: "OneOf", priorities: new Set([null, "Low"])},
+            },
+        ],
+    },
+    {
+        name: "one of medium and high priority",
+        filters: [
+            {
+                type: "Priority",
+                operation: {type: "OneOf", priorities: new Set(["Medium", "High"])},
+            },
+        ],
+    },
+    {
+        name: "one of medium, high, and urgent priority",
+        filters: [
+            {
+                type: "Priority",
+                operation: {type: "OneOf", priorities: new Set(["Medium", "High", "Urgent"])},
+            },
+        ],
+    },
+    {
+        name: "one of all priorities",
+        filters: [
+            {
+                type: "Priority",
+                operation: {
+                    type: "OneOf",
+                    priorities: new Set([null, "Low", "Medium", "High", "Urgent"]),
+                },
+            },
+        ],
+    },
+    {
+        name: "none of empty priorities",
+        filters: [
+            {
+                type: "Priority",
+                operation: {type: "NoneOf", priorities: new Set()},
+            },
+        ],
+    },
+    {
+        name: "none of null priority",
+        filters: [
+            {
+                type: "Priority",
+                operation: {type: "NoneOf", priorities: new Set([null])},
+            },
+        ],
+    },
+    {
+        name: "none of low priority",
+        filters: [
+            {
+                type: "Priority",
+                operation: {type: "NoneOf", priorities: new Set(["Low"])},
+            },
+        ],
+    },
+    {
+        name: "none of medium priority",
+        filters: [
+            {
+                type: "Priority",
+                operation: {type: "NoneOf", priorities: new Set(["Medium"])},
+            },
+        ],
+    },
+    {
+        name: "none of high priority",
+        filters: [
+            {
+                type: "Priority",
+                operation: {type: "NoneOf", priorities: new Set(["High"])},
+            },
+        ],
+    },
+    {
+        name: "none of urgent priority",
+        filters: [
+            {
+                type: "Priority",
+                operation: {type: "NoneOf", priorities: new Set(["Urgent"])},
+            },
+        ],
+    },
+    {
+        name: "none of null and low priority",
+        filters: [
+            {
+                type: "Priority",
+                operation: {type: "NoneOf", priorities: new Set([null, "Low"])},
+            },
+        ],
+    },
+    {
+        name: "none of medium and high priority",
+        filters: [
+            {
+                type: "Priority",
+                operation: {type: "NoneOf", priorities: new Set(["Medium", "High"])},
+            },
+        ],
+    },
+    {
+        name: "none of medium, high, and urgent priority",
+        filters: [
+            {
+                type: "Priority",
+                operation: {type: "NoneOf", priorities: new Set(["Medium", "High", "Urgent"])},
+            },
+        ],
+    },
+    {
+        name: "none of all priorities",
+        filters: [
+            {
+                type: "Priority",
+                operation: {
+                    type: "NoneOf",
+                    priorities: new Set([null, "Low", "Medium", "High", "Urgent"]),
+                },
+            },
+        ],
+    },
     ...cast<Array<{name: string; operation: TaskQueryFilterAccountOperation}>>([
         {
             name: "empty",

@@ -1,4 +1,5 @@
 import {CalendarDate, GregorianCalendar, toCalendar} from "@internationalized/date";
+import {TaskPriority} from "~/client/tasks/demo_2/local_tasks_state";
 import {InvalidArgumentError} from "~/shared/error/error";
 import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64";
 import {assert} from "~/shared/helpers/control/assert";
@@ -9,6 +10,7 @@ import {AccountId, LocalTaskCollectionId} from "~/shared/id/types/id_types";
 export type TaskQueryFilter =
     | TaskQueryStatusFilter
     | TaskQueryCollectionsFilter
+    | TaskQueryPriorityFilter
     | TaskQueryAssigneeFilter
     | TaskQueryCreatorFilter
     | TaskQueryAssignerFilter
@@ -109,29 +111,32 @@ function serializeTaskQueryFilter(filter: TaskQueryFilter, view: DataView): void
         case "Collections":
             typeId = 2;
             break;
-        case "Assignee":
+        case "Priority":
             typeId = 3;
             break;
-        case "Creator":
+        case "Assignee":
             typeId = 4;
             break;
-        case "Assigner":
+        case "Creator":
             typeId = 5;
             break;
-        case "DueDate":
+        case "Assigner":
             typeId = 6;
             break;
-        case "CreatedDate":
+        case "DueDate":
             typeId = 7;
             break;
-        case "AssignedDate":
+        case "CreatedDate":
             typeId = 8;
             break;
-        case "ClosedDate":
+        case "AssignedDate":
             typeId = 9;
             break;
-        case "ActivatedDate":
+        case "ClosedDate":
             typeId = 10;
+            break;
+        case "ActivatedDate":
+            typeId = 11;
             break;
         default:
             throw exhaustive(filter);
@@ -175,20 +180,22 @@ function deserializeTaskQueryFilterWithoutIncrementingByteLength(viewWithType: D
         case 2:
             return deserializeTaskQueryCollectionsFilter(view);
         case 3:
-            return deserializeTaskQueryAssigneeFilter(view);
+            return deserializeTaskQueryPriorityFilter(view);
         case 4:
-            return deserializeTaskQueryCreatorFilter(view);
+            return deserializeTaskQueryAssigneeFilter(view);
         case 5:
-            return deserializeTaskQueryAssignerFilter(view);
+            return deserializeTaskQueryCreatorFilter(view);
         case 6:
-            return deserializeTaskQueryDueDateFilter(view);
+            return deserializeTaskQueryAssignerFilter(view);
         case 7:
-            return deserializeTaskQueryCreatedDateFilter(view);
+            return deserializeTaskQueryDueDateFilter(view);
         case 8:
-            return deserializeTaskQueryAssignedDateFilter(view);
+            return deserializeTaskQueryCreatedDateFilter(view);
         case 9:
-            return deserializeTaskQueryClosedDateFilter(view);
+            return deserializeTaskQueryAssignedDateFilter(view);
         case 10:
+            return deserializeTaskQueryClosedDateFilter(view);
+        case 11:
             return deserializeTaskQueryActivatedDateFilter(view);
         default:
             throw new InvalidArgumentError(`Unrecognized filter type ${typeId}`);
@@ -201,6 +208,8 @@ function getTaskQueryFilterWithoutTypeByteLength(filter: TaskQueryFilter) {
             return getTaskQueryStatusFilterByteLength(filter);
         case "Collections":
             return getTaskQueryCollectionsFilterByteLength(filter);
+        case "Priority":
+            return getTaskQueryPriorityFilterByteLength(filter);
         case "Assignee":
             return getTaskQueryAssigneeFilterByteLength(filter);
         case "Creator":
@@ -228,6 +237,8 @@ function serializeTaskQueryFilterWithoutType(filter: TaskQueryFilter, view: Data
             return serializeTaskQueryStatusFilter(filter, view);
         case "Collections":
             return serializeTaskQueryCollectionsFilter(filter, view);
+        case "Priority":
+            return serializeTaskQueryPriorityFilter(filter, view);
         case "Assignee":
             return serializeTaskQueryAssigneeFilter(filter, view);
         case "Creator":
@@ -426,6 +437,70 @@ function deserializeTaskQueryCollectionsFilter(view: DataView): {
     return {
         filter: {type: "Collections", operation: {type, collectionIds}},
         byteLength: byteOffset,
+    };
+}
+
+export type TaskQueryPriorityFilter = {
+    readonly type: "Priority";
+    readonly operation:
+        | {
+              readonly type: "OneOf";
+              readonly priorities: ReadonlySet<TaskPriority | null>;
+          }
+        | {
+              readonly type: "NoneOf";
+              readonly priorities: ReadonlySet<TaskPriority | null>;
+          };
+};
+
+function getTaskQueryPriorityFilterByteLength(filter: TaskQueryPriorityFilter) {
+    return 1;
+}
+
+function serializeTaskQueryPriorityFilter(filter: TaskQueryPriorityFilter, view: DataView) {
+    const byte =
+        // Operation type is stored in the first 3 bits
+        ((filter.operation.type === "OneOf" ? 1 : 2) << 5) |
+        // Statuses are stored in the last 5 bits as a bitset
+        (filter.operation.priorities.has(null) ? 0b00000001 : 0b00000000) |
+        (filter.operation.priorities.has("Low") ? 0b00000010 : 0b00000000) |
+        (filter.operation.priorities.has("Medium") ? 0b00000100 : 0b00000000) |
+        (filter.operation.priorities.has("High") ? 0b00001000 : 0b00000000) |
+        (filter.operation.priorities.has("Urgent") ? 0b00010000 : 0b00000000);
+
+    view.setUint8(0, byte);
+}
+
+function deserializeTaskQueryPriorityFilter(view: DataView): {
+    filter: TaskQueryPriorityFilter;
+    byteLength: number;
+} {
+    const byte = view.getUint8(0);
+
+    const typeBits = byte >> 5;
+    let type: "OneOf" | "NoneOf";
+    switch (typeBits) {
+        case 1:
+            type = "OneOf";
+            break;
+        case 2:
+            type = "NoneOf";
+            break;
+        default:
+            throw new InvalidArgumentError(`Unrecognized operation type ${typeBits}`);
+    }
+
+    const priorities = new Set<TaskPriority | null>();
+
+    if (byte & 0b00000001) priorities.add(null);
+    if (byte & 0b00000010) priorities.add("Low");
+    if (byte & 0b00000100) priorities.add("Medium");
+    if (byte & 0b00001000) priorities.add("High");
+    if (byte & 0b00010000) priorities.add("Urgent");
+
+    return {
+        filter: {type: "Priority", operation: {type, priorities}},
+        byteLength: 1,
     };
 }
 

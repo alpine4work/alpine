@@ -5,6 +5,7 @@ import {
     TaskQueryFilterAccountOperation,
     TaskQueryFilterDateOperation,
     TaskQueryFilterDateOperationDate,
+    TaskQueryPriorityFilter,
     TaskQueryStatusFilter,
 } from "~/client/tasks/demo_2/task_query_filter";
 import {assert} from "~/shared/helpers/control/assert";
@@ -25,6 +26,7 @@ function isNonEmptyReadonlySet<T>(set: ReadonlySet<T>): set is NonEmptyReadonlyS
 export type TaskQueryNormalizedFilters = {
     readonly statusFilter: TaskQueryStatusNormalizedFilter;
     readonly collectionsFilter?: TaskQueryCollectionsNormalizedFilter;
+    readonly priorityFilter?: TaskQueryPriorityNormalizedFilter;
     readonly assigneeFilter?: TaskQueryAccountNormalizedFilter;
     readonly creatorFilter?: TaskQueryAccountNormalizedFilter;
     readonly assignerFilter?: TaskQueryAccountNormalizedFilter;
@@ -69,6 +71,45 @@ export type TaskQueryCollectionsNormalizedFilter =
       }
     | {
           readonly type: "IsEmpty";
+      };
+
+// At least one of the five priorities must be included in this filter. Otherwise
+// the filter is impossible.
+export type TaskQueryPriorityNormalizedFilter =
+    | {
+          readonly ifNull: true;
+          readonly ifLow: boolean;
+          readonly ifMedium: boolean;
+          readonly ifHigh: boolean;
+          readonly ifUrgent: boolean;
+      }
+    | {
+          readonly ifNull: boolean;
+          readonly ifLow: true;
+          readonly ifMedium: boolean;
+          readonly ifHigh: boolean;
+          readonly ifUrgent: boolean;
+      }
+    | {
+          readonly ifNull: boolean;
+          readonly ifLow: boolean;
+          readonly ifMedium: true;
+          readonly ifHigh: boolean;
+          readonly ifUrgent: boolean;
+      }
+    | {
+          readonly ifNull: boolean;
+          readonly ifLow: boolean;
+          readonly ifMedium: boolean;
+          readonly ifHigh: true;
+          readonly ifUrgent: boolean;
+      }
+    | {
+          readonly ifNull: boolean;
+          readonly ifLow: boolean;
+          readonly ifMedium: boolean;
+          readonly ifHigh: boolean;
+          readonly ifUrgent: true;
       };
 
 export type TaskQueryAccountNormalizedFilter =
@@ -158,6 +199,24 @@ export function normalizeTaskQueryFilters(
                     if (mergeResult.type === "AlwaysFalse") return {type: "Impossible"};
 
                     normalizedFilters.collectionsFilter = mergeResult.filter;
+                }
+                break;
+            }
+            case "Priority": {
+                const normalizeResult = normalizeTaskQueryPriorityFilter(filter);
+                if (normalizeResult.type === "Undefined") continue;
+                if (normalizeResult.type === "AlwaysFalse") return {type: "Impossible"};
+
+                if (!normalizedFilters.priorityFilter) {
+                    normalizedFilters.priorityFilter = normalizeResult.filter;
+                } else {
+                    const mergeResult = mergeTaskQueryPriorityFilters(
+                        normalizedFilters.priorityFilter,
+                        normalizeResult.filter,
+                    );
+                    if (mergeResult.type === "AlwaysFalse") return {type: "Impossible"};
+
+                    normalizedFilters.priorityFilter = mergeResult.filter;
                 }
                 break;
             }
@@ -728,6 +787,81 @@ function mergeTaskQueryCollectionsIsEmptyFilterWithIsEmptyFilter(
     filter2: TaskQueryCollectionsNormalizedFilter & {type: "IsEmpty"},
 ): {type: "Filter"; filter: TaskQueryCollectionsNormalizedFilter} | {type: "AlwaysFalse"} {
     return {type: "Filter", filter: filter1};
+}
+
+function normalizeTaskQueryPriorityFilter(
+    filter: TaskQueryPriorityFilter,
+):
+    | {type: "Filter"; filter: TaskQueryPriorityNormalizedFilter}
+    | {type: "Undefined"}
+    | {type: "AlwaysFalse"} {
+    if (filter.operation.priorities.size === 0) return {type: "Undefined"};
+
+    let ifNull: boolean;
+    let ifLow: boolean;
+    let ifMedium: boolean;
+    let ifHigh: boolean;
+    let ifUrgent: boolean;
+
+    switch (filter.operation.type) {
+        case "OneOf": {
+            ifNull = filter.operation.priorities.has(null);
+            ifLow = filter.operation.priorities.has("Low");
+            ifMedium = filter.operation.priorities.has("Medium");
+            ifHigh = filter.operation.priorities.has("High");
+            ifUrgent = filter.operation.priorities.has("Urgent");
+            break;
+        }
+        case "NoneOf": {
+            ifNull = !filter.operation.priorities.has(null);
+            ifLow = !filter.operation.priorities.has("Low");
+            ifMedium = !filter.operation.priorities.has("Medium");
+            ifHigh = !filter.operation.priorities.has("High");
+            ifUrgent = !filter.operation.priorities.has("Urgent");
+            break;
+        }
+        default:
+            throw exhaustive(filter.operation);
+    }
+
+    if (ifNull) {
+        return {type: "Filter", filter: {ifNull, ifLow, ifMedium, ifHigh, ifUrgent}};
+    } else if (ifLow) {
+        return {type: "Filter", filter: {ifNull, ifLow, ifMedium, ifHigh, ifUrgent}};
+    } else if (ifMedium) {
+        return {type: "Filter", filter: {ifNull, ifLow, ifMedium, ifHigh, ifUrgent}};
+    } else if (ifHigh) {
+        return {type: "Filter", filter: {ifNull, ifLow, ifMedium, ifHigh, ifUrgent}};
+    } else if (ifUrgent) {
+        return {type: "Filter", filter: {ifNull, ifLow, ifMedium, ifHigh, ifUrgent}};
+    } else {
+        return {type: "AlwaysFalse"};
+    }
+}
+
+function mergeTaskQueryPriorityFilters(
+    filter1: TaskQueryPriorityNormalizedFilter,
+    filter2: TaskQueryPriorityNormalizedFilter,
+): {type: "Filter"; filter: TaskQueryPriorityNormalizedFilter} | {type: "AlwaysFalse"} {
+    const ifNull = filter1.ifNull && filter2.ifNull;
+    const ifLow = filter1.ifLow && filter2.ifLow;
+    const ifMedium = filter1.ifMedium && filter2.ifMedium;
+    const ifHigh = filter1.ifHigh && filter2.ifHigh;
+    const ifUrgent = filter1.ifUrgent && filter2.ifUrgent;
+
+    if (ifNull) {
+        return {type: "Filter", filter: {ifNull, ifLow, ifMedium, ifHigh, ifUrgent}};
+    } else if (ifLow) {
+        return {type: "Filter", filter: {ifNull, ifLow, ifMedium, ifHigh, ifUrgent}};
+    } else if (ifMedium) {
+        return {type: "Filter", filter: {ifNull, ifLow, ifMedium, ifHigh, ifUrgent}};
+    } else if (ifHigh) {
+        return {type: "Filter", filter: {ifNull, ifLow, ifMedium, ifHigh, ifUrgent}};
+    } else if (ifUrgent) {
+        return {type: "Filter", filter: {ifNull, ifLow, ifMedium, ifHigh, ifUrgent}};
+    } else {
+        return {type: "AlwaysFalse"};
+    }
 }
 
 function normalizeTaskQueryFilterAccountOperation(

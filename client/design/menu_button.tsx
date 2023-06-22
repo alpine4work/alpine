@@ -8,7 +8,6 @@ import {
     forwardRef,
     useEffect,
     useId,
-    useLayoutEffect,
     useMemo,
     useRef,
     useState,
@@ -189,6 +188,7 @@ export function MenuButton({
     offsetAlong,
     children,
     onStateChange,
+    shouldNotCloseAfterActionPress,
 }: {
     /**
      * All the actions available in a menu’s popup. When clicking on the button
@@ -242,6 +242,11 @@ export function MenuButton({
     offsetAlong?: Spacing | `-${Spacing}`;
 
     /**
+     * Should not close the menu after an action is pressed.
+     */
+    shouldNotCloseAfterActionPress?: boolean;
+
+    /**
      * The button element which opens and closes the menu. Must provide a ref to
      * an HTML `<button>` element or we will throw an error.
      */
@@ -268,6 +273,7 @@ export function MenuButton({
                     iconSize={iconSize}
                     onCloseWithAnimation={onCloseWithAnimation}
                     onCloseWithoutAnimation={onCloseWithoutAnimation}
+                    shouldNotCloseAfterActionPress={shouldNotCloseAfterActionPress}
                 />
             )}
         >
@@ -293,6 +299,7 @@ export const Menu = forwardRef(function Menu(
         iconSize = defaultMenuIconSize,
         onCloseWithAnimation,
         onCloseWithoutAnimation,
+        shouldNotCloseAfterActionPress,
     }: {
         actions:
             | (ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>)
@@ -303,6 +310,7 @@ export const Menu = forwardRef(function Menu(
         iconSize?: MenuIconSize;
         onCloseWithAnimation: () => void;
         onCloseWithoutAnimation: () => void;
+        shouldNotCloseAfterActionPress?: boolean;
     },
     ref: Ref<HTMLDivElement>,
 ) {
@@ -588,6 +596,7 @@ export const Menu = forwardRef(function Menu(
                                 parentPlacement={placement}
                                 onCloseWithAnimation={onCloseWithAnimation}
                                 onCloseWithoutAnimation={onCloseWithoutAnimation}
+                                shouldNotCloseAfterPress={shouldNotCloseAfterActionPress}
                             />
                         );
                     }
@@ -611,6 +620,7 @@ export const MenuItem = forwardRef(function MenuItem(
         onCloseWithoutAnimation,
         isNotFocusable = false,
         isFocusRingVisible = false,
+        shouldNotCloseAfterPress = false,
     }: {
         width?: MenuWidth;
         iconSize?: MenuIconSize;
@@ -620,6 +630,7 @@ export const MenuItem = forwardRef(function MenuItem(
         onCloseWithoutAnimation: () => void;
         isNotFocusable?: boolean;
         isFocusRingVisible?: boolean;
+        shouldNotCloseAfterPress?: boolean;
     },
     ref: Ref<HTMLDivElement>,
 ) {
@@ -635,6 +646,7 @@ export const MenuItem = forwardRef(function MenuItem(
                 onCloseWithoutAnimation={onCloseWithoutAnimation}
                 isNotFocusable={isNotFocusable}
                 isFocusRingVisible={isFocusRingVisible}
+                shouldNotCloseAfterPress={shouldNotCloseAfterPress}
             />
         );
     }
@@ -667,6 +679,7 @@ export const MenuItem = forwardRef(function MenuItem(
                         skipTooltipHoverDelay={skipHoverDelay}
                         isNotFocusable={isNotFocusable}
                         isFocusRingVisible={isFocusRingVisible}
+                        shouldNotCloseAfterPress={shouldNotCloseAfterPress}
                     />
                 )}
             </Tooltip>
@@ -683,6 +696,7 @@ export const MenuItem = forwardRef(function MenuItem(
                 onCloseWithoutAnimation={onCloseWithoutAnimation}
                 isNotFocusable={isNotFocusable}
                 isFocusRingVisible={isFocusRingVisible}
+                shouldNotCloseAfterPress={shouldNotCloseAfterPress}
             />
         );
     }
@@ -699,6 +713,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
         skipTooltipHoverDelay,
         isNotFocusable,
         isFocusRingVisible,
+        shouldNotCloseAfterPress,
     }: {
         width: MenuWidth;
         iconSize: MenuIconSize;
@@ -709,6 +724,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
         skipTooltipHoverDelay?: () => void;
         isNotFocusable: boolean;
         isFocusRingVisible: boolean;
+        shouldNotCloseAfterPress: boolean;
     },
     ref: Ref<HTMLDivElement>,
 ) {
@@ -761,7 +777,9 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
             // - Show a loading spinner after a short delay
             // - Show a toast if there was an error
             if (!(promise instanceof Promise)) {
-                onCloseWithoutAnimation();
+                if (!shouldNotCloseAfterPress) {
+                    onCloseWithoutAnimation();
+                }
             } else {
                 const promiseStartTime = new Date();
 
@@ -774,18 +792,20 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
 
                 promise.then(
                     () => {
-                        // Our animation principle is to respond to user input immediately
-                        // without animation.
-                        //
-                        // If the item had to go into a loading state we consider the click long
-                        // enough ago that it is no longer a direct action.
-                        if (
-                            new Date().getTime() - promiseStartTime.getTime() >
-                            delayLoadingIndicatorLimitMs
-                        ) {
-                            onCloseWithAnimation();
-                        } else {
-                            onCloseWithoutAnimation();
+                        if (!shouldNotCloseAfterPress) {
+                            // Our animation principle is to respond to user input immediately
+                            // without animation.
+                            //
+                            // If the item had to go into a loading state we consider the click long
+                            // enough ago that it is no longer a direct action.
+                            if (
+                                new Date().getTime() - promiseStartTime.getTime() >
+                                delayLoadingIndicatorLimitMs
+                            ) {
+                                onCloseWithAnimation();
+                            } else {
+                                onCloseWithoutAnimation();
+                            }
                         }
                     },
                     error => {
@@ -920,6 +940,7 @@ function MenuCustomItem({
     onCloseWithoutAnimation,
     isNotFocusable,
     isFocusRingVisible,
+    shouldNotCloseAfterPress,
 }: {
     menuItemRef: Ref<HTMLDivElement>;
     menuItemId: string;
@@ -928,6 +949,7 @@ function MenuCustomItem({
     onCloseWithoutAnimation: () => void;
     isNotFocusable: boolean;
     isFocusRingVisible: boolean;
+    shouldNotCloseAfterPress: boolean;
 }) {
     const showToast = useShowToast();
     const [pendingState, setPendingState] = useState<
@@ -958,7 +980,9 @@ function MenuCustomItem({
             // - Show a loading spinner after a short delay
             // - Show a toast if there was an error
             if (!(promise instanceof Promise)) {
-                onCloseWithoutAnimation();
+                if (!shouldNotCloseAfterPress) {
+                    onCloseWithoutAnimation();
+                }
             } else {
                 const promiseStartTime = new Date();
 
@@ -971,18 +995,20 @@ function MenuCustomItem({
 
                 promise.then(
                     () => {
-                        // Our animation principle is to respond to user input immediately
-                        // without animation.
-                        //
-                        // If the item had to go into a loading state we consider the click long
-                        // enough ago that it is no longer a direct action.
-                        if (
-                            new Date().getTime() - promiseStartTime.getTime() >
-                            delayLoadingIndicatorLimitMs
-                        ) {
-                            onCloseWithAnimation();
-                        } else {
-                            onCloseWithoutAnimation();
+                        if (!shouldNotCloseAfterPress) {
+                            // Our animation principle is to respond to user input immediately
+                            // without animation.
+                            //
+                            // If the item had to go into a loading state we consider the click long
+                            // enough ago that it is no longer a direct action.
+                            if (
+                                new Date().getTime() - promiseStartTime.getTime() >
+                                delayLoadingIndicatorLimitMs
+                            ) {
+                                onCloseWithAnimation();
+                            } else {
+                                onCloseWithoutAnimation();
+                            }
                         }
                     },
                     error => {

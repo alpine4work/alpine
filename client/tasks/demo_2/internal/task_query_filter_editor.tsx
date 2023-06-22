@@ -11,6 +11,7 @@ import {
     taskQueryFilterDateOperationLessThanOperatorLabel,
 } from "~/client/tasks/demo_2/internal/task_query_filter_date_operation_editor";
 import {TaskQueryFilterOperatorEditor} from "~/client/tasks/demo_2/internal/task_query_filter_operator_editor";
+import {TaskQueryPriorityFilterOperationEditor} from "~/client/tasks/demo_2/internal/task_query_priority_filter_operation_editor";
 import {TaskQueryStatusFilterOperationEditor} from "~/client/tasks/demo_2/internal/task_query_status_filter_operation_editor";
 import {LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
 import {TaskQueryFilter} from "~/client/tasks/demo_2/task_query_filter";
@@ -56,6 +57,20 @@ export function TaskQueryFilterEditor({
                     operation={
                         <TaskQueryCollectionsFilterOperationEditor
                             state={state}
+                            filter={filter}
+                            onFilterChange={onFilterChange}
+                        />
+                    }
+                    onFilterRemove={onFilterRemove}
+                />
+            );
+        }
+        case "Priority": {
+            return (
+                <TaskQueryFilterEditorBase
+                    name="Priority"
+                    operation={
+                        <TaskQueryPriorityFilterOperationEditor
                             filter={filter}
                             onFilterChange={onFilterChange}
                         />

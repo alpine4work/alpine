@@ -70,6 +70,7 @@ export function TaskQueryStatusFilterOperationEditor({
                 ]}
             />
             <MenuButton
+                shouldNotCloseAfterActionPress={true}
                 actions={[
                     {
                         onPress: () => {
