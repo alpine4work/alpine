@@ -31,7 +31,7 @@ export function TaskDateInput({
     height = "4",
     paddingX = "0",
     color = "grey-text",
-    overlayPlacement = "bottom-end",
+    overlayPlacement = "bottom-start",
     overlayOffset = defaultTooltipOffset,
     focusRingOffset,
     focusRingAroundText = false,

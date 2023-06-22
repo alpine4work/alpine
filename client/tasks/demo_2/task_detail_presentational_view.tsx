@@ -29,7 +29,8 @@ import {TaskCollectionsInput} from "~/client/tasks/demo_2/internal/task_collecti
 import {TaskDateInput} from "~/client/tasks/demo_2/internal/task_date_input";
 import {TaskDetailNotesField} from "~/client/tasks/demo_2/internal/task_detail_notes_field";
 import {TaskDetailTitleInput} from "~/client/tasks/demo_2/internal/task_detail_title_input";
-import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
+import {TaskPriorityInput} from "~/client/tasks/demo_2/internal/task_priority_input";
+import {LocalTaskCollection, TaskPriority} from "~/client/tasks/demo_2/local_tasks_state";
 import {
     TaskGridPresentationalView,
     TaskGridPresentationalViewProps,
@@ -65,6 +66,8 @@ export type TaskDetailPresentationalViewProps<ChildTaskRow> = {
     onTitleChange: (title: TaskTitle) => void;
     assignee: TaskAssignee | null;
     onAssigneeChange: (assignee: TaskAssignee | null) => void;
+    priority: TaskPriority | null;
+    onPriorityChange: (priority: TaskPriority | null) => void;
     dueDate: CalendarDate | null;
     onDueDateChange: (dueDate: CalendarDate | null) => void;
     allCollections: ReadonlyArray<LocalTaskCollection>;
@@ -94,6 +97,8 @@ function TaskDetailPresentationalView<ChildTaskRow>(
         onTitleChange,
         assignee,
         onAssigneeChange,
+        priority,
+        onPriorityChange,
         dueDate,
         onDueDateChange,
         allCollections,
@@ -115,7 +120,8 @@ function TaskDetailPresentationalView<ChildTaskRow>(
 
     const padding: Spacing = isMobile ? "3" : "5";
 
-    const denseFieldsRef = useRef<TaskDetailViewDenseFieldsRef>(null);
+    const priorityInputRef = useRef<HTMLDivElement>(null);
+    const dueDateInputRef = useRef<HTMLDivElement>(null);
     const childTasksGridViewRef = useRef<TaskGridPresentationalViewRef>(null);
 
     useImperativeHandle(
@@ -125,6 +131,74 @@ function TaskDetailPresentationalView<ChildTaskRow>(
         }),
         [],
     );
+
+    const [priorityInputState, setPriorityInputState] = useState<
+        {isVisible: false} | {isVisible: true; shouldFocus: boolean; isFocused: boolean}
+    >(priority ? {isVisible: true, shouldFocus: false, isFocused: false} : {isVisible: false});
+
+    if (
+        priorityInputState.isVisible &&
+        !priorityInputState.isFocused &&
+        !priorityInputState.shouldFocus &&
+        !priority
+    ) {
+        // In task row dense fields we hide the priority field when the value is set to
+        // null. But since the user may actively be editing the field in detail view,
+        // keep it around.
+    }
+
+    if (!priorityInputState.isVisible && priority) {
+        setPriorityInputState({isVisible: true, shouldFocus: false, isFocused: false});
+    }
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (priorityInputState.isVisible && priorityInputState.shouldFocus) {
+            assertExists(
+                getNextFocusableElementIfExists(null, {
+                    withinElement: assertExists(priorityInputRef.current),
+                }),
+            ).focus({preventScroll: true});
+
+            setPriorityInputState(priorityInputState => {
+                if (!priorityInputState.isVisible) return priorityInputState;
+                return {...priorityInputState, shouldFocus: false};
+            });
+        }
+    }, [priorityInputState]);
+
+    const [dueDateInputState, setDueDateInputState] = useState<
+        {isVisible: false} | {isVisible: true; shouldFocus: boolean; isFocused: boolean}
+    >(dueDate ? {isVisible: true, shouldFocus: false, isFocused: false} : {isVisible: false});
+
+    if (
+        dueDateInputState.isVisible &&
+        !dueDateInputState.isFocused &&
+        !dueDateInputState.shouldFocus &&
+        !dueDate
+    ) {
+        // In task row dense fields we hide the due date field when the value is set to
+        // null. But since the user may actively be editing the field in detail view,
+        // keep it around.
+    }
+
+    if (!dueDateInputState.isVisible && dueDate) {
+        setDueDateInputState({isVisible: true, shouldFocus: false, isFocused: false});
+    }
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (dueDateInputState.isVisible && dueDateInputState.shouldFocus) {
+            assertExists(
+                getNextFocusableElementIfExists(null, {
+                    withinElement: assertExists(dueDateInputRef.current),
+                }),
+            ).focus({preventScroll: true});
+
+            setDueDateInputState(dueDateInputState => {
+                if (!dueDateInputState.isVisible) return dueDateInputState;
+                return {...dueDateInputState, shouldFocus: false};
+            });
+        }
+    }, [dueDateInputState]);
 
     return (
         <Box
@@ -168,15 +242,47 @@ function TaskDetailPresentationalView<ChildTaskRow>(
                             }),
                             [
                                 {
-                                    label: "Add due date",
+                                    label: priorityInputState.isVisible
+                                        ? "Edit priority"
+                                        : "Add priority",
                                     onPress: () => {
-                                        assertExists(denseFieldsRef.current).focusDueDate();
+                                        if (priorityInputState.isVisible) {
+                                            assertExists(
+                                                getNextFocusableElementIfExists(null, {
+                                                    withinElement: assertExists(
+                                                        priorityInputRef.current,
+                                                    ),
+                                                }),
+                                            ).focus({preventScroll: true});
+                                        } else {
+                                            setPriorityInputState({
+                                                isVisible: true,
+                                                shouldFocus: true,
+                                                isFocused: false,
+                                            });
+                                        }
                                     },
                                 },
                                 {
-                                    label: "Add priority",
+                                    label: dueDateInputState.isVisible
+                                        ? "Edit due date"
+                                        : "Add due date",
                                     onPress: () => {
-                                        // NOCOMMIT
+                                        if (dueDateInputState.isVisible) {
+                                            assertExists(
+                                                getNextFocusableElementIfExists(null, {
+                                                    withinElement: assertExists(
+                                                        dueDateInputRef.current,
+                                                    ),
+                                                }),
+                                            ).focus({preventScroll: true});
+                                        } else {
+                                            setDueDateInputState({
+                                                isVisible: true,
+                                                shouldFocus: true,
+                                                isFocused: false,
+                                            });
+                                        }
                                     },
                                 },
                             ],
@@ -202,20 +308,126 @@ function TaskDetailPresentationalView<ChildTaskRow>(
                 />
             </Box>
             <Spacer space="8" />
-            <TaskDetailViewDenseFields
-                ref={denseFieldsRef}
-                status={status}
-                assignee={assignee}
-                onAssigneeChange={onAssigneeChange}
-                dueDate={dueDate}
-                onDueDateChange={onDueDateChange}
-                allCollections={allCollections}
-                collections={collections}
-                createCollectionAndAddToTask={createCollectionAndAddToTask}
-                addCollectionToTask={addCollectionToTask}
-                removeCollectionFromTask={removeCollectionFromTask}
-                padding={padding}
-            />
+            <Box
+                paddingX={padding}
+                display="grid"
+                gap="5"
+                style={{
+                    gridTemplateColumns: "auto minmax(0, 1fr)",
+                    gridTemplateRows: "repeat(auto-fill, auto)",
+                    gridAutoFlow: "row dense",
+                }}
+            >
+                <TaskDetailViewDenseField label="Assignee">
+                    {({"aria-labelledby": ariaLabelledBy}) => (
+                        <TaskAssigneeInput
+                            aria-labelledby={ariaLabelledBy}
+                            assigneeAccount={assignee?.account ?? null}
+                            onAssigneeAccountChange={assigneeAccount => {
+                                const assignedTime = new Date();
+                                const assignedDate = toCalendarDate(
+                                    parseAbsolute(assignedTime.toISOString(), timeZone),
+                                );
+
+                                onAssigneeChange(
+                                    assigneeAccount
+                                        ? {
+                                              account: assigneeAccount,
+                                              assignerId: currentAccount.id,
+                                              assignedTime,
+                                              assignerTimeZone: timeZone,
+                                              assignedDate,
+                                              status: {type: "Inactive"},
+                                          }
+                                        : null,
+                                );
+                            }}
+                        />
+                    )}
+                </TaskDetailViewDenseField>
+                <TaskDetailViewDenseField label="Collections">
+                    {({"aria-labelledby": ariaLabelledBy}) => (
+                        <TaskCollectionsInput
+                            allCollections={allCollections}
+                            collections={collections}
+                            createCollectionAndAddToTask={createCollectionAndAddToTask}
+                            addCollectionToTask={addCollectionToTask}
+                            removeCollectionFromTask={removeCollectionFromTask}
+                            aria-labelledby={ariaLabelledBy}
+                        />
+                    )}
+                </TaskDetailViewDenseField>
+                {priorityInputState.isVisible && (
+                    <TaskDetailViewDenseField label="Priority">
+                        {({"aria-labelledby": ariaLabelledBy}) => (
+                            <Box
+                                ref={priorityInputRef}
+                                onFocus={() => {
+                                    setPriorityInputState(priorityInputState => {
+                                        if (!priorityInputState.isVisible)
+                                            return priorityInputState;
+                                        if (priorityInputState.isFocused) return priorityInputState;
+                                        return {...priorityInputState, isFocused: true};
+                                    });
+                                }}
+                                onBlur={event => {
+                                    // If focus is moving within the element, don't unfocus.
+                                    if (event.currentTarget.contains(event.relatedTarget)) return;
+
+                                    setPriorityInputState(priorityInputState => {
+                                        if (!priorityInputState.isVisible)
+                                            return priorityInputState;
+                                        if (!priorityInputState.isFocused)
+                                            return priorityInputState;
+                                        return {...priorityInputState, isFocused: false};
+                                    });
+                                }}
+                            >
+                                <TaskPriorityInput
+                                    priority={priority}
+                                    onPriorityChange={onPriorityChange}
+                                    aria-labelledby={ariaLabelledBy}
+                                />
+                            </Box>
+                        )}
+                    </TaskDetailViewDenseField>
+                )}
+                {dueDateInputState.isVisible && (
+                    <TaskDetailViewDenseField label="Due date">
+                        {({"aria-labelledby": ariaLabelledBy}) => (
+                            <Box
+                                ref={dueDateInputRef}
+                                onFocus={() => {
+                                    setDueDateInputState(dueDateInputState => {
+                                        if (!dueDateInputState.isVisible) return dueDateInputState;
+                                        if (dueDateInputState.isFocused) return dueDateInputState;
+                                        return {...dueDateInputState, isFocused: true};
+                                    });
+                                }}
+                                onBlur={event => {
+                                    // If focus is moving within the element, don't unfocus.
+                                    if (event.currentTarget.contains(event.relatedTarget)) return;
+
+                                    setDueDateInputState(dueDateInputState => {
+                                        if (!dueDateInputState.isVisible) return dueDateInputState;
+                                        if (!dueDateInputState.isFocused) return dueDateInputState;
+                                        return {...dueDateInputState, isFocused: false};
+                                    });
+                                }}
+                            >
+                                <TaskDateInput
+                                    date={dueDate}
+                                    onDateChange={onDueDateChange}
+                                    shouldIncludeCalendarIcon={true}
+                                    shouldWarnIfAfterDate={status.type === "Open"}
+                                    shouldFormatAroundToday={true}
+                                    aria-labelledby={ariaLabelledBy}
+                                />
+                            </Box>
+                        )}
+                    </TaskDetailViewDenseField>
+                )}
+            </Box>
             <Spacer space="9" />
             <TaskDetailNotesField
                 notesContent={notesContent}
@@ -257,204 +469,7 @@ function TaskDetailPresentationalView<ChildTaskRow>(
     );
 }
 
-type TaskDetailViewDenseFieldsRef = {
-    focusDueDate(): void;
-};
-
-/**
- * IMPORTANT: While programming task detail fields, keep the following in mind:
- *
- * - The cursor hit box of a task field should not extend beyond the content of
- *   the task field. We are using borderless inputs, it would be confusing to
- *   the user if empty whitespace was clickable.
- *
- * - Make sure field content that extends beyond the screen width is
- *   appropriately truncated. Our use of CSS grid may mean you need to fiddle
- *   around a bit to get truncation right.
- */
-const TaskDetailViewDenseFields = forwardRef(function TaskDetailViewDenseFields(
-    {
-        status,
-        assignee,
-        onAssigneeChange,
-        dueDate,
-        onDueDateChange,
-        allCollections,
-        collections,
-        createCollectionAndAddToTask,
-        addCollectionToTask,
-        removeCollectionFromTask,
-        padding,
-    }: {
-        status: TaskStatus;
-        assignee: TaskAssignee | null;
-        onAssigneeChange: (assignee: TaskAssignee | null) => void;
-        dueDate: CalendarDate | null;
-        onDueDateChange: (dueDate: CalendarDate | null) => void;
-        allCollections: ReadonlyArray<LocalTaskCollection>;
-        collections: ReadonlyArray<LocalTaskCollection>;
-        createCollectionAndAddToTask: (collection: {
-            id: LocalTaskCollectionId;
-            name: string;
-            color: ThemeColor;
-        }) => void;
-        addCollectionToTask: (collectionId: LocalTaskCollectionId) => void;
-        removeCollectionFromTask: (collectionId: LocalTaskCollectionId) => void;
-        padding: Spacing;
-    },
-    ref: Ref<TaskDetailViewDenseFieldsRef>,
-) {
-    const {timeZone} = useClientInfo();
-    const {currentAccount} = useSpaceContext();
-
-    const dueDateInputRef = useRef<HTMLDivElement>(null);
-
-    const [dueDateInputState, setDueDateInputState] = useState<
-        {isVisible: false} | {isVisible: true; shouldFocus: boolean; isFocused: boolean}
-    >(dueDate ? {isVisible: true, shouldFocus: false, isFocused: false} : {isVisible: false});
-
-    if (
-        dueDateInputState.isVisible &&
-        !dueDateInputState.isFocused &&
-        !dueDateInputState.shouldFocus &&
-        !dueDate
-    ) {
-        // In task row dense fields we hide the due date field when the value is set to
-        // null. But since the user may actively be editing the field in detail view,
-        // keep it around.
-    }
-
-    if (!dueDateInputState.isVisible && dueDate) {
-        setDueDateInputState({isVisible: true, shouldFocus: false, isFocused: false});
-    }
-
-    useLayoutEffectWithoutServerSideWarning(() => {
-        if (dueDateInputState.isVisible && dueDateInputState.shouldFocus) {
-            assertExists(
-                getNextFocusableElementIfExists(null, {
-                    withinElement: assertExists(dueDateInputRef.current),
-                }),
-            ).focus({preventScroll: true});
-
-            setDueDateInputState(dueDateInputState => {
-                if (!dueDateInputState.isVisible) return dueDateInputState;
-                return {...dueDateInputState, shouldFocus: false};
-            });
-        }
-    }, [dueDateInputState]);
-
-    useImperativeHandle(
-        ref,
-        () => ({
-            focusDueDate: () => {
-                if (dueDateInputState.isVisible) {
-                    assertExists(
-                        getNextFocusableElementIfExists(null, {
-                            withinElement: assertExists(dueDateInputRef.current),
-                        }),
-                    ).focus({preventScroll: true});
-                } else {
-                    setDueDateInputState({
-                        isVisible: true,
-                        shouldFocus: true,
-                        isFocused: false,
-                    });
-                }
-            },
-        }),
-        [dueDateInputState.isVisible],
-    );
-
-    return (
-        <Box
-            paddingX={padding}
-            display="grid"
-            gap="5"
-            style={{
-                gridTemplateColumns: "auto minmax(0, 1fr)",
-                gridTemplateRows: "repeat(auto-fill, auto)",
-                gridAutoFlow: "row dense",
-            }}
-        >
-            <TaskDetailViewField label="Assignee">
-                {({"aria-labelledby": ariaLabelledBy}) => (
-                    <TaskAssigneeInput
-                        aria-labelledby={ariaLabelledBy}
-                        assigneeAccount={assignee?.account ?? null}
-                        onAssigneeAccountChange={assigneeAccount => {
-                            const assignedTime = new Date();
-                            const assignedDate = toCalendarDate(
-                                parseAbsolute(assignedTime.toISOString(), timeZone),
-                            );
-
-                            onAssigneeChange(
-                                assigneeAccount
-                                    ? {
-                                          account: assigneeAccount,
-                                          assignerId: currentAccount.id,
-                                          assignedTime,
-                                          assignerTimeZone: timeZone,
-                                          assignedDate,
-                                          status: {type: "Inactive"},
-                                      }
-                                    : null,
-                            );
-                        }}
-                    />
-                )}
-            </TaskDetailViewField>
-            <TaskDetailViewField label="Collections">
-                {({"aria-labelledby": ariaLabelledBy}) => (
-                    <TaskCollectionsInput
-                        allCollections={allCollections}
-                        collections={collections}
-                        createCollectionAndAddToTask={createCollectionAndAddToTask}
-                        addCollectionToTask={addCollectionToTask}
-                        removeCollectionFromTask={removeCollectionFromTask}
-                        aria-labelledby={ariaLabelledBy}
-                    />
-                )}
-            </TaskDetailViewField>
-            {dueDateInputState.isVisible && (
-                <TaskDetailViewField label="Due date">
-                    {({"aria-labelledby": ariaLabelledBy}) => (
-                        <Box
-                            ref={dueDateInputRef}
-                            onFocus={() => {
-                                setDueDateInputState(dueDateInputState => {
-                                    if (!dueDateInputState.isVisible) return dueDateInputState;
-                                    if (dueDateInputState.isFocused) return dueDateInputState;
-                                    return {...dueDateInputState, isFocused: true};
-                                });
-                            }}
-                            onBlur={event => {
-                                // If focus is moving within the element, don't unfocus.
-                                if (event.currentTarget.contains(event.relatedTarget)) return;
-
-                                setDueDateInputState(dueDateInputState => {
-                                    if (!dueDateInputState.isVisible) return dueDateInputState;
-                                    if (!dueDateInputState.isFocused) return dueDateInputState;
-                                    return {...dueDateInputState, isFocused: false};
-                                });
-                            }}
-                        >
-                            <TaskDateInput
-                                date={dueDate}
-                                onDateChange={onDueDateChange}
-                                shouldIncludeCalendarIcon={true}
-                                shouldWarnIfAfterDate={status.type === "Open"}
-                                shouldFormatAroundToday={true}
-                                aria-labelledby={ariaLabelledBy}
-                            />
-                        </Box>
-                    )}
-                </TaskDetailViewField>
-            )}
-        </Box>
-    );
-});
-
-function TaskDetailViewField({
+function TaskDetailViewDenseField({
     label,
     children,
 }: {

@@ -22,42 +22,41 @@ import {
     useOption,
 } from "react-aria";
 import {ComboBoxState, ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
-import {AccountAvatar} from "~/client/accounts/account_avatar";
-import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name";
 import {Box} from "~/client/design/box";
 import {FocusRing} from "~/client/design/focus_ring";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
 import {defaultTooltipOffset} from "~/client/design/tooltip";
 import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growing_width";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {useSpaceContext} from "~/client/spaces/space_context";
-import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts";
-import {TaskNoAccountAvatar} from "~/client/tasks/demo_2/internal/task_no_account_avatar";
-import {AccountModel} from "~/shared/accounts/account_model";
+import {TaskPriorityIcon} from "~/client/tasks/demo_2/internal/task_priority_icon";
+import {TaskPriority} from "~/client/tasks/demo_2/local_tasks_state";
 import {spacing} from "~/shared/design/spacing";
-import {emptyArray} from "~/shared/helpers/array/empty_array";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {assertId} from "~/shared/id/id";
-import {AccountId} from "~/shared/id/types/id_types";
 import {colorSchemeVars, sprinkles, tasksStyles} from "~/shared/styles/styles";
 
-const nullAssigneeLabel = "Nobody";
+function getTaskPriorityName(priority: TaskPriority | "Null" | null): string {
+    switch (priority) {
+        case null:
+        case "Null":
+            return "None";
+        case "Low":
+            return "Low";
+        case "Medium":
+            return "Medium";
+        case "High":
+            return "High";
+        case "Urgent":
+            return "Urgent";
+        default:
+            throw exhaustive(priority);
+    }
+}
 
-type TaskAssigneeInputItem =
-    | {
-          readonly type: "Account";
-          readonly key: `Account:${AccountId}`;
-          readonly account: AccountModel;
-      }
-    | {
-          readonly type: "Null";
-          readonly key: "Null";
-          readonly account?: undefined;
-      };
+type TaskPriorityInputItem = {readonly key: TaskPriority | "Null"};
 
-type TaskAssigneeInputState =
+type TaskPriorityInputState =
     | {
           readonly type: "Selection";
           readonly disableAnimationOut: boolean;
@@ -68,82 +67,46 @@ type TaskAssigneeInputState =
           readonly hasChanged: boolean;
       };
 
-export type TaskAssigneeInputRef = {
+export type TaskPriorityInputRef = {
     focus(): void;
 };
 
-const TaskAssigneeInputForwardRef = forwardRef(TaskAssigneeInput);
-export {TaskAssigneeInputForwardRef as TaskAssigneeInput};
+const TaskPriorityInputForwardRef = forwardRef(TaskPriorityInput);
+export {TaskPriorityInputForwardRef as TaskPriorityInput};
 
-function TaskAssigneeInput(
+function TaskPriorityInput(
     {
-        assigneeAccount,
-        onAssigneeAccountChange,
+        priority,
+        onPriorityChange,
         "aria-label": ariaLabel,
         "aria-labelledby": ariaLabelledBy,
         color = "grey-text",
-        avatarSize = "5",
-        shouldDisplayShortName,
     }: {
-        assigneeAccount: AccountModel | null;
-        onAssigneeAccountChange: (assigneeAccount: AccountModel | null) => void;
+        priority: TaskPriority | null;
+        onPriorityChange: (priority: TaskPriority | null) => void;
         "aria-label"?: string;
         "aria-labelledby"?: string;
         color?: "grey-text" | "grey-60";
-        avatarSize?: "5" | "4";
-        shouldDisplayShortName?: boolean;
     },
-    ref: Ref<TaskAssigneeInputRef>,
+    ref: Ref<TaskPriorityInputRef>,
 ) {
-    const {currentAccount} = useSpaceContext();
-
-    const [inputState, setInputState] = useState<TaskAssigneeInputState>({
+    const [inputState, setInputState] = useState<TaskPriorityInputState>({
         type: "Selection",
         disableAnimationOut: false,
     });
 
-    const selectionInputValue = assigneeAccount
-        ? shouldDisplayShortName
-            ? getAccountShortNameWithoutFullNameTooltip(assigneeAccount)
-            : assigneeAccount.name
-        : "";
-
+    const selectionInputValue = priority ? getTaskPriorityName(priority) : "";
     const inputValue = inputState.type === "Selection" ? selectionInputValue : inputState.value;
 
-    const allUnsortedAccounts = useExpensivelyLoadAllSpaceAccounts() ?? emptyArray;
-
-    const accountById = useMemo(() => {
-        const accountById = new Map<AccountId, AccountModel>();
-        for (const account of allUnsortedAccounts) accountById.set(account.id, account);
-        return accountById;
-    }, [allUnsortedAccounts]);
-
-    const allItems = useMemo(() => {
-        const allItems: Array<TaskAssigneeInputItem> = allUnsortedAccounts.map(account => ({
-            type: "Account",
-            key: `Account:${account.id}`,
-            account,
-        }));
-
-        allItems.push({type: "Null", key: "Null"});
-
-        allItems.sort((item1, item2) => {
-            if (item1.type === "Null") return -1;
-            if (item2.type === "Null") return 1;
-
-            if (item1.account.id === currentAccount.id) return -1;
-            if (item2.account.id === currentAccount.id) return 1;
-
-            return item1.account.name.localeCompare(item2.account.name);
-        });
-
-        return allItems;
-    }, [allUnsortedAccounts, currentAccount.id]);
+    const allItems: Array<TaskPriorityInputItem> = useMemo(
+        () => [{key: "Null"}, {key: "Low"}, {key: "Medium"}, {key: "High"}, {key: "Urgent"}],
+        [],
+    );
 
     const itemsSearchIndex = useMemo(
         () =>
             new Fuse(allItems, {
-                keys: [{name: "name", getFn: item => item.account?.name ?? nullAssigneeLabel}],
+                keys: [{name: "name", getFn: item => getTaskPriorityName(item.key)}],
             }),
         [allItems],
     );
@@ -157,9 +120,9 @@ function TaskAssigneeInput(
         [allItems, inputState, inputValue, itemsSearchIndex],
     );
 
-    const selectedKey = assigneeAccount ? `Account:${assigneeAccount.id}` : "Null";
+    const selectedKey: TaskPriorityInputItem["key"] = priority ?? "Null";
 
-    const comboBoxProps: ComboBoxStateOptions<TaskAssigneeInputItem> = {
+    const comboBoxProps: ComboBoxStateOptions<TaskPriorityInputItem> = {
         menuTrigger: "focus",
         // Don't close when there are no items.
         allowsEmptyCollection: true,
@@ -195,25 +158,17 @@ function TaskAssigneeInput(
 
         items: searchedItems,
         children: item => (
-            <Item textValue={item.account?.name ?? nullAssigneeLabel}>
-                <TaskAssigneeInputListBoxOptionItem item={item} />
+            <Item textValue={getTaskPriorityName(item.key)}>
+                <TaskPriorityInputListBoxOptionItem item={item} />
             </Item>
         ),
 
         selectedKey,
-        onSelectionChange: key => {
-            assert(typeof key === "string");
+        onSelectionChange: _key => {
+            const key = _key as TaskPriorityInputItem["key"];
 
-            if (key === "Null") {
-                if (assigneeAccount) {
-                    onAssigneeAccountChange(null);
-                }
-            } else {
-                const accountId = assertId<AccountId>(key.slice("Account:".length));
-                const account = assertExists(accountById.get(accountId));
-                if (assigneeAccount?.id !== accountId) {
-                    onAssigneeAccountChange(account);
-                }
+            if (key !== selectedKey) {
+                onPriorityChange(key === "Null" ? null : key);
             }
 
             setInputState(inputState => {
@@ -253,7 +208,6 @@ function TaskAssigneeInput(
 
     return (
         <Box
-            marginLeft={avatarSize === "5" ? "-0.5" : undefined}
             onKeyDown={event => {
                 // Blur the input when escape is pressed which closes the dropdown.
                 if (event.key === "Escape") {
@@ -267,7 +221,7 @@ function TaskAssigneeInput(
             <OverlayAnimated
                 isVisible={comboBoxState.isOpen}
                 offset={defaultTooltipOffset}
-                offsetAlong={avatarSize === "5" ? "-2.5" : "-3"}
+                offsetAlong="-2.5"
                 disableAnimationIn={true}
                 disableAnimationOut={
                     inputState.type === "Selection" && inputState.disableAnimationOut
@@ -275,7 +229,7 @@ function TaskAssigneeInput(
                 placement="bottom-start"
                 overlay={
                     <Box ref={popoverRef} position="relative">
-                        <TaskAssigneeInputListBox
+                        <TaskPriorityInputListBox
                             comboBoxState={comboBoxState}
                             listBoxRef={listBoxRef}
                             listBoxProps={listBoxProps}
@@ -287,12 +241,10 @@ function TaskAssigneeInput(
                 <FocusRing isVisibleWhenFocusWithin>
                     <Box
                         maxWidth="full"
-                        height={avatarSize}
-                        marginY={avatarSize === "5" ? "-0.5" : undefined}
-                        overflow="hidden"
+                        height="4"
                         display="inline-flex"
                         alignItems="center"
-                        gap={avatarSize === "5" ? "1.5" : "1"}
+                        gap="1"
                         className={tasksStyles.textCursorNotInheritedClassName}
                         style={{
                             // `display: inline-block` creates an inline layout which adds extra space
@@ -317,17 +269,17 @@ function TaskAssigneeInput(
                             }
                         }}
                     >
-                        <Box flexShrink="0" pointerEvents="none">
-                            {assigneeAccount ? (
-                                <AccountAvatar size={avatarSize} account={assigneeAccount} />
-                            ) : (
-                                <TaskNoAccountAvatar size={avatarSize} />
-                            )}
+                        <Box width="4" height="4" pointerEvents="none">
+                            <TaskPriorityIcon
+                                size="4"
+                                priority={priority}
+                                shouldHighlightUrgent={true}
+                            />
                         </Box>
                         <InputWithAutoGrowingWidth
                             {...inputProps}
                             ref={inputRef}
-                            placeholder={assigneeAccount ? selectionInputValue : nullAssigneeLabel}
+                            placeholder={priority ? selectionInputValue : getTaskPriorityName(null)}
                             className={sprinkles({color, height: "4"})}
                         />
                     </Box>
@@ -337,16 +289,16 @@ function TaskAssigneeInput(
     );
 }
 
-function TaskAssigneeInputListBox({
+function TaskPriorityInputListBox({
     comboBoxState,
     listBoxRef,
     listBoxProps: _listBoxProps,
     selectedKey,
 }: {
-    comboBoxState: ComboBoxState<TaskAssigneeInputItem>;
+    comboBoxState: ComboBoxState<TaskPriorityInputItem>;
     listBoxRef: RefObject<HTMLUListElement>;
-    listBoxProps: AriaListBoxOptions<TaskAssigneeInputItem>;
-    selectedKey: string;
+    listBoxProps: AriaListBoxOptions<TaskPriorityInputItem>;
+    selectedKey: TaskPriorityInputItem["key"];
 }) {
     const {listBoxProps} = useListBox(_listBoxProps, comboBoxState, listBoxRef);
 
@@ -374,7 +326,7 @@ function TaskAssigneeInputListBox({
                 </Box>
             ) : (
                 Array.from(comboBoxState.collection, item => (
-                    <TaskAssigneeInputListBoxOption
+                    <TaskPriorityInputListBoxOption
                         key={item.key}
                         comboBoxState={comboBoxState}
                         item={item}
@@ -386,14 +338,14 @@ function TaskAssigneeInputListBox({
     );
 }
 
-function TaskAssigneeInputListBoxOption({
+function TaskPriorityInputListBoxOption({
     comboBoxState,
     item,
     selectedKey,
 }: {
-    comboBoxState: ComboBoxState<TaskAssigneeInputItem>;
-    item: Node<TaskAssigneeInputItem>;
-    selectedKey: string;
+    comboBoxState: ComboBoxState<TaskPriorityInputItem>;
+    item: Node<TaskPriorityInputItem>;
+    selectedKey: TaskPriorityInputItem["key"];
 }) {
     const optionRef = useRef(null);
     const {isHovered, hoverProps} = useHover({});
@@ -436,66 +388,40 @@ function TaskAssigneeInputListBoxOption({
     );
 }
 
-function TaskAssigneeInputListBoxOptionItem({
+function TaskPriorityInputListBoxOptionItem({
     item,
     isSelected,
     isPressed,
 }: {
-    item: TaskAssigneeInputItem;
+    item: TaskPriorityInputItem;
     isSelected?: boolean;
     isPressed?: boolean;
 }) {
     assert(
-        typeof isSelected === "boolean" && typeof isPressed === "boolean",
-        "Expected to be rendered by <TaskAssigneeInputListBoxOption> which provides extra props",
+        typeof isSelected === "boolean" || typeof isPressed === "boolean",
+        "Expected to be rendered by <TaskPriorityInputListBoxOption> which provides extra props",
     );
 
-    switch (item.type) {
-        case "Account": {
-            return (
-                <Box display="flex" alignItems="center" gap="1.5">
-                    <AccountAvatar account={item.account} size="5" />
-                    <Box flexGrow="1" fontStyle="truncate">
-                        {item.account.name}
-                    </Box>
-                    {isSelected && (
-                        <Box flexShrink="0" marginLeft="2">
-                            <Check
-                                size={spacing["3"]}
-                                color={
-                                    isPressed
-                                        ? colorSchemeVars["grey-text"]
-                                        : colorSchemeVars["grey-70"]
-                                }
-                            />
-                        </Box>
-                    )}
+    return (
+        <Box display="flex" alignItems="center" gap="1.5">
+            <TaskPriorityIcon
+                size="4"
+                priority={item.key === "Null" ? null : item.key}
+                shouldHighlightUrgent={false}
+            />
+            <Box flexGrow="1" fontStyle="truncate">
+                {getTaskPriorityName(item.key)}
+            </Box>
+            {isSelected && (
+                <Box flexShrink="0" marginLeft="2">
+                    <Check
+                        size={spacing["3"]}
+                        color={
+                            isPressed ? colorSchemeVars["grey-text"] : colorSchemeVars["grey-70"]
+                        }
+                    />
                 </Box>
-            );
-        }
-        case "Null": {
-            return (
-                <Box display="flex" alignItems="center" gap="1.5">
-                    <TaskNoAccountAvatar />
-                    <Box flexGrow="1" fontStyle="truncate" color="grey-60">
-                        {nullAssigneeLabel}
-                    </Box>
-                    {isSelected && (
-                        <Box flexShrink="0" marginLeft="2">
-                            <Check
-                                size={spacing["3"]}
-                                color={
-                                    isPressed
-                                        ? colorSchemeVars["grey-text"]
-                                        : colorSchemeVars["grey-70"]
-                                }
-                            />
-                        </Box>
-                    )}
-                </Box>
-            );
-        }
-        default:
-            throw exhaustive(item);
-    }
+            )}
+        </Box>
+    );
 }

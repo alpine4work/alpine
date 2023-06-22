@@ -148,6 +148,8 @@ export function TaskView({
             onTitleChange={title => dispatch({type: "UpdateTaskTitle", taskId, title})}
             assignee={task.assignee}
             onAssigneeChange={assignee => dispatch({type: "UpdateTaskAssignee", taskId, assignee})}
+            priority={task.priority}
+            onPriorityChange={priority => dispatch({type: "UpdateTaskPriority", taskId, priority})}
             dueDate={task.dueDate}
             onDueDateChange={dueDate => dispatch({type: "UpdateTaskDueDate", taskId, dueDate})}
             allCollections={useMemo(() => state.database.getAllTaskCollections(), [state.database])}

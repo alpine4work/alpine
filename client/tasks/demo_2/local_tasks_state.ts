@@ -67,6 +67,10 @@ const CalendarDateSchema = Schema.string.transform<CalendarDate>({
     deserialize: date => parseDate(date),
 });
 
+export type TaskPriority = "Low" | "Medium" | "High" | "Urgent";
+
+const TaskPrioritySchema = Schema.enum<TaskPriority>(["Low", "Medium", "High", "Urgent"]);
+
 export type LocalTask = SchemaType<typeof LocalTaskSchema>;
 
 const LocalTaskSchema = Schema.object({
@@ -132,6 +136,7 @@ const LocalTaskSchema = Schema.object({
         .nullable()
         .default(null),
     dueDate: CalendarDateSchema.nullable().default(null),
+    priority: TaskPrioritySchema.nullable().default(null),
     collectionIds: Schema.set(Schema.id<LocalTaskCollectionId>()).default(new Set()),
     notesContent: TaskNotesContentWithReferencesSchema,
     parentTaskId: Schema.id<LocalTaskId>().nullable(),
@@ -411,6 +416,7 @@ class LocalTasksDatabase {
             title: options.title ?? emptyTaskTitle,
             assignee: options.assignee ?? null,
             dueDate: options.dueDate ?? null,
+            priority: options.priority ?? null,
             collectionIds: options.collection ? new Set([options.collection.id]) : new Set(),
             notesContent: emptyTaskNotesContentWithReferences,
             parentTaskId: options.parentTask?.id ?? null,
@@ -684,6 +690,17 @@ class LocalTasksDatabase {
                     status,
                     assignee: task.assignee ? {...task.assignee, status: {type: "Inactive"}} : null,
                 };
+            }),
+            taskCollectionById: this._taskCollectionById,
+            taskIdByOrderKeyByNotepadPageId: this._taskIdByOrderKeyByNotepadPageId,
+        });
+    }
+
+    public updateTaskPriority(taskId: LocalTaskId, priority: TaskPriority | null) {
+        return new LocalTasksDatabase({
+            taskById: this._taskById.update(taskId, task => {
+                if (!task) throw new NotFoundError("Task not found");
+                return {...task, priority};
             }),
             taskCollectionById: this._taskCollectionById,
             taskIdByOrderKeyByNotepadPageId: this._taskIdByOrderKeyByNotepadPageId,
@@ -1309,6 +1326,11 @@ type LocalTasksDatabaseCreateTaskOptions = {
     dueDate?: CalendarDate;
 
     /**
+     * The initial priority for this task.
+     */
+    priority?: TaskPriority;
+
+    /**
      * Set this to create a task with another task as its parent.
      *
      * Provide an `orderKey` to specify where in the parent's child tasks you want
@@ -1411,6 +1433,7 @@ export type LocalTasksAction =
     | LocalTasksUpdateTaskTitleAction
     | LocalTasksUpdateTaskAssigneeAction
     | LocalTasksUpdateTaskStatusAction
+    | LocalTasksUpdateTaskPriorityAction
     | LocalTasksUpdateTaskDueDateAction
     | LocalTasksUpdateTaskNotesContentAction
     | LocalTasksDeleteTaskAndAllChildrenAction
@@ -1456,6 +1479,12 @@ type LocalTasksUpdateTaskStatusAction = {
     readonly type: "UpdateTaskStatus";
     readonly taskId: LocalTaskId;
     readonly status: TaskStatus;
+};
+
+type LocalTasksUpdateTaskPriorityAction = {
+    readonly type: "UpdateTaskPriority";
+    readonly taskId: LocalTaskId;
+    readonly priority: TaskPriority | null;
 };
 
 type LocalTasksUpdateTaskDueDateAction = {
@@ -1588,6 +1617,13 @@ function reduceLocalTasksState(state: LocalTasksState, action: LocalTasksAction)
             return {
                 ...state,
                 database: state.database.updateTaskStatus(action.taskId, action.status),
+            };
+        }
+
+        case "UpdateTaskPriority": {
+            return {
+                ...state,
+                database: state.database.updateTaskPriority(action.taskId, action.priority),
             };
         }
 
