@@ -136,6 +136,15 @@ export function TaskQuerySortsEditor({
                                 });
                             },
                         },
+                        {
+                            label: "Priority",
+                            onPress: () => {
+                                addSort({
+                                    type: "Priority",
+                                    direction: "Descending",
+                                });
+                            },
+                        },
                     ],
                     [
                         {
@@ -287,6 +296,21 @@ function TaskQuerySortsEditorRow({
                     isDragOverlay={isDragOverlay}
                 >
                     <TaskQuerySortsEditorRowStatusDirection
+                        direction={sort.direction}
+                        onDirectionChange={direction => onSortChange({...sort, direction})}
+                    />
+                </TaskQuerySortsEditorRowBase>
+            );
+        }
+        case "Priority": {
+            return (
+                <TaskQuerySortsEditorRowBase
+                    id={id}
+                    name="Priority"
+                    onDelete={onSortDelete}
+                    isDragOverlay={isDragOverlay}
+                >
+                    <TaskQuerySortsEditorRowPriorityDirection
                         direction={sort.direction}
                         onDirectionChange={direction => onSortChange({...sort, direction})}
                     />
@@ -515,6 +539,46 @@ function TaskQuerySortsEditorRowStatusDirection({
                         label: descendingLabel,
                         isSelected: direction === "Descending",
                         onPress: () => onDirectionChange("Descending"),
+                    },
+                ]}
+            >
+                <Button
+                    variant="quieter"
+                    height="5"
+                    paddingX="1.5"
+                    icon={<CaretDown />}
+                    iconPlacement="end"
+                >
+                    {direction === "Ascending" ? ascendingLabel : descendingLabel}
+                </Button>
+            </MenuButton>
+        </Box>
+    );
+}
+
+function TaskQuerySortsEditorRowPriorityDirection({
+    direction,
+    onDirectionChange,
+}: {
+    direction: "Ascending" | "Descending";
+    onDirectionChange: (direction: "Ascending" | "Descending") => void;
+}) {
+    const ascendingLabel = "Low → High";
+    const descendingLabel = "High → Low";
+
+    return (
+        <Box marginTop="-0.5">
+            <MenuButton
+                actions={[
+                    {
+                        label: descendingLabel,
+                        isSelected: direction === "Descending",
+                        onPress: () => onDirectionChange("Descending"),
+                    },
+                    {
+                        label: ascendingLabel,
+                        isSelected: direction === "Ascending",
+                        onPress: () => onDirectionChange("Ascending"),
                     },
                 ]}
             >

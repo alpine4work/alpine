@@ -62,6 +62,37 @@ export function createTaskQuerySortsCompareFunction(
                 });
                 break;
             }
+            case "Priority": {
+                pushCompareFunction({
+                    get: task => task.priority,
+                    compare: (value1, value2) => {
+                        if (value1 === null && value2 === null) return 0;
+                        if (value1 === null) return -1;
+                        if (value2 === null) return 1;
+
+                        if (value1 === "Low" && value2 === "Low") return 0;
+                        if (value1 === "Low") return -1;
+                        if (value2 === "Low") return 1;
+
+                        if (value1 === "Medium" && value2 === "Medium") return 0;
+                        if (value1 === "Medium") return -1;
+                        if (value2 === "Medium") return 1;
+
+                        if (value1 === "High" && value2 === "High") return 0;
+                        if (value1 === "High") return -1;
+                        if (value2 === "High") return 1;
+
+                        if (value1 === "Urgent" && value2 === "Urgent") return 0;
+                        if (value1 === "Urgent") return -1;
+                        if (value2 === "Urgent") return 1;
+
+                        exhaustive(value1);
+                        throw exhaustive(value2);
+                    },
+                    reverse: sort.direction === "Descending",
+                });
+                break;
+            }
             // TODO(calebmer): In a production implementation this should be sorted alphabetically.
             case "Assignee": {
                 pushCompareFunction({

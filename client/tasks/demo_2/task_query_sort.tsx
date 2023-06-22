@@ -5,6 +5,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive";
 
 export type TaskQuerySort =
     | TaskQueryStatusSort
+    | TaskQueryPrioritySort
     | TaskQueryAssigneeSort
     | TaskQueryCreatorSort
     | TaskQueryAssignerSort
@@ -16,6 +17,11 @@ export type TaskQuerySort =
 
 type TaskQueryStatusSort = {
     readonly type: "Status";
+    readonly direction: "Ascending" | "Descending";
+};
+
+type TaskQueryPrioritySort = {
+    readonly type: "Priority";
     readonly direction: "Ascending" | "Descending";
 };
 
@@ -132,6 +138,8 @@ function getTaskQuerySortByteLength(sort: TaskQuerySort): number {
     switch (sort.type) {
         case "Status":
             return 1;
+        case "Priority":
+            return 1;
         case "Assignee":
             return 1;
         case "Creator":
@@ -163,35 +171,35 @@ function serializeTaskQuerySort(sort: TaskQuerySort, view: DataView): void {
             }
             break;
         }
-        case "Assignee": {
-            if (sort.noAccountSide === "Start") {
+        case "Priority": {
+            if (sort.direction === "Ascending") {
                 view.setUint8(0, 3);
             } else {
                 view.setUint8(0, 4);
             }
             break;
         }
+        case "Assignee": {
+            if (sort.noAccountSide === "Start") {
+                view.setUint8(0, 5);
+            } else {
+                view.setUint8(0, 6);
+            }
+            break;
+        }
         case "Creator": {
-            view.setUint8(0, 5);
+            view.setUint8(0, 7);
             break;
         }
         case "Assigner": {
             if (sort.noAccountSide === "Start") {
-                view.setUint8(0, 6);
-            } else {
-                view.setUint8(0, 7);
-            }
-            break;
-        }
-        case "DueDate": {
-            if (sort.direction === "Ascending") {
                 view.setUint8(0, 8);
             } else {
                 view.setUint8(0, 9);
             }
             break;
         }
-        case "CreatedDate": {
+        case "DueDate": {
             if (sort.direction === "Ascending") {
                 view.setUint8(0, 10);
             } else {
@@ -199,7 +207,7 @@ function serializeTaskQuerySort(sort: TaskQuerySort, view: DataView): void {
             }
             break;
         }
-        case "AssignedDate": {
+        case "CreatedDate": {
             if (sort.direction === "Ascending") {
                 view.setUint8(0, 12);
             } else {
@@ -207,7 +215,7 @@ function serializeTaskQuerySort(sort: TaskQuerySort, view: DataView): void {
             }
             break;
         }
-        case "ClosedDate": {
+        case "AssignedDate": {
             if (sort.direction === "Ascending") {
                 view.setUint8(0, 14);
             } else {
@@ -215,11 +223,19 @@ function serializeTaskQuerySort(sort: TaskQuerySort, view: DataView): void {
             }
             break;
         }
-        case "ActivatedDate": {
+        case "ClosedDate": {
             if (sort.direction === "Ascending") {
                 view.setUint8(0, 16);
             } else {
                 view.setUint8(0, 17);
+            }
+            break;
+        }
+        case "ActivatedDate": {
+            if (sort.direction === "Ascending") {
+                view.setUint8(0, 18);
+            } else {
+                view.setUint8(0, 19);
             }
             break;
         }
@@ -240,34 +256,38 @@ function deserializeTaskQuerySort(view: DataView): {
         case 2:
             return {sort: {type: "Status", direction: "Descending"}, byteLength: 1};
         case 3:
-            return {sort: {type: "Assignee", noAccountSide: "Start"}, byteLength: 1};
+            return {sort: {type: "Priority", direction: "Ascending"}, byteLength: 1};
         case 4:
-            return {sort: {type: "Assignee", noAccountSide: "End"}, byteLength: 1};
+            return {sort: {type: "Priority", direction: "Descending"}, byteLength: 1};
         case 5:
-            return {sort: {type: "Creator"}, byteLength: 1};
+            return {sort: {type: "Assignee", noAccountSide: "Start"}, byteLength: 1};
         case 6:
-            return {sort: {type: "Assigner", noAccountSide: "Start"}, byteLength: 1};
+            return {sort: {type: "Assignee", noAccountSide: "End"}, byteLength: 1};
         case 7:
-            return {sort: {type: "Assigner", noAccountSide: "End"}, byteLength: 1};
+            return {sort: {type: "Creator"}, byteLength: 1};
         case 8:
-            return {sort: {type: "DueDate", direction: "Ascending"}, byteLength: 1};
+            return {sort: {type: "Assigner", noAccountSide: "Start"}, byteLength: 1};
         case 9:
-            return {sort: {type: "DueDate", direction: "Descending"}, byteLength: 1};
+            return {sort: {type: "Assigner", noAccountSide: "End"}, byteLength: 1};
         case 10:
-            return {sort: {type: "CreatedDate", direction: "Ascending"}, byteLength: 1};
+            return {sort: {type: "DueDate", direction: "Ascending"}, byteLength: 1};
         case 11:
-            return {sort: {type: "CreatedDate", direction: "Descending"}, byteLength: 1};
+            return {sort: {type: "DueDate", direction: "Descending"}, byteLength: 1};
         case 12:
-            return {sort: {type: "AssignedDate", direction: "Ascending"}, byteLength: 1};
+            return {sort: {type: "CreatedDate", direction: "Ascending"}, byteLength: 1};
         case 13:
-            return {sort: {type: "AssignedDate", direction: "Descending"}, byteLength: 1};
+            return {sort: {type: "CreatedDate", direction: "Descending"}, byteLength: 1};
         case 14:
-            return {sort: {type: "ClosedDate", direction: "Ascending"}, byteLength: 1};
+            return {sort: {type: "AssignedDate", direction: "Ascending"}, byteLength: 1};
         case 15:
-            return {sort: {type: "ClosedDate", direction: "Descending"}, byteLength: 1};
+            return {sort: {type: "AssignedDate", direction: "Descending"}, byteLength: 1};
         case 16:
-            return {sort: {type: "ActivatedDate", direction: "Ascending"}, byteLength: 1};
+            return {sort: {type: "ClosedDate", direction: "Ascending"}, byteLength: 1};
         case 17:
+            return {sort: {type: "ClosedDate", direction: "Descending"}, byteLength: 1};
+        case 18:
+            return {sort: {type: "ActivatedDate", direction: "Ascending"}, byteLength: 1};
+        case 19:
             return {sort: {type: "ActivatedDate", direction: "Descending"}, byteLength: 1};
         default:
             throw new InvalidArgumentError(`Unrecognized sort type ${typeByte}`);
