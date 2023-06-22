@@ -36,12 +36,14 @@ export function evaluateTaskQueryNormalizedFilters(
     {
         const status =
             task.status.type === "Open" && task.assignee?.status.type === "Active"
-                ? "Active"
-                : task.status.type;
+                ? "OpenActive"
+                : task.status.type === "Open"
+                ? "OpenInactive"
+                : "Closed";
 
         const pass =
-            (filters.statusFilter.ifOpen && status === "Open") ||
-            (filters.statusFilter.ifActive && status === "Active") ||
+            (filters.statusFilter.ifOpenInactive && status === "OpenInactive") ||
+            (filters.statusFilter.ifOpenActive && status === "OpenActive") ||
             (filters.statusFilter.ifClosed && status === "Closed");
 
         if (!pass) return false;

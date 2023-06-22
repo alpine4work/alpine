@@ -265,11 +265,11 @@ export type TaskQueryStatusFilter = {
     readonly operation:
         | {
               readonly type: "OneOf";
-              readonly statuses: ReadonlySet<"Open" | "Active" | "Closed">;
+              readonly statuses: ReadonlySet<"OpenInactive" | "OpenActive" | "Closed">;
           }
         | {
               readonly type: "NoneOf";
-              readonly statuses: ReadonlySet<"Open" | "Active" | "Closed">;
+              readonly statuses: ReadonlySet<"OpenInactive" | "OpenActive" | "Closed">;
           };
 };
 
@@ -282,8 +282,8 @@ function serializeTaskQueryStatusFilter(filter: TaskQueryStatusFilter, view: Dat
         // Operation type is stored in the first 4 bits
         ((filter.operation.type === "OneOf" ? 1 : 2) << 4) |
         // Statuses are stored in the last 4 bits as a bitset
-        (filter.operation.statuses.has("Open") ? 0b00001000 : 0b00000000) |
-        (filter.operation.statuses.has("Active") ? 0b00000100 : 0b00000000) |
+        (filter.operation.statuses.has("OpenInactive") ? 0b00001000 : 0b00000000) |
+        (filter.operation.statuses.has("OpenActive") ? 0b00000100 : 0b00000000) |
         (filter.operation.statuses.has("Closed") ? 0b00000010 : 0b00000000);
 
     view.setUint8(0, byte);
@@ -308,10 +308,10 @@ function deserializeTaskQueryStatusFilter(view: DataView): {
             throw new InvalidArgumentError(`Unrecognized operation type ${typeBits}`);
     }
 
-    const statuses = new Set<"Open" | "Active" | "Closed">();
+    const statuses = new Set<"OpenInactive" | "OpenActive" | "Closed">();
 
-    if (byte & 0b00001000) statuses.add("Open");
-    if (byte & 0b00000100) statuses.add("Active");
+    if (byte & 0b00001000) statuses.add("OpenInactive");
+    if (byte & 0b00000100) statuses.add("OpenActive");
     if (byte & 0b00000010) statuses.add("Closed");
 
     return {

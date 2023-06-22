@@ -41,18 +41,18 @@ export type TaskQueryNormalizedFilters = {
 // the filter is impossible.
 export type TaskQueryStatusNormalizedFilter =
     | {
-          readonly ifOpen: true;
-          readonly ifActive: boolean;
+          readonly ifOpenInactive: true;
+          readonly ifOpenActive: boolean;
           readonly ifClosed: boolean;
       }
     | {
-          readonly ifOpen: boolean;
-          readonly ifActive: true;
+          readonly ifOpenInactive: boolean;
+          readonly ifOpenActive: true;
           readonly ifClosed: boolean;
       }
     | {
-          readonly ifOpen: boolean;
-          readonly ifActive: boolean;
+          readonly ifOpenInactive: boolean;
+          readonly ifOpenActive: boolean;
           readonly ifClosed: true;
       };
 
@@ -158,8 +158,8 @@ export function normalizeTaskQueryFilters(
         -readonly [K in keyof TaskQueryNormalizedFilters]: TaskQueryNormalizedFilters[K];
     } = {
         statusFilter: {
-            ifOpen: true,
-            ifActive: true,
+            ifOpenInactive: true,
+            ifOpenActive: true,
             ifClosed: false,
         },
     };
@@ -421,20 +421,20 @@ function normalizeTaskQueryStatusFilter(
     | {type: "AlwaysFalse"} {
     if (filter.operation.statuses.size === 0) return {type: "Undefined"};
 
-    let ifOpen: boolean;
-    let ifActive: boolean;
+    let ifOpenInactive: boolean;
+    let ifOpenActive: boolean;
     let ifClosed: boolean;
 
     switch (filter.operation.type) {
         case "OneOf": {
-            ifOpen = filter.operation.statuses.has("Open");
-            ifActive = filter.operation.statuses.has("Active");
+            ifOpenInactive = filter.operation.statuses.has("OpenInactive");
+            ifOpenActive = filter.operation.statuses.has("OpenActive");
             ifClosed = filter.operation.statuses.has("Closed");
             break;
         }
         case "NoneOf": {
-            ifOpen = !filter.operation.statuses.has("Open");
-            ifActive = !filter.operation.statuses.has("Active");
+            ifOpenInactive = !filter.operation.statuses.has("OpenInactive");
+            ifOpenActive = !filter.operation.statuses.has("OpenActive");
             ifClosed = !filter.operation.statuses.has("Closed");
             break;
         }
@@ -442,12 +442,12 @@ function normalizeTaskQueryStatusFilter(
             throw exhaustive(filter.operation);
     }
 
-    if (ifOpen) {
-        return {type: "Filter", filter: {ifOpen, ifActive, ifClosed}};
-    } else if (ifActive) {
-        return {type: "Filter", filter: {ifOpen, ifActive, ifClosed}};
+    if (ifOpenInactive) {
+        return {type: "Filter", filter: {ifOpenInactive, ifOpenActive, ifClosed}};
+    } else if (ifOpenActive) {
+        return {type: "Filter", filter: {ifOpenInactive, ifOpenActive, ifClosed}};
     } else if (ifClosed) {
-        return {type: "Filter", filter: {ifOpen, ifActive, ifClosed}};
+        return {type: "Filter", filter: {ifOpenInactive, ifOpenActive, ifClosed}};
     } else {
         return {type: "AlwaysFalse"};
     }
@@ -457,16 +457,16 @@ function mergeTaskQueryStatusFilters(
     filter1: TaskQueryStatusNormalizedFilter,
     filter2: TaskQueryStatusNormalizedFilter,
 ): {type: "Filter"; filter: TaskQueryStatusNormalizedFilter} | {type: "AlwaysFalse"} {
-    const ifOpen = filter1.ifOpen && filter2.ifOpen;
-    const ifActive = filter1.ifActive && filter2.ifActive;
+    const ifOpenInactive = filter1.ifOpenInactive && filter2.ifOpenInactive;
+    const ifOpenActive = filter1.ifOpenActive && filter2.ifOpenActive;
     const ifClosed = filter1.ifClosed && filter2.ifClosed;
 
-    if (ifOpen) {
-        return {type: "Filter", filter: {ifOpen, ifActive, ifClosed}};
-    } else if (ifActive) {
-        return {type: "Filter", filter: {ifOpen, ifActive, ifClosed}};
+    if (ifOpenInactive) {
+        return {type: "Filter", filter: {ifOpenInactive, ifOpenActive, ifClosed}};
+    } else if (ifOpenActive) {
+        return {type: "Filter", filter: {ifOpenInactive, ifOpenActive, ifClosed}};
     } else if (ifClosed) {
-        return {type: "Filter", filter: {ifOpen, ifActive, ifClosed}};
+        return {type: "Filter", filter: {ifOpenInactive, ifOpenActive, ifClosed}};
     } else {
         return {type: "AlwaysFalse"};
     }
