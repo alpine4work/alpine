@@ -13,9 +13,10 @@ import {
     useState,
 } from "react";
 import {Box} from "~/client/design/box";
+import {ContextMenuActions} from "~/client/design/context_menu";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element";
 import {IconButton} from "~/client/design/icon_button";
-import {MenuButton} from "~/client/design/menu_button";
+import {MenuAction, MenuButton} from "~/client/design/menu_button";
 import {Spacer} from "~/client/design/spacer";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref";
@@ -200,114 +201,113 @@ function TaskDetailPresentationalView<ChildTaskRow>(
         }
     }, [dueDateInputState]);
 
+    const contextMenuActions: ReadonlyArray<ReadonlyArray<MenuAction>> = [
+        [
+            {
+                label: "Copy link",
+                onPress: () => {
+                    // NOCOMMIT: Needs production implementation
+                },
+            },
+        ],
+        getTaskStatusMenuActions({
+            timeZone,
+            currentAccount,
+            status,
+            onStatusChange,
+            assignee,
+            onAssigneeChange,
+        }),
+        [
+            {
+                label: priorityInputState.isVisible ? "Edit priority" : "Add priority",
+                onPress: () => {
+                    if (priorityInputState.isVisible) {
+                        assertExists(
+                            getNextFocusableElementIfExists(null, {
+                                withinElement: assertExists(priorityInputRef.current),
+                            }),
+                        ).focus({preventScroll: true});
+                    } else {
+                        setPriorityInputState({
+                            isVisible: true,
+                            shouldFocus: true,
+                            isFocused: false,
+                        });
+                    }
+                },
+            },
+            {
+                label: dueDateInputState.isVisible ? "Edit due date" : "Add due date",
+                onPress: () => {
+                    if (dueDateInputState.isVisible) {
+                        assertExists(
+                            getNextFocusableElementIfExists(null, {
+                                withinElement: assertExists(dueDateInputRef.current),
+                            }),
+                        ).focus({preventScroll: true});
+                    } else {
+                        setDueDateInputState({
+                            isVisible: true,
+                            shouldFocus: true,
+                            isFocused: false,
+                        });
+                    }
+                },
+            },
+        ],
+        [
+            {
+                label: "Delete",
+                onPress: () => {
+                    // NOCOMMIT
+                },
+            },
+        ],
+    ];
+
     return (
         <Box
             width="full"
             overflow="hidden"
             maxWidth={taskDetailPresentationalViewMaxWidth}
-            paddingY={padding}
             display="flex"
             flexDirection="column"
             position="relative"
         >
-            <Box paddingX={padding} display="flex" flexDirection="column" gap="3">
-                <TaskStatusButton
-                    size="5"
-                    status={status}
-                    onStatusChange={onStatusChange}
-                    assignee={assignee}
-                />
+            <ContextMenuActions actions={contextMenuActions}>
                 <Box
-                    position="absolute"
-                    top={assertSpacing(`${parseInt(padding, 10) - 2}`)}
-                    right={assertSpacing(`${parseInt(padding, 10) - 2}`)}
+                    paddingTop={padding}
+                    paddingBottom="8"
+                    paddingX={padding}
+                    display="flex"
+                    flexDirection="column"
+                    gap="3"
                 >
-                    <MenuButton
-                        actions={[
-                            [
-                                {
-                                    label: "Copy link",
-                                    onPress: () => {
-                                        // NOCOMMIT: Needs production implementation
-                                    },
-                                },
-                            ],
-                            getTaskStatusMenuActions({
-                                timeZone,
-                                currentAccount,
-                                status,
-                                onStatusChange,
-                                assignee,
-                                onAssigneeChange,
-                            }),
-                            [
-                                {
-                                    label: priorityInputState.isVisible
-                                        ? "Edit priority"
-                                        : "Add priority",
-                                    onPress: () => {
-                                        if (priorityInputState.isVisible) {
-                                            assertExists(
-                                                getNextFocusableElementIfExists(null, {
-                                                    withinElement: assertExists(
-                                                        priorityInputRef.current,
-                                                    ),
-                                                }),
-                                            ).focus({preventScroll: true});
-                                        } else {
-                                            setPriorityInputState({
-                                                isVisible: true,
-                                                shouldFocus: true,
-                                                isFocused: false,
-                                            });
-                                        }
-                                    },
-                                },
-                                {
-                                    label: dueDateInputState.isVisible
-                                        ? "Edit due date"
-                                        : "Add due date",
-                                    onPress: () => {
-                                        if (dueDateInputState.isVisible) {
-                                            assertExists(
-                                                getNextFocusableElementIfExists(null, {
-                                                    withinElement: assertExists(
-                                                        dueDateInputRef.current,
-                                                    ),
-                                                }),
-                                            ).focus({preventScroll: true});
-                                        } else {
-                                            setDueDateInputState({
-                                                isVisible: true,
-                                                shouldFocus: true,
-                                                isFocused: false,
-                                            });
-                                        }
-                                    },
-                                },
-                            ],
-                            [
-                                {
-                                    label: "Delete",
-                                    onPress: () => {
-                                        // NOCOMMIT
-                                    },
-                                },
-                            ],
-                        ]}
+                    <TaskStatusButton
+                        size="5"
+                        status={status}
+                        onStatusChange={onStatusChange}
+                        assignee={assignee}
+                    />
+                    <Box
+                        position="absolute"
+                        top={assertSpacing(`${parseInt(padding, 10) - 2}`)}
+                        right={assertSpacing(`${parseInt(padding, 10) - 2}`)}
                     >
-                        <IconButton size="md" description="More" withoutTooltip={true}>
-                            <DotsThree />
-                        </IconButton>
-                    </MenuButton>
+                        <MenuButton actions={contextMenuActions}>
+                            <IconButton size="md" description="More" withoutTooltip={true}>
+                                <DotsThree />
+                            </IconButton>
+                        </MenuButton>
+                    </Box>
+                    <TaskDetailTitleInput
+                        title={title}
+                        onTitleChange={onTitleChange}
+                        placeholder="Untitled task"
+                    />
                 </Box>
-                <TaskDetailTitleInput
-                    title={title}
-                    onTitleChange={onTitleChange}
-                    placeholder="Untitled task"
-                />
-            </Box>
-            <Spacer space="8" />
+            </ContextMenuActions>
             <Box
                 paddingX={padding}
                 display="grid"

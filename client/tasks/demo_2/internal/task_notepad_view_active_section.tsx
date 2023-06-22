@@ -156,6 +156,7 @@ export function TaskNotepadViewActiveSection({
                                         assignee,
                                     })
                                 }
+                                priority={task.priority}
                                 dueDate={task.dueDate}
                                 collections={Array.from(task.collectionIds, collectionId =>
                                     state.database.getTaskCollection(collectionId),

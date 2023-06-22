@@ -181,6 +181,14 @@ function TaskCollectionGridView(
                     assignee,
                 });
             }}
+            getTaskPriority={({task}) => task.priority}
+            onTaskPriorityChange={({task: {id: taskId}}, priority) => {
+                dispatch({
+                    type: "UpdateTaskPriority",
+                    taskId,
+                    priority,
+                });
+            }}
             getTaskDueDate={({task}) => task.dueDate}
             onTaskDueDateChange={({task: {id: taskId}}, dueDate) => {
                 dispatch({

@@ -28,31 +28,13 @@ import {OverlayAnimated} from "~/client/design/overlay_animated";
 import {defaultTooltipOffset} from "~/client/design/tooltip";
 import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growing_width";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
+import {getTaskPriorityName} from "~/client/tasks/demo_2/internal/get_task_priority_name";
 import {TaskPriorityIcon} from "~/client/tasks/demo_2/internal/task_priority_icon";
 import {TaskPriority} from "~/client/tasks/demo_2/local_tasks_state";
 import {spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {colorSchemeVars, sprinkles, tasksStyles} from "~/shared/styles/styles";
-
-function getTaskPriorityName(priority: TaskPriority | "Null" | null): string {
-    switch (priority) {
-        case null:
-        case "Null":
-            return "None";
-        case "Low":
-            return "Low";
-        case "Medium":
-            return "Medium";
-        case "High":
-            return "High";
-        case "Urgent":
-            return "Urgent";
-        default:
-            throw exhaustive(priority);
-    }
-}
 
 type TaskPriorityInputItem = {readonly key: TaskPriority | "Null"};
 

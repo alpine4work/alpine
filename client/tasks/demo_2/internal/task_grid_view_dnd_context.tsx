@@ -17,7 +17,7 @@ import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_prio
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {taskRowViewMinHeight} from "~/client/tasks/demo_2/internal/task_row_shared_styles";
-import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
+import {LocalTaskCollection, TaskPriority} from "~/client/tasks/demo_2/local_tasks_state";
 import {TaskCardPresentationalView} from "~/client/tasks/demo_2/task_card_presentational_view";
 import {
     TaskAssignee,
@@ -49,6 +49,7 @@ export type TaskGridViewDraggableData<TaskRow> =
           readonly status: TaskStatus;
           readonly title: TaskTitle;
           readonly assignee: TaskAssignee | null;
+          readonly priority: TaskPriority | null;
           readonly dueDate: CalendarDate | null;
           readonly collections: ReadonlyArray<LocalTaskCollection>;
           readonly childTaskCount: number;
@@ -523,6 +524,7 @@ function TaskRowViewDragOverlay<TaskRow>({
                     title={data.title}
                     assignee={data.assignee}
                     onAssigneeChange={noop}
+                    priority={data.priority}
                     dueDate={data.dueDate}
                     collections={data.collections}
                     childTaskCount={data.childTaskCount}

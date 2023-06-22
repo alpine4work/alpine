@@ -31,7 +31,7 @@ import {
     taskRowViewMinHeight,
 } from "~/client/tasks/demo_2/internal/task_row_shared_styles";
 import {TaskRowViewDroppable} from "~/client/tasks/demo_2/internal/task_row_view_droppable";
-import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
+import {LocalTaskCollection, TaskPriority} from "~/client/tasks/demo_2/local_tasks_state";
 import {
     TaskRowPresentationalView,
     TaskRowPresentationalViewRef,
@@ -77,6 +77,8 @@ export type TaskGridPresentationalViewProps<TaskRow> = {
     onTaskTitleChange: (taskRow: TaskRow, title: TaskTitle) => void;
     getTaskAssignee: (taskRow: TaskRow) => TaskAssignee | null;
     onTaskAssigneeChange: (taskRow: TaskRow, assignee: TaskAssignee | null) => void;
+    getTaskPriority: (taskRow: TaskRow) => TaskPriority | null;
+    onTaskPriorityChange: (taskRow: TaskRow, priority: TaskPriority | null) => void;
     getTaskDueDate: (taskRow: TaskRow) => CalendarDate | null;
     onTaskDueDateChange: (taskRow: TaskRow, dueDate: CalendarDate | null) => void;
     allCollections: ReadonlyArray<LocalTaskCollection>;
@@ -104,12 +106,14 @@ export type TaskGridPresentationalViewProps<TaskRow> = {
     createTaskAtEndFromBottomGhost: (options?: {
         title?: TaskTitle;
         assignee?: TaskAssignee;
+        priority?: TaskPriority;
         dueDate?: CalendarDate;
     }) => void;
     createTaskAtEndFromBottomGhostAndFocusNewGhost: (title: TaskTitle) => void;
     createTaskAtStartFromTopGhostWithoutNewGhost: (options: {
         title?: TaskTitle;
         assignee?: TaskAssignee;
+        priority?: TaskPriority;
         dueDate?: CalendarDate;
     }) => void;
     createTaskAtStartFromTopGhostAndFocus: (title: TaskTitle) => void;
@@ -140,6 +144,8 @@ function TaskGridPresentationalView<TaskRow>(
         onTaskTitleChange,
         getTaskAssignee,
         onTaskAssigneeChange,
+        getTaskPriority,
+        onTaskPriorityChange,
         getTaskDueDate,
         onTaskDueDateChange,
         allCollections,
@@ -261,6 +267,12 @@ function TaskGridPresentationalView<TaskRow>(
                 onAssigneeChange={assignee => {
                     if (assignee) {
                         createTaskAtStartFromTopGhostWithoutNewGhost({assignee});
+                    }
+                }}
+                priority={null}
+                onPriorityChange={priority => {
+                    if (priority) {
+                        createTaskAtStartFromTopGhostWithoutNewGhost({priority});
                     }
                 }}
                 dueDate={null}
@@ -388,6 +400,8 @@ function TaskGridPresentationalView<TaskRow>(
                 onTitleChange={title => onTaskTitleChange(taskRow, title)}
                 assignee={getTaskAssignee(taskRow)}
                 onAssigneeChange={assignee => onTaskAssigneeChange(taskRow, assignee)}
+                priority={getTaskPriority(taskRow)}
+                onPriorityChange={priority => onTaskPriorityChange(taskRow, priority)}
                 dueDate={getTaskDueDate(taskRow)}
                 onDueDateChange={dueDate => onTaskDueDateChange(taskRow, dueDate)}
                 allCollections={allCollections}
@@ -516,6 +530,12 @@ function TaskGridPresentationalView<TaskRow>(
                 onAssigneeChange={assignee => {
                     if (assignee) {
                         createTaskAtEndFromBottomGhost({assignee});
+                    }
+                }}
+                priority={null}
+                onPriorityChange={priority => {
+                    if (priority) {
+                        createTaskAtEndFromBottomGhost({priority});
                     }
                 }}
                 dueDate={null}

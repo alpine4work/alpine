@@ -12,6 +12,7 @@ import {useClientInfo} from "~/client/remix/client_info_context";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {formatTaskDate} from "~/client/tasks/demo_2/internal/format_task_date";
+import {getTaskPriorityName} from "~/client/tasks/demo_2/internal/get_task_priority_name";
 import {getTaskStatusMenuActions} from "~/client/tasks/demo_2/internal/get_task_status_menu_actions";
 import {TaskChildTasksProgressWheel} from "~/client/tasks/demo_2/internal/task_child_tasks_progress_wheel";
 import {
@@ -19,7 +20,8 @@ import {
     taskCollectionChipContainerMaxWidth,
 } from "~/client/tasks/demo_2/internal/task_collection_chip";
 import {TaskGridViewDraggableData} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
-import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
+import {TaskPriorityIcon} from "~/client/tasks/demo_2/internal/task_priority_icon";
+import {LocalTaskCollection, TaskPriority} from "~/client/tasks/demo_2/local_tasks_state";
 import {TaskAssignee, TaskStatus, TaskStatusButton} from "~/client/tasks/demo_2/task_status_button";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {LocalTaskId} from "~/shared/id/types/id_types";
@@ -41,6 +43,7 @@ export function TaskCardPresentationalView({
     title,
     assignee,
     onAssigneeChange,
+    priority,
     dueDate,
     collections,
     childTaskCount,
@@ -55,6 +58,7 @@ export function TaskCardPresentationalView({
     title: TaskTitle;
     assignee: TaskAssignee | null;
     onAssigneeChange: (assignee: TaskAssignee | null) => void;
+    priority: TaskPriority | null;
     dueDate: CalendarDate | null;
     collections: ReadonlyArray<LocalTaskCollection>;
     childTaskCount: number;
@@ -92,6 +96,7 @@ export function TaskCardPresentationalView({
             status,
             title,
             assignee,
+            priority,
             dueDate,
             collections,
             childTaskCount,
@@ -102,33 +107,29 @@ export function TaskCardPresentationalView({
     const fieldElements = useMemo(() => {
         const fieldElements = [];
 
-        if (assignee) {
+        if (childTaskCount > 0) {
             fieldElements.push(
                 <Box
                     display="flex"
                     alignItems="center"
-                    gap="2"
-                    maxWidth="32"
+                    gap="1"
                     style={{
                         paddingRight:
-                            !dueDate && childTaskCount === 0
+                            fieldElements.length === 0
                                 ? addRemLengths(
                                       spacing["2"],
                                       // A little extra padding to offset the negative margin of collection chips.
-                                      // Only when the next field is collections. If we have a due date the extra
-                                      // padding will be added there.
                                       spacing["1"],
                                   )
                                 : spacing["2"],
                     }}
                 >
-                    <Box position="relative" width="4" height="4">
-                        <Box position="absolute" top="-0.5" left="-0.5">
-                            <AccountAvatar size="5" account={assignee.account} />
-                        </Box>
-                    </Box>
-                    <Box fontStyle="truncate" color="grey-60">
-                        <AccountShortName account={assignee.account} tooltipPlacement="bottom" />
+                    <TaskChildTasksProgressWheel
+                        childTaskCount={childTaskCount}
+                        closedChildTaskCount={closedChildTaskCount}
+                    />
+                    <Box color="grey-70">
+                        {closedChildTaskCount}/{childTaskCount}
                     </Box>
                 </Box>,
             );
@@ -151,12 +152,10 @@ export function TaskCardPresentationalView({
                     color={status.type === "Open" && isAfterDueDate ? "red-60" : "grey-60"}
                     style={{
                         paddingRight:
-                            childTaskCount === 0
+                            fieldElements.length === 0
                                 ? addRemLengths(
                                       spacing["2"],
                                       // A little extra padding to offset the negative margin of collection chips.
-                                      // Only when the next field is collections. If we have a due date the extra
-                                      // padding will be added there.
                                       spacing["1"],
                                   )
                                 : spacing["2"],
@@ -168,30 +167,62 @@ export function TaskCardPresentationalView({
             );
         }
 
-        if (childTaskCount > 0) {
+        if (priority) {
             fieldElements.push(
                 <Box
                     display="flex"
                     alignItems="center"
                     gap="1"
                     style={{
-                        paddingRight: addRemLengths(
-                            spacing["2"],
-                            // A little extra padding to offset the negative margin of collection chips.
-                            spacing["1"],
-                        ),
+                        paddingRight:
+                            fieldElements.length === 0
+                                ? addRemLengths(
+                                      spacing["2"],
+                                      // A little extra padding to offset the negative margin of collection chips.
+                                      spacing["1"],
+                                  )
+                                : spacing["2"],
                     }}
                 >
-                    <TaskChildTasksProgressWheel
-                        childTaskCount={childTaskCount}
-                        closedChildTaskCount={closedChildTaskCount}
-                    />
-                    <Box color="grey-70">
-                        {closedChildTaskCount}/{childTaskCount}
+                    <TaskPriorityIcon size="4" priority={priority} shouldHighlightUrgent={true} />
+                    <Box fontStyle="truncate">{getTaskPriorityName(priority)}</Box>
+                </Box>,
+            );
+        }
+
+        if (assignee) {
+            fieldElements.push(
+                <Box
+                    display="flex"
+                    alignItems="center"
+                    gap="2"
+                    maxWidth="32"
+                    style={{
+                        paddingRight:
+                            fieldElements.length === 0
+                                ? addRemLengths(
+                                      spacing["2"],
+                                      // A little extra padding to offset the negative margin of collection chips.
+                                      spacing["1"],
+                                  )
+                                : spacing["2"],
+                    }}
+                >
+                    <Box position="relative" width="4" height="4">
+                        <Box position="absolute" top="-0.5" left="-0.5">
+                            <AccountAvatar size="5" account={assignee.account} />
+                        </Box>
+                    </Box>
+                    <Box fontStyle="truncate" color="grey-60">
+                        <AccountShortName account={assignee.account} tooltipPlacement="bottom" />
                     </Box>
                 </Box>,
             );
         }
+
+        // We add fields in reverse so that we can check `fieldElements.length === 0`
+        // to tell if we are the last field before collections.
+        fieldElements.reverse();
 
         for (const collection of collections) {
             fieldElements.push(
@@ -215,6 +246,7 @@ export function TaskCardPresentationalView({
         currentDate,
         dueDate,
         locale,
+        priority,
         status.type,
         timeZone,
     ]);

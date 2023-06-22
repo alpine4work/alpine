@@ -115,17 +115,17 @@ export function TaskPriorityIcon({
             }}
         >
             {fillBar3 ? (
-                <rect x="22.5" y="5" width="4" height="22" rx="2" fill={filledBarColor} />
+                <rect x="22.5" y="5" width="4" height="22" rx="1" fill={filledBarColor} />
             ) : (
                 <rect x="23.5" y="5" width="2" height="22" rx="1" fill={notFilledBarColor} />
             )}
             {fillBar2 ? (
-                <rect x="14" y="10.5" width="4" height="16.5" rx="2" fill={filledBarColor} />
+                <rect x="14" y="10.5" width="4" height="16.5" rx="1" fill={filledBarColor} />
             ) : (
                 <rect x="15" y="10.5" width="2" height="16.5" rx="1" fill={notFilledBarColor} />
             )}
             {fillBar1 ? (
-                <rect x="5.5" y="16" width="4" height="11" rx="2" fill={filledBarColor} />
+                <rect x="5.5" y="16" width="4" height="11" rx="1" fill={filledBarColor} />
             ) : (
                 <rect x="6.5" y="16" width="2" height="11" rx="1" fill={notFilledBarColor} />
             )}
