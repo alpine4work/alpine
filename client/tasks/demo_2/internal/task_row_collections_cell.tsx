@@ -1,7 +1,8 @@
 import {Lock} from "phosphor-react";
-import {RefCallback} from "react";
+import {Ref, RefCallback, forwardRef, useImperativeHandle, useRef} from "react";
 import {Box} from "~/client/design/box";
 import {useIsChildFocusRingVisible} from "~/client/design/focus_ring";
+import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support";
 import {TaskCollectionChip} from "~/client/tasks/demo_2/internal/task_collection_chip";
@@ -15,38 +16,64 @@ import {
 import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
 import {addRemLengths, spacing, subtractRemLengths} from "~/shared/design/spacing";
 import {ThemeColor} from "~/shared/design/theme_colors";
+import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {LocalTaskCollectionId} from "~/shared/id/types/id_types";
 import {colorSchemeVars, inputPlaceholderStyles} from "~/shared/styles/styles";
 
-export function TaskRowCollectionsCell({
-    allCollections,
-    collections,
-    createCollectionAndAddToTask,
-    addCollectionToTask,
-    removeCollectionFromTask,
-    isEditing,
-    onEditingChange,
-    editingContainerRef,
-}: {
-    allCollections: ReadonlyArray<LocalTaskCollection>;
-    collections: ReadonlyArray<LocalTaskCollection>;
-    createCollectionAndAddToTask: (collection: {
-        id: LocalTaskCollectionId;
-        name: string;
-        color: ThemeColor;
-    }) => void;
-    addCollectionToTask: (collectionId: LocalTaskCollectionId) => void;
-    removeCollectionFromTask: (collectionId: LocalTaskCollectionId) => void;
-    isEditing: boolean;
-    onEditingChange: (isEditing: boolean) => void;
-    editingContainerRef: RefCallback<HTMLElement> | null;
-}) {
+export type TaskRowCollectionsCellRef = {
+    focusStart(): void;
+};
+
+const TaskRowCollectionsCellForwardRef = forwardRef(TaskRowCollectionsCell);
+export {TaskRowCollectionsCellForwardRef as TaskRowCollectionsCell};
+
+function TaskRowCollectionsCell(
+    {
+        allCollections,
+        collections,
+        createCollectionAndAddToTask,
+        addCollectionToTask,
+        removeCollectionFromTask,
+        isEditing,
+        onEditingChange,
+        editingContainerRef,
+        focusTaskPreviousCell,
+    }: {
+        allCollections: ReadonlyArray<LocalTaskCollection>;
+        collections: ReadonlyArray<LocalTaskCollection>;
+        createCollectionAndAddToTask: (collection: {
+            id: LocalTaskCollectionId;
+            name: string;
+            color: ThemeColor;
+        }) => void;
+        addCollectionToTask: (collectionId: LocalTaskCollectionId) => void;
+        removeCollectionFromTask: (collectionId: LocalTaskCollectionId) => void;
+        isEditing: boolean;
+        onEditingChange: (isEditing: boolean) => void;
+        editingContainerRef: RefCallback<HTMLElement> | null;
+        focusTaskPreviousCell: () => void;
+    },
+    ref: Ref<TaskRowCollectionsCellRef>,
+) {
+    const cellRef = useRef<HTMLDivElement>(null);
     const [isHovered, hoverRef] = useHoverWithOverlaySupport();
     const [isChildFocusRingVisible, childFocusRingTargetRef] = useIsChildFocusRingVisible();
 
+    useImperativeHandle(
+        ref,
+        () => ({
+            focusStart: () => {
+                getNextFocusableElementIfExists(null, {
+                    withinElement: assertExists(cellRef.current),
+                })?.focus();
+            },
+        }),
+        [],
+    );
+
     return (
         <Box
-            ref={hoverRef}
+            ref={useMergedRefs<HTMLDivElement>(cellRef, hoverRef)}
             flexShrink="0"
             width={taskRowViewCollectionsColumnWidth}
             paddingLeft={taskRowViewColumnPaddingX}
@@ -150,6 +177,7 @@ export function TaskRowCollectionsCell({
                         createCollectionAndAddToTask={createCollectionAndAddToTask}
                         addCollectionToTask={addCollectionToTask}
                         removeCollectionFromTask={removeCollectionFromTask}
+                        onArrowLeftLeaveKeyDown={focusTaskPreviousCell}
                     />
                 </Box>
             </Box>

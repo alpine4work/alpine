@@ -1,4 +1,4 @@
-import {isFocusVisible} from "@react-aria/interactions";
+import {getInteractionModality, isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
 import Fuse from "fuse.js";
 import {Check, MagnifyingGlass} from "phosphor-react";
@@ -66,6 +66,7 @@ type TaskAssigneeInputState =
           readonly type: "Typing";
           readonly value: string;
           readonly hasChanged: boolean;
+          readonly shouldSelect: boolean;
       };
 
 export type TaskAssigneeInputRef = {
@@ -84,6 +85,8 @@ function TaskAssigneeInput(
         color = "grey-text",
         avatarSize = "5",
         shouldDisplayShortName,
+        onArrowLeftLeaveKeyDown,
+        onArrowRightLeaveKeyDown,
     }: {
         assigneeAccount: AccountModel | null;
         onAssigneeAccountChange: (assigneeAccount: AccountModel | null) => void;
@@ -92,6 +95,8 @@ function TaskAssigneeInput(
         color?: "grey-text" | "grey-60";
         avatarSize?: "5" | "4";
         shouldDisplayShortName?: boolean;
+        onArrowLeftLeaveKeyDown?: () => void;
+        onArrowRightLeaveKeyDown?: () => void;
     },
     ref: Ref<TaskAssigneeInputRef>,
 ) {
@@ -102,11 +107,21 @@ function TaskAssigneeInput(
         disableAnimationOut: false,
     });
 
-    const selectionInputValue = assigneeAccount
-        ? shouldDisplayShortName
-            ? getAccountShortNameWithoutFullNameTooltip(assigneeAccount)
-            : assigneeAccount.name
-        : "";
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (inputState.type === "Typing" && inputState.shouldSelect) {
+            assertExists(inputRef.current).select();
+            setInputState({...inputState, shouldSelect: false});
+        }
+    }, [inputState]);
+
+    const getSelectionInputValue = (assigneeAccount: AccountModel | null) =>
+        assigneeAccount
+            ? shouldDisplayShortName
+                ? getAccountShortNameWithoutFullNameTooltip(assigneeAccount)
+                : assigneeAccount.name
+            : "";
+
+    const selectionInputValue = getSelectionInputValue(assigneeAccount);
 
     const inputValue = inputState.type === "Selection" ? selectionInputValue : inputState.value;
 
@@ -170,7 +185,7 @@ function TaskAssigneeInput(
                 // Must be in a typing state to accept new typing changes.
                 if (inputState.type !== "Typing") return inputState;
 
-                return {type: "Typing", value: inputValue, hasChanged: true};
+                return {type: "Typing", value: inputValue, hasChanged: true, shouldSelect: false};
             });
         },
 
@@ -181,7 +196,7 @@ function TaskAssigneeInput(
             // When focused, switch to a typing state.
             setInputState(inputState => {
                 if (inputState.type === "Typing") return inputState;
-                return {type: "Typing", value: inputValue, hasChanged: false};
+                return {type: "Typing", value: inputValue, hasChanged: false, shouldSelect: false};
             });
         },
 
@@ -191,6 +206,47 @@ function TaskAssigneeInput(
                 if (inputState.type === "Selection") return inputState;
                 return {type: "Selection", disableAnimationOut: false};
             });
+        },
+
+        onKeyDown: event => {
+            const inputElement = assertExists(inputRef.current);
+
+            switch (event.key) {
+                case "Backspace": {
+                    if (
+                        assigneeAccount &&
+                        inputState.type === "Typing" &&
+                        inputState.value.length === 0
+                    ) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        comboBoxState.setSelectedKey("Null");
+                    }
+                    break;
+                }
+                case "ArrowLeft": {
+                    if (
+                        inputElement.selectionStart === inputElement.selectionEnd &&
+                        inputElement.selectionStart === 0
+                    ) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onArrowLeftLeaveKeyDown?.();
+                    }
+                    break;
+                }
+                case "ArrowRight": {
+                    if (
+                        inputElement.selectionStart === inputElement.selectionEnd &&
+                        inputElement.selectionStart === inputElement.value.length
+                    ) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onArrowRightLeaveKeyDown?.();
+                    }
+                    break;
+                }
+            }
         },
 
         items: searchedItems,
@@ -204,24 +260,43 @@ function TaskAssigneeInput(
         onSelectionChange: key => {
             assert(typeof key === "string");
 
+            let newAssigneeAccount: AccountModel | null;
             if (key === "Null") {
+                newAssigneeAccount = null;
+            } else {
+                const accountId = assertId<AccountId>(key.slice("Account:".length));
+                newAssigneeAccount = assertExists(accountById.get(accountId));
+            }
+
+            if (!newAssigneeAccount) {
                 if (assigneeAccount) {
                     onAssigneeAccountChange(null);
                 }
             } else {
-                const accountId = assertId<AccountId>(key.slice("Account:".length));
-                const account = assertExists(accountById.get(accountId));
-                if (assigneeAccount?.id !== accountId) {
-                    onAssigneeAccountChange(account);
+                if (assigneeAccount?.id !== newAssigneeAccount.id) {
+                    onAssigneeAccountChange(newAssigneeAccount);
                 }
             }
 
-            setInputState(inputState => {
-                if (inputState.type === "Selection") return inputState;
-                return {type: "Selection", disableAnimationOut: true};
-            });
+            // Keep focus in the input if we're using a keyboard interaction modality.
+            if (getInteractionModality() !== "pointer") {
+                setInputState(inputState => {
+                    if (inputState.type !== "Typing") return inputState;
+                    return {
+                        type: "Typing",
+                        value: getSelectionInputValue(newAssigneeAccount),
+                        hasChanged: false,
+                        shouldSelect: true,
+                    };
+                });
+            } else {
+                setInputState(inputState => {
+                    if (inputState.type === "Selection") return inputState;
+                    return {type: "Selection", disableAnimationOut: true};
+                });
 
-            assertExists(inputRef.current).blur();
+                assertExists(inputRef.current).blur();
+            }
         },
     };
 
@@ -300,21 +375,16 @@ function TaskAssigneeInput(
                             // https://stackoverflow.com/questions/27536428/inline-block-element-height-issue
                             verticalAlign: "top",
                         }}
-                        onClick={event => {
-                            // If the backdrop of this element was clicked, focus our combobox input.
-                            if (event.target === event.currentTarget) {
-                                assertExists(inputRef.current).focus();
-                            }
-                        }}
                         onPointerDown={event => {
                             // If the backdrop of this element was clicked and the input is focused then
                             // don't let a click unfocus it.
-                            if (
-                                event.target === event.currentTarget &&
-                                document.activeElement === inputRef.current
-                            ) {
+                            if (event.target === event.currentTarget) {
                                 event.preventDefault();
+                                assertExists(inputRef.current).focus();
                             }
+
+                            // Make sure to reopen the combobox whenever the pointer clicks the input.
+                            comboBoxState.open();
                         }}
                     >
                         <Box flexShrink="0" pointerEvents="none">

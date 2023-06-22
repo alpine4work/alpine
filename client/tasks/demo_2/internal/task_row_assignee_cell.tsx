@@ -1,5 +1,5 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
-import {useRef, useState} from "react";
+import {Ref, forwardRef, useImperativeHandle, useRef, useState} from "react";
 import {Box} from "~/client/design/box";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support";
 import {useClientInfo} from "~/client/remix/client_info_context";
@@ -19,21 +19,41 @@ import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_b
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {tasksStyles} from "~/shared/styles/styles";
 
-// NOCOMMIT: Arrow key navigation
+export type TaskRowAssigneeCellRef = {
+    focus(): void;
+};
 
-export function TaskRowAssigneeCell({
-    assignee,
-    onAssigneeChange,
-}: {
-    assignee: TaskAssignee | null;
-    onAssigneeChange: (assignee: TaskAssignee | null) => void;
-}) {
+const TaskRowAssigneeCellForwardRef = forwardRef(TaskRowAssigneeCell);
+export {TaskRowAssigneeCellForwardRef as TaskRowAssigneeCell};
+
+function TaskRowAssigneeCell(
+    {
+        assignee,
+        onAssigneeChange,
+        focusTaskNextCell,
+        focusTaskPreviousCell,
+    }: {
+        assignee: TaskAssignee | null;
+        onAssigneeChange: (assignee: TaskAssignee | null) => void;
+        focusTaskNextCell: () => void;
+        focusTaskPreviousCell: () => void;
+    },
+    ref: Ref<TaskRowAssigneeCellRef>,
+) {
     const {timeZone} = useClientInfo();
     const {currentAccount} = useSpaceContext();
 
     const inputRef = useRef<TaskAssigneeInputRef>(null);
     const [isHovered, hoverRef] = useHoverWithOverlaySupport();
     const [isFocusWithin, setIsFocusWithin] = useState(false);
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            focus: () => assertExists(inputRef.current).focus(),
+        }),
+        [],
+    );
 
     return (
         <Box
@@ -86,6 +106,8 @@ export function TaskRowAssigneeCell({
                                 : null,
                         );
                     }}
+                    onArrowLeftLeaveKeyDown={focusTaskPreviousCell}
+                    onArrowRightLeaveKeyDown={focusTaskNextCell}
                 />
             </Box>
         </Box>

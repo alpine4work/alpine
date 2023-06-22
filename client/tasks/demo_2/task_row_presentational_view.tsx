@@ -31,10 +31,22 @@ import {TaskDateInput} from "~/client/tasks/demo_2/internal/task_date_input";
 import {TaskGridViewCapabilities} from "~/client/tasks/demo_2/internal/task_grid_view_capabilities";
 import {TaskGridViewDraggableData} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
 import {TaskPriorityInput} from "~/client/tasks/demo_2/internal/task_priority_input";
-import {TaskRowAssigneeCell} from "~/client/tasks/demo_2/internal/task_row_assignee_cell";
-import {TaskRowCollectionsCell} from "~/client/tasks/demo_2/internal/task_row_collections_cell";
-import {TaskRowDueDateCell} from "~/client/tasks/demo_2/internal/task_row_due_date_cell";
-import {TaskRowPriorityCell} from "~/client/tasks/demo_2/internal/task_row_priority_cell";
+import {
+    TaskRowAssigneeCell,
+    TaskRowAssigneeCellRef,
+} from "~/client/tasks/demo_2/internal/task_row_assignee_cell";
+import {
+    TaskRowCollectionsCell,
+    TaskRowCollectionsCellRef,
+} from "~/client/tasks/demo_2/internal/task_row_collections_cell";
+import {
+    TaskRowDueDateCell,
+    TaskRowDueDateCellRef,
+} from "~/client/tasks/demo_2/internal/task_row_due_date_cell";
+import {
+    TaskRowPriorityCell,
+    TaskRowPriorityCellRef,
+} from "~/client/tasks/demo_2/internal/task_row_priority_cell";
 import {taskRowViewMinHeight} from "~/client/tasks/demo_2/internal/task_row_shared_styles";
 import {
     TaskRowTitleInput,
@@ -165,6 +177,10 @@ function TaskRowPresentationalView<TaskRow>(
 
     const titleInputRef = useRef<TaskRowTitleInputRef>(null);
     const denseAssigneeAndDueDateRef = useRef<TaskRowViewDenseFieldsRef>(null);
+    const assigneeCellRef = useRef<TaskRowAssigneeCellRef>(null);
+    const priorityCellRef = useRef<TaskRowPriorityCellRef>(null);
+    const dueDateCellRef = useRef<TaskRowDueDateCellRef>(null);
+    const collectionsCellRef = useRef<TaskRowCollectionsCellRef>(null);
 
     const focusTitleStart = useCallback(() => {
         assertExists(titleInputRef.current).focusStart();
@@ -448,23 +464,50 @@ function TaskRowPresentationalView<TaskRow>(
                             }
                             focusFirstTaskTitleStart={focusFirstTaskTitleStart}
                             focusLastTaskTitleEnd={focusLastTaskTitleEnd}
+                            focusTaskNextCell={() => {
+                                if (capabilities.hasColumns) {
+                                    assertExists(assigneeCellRef.current).focus();
+                                }
+                            }}
                         />
                     </Box>
                     {capabilities.hasColumns && (
                         <>
                             <TaskRowAssigneeCell
+                                ref={assigneeCellRef}
                                 assignee={assignee}
                                 onAssigneeChange={onAssigneeChange}
+                                focusTaskPreviousCell={() => {
+                                    assertExists(titleInputRef.current).focusEnd();
+                                }}
+                                focusTaskNextCell={() => {
+                                    assertExists(priorityCellRef.current).focus();
+                                }}
                             />
                             <TaskRowPriorityCell
+                                ref={priorityCellRef}
                                 priority={priority}
                                 onPriorityChange={onPriorityChange}
+                                focusTaskPreviousCell={() => {
+                                    assertExists(assigneeCellRef.current).focus();
+                                }}
+                                focusTaskNextCell={() => {
+                                    assertExists(dueDateCellRef.current).focusStart();
+                                }}
                             />
                             <TaskRowDueDateCell
+                                ref={dueDateCellRef}
                                 dueDate={dueDate}
                                 onDueDateChange={onDueDateChange}
+                                focusTaskPreviousCell={() => {
+                                    assertExists(priorityCellRef.current).focus();
+                                }}
+                                focusTaskNextCell={() => {
+                                    assertExists(collectionsCellRef.current).focusStart();
+                                }}
                             />
                             <TaskRowCollectionsCell
+                                ref={collectionsCellRef}
                                 allCollections={allCollections}
                                 collections={collections}
                                 createCollectionAndAddToTask={createCollectionAndAddToTask}
@@ -473,6 +516,9 @@ function TaskRowPresentationalView<TaskRow>(
                                 isEditing={isEditingCollections}
                                 onEditingChange={onEditingCollectionsChange}
                                 editingContainerRef={editingCollectionsContainerRef}
+                                focusTaskPreviousCell={() => {
+                                    assertExists(dueDateCellRef.current).focusEnd();
+                                }}
                             />
                         </>
                     )}

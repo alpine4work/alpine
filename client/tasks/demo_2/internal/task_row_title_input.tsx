@@ -115,6 +115,7 @@ function TaskRowTitleInput(
         preserveLastTaskTitleArrowNavigationCoord,
         focusFirstTaskTitleStart,
         focusLastTaskTitleEnd,
+        focusTaskNextCell,
     }: {
         capabilities: TaskGridViewCapabilities;
         title: TaskTitle;
@@ -137,6 +138,7 @@ function TaskRowTitleInput(
         preserveLastTaskTitleArrowNavigationCoord: () => void;
         focusFirstTaskTitleStart: () => void;
         focusLastTaskTitleEnd: () => void;
+        focusTaskNextCell: () => void;
     },
     ref: Ref<TaskRowTitleInputRef>,
 ) {
@@ -259,6 +261,17 @@ function TaskRowTitleInput(
                     } else {
                         preserveLastTaskTitleArrowNavigationCoord();
                     }
+                }
+                break;
+            }
+            case "ArrowRight": {
+                if (
+                    view.state.selection.from === view.state.selection.to &&
+                    view.state.selection.from === view.state.doc.nodeSize - 2
+                ) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    focusTaskNextCell();
                 }
                 break;
             }

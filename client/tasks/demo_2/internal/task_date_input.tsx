@@ -35,6 +35,8 @@ export function TaskDateInput({
     overlayOffset = defaultTooltipOffset,
     focusRingOffset,
     focusRingAroundText = false,
+    onArrowLeftLeaveKeyDown,
+    onArrowRightLeaveKeyDown,
 }: {
     date: CalendarDate | null;
     onDateChange: (date: CalendarDate | null) => void;
@@ -51,6 +53,8 @@ export function TaskDateInput({
     overlayOffset?: Spacing | `-${Spacing}` | RemLength;
     focusRingOffset?: "0";
     focusRingAroundText?: boolean;
+    onArrowLeftLeaveKeyDown?: () => void;
+    onArrowRightLeaveKeyDown?: () => void;
 }) {
     const {timeZone, locale} = useClientInfo();
     const currentDate = useCurrentDate();
@@ -217,6 +221,8 @@ export function TaskDateInput({
                         color={color}
                         focusRingOffset={focusRingOffset}
                         focusRingAroundText={focusRingAroundText}
+                        onArrowLeftLeaveKeyDown={onArrowLeftLeaveKeyDown}
+                        onArrowRightLeaveKeyDown={onArrowRightLeaveKeyDown}
                     />
                 </Box>
             </OverlayAnimated>

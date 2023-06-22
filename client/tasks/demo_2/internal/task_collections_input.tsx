@@ -28,6 +28,7 @@ import {ModalDialog} from "~/client/design/modal_dialog";
 import {OverlayAnimated} from "~/client/design/overlay_animated";
 import {useShowToast} from "~/client/design/toast";
 import {defaultTooltipOffset} from "~/client/design/tooltip";
+import {isMac} from "~/client/helpers/browser/is_mac";
 import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growing_width";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
@@ -96,6 +97,7 @@ export function TaskCollectionsInput({
     areMarginsClickable = false,
     paddingX,
     paddingY,
+    onArrowLeftLeaveKeyDown,
 }: {
     allCollections: ReadonlyArray<LocalTaskCollection>;
     collections: ReadonlyArray<LocalTaskCollection>;
@@ -114,6 +116,7 @@ export function TaskCollectionsInput({
     areMarginsClickable?: boolean;
     paddingX?: "2.5";
     paddingY?: "2.5";
+    onArrowLeftLeaveKeyDown?: () => void;
 }) {
     const rootNavigate = useRootNavigate();
     const showToast = useShowToast();
@@ -329,7 +332,11 @@ export function TaskCollectionsInput({
                             event.currentTarget.selectionStart === 0
                         ) {
                             event.preventDefault();
-                            collectionRefs[collectionRefs.length - 1]!.current!.focus();
+                            if (isMac ? event.metaKey : event.ctrlKey) {
+                                collectionRefs[0]!.current!.focus();
+                            } else {
+                                collectionRefs[collectionRefs.length - 1]!.current!.focus();
+                            }
                         }
                         break;
                     }
@@ -368,7 +375,14 @@ export function TaskCollectionsInput({
                 case "ArrowLeft": {
                     event.preventDefault();
                     event.stopPropagation();
-                    collectionRefs[index - 1]?.current?.focus();
+
+                    if (index === 0) {
+                        onArrowLeftLeaveKeyDown?.();
+                    } else if (isMac ? event.metaKey : event.ctrlKey) {
+                        collectionRefs[0]?.current?.focus();
+                    } else {
+                        collectionRefs[index - 1]?.current?.focus();
+                    }
                     break;
                 }
                 // Arrow keys navigate through selected accounts. Only the first selected
@@ -376,7 +390,9 @@ export function TaskCollectionsInput({
                 case "ArrowRight": {
                     event.preventDefault();
                     event.stopPropagation();
-                    if (index + 1 < collectionRefs.length) {
+                    if (isMac ? event.metaKey : event.ctrlKey) {
+                        inputRef.current?.focus();
+                    } else if (index + 1 < collectionRefs.length) {
                         collectionRefs[index + 1]?.current?.focus();
                     } else {
                         inputRef.current?.focus();

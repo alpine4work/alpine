@@ -1,4 +1,4 @@
-import {useRef, useState} from "react";
+import {Ref, forwardRef, useImperativeHandle, useRef, useState} from "react";
 import {Box} from "~/client/design/box";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support";
 import {
@@ -15,16 +15,38 @@ import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_b
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {tasksStyles} from "~/shared/styles/styles";
 
-export function TaskRowPriorityCell({
-    priority,
-    onPriorityChange,
-}: {
-    priority: TaskPriority | null;
-    onPriorityChange: (priority: TaskPriority | null) => void;
-}) {
+export type TaskRowPriorityCellRef = {
+    focus(): void;
+};
+
+const TaskRowPriorityCellForwardRef = forwardRef(TaskRowPriorityCell);
+export {TaskRowPriorityCellForwardRef as TaskRowPriorityCell};
+
+function TaskRowPriorityCell(
+    {
+        priority,
+        onPriorityChange,
+        focusTaskNextCell,
+        focusTaskPreviousCell,
+    }: {
+        priority: TaskPriority | null;
+        onPriorityChange: (priority: TaskPriority | null) => void;
+        focusTaskNextCell: () => void;
+        focusTaskPreviousCell: () => void;
+    },
+    ref: Ref<TaskRowPriorityCellRef>,
+) {
     const inputRef = useRef<TaskPriorityInputRef>(null);
     const [isHovered, hoverRef] = useHoverWithOverlaySupport();
     const [isFocusWithin, setIsFocusWithin] = useState(false);
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            focus: () => assertExists(inputRef.current).focus(),
+        }),
+        [],
+    );
 
     return (
         <Box
@@ -55,6 +77,8 @@ export function TaskRowPriorityCell({
                     aria-label="Priority"
                     priority={priority}
                     onPriorityChange={onPriorityChange}
+                    onArrowLeftLeaveKeyDown={focusTaskPreviousCell}
+                    onArrowRightLeaveKeyDown={focusTaskNextCell}
                 />
             </Box>
         </Box>

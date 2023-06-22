@@ -1,4 +1,4 @@
-import {isFocusVisible} from "@react-aria/interactions";
+import {getInteractionModality, isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
 import Fuse from "fuse.js";
 import {Check, MagnifyingGlass} from "phosphor-react";
@@ -47,6 +47,7 @@ type TaskPriorityInputState =
           readonly type: "Typing";
           readonly value: string;
           readonly hasChanged: boolean;
+          readonly shouldSelect: boolean;
       };
 
 export type TaskPriorityInputRef = {
@@ -63,12 +64,16 @@ function TaskPriorityInput(
         "aria-label": ariaLabel,
         "aria-labelledby": ariaLabelledBy,
         color = "grey-text",
+        onArrowLeftLeaveKeyDown,
+        onArrowRightLeaveKeyDown,
     }: {
         priority: TaskPriority | null;
         onPriorityChange: (priority: TaskPriority | null) => void;
         "aria-label"?: string;
         "aria-labelledby"?: string;
         color?: "grey-text" | "grey-60";
+        onArrowLeftLeaveKeyDown?: () => void;
+        onArrowRightLeaveKeyDown?: () => void;
     },
     ref: Ref<TaskPriorityInputRef>,
 ) {
@@ -76,6 +81,13 @@ function TaskPriorityInput(
         type: "Selection",
         disableAnimationOut: false,
     });
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (inputState.type === "Typing" && inputState.shouldSelect) {
+            assertExists(inputRef.current).select();
+            setInputState({...inputState, shouldSelect: false});
+        }
+    }, [inputState]);
 
     const selectionInputValue = priority ? getTaskPriorityName(priority) : "";
     const inputValue = inputState.type === "Selection" ? selectionInputValue : inputState.value;
@@ -115,7 +127,7 @@ function TaskPriorityInput(
                 // Must be in a typing state to accept new typing changes.
                 if (inputState.type !== "Typing") return inputState;
 
-                return {type: "Typing", value: inputValue, hasChanged: true};
+                return {type: "Typing", value: inputValue, hasChanged: true, shouldSelect: false};
             });
         },
 
@@ -126,7 +138,7 @@ function TaskPriorityInput(
             // When focused, switch to a typing state.
             setInputState(inputState => {
                 if (inputState.type === "Typing") return inputState;
-                return {type: "Typing", value: inputValue, hasChanged: false};
+                return {type: "Typing", value: inputValue, hasChanged: false, shouldSelect: false};
             });
         },
 
@@ -136,6 +148,43 @@ function TaskPriorityInput(
                 if (inputState.type === "Selection") return inputState;
                 return {type: "Selection", disableAnimationOut: false};
             });
+        },
+
+        onKeyDown: event => {
+            const inputElement = assertExists(inputRef.current);
+
+            switch (event.key) {
+                case "Backspace": {
+                    if (priority && inputState.type === "Typing" && inputState.value.length === 0) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        comboBoxState.setSelectedKey("Null");
+                    }
+                    break;
+                }
+                case "ArrowLeft": {
+                    if (
+                        inputElement.selectionStart === inputElement.selectionEnd &&
+                        inputElement.selectionStart === 0
+                    ) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onArrowLeftLeaveKeyDown?.();
+                    }
+                    break;
+                }
+                case "ArrowRight": {
+                    if (
+                        inputElement.selectionStart === inputElement.selectionEnd &&
+                        inputElement.selectionStart === inputElement.value.length
+                    ) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onArrowRightLeaveKeyDown?.();
+                    }
+                    break;
+                }
+            }
         },
 
         items: searchedItems,
@@ -153,12 +202,25 @@ function TaskPriorityInput(
                 onPriorityChange(key === "Null" ? null : key);
             }
 
-            setInputState(inputState => {
-                if (inputState.type === "Selection") return inputState;
-                return {type: "Selection", disableAnimationOut: true};
-            });
+            // Keep focus in the input if we're using a keyboard interaction modality.
+            if (getInteractionModality() !== "pointer") {
+                setInputState(inputState => {
+                    if (inputState.type !== "Typing") return inputState;
+                    return {
+                        type: "Typing",
+                        value: key === "Null" ? "" : getTaskPriorityName(key),
+                        hasChanged: false,
+                        shouldSelect: true,
+                    };
+                });
+            } else {
+                setInputState(inputState => {
+                    if (inputState.type === "Selection") return inputState;
+                    return {type: "Selection", disableAnimationOut: true};
+                });
 
-            assertExists(inputRef.current).blur();
+                assertExists(inputRef.current).blur();
+            }
         },
     };
 
@@ -234,21 +296,16 @@ function TaskPriorityInput(
                             // https://stackoverflow.com/questions/27536428/inline-block-element-height-issue
                             verticalAlign: "top",
                         }}
-                        onClick={event => {
-                            // If the backdrop of this element was clicked, focus our combobox input.
-                            if (event.target === event.currentTarget) {
-                                assertExists(inputRef.current).focus();
-                            }
-                        }}
                         onPointerDown={event => {
                             // If the backdrop of this element was clicked and the input is focused then
                             // don't let a click unfocus it.
-                            if (
-                                event.target === event.currentTarget &&
-                                document.activeElement === inputRef.current
-                            ) {
+                            if (event.target === event.currentTarget) {
                                 event.preventDefault();
+                                assertExists(inputRef.current).focus();
                             }
+
+                            // Make sure to reopen the combobox whenever the pointer clicks the input.
+                            comboBoxState.open();
                         }}
                     >
                         <Box width="4" height="4" pointerEvents="none">

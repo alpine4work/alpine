@@ -5,8 +5,12 @@ import {AriaDateFieldProps, mergeProps, useDateField, useDateSegment} from "reac
 import {DateFieldState, DateFieldStateOptions, DateSegment, useDateFieldState} from "react-stately";
 import {Box} from "~/client/design/box";
 import {FocusRingBox, useIsFocusRingVisible} from "~/client/design/focus_ring";
-import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element";
+import {
+    getLastFocusableElementIfExists,
+    getNextFocusableElementIfExists,
+} from "~/client/design/helpers/get_next_focusable_element";
 import {Overlay} from "~/client/design/overlay";
+import {isMac} from "~/client/helpers/browser/is_mac";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {spacing} from "~/shared/design/spacing";
@@ -26,6 +30,8 @@ export function TaskDateInputText({
     color,
     focusRingOffset,
     focusRingAroundText,
+    onArrowLeftLeaveKeyDown,
+    onArrowRightLeaveKeyDown,
 }: {
     date: CalendarDate | null;
     onDateChange: (date: CalendarDate | null) => void;
@@ -41,6 +47,8 @@ export function TaskDateInputText({
     // By default the focus ring is around the full area of the input but if you
     // want it just around the text (excluding margins) you may set this to true.
     focusRingAroundText: boolean;
+    onArrowLeftLeaveKeyDown: (() => void) | undefined;
+    onArrowRightLeaveKeyDown: (() => void) | undefined;
 }) {
     const {locale} = useClientInfo();
 
@@ -75,6 +83,18 @@ export function TaskDateInputText({
     const [isFocusRingVisible, focusRingVisibilityRef] = useIsFocusRingVisible({
         isVisibleWhenFocusWithin: true,
     });
+
+    const focusStart = () => {
+        getNextFocusableElementIfExists(null, {
+            withinElement: assertExists(ref.current),
+        })?.focus();
+    };
+
+    const focusEnd = () => {
+        getLastFocusableElementIfExists({
+            withinElement: assertExists(ref.current),
+        })?.focus();
+    };
 
     return (
         <Box
@@ -170,6 +190,12 @@ export function TaskDateInputText({
                                 paddingRight={
                                     index === state.segments.length - 1 ? paddingX : undefined
                                 }
+                                isFirstSegment={index === 0}
+                                isLastSegment={index === state.segments.length - 1}
+                                onArrowLeftLeaveKeyDown={onArrowLeftLeaveKeyDown}
+                                onArrowRightLeaveKeyDown={onArrowRightLeaveKeyDown}
+                                focusStart={focusStart}
+                                focusEnd={focusEnd}
                             />
                         ))}
                     </Box>
@@ -228,6 +254,12 @@ function TaskDateInputTextSegment({
     flexGrow,
     paddingLeft,
     paddingRight,
+    isFirstSegment,
+    isLastSegment,
+    onArrowLeftLeaveKeyDown,
+    onArrowRightLeaveKeyDown,
+    focusStart,
+    focusEnd,
 }: {
     state: DateFieldState;
     segment: DateSegment;
@@ -235,10 +267,21 @@ function TaskDateInputTextSegment({
     flexGrow: "1" | undefined;
     paddingLeft: "0" | "1" | "1.5" | undefined;
     paddingRight: "0" | "1" | "1.5" | undefined;
+    isFirstSegment: boolean;
+    isLastSegment: boolean;
+    onArrowLeftLeaveKeyDown: (() => void) | undefined;
+    onArrowRightLeaveKeyDown: (() => void) | undefined;
+    focusStart: () => void;
+    focusEnd: () => void;
 }) {
     const ref = useRef<HTMLDivElement>(null);
     const {segmentProps} = useDateSegment(segment, state, ref);
     const [isFocused, setIsFocused] = useState(false);
+
+    const {onKeyDown, ...mergedSegmentProps} = mergeProps(segmentProps, {
+        onFocus: () => setIsFocused(true),
+        onBlur: () => setIsFocused(false),
+    });
 
     return (
         <Box
@@ -261,10 +304,7 @@ function TaskDateInputTextSegment({
             }}
         >
             <Box
-                {...mergeProps(segmentProps, {
-                    onFocus: () => setIsFocused(true),
-                    onBlur: () => setIsFocused(false),
-                })}
+                {...mergedSegmentProps}
                 ref={ref}
                 backgroundColor={isFocused ? "theme-selection" : undefined}
                 // `react-aria`s click support for non-editable segments isn't super reliable.
@@ -276,6 +316,29 @@ function TaskDateInputTextSegment({
                     ...(areAllSegmentsPlaceholders || segment.isPlaceholder
                         ? inputPlaceholderStyles
                         : {}),
+                }}
+                onKeyDown={event => {
+                    if (isFirstSegment && event.key === "ArrowLeft") {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onArrowLeftLeaveKeyDown?.();
+                    } else if (isLastSegment && event.key === "ArrowRight") {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onArrowRightLeaveKeyDown?.();
+                    } else if (
+                        event.key === "ArrowLeft" &&
+                        (isMac ? event.metaKey : event.ctrlKey)
+                    ) {
+                        focusStart();
+                    } else if (
+                        event.key === "ArrowRight" &&
+                        (isMac ? event.metaKey : event.ctrlKey)
+                    ) {
+                        focusEnd();
+                    } else {
+                        onKeyDown?.(event);
+                    }
                 }}
             >
                 {segment.text}

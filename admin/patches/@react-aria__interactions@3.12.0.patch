@@ -1,5 +1,5 @@
 diff --git a/dist/main.js b/dist/main.js
-index 0f276e6806a9de2d4603617dedca32c9907990de..bb5941a93c35c7e0642a0e9f036173510ad84b87 100644
+index 0f276e6806a9de2d4603617dedca32c9907990de..ef8cae6c341592be3ba104e93476b6b36d1d8ddd 100644
 --- a/dist/main.js
 +++ b/dist/main.js
 @@ -727,7 +727,13 @@ function $5cb73d0ce355b0dc$export$f8168d8dd8fd66e6(props) {
@@ -17,8 +17,20 @@ index 0f276e6806a9de2d4603617dedca32c9907990de..bb5941a93c35c7e0642a0e9f03617351
  let $e77252a287ef94ab$var$changeHandlers = new Set();
  let $e77252a287ef94ab$var$hasSetupGlobalListeners = false;
  let $e77252a287ef94ab$var$hasEventBeforeFocus = false;
+@@ -1140,7 +1146,10 @@ function $951fbcbbca8db6ce$export$48d1ea6320830260(handler) {
+                 return e.isDefaultPrevented();
+             },
+             stopPropagation () {
+-                console.error('stopPropagation is now the default behavior for events in React Spectrum. You can use continuePropagation() to revert this behavior.');
++                // NOTE(calebmer): Our style guide recommends calling both
++                // `event.preventDefault()` and `event.stopPropagation()` for `keydown` events.
++                // Don't warn when we do this. Treat repeat calls a noop like regular
++                // DOM events.
+             },
+             continuePropagation () {
+                 shouldStopPropagation = false;
 diff --git a/dist/module.js b/dist/module.js
-index bb5ec5424a79bf1e9cf1b7719348035224bb75b6..01a36a934106fd70e2effd339a0c037fc38f7138 100644
+index bb5ec5424a79bf1e9cf1b7719348035224bb75b6..fcdff6e36656fe6098ea9bd017533f5292bd2f56 100644
 --- a/dist/module.js
 +++ b/dist/module.js
 @@ -703,7 +703,13 @@ function $a1ea59d68270f0dd$export$f8168d8dd8fd66e6(props) {
@@ -36,6 +48,34 @@ index bb5ec5424a79bf1e9cf1b7719348035224bb75b6..01a36a934106fd70e2effd339a0c037f
  let $507fabe10e71c6fb$var$changeHandlers = new Set();
  let $507fabe10e71c6fb$var$hasSetupGlobalListeners = false;
  let $507fabe10e71c6fb$var$hasEventBeforeFocus = false;
+@@ -1116,7 +1122,10 @@ function $93925083ecbb358c$export$48d1ea6320830260(handler) {
+                 return e.isDefaultPrevented();
+             },
+             stopPropagation () {
+-                console.error('stopPropagation is now the default behavior for events in React Spectrum. You can use continuePropagation() to revert this behavior.');
++                // NOTE(calebmer): Our style guide recommends calling both
++                // `event.preventDefault()` and `event.stopPropagation()` for `keydown` events.
++                // Don't warn when we do this. Treat repeat calls a noop like regular
++                // DOM events.
+             },
+             continuePropagation () {
+                 shouldStopPropagation = false;
+diff --git a/src/createEventHandler.ts b/src/createEventHandler.ts
+index 5733c7e4221092879a6409ca983e919edff0da87..d748e49c5cda985cc5ae9f07edd7d2c7c7d6c874 100644
+--- a/src/createEventHandler.ts
++++ b/src/createEventHandler.ts
+@@ -32,7 +32,10 @@ export function createEventHandler<T extends SyntheticEvent>(handler: (e: BaseEv
+         return e.isDefaultPrevented();
+       },
+       stopPropagation() {
+-        console.error('stopPropagation is now the default behavior for events in React Spectrum. You can use continuePropagation() to revert this behavior.');
++        // NOTE(calebmer): Our style guide recommends calling both
++        // `event.preventDefault()` and `event.stopPropagation()` for `keydown` events.
++        // Don't warn when we do this. Treat repeat calls a noop like regular
++        // DOM events.
+       },
+       continuePropagation() {
+         shouldStopPropagation = false;
 diff --git a/src/useFocusVisible.ts b/src/useFocusVisible.ts
 index 3ff3761744e9e8d5cef3a67591792410691e19f3..74f0fa07dc3cceb846ffb843ee4cf6a3709e1a4f 100644
 --- a/src/useFocusVisible.ts

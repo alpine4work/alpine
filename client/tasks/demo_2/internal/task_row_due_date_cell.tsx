@@ -1,7 +1,10 @@
 import {CalendarDate} from "@internationalized/date";
-import {useRef, useState} from "react";
+import {Ref, forwardRef, useImperativeHandle, useRef, useState} from "react";
 import {Box} from "~/client/design/box";
-import {getLastFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element";
+import {
+    getLastFocusableElementIfExists,
+    getNextFocusableElementIfExists,
+} from "~/client/design/helpers/get_next_focusable_element";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support";
 import {TaskDateInput} from "~/client/tasks/demo_2/internal/task_date_input";
 import {
@@ -13,16 +16,48 @@ import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_b
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {tasksStyles} from "~/shared/styles/styles";
 
-export function TaskRowDueDateCell({
-    dueDate,
-    onDueDateChange,
-}: {
-    dueDate: CalendarDate | null;
-    onDueDateChange: (dueDate: CalendarDate | null) => void;
-}) {
+export type TaskRowDueDateCellRef = {
+    focusStart(): void;
+    focusEnd(): void;
+};
+
+const TaskRowDueDateCellForwardRef = forwardRef(TaskRowDueDateCell);
+export {TaskRowDueDateCellForwardRef as TaskRowDueDateCell};
+
+function TaskRowDueDateCell(
+    {
+        dueDate,
+        onDueDateChange,
+        focusTaskPreviousCell,
+        focusTaskNextCell,
+    }: {
+        dueDate: CalendarDate | null;
+        onDueDateChange: (dueDate: CalendarDate | null) => void;
+        focusTaskPreviousCell: () => void;
+        focusTaskNextCell: () => void;
+    },
+    ref: Ref<TaskRowDueDateCellRef>,
+) {
     const inputContainerRef = useRef<HTMLDivElement>(null);
     const [isHovered, hoverRef] = useHoverWithOverlaySupport();
     const [isFocusWithin, setIsFocusWithin] = useState(false);
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            focusStart: () => {
+                getNextFocusableElementIfExists(null, {
+                    withinElement: assertExists(inputContainerRef.current),
+                })?.focus();
+            },
+            focusEnd: () => {
+                getLastFocusableElementIfExists({
+                    withinElement: assertExists(inputContainerRef.current),
+                })?.focus();
+            },
+        }),
+        [],
+    );
 
     return (
         <Box
@@ -68,6 +103,8 @@ export function TaskRowDueDateCell({
                     shouldFormatAroundToday={true}
                     date={dueDate}
                     onDateChange={onDueDateChange}
+                    onArrowLeftLeaveKeyDown={focusTaskPreviousCell}
+                    onArrowRightLeaveKeyDown={focusTaskNextCell}
                 />
             </Box>
         </Box>
