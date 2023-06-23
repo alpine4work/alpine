@@ -51,6 +51,7 @@ export function TaskCardPresentationalView({
     onExpand,
     shouldFillHeight,
     isDragOverlay,
+    deleteTaskAndAllChildrenMaybeWithConfirmation,
 }: {
     id: LocalTaskId;
     status: TaskStatus;
@@ -66,6 +67,7 @@ export function TaskCardPresentationalView({
     onExpand: () => Promise<void>;
     shouldFillHeight?: boolean;
     isDragOverlay?: boolean;
+    deleteTaskAndAllChildrenMaybeWithConfirmation: () => void;
 }) {
     const {timeZone, locale} = useClientInfo();
     const currentDate = useCurrentDate();
@@ -273,9 +275,7 @@ export function TaskCardPresentationalView({
                 [
                     {
                         label: "Delete",
-                        onPress: () => {
-                            // NOCOMMIT
-                        },
+                        onPress: deleteTaskAndAllChildrenMaybeWithConfirmation,
                     },
                 ],
             ]}

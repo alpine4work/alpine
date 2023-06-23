@@ -118,6 +118,7 @@ type TaskRowPresentationalViewProps<TaskRow> = {
     nestWithPreviousTaskRowIfExistsAndExpand: (titleSelection: Selection) => void;
     unnestTaskIfNestedRow: (titleSelection: Selection) => void;
     deleteTaskAndAllChildrenAndFocusPreviousRow: () => void;
+    deleteTaskAndAllChildrenMaybeWithConfirmation: () => void;
     focusNextTaskTitleCoord: (coord: number) => void;
     focusPreviousTaskTitleCoord: (coord: number) => void;
     preserveLastTaskTitleArrowNavigationCoord: () => void;
@@ -163,6 +164,7 @@ function TaskRowPresentationalView<TaskRow>(
         nestWithPreviousTaskRowIfExistsAndExpand,
         unnestTaskIfNestedRow,
         deleteTaskAndAllChildrenAndFocusPreviousRow,
+        deleteTaskAndAllChildrenMaybeWithConfirmation,
         focusNextTaskTitleCoord,
         focusPreviousTaskTitleCoord,
         preserveLastTaskTitleArrowNavigationCoord,
@@ -229,16 +231,16 @@ function TaskRowPresentationalView<TaskRow>(
     const contextMenuActions = (() => {
         const contextMenuActions: Array<ReadonlyArray<MenuAction>> = [];
 
-        contextMenuActions.push([
-            {
-                label: "Copy link",
-                onPress: () => {
-                    // NOCOMMIT: Needs production implementation
-                },
-            },
-        ]);
-
         if (status) {
+            contextMenuActions.push([
+                {
+                    label: "Copy link",
+                    onPress: () => {
+                        // NOCOMMIT: Needs production implementation
+                    },
+                },
+            ]);
+
             contextMenuActions.push(
                 getTaskStatusMenuActions({
                     timeZone,
@@ -274,14 +276,14 @@ function TaskRowPresentationalView<TaskRow>(
             ]);
         }
 
-        contextMenuActions.push([
-            {
-                label: "Delete",
-                onPress: () => {
-                    // NOCOMMIT
+        if (status) {
+            contextMenuActions.push([
+                {
+                    label: "Delete",
+                    onPress: deleteTaskAndAllChildrenMaybeWithConfirmation,
                 },
-            },
-        ]);
+            ]);
+        }
 
         return contextMenuActions;
     })();

@@ -125,6 +125,7 @@ export type TaskGridPresentationalViewProps<TaskRow> = {
     ) => void;
     unnestTaskIfNestedRow: (childTaskRow: TaskRow, titleSelection: Selection) => void;
     deleteTaskAndAllChildrenAndFocusPreviousRow: (taskRow: TaskRow) => void;
+    deleteTaskAndAllChildrenMaybeWithConfirmation: (taskRow: TaskRow) => void;
     moveTaskBelow: (belowTaskRow: TaskRow | null, unnest: number, taskRow: TaskRow) => void;
     moveTaskToParentTop: (parentTaskRow: TaskRow, taskRow: TaskRow) => void;
 };
@@ -170,6 +171,7 @@ function TaskGridPresentationalView<TaskRow>(
         nestTaskAndExpandParentRow,
         unnestTaskIfNestedRow,
         deleteTaskAndAllChildrenAndFocusPreviousRow,
+        deleteTaskAndAllChildrenMaybeWithConfirmation,
         moveTaskBelow,
         moveTaskToParentTop,
     }: TaskGridPresentationalViewProps<TaskRow>,
@@ -321,6 +323,7 @@ function TaskGridPresentationalView<TaskRow>(
                 nestWithPreviousTaskRowIfExistsAndExpand={noop}
                 unnestTaskIfNestedRow={noop}
                 deleteTaskAndAllChildrenAndFocusPreviousRow={noop}
+                deleteTaskAndAllChildrenMaybeWithConfirmation={noop}
                 focusNextTaskTitleCoord={coord => {
                     coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
 
@@ -455,6 +458,9 @@ function TaskGridPresentationalView<TaskRow>(
                 deleteTaskAndAllChildrenAndFocusPreviousRow={() =>
                     deleteTaskAndAllChildrenAndFocusPreviousRow(taskRow)
                 }
+                deleteTaskAndAllChildrenMaybeWithConfirmation={() =>
+                    deleteTaskAndAllChildrenMaybeWithConfirmation(taskRow)
+                }
                 focusNextTaskTitleCoord={coord => {
                     coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
 
@@ -588,6 +594,7 @@ function TaskGridPresentationalView<TaskRow>(
                 deleteTaskAndAllChildrenAndFocusPreviousRow={() => {
                     taskRowRefByIndex.get(taskRowCount - 1)?.current?.focusTitleEnd();
                 }}
+                deleteTaskAndAllChildrenMaybeWithConfirmation={noop}
                 focusNextTaskTitleCoord={coord => {
                     coord = lastArrowNavigationCoordRef.current?.coord ?? coord;
 

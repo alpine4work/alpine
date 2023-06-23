@@ -1,6 +1,4 @@
 import {useMemo, useRef, useState} from "react";
-import {ModalDialog} from "~/client/design/modal_dialog";
-import {PrettyNumber} from "~/client/design/pretty_number";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
 import {usePeekContext} from "~/client/peek/peek_remix_embed";
@@ -8,6 +6,7 @@ import {usePeekStackContext} from "~/client/peek/peek_stack";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {useNavigate} from "~/client/remix/use_navigate";
 import {useSpaceContext} from "~/client/spaces/space_context";
+import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/demo_2/internal/task_delete_confirmation_modal_dialog";
 import {
     LocalTask,
     LocalTasksAction,
@@ -126,7 +125,7 @@ export function TaskView({
     );
 
     const [deleteTaskConfirmationState, setDeleteTaskConfirmationState] = useState<{
-        readonly task: LocalTask;
+        readonly taskId: LocalTaskId;
         readonly onAfterDelete?: () => void;
     } | null>(null);
 
@@ -190,7 +189,7 @@ export function TaskView({
                     // undo/redo maybe we never ask for confirmation and instead have a toast with
                     // an undo button?
                     setDeleteTaskConfirmationState({
-                        task: state.database.getTask(taskId),
+                        taskId,
                         onAfterDelete,
                     });
                 }}
@@ -568,6 +567,9 @@ export function TaskView({
                                 },
                             });
                         }}
+                        deleteTaskAndAllChildrenMaybeWithConfirmation={({task: {id: taskId}}) => {
+                            setDeleteTaskConfirmationState({taskId});
+                        }}
                         moveTaskBelow={(belowTaskRow, unnest, taskRow) => {
                             const from: LocalTasksMoveTaskFrom = {type: "ParentTask"};
 
@@ -619,39 +621,11 @@ export function TaskView({
                 }
             />
             {deleteTaskConfirmationState && (
-                <ModalDialog
-                    title="Delete task"
-                    description={
-                        <>
-                            {deleteTaskConfirmationState.task.childTaskIdByOrderKey.size === 0 ? (
-                                "The task’s subtasks will also be deleted."
-                            ) : (
-                                <>
-                                    The task’s{" "}
-                                    <PrettyNumber
-                                        number={
-                                            deleteTaskConfirmationState.task.childTaskIdByOrderKey
-                                                .size
-                                        }
-                                        label="subtask"
-                                    />{" "}
-                                    will also be deleted.
-                                </>
-                            )}{" "}
-                            To keep a record of finished work you can close tasks instead of
-                            deleting them.
-                        </>
-                    }
-                    primaryButtonLabel="Delete"
-                    primaryButtonPressErrorTitle="Couldn’t delete task"
-                    onPrimaryButtonPress={() => {
-                        dispatch({
-                            type: "DeleteTaskAndAllChildren",
-                            taskId: deleteTaskConfirmationState.task.id,
-                        });
-
-                        deleteTaskConfirmationState.onAfterDelete?.();
-                    }}
+                <TaskDeleteConfirmationModalDialog
+                    state={state}
+                    dispatch={dispatch}
+                    taskId={deleteTaskConfirmationState.taskId}
+                    onAfterDelete={deleteTaskConfirmationState.onAfterDelete}
                     onClose={() => setDeleteTaskConfirmationState(null)}
                 />
             )}

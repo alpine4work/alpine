@@ -1,8 +1,9 @@
 import {useDndContext, useDroppable} from "@dnd-kit/core";
-import {useId} from "react";
+import {useId, useState} from "react";
 import {Box} from "~/client/design/box";
 import {usePeekStackContext} from "~/client/peek/peek_stack";
 import {useSpaceContext} from "~/client/spaces/space_context";
+import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/demo_2/internal/task_delete_confirmation_modal_dialog";
 import {
     TaskGridViewDraggableData,
     TaskGridViewDroppableData,
@@ -20,6 +21,7 @@ import {
 import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
+import {LocalTaskId} from "~/shared/id/types/id_types";
 import {
     colorSchemeVars,
     hideScrollbarClassName,
@@ -53,6 +55,9 @@ export function TaskNotepadViewActiveSection({
         parseRemLengthNumber(spacing[taskNotepadViewActiveSectionCardGap]) * (2 / 3) +
         (tasks.length > 3 ? parseRemLengthNumber(spacing["4"]) : 0)
     }rem)`;
+
+    const [showDeleteConfirmationForTaskId, setShowDeleteConfirmationForTaskId] =
+        useState<LocalTaskId | null>(null);
 
     return (
         <Box marginBottom="-2">
@@ -177,6 +182,9 @@ export function TaskNotepadViewActiveSection({
                                         `/s/${space.id}/tasks/demo-2/${task.id}`,
                                     );
                                 }}
+                                deleteTaskAndAllChildrenMaybeWithConfirmation={() =>
+                                    setShowDeleteConfirmationForTaskId(task.id)
+                                }
                             />
                         </Box>
                     );
@@ -319,6 +327,14 @@ export function TaskNotepadViewActiveSection({
                     </Box>
                 )}
             </Box>
+            {showDeleteConfirmationForTaskId && (
+                <TaskDeleteConfirmationModalDialog
+                    state={state}
+                    dispatch={dispatch}
+                    taskId={showDeleteConfirmationForTaskId}
+                    onClose={() => setShowDeleteConfirmationForTaskId(null)}
+                />
+            )}
         </Box>
     );
 }

@@ -530,6 +530,7 @@ function TaskRowViewDragOverlay<TaskRow>({
                     childTaskCount={data.childTaskCount}
                     closedChildTaskCount={data.closedChildTaskCount}
                     onExpand={async () => {}}
+                    deleteTaskAndAllChildrenMaybeWithConfirmation={noop}
                 />
             );
         }
