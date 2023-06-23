@@ -1380,6 +1380,7 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
                             withMobileLayout={true}
                             loaderDataRef={loaderDataRefResult.value}
                             history={entry.history}
+                            onGoBackOverflow={() => dispatch({type: "Pop"})}
                         />
                     ) : (
                         <Box

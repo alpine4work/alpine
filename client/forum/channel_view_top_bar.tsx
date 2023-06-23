@@ -1,5 +1,5 @@
 import {CaretDown} from "phosphor-react";
-import {useEffect, useRef, useState} from "react";
+import {useEffect, useId, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {useAppContext} from "~/client/context/app_context";
@@ -151,10 +151,12 @@ function ChannelEditNameModal({
         inputElement.select();
     }, []);
 
+    const titleId = useId();
+
     return (
         <ModalWithButtons
             ref={modalRef}
-            title="Edit channel name"
+            aria-labelledby={titleId}
             onClose={onClose}
             primaryButtonLabel="Save"
             isPrimaryButtonDisabled={name.length === 0}
@@ -171,22 +173,37 @@ function ChannelEditNameModal({
             }}
         >
             {({isPending, pressPrimaryButton}) => (
-                <Box paddingTop="5" paddingX="5" paddingBottom="5">
-                    <TextInput
-                        ref={inputRef}
-                        label="Channel name"
-                        hideLabel={true}
-                        fontSize="200"
-                        placeholder="e.g. Marketing"
-                        value={name}
-                        onChange={name => {
-                            // Block updates while pending...
-                            if (isPending) return;
-                            setName(name);
-                        }}
-                        onEnter={pressPrimaryButton}
-                    />
-                </Box>
+                <>
+                    <h2
+                        id={titleId}
+                        className={sprinkles({
+                            paddingX: "5",
+                            paddingTop: "5",
+                            fontStyle: "semi-bold",
+                            fontSize: "200",
+                            // Make sure our heading doesn't collide with the close button.
+                            paddingRight: "6",
+                        })}
+                    >
+                        Edit channel name
+                    </h2>
+                    <Box paddingTop="5" paddingX="5" paddingBottom="5">
+                        <TextInput
+                            ref={inputRef}
+                            label="Channel name"
+                            hideLabel={true}
+                            fontSize="200"
+                            placeholder="e.g. Marketing"
+                            value={name}
+                            onChange={name => {
+                                // Block updates while pending...
+                                if (isPending) return;
+                                setName(name);
+                            }}
+                            onEnter={pressPrimaryButton}
+                        />
+                    </Box>
+                </>
             )}
         </ModalWithButtons>
     );
@@ -219,12 +236,14 @@ function ChannelEditDescriptionModal({
         editor.focus();
     }, []);
 
+    const titleId = useId();
+
     return (
         <>
             <ModalWithButtons
                 ref={modalRef}
-                title="Edit channel description"
-                disableCloseAnimation={hasContentChanged}
+                aria-labelledby={titleId}
+                withoutCloseAnimation={hasContentChanged}
                 onClose={() => {
                     if (hasContentChanged) {
                         setShouldConfirmClose(true);
@@ -250,39 +269,54 @@ function ChannelEditDescriptionModal({
                 maxWidth={addRemLengths(spacing[defaultModalMaxWidth], spacing["4"])}
             >
                 {({isPending, pressPrimaryButton}) => (
-                    <Box paddingTop="5" paddingX="5" paddingBottom="5">
-                        <FocusRing isVisibleWhenFocusWithin={true} offset="border">
-                            <Box className={textInputClassName}>
-                                <ContentEditor
-                                    ref={editorRef}
-                                    aria-label="Channel description"
-                                    placeholder="What’s the purpose of this channel?"
-                                    state={state}
-                                    onChange={(state, transaction) => {
-                                        // Don't change content while we are pending...
-                                        if (transaction.docChanged && isPending) return;
+                    <>
+                        <h2
+                            id={titleId}
+                            className={sprinkles({
+                                paddingX: "5",
+                                paddingTop: "5",
+                                fontStyle: "semi-bold",
+                                fontSize: "200",
+                                // Make sure our heading doesn't collide with the close button.
+                                paddingRight: "6",
+                            })}
+                        >
+                            Edit channel description
+                        </h2>
+                        <Box paddingTop="5" paddingX="5" paddingBottom="5">
+                            <FocusRing isVisibleWhenFocusWithin={true} offset="border">
+                                <Box className={textInputClassName}>
+                                    <ContentEditor
+                                        ref={editorRef}
+                                        aria-label="Channel description"
+                                        placeholder="What’s the purpose of this channel?"
+                                        state={state}
+                                        onChange={(state, transaction) => {
+                                            // Don't change content while we are pending...
+                                            if (transaction.docChanged && isPending) return;
 
-                                        setState(({state: oldState, hasContentChanged}) => ({
-                                            state,
-                                            hasContentChanged:
-                                                hasContentChanged || transaction.docChanged,
-                                        }));
-                                    }}
-                                    onModEnter={event => {
-                                        event.preventDefault();
-                                        event.stopPropagation();
-                                        pressPrimaryButton();
-                                    }}
-                                    className={sprinkles({
-                                        paddingX: "0.5",
-                                        paddingY: "2",
-                                        height: "64",
-                                        overflowY: "scroll",
-                                    })}
-                                />
-                            </Box>
-                        </FocusRing>
-                    </Box>
+                                            setState(({state: oldState, hasContentChanged}) => ({
+                                                state,
+                                                hasContentChanged:
+                                                    hasContentChanged || transaction.docChanged,
+                                            }));
+                                        }}
+                                        onModEnter={event => {
+                                            event.preventDefault();
+                                            event.stopPropagation();
+                                            pressPrimaryButton();
+                                        }}
+                                        className={sprinkles({
+                                            paddingX: "0.5",
+                                            paddingY: "2",
+                                            height: "64",
+                                            overflowY: "scroll",
+                                        })}
+                                    />
+                                </Box>
+                            </FocusRing>
+                        </Box>
+                    </>
                 )}
             </ModalWithButtons>
             {shouldConfirmClose && (

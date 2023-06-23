@@ -21,19 +21,19 @@ export const defaultModalMaxWidth: Spacing = "128";
  * Has an underlay which when clicked will close the modal.
  */
 export function Modal({
-    title,
+    "aria-labelledby": ariaLabelledBy,
     children,
-    footer,
     onClose: _onCloseWithoutAnimation,
-    disableCloseAnimation,
     "aria-describedby": ariaDescribedBy,
     maxWidth = defaultModalMaxWidth,
+    withoutCloseAnimation,
+    withoutCloseButton,
 }: {
     /**
-     * The title of the modal. This will be rendered in a header along with a
-     * close button.
+     * An ID to an element within the modal labeling the modal. Usually a title
+     * element like an `<h2>`.
      */
-    title: string;
+    "aria-labelledby": string;
 
     /**
      * The contents of the modal. If the contents are too big for the screen then
@@ -47,23 +47,11 @@ export function Modal({
           }) => ReactNode);
 
     /**
-     * If provided, we will render a sticky footer at the bottom of the modal. So
-     * if `children` is scrolling the footer will stay in place.
-     */
-    footer?: ReactNode;
-
-    /**
      * Callback that will close and unmount the modal. The parent component is
      * expected to manage the modal lifecycle. May be called after a short delay if
      * the modal is animating out.
      */
     onClose: () => void;
-
-    /**
-     * The modal will never animate when closing if set to true. Otherwise we fade
-     * out the modal when closed indirectly.
-     */
-    disableCloseAnimation?: boolean;
 
     /**
      * The id for an element in the DOM that describes this modal for assistive
@@ -77,6 +65,19 @@ export function Modal({
      * The maximum width for this modal. Defaults to `128`.
      */
     maxWidth?: Spacing | RemLength;
+
+    /**
+     * The modal will never animate when closing if set to true. Otherwise we fade
+     * out the modal when closed indirectly.
+     */
+    withoutCloseAnimation?: boolean;
+
+    /**
+     * Don't include the close button in the top right corner. Useful if you want
+     * to reduce decision overload. The user can still use the keyboard or click
+     * the background to close the modal. We just won't have an explicit action.
+     */
+    withoutCloseButton?: boolean;
 }) {
     const portalElement = assertExists(
         useOverlayRootPortalElement(),
@@ -93,7 +94,7 @@ export function Modal({
     }, [isFadingOut, onCloseWithoutAnimation]);
 
     const onCloseWithAnimation = () => {
-        if (!disableCloseAnimation) {
+        if (!withoutCloseAnimation) {
             setIsFadingOut(true);
         } else {
             onCloseWithoutAnimation();
@@ -158,8 +159,6 @@ export function Modal({
                             }}
                         >
                             <Box
-                                display="flex"
-                                flexDirection="column"
                                 width="full"
                                 maxHeight="full"
                                 overflow="hidden"
@@ -169,52 +168,26 @@ export function Modal({
                                         : modalStyles.modalContentFadeInAnimation,
                                 }}
                             >
-                                <Box
-                                    flexShrink="0"
-                                    marginX="5"
-                                    paddingTop="5"
-                                    borderBottom="grey-5"
-                                >
-                                    <h2
-                                        id={titleId}
-                                        className={sprinkles({
-                                            fontStyle: "semi-bold",
-                                            fontSize: "200",
-                                            paddingBottom: "2",
-                                            // Make sure our heading doesn't collide with the close button.
-                                            paddingRight: "6",
-                                        })}
-                                    >
-                                        {title}
-                                    </h2>
-                                </Box>
-                                <Box flexGrow="1" overflowY="scroll">
-                                    <Box>
-                                        {typeof children === "function"
-                                            ? children({
-                                                  onCloseWithAnimation,
-                                                  onCloseWithoutAnimation,
-                                              })
-                                            : children}
-                                    </Box>
-                                </Box>
-                                {footer && (
-                                    <Box flexShrink="0" borderTop="grey-5">
-                                        {footer}
+                                {typeof children === "function"
+                                    ? children({
+                                          onCloseWithAnimation,
+                                          onCloseWithoutAnimation,
+                                      })
+                                    : children}
+                                {!withoutCloseButton && (
+                                    <Box position="absolute" top="2" right="2">
+                                        <IconButton
+                                            size="xs"
+                                            description="Close"
+                                            withoutTooltip={true}
+                                            // Our animation principle is to respond to user input immediately
+                                            // without animation.
+                                            onPress={onCloseWithoutAnimation}
+                                        >
+                                            <X />
+                                        </IconButton>
                                     </Box>
                                 )}
-                                <Box position="absolute" top="2" right="2">
-                                    <IconButton
-                                        size="xs"
-                                        description="Close"
-                                        withoutTooltip={true}
-                                        // Our animation principle is to respond to user input immediately
-                                        // without animation.
-                                        onPress={onCloseWithoutAnimation}
-                                    >
-                                        <X />
-                                    </IconButton>
-                                </Box>
                             </Box>
                         </section>
                     </GlobalKeyDownEvent>

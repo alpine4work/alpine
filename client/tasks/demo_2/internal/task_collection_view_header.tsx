@@ -182,6 +182,12 @@ function TaskCollectionViewHeaderTitleEditor({
                                     onSave(name);
                                     break;
                                 }
+                                case "Escape": {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    void onCancel();
+                                    break;
+                                }
                             }
                         }}
                     />

@@ -1,5 +1,5 @@
 import {useTransition} from "@remix-run/react";
-import {Memo, ReactNode, createContext, useCallback, useContext, useRef} from "react";
+import {Memo, ReactNode, createContext, useCallback, useContext, useEffect, useRef} from "react";
 import {
     NavigateOptions,
     To,
@@ -9,6 +9,7 @@ import {
     useNavigate as useOriginalNavigate,
 } from "react-router-dom";
 import {useEvent} from "~/client/helpers/lifecycle/use_event";
+import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {InternalError, UnimplementedError} from "~/shared/error/error";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
@@ -90,6 +91,7 @@ const WaitForNavigationContext = createContext<(() => Promise<void>) | null>(nul
 export function WaitForNavigationContextProvider({children}: {children?: ReactNode}) {
     const transition = useTransition();
     const location = useLocation();
+    const isMounted = useIsMounted();
 
     const navigationPromiseResolversRef = useRef<
         Array<{
@@ -114,6 +116,9 @@ export function WaitForNavigationContextProvider({children}: {children?: ReactNo
 
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     const waitForNextNavigation = useEvent((): Promise<void> => {
+        // Resolve immediately if this component has since unmounted.
+        if (!isMounted()) return Promise.resolve();
+
         const promiseResolver = createPromiseResolver();
 
         navigationPromiseResolversRef.current.push({
@@ -123,6 +128,20 @@ export function WaitForNavigationContextProvider({children}: {children?: ReactNo
 
         return promiseResolver.promise;
     });
+
+    // If this component unmounts then resolve any pending navigation promises. For
+    // instance `navigate(-1)` in a peek will close the peek.
+    useEffect(() => {
+        return () => {
+            if (!isMounted()) {
+                navigationPromiseResolversRef.current =
+                    navigationPromiseResolversRef.current.filter(navigationPromiseResolver => {
+                        navigationPromiseResolver.promiseResolver.resolve();
+                        return false;
+                    });
+            }
+        };
+    }, [isMounted]);
 
     return (
         <WaitForNavigationContext.Provider value={waitForNextNavigation}>

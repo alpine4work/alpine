@@ -17,7 +17,6 @@ import {
     minTaskCountToShowTopGhostTask,
 } from "~/client/tasks/demo_2/task_grid_presentational_view";
 import {useTaskGhostRowPlaceholderTutorial} from "~/client/tasks/demo_2/use_task_ghost_row_placeholder_tutorial";
-import {assert} from "~/shared/helpers/control/assert";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
 import {OrderKey} from "~/shared/helpers/sort/order_key";
 import {generateId} from "~/shared/id/id";
@@ -79,9 +78,7 @@ function TaskNotepadGridView(
         [notepadPageId, state.database],
     );
 
-    const {taskRowIds, taskRows} = useMemo(() => {
-        const taskRowIds = new Set<LocalTaskId>();
-
+    const taskRows = useMemo(() => {
         const taskRows: Array<TaskNotepadGridViewRow> = [];
 
         const addChildTasks = (
@@ -90,9 +87,6 @@ function TaskNotepadGridView(
         ) => {
             for (const [orderKey, childTaskId] of parentTask.childTaskIdByOrderKey) {
                 const childTask = state.database.getTask(childTaskId);
-
-                assert(!taskRowIds.has(childTask.id), "Tasks in notepad must be unique");
-                taskRowIds.add(childTask.id);
 
                 const position: TaskNotepadGridViewRowPosition = {
                     isRoot: false,
@@ -112,9 +106,6 @@ function TaskNotepadGridView(
         };
 
         for (const [orderKey, task] of tasks) {
-            assert(!taskRowIds.has(task.id), "Tasks in notepad must be unique");
-            taskRowIds.add(task.id);
-
             const position: TaskNotepadGridViewRowPosition = {
                 isRoot: true,
                 notepad: {pageId: notepadPageId, orderKey},
@@ -131,33 +122,8 @@ function TaskNotepadGridView(
             }
         }
 
-        return {taskRowIds, taskRows};
+        return taskRows;
     }, [expandedTaskIds, notepadPageId, state.database, tasks]);
-
-    // Remove any `expandedTaskIds` that do not exist in `taskIds`. If we a delete
-    // a task this is how we update our expanded task IDs set.
-    //
-    // NOTE(calebmer): This isn't the most efficient! In a production
-    // implementation maybe we use `symmetricDiffTree()` to get deleted tasks from
-    // our database.
-    {
-        const newExpandedTaskIds = useMemo(() => {
-            let newExpandedTaskIds: Set<LocalTaskId> | null = null;
-
-            for (const taskId of expandedTaskIds) {
-                if (!taskRowIds.has(taskId)) {
-                    if (!newExpandedTaskIds) newExpandedTaskIds = new Set(expandedTaskIds);
-                    newExpandedTaskIds.delete(taskId);
-                }
-            }
-
-            return newExpandedTaskIds;
-        }, [expandedTaskIds, taskRowIds]);
-
-        if (newExpandedTaskIds) {
-            setExpandedTaskIds(newExpandedTaskIds);
-        }
-    }
 
     const taskRowsRef = useRef(taskRows);
     useLayoutEffectWithoutServerSideWarning(() => {

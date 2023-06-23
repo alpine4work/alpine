@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState} from "react";
+import {useEffect, useId, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
 import {ContentEditorState} from "~/client/content/content_editor_state";
 import {useAppContext} from "~/client/context/app_context";
@@ -73,11 +73,13 @@ export function PostEditorModal({
         }
     };
 
+    const titleId = useId();
+
     return (
         <>
             <Modal
-                title="Edit post"
-                disableCloseAnimation={hasContentChanged}
+                aria-labelledby={titleId}
+                withoutCloseAnimation={hasContentChanged}
                 onClose={() => {
                     if (hasContentChanged) {
                         setShouldConfirmClose(true);
@@ -91,61 +93,88 @@ export function PostEditorModal({
                     parseRemLengthNumber(spacing[postViewMaxWidth]) -
                     parseRemLengthNumber(spacing["3"]) * 2
                 }rem`}
-                footer={
-                    <Box
-                        marginX="5"
-                        height="12"
-                        display="flex"
-                        justifyContent="flex-end"
-                        alignItems="center"
-                    >
-                        <Button
-                            variant="accent"
-                            isDisabled={isContentEmpty(state.getDoc())}
-                            isPending={isPending}
-                            pressErrorTitle={errorTitle}
-                            onPress={handleUpdatePost}
-                        >
-                            Save
-                        </Button>
-                    </Box>
-                }
             >
-                <Box paddingTop="5" paddingX="5">
-                    <PostContentViewHeader post={post} shouldShowChannel={true} />
+                <Box
+                    display="flex"
+                    flexDirection="column"
+                    width="full"
+                    maxHeight="full"
+                    overflow="hidden"
+                >
+                    <Box flexShrink="0" paddingX="5" paddingTop="5" borderBottom="grey-5">
+                        <h2
+                            id={titleId}
+                            className={sprinkles({
+                                fontStyle: "semi-bold",
+                                fontSize: "200",
+                                paddingBottom: "2",
+                                // Make sure our heading doesn't collide with the close button.
+                                paddingRight: "6",
+                            })}
+                        >
+                            Edit post
+                        </h2>
+                    </Box>
+                    <Box flexGrow="1" overflowY="scroll">
+                        <Box>
+                            <Box paddingTop="5" paddingX="5">
+                                <PostContentViewHeader post={post} shouldShowChannel={true} />
+                            </Box>
+                            <ContentEditor
+                                ref={editorRef}
+                                aria-label="Post"
+                                state={state}
+                                placeholder="Share your ideas…"
+                                className={sprinkles({paddingX: "3", paddingY: "4"})}
+                                onChange={(state, transaction) => {
+                                    // Don't change content while we are pending...
+                                    if (transaction.docChanged && isPending) return;
+
+                                    setState(({state: oldState, hasContentChanged}) => ({
+                                        state,
+                                        hasContentChanged:
+                                            hasContentChanged || transaction.docChanged,
+                                    }));
+                                }}
+                                onModEnter={event => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+
+                                    runPromiseWithoutAwaiting(async () => {
+                                        try {
+                                            await handleUpdatePost();
+                                        } catch (error) {
+                                            showToast({
+                                                type: "Error",
+                                                title: errorTitle,
+                                                error,
+                                            });
+                                        }
+                                    });
+                                }}
+                            />
+                        </Box>
+                    </Box>
+                    <Box flexShrink="0" borderTop="grey-5">
+                        <Box
+                            marginX="5"
+                            height="12"
+                            display="flex"
+                            justifyContent="flex-end"
+                            alignItems="center"
+                        >
+                            <Button
+                                variant="accent"
+                                isDisabled={isContentEmpty(state.getDoc())}
+                                isPending={isPending}
+                                pressErrorTitle={errorTitle}
+                                onPress={handleUpdatePost}
+                            >
+                                Save
+                            </Button>
+                        </Box>
+                    </Box>
                 </Box>
-                <ContentEditor
-                    ref={editorRef}
-                    aria-label="Post"
-                    state={state}
-                    placeholder="Share your ideas…"
-                    className={sprinkles({paddingX: "3", paddingY: "4"})}
-                    onChange={(state, transaction) => {
-                        // Don't change content while we are pending...
-                        if (transaction.docChanged && isPending) return;
-
-                        setState(({state: oldState, hasContentChanged}) => ({
-                            state,
-                            hasContentChanged: hasContentChanged || transaction.docChanged,
-                        }));
-                    }}
-                    onModEnter={event => {
-                        event.preventDefault();
-                        event.stopPropagation();
-
-                        runPromiseWithoutAwaiting(async () => {
-                            try {
-                                await handleUpdatePost();
-                            } catch (error) {
-                                showToast({
-                                    type: "Error",
-                                    title: errorTitle,
-                                    error,
-                                });
-                            }
-                        });
-                    }}
-                />
             </Modal>
             {shouldConfirmClose && (
                 <ModalDialog

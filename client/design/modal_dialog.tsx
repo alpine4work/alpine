@@ -1,8 +1,11 @@
-import {useEffect, useId, useRef} from "react";
+import {ReactNode, useEffect, useId, useRef} from "react";
 import {Box} from "~/client/design/box";
 import {ModalWithButtons, ModalWithButtonsRef} from "~/client/design/modal_with_buttons";
+import {parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {lerp} from "~/shared/helpers/number/lerp";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
+import {sprinkles} from "~/shared/styles/styles";
 
 /**
  * Present information to the user, blocking their experience, and ask them to
@@ -34,7 +37,7 @@ export function ModalDialog({
     onClose,
 }: {
     title: string;
-    description: string;
+    description: ReactNode;
     primaryButtonLabel: string;
     isPrimaryButtonDisabled?: boolean;
     primaryButtonPressErrorTitle?: string;
@@ -54,10 +57,12 @@ export function ModalDialog({
         modal.focusPrimaryButton();
     }, []);
 
+    const titleId = useId();
+
     return (
         <ModalWithButtons
             ref={modalRef}
-            title={title}
+            aria-labelledby={titleId}
             aria-describedby={descriptionId}
             onClose={onClose}
             primaryButtonLabel={primaryButtonLabel}
@@ -68,17 +73,40 @@ export function ModalDialog({
             cancelButtonPressErrorTitle={cancelButtonPressErrorTitle}
             onCancelButtonPress={onCancelButtonPress}
             shouldHideCancelButton={shouldHideCancelButton}
+            maxWidth={`${lerp(
+                parseRemLengthNumber(spacing["96"]),
+                parseRemLengthNumber(spacing["128"]),
+                0.5,
+            )}rem`}
+            buttonsPaddingX="7"
+            buttonsPaddingBottom="5"
+            // Improve focus on the dialog's content by not showing a close button. A modal
+            // dialog's two buttons will usually be the main actions you want to take.
+            // Dismissing a modal by clicking the background should also feel natural.
+            withoutCloseButton={true}
         >
-            <Box
-                id={descriptionId}
-                paddingX="5"
-                paddingTop="4"
-                paddingBottom="5"
-                userSelect="text"
-                fontSize="75"
-                style={{lineHeight: 1.5}}
-            >
-                {description}
+            <Box userSelect="text">
+                <h2
+                    id={titleId}
+                    className={sprinkles({
+                        paddingX: "7",
+                        paddingTop: "7",
+                        fontStyle: "bold",
+                        fontSize: "300",
+                    })}
+                >
+                    {title}
+                </h2>
+                <Box
+                    id={descriptionId}
+                    paddingX="7"
+                    paddingTop="2.5"
+                    paddingBottom="9"
+                    fontSize="75"
+                    style={{lineHeight: 1.5}}
+                >
+                    {description}
+                </Box>
             </Box>
         </ModalWithButtons>
     );

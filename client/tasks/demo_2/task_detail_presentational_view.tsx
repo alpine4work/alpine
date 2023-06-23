@@ -22,6 +22,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref";
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {useIsMobile} from "~/client/remix/use_is_mobile";
+import {useNavigate} from "~/client/remix/use_navigate";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {getTaskStatusMenuActions} from "~/client/tasks/demo_2/internal/get_task_status_menu_actions";
 import {TaskAssigneeInput} from "~/client/tasks/demo_2/internal/task_assignee_input";
@@ -88,6 +89,7 @@ export type TaskDetailPresentationalViewProps<ChildTaskRow> = {
         TaskGridPresentationalViewProps<ChildTaskRow>,
         typeof TaskGridPresentationalView
     >;
+    deleteTaskAndAllChildrenMaybeWithConfirmation: (options?: {onAfterDelete?: () => void}) => void;
 };
 
 function TaskDetailPresentationalView<ChildTaskRow>(
@@ -112,9 +114,11 @@ function TaskDetailPresentationalView<ChildTaskRow>(
         childTaskCount,
         closedChildTaskCount,
         childTasksGridView,
+        deleteTaskAndAllChildrenMaybeWithConfirmation,
     }: TaskDetailPresentationalViewProps<ChildTaskRow>,
     ref: Ref<TaskDetailPresentationalViewRef>,
 ) {
+    const navigate = useNavigate();
     const isMobile = useIsMobile();
     const {timeZone} = useClientInfo();
     const {currentAccount} = useSpaceContext();
@@ -260,7 +264,12 @@ function TaskDetailPresentationalView<ChildTaskRow>(
             {
                 label: "Delete",
                 onPress: () => {
-                    // NOCOMMIT
+                    deleteTaskAndAllChildrenMaybeWithConfirmation({
+                        // If the task is open in a peek this will close the peek.
+                        onAfterDelete: () => {
+                            void navigate(-1);
+                        },
+                    });
                 },
             },
         ],

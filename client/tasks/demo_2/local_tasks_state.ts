@@ -354,6 +354,10 @@ class LocalTasksDatabase {
         return task;
     }
 
+    public getTaskIfExists(taskId: LocalTaskId) {
+        return this._taskById.get(taskId) ?? null;
+    }
+
     public getTaskCollectionIfExists(taskCollectionId: LocalTaskCollectionId) {
         return this._taskCollectionById.get(taskCollectionId) ?? null;
     }

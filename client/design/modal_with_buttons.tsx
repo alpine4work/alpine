@@ -22,7 +22,7 @@ export {ModalWithButtonsForwardRef as ModalWithButtons};
  */
 function ModalWithButtons(
     {
-        title,
+        "aria-labelledby": ariaLabelledBy,
         children,
         primaryButtonLabel,
         isPrimaryButtonDisabled,
@@ -33,11 +33,14 @@ function ModalWithButtons(
         onCancelButtonPress,
         shouldHideCancelButton,
         onClose,
-        disableCloseAnimation,
         "aria-describedby": ariaDescribedBy,
         maxWidth,
+        withoutCloseAnimation,
+        withoutCloseButton,
+        buttonsPaddingX = "5",
+        buttonsPaddingBottom = "4",
     }: {
-        title: string;
+        "aria-labelledby": string;
         children?:
             | ReactNode
             | ((props: {isPending: boolean; pressPrimaryButton: () => void}) => ReactNode);
@@ -50,9 +53,12 @@ function ModalWithButtons(
         onCancelButtonPress?: () => MaybePromise<void>;
         shouldHideCancelButton?: boolean;
         onClose: () => void;
-        disableCloseAnimation?: boolean;
         "aria-describedby"?: string;
         maxWidth?: Spacing | RemLength;
+        withoutCloseAnimation?: boolean;
+        withoutCloseButton?: boolean;
+        buttonsPaddingX?: Spacing;
+        buttonsPaddingBottom?: Spacing;
     },
     ref: Ref<ModalWithButtonsRef>,
 ) {
@@ -73,11 +79,12 @@ function ModalWithButtons(
 
     return (
         <Modal
-            title={title}
+            aria-labelledby={ariaLabelledBy}
             aria-describedby={ariaDescribedBy}
             onClose={onClose}
-            disableCloseAnimation={disableCloseAnimation}
             maxWidth={maxWidth}
+            withoutCloseAnimation={withoutCloseAnimation}
+            withoutCloseButton={withoutCloseButton}
         >
             {({onCloseWithAnimation, onCloseWithoutAnimation}) => {
                 const pressPrimaryButton = () => {
@@ -134,14 +141,15 @@ function ModalWithButtons(
                             ? children({isPending: isPrimaryButtonPending, pressPrimaryButton})
                             : children}
                         <Box
-                            paddingX="5"
-                            paddingBottom="4"
+                            paddingX={buttonsPaddingX}
+                            paddingBottom={buttonsPaddingBottom}
                             display="flex"
                             justifyContent="flex-end"
                             gap="2"
                         >
                             {!shouldHideCancelButton && (
                                 <Button
+                                    variant="quieter"
                                     pressErrorTitle={cancelButtonPressErrorTitle}
                                     onPress={() => {
                                         const promise = onCancelButtonPress?.();

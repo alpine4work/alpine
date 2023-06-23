@@ -222,6 +222,7 @@ function ContentEditorCommentInput({
                         event.preventDefault();
                         event.stopPropagation();
                         onCloseWithoutAnimation();
+                        return;
                     }
                 }}
                 ref={useConfirmSaveAfterLosingFocus({

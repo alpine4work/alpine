@@ -13,6 +13,7 @@ import {
     useContext,
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from "react";
 import {Navigator, UNSAFE_RouteContext as RouteContext} from "react-router";
@@ -55,11 +56,13 @@ export function PeekRemixEmbed({
     withMobileLayout,
     loaderDataRef,
     history,
+    onGoBackOverflow,
 }: {
     peekId: PeekId;
     withMobileLayout: boolean;
     loaderDataRef: MutableRefObject<{[key: string]: unknown}>;
     history: MemoryHistory;
+    onGoBackOverflow?: () => void;
 }) {
     const remixEntryContext = useContext(RemixEntryContext);
     assert(remixEntryContext, "Expected Remix entry context");
@@ -131,10 +134,14 @@ export function PeekRemixEmbed({
         return transitionManager.subscribe(setTransitionState);
     }, [transitionManager]);
 
-    // Set the current loader data back to our ref. If we push another peek onto
-    // the stack and pop it back off we want to resume with our previous
-    // loader data.
+    const onGoBackOverflowRef = useRef(onGoBackOverflow);
+
     useLayoutEffectWithoutServerSideWarning(() => {
+        onGoBackOverflowRef.current = onGoBackOverflow;
+
+        // Set the current loader data back to our ref. If we push another peek onto
+        // the stack and pop it back off we want to resume with our previous
+        // loader data.
         loaderDataRef.current = transitionState.loaderData;
     });
 
@@ -198,7 +205,18 @@ export function PeekRemixEmbed({
 
     const navigator: Navigator = useMemo(() => {
         return {
-            go: delta => history.go(delta),
+            go: delta => {
+                const remainingEntries = history.entries.length - (history.index + 1);
+
+                if (delta < 0 && -delta > remainingEntries) {
+                    if (remainingEntries > 0) {
+                        history.go(-remainingEntries);
+                    }
+                    onGoBackOverflowRef.current?.();
+                } else {
+                    history.go(delta);
+                }
+            },
             createHref: to => history.createHref(to),
             push: (to, state) => {
                 // If we are navigating to a peek path, great! No change necessary.

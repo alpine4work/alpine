@@ -33,7 +33,6 @@ import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
 import {Spacing} from "~/shared/design/spacing";
 import {createTimeout} from "~/shared/helpers/async/timeout";
 import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {overlayFadeOutAnimationDurationMs} from "~/shared/styles/styles";
 
@@ -383,7 +382,11 @@ export function OverlayTriggerButton({
     } = {}) => {
         setState({isExpanded: false, isFadingOut: !withoutAnimation});
 
-        const overlayTriggerElement = assertExists(overlayTriggerRef.current);
+        // If we unmounted before calling `onClose` (due to some async race condition)
+        // don't focus anything.
+        if (!overlayTriggerRef.current) return;
+
+        const overlayTriggerElement = overlayTriggerRef.current;
 
         switch (returnFocusTo) {
             case "TriggerElement": {
