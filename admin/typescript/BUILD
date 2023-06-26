@@ -1,6 +1,4 @@
-load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
-
-copy_to_bin(
+filegroup(
     name = "typescript_swc_config",
     srcs = select({
         ":compilation_mode_fastbuild": ["typescript_swc_development_config.json"],

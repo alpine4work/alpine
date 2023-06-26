@@ -144,7 +144,7 @@ def ts_project(
 
 _SWC_KWARGS = {
     "swcrc": "//admin/typescript:typescript_swc_config",
-    "source_maps": True,
+    # "source_maps": True,
 }
 
 def swc_compile(**kwargs):

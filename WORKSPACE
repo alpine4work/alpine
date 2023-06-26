@@ -87,20 +87,26 @@ http_archive(
     name = "aspect_rules_swc",
     patch_args = ["-p1"],
     patches = ["//admin/patches:aspect_rules_swc.patch"],
-    sha256 = "5d13b0123d91d4297f60d8da0ab5771615f6ad6829bdfe69e7dcda9e5c01bc54",
-    strip_prefix = "rules_swc-1.0.0-rc0",
-    url = "https://github.com/aspect-build/rules_swc/archive/refs/tags/v1.0.0-rc0.tar.gz",
+    sha256 = "b647c7c31feeb7f9330fff08b45f8afe7de674d3a9c89c712b8f9d1723d0c8f9",
+    strip_prefix = "rules_swc-1.0.1",
+    url = "https://github.com/aspect-build/rules_swc/releases/download/v1.0.1/rules_swc-v1.0.1.tar.gz",
 )
 
 load("@aspect_rules_swc//swc:dependencies.bzl", "rules_swc_dependencies")
 
 rules_swc_dependencies()
 
-load("@aspect_rules_swc//swc:repositories.bzl", "swc_register_toolchains", SWC_LATEST_VERSION = "LATEST_VERSION")
+load("@aspect_rules_swc//swc:repositories.bzl", "swc_register_toolchains")
 
 swc_register_toolchains(
     name = "swc",
-    swc_version = SWC_LATEST_VERSION,
+    # NOTE(calebmer): Upgrading from v1.3.35 to v1.3.36 breaks our path resolution.
+    # I believe it's the below PR which causes the regression. Previously a path
+    # where SWC was not following the symlink was changed to now follow the
+    # symlink.
+    #
+    # https://github.com/swc-project/swc/commit/1ec161a0f15886f97d4fb9cbb5d115b29ed5e2a2
+    swc_version = "v1.3.35",
 )
 
 # =========================================================================== #

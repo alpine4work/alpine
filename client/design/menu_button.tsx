@@ -411,8 +411,6 @@ export const Menu = forwardRef(function Menu(
                 action.action.isSelected
             ) {
                 assertExists(menuItemRefs[index]?.current).scrollIntoView({
-                    // @ts-expect-error: This value is allowed according to the spec but not in the
-                    // TypeScript types.
                     behavior: "instant",
                     block: "center",
                 });

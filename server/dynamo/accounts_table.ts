@@ -714,7 +714,10 @@ export async function authorizeInternalAccess(context: ActionContext) {
     }
 }
 
-const AccountContextCache = new ContextCache<`${SpaceId}:${AccountId}`, AccountModel | null>();
+const AccountContextCache = new ContextCache<
+    `${SpaceId}:${ContentMentionAccountId}`,
+    AccountModel | null
+>();
 
 /**
  * Get an account without authorizing whether the current context has
