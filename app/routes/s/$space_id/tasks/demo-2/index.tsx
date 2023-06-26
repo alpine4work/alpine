@@ -1,5 +1,5 @@
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
-import {TaskNotepadView} from "~/client/tasks/demo_2/task_notepad_view";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {TaskNotepadView} from "~/client/tasks/demo_2/task_notepad_view.js";
 
 export default function TasksRoute() {
     const isInitialAppRender = useIsInitialAppRender();

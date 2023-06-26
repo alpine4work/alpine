@@ -1,9 +1,9 @@
-import {createAwsClientFromEnv} from "~/server/aws/create_aws_client_from_env";
-import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
-import {EmailContextModuleBase} from "~/server/emails/email_context_module_base";
-import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module";
-import {SesEmailContextModule} from "~/server/emails/ses_email_context_module";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {createAwsClientFromEnv} from "~/server/aws/create_aws_client_from_env.js";
+import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module.js";
+import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
+import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
+import {SesEmailContextModule} from "~/server/emails/ses_email_context_module.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 /**
  * Create the context modules that depend on AWS from an environment object

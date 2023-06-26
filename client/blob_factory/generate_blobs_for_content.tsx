@@ -1,9 +1,12 @@
-import {BlobFactoryBlob, BlobFactoryBlobs} from "~/client/blob_factory/internal/draw_blob_factory";
-import {ThemeColor, themeColors} from "~/shared/design/theme_colors";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {Vector2} from "~/shared/helpers/geometry/vector2";
-import {StableRandom} from "~/shared/helpers/number/stable_random";
+import {
+    BlobFactoryBlob,
+    BlobFactoryBlobs,
+} from "~/client/blob_factory/internal/draw_blob_factory.js";
+import {ThemeColor, themeColors} from "~/shared/design/theme_colors.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {Vector2} from "~/shared/helpers/geometry/vector2.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 
 type BlobGenerationSettings = {
     contentWidthPx: number;

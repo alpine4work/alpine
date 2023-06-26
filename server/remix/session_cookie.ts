@@ -3,10 +3,10 @@ import {
     SessionStorage,
     createCookieSessionStorage,
 } from "@remix-run/cloudflare";
-import {assert} from "~/shared/helpers/control/assert";
-import {generateId} from "~/shared/id/id";
-import {AccountId, BrowserId, SessionId} from "~/shared/id/types/id_types";
-import {Schema, SchemaType} from "~/shared/schema/schema";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {generateId} from "~/shared/id/id.js";
+import {AccountId, BrowserId, SessionId} from "~/shared/id/types/id_types.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
  * Session information written to a browser cookie.

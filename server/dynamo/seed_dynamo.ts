@@ -1,10 +1,10 @@
-import {seedTestAccounts} from "~/server/dynamo/accounts_table";
-import {seedTestAlphaConfiguration} from "~/server/dynamo/alpha_access_table";
-import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
-import {seedTestChannels} from "~/server/dynamo/forum_table";
-import {seedTestSpaces} from "~/server/dynamo/spaces_table";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
-import {assert} from "~/shared/helpers/control/assert";
+import {seedTestAccounts} from "~/server/dynamo/accounts_table.js";
+import {seedTestAlphaConfiguration} from "~/server/dynamo/alpha_access_table.js";
+import {DynamoContext} from "~/server/dynamo/context/dynamo_context.js";
+import {seedTestChannels} from "~/server/dynamo/forum_table.js";
+import {seedTestSpaces} from "~/server/dynamo/spaces_table.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
  * Seed DynamoDB with some data in development and test environments.

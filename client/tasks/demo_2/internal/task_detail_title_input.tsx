@@ -2,14 +2,14 @@ import classNames from "classnames";
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {useCallback, useRef, useState} from "react";
-import {FocusRing} from "~/client/design/focus_ring";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
-import {fontSizes, sprinkles, tasksStyles} from "~/shared/styles/styles";
-import {TaskTitle, assertTaskTitle} from "~/shared/tasks/task_title_schema";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
+import {fontSizes, sprinkles, tasksStyles} from "~/shared/styles/styles.js";
+import {TaskTitle, assertTaskTitle} from "~/shared/tasks/task_title_schema.js";
 
 const taskDetailTitleInputAriaLabel = "Title";
 

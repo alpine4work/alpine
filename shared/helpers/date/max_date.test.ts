@@ -1,4 +1,4 @@
-import {maxDate, maxIsoLexicographicallySortableDate} from "~/shared/helpers/date/max_date";
+import {maxDate, maxIsoLexicographicallySortableDate} from "~/shared/helpers/date/max_date.js";
 
 test("we actually have the maximum date", () => {
     expect(new Date(maxDate.getTime()).toString()).not.toEqual("Invalid Date");

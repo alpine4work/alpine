@@ -1,8 +1,8 @@
 import {Attrs, Mark, Node, NodeType, ResolvedPos} from "prosemirror-model";
 import {Command, TextSelection, Transaction} from "prosemirror-state";
 import {findWrapping} from "prosemirror-transform";
-import {assert} from "~/shared/helpers/control/assert";
-import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 
 /**
  * Get an array of marks that apply to all inline nodes in a given range that

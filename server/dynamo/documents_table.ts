@@ -1,38 +1,41 @@
 import {differenceInMinutes} from "date-fns";
 import {Node} from "prosemirror-model";
 import {Mapping, Step} from "prosemirror-transform";
-import {getAccount, getAccountIfExists} from "~/server/dynamo/accounts_table";
-import {ActionContext, SessionActionContext} from "~/server/dynamo/context/action_context";
-import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
-import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
-import {getContentReferencesForNode} from "~/server/dynamo/helpers/get_content_references";
+import {getAccount, getAccountIfExists} from "~/server/dynamo/accounts_table.js";
+import {ActionContext, SessionActionContext} from "~/server/dynamo/context/action_context.js";
+import {DynamoContext} from "~/server/dynamo/context/dynamo_context.js";
+import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry.js";
+import {getContentReferencesForNode} from "~/server/dynamo/helpers/get_content_references.js";
 import {
     applyMentionCountByAccountIdDifferenceFromContentUpdate,
     getMentionCountByAccountIdInContent,
     getMentionedAccountIdsInContent,
-} from "~/server/dynamo/helpers/get_mentioned_account_ids_in_content";
-import {createMessagePayloadModel} from "~/server/dynamo/helpers/messaging/create_message_payload_model";
-import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/dynamo/helpers/messaging/get_message_change_log_expiration_time_from_change_time";
-import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
-import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
-import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
-import {getNotificationMessageContentSnippet} from "~/server/dynamo/notifications_table";
-import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
-import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint";
-import {TestCounter} from "~/server/helpers/test/test_counter";
+} from "~/server/dynamo/helpers/get_mentioned_account_ids_in_content.js";
+import {createMessagePayloadModel} from "~/server/dynamo/helpers/messaging/create_message_payload_model.js";
+import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/dynamo/helpers/messaging/get_message_change_log_expiration_time_from_change_time.js";
+import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema.js";
+import {
+    DynamoTableItemType,
+    DynamoTableSchema,
+} from "~/server/dynamo/internal/dynamo_table_schema.js";
+import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error.js";
+import {getNotificationMessageContentSnippet} from "~/server/dynamo/notifications_table.js";
+import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table.js";
+import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
+import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {
     DocumentContent,
     DocumentContentSchema,
     DocumentContentStepSchema,
     isDocumentContent,
-} from "~/shared/documents/document_content_schema";
+} from "~/shared/documents/document_content_schema.js";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
     DocumentModel,
     DocumentPreviewModel,
     getDocumentContentTitleWithoutFallback,
-} from "~/shared/documents/document_model";
+} from "~/shared/documents/document_model.js";
 import {
     DataLossError,
     FailedPreconditionError,
@@ -40,26 +43,26 @@ import {
     InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
-} from "~/shared/error/error";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
-import {assert} from "~/shared/helpers/control/assert";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable";
-import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
-import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
-import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable";
-import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
-import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array";
-import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
-import {clamp} from "~/shared/helpers/number/clamp";
-import {Replace} from "~/shared/helpers/types/replace";
-import {assertId, generateId, getMaxId, getMinId} from "~/shared/id/id";
+} from "~/shared/error/error.js";
+import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
+import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
+import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
+import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
+import {assertId, generateId, getMaxId, getMinId} from "~/shared/id/id.js";
 import {
     AccountId,
     ContentEditorClientId,
@@ -67,13 +70,16 @@ import {
     DocumentCommentThreadId,
     DocumentId,
     SpaceId,
-} from "~/shared/id/types/id_types";
-import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema";
-import {MessageContent, MessageContentSchema} from "~/shared/messaging/message_content_schema";
-import {MessagePayloadSchema} from "~/shared/messaging/message_model";
-import {ExhaustiveStep} from "~/shared/prosemirror/prosemirror_exhaustive_step";
-import {visitProsemirrorNode, visitProsemirrorStep} from "~/shared/prosemirror/prosemirror_visitor";
-import {Schema} from "~/shared/schema/schema";
+} from "~/shared/id/types/id_types.js";
+import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
+import {MessageContent, MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
+import {MessagePayloadSchema} from "~/shared/messaging/message_model.js";
+import {ExhaustiveStep} from "~/shared/prosemirror/prosemirror_exhaustive_step.js";
+import {
+    visitProsemirrorNode,
+    visitProsemirrorStep,
+} from "~/shared/prosemirror/prosemirror_visitor.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 const DocumentCommentThreadAttributesSchema = Schema.object({
     /** The time at which the thread was created. */

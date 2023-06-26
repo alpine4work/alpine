@@ -1,11 +1,11 @@
-import {AccountModel} from "~/shared/accounts/account_model";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {Id} from "~/shared/id/id";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {Id} from "~/shared/id/id.js";
 import {
     MessageContentSchema,
     MessageContentWithReferencesSchema,
-} from "~/shared/messaging/message_content_schema";
-import {Schema, SchemaType} from "~/shared/schema/schema";
+} from "~/shared/messaging/message_content_schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 export type MessageRoomKeyType<Message extends MessageModelBase> = Message extends MessageModel<
     infer RoomKey

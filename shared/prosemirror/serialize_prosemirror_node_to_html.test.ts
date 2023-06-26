@@ -1,13 +1,13 @@
 import {DOMSerializer, Node, Schema} from "prosemirror-model";
 import {marks as basicMarks, nodes as basicNodes} from "prosemirror-schema-basic";
-import {assert} from "~/shared/helpers/control/assert";
-import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
 import {
     ProsemirrorHtmlSerializationInlineDecoration,
     ProsemirrorHtmlSerializationWidgetDecoration,
     serializeProsemirrorFragmentToHtml,
     serializeProsemirrorNodeToHtml,
-} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
+} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 
 const schema = new Schema({
     nodes: {...basicNodes, doc: {...basicNodes.doc, toDOM: () => ["div", 0]}},

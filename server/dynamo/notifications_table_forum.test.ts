@@ -1,4 +1,4 @@
-import {createChannel, createPost, createPostComment} from "~/server/dynamo/forum_table";
+import {createChannel, createPost, createPostComment} from "~/server/dynamo/forum_table.js";
 import {
     archiveInboxEntry,
     getInbox,
@@ -9,29 +9,29 @@ import {
     notificationEventBeforeProcessingTestCheckpoint,
     observeInbox,
     unarchiveInboxEntry,
-} from "~/server/dynamo/notifications_table";
+} from "~/server/dynamo/notifications_table.js";
 import {
     createNotificationsScenario,
     massageInboxEntriesQuery,
-} from "~/server/dynamo/test_helpers/jest/notifications_table_test_helpers";
-import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
-import {emptyContentReferences} from "~/shared/content/content_references";
-import {ProcessContextModule} from "~/shared/context/process_context_module";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error";
-import {ChannelPreviewModel} from "~/shared/forum/channel_model";
+} from "~/server/dynamo/test_helpers/jest/notifications_table_test_helpers.js";
+import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
+import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {
     PostContentProsemirrorSchema,
     assertPostContent,
     emptyPostContent,
     emptyPostContentWithReferences,
-} from "~/shared/forum/post_content_schema";
-import {PostModel} from "~/shared/forum/post_model";
-import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema";
+} from "~/shared/forum/post_content_schema.js";
+import {PostModel} from "~/shared/forum/post_model.js";
+import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {
     InboxChannelPostsEntryModel,
     InboxModel,
     InboxPostCommentsEntryModel,
-} from "~/shared/notifications/inbox_model";
+} from "~/shared/notifications/inbox_model.js";
 
 const context = createTestContext();
 

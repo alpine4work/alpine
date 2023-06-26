@@ -1,13 +1,13 @@
 import {expect, test} from "@playwright/test";
-import {createTestServer} from "~/app/integration_tests/helpers/create_test_server";
-import {approveAlphaAccessRequest} from "~/server/dynamo/alpha_access_table";
-import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
-import {seedDynamo} from "~/server/dynamo/seed_dynamo";
-import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
-import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
-import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
-import {validateEmailAddress} from "~/server/emails/email_address";
-import {generateId} from "~/shared/id/id";
+import {createTestServer} from "~/app/integration_tests/helpers/create_test_server.js";
+import {approveAlphaAccessRequest} from "~/server/dynamo/alpha_access_table.js";
+import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants.js";
+import {seedDynamo} from "~/server/dynamo/seed_dynamo.js";
+import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
+import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
+import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space.js";
+import {validateEmailAddress} from "~/server/emails/email_address.js";
+import {generateId} from "~/shared/id/id.js";
 
 const context = createTestContext();
 

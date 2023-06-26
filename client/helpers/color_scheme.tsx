@@ -1,7 +1,7 @@
 import {useEffect, useState} from "react";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error";
-import {assert} from "~/shared/helpers/control/assert";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 const initializeColorSchemeScript =
     'var colorScheme = localStorage.getItem("colorScheme"); var isDarkColorScheme = colorScheme === "dark" || !colorScheme && window.matchMedia("(prefers-color-scheme: dark)").matches; document.documentElement.dataset.colorScheme = isDarkColorScheme ? "dark" : "light";';

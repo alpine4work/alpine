@@ -1,15 +1,15 @@
 import {Link, useLocation} from "@remix-run/react";
 import {createPath} from "history";
 import {Fragment, useRef} from "react";
-import {useAppContext} from "~/client/context/app_context";
-import {Box} from "~/client/design/box";
-import {FocusRing} from "~/client/design/focus_ring";
-import {ErrorBase} from "~/shared/error/error";
-import {ErrorCode} from "~/shared/error/error_code";
-import {errorDisplayMessage} from "~/shared/error/error_display_message";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol";
-import {contentSchemaStyles} from "~/shared/styles/styles";
+import {useAppContext} from "~/client/context/app_context.js";
+import {Box} from "~/client/design/box.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {ErrorBase} from "~/shared/error/error.js";
+import {ErrorCode} from "~/shared/error/error_code.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol.js";
+import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
 const defaultErrorDisplayMessage = errorDisplayMessage`An unexpected error occurred. Please try again. If the problem continues, let us know at ${errorDisplayMessage.supportLink}`;
 

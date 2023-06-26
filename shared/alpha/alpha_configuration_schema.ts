@@ -1,5 +1,5 @@
-import {SpaceId} from "~/shared/id/types/id_types";
-import {Schema, SchemaType} from "~/shared/schema/schema";
+import {SpaceId} from "~/shared/id/types/id_types.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 export type AlphaConfiguration = SchemaType<typeof AlphaConfigurationSchema>;
 

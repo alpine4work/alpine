@@ -6,11 +6,11 @@
  */
 
 import {globalStyle} from "@vanilla-extract/css";
-import {mobilePlatformMediaQuery, remPxByPlatform} from "~/shared/design/spacing";
-import {colorSchemeVars} from "~/shared/styles/internal/color_scheme.css";
-import {fontSizes, fontStyles} from "~/shared/styles/internal/fonts.css";
-import {inputPlaceholderStyles} from "~/shared/styles/internal/input_placeholder.css";
-import {backgroundColorVar} from "~/shared/styles/internal/sprinkles.css";
+import {mobilePlatformMediaQuery, remPxByPlatform} from "~/shared/design/spacing.js";
+import {colorSchemeVars} from "~/shared/styles/internal/color_scheme.css.js";
+import {fontSizes, fontStyles} from "~/shared/styles/internal/fonts.css.js";
+import {inputPlaceholderStyles} from "~/shared/styles/internal/input_placeholder.css.js";
+import {backgroundColorVar} from "~/shared/styles/internal/sprinkles.css.js";
 
 globalStyle(":root", {
     backgroundColor: colorSchemeVars["grey-wash"],

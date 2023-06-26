@@ -1,23 +1,23 @@
 import {X} from "phosphor-react";
 import {ReactNode} from "react";
-import {Box} from "~/client/design/box";
-import {IconButton} from "~/client/design/icon_button";
-import {TaskQueryCollectionsFilterOperationEditor} from "~/client/tasks/demo_2/internal/task_query_collections_filter_operation_editor";
-import {TaskQueryFilterAccountOperationEditor} from "~/client/tasks/demo_2/internal/task_query_filter_account_operation_editor";
+import {Box} from "~/client/design/box.js";
+import {IconButton} from "~/client/design/icon_button.js";
+import {TaskQueryCollectionsFilterOperationEditor} from "~/client/tasks/demo_2/internal/task_query_collections_filter_operation_editor.js";
+import {TaskQueryFilterAccountOperationEditor} from "~/client/tasks/demo_2/internal/task_query_filter_account_operation_editor.js";
 import {
     TaskQueryFilterDateOperationEditor,
     TaskQueryFilterDateOperationValueEditor,
     taskQueryFilterDateOperationGreaterThanOperatorLabel,
     taskQueryFilterDateOperationLessThanOperatorLabel,
-} from "~/client/tasks/demo_2/internal/task_query_filter_date_operation_editor";
-import {TaskQueryFilterOperatorEditor} from "~/client/tasks/demo_2/internal/task_query_filter_operator_editor";
-import {TaskQueryPriorityFilterOperationEditor} from "~/client/tasks/demo_2/internal/task_query_priority_filter_operation_editor";
-import {TaskQueryStatusFilterOperationEditor} from "~/client/tasks/demo_2/internal/task_query_status_filter_operation_editor";
-import {LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
-import {spacing} from "~/shared/design/spacing";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {TaskQueryFilter} from "~/shared/tasks/task_query_filter";
-import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references";
+} from "~/client/tasks/demo_2/internal/task_query_filter_date_operation_editor.js";
+import {TaskQueryFilterOperatorEditor} from "~/client/tasks/demo_2/internal/task_query_filter_operator_editor.js";
+import {TaskQueryPriorityFilterOperationEditor} from "~/client/tasks/demo_2/internal/task_query_priority_filter_operation_editor.js";
+import {TaskQueryStatusFilterOperationEditor} from "~/client/tasks/demo_2/internal/task_query_status_filter_operation_editor.js";
+import {LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state.js";
+import {spacing} from "~/shared/design/spacing.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
+import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
 
 export function TaskQueryFilterEditor({
     state,

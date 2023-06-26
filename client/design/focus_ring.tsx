@@ -11,18 +11,18 @@ import {
     useRef,
     useState,
 } from "react";
-import {Box} from "~/client/design/box";
-import {useSpacingPx} from "~/client/design/helpers/use_spacing_px";
-import {Overlay} from "~/client/design/overlay";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {assignRef} from "~/client/helpers/refs/assign_ref";
-import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref";
-import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref";
-import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
-import {Spacing} from "~/shared/design/spacing";
-import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
-import {assert} from "~/shared/helpers/control/assert";
-import {Sprinkles} from "~/shared/styles/styles";
+import {Box} from "~/client/design/box.js";
+import {useSpacingPx} from "~/client/design/helpers/use_spacing_px.js";
+import {Overlay} from "~/client/design/overlay.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {assignRef} from "~/client/helpers/refs/assign_ref.js";
+import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
+import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
+import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
+import {Spacing} from "~/shared/design/spacing.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {Sprinkles} from "~/shared/styles/styles.js";
 
 const FocusRingForwardRef = forwardRef(FocusRing);
 export {FocusRingForwardRef as FocusRing};

@@ -1,5 +1,5 @@
 import {redirect} from "@remix-run/server-runtime";
-import {getEmailTemplatePreviewBySlug} from "~/server/emails/get_email_template_preview_by_slug";
+import {getEmailTemplatePreviewBySlug} from "~/server/emails/get_email_template_preview_by_slug.js";
 
 export async function loader() {
     const emailPreviews = await getEmailTemplatePreviewBySlug();

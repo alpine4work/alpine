@@ -1,10 +1,10 @@
 import {spawn} from "child_process";
 import path from "path";
-import {workspacePath} from "~/admin/helpers/workspace_path";
-import {UnknownError} from "~/shared/error/error";
-import {isNonNullableOrFalse} from "~/shared/helpers/control/is_non_nullable_or_false";
-import {noop} from "~/shared/helpers/control/noop";
-import {quote} from "~/shared/helpers/string/quote";
+import {workspacePath} from "~/admin/helpers/workspace_path.js";
+import {UnknownError} from "~/shared/error/error.js";
+import {isNonNullableOrFalse} from "~/shared/helpers/control/is_non_nullable_or_false.js";
+import {noop} from "~/shared/helpers/control/noop.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 
 type ProcessArgs = Array<string | undefined | null | false | ProcessArgs>;
 

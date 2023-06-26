@@ -1,7 +1,7 @@
-import {Box} from "~/client/design/box";
-import {postContentViewMinHeight} from "~/client/forum/post_content_view";
-import {Spacing} from "~/shared/design/spacing";
-import {fontSizes, pulseAnimationClassName} from "~/shared/styles/styles";
+import {Box} from "~/client/design/box.js";
+import {postContentViewMinHeight} from "~/client/forum/post_content_view.js";
+import {Spacing} from "~/shared/design/spacing.js";
+import {fontSizes, pulseAnimationClassName} from "~/shared/styles/styles.js";
 
 export function PostShimmer({
     padding,

@@ -1,5 +1,5 @@
 import {keyframes} from "@vanilla-extract/css";
-import {spacing} from "~/shared/design/spacing";
+import {spacing} from "~/shared/design/spacing.js";
 
 export const modalUnderlayOpacity = 0.5;
 

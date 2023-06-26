@@ -2,13 +2,13 @@ import type {
     DynamoKeyAttributeSchema,
     DynamoKeyAttributeSchemaDescription,
     DynamoKeyAttributeSchemaType,
-} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
-import type {OrderKey} from "~/shared/helpers/sort/order_key";
-import {IdentityType} from "~/shared/helpers/types/identity_type";
-import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
-import {ObjectFromEntries} from "~/shared/helpers/types/object_from_entries";
-import type {ObjectSchema, SchemaType} from "~/shared/schema/schema";
-import {SchemaSerializedValueDescription} from "~/shared/schema/types/schema_description_types";
+} from "~/server/dynamo/internal/dynamo_key_attribute_schema.js";
+import type {OrderKey} from "~/shared/helpers/sort/order_key.js";
+import {IdentityType} from "~/shared/helpers/types/identity_type.js";
+import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
+import {ObjectFromEntries} from "~/shared/helpers/types/object_from_entries.js";
+import type {ObjectSchema, SchemaType} from "~/shared/schema/schema.js";
+import {SchemaSerializedValueDescription} from "~/shared/schema/types/schema_description_types.js";
 
 /**
  * Types for the `DynamoTableSchema` file. These types get a little complicated. So

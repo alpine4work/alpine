@@ -1,13 +1,13 @@
-import {AccountModel} from "~/shared/accounts/account_model";
-import {DocumentContentWithReferencesSchema} from "~/shared/documents/document_content_references";
-import {DocumentContent} from "~/shared/documents/document_content_schema";
-import {documentFallbackTitle} from "~/shared/documents/document_fallback_title";
-import {assert} from "~/shared/helpers/control/assert";
-import {isId} from "~/shared/id/id";
-import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types";
-import {MessageModel, MessagePayloadModelSchema} from "~/shared/messaging/message_model";
-import {Model} from "~/shared/schema/model/model";
-import {Schema} from "~/shared/schema/schema";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {DocumentContentWithReferencesSchema} from "~/shared/documents/document_content_references.js";
+import {DocumentContent} from "~/shared/documents/document_content_schema.js";
+import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {isId} from "~/shared/id/id.js";
+import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {MessageModel, MessagePayloadModelSchema} from "~/shared/messaging/message_model.js";
+import {Model} from "~/shared/schema/model/model.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 /**
  * A thread of comments on a document.

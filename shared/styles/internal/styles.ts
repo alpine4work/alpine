@@ -8,24 +8,24 @@
 // have a `~/shared/styles/styles.d.ts` file that re-exports this file for
 // TypeScript.
 
-import "~/shared/styles/internal/global/global_1_reset.css";
-import "~/shared/styles/internal/global/global_2_defaults.css";
+import "~/shared/styles/internal/global/global_1_reset.css.js";
+import "~/shared/styles/internal/global/global_2_defaults.css.js";
 
-export * from "~/shared/styles/internal/animation.css";
-export * from "~/shared/styles/internal/border_radius.css";
-export * from "~/shared/styles/internal/color_scheme.css";
-export * as contentEditorStyles from "~/shared/styles/internal/content_editor.css";
-export * as contentSchemaStyles from "~/shared/styles/internal/content_schema.css";
-export * as contentViewStyles from "~/shared/styles/internal/content_view.css";
-export * as documentBlobsStyles from "~/shared/styles/internal/document_blobs.css";
-export * from "~/shared/styles/internal/fonts.css";
-export * from "~/shared/styles/internal/hide_scrollbar.css";
-export * from "~/shared/styles/internal/input_placeholder.css";
-export * as modalStyles from "~/shared/styles/internal/modal.css";
-export * from "~/shared/styles/internal/overlay_animated.css";
-export * from "~/shared/styles/internal/peek.css";
-export * from "~/shared/styles/internal/press_opacity_overlay.css";
-export * from "~/shared/styles/internal/sprinkles.css";
-export * as tasksStyles from "~/shared/styles/internal/tasks.css";
-export * as toastStyles from "~/shared/styles/internal/toast.css";
-export * from "~/shared/styles/internal/wiggle_animation.css";
+export * from "~/shared/styles/internal/animation.css.js";
+export * from "~/shared/styles/internal/border_radius.css.js";
+export * from "~/shared/styles/internal/color_scheme.css.js";
+export * as contentEditorStyles from "~/shared/styles/internal/content_editor.css.js";
+export * as contentSchemaStyles from "~/shared/styles/internal/content_schema.css.js";
+export * as contentViewStyles from "~/shared/styles/internal/content_view.css.js";
+export * as documentBlobsStyles from "~/shared/styles/internal/document_blobs.css.js";
+export * from "~/shared/styles/internal/fonts.css.js";
+export * from "~/shared/styles/internal/hide_scrollbar.css.js";
+export * from "~/shared/styles/internal/input_placeholder.css.js";
+export * as modalStyles from "~/shared/styles/internal/modal.css.js";
+export * from "~/shared/styles/internal/overlay_animated.css.js";
+export * from "~/shared/styles/internal/peek.css.js";
+export * from "~/shared/styles/internal/press_opacity_overlay.css.js";
+export * from "~/shared/styles/internal/sprinkles.css.js";
+export * as tasksStyles from "~/shared/styles/internal/tasks.css.js";
+export * as toastStyles from "~/shared/styles/internal/toast.css.js";
+export * from "~/shared/styles/internal/wiggle_animation.css.js";

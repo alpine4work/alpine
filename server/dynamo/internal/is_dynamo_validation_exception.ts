@@ -1,4 +1,4 @@
-import {isObject} from "~/shared/helpers/object/is_object";
+import {isObject} from "~/shared/helpers/object/is_object.js";
 
 /**
  * Is the provided error a failure due to a DynamoDB validation error?

@@ -1,14 +1,14 @@
-import {validateTracerEventFlatDataForPropagation} from "~/server/tracer/validate_tracer_event_flat_data";
-import {InvalidArgumentError} from "~/shared/error/error";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable";
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object";
-import {isId} from "~/shared/id/id";
-import {TraceId, TraceSpanId} from "~/shared/id/types/id_types";
-import {SchemaSerializedValue} from "~/shared/schema/schema";
-import {tracerEventHttpHeaderNames} from "~/shared/tracer/helpers/tracer_event_http_header_names";
-import {tracerPropagationContextHeaderName} from "~/shared/tracer/tracer_propagation_context_header";
-import {TracerRoot} from "~/shared/tracer/tracer_root";
-import {TracerSpan} from "~/shared/tracer/tracer_span";
+import {validateTracerEventFlatDataForPropagation} from "~/server/tracer/validate_tracer_event_flat_data.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
+import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
+import {isId} from "~/shared/id/id.js";
+import {TraceId, TraceSpanId} from "~/shared/id/types/id_types.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {tracerEventHttpHeaderNames} from "~/shared/tracer/helpers/tracer_event_http_header_names.js";
+import {tracerPropagationContextHeaderName} from "~/shared/tracer/tracer_propagation_context_header.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 /**
  * Create a span for the server response to the fetch HTTP API.

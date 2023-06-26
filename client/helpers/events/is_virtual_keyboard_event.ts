@@ -1,5 +1,5 @@
-import {hasTouchPoints} from "~/client/helpers/browser/has_touch_points";
-import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit";
+import {hasTouchPoints} from "~/client/helpers/browser/has_touch_points.js";
+import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 
 // Null means the virtual keyboard API is not available so use other mechanisms
 // for telling whether the virtual keyboard is open.

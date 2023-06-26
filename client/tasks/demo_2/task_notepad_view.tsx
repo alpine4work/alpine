@@ -1,24 +1,24 @@
 import {useEffect, useRef, useState} from "react";
-import {Box} from "~/client/design/box";
-import {OverlayScopeContextProvider} from "~/client/design/overlay";
-import {TaskGridViewDndContext} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
+import {Box} from "~/client/design/box.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {TaskGridViewDndContext} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context.js";
 import {
     TaskNotepadGridView,
     TaskNotepadGridViewRow,
-} from "~/client/tasks/demo_2/internal/task_notepad_grid_view";
-import {TaskNotepadViewActiveSection} from "~/client/tasks/demo_2/internal/task_notepad_view_active_section";
-import {TaskNotepadViewPaginator} from "~/client/tasks/demo_2/internal/task_notepad_view_paginator";
+} from "~/client/tasks/demo_2/internal/task_notepad_grid_view.js";
+import {TaskNotepadViewActiveSection} from "~/client/tasks/demo_2/internal/task_notepad_view_active_section.js";
+import {TaskNotepadViewPaginator} from "~/client/tasks/demo_2/internal/task_notepad_view_paginator.js";
 import {
     LocalTasksAction,
     LocalTasksMoveTaskFrom,
     LocalTasksState,
     useLocalTasksState,
-} from "~/client/tasks/demo_2/local_tasks_state";
-import {TaskGridPresentationalViewRef} from "~/client/tasks/demo_2/task_grid_presentational_view";
-import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {LocalTaskId} from "~/shared/id/types/id_types";
-import {tasksStyles} from "~/shared/styles/styles";
+} from "~/client/tasks/demo_2/local_tasks_state.js";
+import {TaskGridPresentationalViewRef} from "~/client/tasks/demo_2/task_grid_presentational_view.js";
+import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {LocalTaskId} from "~/shared/id/types/id_types.js";
+import {tasksStyles} from "~/shared/styles/styles.js";
 
 export function TaskNotepadView() {
     const [state, dispatch] = useLocalTasksState();

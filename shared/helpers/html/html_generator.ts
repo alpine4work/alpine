@@ -1,8 +1,8 @@
 import escapeHtml from "escape-html";
 import voidHtmlTagNames from "html-tags/void";
-import {assert} from "~/shared/helpers/control/assert";
-import {isIdentifier} from "~/shared/helpers/string/is_identifier";
-import {quote} from "~/shared/helpers/string/quote";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 
 export interface HtmlGenerator {
     generateHtml(): string;

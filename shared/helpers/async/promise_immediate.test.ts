@@ -1,6 +1,6 @@
-import {InternalError} from "~/shared/error/error";
-import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate";
-import {Result} from "~/shared/helpers/control/result";
+import {InternalError} from "~/shared/error/error.js";
+import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
+import {Result} from "~/shared/helpers/control/result.js";
 
 async function wait(ms: number = 0) {
     return new Promise(resolve => setTimeout(resolve, ms));

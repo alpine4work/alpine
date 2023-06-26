@@ -1,4 +1,4 @@
-import {Schema} from "~/shared/schema/schema";
+import {Schema} from "~/shared/schema/schema.js";
 
 export const minLabelString = String.fromCharCode(0);
 export const maxLabelString = String.fromCharCode(0xffff);

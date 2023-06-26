@@ -1,7 +1,7 @@
-import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name";
-import {missingAccountName} from "~/shared/accounts/missing_account_name";
-import {ContentMention} from "~/shared/content/content_mention";
-import {ContentReferences} from "~/shared/content/content_references";
+import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name.js";
+import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
+import {ContentMention} from "~/shared/content/content_mention.js";
+import {ContentReferences} from "~/shared/content/content_references.js";
 
 /**
  * Get the text to display for a content mention.

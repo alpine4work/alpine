@@ -4,14 +4,14 @@ import {Plus, SpinnerGap} from "phosphor-react";
 import {useEffect, useRef, useState} from "react";
 import {mergeProps, useHover, useOption} from "react-aria";
 import {ComboBoxState} from "react-stately";
-import {Box} from "~/client/design/box";
-import {buttonPressedOverlayOpacity} from "~/client/design/button";
-import {FocusRing} from "~/client/design/focus_ring";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {spacing} from "~/shared/design/spacing";
-import {createTimeout} from "~/shared/helpers/async/timeout";
-import {spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
+import {Box} from "~/client/design/box.js";
+import {buttonPressedOverlayOpacity} from "~/client/design/button.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {spacing} from "~/shared/design/spacing.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 
 export function TaskCollectionsListBoxCreateCollectionOption<T>({
     comboBoxState,

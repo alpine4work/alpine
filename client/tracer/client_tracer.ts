@@ -5,12 +5,12 @@ import {
     unstable_cancelCallback,
     unstable_scheduleCallback,
 } from "scheduler";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
-import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error";
-import {assert} from "~/shared/helpers/control/assert";
-import {TracerEvent} from "~/shared/tracer/tracer_event";
-import {TracerRoot} from "~/shared/tracer/tracer_root";
+import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {TracerEvent} from "~/shared/tracer/tracer_event.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
 /**
  * Creates a tracer to be used in a web browser.

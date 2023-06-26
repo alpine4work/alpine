@@ -1,37 +1,41 @@
 import {createVar, globalStyle, style} from "@vanilla-extract/css";
 import Color from "color";
-import {colors} from "~/shared/design/colors";
-import {colorByHighlightColor} from "~/shared/design/highlight_color";
+import {colors} from "~/shared/design/colors.js";
+import {colorByHighlightColor} from "~/shared/design/highlight_color.js";
 import {
     RemLength,
     addRemLengths,
     mobilePlatformMediaQuery,
     parseRemLengthNumber,
     spacing,
-} from "~/shared/design/spacing";
-import {assert} from "~/shared/helpers/control/assert";
-import {lerp} from "~/shared/helpers/number/lerp";
-import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
-import {omitObject} from "~/shared/helpers/object/omit_object";
-import {borderRadius} from "~/shared/styles/internal/border_radius.css";
+} from "~/shared/design/spacing.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {lerp} from "~/shared/helpers/number/lerp.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {borderRadius} from "~/shared/styles/internal/border_radius.css.js";
 import {
     CssVarFunction,
     colorSchemeVars,
     darkColorSchemeSelector,
     invertedColors,
-} from "~/shared/styles/internal/color_scheme.css";
+} from "~/shared/styles/internal/color_scheme.css.js";
 import {
     backgroundFontSizePercentage,
     fontSizes,
     fontStyles,
-} from "~/shared/styles/internal/fonts.css";
+} from "~/shared/styles/internal/fonts.css.js";
 import {
     extrapolateHighlightColor,
     extrapolateHighlightRawColorWithoutBounds,
-} from "~/shared/styles/internal/helpers/extrapolate_highlight_color";
-import {RawColor, parseRawColor, printRawColor} from "~/shared/styles/internal/helpers/raw_color";
-import {inputPlaceholderStyles} from "~/shared/styles/internal/input_placeholder.css";
-import {peekContainerClassName} from "~/shared/styles/internal/peek.css";
+} from "~/shared/styles/internal/helpers/extrapolate_highlight_color.js";
+import {
+    RawColor,
+    parseRawColor,
+    printRawColor,
+} from "~/shared/styles/internal/helpers/raw_color.js";
+import {inputPlaceholderStyles} from "~/shared/styles/internal/input_placeholder.css.js";
+import {peekContainerClassName} from "~/shared/styles/internal/peek.css.js";
 
 // TODO(calebmer): Running list of style tweaks to explore.
 //

@@ -1,8 +1,8 @@
 import {HtmlMetaDescriptor, MetaFunction} from "@remix-run/server-runtime";
 import {Location, Params} from "react-router-dom";
-import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema";
-import {metaDefaultTitle, metaTitlePostfix} from "~/client/remix/use_update_meta_title";
-import {Schema} from "~/shared/schema/schema";
+import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
+import {metaDefaultTitle, metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 /**
  * Create a new meta function that can use data serialized by a `loader`

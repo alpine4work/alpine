@@ -1,4 +1,4 @@
-import {BlockInference} from "~/shared/helpers/types/block_inference";
+import {BlockInference} from "~/shared/helpers/types/block_inference.js";
 
 /**
  * The limited map interface we need to implement `getOrSetDefaultMapValue()`.

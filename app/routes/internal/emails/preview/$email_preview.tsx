@@ -2,22 +2,22 @@ import {Link, ShouldReloadFunction, useParams} from "@remix-run/react";
 import {Code, Desktop, DeviceMobileCamera, EnvelopeSimple, IconContext} from "phosphor-react";
 import {ReactNode, useRef} from "react";
 import {useButton} from "react-aria";
-import {Box} from "~/client/design/box";
-import {ErrorBodyRenderer} from "~/client/design/error_body_renderer";
-import {FocusRing} from "~/client/design/focus_ring";
-import {Tooltip} from "~/client/design/tooltip";
-import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
-import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
-import {useUrlSearchParamState} from "~/client/remix/use_url_search_param_state";
-import {getEmailTemplatePreviewBySlug} from "~/server/emails/get_email_template_preview_by_slug";
-import {jsonWithSchema} from "~/server/remix/json_with_schema";
-import {LoaderArgs} from "~/server/remix/loader_context";
-import {notFoundResponse} from "~/server/remix/not_found_response";
-import {spacing} from "~/shared/design/spacing";
-import {ErrorSchema} from "~/shared/error/error_schema";
-import {captureResult} from "~/shared/helpers/control/capture_result";
-import {Schema} from "~/shared/schema/schema";
-import {sprinkles} from "~/shared/styles/styles";
+import {Box} from "~/client/design/box.js";
+import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {Tooltip} from "~/client/design/tooltip.js";
+import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
+import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
+import {useUrlSearchParamState} from "~/client/remix/use_url_search_param_state.js";
+import {getEmailTemplatePreviewBySlug} from "~/server/emails/get_email_template_preview_by_slug.js";
+import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
+import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {notFoundResponse} from "~/server/remix/not_found_response.js";
+import {spacing} from "~/shared/design/spacing.js";
+import {ErrorSchema} from "~/shared/error/error_schema.js";
+import {captureResult} from "~/shared/helpers/control/capture_result.js";
+import {Schema} from "~/shared/schema/schema.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 
 export function meta() {
     return {

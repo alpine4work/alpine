@@ -1,13 +1,13 @@
 import {fireEvent, render, screen} from "@testing-library/react";
 import {Mark, Node} from "prosemirror-model";
 import {useState} from "react";
-import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor";
-import {ContentEditorState} from "~/client/content/content_editor_state";
-import {emptyContentReferences} from "~/shared/content/content_references";
+import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor.js";
+import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
-} from "~/shared/documents/document_content_schema";
+} from "~/shared/documents/document_content_schema.js";
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
 

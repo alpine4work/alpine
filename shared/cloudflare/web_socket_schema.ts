@@ -2,13 +2,13 @@ import {
     WebSocketProtocolBase,
     WebSocketProtocolEventType,
     WebSocketProtocolProceduresType,
-} from "~/shared/cloudflare/web_socket_protocol";
-import {ErrorSchema} from "~/shared/error/error_schema";
-import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
-import {WebSocketProcedureRequestId} from "~/shared/id/types/id_types";
-import {Schema} from "~/shared/schema/schema";
-import {TracerPropagationContextSchema} from "~/shared/tracer/tracer_propagation_context_schema";
-import {TracerSpanPropagationContext} from "~/shared/tracer/tracer_span";
+} from "~/shared/cloudflare/web_socket_protocol.js";
+import {ErrorSchema} from "~/shared/error/error_schema.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {WebSocketProcedureRequestId} from "~/shared/id/types/id_types.js";
+import {Schema} from "~/shared/schema/schema.js";
+import {TracerPropagationContextSchema} from "~/shared/tracer/tracer_propagation_context_schema.js";
+import {TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.js";
 
 /**
  * The schema for a message sent from the client to the server. Messages for

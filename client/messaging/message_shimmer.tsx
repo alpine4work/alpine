@@ -1,6 +1,6 @@
 import {useRef} from "react";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {MessageList} from "~/client/messaging/message_list";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {MessageList} from "~/client/messaging/message_list.js";
 import {
     defaultMessageViewMarginX,
     getMessageBubbleMarginLeft,
@@ -8,22 +8,22 @@ import {
     messageViewBubbleMergedBorderRadius,
     messageViewMarginY,
     messageViewMergedMarginY,
-} from "~/client/messaging/message_view";
-import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {StableRandom} from "~/shared/helpers/number/stable_random";
-import {MessageModel, MessageModelBase} from "~/shared/messaging/message_model";
+} from "~/client/messaging/message_view.js";
+import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.js";
+import {MessageModel, MessageModelBase} from "~/shared/messaging/message_model.js";
 import {
     messageViewBubbleBorderRadius,
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
-} from "~/shared/messaging/messaging_shared_styles";
+} from "~/shared/messaging/messaging_shared_styles.js";
 import {
     contentSchemaStyles,
     fontSizes,
     pulseAnimationClassName,
     sprinkles,
-} from "~/shared/styles/styles";
+} from "~/shared/styles/styles.js";
 
 // We repeat sizes to make them appear more frequently when randomly selecting
 // a size.

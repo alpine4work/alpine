@@ -1,4 +1,4 @@
-import {assert} from "~/shared/helpers/control/assert";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
  * An attribute that points to the element which owns the attributed element.

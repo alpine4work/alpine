@@ -1,4 +1,4 @@
-import {colorSchemeVars} from "~/shared/styles/internal/color_scheme.css";
+import {colorSchemeVars} from "~/shared/styles/internal/color_scheme.css.js";
 
 /**
  * Styles associated with an input placeholder.

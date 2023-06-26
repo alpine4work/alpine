@@ -1,24 +1,27 @@
 import {
     WebSocketProtocolEventType,
     defineWebSocketProtocol,
-} from "~/shared/cloudflare/web_socket_protocol";
-import {DocumentContentReferencesSchema} from "~/shared/documents/document_content_references";
-import {DocumentContentStepSchema} from "~/shared/documents/document_content_schema";
-import {DocumentCommentModel, DocumentCommentThreadModel} from "~/shared/documents/document_model";
-import {ErrorSchema} from "~/shared/error/error_schema";
+} from "~/shared/cloudflare/web_socket_protocol.js";
+import {DocumentContentReferencesSchema} from "~/shared/documents/document_content_references.js";
+import {DocumentContentStepSchema} from "~/shared/documents/document_content_schema.js";
+import {
+    DocumentCommentModel,
+    DocumentCommentThreadModel,
+} from "~/shared/documents/document_model.js";
+import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {
     ContentEditorClientId,
     DocumentCommentThreadId,
     WebSocketConnectionId,
-} from "~/shared/id/types/id_types";
-import {MessageChangeSchema} from "~/shared/messaging/message_change_schema";
-import {MessageContentSchema} from "~/shared/messaging/message_content_schema";
+} from "~/shared/id/types/id_types.js";
+import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
+import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {
     MessagingTypingStateSchema,
     createMessagingRealtimeEventSchemas,
-} from "~/shared/messaging/messaging_realtime_protocol";
-import {ProsemirrorSelectionSchema} from "~/shared/prosemirror/prosemirror_selection_schema";
-import {Schema, SchemaType} from "~/shared/schema/schema";
+} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {ProsemirrorSelectionSchema} from "~/shared/prosemirror/prosemirror_selection_schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 export type DocumentCollaborationPresenceState = SchemaType<
     typeof DocumentCollaborationPresenceStateSchema

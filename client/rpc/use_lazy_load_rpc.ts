@@ -1,8 +1,8 @@
 import {useMemo, useRef} from "react";
 import useSwr, {preload} from "swr";
-import {AppContext, useAppContext} from "~/client/context/app_context";
-import {Replace} from "~/shared/helpers/types/replace";
-import {RpcDefinition} from "~/shared/rpc/rpc_definition";
+import {AppContext, useAppContext} from "~/client/context/app_context.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
+import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
 
 function createFetcher<Input, Output extends {}>(
     context: AppContext,

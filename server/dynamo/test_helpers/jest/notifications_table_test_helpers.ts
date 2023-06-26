@@ -1,17 +1,17 @@
-import {SessionItem, getAccountsTableForTest} from "~/server/dynamo/accounts_table";
-import {getSpacesTableForTest} from "~/server/dynamo/spaces_table";
-import {TestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
-import {AccountModel} from "~/shared/accounts/account_model";
-import {DynamoGeneralRealtimeIndexQueryResult} from "~/shared/dynamo/dynamo_general_realtime_types";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
-import {assert} from "~/shared/helpers/control/assert";
-import {generateId} from "~/shared/id/id";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types";
+import {SessionItem, getAccountsTableForTest} from "~/server/dynamo/accounts_table.js";
+import {getSpacesTableForTest} from "~/server/dynamo/spaces_table.js";
+import {TestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {DynamoGeneralRealtimeIndexQueryResult} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {generateId} from "~/shared/id/id.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
-} from "~/shared/messaging/message_content_schema";
-import {InboxEntryModel} from "~/shared/notifications/inbox_model";
+} from "~/shared/messaging/message_content_schema.js";
+import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 
 // Notification table test helpers can only be used in Jest.
 assert(typeof jest !== "undefined");

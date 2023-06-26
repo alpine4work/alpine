@@ -4,9 +4,9 @@ import createTree, {
     Node as TreeNode,
 } from "functional-red-black-tree";
 import {Key} from "react";
-import {InternalError, OutOfRangeError} from "~/shared/error/error";
-import {assert} from "~/shared/helpers/control/assert";
-import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order_key";
+import {InternalError, OutOfRangeError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.js";
 
 /**
  * Immutable data structure for building virtualized tree UIs with

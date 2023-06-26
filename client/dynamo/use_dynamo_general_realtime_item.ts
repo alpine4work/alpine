@@ -1,10 +1,10 @@
 import {Memo, useEffect, useRef, useState} from "react";
-import {useAppContext} from "~/client/context/app_context";
+import {useAppContext} from "~/client/context/app_context.js";
 import {
     DynamoGeneralRealtimeEvent,
     DynamoGeneralRealtimeItem,
-} from "~/shared/dynamo/dynamo_general_realtime_types";
-import {DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings";
+} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
 
 /**
  * Keep an item from our DynamoDB realtime framework up-to-date on the client.

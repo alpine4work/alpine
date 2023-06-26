@@ -1,43 +1,43 @@
-import {DynamoEmailAddressSchema} from "~/server/dynamo/internal/dynamo_email_address_schema";
-import {EmailAddress} from "~/server/emails/email_address";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
+import {DynamoEmailAddressSchema} from "~/server/dynamo/internal/dynamo_email_address_schema.js";
+import {EmailAddress} from "~/server/emails/email_address.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {
     DateString,
     deserializeDateString,
     isDateString,
     serializeDateString,
-} from "~/shared/helpers/date/date_string";
+} from "~/shared/helpers/date/date_string.js";
 import {
     maxIsoLexicographicallySortableDate,
     minIsoLexicographicallySortableDate,
-} from "~/shared/helpers/date/max_date";
-import {clamp} from "~/shared/helpers/number/clamp";
+} from "~/shared/helpers/date/max_date.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
 import {
     ElenFloat,
     decodeElenFloatIfPossible,
     encodeElenFloat,
-} from "~/shared/helpers/number/elen_float";
+} from "~/shared/helpers/number/elen_float.js";
 import {
     ElenInteger,
     decodeElenIntegerIfPossible,
     encodeElenInteger,
-} from "~/shared/helpers/number/elen_integer";
+} from "~/shared/helpers/number/elen_integer.js";
 import {
     OrderKey,
     isOrderKey,
     maxOrderKey,
     minOrderKey,
     orderKeyDigits,
-} from "~/shared/helpers/sort/order_key";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
-import {Id, decodeIdInto, encodeId, getMaxId, getMinId, isId} from "~/shared/id/id";
+} from "~/shared/helpers/sort/order_key.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {Id, decodeIdInto, encodeId, getMaxId, getMinId, isId} from "~/shared/id/id.js";
 import {
     LabelStringSchema,
     maxLabelString,
     minLabelString,
-} from "~/shared/schema/label_string_schema";
+} from "~/shared/schema/label_string_schema.js";
 
 /**
  * An attribute of a DynamoDB key is an ASCII string excluding the `#`

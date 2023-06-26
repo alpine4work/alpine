@@ -2,17 +2,17 @@ import {
     createDynamoGeneralRealtimeBackfillResultSchema,
     createDynamoGeneralRealtimeIndexQuerySchema,
     createDynamoGeneralRealtimeItemSchema,
-} from "~/shared/dynamo/dynamo_general_realtime_types";
-import {DynamoIndexCursorSchema} from "~/shared/dynamo/dynamo_opaque_strings";
-import {PostModel} from "~/shared/forum/post_model";
-import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types";
+} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {DynamoIndexCursorSchema} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {PostModel} from "~/shared/forum/post_model.js";
+import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
     InboxEntryKeySchema,
     InboxEntryModelSchema,
     InboxModel,
-} from "~/shared/notifications/inbox_model";
-import {defineRpc} from "~/shared/rpc/internal/define_rpc";
-import {Schema} from "~/shared/schema/schema";
+} from "~/shared/notifications/inbox_model.js";
+import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export const getInboxWithStrongReadConsistency = defineRpc({
     name: "getInboxWithStrongReadConsistency",

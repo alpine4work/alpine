@@ -1,9 +1,9 @@
 import {TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {RefObject, useCallback} from "react";
-import {useDevConsoleTool} from "~/client/dev/dev_console";
-import {wait} from "~/shared/helpers/async/wait";
-import {assert} from "~/shared/helpers/control/assert";
+import {useDevConsoleTool} from "~/client/dev/dev_console.js";
+import {wait} from "~/shared/helpers/async/wait.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
  * Add a `ContentEditorDebugTools` object with some helpers in debug

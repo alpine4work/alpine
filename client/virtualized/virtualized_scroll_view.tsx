@@ -13,38 +13,38 @@ import {
     useRef,
     useState,
 } from "react";
-import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px";
-import {OverlayScopeContextProvider} from "~/client/design/overlay";
-import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants";
-import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit";
-import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render";
-import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
+import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
+import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
+import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {
     addResizeListenerForElement,
     removeResizeListenerForElement,
-} from "~/client/helpers/use_resize_observer";
-import {useClientInfo} from "~/client/remix/client_info_context";
+} from "~/client/helpers/use_resize_observer.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {
     VirtualizedScrollViewState,
     VirtualizedScrollViewStateRenderItemProps,
     getVirtualizationWindowHeight,
-} from "~/client/virtualized/virtualized_scroll_view_state";
-import {RemLength, convertRemLengthToPx, getRemPxFromWindowWidth} from "~/shared/design/spacing";
-import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint";
-import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
-import {clamp} from "~/shared/helpers/number/clamp";
-import {safe} from "~/shared/helpers/string/safe_string";
-import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit";
-import {ClientInfo} from "~/shared/remix/client_info";
-import {sprinkles} from "~/shared/styles/styles";
+} from "~/client/virtualized/virtualized_scroll_view_state.js";
+import {RemLength, convertRemLengthToPx, getRemPxFromWindowWidth} from "~/shared/design/spacing.js";
+import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
+import {safe} from "~/shared/helpers/string/safe_string.js";
+import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
+import {ClientInfo} from "~/shared/remix/client_info.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 
 // NOTE(calebmer, 2023-02-17): An observation I've had after working on
 // scrolling for a while is it is better to have a scroll animation that drops

@@ -1,6 +1,6 @@
-import {assert} from "~/shared/helpers/control/assert";
-import {deserializedValueSymbol} from "~/shared/remix/json_with_schema_shared";
-import {Schema, SchemaSerializedValue} from "~/shared/schema/schema";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {deserializedValueSymbol} from "~/shared/remix/json_with_schema_shared.js";
+import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 /**
  * Gets data returned by a loader. Loader data is serialized with a schema so

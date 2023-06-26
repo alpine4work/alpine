@@ -1,6 +1,6 @@
 import {globalStyle, style} from "@vanilla-extract/css";
-import {linkClassName, mentionClassName} from "~/shared/styles/internal/content_schema.css";
-import {backgroundFontSizePercentage} from "~/shared/styles/internal/fonts.css";
+import {linkClassName, mentionClassName} from "~/shared/styles/internal/content_schema.css.js";
+import {backgroundFontSizePercentage} from "~/shared/styles/internal/fonts.css.js";
 
 export const containerClassName = style({
     height: "100%",

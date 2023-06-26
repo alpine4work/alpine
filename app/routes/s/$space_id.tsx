@@ -1,25 +1,25 @@
 import {Outlet, ShouldReloadFunction} from "@remix-run/react";
 import {LinkDescriptor} from "@remix-run/server-runtime";
 import {useEffect} from "react";
-import {Box} from "~/client/design/box";
-import {ContextMenuManager} from "~/client/design/context_menu";
-import {attachDevConsoleForAccountInProduction} from "~/client/dev/dev_console";
-import {PeekStackContextProvider} from "~/client/peek/peek_stack";
-import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
-import {SpaceLayoutTopBar} from "~/client/spaces/layout/space_layout_top_bar";
-import {SpaceContextProvider} from "~/client/spaces/space_context";
-import {getInbox} from "~/server/dynamo/notifications_table";
-import {getSpaceWithOptimisticSessionAccountId} from "~/server/dynamo/spaces_table";
-import {jsonWithSchema} from "~/server/remix/json_with_schema";
-import {LoaderArgs} from "~/server/remix/loader_context";
-import {AccountModel} from "~/shared/accounts/account_model";
-import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types";
-import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises";
-import {SpaceId} from "~/shared/id/types/id_types";
-import {InboxModel} from "~/shared/notifications/inbox_model";
-import {Schema} from "~/shared/schema/schema";
-import {SpaceModel} from "~/shared/spaces/space_model";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
+import {Box} from "~/client/design/box.js";
+import {ContextMenuManager} from "~/client/design/context_menu.js";
+import {attachDevConsoleForAccountInProduction} from "~/client/dev/dev_console.js";
+import {PeekStackContextProvider} from "~/client/peek/peek_stack.js";
+import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
+import {SpaceLayoutTopBar} from "~/client/spaces/layout/space_layout_top_bar.js";
+import {SpaceContextProvider} from "~/client/spaces/space_context.js";
+import {getInbox} from "~/server/dynamo/notifications_table.js";
+import {getSpaceWithOptimisticSessionAccountId} from "~/server/dynamo/spaces_table.js";
+import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
+import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
+import {InboxModel} from "~/shared/notifications/inbox_model.js";
+import {Schema} from "~/shared/schema/schema.js";
+import {SpaceModel} from "~/shared/spaces/space_model.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 export const LoaderSchema = Schema.object({
     space: SpaceModel.schema(),

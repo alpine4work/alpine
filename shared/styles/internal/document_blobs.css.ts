@@ -1,10 +1,10 @@
 import {style} from "@vanilla-extract/css";
-import {mobilePlatformMediaQuery} from "~/shared/design/spacing";
+import {mobilePlatformMediaQuery} from "~/shared/design/spacing.js";
 import {
     desktopTitlePaddingTop,
     mobileOrPeekTitlePaddingTop,
-} from "~/shared/styles/internal/content_schema.css";
-import {peekContainerClassName} from "~/shared/styles/internal/peek.css";
+} from "~/shared/styles/internal/content_schema.css.js";
+import {peekContainerClassName} from "~/shared/styles/internal/peek.css.js";
 
 export const blobsClassName = style({
     zIndex: -50,

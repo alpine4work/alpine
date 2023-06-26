@@ -7,8 +7,8 @@ import {
 } from "prosemirror-inputrules";
 import {MarkType, NodeType} from "prosemirror-model";
 import {findWrapping} from "prosemirror-transform";
-import {ContentProsemirrorSchema} from "~/shared/content/content_schema";
-import {assert} from "~/shared/helpers/control/assert";
+import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 export const openMentionFloaterMetaKey = "openMentionFloater";
 

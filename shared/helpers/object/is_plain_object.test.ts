@@ -1,4 +1,4 @@
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object";
+import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 
 test("will say undefined is not a plain object", () => {
     expect(isPlainObject(undefined)).toEqual(false);

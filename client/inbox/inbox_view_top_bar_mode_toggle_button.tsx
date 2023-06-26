@@ -1,6 +1,6 @@
-import {Box} from "~/client/design/box";
-import {Button} from "~/client/design/button";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
+import {Box} from "~/client/design/box.js";
+import {Button} from "~/client/design/button.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 
 export function InboxViewTopBarModeToggleButton({
     filter,

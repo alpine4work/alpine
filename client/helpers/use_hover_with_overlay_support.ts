@@ -1,6 +1,6 @@
 import {RefCallback, useCallback, useEffect, useRef, useState} from "react";
-import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 /**
  * A better implementation of `react-aria`'s `useHover()` that follows our

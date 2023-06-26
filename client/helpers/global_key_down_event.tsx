@@ -10,9 +10,9 @@ import {
     useRef,
     useState,
 } from "react";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error";
-import {assert} from "~/shared/helpers/control/assert";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 type GlobalKeyDownEventContext = {
     readonly childListeners: Set<(event: KeyboardEvent) => void>;

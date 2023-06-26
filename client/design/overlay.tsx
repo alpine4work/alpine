@@ -16,22 +16,22 @@ import {
     useState,
 } from "react";
 import {createPortal} from "react-dom";
-import {Box} from "~/client/design/box";
-import {setElementAttributesWithCleanup} from "~/client/design/helpers/set_element_attributes_with_cleanup";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref";
-import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref";
+import {Box} from "~/client/design/box.js";
+import {setElementAttributesWithCleanup} from "~/client/design/helpers/set_element_attributes_with_cleanup.js";
+import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
+import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {
     addResizeListenerForElement,
     removeResizeListenerForElement,
-} from "~/client/helpers/use_resize_observer";
-import {useStableJsonValue} from "~/client/helpers/use_stable_json_value";
-import {RemLength, Spacing, convertRemLengthToPx, spacing} from "~/shared/design/spacing";
-import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
-import {assert} from "~/shared/helpers/control/assert";
-import {noop} from "~/shared/helpers/control/noop";
-import {sprinkles} from "~/shared/styles/styles";
+} from "~/client/helpers/use_resize_observer.js";
+import {useStableJsonValue} from "~/client/helpers/use_stable_json_value.js";
+import {RemLength, Spacing, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {noop} from "~/shared/helpers/control/noop.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 
 /**
  * Where should the overlay content be placed relative to the target element?

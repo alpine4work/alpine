@@ -1,4 +1,4 @@
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 
 /**
  * Allow producers to emit events to many consumers.

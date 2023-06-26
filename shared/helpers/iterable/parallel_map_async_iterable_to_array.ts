@@ -1,4 +1,4 @@
-import {isSystemError} from "~/shared/error/is_system_error_code";
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
 
 /**
  * Map every value in the async iterable in parallel and return the result as

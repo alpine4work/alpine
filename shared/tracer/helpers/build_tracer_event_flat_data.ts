@@ -1,5 +1,5 @@
-import {LinkedList} from "~/shared/helpers/immutable/linked_list";
-import {TracerEventDataBase} from "~/shared/tracer/types/tracer_event_data";
+import {LinkedList} from "~/shared/helpers/immutable/linked_list.js";
+import {TracerEventDataBase} from "~/shared/tracer/types/tracer_event_data.js";
 
 export type TracerEventFlatData = {
     [key: string]: string | number | boolean;

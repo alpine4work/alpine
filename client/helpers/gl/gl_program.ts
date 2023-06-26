@@ -1,8 +1,8 @@
 import Color from "color";
-import {Gl} from "~/client/helpers/gl/gl";
-import {GlShader} from "~/client/helpers/gl/gl_shader";
-import {GlTexture2d} from "~/client/helpers/gl/gl_texture_2d";
-import {GlVertexAttribType, glEnum} from "~/client/helpers/gl/gl_types";
+import {Gl} from "~/client/helpers/gl/gl.js";
+import {GlShader} from "~/client/helpers/gl/gl_shader.js";
+import {GlTexture2d} from "~/client/helpers/gl/gl_texture_2d.js";
+import {GlVertexAttribType, glEnum} from "~/client/helpers/gl/gl_types.js";
 import {
     GlUniform,
     GlUniformBool,
@@ -11,11 +11,11 @@ import {
     GlUniformFloat,
     GlUniformTexture2d,
     GlUniformVector2,
-} from "~/client/helpers/gl/gl_uniform";
-import {GlVertexArray} from "~/client/helpers/gl/gl_vertex_array";
-import {InternalError} from "~/shared/error/error";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {Vector2} from "~/shared/helpers/geometry/vector2";
+} from "~/client/helpers/gl/gl_uniform.js";
+import {GlVertexArray} from "~/client/helpers/gl/gl_vertex_array.js";
+import {InternalError} from "~/shared/error/error.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {Vector2} from "~/shared/helpers/geometry/vector2.js";
 
 export class GlProgram {
     readonly program: WebGLProgram;

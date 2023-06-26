@@ -1,7 +1,7 @@
 import {Node, Schema as ProsemirrorSchema} from "prosemirror-model";
-import {assert} from "~/shared/helpers/control/assert";
-import {createSchemaForProsemirrorSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema";
-import {Schema} from "~/shared/schema/schema";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {createSchemaForProsemirrorSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 /**
  * We use ProseMirror for task titles. Task titles are short single line

@@ -1,13 +1,13 @@
-import {ChatRealtimeConnection} from "~/server/chat/chat_realtime_connection";
-import {createDurableObject} from "~/server/cloudflare/create_durable_object";
-import {WebSocketServer} from "~/server/cloudflare/web_socket_server";
-import {authorizeChatAccess} from "~/server/dynamo/chat_table";
-import {ActionContext, SessionActionContext} from "~/server/dynamo/context/action_context";
-import {ProcessContext} from "~/server/dynamo/context/process_context";
-import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol";
-import {NotFoundError} from "~/shared/error/error";
-import {ChatId, SpaceId} from "~/shared/id/types/id_types";
-import {Schema} from "~/shared/schema/schema";
+import {ChatRealtimeConnection} from "~/server/chat/chat_realtime_connection.js";
+import {createDurableObject} from "~/server/cloudflare/create_durable_object.js";
+import {WebSocketServer} from "~/server/cloudflare/web_socket_server.js";
+import {authorizeChatAccess} from "~/server/dynamo/chat_table.js";
+import {ActionContext, SessionActionContext} from "~/server/dynamo/context/action_context.js";
+import {ProcessContext} from "~/server/dynamo/context/process_context.js";
+import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
+import {NotFoundError} from "~/shared/error/error.js";
+import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 class ChatRealtimeDurableObject {
     public static readonly serviceName = "ChatRealtimeService";

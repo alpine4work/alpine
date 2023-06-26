@@ -1,30 +1,30 @@
 import {useMemo, useRef, useState} from "react";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
-import {usePeekContext} from "~/client/peek/peek_remix_embed";
-import {usePeekStackContext} from "~/client/peek/peek_stack";
-import {useClientInfo} from "~/client/remix/client_info_context";
-import {useNavigate} from "~/client/remix/use_navigate";
-import {useSpaceContext} from "~/client/spaces/space_context";
-import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/demo_2/internal/task_delete_confirmation_modal_dialog";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
+import {usePeekContext} from "~/client/peek/peek_remix_embed.js";
+import {usePeekStackContext} from "~/client/peek/peek_stack.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/demo_2/internal/task_delete_confirmation_modal_dialog.js";
 import {
     LocalTask,
     LocalTasksAction,
     LocalTasksMoveTaskFrom,
     LocalTasksState,
-} from "~/client/tasks/demo_2/local_tasks_state";
+} from "~/client/tasks/demo_2/local_tasks_state.js";
 import {
     TaskDetailPresentationalView,
     TaskDetailPresentationalViewRef,
-} from "~/client/tasks/demo_2/task_detail_presentational_view";
+} from "~/client/tasks/demo_2/task_detail_presentational_view.js";
 import {
     TaskGridPresentationalView,
     minTaskCountToShowTopGhostTask,
-} from "~/client/tasks/demo_2/task_grid_presentational_view";
-import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
-import {OrderKey} from "~/shared/helpers/sort/order_key";
-import {generateId} from "~/shared/id/id";
-import {LocalTaskId} from "~/shared/id/types/id_types";
+} from "~/client/tasks/demo_2/task_grid_presentational_view.js";
+import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
+import {OrderKey} from "~/shared/helpers/sort/order_key.js";
+import {generateId} from "~/shared/id/id.js";
+import {LocalTaskId} from "~/shared/id/types/id_types.js";
 
 type TaskViewChildTasksGridViewRowPosition = {
     parentTask: {id: LocalTaskId; orderKey: OrderKey};

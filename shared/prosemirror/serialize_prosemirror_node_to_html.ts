@@ -1,14 +1,14 @@
 import {DOMOutputSpec, Fragment, Mark, Node} from "prosemirror-model";
-import {assert} from "~/shared/helpers/control/assert";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {
     HtmlContainerGenerator,
     HtmlElementGenerator,
     HtmlFragmentGenerator,
     HtmlGenerator,
     HtmlTextGenerator,
-} from "~/shared/helpers/html/html_generator";
-import {clamp} from "~/shared/helpers/number/clamp";
+} from "~/shared/helpers/html/html_generator.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
 
 /**
  * Options for customizing ProseMirror HTML serialization. Similar set of

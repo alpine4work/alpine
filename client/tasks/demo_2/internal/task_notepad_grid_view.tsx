@@ -1,27 +1,27 @@
 import {Dispatch, Ref, SetStateAction, forwardRef, useMemo, useRef, useState} from "react";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
-import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
-import {usePeekStackContext} from "~/client/peek/peek_stack";
-import {useClientInfo} from "~/client/remix/client_info_context";
-import {useSpaceContext} from "~/client/spaces/space_context";
-import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/demo_2/internal/task_delete_confirmation_modal_dialog";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
+import {usePeekStackContext} from "~/client/peek/peek_stack.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/demo_2/internal/task_delete_confirmation_modal_dialog.js";
 import {
     LocalTask,
     LocalTasksAction,
     LocalTasksMoveTaskFrom,
     LocalTasksState,
-} from "~/client/tasks/demo_2/local_tasks_state";
+} from "~/client/tasks/demo_2/local_tasks_state.js";
 import {
     TaskGridPresentationalView,
     TaskGridPresentationalViewRef,
     minTaskCountToShowTopGhostTask,
-} from "~/client/tasks/demo_2/task_grid_presentational_view";
-import {useTaskGhostRowPlaceholderTutorial} from "~/client/tasks/demo_2/use_task_ghost_row_placeholder_tutorial";
-import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
-import {OrderKey} from "~/shared/helpers/sort/order_key";
-import {generateId} from "~/shared/id/id";
-import {LocalTaskId} from "~/shared/id/types/id_types";
+} from "~/client/tasks/demo_2/task_grid_presentational_view.js";
+import {useTaskGhostRowPlaceholderTutorial} from "~/client/tasks/demo_2/use_task_ghost_row_placeholder_tutorial.js";
+import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
+import {OrderKey} from "~/shared/helpers/sort/order_key.js";
+import {generateId} from "~/shared/id/id.js";
+import {LocalTaskId} from "~/shared/id/types/id_types.js";
 
 const TaskNotepadGridViewForwardRef = forwardRef(TaskNotepadGridView);
 export {TaskNotepadGridViewForwardRef as TaskNotepadGridView};

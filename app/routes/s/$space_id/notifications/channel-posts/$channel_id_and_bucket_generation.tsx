@@ -1,21 +1,21 @@
 import {MetaFunction} from "@remix-run/server-runtime";
-import {useAppContext} from "~/client/context/app_context";
-import {postContentViewMinHeight} from "~/client/forum/post_content_view";
-import {PostListView} from "~/client/forum/post_list_view";
-import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
-import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
-import {useSpaceContext} from "~/client/spaces/space_context";
-import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view";
-import {jsonWithSchema} from "~/server/remix/json_with_schema";
-import {LoaderArgs} from "~/server/remix/loader_context";
-import {InvalidArgumentError} from "~/shared/error/error";
-import {PostModel} from "~/shared/forum/post_model";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {isId} from "~/shared/id/id";
-import {ChannelId, SpaceId} from "~/shared/id/types/id_types";
-import {getInboxChannelPostsEntryPosts} from "~/shared/rpc/notifications_rpc_definitions";
-import {Schema} from "~/shared/schema/schema";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
+import {useAppContext} from "~/client/context/app_context.js";
+import {postContentViewMinHeight} from "~/client/forum/post_content_view.js";
+import {PostListView} from "~/client/forum/post_list_view.js";
+import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
+import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view.js";
+import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
+import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
+import {PostModel} from "~/shared/forum/post_model.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {isId} from "~/shared/id/id.js";
+import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {getInboxChannelPostsEntryPosts} from "~/shared/rpc/notifications_rpc_definitions.js";
+import {Schema} from "~/shared/schema/schema.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({
     channelId: Schema.id<ChannelId>(),

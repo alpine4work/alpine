@@ -1,24 +1,24 @@
 import {Lock} from "phosphor-react";
 import {Ref, RefCallback, forwardRef, useImperativeHandle, useRef} from "react";
-import {Box} from "~/client/design/box";
-import {useIsChildFocusRingVisible} from "~/client/design/focus_ring";
-import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element";
-import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
-import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support";
-import {TaskCollectionChip} from "~/client/tasks/demo_2/internal/task_collection_chip";
-import {TaskCollectionsInput} from "~/client/tasks/demo_2/internal/task_collections_input";
+import {Box} from "~/client/design/box.js";
+import {useIsChildFocusRingVisible} from "~/client/design/focus_ring.js";
+import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
+import {TaskCollectionChip} from "~/client/tasks/demo_2/internal/task_collection_chip.js";
+import {TaskCollectionsInput} from "~/client/tasks/demo_2/internal/task_collections_input.js";
 import {
     taskRowViewCollectionsColumnWidth,
     taskRowViewColumnPaddingX,
     taskRowViewLastColumnPaddingRight,
     taskRowViewMinHeight,
-} from "~/client/tasks/demo_2/internal/task_row_shared_styles";
-import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
-import {addRemLengths, spacing, subtractRemLengths} from "~/shared/design/spacing";
-import {ThemeColor} from "~/shared/design/theme_colors";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {LocalTaskCollectionId} from "~/shared/id/types/id_types";
-import {colorSchemeVars, inputPlaceholderStyles} from "~/shared/styles/styles";
+} from "~/client/tasks/demo_2/internal/task_row_shared_styles.js";
+import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state.js";
+import {addRemLengths, spacing, subtractRemLengths} from "~/shared/design/spacing.js";
+import {ThemeColor} from "~/shared/design/theme_colors.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {LocalTaskCollectionId} from "~/shared/id/types/id_types.js";
+import {colorSchemeVars, inputPlaceholderStyles} from "~/shared/styles/styles.js";
 
 export type TaskRowCollectionsCellRef = {
     focusStart(): void;

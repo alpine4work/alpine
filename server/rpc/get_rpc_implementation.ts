@@ -1,7 +1,7 @@
 import {
     RpcImplementation,
     getRpcImplementationIfExists as _getRpcImplementationIfExists,
-} from "~/server/rpc/internal/implement_rpc";
+} from "~/server/rpc/internal/implement_rpc.js";
 
 /**
  * Get the implementation for a RPC with the given name.
@@ -16,7 +16,7 @@ export async function getRpcImplementationIfExists(
     // under the Cloudflare Workers 200ms startup time limit. If our startup time
     // limit is ever extended or if we ever move this code to AWS EC2, we should
     // remove this lazy load.
-    await import("~/server/rpc/all_rpc_implementations");
+    await import("~/server/rpc/all_rpc_implementations.js");
 
     return _getRpcImplementationIfExists(name);
 }

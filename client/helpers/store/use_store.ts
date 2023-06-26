@@ -1,5 +1,5 @@
 import {useSyncExternalStore} from "react";
-import {Store} from "~/client/helpers/store/store";
+import {Store} from "~/client/helpers/store/store.js";
 
 /**
  * Convenience hook that directly calls [`useSyncExternalStore()`][1] for using

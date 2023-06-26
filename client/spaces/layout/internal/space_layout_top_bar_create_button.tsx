@@ -8,18 +8,18 @@ import {
     SpinnerGap,
 } from "phosphor-react";
 import {ReactNode} from "react";
-import {Box} from "~/client/design/box";
-import {IconButton} from "~/client/design/icon_button";
-import {MenuButton} from "~/client/design/menu_button";
-import {useShowToast} from "~/client/design/toast";
-import {usePeekStackContext} from "~/client/peek/peek_stack";
-import {useNavigate} from "~/client/remix/use_navigate";
-import {useSpaceContext} from "~/client/spaces/space_context";
-import {spacing} from "~/shared/design/spacing";
-import {UnimplementedError} from "~/shared/error/error";
-import {errorDisplayMessage} from "~/shared/error/error_display_message";
-import {generateId} from "~/shared/id/id";
-import {spinAnimationClassName} from "~/shared/styles/styles";
+import {Box} from "~/client/design/box.js";
+import {IconButton} from "~/client/design/icon_button.js";
+import {MenuButton} from "~/client/design/menu_button.js";
+import {useShowToast} from "~/client/design/toast.js";
+import {usePeekStackContext} from "~/client/peek/peek_stack.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {spacing} from "~/shared/design/spacing.js";
+import {UnimplementedError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {generateId} from "~/shared/id/id.js";
+import {spinAnimationClassName} from "~/shared/styles/styles.js";
 
 export function SpaceLayoutTopBarCreateButton() {
     const {space} = useSpaceContext();

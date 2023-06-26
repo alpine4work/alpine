@@ -1,10 +1,10 @@
-import {Context} from "~/shared/context/context";
-import {ContextModuleBase} from "~/shared/context/context_module_base";
-import {Replace} from "~/shared/helpers/types/replace";
-import {TracerBase} from "~/shared/tracer/tracer_base";
-import {TracerRoot} from "~/shared/tracer/tracer_root";
-import {TracerSpan} from "~/shared/tracer/tracer_span";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
+import {Context} from "~/shared/context/context.js";
+import {ContextModuleBase} from "~/shared/context/context_module_base.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 /**
  * A wrapper around either a `Tracer` or `TracerSpan` for instrumenting code

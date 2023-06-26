@@ -1,9 +1,9 @@
 import classNames from "classnames";
 import {Ref, forwardRef, useId, useState} from "react";
-import {Box} from "~/client/design/box";
-import {FocusRing} from "~/client/design/focus_ring";
-import {isMac} from "~/client/helpers/browser/is_mac";
-import {sprinkles} from "~/shared/styles/styles";
+import {Box} from "~/client/design/box.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {isMac} from "~/client/helpers/browser/is_mac.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 
 export type TextInputProps = {
     /**

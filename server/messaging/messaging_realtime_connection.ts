@@ -1,26 +1,26 @@
-import {ActionContext, SessionActionContext} from "~/server/dynamo/context/action_context";
-import {ProcessContext} from "~/server/dynamo/context/process_context";
-import {getContentReferencesForNode} from "~/server/dynamo/helpers/get_content_references";
-import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint";
+import {ActionContext, SessionActionContext} from "~/server/dynamo/context/action_context.js";
+import {ProcessContext} from "~/server/dynamo/context/process_context.js";
+import {getContentReferencesForNode} from "~/server/dynamo/helpers/get_content_references.js";
+import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {
     BackfillMessagesFunction,
     CreateMessageFunction,
     CreateMessageModelFunction,
     DeleteMessageFunction,
     UpdateMessageContentFunction,
-} from "~/server/messaging/messaging_implementation";
-import {AsyncMutex} from "~/shared/helpers/async/async_mutex";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
-import {assert} from "~/shared/helpers/control/assert";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
-import {AccountId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types";
-import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema";
-import {MessageContent} from "~/shared/messaging/message_content_schema";
-import {MessageModel} from "~/shared/messaging/message_model";
+} from "~/server/messaging/messaging_implementation.js";
+import {AsyncMutex} from "~/shared/helpers/async/async_mutex.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {AccountId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
+import {MessageContent} from "~/shared/messaging/message_content_schema.js";
+import {MessageModel} from "~/shared/messaging/message_model.js";
 import {
     MessagingRealtimeEvent,
     MessagingTypingState,
-} from "~/shared/messaging/messaging_realtime_protocol";
+} from "~/shared/messaging/messaging_realtime_protocol.js";
 
 export const messagingRealtimeBackfillMessagesBeforeFlushTestCheckpoint =
     new TestCheckpoint<AccountId>();

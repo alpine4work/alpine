@@ -1,11 +1,11 @@
-import {createChannel, createPost} from "~/server/dynamo/forum_table";
-import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
-import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
-import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
-import {PostRealtimeDurableObject} from "~/server/forum/post_realtime_durable_object";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error";
-import {emptyPostContent} from "~/shared/forum/post_content_schema";
-import {generateId} from "~/shared/id/id";
+import {createChannel, createPost} from "~/server/dynamo/forum_table.js";
+import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
+import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
+import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space.js";
+import {PostRealtimeDurableObject} from "~/server/forum/post_realtime_durable_object.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {emptyPostContent} from "~/shared/forum/post_content_schema.js";
+import {generateId} from "~/shared/id/id.js";
 
 const context = createTestContext();
 const {connectForTest} = PostRealtimeDurableObject.test(context);

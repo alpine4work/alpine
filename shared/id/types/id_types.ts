@@ -1,4 +1,4 @@
-import type {Id} from "~/shared/id/id";
+import type {Id} from "~/shared/id/id.js";
 
 /**
  * Creates a new ID type with the provided name. TypeScript will error if you

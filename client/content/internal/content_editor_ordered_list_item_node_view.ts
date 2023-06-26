@@ -1,8 +1,8 @@
 import {DOMSerializer, Node} from "prosemirror-model";
 import {NodeView} from "prosemirror-view";
-import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
-import {assert} from "~/shared/helpers/control/assert";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 
 /**
  * Creates a node view for an `orderedListItem`. We need a custom node view so

@@ -1,12 +1,12 @@
 import {CaretDown, Plus} from "phosphor-react";
 import {useCallback} from "react";
-import {Box} from "~/client/design/box";
-import {Button} from "~/client/design/button";
-import {MenuAction, MenuButton} from "~/client/design/menu_button";
-import {usePrettyAbsoluteDateFormatter} from "~/client/design/pretty_absolute_date";
-import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {LocalTasksAction, LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
+import {Box} from "~/client/design/box.js";
+import {Button} from "~/client/design/button.js";
+import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
+import {usePrettyAbsoluteDateFormatter} from "~/client/design/pretty_absolute_date.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {LocalTasksAction, LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 
 export function TaskNotepadViewPaginator({
     state,

@@ -1,9 +1,9 @@
-import {getAllApprovedAlphaAccessRequestEmailAddresses} from "~/server/dynamo/alpha_access_table";
-import {LoaderArgs} from "~/server/remix/loader_context";
-import {InvalidArgumentError} from "~/shared/error/error";
-import {ErrorSchema} from "~/shared/error/error_schema";
-import {isSystemError} from "~/shared/error/is_system_error_code";
-import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable";
+import {getAllApprovedAlphaAccessRequestEmailAddresses} from "~/server/dynamo/alpha_access_table.js";
+import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
+import {ErrorSchema} from "~/shared/error/error_schema.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 
 export async function loader({request, context, span}: LoaderArgs) {
     try {

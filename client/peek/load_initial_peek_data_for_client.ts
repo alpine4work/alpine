@@ -1,7 +1,7 @@
 import {ClientRoute, matchClientRoutes} from "@remix-run/react";
 import {Path} from "history";
-import {NotFoundError} from "~/shared/error/error";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
+import {NotFoundError} from "~/shared/error/error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 
 /**
  * We have a server version of this too: `loadInitialPeekDataForServer()`.

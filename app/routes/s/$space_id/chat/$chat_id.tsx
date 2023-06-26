@@ -1,21 +1,21 @@
 import {useSearchParams} from "@remix-run/react";
-import {LoaderSchema as SpaceRouteLoaderSchema} from "~/app/routes/s/$space_id";
-import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name";
-import {ChatView} from "~/client/chat/chat_view";
-import {Box} from "~/client/design/box";
-import {joinPrettyConjunctionList} from "~/client/design/pretty_conjunction_list";
-import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
-import {createMetaFunction} from "~/client/remix/create_meta_function";
-import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
-import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
-import {getChatAndInitialMessages} from "~/server/dynamo/chat_table";
-import {jsonWithSchema} from "~/server/remix/json_with_schema";
-import {LoaderArgs} from "~/server/remix/loader_context";
-import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model";
-import {assert} from "~/shared/helpers/control/assert";
-import {ChatId} from "~/shared/id/types/id_types";
-import {Schema} from "~/shared/schema/schema";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
+import {LoaderSchema as SpaceRouteLoaderSchema} from "~/app/routes/s/$space_id.js";
+import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name.js";
+import {ChatView} from "~/client/chat/chat_view.js";
+import {Box} from "~/client/design/box.js";
+import {joinPrettyConjunctionList} from "~/client/design/pretty_conjunction_list.js";
+import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
+import {createMetaFunction} from "~/client/remix/create_meta_function.js";
+import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
+import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
+import {getChatAndInitialMessages} from "~/server/dynamo/chat_table.js";
+import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
+import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {ChatId} from "~/shared/id/types/id_types.js";
+import {Schema} from "~/shared/schema/schema.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({
     chat: ChatModel.schema(),

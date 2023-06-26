@@ -1,7 +1,7 @@
-import {AccountId} from "~/shared/id/types/id_types";
-import {LabelStringSchema} from "~/shared/schema/label_string_schema";
-import {Model} from "~/shared/schema/model/model";
-import {Schema} from "~/shared/schema/schema";
+import {AccountId} from "~/shared/id/types/id_types.js";
+import {LabelStringSchema} from "~/shared/schema/label_string_schema.js";
+import {Model} from "~/shared/schema/model/model.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export const AlphaAccessRequestDecisionSchema = Schema.union({
     Approved: Schema.object({

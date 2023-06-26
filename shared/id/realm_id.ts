@@ -1,5 +1,5 @@
-import {generateId} from "~/shared/id/id";
-import {RealmId} from "~/shared/id/types/id_types";
+import {generateId} from "~/shared/id/id.js";
+import {RealmId} from "~/shared/id/types/id_types.js";
 
 let realmId: RealmId | undefined;
 

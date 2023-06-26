@@ -1,34 +1,34 @@
 import Fuse from "fuse.js";
 import {MutableRefObject, useEffect, useMemo, useRef, useState} from "react";
-import {AccountAvatar} from "~/client/accounts/account_avatar";
-import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile";
-import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name";
-import {Box} from "~/client/design/box";
-import {PrettyNumber} from "~/client/design/pretty_number";
-import {Tooltip} from "~/client/design/tooltip";
-import {useSpaceContext} from "~/client/spaces/space_context";
+import {AccountAvatar} from "~/client/accounts/account_avatar.js";
+import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
+import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name.js";
+import {Box} from "~/client/design/box.js";
+import {PrettyNumber} from "~/client/design/pretty_number.js";
+import {Tooltip} from "~/client/design/tooltip.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     useExpensivelyLoadAllSpaceAccounts,
     useExpensivelyPreloadAllSpaceAccounts,
-} from "~/client/spaces/use_expensively_load_all_space_accounts";
-import {TaskCurrentAccountAvatar} from "~/client/tasks/demo_2/internal/task_current_account_avatar";
-import {TaskNoAccountAvatar} from "~/client/tasks/demo_2/internal/task_no_account_avatar";
+} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
+import {TaskCurrentAccountAvatar} from "~/client/tasks/demo_2/internal/task_current_account_avatar.js";
+import {TaskNoAccountAvatar} from "~/client/tasks/demo_2/internal/task_no_account_avatar.js";
 import {
     TaskQueryFilterEditorMultiSelectComboBox,
     TaskQueryFilterEditorMultiSelectComboBoxItem,
-} from "~/client/tasks/demo_2/internal/task_query_filter_editor_multi_select_combo_box";
-import {TaskQueryFilterOperatorEditor} from "~/client/tasks/demo_2/internal/task_query_filter_operator_editor";
-import {AccountModel} from "~/shared/accounts/account_model";
-import {missingAccountName} from "~/shared/accounts/missing_account_name";
-import {assert} from "~/shared/helpers/control/assert";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
-import {iterableFindIndex} from "~/shared/helpers/iterable/iterable_find_index";
-import {isId} from "~/shared/id/id";
-import {AccountId} from "~/shared/id/types/id_types";
-import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles";
-import {TaskQueryFilterAccountOperation} from "~/shared/tasks/task_query_filter";
-import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references";
+} from "~/client/tasks/demo_2/internal/task_query_filter_editor_multi_select_combo_box.js";
+import {TaskQueryFilterOperatorEditor} from "~/client/tasks/demo_2/internal/task_query_filter_operator_editor.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {iterableFindIndex} from "~/shared/helpers/iterable/iterable_find_index.js";
+import {isId} from "~/shared/id/id.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
+import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles.js";
+import {TaskQueryFilterAccountOperation} from "~/shared/tasks/task_query_filter.js";
+import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
 
 export function TaskQueryFilterAccountOperationEditor({
     inputLabel,

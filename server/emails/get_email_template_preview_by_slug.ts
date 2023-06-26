@@ -12,7 +12,7 @@ export async function getEmailTemplatePreviewBySlug() {
     // worker or in a Node.js service so it doesn't eat into our app worker bundle
     // size limit.
     const {emailTemplatePreviewBySlug} = await import(
-        "~/server/emails/internal/email_template_previews"
+        "~/server/emails/internal/email_template_previews.js"
     );
     return emailTemplatePreviewBySlug;
 }

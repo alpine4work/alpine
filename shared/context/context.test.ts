@@ -1,8 +1,8 @@
 import {expectTypeOf} from "expect-type";
-import {Context, ContextWithDestroy} from "~/shared/context/context";
-import {ContextModuleBase} from "~/shared/context/context_module_base";
-import {InternalError} from "~/shared/error/error";
-import {Replace} from "~/shared/helpers/types/replace";
+import {Context, ContextWithDestroy} from "~/shared/context/context.js";
+import {ContextModuleBase} from "~/shared/context/context_module_base.js";
+import {InternalError} from "~/shared/error/error.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
 
 class TestContextModule extends ContextModuleBase {
     public readonly id = Symbol();

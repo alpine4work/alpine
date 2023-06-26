@@ -12,26 +12,26 @@ import {
     updateChannelName,
     updatePostCommentContent,
     updatePostContent,
-} from "~/server/dynamo/forum_table";
-import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
-import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
-import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
-import {emptyContentReferences} from "~/shared/content/content_references";
-import {InvalidArgumentError, NotFoundError, PermissionDeniedError} from "~/shared/error/error";
+} from "~/server/dynamo/forum_table.js";
+import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
+import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
+import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space.js";
+import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {InvalidArgumentError, NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {
     PostContentProsemirrorSchema,
     PostContentWithReferences,
     assertPostContent,
     createSimplePostContent,
-} from "~/shared/forum/post_content_schema";
-import {assert} from "~/shared/helpers/control/assert";
-import {generateId} from "~/shared/id/id";
+} from "~/shared/forum/post_content_schema.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {generateId} from "~/shared/id/id.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
     createSimpleMessageContent,
     emptyMessageContent,
-} from "~/shared/messaging/message_content_schema";
+} from "~/shared/messaging/message_content_schema.js";
 
 const context = createTestContext();
 const space = createTestSpace(context);

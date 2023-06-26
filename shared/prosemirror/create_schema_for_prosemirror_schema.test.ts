@@ -9,10 +9,10 @@ import {
     ReplaceStep,
     Step,
 } from "prosemirror-transform";
-import {InvalidArgumentError} from "~/shared/error/error";
-import {PostContentProsemirrorSchema as schema} from "~/shared/forum/post_content_schema";
-import {createSchemaForProsemirrorSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema";
-import {SchemaDeserializationError} from "~/shared/schema/schema";
+import {InvalidArgumentError} from "~/shared/error/error.js";
+import {PostContentProsemirrorSchema as schema} from "~/shared/forum/post_content_schema.js";
+import {createSchemaForProsemirrorSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema.js";
+import {SchemaDeserializationError} from "~/shared/schema/schema.js";
 
 const {TopNodeType, createStepSchema} = createSchemaForProsemirrorSchema(schema);
 const StepSchema = createStepSchema();

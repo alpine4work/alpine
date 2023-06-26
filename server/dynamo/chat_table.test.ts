@@ -1,4 +1,4 @@
-import {SessionItem, getAccountsTableForTest} from "~/server/dynamo/accounts_table";
+import {SessionItem, getAccountsTableForTest} from "~/server/dynamo/accounts_table.js";
 import {
     authorizeChatAccessForAccount,
     backfillChatMessages,
@@ -14,22 +14,22 @@ import {
     sendChatMessage,
     sendChatMessageToAccountsBeforeCreateChatTestCheckpoint,
     updateChatMessageContent,
-} from "~/server/dynamo/chat_table";
-import {SessionActionContext} from "~/server/dynamo/context/action_context";
-import {getSpacesTableForTest} from "~/server/dynamo/spaces_table";
-import {testMessagingImplementation} from "~/server/dynamo/test_helpers/jest/test_messaging_implementation";
-import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
-import {ChatMessageModel} from "~/shared/chat/chat_model";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
-import {generateId} from "~/shared/id/id";
-import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types";
+} from "~/server/dynamo/chat_table.js";
+import {SessionActionContext} from "~/server/dynamo/context/action_context.js";
+import {getSpacesTableForTest} from "~/server/dynamo/spaces_table.js";
+import {testMessagingImplementation} from "~/server/dynamo/test_helpers/jest/test_messaging_implementation.js";
+import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
+import {ChatMessageModel} from "~/shared/chat/chat_model.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {generateId} from "~/shared/id/id.js";
+import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
     MessageContent,
     createSimpleMessageContent,
-} from "~/shared/messaging/message_content_schema";
+} from "~/shared/messaging/message_content_schema.js";
 
 const context = createTestContext();
 

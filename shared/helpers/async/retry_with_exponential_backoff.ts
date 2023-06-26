@@ -1,4 +1,4 @@
-import {CancelledError, DeadlineExceededError} from "~/shared/error/error";
+import {CancelledError, DeadlineExceededError} from "~/shared/error/error.js";
 
 const originalSetTimeout = setTimeout;
 

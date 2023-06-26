@@ -1,4 +1,4 @@
-import {glsl} from "~/client/helpers/gl/glsl";
+import {glsl} from "~/client/helpers/gl/glsl.js";
 
 export const blobFactoryShaderVertSource = glsl`#version 300 es
 

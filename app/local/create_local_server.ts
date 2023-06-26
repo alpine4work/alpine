@@ -7,10 +7,10 @@ import path from "path";
 import createServeStaticMiddleware from "serve-static";
 import {Headers} from "undici";
 import WebSocket from "ws";
-import {parseDotenv} from "~/admin/helpers/parse_dotenv";
-import {runfilesPath} from "~/admin/helpers/runfiles_path";
-import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
-import {assert} from "~/shared/helpers/control/assert";
+import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
+import {runfilesPath} from "~/admin/helpers/runfiles_path.js";
+import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 export type LocalServer = {
     readonly miniflare: Miniflare;

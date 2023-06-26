@@ -1,8 +1,8 @@
 import {
     DynamoGeneralRealtimeIndexQuery,
     DynamoGeneralRealtimeIndexQueryItem,
-} from "~/client/dynamo/dynamo_general_realtime_index_query";
-import {DynamoIndexCursor, DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings";
+} from "~/client/dynamo/dynamo_general_realtime_index_query.js";
+import {DynamoIndexCursor, DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
 
 function testItemKey(string: string): DynamoItemKey {
     return string as DynamoItemKey;

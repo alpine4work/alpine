@@ -3,12 +3,12 @@ import {
     MaybeSessionActorContextModule,
     SessionActorContextModule,
     SystemActorContextModule,
-} from "~/server/dynamo/context/actor_context_module";
-import {ProcessContextModulesBase} from "~/server/dynamo/context/process_context";
-import {DynamoBatchContextModule} from "~/server/dynamo/dynamo_context_module";
-import {CacheContextModule} from "~/shared/context/cache_context_module";
-import {Context} from "~/shared/context/context";
-import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
+} from "~/server/dynamo/context/actor_context_module.js";
+import {ProcessContextModulesBase} from "~/server/dynamo/context/process_context.js";
+import {DynamoBatchContextModule} from "~/server/dynamo/dynamo_context_module.js";
+import {CacheContextModule} from "~/shared/context/cache_context_module.js";
+import {Context} from "~/shared/context/context.js";
+import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 
 /**
  * Generic context for handling actions against our system that doesn't know

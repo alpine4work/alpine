@@ -1,20 +1,20 @@
 import {setInteractionModality, useInteractionModality} from "@react-aria/interactions";
 import {ArrowArcLeft, ArrowUp, X} from "phosphor-react";
 import {MutableRefObject, useEffect, useMemo, useRef, useState} from "react";
-import {AccountAvatar} from "~/client/accounts/account_avatar";
-import {AccountShortName} from "~/client/accounts/account_short_name";
-import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
-import {ContentEditorState} from "~/client/content/content_editor_state";
-import {ContentView} from "~/client/content/content_view";
-import {Box} from "~/client/design/box";
-import {FocusRing} from "~/client/design/focus_ring";
-import {IconButton} from "~/client/design/icon_button";
-import {useShowToast} from "~/client/design/toast";
-import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {useInboxPeekContext} from "~/client/inbox/inbox_peek_context";
-import {MessageEditing} from "~/client/messaging/message_editing";
-import {MessageList} from "~/client/messaging/message_list";
+import {AccountAvatar} from "~/client/accounts/account_avatar.js";
+import {AccountShortName} from "~/client/accounts/account_short_name.js";
+import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
+import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {ContentView} from "~/client/content/content_view.js";
+import {Box} from "~/client/design/box.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {IconButton} from "~/client/design/icon_button.js";
+import {useShowToast} from "~/client/design/toast.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useInboxPeekContext} from "~/client/inbox/inbox_peek_context.js";
+import {MessageEditing} from "~/client/messaging/message_editing.js";
+import {MessageList} from "~/client/messaging/message_list.js";
 import {
     defaultMessageViewMarginX,
     getMessageBubbleMarginLeft,
@@ -23,28 +23,28 @@ import {
     messageViewPreviewScale,
     messageViewReplyPreviewBubbleOpacity,
     messageViewReplyPreviewOpacity,
-} from "~/client/messaging/message_view";
-import {useSpaceContext} from "~/client/spaces/space_context";
-import {isContentEmpty} from "~/shared/content/is_content_empty";
-import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
-import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable";
-import {generateId} from "~/shared/id/id";
+} from "~/client/messaging/message_view.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {isContentEmpty} from "~/shared/content/is_content_empty.js";
+import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
+import {generateId} from "~/shared/id/id.js";
 import {
     MessageContent,
     MessageContentWithReferences,
     emptyMessageContentWithReferences,
-} from "~/shared/messaging/message_content_schema";
-import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model";
+} from "~/shared/messaging/message_content_schema.js";
+import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {
     messageInputMinHeight,
     messageViewBubbleBorderRadius,
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
-} from "~/shared/messaging/messaging_shared_styles";
-import {contentViewStyles, sprinkles} from "~/shared/styles/styles";
+} from "~/shared/messaging/messaging_shared_styles.js";
+import {contentViewStyles, sprinkles} from "~/shared/styles/styles.js";
 
 export function MessageInput<RoomKey extends string, Message extends MessageModel<RoomKey>>({
     messageNoun = "message",

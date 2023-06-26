@@ -1,47 +1,50 @@
 import {subDays} from "date-fns";
 import murmurhash from "murmurhash";
-import {getAccount} from "~/server/dynamo/accounts_table";
-import {ActionContext, SessionActionContext} from "~/server/dynamo/context/action_context";
-import {getContentReferencesForNode} from "~/server/dynamo/helpers/get_content_references";
-import {getMentionedAccountIdsInContent} from "~/server/dynamo/helpers/get_mentioned_account_ids_in_content";
-import {createMessagePayloadModel} from "~/server/dynamo/helpers/messaging/create_message_payload_model";
-import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/dynamo/helpers/messaging/get_message_change_log_expiration_time_from_change_time";
-import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
-import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
-import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
-import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/internal/is_dynamo_idempotent_parameter_mismatch_error";
-import {getNotificationMessageContentSnippet} from "~/server/dynamo/notifications_table";
-import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
-import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint";
-import {AccountModel} from "~/shared/accounts/account_model";
-import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model";
+import {getAccount} from "~/server/dynamo/accounts_table.js";
+import {ActionContext, SessionActionContext} from "~/server/dynamo/context/action_context.js";
+import {getContentReferencesForNode} from "~/server/dynamo/helpers/get_content_references.js";
+import {getMentionedAccountIdsInContent} from "~/server/dynamo/helpers/get_mentioned_account_ids_in_content.js";
+import {createMessagePayloadModel} from "~/server/dynamo/helpers/messaging/create_message_payload_model.js";
+import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/dynamo/helpers/messaging/get_message_change_log_expiration_time_from_change_time.js";
+import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema.js";
+import {
+    DynamoTableItemType,
+    DynamoTableSchema,
+} from "~/server/dynamo/internal/dynamo_table_schema.js";
+import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error.js";
+import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/internal/is_dynamo_idempotent_parameter_mismatch_error.js";
+import {getNotificationMessageContentSnippet} from "~/server/dynamo/notifications_table.js";
+import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table.js";
+import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {
     DataLossError,
     FailedPreconditionError,
     InternalError,
     NotFoundError,
     PermissionDeniedError,
-} from "~/shared/error/error";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff";
-import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises";
-import {assert} from "~/shared/helpers/control/assert";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
-import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable";
-import {asyncIterableFromIterable} from "~/shared/helpers/iterable/async_iterable_from_iterable";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
-import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator";
-import {parallelFilterMapLimitAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_filter_map_limit_async_iterable_to_array";
-import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
-import {isObject} from "~/shared/helpers/object/is_object";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
-import {decodeIdInto, encodeId, generateId} from "~/shared/id/id";
-import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types";
-import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema";
-import {MessageContent, MessageContentSchema} from "~/shared/messaging/message_content_schema";
-import {MessagePayloadSchema} from "~/shared/messaging/message_model";
-import {Schema} from "~/shared/schema/schema";
+} from "~/shared/error/error.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
+import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
+import {asyncIterableFromIterable} from "~/shared/helpers/iterable/async_iterable_from_iterable.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
+import {parallelFilterMapLimitAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_filter_map_limit_async_iterable_to_array.js";
+import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {decodeIdInto, encodeId, generateId} from "~/shared/id/id.js";
+import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.js";
+import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
+import {MessageContent, MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
+import {MessagePayloadSchema} from "~/shared/messaging/message_model.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 const ChatTable = DynamoTableSchema.new({
     name: "Chat",

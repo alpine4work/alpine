@@ -15,26 +15,26 @@ import {
     getLastFocusableElementIfExists,
     getNextFocusableElementIfExists,
     getPreviousFocusableElementIfExists,
-} from "~/client/design/helpers/get_next_focusable_element";
-import {setElementAttributesWithCleanup} from "~/client/design/helpers/set_element_attributes_with_cleanup";
-import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction";
-import {OverlayPlacement, useIsWaitingForOverlayPortalElement} from "~/client/design/overlay";
-import {OverlayAnimated} from "~/client/design/overlay_animated";
-import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants";
+} from "~/client/design/helpers/get_next_focusable_element.js";
+import {setElementAttributesWithCleanup} from "~/client/design/helpers/set_element_attributes_with_cleanup.js";
+import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.js";
+import {OverlayPlacement, useIsWaitingForOverlayPortalElement} from "~/client/design/overlay.js";
+import {OverlayAnimated} from "~/client/design/overlay_animated.js";
+import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
 import {
     TooltipCoordinationContextProvider,
     defaultTooltipOffset,
     useShouldDisableTooltips,
-} from "~/client/design/tooltip";
-import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref";
-import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref";
-import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
-import {Spacing} from "~/shared/design/spacing";
-import {createTimeout} from "~/shared/helpers/async/timeout";
-import {assert} from "~/shared/helpers/control/assert";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {overlayFadeOutAnimationDurationMs} from "~/shared/styles/styles";
+} from "~/client/design/tooltip.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
+import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {Spacing} from "~/shared/design/spacing.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {overlayFadeOutAnimationDurationMs} from "~/shared/styles/styles.js";
 
 export type OverlayTriggerButtonState =
     | {

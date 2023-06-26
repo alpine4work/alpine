@@ -1,9 +1,9 @@
-import {LinkedList} from "~/shared/helpers/immutable/linked_list";
+import {LinkedList} from "~/shared/helpers/immutable/linked_list.js";
 import {
     TracerEventFlatData,
     buildTracerEventFlatData,
-} from "~/shared/tracer/helpers/build_tracer_event_flat_data";
-import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data";
+} from "~/shared/tracer/helpers/build_tracer_event_flat_data.js";
+import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.js";
 
 /**
  * An in-memory tracer event. Events are structured so they can be cheaply

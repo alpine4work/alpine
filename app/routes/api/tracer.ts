@@ -1,12 +1,12 @@
-import {LoaderArgs} from "~/server/remix/loader_context";
-import {validateTracerEventFlatData} from "~/server/tracer/validate_tracer_event_flat_data";
-import {InvalidArgumentError} from "~/shared/error/error";
-import {ErrorSchema} from "~/shared/error/error_schema";
-import {isSystemError} from "~/shared/error/is_system_error_code";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array";
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object";
-import {SchemaSerializedValue} from "~/shared/schema/schema";
-import {TracerEvent} from "~/shared/tracer/tracer_event";
+import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {validateTracerEventFlatData} from "~/server/tracer/validate_tracer_event_flat_data.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
+import {ErrorSchema} from "~/shared/error/error_schema.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
+import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {TracerEvent} from "~/shared/tracer/tracer_event.js";
 
 export async function action({request, context, span}: LoaderArgs) {
     try {

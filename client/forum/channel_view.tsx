@@ -1,13 +1,13 @@
 import {useMemo, useState} from "react";
-import {useAppContext} from "~/client/context/app_context";
-import {Box} from "~/client/design/box";
-import {ChannelViewAside} from "~/client/forum/channel_view_aside";
-import {ChannelViewTopBar} from "~/client/forum/channel_view_top_bar";
-import {PostListView} from "~/client/forum/post_list_view";
-import {isContentEmpty} from "~/shared/content/is_content_empty";
-import {ChannelModel} from "~/shared/forum/channel_model";
-import {PostModel} from "~/shared/forum/post_model";
-import {getChannelPosts} from "~/shared/rpc/forum_rpc_definitions";
+import {useAppContext} from "~/client/context/app_context.js";
+import {Box} from "~/client/design/box.js";
+import {ChannelViewAside} from "~/client/forum/channel_view_aside.js";
+import {ChannelViewTopBar} from "~/client/forum/channel_view_top_bar.js";
+import {PostListView} from "~/client/forum/post_list_view.js";
+import {isContentEmpty} from "~/shared/content/is_content_empty.js";
+import {ChannelModel} from "~/shared/forum/channel_model.js";
+import {PostModel} from "~/shared/forum/post_model.js";
+import {getChannelPosts} from "~/shared/rpc/forum_rpc_definitions.js";
 
 export function ChannelView({
     initialChannel,

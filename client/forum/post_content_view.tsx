@@ -1,34 +1,34 @@
 import {CaretRight, DotsThree} from "phosphor-react";
 import {useEffect, useMemo, useState} from "react";
-import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile";
-import {ContentView} from "~/client/content/content_view";
-import {useAppContext} from "~/client/context/app_context";
-import {Box} from "~/client/design/box";
-import {Button} from "~/client/design/button";
-import {IconButton} from "~/client/design/icon_button";
-import {MenuButton} from "~/client/design/menu_button";
-import {PrettyNumber} from "~/client/design/pretty_number";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
-import {PostContentViewHeader} from "~/client/forum/post_content_view_header";
-import {PostCommentsState} from "~/client/forum/post_list";
-import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard";
-import {MessageList} from "~/client/messaging/message_list";
-import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context";
-import {useSpaceContext} from "~/client/spaces/space_context";
-import {AccountModel} from "~/shared/accounts/account_model";
-import {Spacing, assertSpacing} from "~/shared/design/spacing";
+import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
+import {ContentView} from "~/client/content/content_view.js";
+import {useAppContext} from "~/client/context/app_context.js";
+import {Box} from "~/client/design/box.js";
+import {Button} from "~/client/design/button.js";
+import {IconButton} from "~/client/design/icon_button.js";
+import {MenuButton} from "~/client/design/menu_button.js";
+import {PrettyNumber} from "~/client/design/pretty_number.js";
+import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {PostContentViewHeader} from "~/client/forum/post_content_view_header.js";
+import {PostCommentsState} from "~/client/forum/post_list.js";
+import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
+import {MessageList} from "~/client/messaging/message_list.js";
+import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
+import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {Spacing, assertSpacing} from "~/shared/design/spacing.js";
 import {
     PostCommentModel,
     PostModel,
     maxPostPreviewCommentAuthorCount,
-} from "~/shared/forum/post_model";
-import {wait} from "~/shared/helpers/async/wait";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
-import {AccountId} from "~/shared/id/types/id_types";
-import {getPostCommentAuthors} from "~/shared/rpc/forum_rpc_definitions";
-import {sprinkles} from "~/shared/styles/styles";
+} from "~/shared/forum/post_model.js";
+import {wait} from "~/shared/helpers/async/wait.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
+import {getPostCommentAuthors} from "~/shared/rpc/forum_rpc_definitions.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 
 export const postContentViewMinHeight = "10rem";
 

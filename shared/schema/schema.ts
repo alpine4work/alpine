@@ -1,23 +1,23 @@
 import isValidDate from "date-fns/isValid";
 import parseISO from "date-fns/parseISO";
-import {InternalError, InvalidArgumentError} from "~/shared/error/error";
-import {errorDisplayMessage} from "~/shared/error/error_display_message";
-import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type";
-import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64";
-import {assert} from "~/shared/helpers/control/assert";
-import {cast} from "~/shared/helpers/control/cast";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {serializeDateString} from "~/shared/helpers/date/date_string";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
-import {isIdentifier} from "~/shared/helpers/string/is_identifier";
-import {quote} from "~/shared/helpers/string/quote";
-import {Optionalize} from "~/shared/helpers/types/optionalize";
-import {Id, isId} from "~/shared/id/id";
+import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
+import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {cast} from "~/shared/helpers/control/cast.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {serializeDateString} from "~/shared/helpers/date/date_string.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
+import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
+import {quote} from "~/shared/helpers/string/quote.js";
+import {Optionalize} from "~/shared/helpers/types/optionalize.js";
+import {Id, isId} from "~/shared/id/id.js";
 import {
     SchemaSerializedObjectValuePropertyDescription,
     SchemaSerializedValueDescription,
-} from "~/shared/schema/types/schema_description_types";
+} from "~/shared/schema/types/schema_description_types.js";
 
 //x
 

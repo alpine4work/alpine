@@ -1,21 +1,21 @@
 import Fuse from "fuse.js";
 import GraphemeSplitter from "grapheme-splitter";
 import {Fragment, useMemo, useState} from "react";
-import {Box} from "~/client/design/box";
-import {PrettyNumber} from "~/client/design/pretty_number";
-import {TaskCollectionOption} from "~/client/tasks/demo_2/internal/task_collection_option";
+import {Box} from "~/client/design/box.js";
+import {PrettyNumber} from "~/client/design/pretty_number.js";
+import {TaskCollectionOption} from "~/client/tasks/demo_2/internal/task_collection_option.js";
 import {
     TaskQueryFilterEditorMultiSelectComboBox,
     TaskQueryFilterEditorMultiSelectComboBoxItem,
-} from "~/client/tasks/demo_2/internal/task_query_filter_editor_multi_select_combo_box";
-import {TaskQueryFilterOperatorEditor} from "~/client/tasks/demo_2/internal/task_query_filter_operator_editor";
-import {LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
-import {assert} from "~/shared/helpers/control/assert";
-import {iterableFindIndex} from "~/shared/helpers/iterable/iterable_find_index";
-import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable";
-import {LocalTaskCollectionId} from "~/shared/id/types/id_types";
-import {inputPlaceholderStyles} from "~/shared/styles/styles";
-import {TaskQueryCollectionsFilter} from "~/shared/tasks/task_query_filter";
+} from "~/client/tasks/demo_2/internal/task_query_filter_editor_multi_select_combo_box.js";
+import {TaskQueryFilterOperatorEditor} from "~/client/tasks/demo_2/internal/task_query_filter_operator_editor.js";
+import {LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {iterableFindIndex} from "~/shared/helpers/iterable/iterable_find_index.js";
+import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
+import {LocalTaskCollectionId} from "~/shared/id/types/id_types.js";
+import {inputPlaceholderStyles} from "~/shared/styles/styles.js";
+import {TaskQueryCollectionsFilter} from "~/shared/tasks/task_query_filter.js";
 
 export function TaskQueryCollectionsFilterOperationEditor({
     state,

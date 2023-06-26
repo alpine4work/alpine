@@ -2,15 +2,15 @@ import {RemixBrowser} from "@remix-run/react";
 import {RouteModule} from "@remix-run/react/dist/routeModules";
 import {startTransition} from "react";
 import {hydrateRoot} from "react-dom/client";
-import {AppContext, AppContextProvider} from "~/client/context/app_context";
-import {ReactContextModule} from "~/client/context/react_context_module";
-import {attachDevConsoleNotInProduction} from "~/client/dev/dev_console";
-import {ClientRpcContextModule} from "~/client/rpc/client_rpc_context_module";
-import {createClientTracer} from "~/client/tracer/client_tracer";
-import {Context} from "~/shared/context/context";
-import {TracerContextModule} from "~/shared/context/tracer_context_module";
-import {ErrorSchema} from "~/shared/error/error_schema";
-import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
+import {AppContext, AppContextProvider} from "~/client/context/app_context.js";
+import {ReactContextModule} from "~/client/context/react_context_module.js";
+import {attachDevConsoleNotInProduction} from "~/client/dev/dev_console.js";
+import {ClientRpcContextModule} from "~/client/rpc/client_rpc_context_module.js";
+import {createClientTracer} from "~/client/tracer/client_tracer.js";
+import {Context} from "~/shared/context/context.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {ErrorSchema} from "~/shared/error/error_schema.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 
 // We've patched Remix so that when it serializes and deserializes errors it
 // looks for this global and uses it.

@@ -3,13 +3,13 @@ import {
     DynamoClient,
     DynamoClientBatchContext,
     DynamoReadConsistency,
-} from "~/server/dynamo/internal/dynamo_client";
-import {Context} from "~/shared/context/context";
-import {ContextModuleBase} from "~/shared/context/context_module_base";
-import {InternalError} from "~/shared/error/error";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff";
-import {assert} from "~/shared/helpers/control/assert";
-import {Replace} from "~/shared/helpers/types/replace";
+} from "~/server/dynamo/internal/dynamo_client.js";
+import {Context} from "~/shared/context/context.js";
+import {ContextModuleBase} from "~/shared/context/context_module_base.js";
+import {InternalError} from "~/shared/error/error.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
 
 /**
  * Context module for DynamoDB. Holds a DynamoDB client which is accessible to

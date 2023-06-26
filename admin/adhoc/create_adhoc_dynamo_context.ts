@@ -1,10 +1,10 @@
-import {createAdhocAwsClient} from "~/admin/adhoc/create_adhoc_aws_client";
-import {parseDotenv} from "~/admin/helpers/parse_dotenv";
-import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
-import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
-import {createServerTracer} from "~/server/tracer/server_tracer";
-import {Context} from "~/shared/context/context";
-import {TracerContextModule} from "~/shared/context/tracer_context_module";
+import {createAdhocAwsClient} from "~/admin/adhoc/create_adhoc_aws_client.js";
+import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
+import {DynamoContext} from "~/server/dynamo/context/dynamo_context.js";
+import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module.js";
+import {createServerTracer} from "~/server/tracer/server_tracer.js";
+import {Context} from "~/shared/context/context.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 
 const env = parseDotenv();
 

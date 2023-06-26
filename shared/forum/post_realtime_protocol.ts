@@ -1,16 +1,16 @@
 import {
     WebSocketProtocolEventType,
     defineWebSocketProtocol,
-} from "~/shared/cloudflare/web_socket_protocol";
-import {PostCommentModel} from "~/shared/forum/post_model";
-import {WebSocketConnectionId} from "~/shared/id/types/id_types";
-import {MessageChangeSchema} from "~/shared/messaging/message_change_schema";
-import {MessageContentSchema} from "~/shared/messaging/message_content_schema";
+} from "~/shared/cloudflare/web_socket_protocol.js";
+import {PostCommentModel} from "~/shared/forum/post_model.js";
+import {WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
+import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {
     MessagingTypingStateSchema,
     createMessagingRealtimeEventSchemas,
-} from "~/shared/messaging/messaging_realtime_protocol";
-import {Schema} from "~/shared/schema/schema";
+} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export type PostRealtimeEvent = WebSocketProtocolEventType<typeof PostRealtimeProtocol>;
 

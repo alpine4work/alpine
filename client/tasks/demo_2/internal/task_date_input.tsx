@@ -1,18 +1,18 @@
 import {CalendarDate} from "@internationalized/date";
 import {CalendarBlank} from "phosphor-react";
 import {useMemo, useRef, useState} from "react";
-import {Box} from "~/client/design/box";
-import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element";
-import {OverlayPlacement} from "~/client/design/overlay";
-import {OverlayAnimated} from "~/client/design/overlay_animated";
-import {defaultTooltipOffset} from "~/client/design/tooltip";
-import {useClientInfo} from "~/client/remix/client_info_context";
-import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour";
-import {formatTaskDate} from "~/client/tasks/demo_2/internal/format_task_date";
-import {TaskDateInputCalendar} from "~/client/tasks/demo_2/internal/task_date_input_calendar";
-import {TaskDateInputText} from "~/client/tasks/demo_2/internal/task_date_input_text";
-import {RemLength, Spacing, spacing} from "~/shared/design/spacing";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {Box} from "~/client/design/box.js";
+import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
+import {OverlayPlacement} from "~/client/design/overlay.js";
+import {OverlayAnimated} from "~/client/design/overlay_animated.js";
+import {defaultTooltipOffset} from "~/client/design/tooltip.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
+import {formatTaskDate} from "~/client/tasks/demo_2/internal/format_task_date.js";
+import {TaskDateInputCalendar} from "~/client/tasks/demo_2/internal/task_date_input_calendar.js";
+import {TaskDateInputText} from "~/client/tasks/demo_2/internal/task_date_input_text.js";
+import {RemLength, Spacing, spacing} from "~/shared/design/spacing.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 /**
  * The date field displays the formatted date we show everywhere but when

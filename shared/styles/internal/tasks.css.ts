@@ -1,9 +1,9 @@
 import {globalStyle, style} from "@vanilla-extract/css";
-import {spacing} from "~/shared/design/spacing";
-import {omitObject} from "~/shared/helpers/object/omit_object";
-import {colorSchemeVars} from "~/shared/styles/internal/color_scheme.css";
-import {inputPlaceholderStyles} from "~/shared/styles/internal/input_placeholder.css";
-import {sprinkles} from "~/shared/styles/internal/sprinkles.css";
+import {spacing} from "~/shared/design/spacing.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {colorSchemeVars} from "~/shared/styles/internal/color_scheme.css.js";
+import {inputPlaceholderStyles} from "~/shared/styles/internal/input_placeholder.css.js";
+import {sprinkles} from "~/shared/styles/internal/sprinkles.css.js";
 
 export const textCursorNotInheritedClassName = style({
     cursor: "text",

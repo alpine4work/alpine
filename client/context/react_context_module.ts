@@ -1,4 +1,4 @@
-import {ContextModuleBase} from "~/shared/context/context_module_base";
+import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 
 /**
  * A context module we use when rendering a React component.

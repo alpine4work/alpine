@@ -2,7 +2,7 @@
 // `client/messaging` by packages that don't want to take a dependency on
 // `client/messaging`. For example `client/content`.
 
-import {RemLength, Spacing} from "~/shared/design/spacing";
+import {RemLength, Spacing} from "~/shared/design/spacing.js";
 
 export const messageViewMinHeight: RemLength = "2.125rem";
 

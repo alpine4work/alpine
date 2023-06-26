@@ -1,25 +1,25 @@
 import Color from "color";
 import {useMemo, useRef, useState} from "react";
-import {generateBlobsForContent} from "~/client/blob_factory/generate_blobs_for_content";
+import {generateBlobsForContent} from "~/client/blob_factory/generate_blobs_for_content.js";
 import {
     drawBlobFactoryToBlob,
     drawBlobFactoryToCanvas,
     getInterpolatedThemeColor,
-} from "~/client/blob_factory/internal/draw_blob_factory";
-import {useDevConsoleSettingsObject} from "~/client/dev/dev_console";
-import {useColorScheme} from "~/client/helpers/color_scheme";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {useResizeObserver} from "~/client/helpers/use_resize_observer";
-import {colors} from "~/shared/design/colors";
-import {easeInOutSin} from "~/shared/design/easing";
-import {formatCssLinearGradient, generateEasedGradient} from "~/shared/design/gradient";
-import {themeColors} from "~/shared/design/theme_colors";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {Vector2} from "~/shared/helpers/geometry/vector2";
-import {Schema} from "~/shared/schema/schema";
-import {contentSchemaStyles, documentBlobsStyles, sprinkles} from "~/shared/styles/styles";
+} from "~/client/blob_factory/internal/draw_blob_factory.js";
+import {useDevConsoleSettingsObject} from "~/client/dev/dev_console.js";
+import {useColorScheme} from "~/client/helpers/color_scheme.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
+import {colors} from "~/shared/design/colors.js";
+import {easeInOutSin} from "~/shared/design/easing.js";
+import {formatCssLinearGradient, generateEasedGradient} from "~/shared/design/gradient.js";
+import {themeColors} from "~/shared/design/theme_colors.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {Vector2} from "~/shared/helpers/geometry/vector2.js";
+import {Schema} from "~/shared/schema/schema.js";
+import {contentSchemaStyles, documentBlobsStyles, sprinkles} from "~/shared/styles/styles.js";
 
 // TODO: responsive blobs
 const DefaultContentWidthPx = 768;

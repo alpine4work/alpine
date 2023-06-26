@@ -1,72 +1,72 @@
 import {AttributeValue} from "@aws-sdk/client-dynamodb";
-import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
-import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
+import {DynamoContext} from "~/server/dynamo/context/dynamo_context.js";
+import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry.js";
 import {
     intoDynamoAttributeValue,
     intoDynamoAttributeValueObject,
-} from "~/server/dynamo/internal/dynamo_attribute_value";
-import {DynamoClient, DynamoReadConsistency} from "~/server/dynamo/internal/dynamo_client";
+} from "~/server/dynamo/internal/dynamo_attribute_value.js";
+import {DynamoClient, DynamoReadConsistency} from "~/server/dynamo/internal/dynamo_client.js";
 import {
     DynamoCondition,
     DynamoConditionExpression,
     DynamoConditionExpressionCompilationContext,
     DynamoConditionExpressionPrecedence,
-} from "~/server/dynamo/internal/dynamo_condition";
-import {dynamoGeneratedSchemaDescription} from "~/server/dynamo/internal/dynamo_generated_schema_description";
+} from "~/server/dynamo/internal/dynamo_condition.js";
+import {dynamoGeneratedSchemaDescription} from "~/server/dynamo/internal/dynamo_generated_schema_description.js";
 import {
     DynamoKeyAttribute,
     DynamoKeyAttributeSchema,
     dynamoKeySeparator,
-} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
-import {dynamoReservedWords} from "~/server/dynamo/internal/dynamo_reserved_words";
+} from "~/server/dynamo/internal/dynamo_key_attribute_schema.js";
+import {dynamoReservedWords} from "~/server/dynamo/internal/dynamo_reserved_words.js";
 import {
     getDynamoClient,
     getDynamoRetryTransactionIfExists,
-} from "~/server/dynamo/internal/get_dynamo_client";
-import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
-import {isDynamoResourceInUseError} from "~/server/dynamo/internal/is_dynamo_resource_in_use_exception";
-import {isDynamoResourceNotFoundError} from "~/server/dynamo/internal/is_dynamo_resource_not_found_error";
-import {isDynamoValidationError} from "~/server/dynamo/internal/is_dynamo_validation_exception";
-import {DynamoTableSchemaTypes} from "~/server/dynamo/internal/types/dynamo_table_schema_types";
-import {checkSchemaBackwardsCompatibility} from "~/server/schema/check_schema_backwards_compatibility";
-import {DynamoIndexCursor, DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings";
+} from "~/server/dynamo/internal/get_dynamo_client.js";
+import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error.js";
+import {isDynamoResourceInUseError} from "~/server/dynamo/internal/is_dynamo_resource_in_use_exception.js";
+import {isDynamoResourceNotFoundError} from "~/server/dynamo/internal/is_dynamo_resource_not_found_error.js";
+import {isDynamoValidationError} from "~/server/dynamo/internal/is_dynamo_validation_exception.js";
+import {DynamoTableSchemaTypes} from "~/server/dynamo/internal/types/dynamo_table_schema_types.js";
+import {checkSchemaBackwardsCompatibility} from "~/server/schema/check_schema_backwards_compatibility.js";
+import {DynamoIndexCursor, DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {
     DataLossError,
     InternalError,
     InvalidArgumentError,
     NotFoundError,
     UnimplementedError,
-} from "~/shared/error/error";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
-import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
-import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
-import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable";
-import {iterableEvery} from "~/shared/helpers/iterable/iterable_every";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
-import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
-import {pickObject} from "~/shared/helpers/object/pick_object";
-import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order_key";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
-import {isIdentifier} from "~/shared/helpers/string/is_identifier";
-import {quote} from "~/shared/helpers/string/quote";
-import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
-import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
-import {Replace} from "~/shared/helpers/types/replace";
+} from "~/shared/error/error.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
+import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
+import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {pickObject} from "~/shared/helpers/object/pick_object.js";
+import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
+import {quote} from "~/shared/helpers/string/quote.js";
+import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
 import {
     ObjectSchema,
     Schema,
     SchemaDeserializationError,
     SchemaSerializedObjectValue,
     SchemaSerializedValue,
-} from "~/shared/schema/schema";
+} from "~/shared/schema/schema.js";
 
 export type DynamoTableSchemaGetTypes<Schema extends DynamoTableSchema<any>> =
     Schema extends DynamoTableSchema<infer Types> ? Types : never;

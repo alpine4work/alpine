@@ -3,32 +3,36 @@ import {CalendarDate} from "@internationalized/date";
 import {CalendarBlank} from "phosphor-react";
 import {PointerEvent, cloneElement, useId, useMemo, useState} from "react";
 import {mergeProps} from "react-aria";
-import {AccountAvatar} from "~/client/accounts/account_avatar";
-import {AccountShortName} from "~/client/accounts/account_short_name";
-import {Box} from "~/client/design/box";
-import {ContextMenuActions} from "~/client/design/context_menu";
-import {FocusRing} from "~/client/design/focus_ring";
-import {useClientInfo} from "~/client/remix/client_info_context";
-import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour";
-import {useSpaceContext} from "~/client/spaces/space_context";
-import {formatTaskDate} from "~/client/tasks/demo_2/internal/format_task_date";
-import {getTaskPriorityName} from "~/client/tasks/demo_2/internal/get_task_priority_name";
-import {getTaskStatusMenuActions} from "~/client/tasks/demo_2/internal/get_task_status_menu_actions";
-import {TaskChildTasksProgressWheel} from "~/client/tasks/demo_2/internal/task_child_tasks_progress_wheel";
+import {AccountAvatar} from "~/client/accounts/account_avatar.js";
+import {AccountShortName} from "~/client/accounts/account_short_name.js";
+import {Box} from "~/client/design/box.js";
+import {ContextMenuActions} from "~/client/design/context_menu.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {formatTaskDate} from "~/client/tasks/demo_2/internal/format_task_date.js";
+import {getTaskPriorityName} from "~/client/tasks/demo_2/internal/get_task_priority_name.js";
+import {getTaskStatusMenuActions} from "~/client/tasks/demo_2/internal/get_task_status_menu_actions.js";
+import {TaskChildTasksProgressWheel} from "~/client/tasks/demo_2/internal/task_child_tasks_progress_wheel.js";
 import {
     TaskCollectionChip,
     taskCollectionChipContainerMaxWidth,
-} from "~/client/tasks/demo_2/internal/task_collection_chip";
-import {TaskGridViewDraggableData} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
-import {TaskPriorityIcon} from "~/client/tasks/demo_2/internal/task_priority_icon";
-import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
-import {TaskAssignee, TaskStatus, TaskStatusButton} from "~/client/tasks/demo_2/task_status_button";
-import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
-import {LocalTaskId} from "~/shared/id/types/id_types";
-import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
-import {contentSchemaStyles, pressOpacityOverlayClassName} from "~/shared/styles/styles";
-import {TaskPriority} from "~/shared/tasks/task_priority";
-import {TaskTitle} from "~/shared/tasks/task_title_schema";
+} from "~/client/tasks/demo_2/internal/task_collection_chip.js";
+import {TaskGridViewDraggableData} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context.js";
+import {TaskPriorityIcon} from "~/client/tasks/demo_2/internal/task_priority_icon.js";
+import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state.js";
+import {
+    TaskAssignee,
+    TaskStatus,
+    TaskStatusButton,
+} from "~/client/tasks/demo_2/task_status_button.js";
+import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {LocalTaskId} from "~/shared/id/types/id_types.js";
+import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
+import {contentSchemaStyles, pressOpacityOverlayClassName} from "~/shared/styles/styles.js";
+import {TaskPriority} from "~/shared/tasks/task_priority.js";
+import {TaskTitle} from "~/shared/tasks/task_title_schema.js";
 
 export const taskCardViewMaxWidth = "96";
 

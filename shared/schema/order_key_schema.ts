@@ -1,6 +1,6 @@
-import {assert} from "~/shared/helpers/control/assert";
-import {OrderKey, isOrderKey} from "~/shared/helpers/sort/order_key";
-import {Schema, SchemaDeserializationError} from "~/shared/schema/schema";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {OrderKey, isOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
 
 export const OrderKeySchema = Schema.string.transform<OrderKey>({
     serialize: value => {

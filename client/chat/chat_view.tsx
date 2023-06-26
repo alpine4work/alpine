@@ -1,23 +1,26 @@
 import {Memo, useCallback, useEffect, useRef} from "react";
-import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile";
-import {AccountShortName} from "~/client/accounts/account_short_name";
-import {useWebSocket} from "~/client/cloudflare/use_web_socket";
-import {useAppContext} from "~/client/context/app_context";
-import {Box} from "~/client/design/box";
-import {PrettyConjunctionList} from "~/client/design/pretty_conjunction_list";
-import {messageViewMarginY} from "~/client/messaging/message_view";
-import {MessagingView, MessagingViewRef} from "~/client/messaging/messaging_view";
-import {useIsMobile} from "~/client/remix/use_is_mobile";
-import {useSpaceContext} from "~/client/spaces/space_context";
-import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view";
-import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model";
-import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol";
-import {Spacing, spacing} from "~/shared/design/spacing";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit";
-import {getChatMessagesFromEnd, getChatMessagesFromStart} from "~/shared/rpc/chat_rpc_definitions";
-import {sprinkles} from "~/shared/styles/styles";
+import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
+import {AccountShortName} from "~/client/accounts/account_short_name.js";
+import {useWebSocket} from "~/client/cloudflare/use_web_socket.js";
+import {useAppContext} from "~/client/context/app_context.js";
+import {Box} from "~/client/design/box.js";
+import {PrettyConjunctionList} from "~/client/design/pretty_conjunction_list.js";
+import {messageViewMarginY} from "~/client/messaging/message_view.js";
+import {MessagingView, MessagingViewRef} from "~/client/messaging/messaging_view.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view.js";
+import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
+import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
+import {Spacing, spacing} from "~/shared/design/spacing.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
+import {
+    getChatMessagesFromEnd,
+    getChatMessagesFromStart,
+} from "~/shared/rpc/chat_rpc_definitions.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 
 export function ChatView({
     chat,

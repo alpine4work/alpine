@@ -7,17 +7,17 @@ import {
     getAccountIfExists,
     getAccountsTableForTest,
     regenerateOneTimePasswordSignIn,
-} from "~/server/dynamo/accounts_table";
-import {ActionContext} from "~/server/dynamo/context/action_context";
-import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
-import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
-import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
-import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
-import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address";
-import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error";
-import {assert} from "~/shared/helpers/control/assert";
-import {generateId} from "~/shared/id/id";
-import {AccountId, ContentMentionAccountId, SpaceId} from "~/shared/id/types/id_types";
+} from "~/server/dynamo/accounts_table.js";
+import {ActionContext} from "~/server/dynamo/context/action_context.js";
+import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema.js";
+import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
+import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
+import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space.js";
+import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
+import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {generateId} from "~/shared/id/id.js";
+import {AccountId, ContentMentionAccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
 const context = createTestContext();
 const space1 = createTestSpace(context);

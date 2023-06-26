@@ -1,14 +1,14 @@
-import {DocumentContentView} from "~/client/documents/document_content_view";
-import {createMetaFunction} from "~/client/remix/create_meta_function";
-import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
-import {SpaceRouteScrollView} from "~/client/spaces/space_route_scroll_view";
-import {getDocument} from "~/server/dynamo/documents_table";
-import {jsonWithSchema} from "~/server/remix/json_with_schema";
-import {LoaderArgs} from "~/server/remix/loader_context";
-import {DocumentModel} from "~/shared/documents/document_model";
-import {DocumentId} from "~/shared/id/types/id_types";
-import {Schema} from "~/shared/schema/schema";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
+import {DocumentContentView} from "~/client/documents/document_content_view.js";
+import {createMetaFunction} from "~/client/remix/create_meta_function.js";
+import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
+import {SpaceRouteScrollView} from "~/client/spaces/space_route_scroll_view.js";
+import {getDocument} from "~/server/dynamo/documents_table.js";
+import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
+import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {DocumentModel} from "~/shared/documents/document_model.js";
+import {DocumentId} from "~/shared/id/types/id_types.js";
+import {Schema} from "~/shared/schema/schema.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({
     document: DocumentModel.schema(),

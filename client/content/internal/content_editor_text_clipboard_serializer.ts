@@ -1,7 +1,7 @@
 import {Slice} from "prosemirror-model";
-import {getContentMentionText} from "~/client/accounts/get_content_mention_text";
-import {ContentMention} from "~/shared/content/content_mention";
-import {ContentReferences} from "~/shared/content/content_references";
+import {getContentMentionText} from "~/client/accounts/get_content_mention_text.js";
+import {ContentMention} from "~/shared/content/content_mention.js";
+import {ContentReferences} from "~/shared/content/content_references.js";
 
 export function contentEditorTextClipboardSerializer(
     slice: Slice,

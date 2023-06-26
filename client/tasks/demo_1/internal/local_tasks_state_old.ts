@@ -1,19 +1,19 @@
 import {Memo, MutableRefObject, useEffect, useReducer, useRef} from "react";
-import {useDevConsoleTool} from "~/client/dev/dev_console";
-import {TaskRowViewRef} from "~/client/tasks/demo_1/internal/task_row_view";
-import {DataLossError, FailedPreconditionError, NotFoundError} from "~/shared/error/error";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
-import {iterableEvery} from "~/shared/helpers/iterable/iterable_every";
-import {iterableSome} from "~/shared/helpers/iterable/iterable_some";
-import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key";
-import {generateId} from "~/shared/id/id";
-import {LocalTaskId} from "~/shared/id/types/id_types";
-import {OrderKeySchema} from "~/shared/schema/order_key_schema";
-import {Schema, SchemaType} from "~/shared/schema/schema";
-import {TaskTitle, TaskTitleSchema, emptyTaskTitle} from "~/shared/tasks/task_title_schema";
+import {useDevConsoleTool} from "~/client/dev/dev_console.js";
+import {TaskRowViewRef} from "~/client/tasks/demo_1/internal/task_row_view.js";
+import {DataLossError, FailedPreconditionError, NotFoundError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
+import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
+import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
+import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
+import {generateId} from "~/shared/id/id.js";
+import {LocalTaskId} from "~/shared/id/types/id_types.js";
+import {OrderKeySchema} from "~/shared/schema/order_key_schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {TaskTitle, TaskTitleSchema, emptyTaskTitle} from "~/shared/tasks/task_title_schema.js";
 
 // TODO(calebmer): We store state locally for our task prototype. Once we land
 // on an interaction experience we like, this should all be moved to a

@@ -1,6 +1,9 @@
-import {DynamoBatchContextModule, DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
-import {Context} from "~/shared/context/context";
-import {TracerContextModule} from "~/shared/context/tracer_context_module";
+import {
+    DynamoBatchContextModule,
+    DynamoContextModule,
+} from "~/server/dynamo/dynamo_context_module.js";
+import {Context} from "~/shared/context/context.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 
 /**
  * Context with only the modules required by DynamoDB.

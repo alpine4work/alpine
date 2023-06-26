@@ -1,7 +1,7 @@
 import {Mark, Node} from "prosemirror-model";
 import {Step} from "prosemirror-transform";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {ExhaustiveStep} from "~/shared/prosemirror/prosemirror_exhaustive_step";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {ExhaustiveStep} from "~/shared/prosemirror/prosemirror_exhaustive_step.js";
 
 /**
  * Collections of functions that visit parts of a ProseMirror tree.

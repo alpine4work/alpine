@@ -8,15 +8,15 @@ import {
     createListItemParseRule,
     createProsemirrorSchemaSpec,
     toDebugStringWithIndent,
-} from "~/shared/content/content_schema";
-import {contentStructuralProsemirrorNodeSpecs} from "~/shared/content/content_schema_extra";
-import {HighlightColor, isHighlightColor} from "~/shared/design/highlight_color";
-import {assert} from "~/shared/helpers/control/assert";
-import {isId} from "~/shared/id/id";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
-import {createSchemaForProsemirrorSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema";
-import {Schema} from "~/shared/schema/schema";
-import {contentSchemaStyles} from "~/shared/styles/styles";
+} from "~/shared/content/content_schema.js";
+import {contentStructuralProsemirrorNodeSpecs} from "~/shared/content/content_schema_extra.js";
+import {HighlightColor, isHighlightColor} from "~/shared/design/highlight_color.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {isId} from "~/shared/id/id.js";
+import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {createSchemaForProsemirrorSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema.js";
+import {Schema} from "~/shared/schema/schema.js";
+import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
 const {
     checkListItemCheckedClassName,

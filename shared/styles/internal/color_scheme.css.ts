@@ -1,8 +1,8 @@
 import {assignVars, createGlobalTheme, globalStyle, style} from "@vanilla-extract/css";
-import {Color, colors} from "~/shared/design/colors";
-import {ThemeColor, defaultThemeColor, themeColors} from "~/shared/design/theme_colors";
-import {assert} from "~/shared/helpers/control/assert";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
+import {Color, colors} from "~/shared/design/colors.js";
+import {ThemeColor, defaultThemeColor, themeColors} from "~/shared/design/theme_colors.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 
 /**
  * The color scheme which identifies whether we are in dark mode.

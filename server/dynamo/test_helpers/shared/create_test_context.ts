@@ -2,33 +2,39 @@ import {AwsClient} from "aws4fetch";
 import fs from "fs-extra";
 import getPort from "get-port";
 import path from "path";
-import {DynamoLocal, startDynamoLocal} from "~/admin/dynamo/local/start_dynamo_local";
-import {Session, SessionItem} from "~/server/dynamo/accounts_table";
+import {DynamoLocal, startDynamoLocal} from "~/admin/dynamo/local/start_dynamo_local.js";
+import {Session, SessionItem} from "~/server/dynamo/accounts_table.js";
 import {
     MaybeSessionActionContext,
     SessionActionContext,
     SystemActionContext,
-} from "~/server/dynamo/context/action_context";
+} from "~/server/dynamo/context/action_context.js";
 import {
     MaybeSessionActorContextModule,
     SessionActorContextModule,
     SystemActorContextModule,
     UnidentifiedActorContextModule,
-} from "~/server/dynamo/context/actor_context_module";
-import {TestNotificationsContextModule} from "~/server/dynamo/context/notifications_context_module";
-import {ProcessContext, ProcessContextModulesBase} from "~/server/dynamo/context/process_context";
-import {DynamoBatchContextModule, DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
-import {testSharedHooks} from "~/server/dynamo/test_helpers/shared/test_shared_hooks";
-import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module";
-import {CacheContextModule} from "~/shared/context/cache_context_module";
-import {Context} from "~/shared/context/context";
-import {ProcessContextModule} from "~/shared/context/process_context_module";
-import {TracerContextModule} from "~/shared/context/tracer_context_module";
-import {InternalError} from "~/shared/error/error";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {SpaceId} from "~/shared/id/types/id_types";
-import {TracerRoot} from "~/shared/tracer/tracer_root";
+} from "~/server/dynamo/context/actor_context_module.js";
+import {TestNotificationsContextModule} from "~/server/dynamo/context/notifications_context_module.js";
+import {
+    ProcessContext,
+    ProcessContextModulesBase,
+} from "~/server/dynamo/context/process_context.js";
+import {
+    DynamoBatchContextModule,
+    DynamoContextModule,
+} from "~/server/dynamo/dynamo_context_module.js";
+import {testSharedHooks} from "~/server/dynamo/test_helpers/shared/test_shared_hooks.js";
+import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
+import {CacheContextModule} from "~/shared/context/cache_context_module.js";
+import {Context} from "~/shared/context/context.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {InternalError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
 // This file should only run in a Node.js test environment. Either Jest
 // or Playwright.

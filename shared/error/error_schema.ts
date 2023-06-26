@@ -1,12 +1,12 @@
-import {ErrorBase} from "~/shared/error/error";
-import {ErrorCode, isErrorCode} from "~/shared/error/error_code";
-import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code";
+import {ErrorBase} from "~/shared/error/error.js";
+import {ErrorCode, isErrorCode} from "~/shared/error/error_code.js";
+import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.js";
 import {
     ErrorDisplayMessage,
     ErrorDisplayMessageLinkSegment,
     ErrorDisplayMessageSegment,
-} from "~/shared/error/types/error_display_message_type";
-import {ObjectSchema, Schema} from "~/shared/schema/schema";
+} from "~/shared/error/types/error_display_message_type.js";
+import {ObjectSchema, Schema} from "~/shared/schema/schema.js";
 
 export const ErrorDisplayMessageLinkSegmentSchema: ObjectSchema<ErrorDisplayMessageLinkSegment> =
     Schema.object({

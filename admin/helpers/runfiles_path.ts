@@ -1,4 +1,4 @@
-import {assert} from "~/shared/helpers/control/assert";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 assert(process.env.RUNFILES);
 

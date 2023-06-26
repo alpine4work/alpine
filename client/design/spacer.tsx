@@ -1,5 +1,5 @@
-import {Spacing} from "~/shared/design/spacing";
-import {sprinkles} from "~/shared/styles/styles";
+import {Spacing} from "~/shared/design/spacing.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 
 /**
  * A spacer component in the [style of Josh Comaeau][1].

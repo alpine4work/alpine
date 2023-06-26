@@ -1,13 +1,13 @@
 import {json} from "@remix-run/cloudflare";
-import {assert} from "~/shared/helpers/control/assert";
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object";
-import {BlockInference} from "~/shared/helpers/types/block_inference";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
+import {BlockInference} from "~/shared/helpers/types/block_inference.js";
 import {
     deserializedValueSymbol,
     propagatedEventDataKey as propagateEventDataKey,
-} from "~/shared/remix/json_with_schema_shared";
-import {Schema} from "~/shared/schema/schema";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
+} from "~/shared/remix/json_with_schema_shared.js";
+import {Schema} from "~/shared/schema/schema.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 /**
  * Creates a JSON HTTP response using a schema for serialization.

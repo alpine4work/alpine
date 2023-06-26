@@ -1,13 +1,13 @@
 import {CalendarDate, GregorianCalendar} from "@internationalized/date";
-import {cast} from "~/shared/helpers/control/cast";
-import {generateId} from "~/shared/id/id";
+import {cast} from "~/shared/helpers/control/cast.js";
+import {generateId} from "~/shared/id/id.js";
 import {
     TaskQueryFilter,
     TaskQueryFilterAccountOperation,
     TaskQueryFilterDateOperation,
     deserializeTaskQueryFilters,
     serializeTaskQueryFilters,
-} from "~/shared/tasks/task_query_filter";
+} from "~/shared/tasks/task_query_filter.js";
 
 const testCases: Array<{name: string; filters: Array<TaskQueryFilter>}> = [
     {

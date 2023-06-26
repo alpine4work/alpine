@@ -1,11 +1,11 @@
 import murmurhash from "murmurhash";
-import {InvalidArgumentError} from "~/shared/error/error";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array";
-import {cast} from "~/shared/helpers/control/cast";
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object";
-import {JsonObjectValue, JsonValue} from "~/shared/helpers/types/json_value";
-import {SchemaSerializedScalarValue} from "~/shared/schema/schema";
-import {SchemaSerializedCompositeValueDescription} from "~/shared/schema/types/schema_description_types";
+import {InvalidArgumentError} from "~/shared/error/error.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
+import {cast} from "~/shared/helpers/control/cast.js";
+import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
+import {JsonObjectValue, JsonValue} from "~/shared/helpers/types/json_value.js";
+import {SchemaSerializedScalarValue} from "~/shared/schema/schema.js";
+import {SchemaSerializedCompositeValueDescription} from "~/shared/schema/types/schema_description_types.js";
 
 const schemaCompositeDescriptionTypes: {
     [K in SchemaSerializedCompositeValueDescription["type"]]: true;

@@ -1,5 +1,5 @@
-import {Store} from "~/client/helpers/store/store";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error";
+import {Store} from "~/client/helpers/store/store.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 
 /**
  * A simple immutable value store object designed for use with React's

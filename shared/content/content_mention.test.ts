@@ -1,4 +1,4 @@
-import {AccountId, ContentMentionAccountId} from "~/shared/id/types/id_types";
+import {AccountId, ContentMentionAccountId} from "~/shared/id/types/id_types.js";
 
 test("`AccountId`s are `ContentMentionAccountId`s", () => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

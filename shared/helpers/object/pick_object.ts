@@ -1,4 +1,4 @@
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 
 /**
  * Clones an object but only keys in the key array. An implementation of

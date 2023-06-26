@@ -1,5 +1,5 @@
-import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
-import {DynamoClient} from "~/server/dynamo/internal/dynamo_client";
+import {DynamoContext} from "~/server/dynamo/context/dynamo_context.js";
+import {DynamoClient} from "~/server/dynamo/internal/dynamo_client.js";
 
 /**
  * Get the DynamoDB client from context.

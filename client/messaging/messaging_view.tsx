@@ -13,44 +13,44 @@ import {
     useRef,
     useState,
 } from "react";
-import {ContentEditorState} from "~/client/content/content_editor_state";
-import {useAppContext} from "~/client/context/app_context";
-import {Spacer} from "~/client/design/spacer";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
-import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {MessageEditing, useMessageEditing} from "~/client/messaging/message_editing";
-import {MessageInput} from "~/client/messaging/message_input";
-import {MessageList, MessageListItem} from "~/client/messaging/message_list";
-import {MessageShimmer} from "~/client/messaging/message_shimmer";
+import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {useAppContext} from "~/client/context/app_context.js";
+import {Spacer} from "~/client/design/spacer.js";
+import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {MessageEditing, useMessageEditing} from "~/client/messaging/message_editing.js";
+import {MessageInput} from "~/client/messaging/message_input.js";
+import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
+import {MessageShimmer} from "~/client/messaging/message_shimmer.js";
 import {
     MessageView,
     bufferedMessageViewHeight,
     messageViewMarginY,
     messageViewMinHeight,
-} from "~/client/messaging/message_view";
+} from "~/client/messaging/message_view.js";
 import {
     MessagingTypingIndicators,
     messagingTypingIndicatorsMinHeight,
-} from "~/client/messaging/messaging_typing_indicators";
-import {tryLoadingMessages} from "~/client/messaging/try_loading_messages";
-import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime";
-import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages";
-import {useIsMobile} from "~/client/remix/use_is_mobile";
+} from "~/client/messaging/messaging_typing_indicators.js";
+import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
+import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime.js";
+import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewItem,
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
     getInitialVirtualizedScrollViewRenderedItemCount,
-} from "~/client/virtualized/virtualized_scroll_view";
-import {Spacing} from "~/shared/design/spacing";
-import {wait} from "~/shared/helpers/async/wait";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit";
-import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema";
-import {MessageModel} from "~/shared/messaging/message_model";
+} from "~/client/virtualized/virtualized_scroll_view.js";
+import {Spacing} from "~/shared/design/spacing.js";
+import {wait} from "~/shared/helpers/async/wait.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
+import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
+import {MessageModel} from "~/shared/messaging/message_model.js";
 import {
     BackfillMessagesProcedure,
     CreateMessageProcedure,
@@ -59,9 +59,9 @@ import {
     StartTypingInMessageInputProcedure,
     StopTypingInMessageInputProcedure,
     UpdateMessageContentProcedure,
-} from "~/shared/messaging/messaging_realtime_protocol";
-import {ClientInfo} from "~/shared/remix/client_info";
-import {sprinkles} from "~/shared/styles/styles";
+} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {ClientInfo} from "~/shared/remix/client_info.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 
 /**
  * Get the initial number of messages to load.

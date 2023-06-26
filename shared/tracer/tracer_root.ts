@@ -1,15 +1,15 @@
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {getRealmId} from "~/shared/id/realm_id";
-import {getExceptionTracerEventData} from "~/shared/tracer/helpers/get_exception_tracer_event_data";
-import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data";
-import {TracerBase} from "~/shared/tracer/tracer_base";
-import {TracerEvent} from "~/shared/tracer/tracer_event";
-import {TracerSpan, TracerSpanPropagationContext} from "~/shared/tracer/tracer_span";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {getRealmId} from "~/shared/id/realm_id.js";
+import {getExceptionTracerEventData} from "~/shared/tracer/helpers/get_exception_tracer_event_data.js";
+import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {TracerEvent} from "~/shared/tracer/tracer_event.js";
+import {TracerSpan, TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.js";
 import {
     TracerEventData,
     TracerEventFullData,
     TracerEventJsHost,
-} from "~/shared/tracer/types/tracer_event_data";
+} from "~/shared/tracer/types/tracer_event_data.js";
 
 /**
  * The name of the service our tracer is for.

@@ -22,42 +22,42 @@ import {
     useOption,
 } from "react-aria";
 import {ComboBoxState, ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
-import {Box} from "~/client/design/box";
-import {FocusRing} from "~/client/design/focus_ring";
-import {ModalDialog} from "~/client/design/modal_dialog";
-import {OverlayAnimated} from "~/client/design/overlay_animated";
-import {useShowToast} from "~/client/design/toast";
-import {defaultTooltipOffset} from "~/client/design/tooltip";
-import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus";
-import {isMac} from "~/client/helpers/browser/is_mac";
-import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growing_width";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
-import {useRootNavigate} from "~/client/remix/use_navigate";
-import {useSpaceContext} from "~/client/spaces/space_context";
+import {Box} from "~/client/design/box.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {ModalDialog} from "~/client/design/modal_dialog.js";
+import {OverlayAnimated} from "~/client/design/overlay_animated.js";
+import {useShowToast} from "~/client/design/toast.js";
+import {defaultTooltipOffset} from "~/client/design/tooltip.js";
+import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
+import {isMac} from "~/client/helpers/browser/is_mac.js";
+import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growing_width.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {useRootNavigate} from "~/client/remix/use_navigate.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     TaskCollectionChip,
     taskCollectionChipContainerMaxWidth,
-} from "~/client/tasks/demo_2/internal/task_collection_chip";
+} from "~/client/tasks/demo_2/internal/task_collection_chip.js";
 import {
     TaskCollectionChipBase,
     taskCollectionChipBorderRadius,
     taskCollectionChipHeight,
     taskCollectionChipPaddingY,
-} from "~/client/tasks/demo_2/internal/task_collection_chip_base";
-import {TaskCollectionOption} from "~/client/tasks/demo_2/internal/task_collection_option";
-import {TaskCollectionsListBoxCreateCollectionOption} from "~/client/tasks/demo_2/internal/task_collections_list_box_create_collection_option";
-import {TaskCollectionsListBoxInstructionalPlaceholder} from "~/client/tasks/demo_2/internal/task_collections_list_box_instructional_placeholder";
-import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
-import {spacing} from "~/shared/design/spacing";
-import {ThemeColor, themeColors} from "~/shared/design/theme_colors";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {randomInteger} from "~/shared/helpers/number/random_integer";
-import {generateId, isId} from "~/shared/id/id";
-import {LocalTaskCollectionId} from "~/shared/id/types/id_types";
-import {inputPlaceholderStyles, sprinkles, tasksStyles} from "~/shared/styles/styles";
+} from "~/client/tasks/demo_2/internal/task_collection_chip_base.js";
+import {TaskCollectionOption} from "~/client/tasks/demo_2/internal/task_collection_option.js";
+import {TaskCollectionsListBoxCreateCollectionOption} from "~/client/tasks/demo_2/internal/task_collections_list_box_create_collection_option.js";
+import {TaskCollectionsListBoxInstructionalPlaceholder} from "~/client/tasks/demo_2/internal/task_collections_list_box_instructional_placeholder.js";
+import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state.js";
+import {spacing} from "~/shared/design/spacing.js";
+import {ThemeColor, themeColors} from "~/shared/design/theme_colors.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {randomInteger} from "~/shared/helpers/number/random_integer.js";
+import {generateId, isId} from "~/shared/id/id.js";
+import {LocalTaskCollectionId} from "~/shared/id/types/id_types.js";
+import {inputPlaceholderStyles, sprinkles, tasksStyles} from "~/shared/styles/styles.js";
 
 type TaskDetailCollectionsFieldItem =
     | TaskDetailCollectionsFieldCollectionItem

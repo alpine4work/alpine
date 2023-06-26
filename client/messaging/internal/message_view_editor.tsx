@@ -1,26 +1,26 @@
 import {Check, KeyReturn, SpinnerGap, X} from "phosphor-react";
 import {Ref, forwardRef, useEffect, useImperativeHandle, useRef, useState} from "react";
-import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
-import {ContentEditorState} from "~/client/content/content_editor_state";
-import {Box} from "~/client/design/box";
-import {FocusRing} from "~/client/design/focus_ring";
-import {IconButton} from "~/client/design/icon_button";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
-import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {MessageEditing} from "~/client/messaging/message_editing";
+import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
+import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {Box} from "~/client/design/box.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {IconButton} from "~/client/design/icon_button.js";
+import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {
     messageViewActionsWidth,
     messageViewBubbleMergedBorderRadius,
     messageViewBubbleMinWidth,
-} from "~/client/messaging/message_view";
-import {spacing} from "~/shared/design/spacing";
-import {createTimeout} from "~/shared/helpers/async/timeout";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema";
-import {messageViewBubbleBorderRadius} from "~/shared/messaging/messaging_shared_styles";
-import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
+} from "~/client/messaging/message_view.js";
+import {spacing} from "~/shared/design/spacing.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
+import {messageViewBubbleBorderRadius} from "~/shared/messaging/messaging_shared_styles.js";
+import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 
 export type MessageViewEditorRef = {
     focus(): void;

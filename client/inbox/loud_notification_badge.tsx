@@ -1,6 +1,6 @@
-import {Box} from "~/client/design/box";
-import {RemLength, Spacing, spacing} from "~/shared/design/spacing";
-import {backgroundColorVar} from "~/shared/styles/styles";
+import {Box} from "~/client/design/box.js";
+import {RemLength, Spacing, spacing} from "~/shared/design/spacing.js";
+import {backgroundColorVar} from "~/shared/styles/styles.js";
 
 export function LoudNotificationBadge({
     top,

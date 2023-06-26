@@ -1,8 +1,8 @@
-import {Box} from "~/client/design/box";
-import {Spacing, spacing} from "~/shared/design/spacing";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {colorSchemeVars, pingAnimationClassName} from "~/shared/styles/styles";
-import {TaskPriority} from "~/shared/tasks/task_priority";
+import {Box} from "~/client/design/box.js";
+import {Spacing, spacing} from "~/shared/design/spacing.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {colorSchemeVars, pingAnimationClassName} from "~/shared/styles/styles.js";
+import {TaskPriority} from "~/shared/tasks/task_priority.js";
 
 export function TaskPriorityIcon({
     size,

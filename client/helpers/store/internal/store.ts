@@ -1,4 +1,4 @@
-import {MappedStore} from "~/client/helpers/store/mapped_store";
+import {MappedStore} from "~/client/helpers/store/mapped_store.js";
 
 /**
  * A simple immutable value store object designed for use with React's

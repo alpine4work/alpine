@@ -1,6 +1,6 @@
 import {keyframes} from "@vanilla-extract/css";
-import {easeInOutQuad} from "~/shared/design/easing";
-import {createSpringAnimation} from "~/shared/styles/internal/helpers/spring_animation";
+import {easeInOutQuad} from "~/shared/design/easing.js";
+import {createSpringAnimation} from "~/shared/styles/internal/helpers/spring_animation.js";
 
 const offset = 1.5;
 

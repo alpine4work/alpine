@@ -1,9 +1,9 @@
-import DocumentNewCommentThreadsRoute from "~/app/routes/s/$space_id/notifications/document-comment-threads/$document_id_and_bucket_generation";
+import DocumentNewCommentThreadsRoute from "~/app/routes/s/$space_id/notifications/document-comment-threads/$document_id_and_bucket_generation.js";
 
 export {
     loader,
     meta,
-} from "~/app/routes/s/$space_id/notifications/document-comment-threads/$document_id_and_bucket_generation";
+} from "~/app/routes/s/$space_id/notifications/document-comment-threads/$document_id_and_bucket_generation.js";
 
 export default function DocumentNewCommentThreadsPeekRoute() {
     return (

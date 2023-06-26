@@ -1,9 +1,9 @@
-import ChannelPostsRoute from "~/app/routes/s/$space_id/notifications/channel-posts/$channel_id_and_bucket_generation";
+import ChannelPostsRoute from "~/app/routes/s/$space_id/notifications/channel-posts/$channel_id_and_bucket_generation.js";
 
 export {
     loader,
     meta,
-} from "~/app/routes/s/$space_id/notifications/channel-posts/$channel_id_and_bucket_generation";
+} from "~/app/routes/s/$space_id/notifications/channel-posts/$channel_id_and_bucket_generation.js";
 
 export default function ChannelPostsPeekRoute() {
     return (

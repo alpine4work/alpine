@@ -1,41 +1,41 @@
 import {addDays, addMinutes, subDays} from "date-fns";
-import {ActionContext} from "~/server/dynamo/context/action_context";
-import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
-import {DynamoReadConsistency} from "~/server/dynamo/internal/dynamo_client";
-import {DynamoCondition} from "~/server/dynamo/internal/dynamo_condition";
-import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
+import {ActionContext} from "~/server/dynamo/context/action_context.js";
+import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry.js";
+import {DynamoReadConsistency} from "~/server/dynamo/internal/dynamo_client.js";
+import {DynamoCondition} from "~/server/dynamo/internal/dynamo_condition.js";
+import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema.js";
 import {
     DynamoTableSchema,
     DynamoTableSchemaIndexConfig,
     DynamoTableSchemaIndexKeyAttributesConfigBase,
     DynamoTableSchemaIndexKeyAttributesType,
     DynamoTableSchemaTypesBase,
-} from "~/server/dynamo/internal/dynamo_table_schema";
-import {DynamoTableSchemaTypes} from "~/server/dynamo/internal/types/dynamo_table_schema_types";
+} from "~/server/dynamo/internal/dynamo_table_schema.js";
+import {DynamoTableSchemaTypes} from "~/server/dynamo/internal/types/dynamo_table_schema_types.js";
 import {
     DynamoGeneralRealtimeBackfillResult,
     DynamoGeneralRealtimeEvent,
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,
-} from "~/shared/dynamo/dynamo_general_realtime_types";
+} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {
     DynamoIndexCursor,
     DynamoItemKey,
     DynamoItemKeySchema,
-} from "~/shared/dynamo/dynamo_opaque_strings";
-import {UnimplementedError} from "~/shared/error/error";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
-import {assert} from "~/shared/helpers/control/assert";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
-import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
-import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
-import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
-import {ObjectFromEntries} from "~/shared/helpers/types/object_from_entries";
-import {Schema, SchemaWithoutValidation} from "~/shared/schema/schema";
+} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {UnimplementedError} from "~/shared/error/error.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
+import {ObjectFromEntries} from "~/shared/helpers/types/object_from_entries.js";
+import {Schema, SchemaWithoutValidation} from "~/shared/schema/schema.js";
 
 export type DynamoGeneralRealtimeTableSchemaGetTypes<
     Schema extends DynamoGeneralRealtimeTableSchema<any, any>,

@@ -1,13 +1,13 @@
 import Cookies from "js-cookie";
 import {ReactNode, createContext, useContext, useEffect, useState} from "react";
 import {I18nProvider} from "react-aria";
-import {mobileMaxScreenWidth} from "~/shared/design/spacing";
-import {InternalError} from "~/shared/error/error";
-import {assert} from "~/shared/helpers/control/assert";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
-import {Lazy} from "~/shared/helpers/control/lazy";
-import {defaultTimeZone, getCurrentTimeZone} from "~/shared/helpers/date/time_zone";
-import {ClientInfo} from "~/shared/remix/client_info";
+import {mobileMaxScreenWidth} from "~/shared/design/spacing.js";
+import {InternalError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {defaultTimeZone, getCurrentTimeZone} from "~/shared/helpers/date/time_zone.js";
+import {ClientInfo} from "~/shared/remix/client_info.js";
 
 /**
  * Default client info to use in tests or in server-side rendering before we

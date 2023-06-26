@@ -1,26 +1,26 @@
 import {
     getAllDynamoTableSchemaIndexNames,
     getAllDynamoTableSchemas,
-} from "~/server/dynamo/get_all_dynamo_table_schemas";
-import {DateString, isDateString} from "~/shared/helpers/date/date_string";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object";
-import {IdentifierStringSchema} from "~/shared/schema/identifier_string_schema";
-import {LabelStringSchema} from "~/shared/schema/label_string_schema";
+} from "~/server/dynamo/get_all_dynamo_table_schemas.js";
+import {DateString, isDateString} from "~/shared/helpers/date/date_string.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
+import {IdentifierStringSchema} from "~/shared/schema/identifier_string_schema.js";
+import {LabelStringSchema} from "~/shared/schema/label_string_schema.js";
 import {
     Schema,
     SchemaDeserializationError,
     SchemaWithOnlyDeserialization,
-} from "~/shared/schema/schema";
+} from "~/shared/schema/schema.js";
 import {
     TracerEventFlatData,
     convertCamelCaseToSnakeCase,
-} from "~/shared/tracer/helpers/build_tracer_event_flat_data";
+} from "~/shared/tracer/helpers/build_tracer_event_flat_data.js";
 import {
     TracerEventHttpHeaderName,
     tracerEventHttpHeaderNames,
-} from "~/shared/tracer/helpers/tracer_event_http_header_names";
-import {TracerEventDataBase, TracerEventFullData} from "~/shared/tracer/types/tracer_event_data";
+} from "~/shared/tracer/helpers/tracer_event_http_header_names.js";
+import {TracerEventDataBase, TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.js";
 
 type TracerEventDataSchemaType<Data extends TracerEventDataBase> = {
     [Key in keyof Data]-?: NonNullable<Data[Key]> extends TracerEventDataBase

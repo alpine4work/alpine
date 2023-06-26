@@ -1,10 +1,10 @@
 import {Link} from "@remix-run/react";
 import {useHover} from "react-aria";
-import {AccountAvatar} from "~/client/accounts/account_avatar";
-import {Box} from "~/client/design/box";
-import {PrettyAbsoluteDate} from "~/client/design/pretty_absolute_date";
-import {PostModel} from "~/shared/forum/post_model";
-import {sprinkles} from "~/shared/styles/styles";
+import {AccountAvatar} from "~/client/accounts/account_avatar.js";
+import {Box} from "~/client/design/box.js";
+import {PrettyAbsoluteDate} from "~/client/design/pretty_absolute_date.js";
+import {PostModel} from "~/shared/forum/post_model.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 
 export function PostContentViewHeader({
     post,

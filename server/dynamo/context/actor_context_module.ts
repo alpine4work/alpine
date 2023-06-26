@@ -1,14 +1,14 @@
-import {Session} from "~/server/dynamo/accounts_table";
-import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
-import {unauthenticatedSessionError} from "~/server/dynamo/context/helpers/unauthenticated_session_error";
-import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
-import {AccountModel} from "~/shared/accounts/account_model";
-import {Context} from "~/shared/context/context";
-import {ContextModuleBase} from "~/shared/context/context_module_base";
-import {TracerContextModule} from "~/shared/context/tracer_context_module";
-import {PermissionDeniedError} from "~/shared/error/error";
-import {Replace} from "~/shared/helpers/types/replace";
-import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types";
+import {Session} from "~/server/dynamo/accounts_table.js";
+import {DynamoContext} from "~/server/dynamo/context/dynamo_context.js";
+import {unauthenticatedSessionError} from "~/server/dynamo/context/helpers/unauthenticated_session_error.js";
+import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {Context} from "~/shared/context/context.js";
+import {ContextModuleBase} from "~/shared/context/context_module_base.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {PermissionDeniedError} from "~/shared/error/error.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
+import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
  * Represents who is currently taking an action against our system.

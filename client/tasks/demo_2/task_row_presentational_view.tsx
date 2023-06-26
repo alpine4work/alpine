@@ -16,54 +16,63 @@ import {
     useState,
 } from "react";
 import {mergeProps} from "react-aria";
-import {Box} from "~/client/design/box";
-import {ContextMenuActions} from "~/client/design/context_menu";
-import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element";
-import {IconButton} from "~/client/design/icon_button";
-import {MenuAction} from "~/client/design/menu_button";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support";
-import {useClientInfo} from "~/client/remix/client_info_context";
-import {useSpaceContext} from "~/client/spaces/space_context";
-import {getTaskStatusMenuActions} from "~/client/tasks/demo_2/internal/get_task_status_menu_actions";
-import {TaskAssigneeInput} from "~/client/tasks/demo_2/internal/task_assignee_input";
-import {TaskDateInput} from "~/client/tasks/demo_2/internal/task_date_input";
-import {TaskGridViewCapabilities} from "~/client/tasks/demo_2/internal/task_grid_view_capabilities";
-import {TaskGridViewDraggableData} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
-import {TaskPriorityInput} from "~/client/tasks/demo_2/internal/task_priority_input";
+import {Box} from "~/client/design/box.js";
+import {ContextMenuActions} from "~/client/design/context_menu.js";
+import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
+import {IconButton} from "~/client/design/icon_button.js";
+import {MenuAction} from "~/client/design/menu_button.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {getTaskStatusMenuActions} from "~/client/tasks/demo_2/internal/get_task_status_menu_actions.js";
+import {TaskAssigneeInput} from "~/client/tasks/demo_2/internal/task_assignee_input.js";
+import {TaskDateInput} from "~/client/tasks/demo_2/internal/task_date_input.js";
+import {TaskGridViewCapabilities} from "~/client/tasks/demo_2/internal/task_grid_view_capabilities.js";
+import {TaskGridViewDraggableData} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context.js";
+import {TaskPriorityInput} from "~/client/tasks/demo_2/internal/task_priority_input.js";
 import {
     TaskRowAssigneeCell,
     TaskRowAssigneeCellRef,
-} from "~/client/tasks/demo_2/internal/task_row_assignee_cell";
+} from "~/client/tasks/demo_2/internal/task_row_assignee_cell.js";
 import {
     TaskRowCollectionsCell,
     TaskRowCollectionsCellRef,
-} from "~/client/tasks/demo_2/internal/task_row_collections_cell";
+} from "~/client/tasks/demo_2/internal/task_row_collections_cell.js";
 import {
     TaskRowDueDateCell,
     TaskRowDueDateCellRef,
-} from "~/client/tasks/demo_2/internal/task_row_due_date_cell";
+} from "~/client/tasks/demo_2/internal/task_row_due_date_cell.js";
 import {
     TaskRowPriorityCell,
     TaskRowPriorityCellRef,
-} from "~/client/tasks/demo_2/internal/task_row_priority_cell";
-import {taskRowViewMinHeight} from "~/client/tasks/demo_2/internal/task_row_shared_styles";
+} from "~/client/tasks/demo_2/internal/task_row_priority_cell.js";
+import {taskRowViewMinHeight} from "~/client/tasks/demo_2/internal/task_row_shared_styles.js";
 import {
     TaskRowTitleInput,
     TaskRowTitleInputRef,
-} from "~/client/tasks/demo_2/internal/task_row_title_input";
-import {TaskRowViewDroppable} from "~/client/tasks/demo_2/internal/task_row_view_droppable";
-import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
-import {TaskAssignee, TaskStatus, TaskStatusButton} from "~/client/tasks/demo_2/task_status_button";
-import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
-import {AccountModel} from "~/shared/accounts/account_model";
-import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
-import {ThemeColor} from "~/shared/design/theme_colors";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {LocalTaskCollectionId} from "~/shared/id/types/id_types";
-import {colorSchemeVars, contentSchemaStyles, sprinkles, tasksStyles} from "~/shared/styles/styles";
-import {TaskPriority} from "~/shared/tasks/task_priority";
-import {TaskTitle} from "~/shared/tasks/task_title_schema";
+} from "~/client/tasks/demo_2/internal/task_row_title_input.js";
+import {TaskRowViewDroppable} from "~/client/tasks/demo_2/internal/task_row_view_droppable.js";
+import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state.js";
+import {
+    TaskAssignee,
+    TaskStatus,
+    TaskStatusButton,
+} from "~/client/tasks/demo_2/task_status_button.js";
+import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {ThemeColor} from "~/shared/design/theme_colors.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {LocalTaskCollectionId} from "~/shared/id/types/id_types.js";
+import {
+    colorSchemeVars,
+    contentSchemaStyles,
+    sprinkles,
+    tasksStyles,
+} from "~/shared/styles/styles.js";
+import {TaskPriority} from "~/shared/tasks/task_priority.js";
+import {TaskTitle} from "~/shared/tasks/task_title_schema.js";
 
 export type TaskRowPresentationalViewRef = {
     focusTitleStart(): void;

@@ -3,15 +3,15 @@ import {ReplaceStep} from "prosemirror-transform";
 import {
     getInitialDocumentContentEditorState,
     reduceDocumentContentEditorState,
-} from "~/client/documents/internal/document_content_editor_web_socket_client";
-import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references";
+} from "~/client/documents/internal/document_content_editor_web_socket_client.js";
+import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {
     assertDocumentContent,
     DocumentContentProsemirrorSchema as schema,
-} from "~/shared/documents/document_content_schema";
-import {DocumentModel} from "~/shared/documents/document_model";
-import {generateId} from "~/shared/id/id";
-import {ContentEditorClientId} from "~/shared/id/types/id_types";
+} from "~/shared/documents/document_content_schema.js";
+import {DocumentModel} from "~/shared/documents/document_model.js";
+import {generateId} from "~/shared/id/id.js";
+import {ContentEditorClientId} from "~/shared/id/types/id_types.js";
 
 function textSlice(text: string) {
     if (text.length === 0) return Slice.empty;

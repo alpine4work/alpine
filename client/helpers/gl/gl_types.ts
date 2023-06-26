@@ -1,4 +1,4 @@
-import {PickByValue} from "~/shared/helpers/types/pick_by_value";
+import {PickByValue} from "~/shared/helpers/types/pick_by_value.js";
 
 export function glEnum<Name extends keyof PickByValue<typeof WebGL2RenderingContext, number>>(
     name: Name,

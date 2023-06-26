@@ -1,30 +1,33 @@
 import {json} from "@remix-run/cloudflare";
 import {Form, Link, useTransition} from "@remix-run/react";
 import {useEffect, useId, useMemo, useState} from "react";
-import {redirectToAuthenticatedHome} from "~/app/helpers/redirect_to_authenticated_home";
-import {DocumentBlobFactory, useDocumentBlobSettings} from "~/client/blob_factory/document_blobs";
-import {Box} from "~/client/design/box";
-import {Button} from "~/client/design/button";
-import {ErrorInlineAlert} from "~/client/design/error_inline_alert";
-import {FocusRing} from "~/client/design/focus_ring";
-import {InlineAlert} from "~/client/design/inline_alert";
-import {MultilineTextInput} from "~/client/design/multiline_text_input";
-import {Spacer} from "~/client/design/spacer";
-import {TextInput} from "~/client/design/text_input";
-import {useActionDataWithSchema} from "~/client/remix/use_action_data_with_schema";
-import {requestAlphaAccess} from "~/server/dynamo/alpha_access_table";
-import {validateEmailAddress} from "~/server/emails/email_address";
-import {jsonWithSchema} from "~/server/remix/json_with_schema";
-import {LoaderArgs} from "~/server/remix/loader_context";
-import {themeColors} from "~/shared/design/theme_colors";
-import {InvalidArgumentError} from "~/shared/error/error";
-import {errorDisplayMessage} from "~/shared/error/error_display_message";
-import {ErrorSchema} from "~/shared/error/error_schema";
-import {isSystemError} from "~/shared/error/is_system_error_code";
-import {randomArrayItem} from "~/shared/helpers/array/random_array_item";
-import {getUrlRegExp} from "~/shared/helpers/string/url_reg_exp";
-import {Schema, SchemaType} from "~/shared/schema/schema";
-import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles";
+import {redirectToAuthenticatedHome} from "~/app/helpers/redirect_to_authenticated_home.js";
+import {
+    DocumentBlobFactory,
+    useDocumentBlobSettings,
+} from "~/client/blob_factory/document_blobs.js";
+import {Box} from "~/client/design/box.js";
+import {Button} from "~/client/design/button.js";
+import {ErrorInlineAlert} from "~/client/design/error_inline_alert.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {InlineAlert} from "~/client/design/inline_alert.js";
+import {MultilineTextInput} from "~/client/design/multiline_text_input.js";
+import {Spacer} from "~/client/design/spacer.js";
+import {TextInput} from "~/client/design/text_input.js";
+import {useActionDataWithSchema} from "~/client/remix/use_action_data_with_schema.js";
+import {requestAlphaAccess} from "~/server/dynamo/alpha_access_table.js";
+import {validateEmailAddress} from "~/server/emails/email_address.js";
+import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
+import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {themeColors} from "~/shared/design/theme_colors.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {ErrorSchema} from "~/shared/error/error_schema.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {randomArrayItem} from "~/shared/helpers/array/random_array_item.js";
+import {getUrlRegExp} from "~/shared/helpers/string/url_reg_exp.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles.js";
 
 // TODO(calebmer): Lint rule that in JSX and error display messages you use a
 // curly quote (`’`) over single quotes (`'`) for apostrophes. Double

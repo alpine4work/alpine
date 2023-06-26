@@ -1,7 +1,7 @@
-import {DataLossError} from "~/shared/error/error";
-import {wait} from "~/shared/helpers/async/wait";
-import {TracerEvent} from "~/shared/tracer/tracer_event";
-import {TracerRoot} from "~/shared/tracer/tracer_root";
+import {DataLossError} from "~/shared/error/error.js";
+import {wait} from "~/shared/helpers/async/wait.js";
+import {TracerEvent} from "~/shared/tracer/tracer_event.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
 /**
  * Client we use for sending our tracer events to Honeycomb.

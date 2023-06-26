@@ -1,6 +1,6 @@
 import {Outlet, useLocation} from "react-router";
-import {Box} from "~/client/design/box";
-import {TaskLayoutTopBar} from "~/client/tasks/demo_2/task_layout_top_bar";
+import {Box} from "~/client/design/box.js";
+import {TaskLayoutTopBar} from "~/client/tasks/demo_2/task_layout_top_bar.js";
 
 export default function TasksLayoutRoute() {
     const location = useLocation();

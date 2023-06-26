@@ -1,9 +1,9 @@
 import {DOMOutputSpec, DOMSerializer, Fragment, Mark, Node, Schema} from "prosemirror-model";
-import {getContentMentionText} from "~/client/accounts/get_content_mention_text";
-import {ContentMention} from "~/shared/content/content_mention";
-import {ContentReferences} from "~/shared/content/content_references";
-import {clampListItemIndentation} from "~/shared/content/content_schema";
-import {iterableEvery} from "~/shared/helpers/iterable/iterable_every";
+import {getContentMentionText} from "~/client/accounts/get_content_mention_text.js";
+import {ContentMention} from "~/shared/content/content_mention.js";
+import {ContentReferences} from "~/shared/content/content_references.js";
+import {clampListItemIndentation} from "~/shared/content/content_schema.js";
+import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 
 // Augment with types for some internal methods from:
 // https://github.com/ProseMirror/prosemirror-model/blob/26c634ffff8ad6544fda12ed70c99f12a65959f3/src/to_dom.ts#L27

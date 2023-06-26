@@ -2,42 +2,42 @@ import {ArrowRight} from "phosphor-react";
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {RefObject, useCallback, useEffect, useRef, useState} from "react";
-import {AccountAvatar} from "~/client/accounts/account_avatar";
-import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
+import {AccountAvatar} from "~/client/accounts/account_avatar.js";
+import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {
     ContentEditorState,
     createCommentThreadMetaKey,
     updateContentEditorReferences,
-} from "~/client/content/content_editor_state";
-import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker";
-import {Box} from "~/client/design/box";
-import {FocusRing} from "~/client/design/focus_ring";
-import {IconButton} from "~/client/design/icon_button";
-import {ModalDialog} from "~/client/design/modal_dialog";
-import {OverlayRef} from "~/client/design/overlay";
-import {OverlayAnimated} from "~/client/design/overlay_animated";
-import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus";
-import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {useSpaceContext} from "~/client/spaces/space_context";
-import {isContentEmpty} from "~/shared/content/is_content_empty";
-import {parseRemLengthNumber, spacing} from "~/shared/design/spacing";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {generateId} from "~/shared/id/id";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
-import {emptyMessageContentWithReferences} from "~/shared/messaging/message_content_schema";
+} from "~/client/content/content_editor_state.js";
+import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
+import {Box} from "~/client/design/box.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {IconButton} from "~/client/design/icon_button.js";
+import {ModalDialog} from "~/client/design/modal_dialog.js";
+import {OverlayRef} from "~/client/design/overlay.js";
+import {OverlayAnimated} from "~/client/design/overlay_animated.js";
+import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {isContentEmpty} from "~/shared/content/is_content_empty.js";
+import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {generateId} from "~/shared/id/id.js";
+import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {emptyMessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {
     messageInputMinHeight,
     messageViewBubbleBorderRadius,
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
-} from "~/shared/messaging/messaging_shared_styles";
-import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range";
+} from "~/shared/messaging/messaging_shared_styles.js";
+import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 import {
     greyElevatedClassName,
     overlayFadeOutAnimationDurationMs,
     sprinkles,
-} from "~/shared/styles/styles";
+} from "~/shared/styles/styles.js";
 
 export function ContentEditorCommentInputFloater({
     state,

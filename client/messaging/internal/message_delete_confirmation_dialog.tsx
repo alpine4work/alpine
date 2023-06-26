@@ -1,4 +1,4 @@
-import {ModalDialog} from "~/client/design/modal_dialog";
+import {ModalDialog} from "~/client/design/modal_dialog.js";
 
 export function MessageDeleteConfirmationDialog({
     messageNoun,

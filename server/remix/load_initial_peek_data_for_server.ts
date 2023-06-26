@@ -5,12 +5,12 @@ import {
     matchServerRoutes,
 } from "@remix-run/server-runtime";
 import {Path, To, createPath} from "history";
-import {LoaderContext} from "~/server/remix/loader_context";
-import {InvalidArgumentError, NotFoundError} from "~/shared/error/error";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable";
-import {convertSpacePathToPeekPath} from "~/shared/remix/peek_path_helpers";
-import {SchemaSerializedObjectValue} from "~/shared/schema/schema";
+import {LoaderContext} from "~/server/remix/loader_context.js";
+import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {convertSpacePathToPeekPath} from "~/shared/remix/peek_path_helpers.js";
+import {SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
 
 /**
  * We have a client version of this too: `loadInitialPeekDataForClient()`.

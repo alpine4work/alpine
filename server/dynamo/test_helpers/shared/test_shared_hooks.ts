@@ -1,4 +1,4 @@
-import {assert} from "~/shared/helpers/control/assert";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 // This file should only run in a Node.js test environment. Either Jest
 // or Playwright.

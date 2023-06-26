@@ -1,9 +1,13 @@
 import {Step} from "prosemirror-transform";
-import {ActionContext} from "~/server/dynamo/context/action_context";
-import {getDocumentContentSteps} from "~/server/dynamo/documents_table";
-import {FailedPreconditionError, InternalError, InvalidArgumentError} from "~/shared/error/error";
-import {assert} from "~/shared/helpers/control/assert";
-import {ContentEditorClientId, DocumentId} from "~/shared/id/types/id_types";
+import {ActionContext} from "~/server/dynamo/context/action_context.js";
+import {getDocumentContentSteps} from "~/server/dynamo/documents_table.js";
+import {
+    FailedPreconditionError,
+    InternalError,
+    InvalidArgumentError,
+} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {ContentEditorClientId, DocumentId} from "~/shared/id/types/id_types.js";
 
 /**
  * Stores steps in an in-memory cache and loads old steps into that cache as we

@@ -1,6 +1,6 @@
-import {captureResult, unwrapResult} from "~/shared/helpers/control/capture_result";
-import {Result} from "~/shared/helpers/control/result";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
+import {captureResult, unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {Result} from "~/shared/helpers/control/result.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 
 /**
  * A lazily computed infinite series of values. The first time you call

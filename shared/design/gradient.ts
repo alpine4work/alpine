@@ -1,7 +1,7 @@
 import {interpolateHcl} from "d3-interpolate";
-import {Easing} from "~/shared/design/easing";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length";
-import {invLerp} from "~/shared/helpers/number/inv_lerp";
+import {Easing} from "~/shared/design/easing.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {invLerp} from "~/shared/helpers/number/inv_lerp.js";
 
 type ColorString = string;
 

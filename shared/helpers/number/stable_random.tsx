@@ -1,4 +1,4 @@
-import {lerp} from "~/shared/helpers/number/lerp";
+import {lerp} from "~/shared/helpers/number/lerp.js";
 
 function cyrb53(baseString: string, keyString: string, seed = 0) {
     let h1 = 0xdeadbeef ^ seed,

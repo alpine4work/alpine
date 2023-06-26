@@ -6,10 +6,10 @@ import {
     getInboxEntries,
     observeInbox,
     unarchiveInboxEntry,
-} from "~/server/dynamo/notifications_table";
-import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
-import {implementRpc} from "~/server/rpc/internal/implement_rpc";
-import * as definition from "~/shared/rpc/notifications_rpc_definitions";
+} from "~/server/dynamo/notifications_table.js";
+import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table.js";
+import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
+import * as definition from "~/shared/rpc/notifications_rpc_definitions.js";
 
 implementRpc(definition.getInboxWithStrongReadConsistency, async (_context, input) => {
     const context = await _context.actor.authenticate();

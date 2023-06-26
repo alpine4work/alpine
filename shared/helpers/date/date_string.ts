@@ -1,6 +1,6 @@
 import isValid from "date-fns/isValid";
 import parseISO from "date-fns/parseISO";
-import {assert} from "~/shared/helpers/control/assert";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
  * A date encoded in the [ISO 8601][1] format.

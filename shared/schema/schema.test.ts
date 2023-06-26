@@ -1,6 +1,6 @@
-import {InvalidArgumentError} from "~/shared/error/error";
-import {assert} from "~/shared/helpers/control/assert";
-import {Schema, SchemaDeserializationError} from "~/shared/schema/schema";
+import {InvalidArgumentError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
 
 function validate<Value>(schema: Schema<Value>, value: unknown): boolean {
     try {

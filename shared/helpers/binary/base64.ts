@@ -27,7 +27,7 @@
  * THE SOFTWARE.
  */
 
-import {InvalidArgumentError} from "~/shared/error/error";
+import {InvalidArgumentError} from "~/shared/error/error.js";
 
 export type Base64Dictionary = keyof typeof dictionaries;
 

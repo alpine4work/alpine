@@ -1,20 +1,20 @@
 import {Node} from "prosemirror-model";
 import {useCallback, useMemo, useRef} from "react";
 import {useButton} from "react-aria";
-import {ContentView} from "~/client/content/content_view";
-import {Box} from "~/client/design/box";
-import {FocusRing} from "~/client/design/focus_ring";
-import {useRemPx} from "~/client/design/helpers/use_rem_px";
-import {documentCommentThreadPreviewHeight} from "~/client/documents/document_shared_styles";
-import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {convertRemLengthToPx, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
-import {DocumentContentReferences} from "~/shared/documents/document_content_references";
-import {DocumentCommentThreadModel} from "~/shared/documents/document_model";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {safe, safeAlphanumericString, safeNumber} from "~/shared/helpers/string/safe_string";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
-import {fontSizesByPlatform, pressOpacityOverlayClassName} from "~/shared/styles/styles";
+import {ContentView} from "~/client/content/content_view.js";
+import {Box} from "~/client/design/box.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
+import {documentCommentThreadPreviewHeight} from "~/client/documents/document_shared_styles.js";
+import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {convertRemLengthToPx, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {DocumentContentReferences} from "~/shared/documents/document_content_references.js";
+import {DocumentCommentThreadModel} from "~/shared/documents/document_model.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {safe, safeAlphanumericString, safeNumber} from "~/shared/helpers/string/safe_string.js";
+import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {fontSizesByPlatform, pressOpacityOverlayClassName} from "~/shared/styles/styles.js";
 
 export function DocumentCommentThreadPreview({
     commentThread,

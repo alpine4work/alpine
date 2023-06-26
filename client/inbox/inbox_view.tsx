@@ -11,55 +11,55 @@ import {
     useRef,
     useState,
 } from "react";
-import {Box} from "~/client/design/box";
-import {FocusRing} from "~/client/design/focus_ring";
-import {useRemPx} from "~/client/design/helpers/use_rem_px";
-import {delayFullPageTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
-import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query";
-import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element";
-import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event";
-import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies";
-import {usePromise} from "~/client/helpers/use_promise";
+import {Box} from "~/client/design/box.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
+import {delayFullPageTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query.js";
+import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
+import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
+import {usePromise} from "~/client/helpers/use_promise.js";
 import {
     InboxEntryView,
     inboxEntryDeleteAnimationDurationMs,
     inboxEntryViewMinHeight,
     inboxEntryWidth,
-} from "~/client/inbox/inbox_entry_view";
-import {InboxPeekContextProvider} from "~/client/inbox/inbox_peek_context";
-import {InboxViewEntriesEmpty} from "~/client/inbox/inbox_view_entries_empty";
-import {InboxViewTopBar} from "~/client/inbox/inbox_view_top_bar";
-import {useInboxState} from "~/client/inbox/use_inbox_state";
-import {loadInitialPeekDataForClient} from "~/client/peek/load_initial_peek_data_for_client";
-import {PeekRemixEmbed} from "~/client/peek/peek_remix_embed";
+} from "~/client/inbox/inbox_entry_view.js";
+import {InboxPeekContextProvider} from "~/client/inbox/inbox_peek_context.js";
+import {InboxViewEntriesEmpty} from "~/client/inbox/inbox_view_entries_empty.js";
+import {InboxViewTopBar} from "~/client/inbox/inbox_view_top_bar.js";
+import {useInboxState} from "~/client/inbox/use_inbox_state.js";
+import {loadInitialPeekDataForClient} from "~/client/peek/load_initial_peek_data_for_client.js";
+import {PeekRemixEmbed} from "~/client/peek/peek_remix_embed.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
-} from "~/client/virtualized/virtualized_scroll_view";
-import {convertRemLengthToPx, spacing} from "~/shared/design/spacing";
+} from "~/client/virtualized/virtualized_scroll_view.js";
+import {convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
 import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,
-} from "~/shared/dynamo/dynamo_general_realtime_types";
-import {DynamoIndexCursor, DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings";
-import {InternalError} from "~/shared/error/error";
-import {createInterval} from "~/shared/helpers/async/interval";
-import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
-import {createTimeout} from "~/shared/helpers/async/timeout";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {generateId} from "~/shared/id/id";
-import {PeekId} from "~/shared/id/types/id_types";
-import {InboxEntryModel} from "~/shared/notifications/inbox_model";
+} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {DynamoIndexCursor, DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {InternalError} from "~/shared/error/error.js";
+import {createInterval} from "~/shared/helpers/async/interval.js";
+import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
+import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {generateId} from "~/shared/id/id.js";
+import {PeekId} from "~/shared/id/types/id_types.js";
+import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {
     convertPeekPathToSpacePath,
     convertSpacePathToPeekPath,
-} from "~/shared/remix/peek_path_helpers";
-import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles";
+} from "~/shared/remix/peek_path_helpers.js";
+import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles.js";
 
 export type InboxViewPeek = {
     readonly id: PeekId;

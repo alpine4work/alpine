@@ -1,9 +1,9 @@
-import {assert} from "~/shared/helpers/control/assert";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable";
-import {tracerEventHttpHeaderNames} from "~/shared/tracer/helpers/tracer_event_http_header_names";
-import {TracerBase} from "~/shared/tracer/tracer_base";
-import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header";
-import {TracerSpan} from "~/shared/tracer/tracer_span";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
+import {tracerEventHttpHeaderNames} from "~/shared/tracer/helpers/tracer_event_http_header_names.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 const globalFetch = fetch;
 

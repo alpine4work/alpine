@@ -1,9 +1,9 @@
 import {CaretUp} from "phosphor-react";
 import {mergeProps, useHover, usePress} from "react-aria";
-import {Box} from "~/client/design/box";
-import {Tooltip} from "~/client/design/tooltip";
-import {TaskChildTasksProgressWheel} from "~/client/tasks/demo_2/internal/task_child_tasks_progress_wheel";
-import {spacing} from "~/shared/design/spacing";
+import {Box} from "~/client/design/box.js";
+import {Tooltip} from "~/client/design/tooltip.js";
+import {TaskChildTasksProgressWheel} from "~/client/tasks/demo_2/internal/task_child_tasks_progress_wheel.js";
+import {spacing} from "~/shared/design/spacing.js";
 
 export function TaskRowTitleChildTasksButton({
     childTaskCount,

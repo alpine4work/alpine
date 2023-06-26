@@ -8,10 +8,10 @@ import {
     MjmlSection,
     MjmlTitle,
 } from "mjml-react";
-import {EmailText} from "~/server/emails/internal/helpers/email_text";
-import {colors} from "~/shared/design/colors";
-import {defaultThemeColor} from "~/shared/design/theme_colors";
-import {assert} from "~/shared/helpers/control/assert";
+import {EmailText} from "~/server/emails/internal/helpers/email_text.js";
+import {colors} from "~/shared/design/colors.js";
+import {defaultThemeColor} from "~/shared/design/theme_colors.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 export function SignInEmailTemplate({
     code,

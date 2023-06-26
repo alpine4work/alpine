@@ -1,5 +1,5 @@
 import {keyframes, style} from "@vanilla-extract/css";
-import {spacing} from "~/shared/design/spacing";
+import {spacing} from "~/shared/design/spacing.js";
 
 // On fade-in the animation moves towards the component. This makes it feel like
 // the overlay is "pulled in" to the target.

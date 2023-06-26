@@ -3,13 +3,13 @@ import {
     TaskQueryAccountNormalizedFilter,
     TaskQueryDateNormalizedFilter,
     TaskQueryNormalizedFilters,
-} from "~/client/tasks/demo_2/internal/normalize_task_query_filters";
-import {LocalTask} from "~/client/tasks/demo_2/local_tasks_state";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {iterableEvery} from "~/shared/helpers/iterable/iterable_every";
-import {iterableSome} from "~/shared/helpers/iterable/iterable_some";
-import {AccountId} from "~/shared/id/types/id_types";
+} from "~/client/tasks/demo_2/internal/normalize_task_query_filters.js";
+import {LocalTask} from "~/client/tasks/demo_2/local_tasks_state.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
+import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
 
 // TypeScript errors here when new normalized filters are added. If you add a
 // new normalized filter you should make sure to update

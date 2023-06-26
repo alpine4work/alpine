@@ -1,5 +1,5 @@
-import {EmailContextModuleBase} from "~/server/emails/email_context_module_base";
-import {DataLossError} from "~/shared/error/error";
+import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
+import {DataLossError} from "~/shared/error/error.js";
 
 /**
  * Do nothing when sending an email. This is used in tests. Throws an error if

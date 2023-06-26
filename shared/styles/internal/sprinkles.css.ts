@@ -15,17 +15,17 @@ import {
     desktopPlatformMediaQuery,
     mobilePlatformMediaQuery,
     spacing,
-} from "~/shared/design/spacing";
-import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
-import {borderRadius} from "~/shared/styles/internal/border_radius.css";
+} from "~/shared/design/spacing.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {borderRadius} from "~/shared/styles/internal/border_radius.css.js";
 import {
     CssVarFunction,
     colorSchemeVars,
     darkColorSchemeSelector,
     lightColorSchemeSelector,
-} from "~/shared/styles/internal/color_scheme.css";
-import {elevationVars} from "~/shared/styles/internal/elevation.css";
-import {fontSizes, fontStyles} from "~/shared/styles/internal/fonts.css";
+} from "~/shared/styles/internal/color_scheme.css.js";
+import {elevationVars} from "~/shared/styles/internal/elevation.css.js";
+import {fontSizes, fontStyles} from "~/shared/styles/internal/fonts.css.js";
 
 const properties = defineProperties({
     properties: {

@@ -1,27 +1,27 @@
 import {useEffect, useRef, useState} from "react";
-import {Box} from "~/client/design/box";
-import {OverlayScopeContextProvider} from "~/client/design/overlay";
-import {TaskCollectionGridView} from "~/client/tasks/demo_2/internal/task_collection_grid_view";
-import {TaskCollectionViewHeader} from "~/client/tasks/demo_2/internal/task_collection_view_header";
-import {TaskQueryViewCustomizationBar} from "~/client/tasks/demo_2/internal/task_query_view_customization_bar";
+import {Box} from "~/client/design/box.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {TaskCollectionGridView} from "~/client/tasks/demo_2/internal/task_collection_grid_view.js";
+import {TaskCollectionViewHeader} from "~/client/tasks/demo_2/internal/task_collection_view_header.js";
+import {TaskQueryViewCustomizationBar} from "~/client/tasks/demo_2/internal/task_query_view_customization_bar.js";
 import {
     LocalTaskCollection,
     LocalTasksAction,
     LocalTasksState,
-} from "~/client/tasks/demo_2/local_tasks_state";
-import {TaskGridPresentationalViewRef} from "~/client/tasks/demo_2/task_grid_presentational_view";
-import {TaskQuerySort} from "~/client/tasks/demo_2/task_query_sort";
-import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
-import {themeColors} from "~/shared/design/theme_colors";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {randomInteger} from "~/shared/helpers/number/random_integer";
-import {LocalTaskCollectionId} from "~/shared/id/types/id_types";
-import {tasksStyles} from "~/shared/styles/styles";
-import {TaskQueryFilter} from "~/shared/tasks/task_query_filter";
+} from "~/client/tasks/demo_2/local_tasks_state.js";
+import {TaskGridPresentationalViewRef} from "~/client/tasks/demo_2/task_grid_presentational_view.js";
+import {TaskQuerySort} from "~/client/tasks/demo_2/task_query_sort.js";
+import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
+import {themeColors} from "~/shared/design/theme_colors.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {randomInteger} from "~/shared/helpers/number/random_integer.js";
+import {LocalTaskCollectionId} from "~/shared/id/types/id_types.js";
+import {tasksStyles} from "~/shared/styles/styles.js";
+import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {
     TaskQueryFilterReferences,
     mergeTaskQueryFilterReferences,
-} from "~/shared/tasks/task_query_filter_references";
+} from "~/shared/tasks/task_query_filter_references.js";
 
 export function TaskCollectionView({
     state,

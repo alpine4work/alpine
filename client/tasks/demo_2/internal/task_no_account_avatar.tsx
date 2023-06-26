@@ -1,8 +1,8 @@
 import {User} from "phosphor-react";
-import {Box} from "~/client/design/box";
-import {useSpacingPx} from "~/client/design/helpers/use_spacing_px";
-import {spacing} from "~/shared/design/spacing";
-import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles";
+import {Box} from "~/client/design/box.js";
+import {useSpacingPx} from "~/client/design/helpers/use_spacing_px.js";
+import {spacing} from "~/shared/design/spacing.js";
+import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles.js";
 
 export function TaskNoAccountAvatar({size = "5"}: {size?: "3" | "4" | "5"}) {
     return (

@@ -1,5 +1,5 @@
-import {ErrorBase, InternalError} from "~/shared/error/error";
-import {ErrorCode} from "~/shared/error/error_code";
+import {ErrorBase, InternalError} from "~/shared/error/error.js";
+import {ErrorCode} from "~/shared/error/error_code.js";
 
 /**
  * Is this the code for a system error? System errors are errors we do not

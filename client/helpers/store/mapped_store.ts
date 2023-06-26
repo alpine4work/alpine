@@ -1,4 +1,4 @@
-import {Store} from "~/client/helpers/store/internal/store";
+import {Store} from "~/client/helpers/store/internal/store.js";
 
 /**
  * A combinator for `Store` where we can transform the underlying value.

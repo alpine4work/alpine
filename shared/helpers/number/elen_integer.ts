@@ -1,6 +1,6 @@
-import {InvalidArgumentError} from "~/shared/error/error";
-import {assert} from "~/shared/helpers/control/assert";
-import {quote} from "~/shared/helpers/string/quote";
+import {InvalidArgumentError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 
 /**
  * String encoding of an integer whose lexicographic order is the same as the

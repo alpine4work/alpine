@@ -8,11 +8,11 @@ import {
     // eslint-disable-next-line no-restricted-imports
     useNavigate as useOriginalNavigate,
 } from "react-router-dom";
-import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {InternalError, UnimplementedError} from "~/shared/error/error";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {InternalError, UnimplementedError} from "~/shared/error/error.js";
+import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 
 export interface NavigateFunction {
     (to: To, options?: NavigateOptions): Promise<void>;

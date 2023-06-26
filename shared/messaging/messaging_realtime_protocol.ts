@@ -1,10 +1,10 @@
-import {AccountModel} from "~/shared/accounts/account_model";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types";
-import {WebSocketConnectionId} from "~/shared/id/types/id_types";
-import {MessageChange, MessageChangeSchema} from "~/shared/messaging/message_change_schema";
-import {MessageContent, MessageContentSchema} from "~/shared/messaging/message_content_schema";
-import {MessageModel} from "~/shared/messaging/message_model";
-import {ObjectSchemaConfigType, Schema, SchemaType, UnionSchema} from "~/shared/schema/schema";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
+import {WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {MessageChange, MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
+import {MessageContent, MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
+import {MessageModel} from "~/shared/messaging/message_model.js";
+import {ObjectSchemaConfigType, Schema, SchemaType, UnionSchema} from "~/shared/schema/schema.js";
 
 export type MessagingTypingState = SchemaType<typeof MessagingTypingStateSchema>;
 

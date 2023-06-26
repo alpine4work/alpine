@@ -10,21 +10,26 @@ import {
     useRef,
 } from "react";
 import {usePress} from "react-aria";
-import {Box} from "~/client/design/box";
-import {buttonPressedOverlayOpacity} from "~/client/design/button";
-import {IconButton} from "~/client/design/icon_button";
-import {LocalTasksAction} from "~/client/tasks/demo_1/internal/local_tasks_state_old";
-import {TaskRow} from "~/client/tasks/demo_1/internal/task_row";
+import {Box} from "~/client/design/box.js";
+import {buttonPressedOverlayOpacity} from "~/client/design/button.js";
+import {IconButton} from "~/client/design/icon_button.js";
+import {LocalTasksAction} from "~/client/tasks/demo_1/internal/local_tasks_state_old.js";
+import {TaskRow} from "~/client/tasks/demo_1/internal/task_row.js";
 import {
     TaskRowTitleInput,
     TaskRowTitleInputRef,
     taskRowTitleInputHeight,
-} from "~/client/tasks/demo_1/internal/task_row_title_input_old";
-import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
-import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {LocalTaskId} from "~/shared/id/types/id_types";
-import {colorSchemeVars, contentSchemaStyles, sprinkles, tasksStyles} from "~/shared/styles/styles";
+} from "~/client/tasks/demo_1/internal/task_row_title_input_old.js";
+import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
+import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {LocalTaskId} from "~/shared/id/types/id_types.js";
+import {
+    colorSchemeVars,
+    contentSchemaStyles,
+    sprinkles,
+    tasksStyles,
+} from "~/shared/styles/styles.js";
 
 const taskRowHeight: Spacing = taskRowTitleInputHeight;
 

@@ -1,4 +1,4 @@
-import {createAwsApp} from "~/admin/aws/aws_app";
+import {createAwsApp} from "~/admin/aws/aws_app.js";
 
 async function main() {
     const app = await createAwsApp();

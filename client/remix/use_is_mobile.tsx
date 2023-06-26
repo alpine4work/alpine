@@ -1,8 +1,8 @@
 import {ReactNode, createContext, useContext, useEffect, useState} from "react";
-import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
-import {useClientInfo} from "~/client/remix/client_info_context";
-import {mobileMaxScreenWidth, mobilePlatformMediaQuery} from "~/shared/design/spacing";
-import {InternalError} from "~/shared/error/error";
+import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {mobileMaxScreenWidth, mobilePlatformMediaQuery} from "~/shared/design/spacing.js";
+import {InternalError} from "~/shared/error/error.js";
 
 const IsMobileContext = createContext<boolean | null>(null);
 

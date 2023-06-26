@@ -2,8 +2,8 @@ import {
     DynamoCondition,
     DynamoConditionExpression,
     DynamoConditionExpressionCompilationContext,
-} from "~/server/dynamo/internal/dynamo_condition";
-import {Schema, SchemaType} from "~/shared/schema/schema";
+} from "~/server/dynamo/internal/dynamo_condition.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 const schema = Schema.object({
     a: Schema.integer,

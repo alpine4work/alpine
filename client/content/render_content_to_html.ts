@@ -1,24 +1,24 @@
 import classNames from "classnames";
 import {DOMOutputSpec, Node} from "prosemirror-model";
-import {getContentMentionText} from "~/client/accounts/get_content_mention_text";
-import {AccountModel} from "~/shared/accounts/account_model";
-import {contentCheckListItemIconSvg} from "~/shared/content/content_check_list_item_icon_svg";
-import {ContentMention} from "~/shared/content/content_mention";
-import {ContentWithReferences} from "~/shared/content/content_references";
-import {clampListItemIndentation} from "~/shared/content/content_schema";
-import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty";
-import {documentFallbackTitle} from "~/shared/documents/document_fallback_title";
-import {UnimplementedError} from "~/shared/error/error";
-import {assert} from "~/shared/helpers/control/assert";
-import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator";
-import {omitObject} from "~/shared/helpers/object/omit_object";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
+import {getContentMentionText} from "~/client/accounts/get_content_mention_text.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {contentCheckListItemIconSvg} from "~/shared/content/content_check_list_item_icon_svg.js";
+import {ContentMention} from "~/shared/content/content_mention.js";
+import {ContentWithReferences} from "~/shared/content/content_references.js";
+import {clampListItemIndentation} from "~/shared/content/content_schema.js";
+import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
+import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
+import {UnimplementedError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {
     ProsemirrorHtmlSerializationDecoration,
     renderProsemirrorDomOutputSpec,
     serializeProsemirrorFragmentToHtml,
-} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
-import {contentSchemaStyles} from "~/shared/styles/styles";
+} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
+import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
 const {
     docClassName,

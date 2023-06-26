@@ -1,6 +1,6 @@
-import {TracerRoot} from "~/shared/tracer/tracer_root";
-import {TracerSpan} from "~/shared/tracer/tracer_span";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
+import {TracerRoot} from "~/shared/tracer/tracer_root.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 /**
  * An object you can create new spans from. These spans may be child of other

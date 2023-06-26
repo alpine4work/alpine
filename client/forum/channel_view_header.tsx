@@ -1,12 +1,12 @@
-import {ContentView} from "~/client/content/content_view";
-import {Box} from "~/client/design/box";
-import {PostEditorInline, postEditorInlineMinHeight} from "~/client/forum/post_editor_inline";
-import {PostListChannelHeader} from "~/client/forum/post_list";
-import {postListViewMarginX, postListViewMarginY} from "~/client/forum/post_list_view";
-import {useIsMobile} from "~/client/remix/use_is_mobile";
-import {isContentEmpty} from "~/shared/content/is_content_empty";
-import {PostModel} from "~/shared/forum/post_model";
-import {sprinkles} from "~/shared/styles/styles";
+import {ContentView} from "~/client/content/content_view.js";
+import {Box} from "~/client/design/box.js";
+import {PostEditorInline, postEditorInlineMinHeight} from "~/client/forum/post_editor_inline.js";
+import {PostListChannelHeader} from "~/client/forum/post_list.js";
+import {postListViewMarginX, postListViewMarginY} from "~/client/forum/post_list_view.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {isContentEmpty} from "~/shared/content/is_content_empty.js";
+import {PostModel} from "~/shared/forum/post_model.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 
 export const channelViewHeaderMinHeight = postEditorInlineMinHeight;
 

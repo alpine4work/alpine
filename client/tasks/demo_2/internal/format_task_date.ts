@@ -1,5 +1,5 @@
 import {CalendarDate} from "@internationalized/date";
-import {TimeZone} from "~/shared/helpers/date/time_zone";
+import {TimeZone} from "~/shared/helpers/date/time_zone.js";
 
 export function formatTaskDate({
     timeZone,

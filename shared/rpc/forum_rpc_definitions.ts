@@ -1,10 +1,10 @@
-import {AccountModel} from "~/shared/accounts/account_model";
-import {PostContentSchema} from "~/shared/forum/post_content_schema";
-import {PostCommentModel, PostModel} from "~/shared/forum/post_model";
-import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types";
-import {MessageContentSchema} from "~/shared/messaging/message_content_schema";
-import {defineRpc} from "~/shared/rpc/internal/define_rpc";
-import {Schema} from "~/shared/schema/schema";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
+import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
+import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
+import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export const updateChannelName = defineRpc({
     name: "updateChannelName",

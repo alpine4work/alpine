@@ -22,27 +22,27 @@ import {
     useOption,
 } from "react-aria";
 import {ComboBoxState, ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
-import {AccountAvatar} from "~/client/accounts/account_avatar";
-import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name";
-import {Box} from "~/client/design/box";
-import {FocusRing} from "~/client/design/focus_ring";
-import {IconButton} from "~/client/design/icon_button";
-import {OverlayAnimated} from "~/client/design/overlay_animated";
-import {joinPrettyConjunctionList} from "~/client/design/pretty_conjunction_list";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {useSpaceContext} from "~/client/spaces/space_context";
-import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts";
-import {AccountModel} from "~/shared/accounts/account_model";
-import {ChatModel} from "~/shared/chat/chat_model";
-import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length";
-import {emptyArray} from "~/shared/helpers/array/empty_array";
-import {createTimeout} from "~/shared/helpers/async/timeout";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {assertId} from "~/shared/id/id";
-import {AccountId, ChatId} from "~/shared/id/types/id_types";
+import {AccountAvatar} from "~/client/accounts/account_avatar.js";
+import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name.js";
+import {Box} from "~/client/design/box.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {IconButton} from "~/client/design/icon_button.js";
+import {OverlayAnimated} from "~/client/design/overlay_animated.js";
+import {joinPrettyConjunctionList} from "~/client/design/pretty_conjunction_list.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {ChatModel} from "~/shared/chat/chat_model.js";
+import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assertId} from "~/shared/id/id.js";
+import {AccountId, ChatId} from "~/shared/id/types/id_types.js";
 import {
     backgroundColorVar,
     colorSchemeVars,
@@ -51,7 +51,7 @@ import {
     overlayFadeOutAnimationDurationMs,
     spinAnimationClassName,
     sprinkles,
-} from "~/shared/styles/styles";
+} from "~/shared/styles/styles.js";
 
 type ChatAccountPickerItem =
     | {

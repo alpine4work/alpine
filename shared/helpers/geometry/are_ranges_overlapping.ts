@@ -1,4 +1,4 @@
-import {assert} from "~/shared/helpers/control/assert";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
  * Tests if two ranges overlap at all.

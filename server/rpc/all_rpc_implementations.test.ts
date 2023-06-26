@@ -1,11 +1,11 @@
-import "~/server/rpc/all_rpc_implementations";
+import "~/server/rpc/all_rpc_implementations.js";
 
-import {getAllImplementedRpcNames} from "~/server/rpc/internal/implement_rpc";
-import {InternalError} from "~/shared/error/error";
-import {quote} from "~/shared/helpers/string/quote";
+import {getAllImplementedRpcNames} from "~/server/rpc/internal/implement_rpc.js";
+import {InternalError} from "~/shared/error/error.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 // Allow this test to look at all defined RPCs.
 // eslint-disable-next-line no-internal-imports
-import {getAllDefinedRpcNames} from "~/shared/rpc/internal/define_rpc";
+import {getAllDefinedRpcNames} from "~/shared/rpc/internal/define_rpc.js";
 
 test("all RPC definitions have implementations", async () => {
     const allDefinedRpcNames = getAllDefinedRpcNames();

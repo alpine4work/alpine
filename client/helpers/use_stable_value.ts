@@ -1,5 +1,5 @@
 import {Memo, useMemo} from "react";
-import {Schema} from "~/shared/schema/schema";
+import {Schema} from "~/shared/schema/schema.js";
 
 /**
  * Returns the same value reference over time if the value is deeply equal to

@@ -11,12 +11,12 @@ import {
     useState,
 } from "react";
 import {useHover, usePress} from "react-aria";
-import {Box} from "~/client/design/box";
-import {FocusRing} from "~/client/design/focus_ring";
-import {Tooltip} from "~/client/design/tooltip";
-import {HighlightColor, colorByHighlightColor} from "~/shared/design/highlight_color";
-import {assert} from "~/shared/helpers/control/assert";
-import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range";
+import {Box} from "~/client/design/box.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {Tooltip} from "~/client/design/tooltip.js";
+import {HighlightColor, colorByHighlightColor} from "~/shared/design/highlight_color.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 
 export type ContentEditorHighlightSelectorRef = {
     focus(options?: FocusOptions): void;

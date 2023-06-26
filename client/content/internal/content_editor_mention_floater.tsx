@@ -13,29 +13,29 @@ import {
     useState,
 } from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
-import {AccountAvatar} from "~/client/accounts/account_avatar";
-import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name";
+import {AccountAvatar} from "~/client/accounts/account_avatar.js";
+import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name.js";
 import {
     setContentEditorQuickUndo,
     updateContentEditorReferences,
-} from "~/client/content/content_editor_state";
-import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker";
-import {Box} from "~/client/design/box";
-import {FocusRing} from "~/client/design/focus_ring";
-import {OverlayRef} from "~/client/design/overlay";
-import {OverlayAnimated} from "~/client/design/overlay_animated";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
-import {useConstant} from "~/client/helpers/lifecycle/use_constant";
-import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts";
-import {AccountModel} from "~/shared/accounts/account_model";
-import {ContentMention} from "~/shared/content/content_mention";
-import {spacing} from "~/shared/design/spacing";
-import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
-import {createTimeout} from "~/shared/helpers/async/timeout";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {overlayFadeOutAnimationDurationMs, spinAnimationClassName} from "~/shared/styles/styles";
+} from "~/client/content/content_editor_state.js";
+import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
+import {Box} from "~/client/design/box.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {OverlayRef} from "~/client/design/overlay.js";
+import {OverlayAnimated} from "~/client/design/overlay_animated.js";
+import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {ContentMention} from "~/shared/content/content_mention.js";
+import {spacing} from "~/shared/design/spacing.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {overlayFadeOutAnimationDurationMs, spinAnimationClassName} from "~/shared/styles/styles.js";
 
 export function ContentEditorMentionFloater({
     state,

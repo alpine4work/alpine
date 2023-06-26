@@ -12,41 +12,45 @@ import {
     useRef,
     useState,
 } from "react";
-import {Box} from "~/client/design/box";
-import {ContextMenuActions} from "~/client/design/context_menu";
-import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element";
-import {IconButton} from "~/client/design/icon_button";
-import {MenuAction, MenuButton} from "~/client/design/menu_button";
-import {Spacer} from "~/client/design/spacer";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref";
-import {useClientInfo} from "~/client/remix/client_info_context";
-import {useIsMobile} from "~/client/remix/use_is_mobile";
-import {useNavigate} from "~/client/remix/use_navigate";
-import {useSpaceContext} from "~/client/spaces/space_context";
-import {getTaskStatusMenuActions} from "~/client/tasks/demo_2/internal/get_task_status_menu_actions";
-import {TaskAssigneeInput} from "~/client/tasks/demo_2/internal/task_assignee_input";
-import {TaskChildTasksProgressWheel} from "~/client/tasks/demo_2/internal/task_child_tasks_progress_wheel";
-import {TaskCollectionsInput} from "~/client/tasks/demo_2/internal/task_collections_input";
-import {TaskDateInput} from "~/client/tasks/demo_2/internal/task_date_input";
-import {TaskDetailNotesField} from "~/client/tasks/demo_2/internal/task_detail_notes_field";
-import {TaskDetailTitleInput} from "~/client/tasks/demo_2/internal/task_detail_title_input";
-import {TaskPriorityInput} from "~/client/tasks/demo_2/internal/task_priority_input";
-import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
+import {Box} from "~/client/design/box.js";
+import {ContextMenuActions} from "~/client/design/context_menu.js";
+import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
+import {IconButton} from "~/client/design/icon_button.js";
+import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
+import {Spacer} from "~/client/design/spacer.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {getTaskStatusMenuActions} from "~/client/tasks/demo_2/internal/get_task_status_menu_actions.js";
+import {TaskAssigneeInput} from "~/client/tasks/demo_2/internal/task_assignee_input.js";
+import {TaskChildTasksProgressWheel} from "~/client/tasks/demo_2/internal/task_child_tasks_progress_wheel.js";
+import {TaskCollectionsInput} from "~/client/tasks/demo_2/internal/task_collections_input.js";
+import {TaskDateInput} from "~/client/tasks/demo_2/internal/task_date_input.js";
+import {TaskDetailNotesField} from "~/client/tasks/demo_2/internal/task_detail_notes_field.js";
+import {TaskDetailTitleInput} from "~/client/tasks/demo_2/internal/task_detail_title_input.js";
+import {TaskPriorityInput} from "~/client/tasks/demo_2/internal/task_priority_input.js";
+import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state.js";
 import {
     TaskGridPresentationalView,
     TaskGridPresentationalViewProps,
     TaskGridPresentationalViewRef,
-} from "~/client/tasks/demo_2/task_grid_presentational_view";
-import {TaskAssignee, TaskStatus, TaskStatusButton} from "~/client/tasks/demo_2/task_status_button";
-import {Spacing, assertSpacing} from "~/shared/design/spacing";
-import {ThemeColor} from "~/shared/design/theme_colors";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {LocalTaskCollectionId} from "~/shared/id/types/id_types";
-import {sprinkles} from "~/shared/styles/styles";
-import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema";
-import {TaskPriority} from "~/shared/tasks/task_priority";
-import {TaskTitle} from "~/shared/tasks/task_title_schema";
+} from "~/client/tasks/demo_2/task_grid_presentational_view.js";
+import {
+    TaskAssignee,
+    TaskStatus,
+    TaskStatusButton,
+} from "~/client/tasks/demo_2/task_status_button.js";
+import {Spacing, assertSpacing} from "~/shared/design/spacing.js";
+import {ThemeColor} from "~/shared/design/theme_colors.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {LocalTaskCollectionId} from "~/shared/id/types/id_types.js";
+import {sprinkles} from "~/shared/styles/styles.js";
+import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
+import {TaskPriority} from "~/shared/tasks/task_priority.js";
+import {TaskTitle} from "~/shared/tasks/task_title_schema.js";
 
 export const taskDetailPresentationalViewMaxWidth: Spacing = "160";
 

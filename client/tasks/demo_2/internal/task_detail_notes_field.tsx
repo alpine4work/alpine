@@ -1,14 +1,14 @@
 import {useId, useRef, useState} from "react";
-import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
-import {ContentEditorState} from "~/client/content/content_editor_state";
-import {Box} from "~/client/design/box";
-import {FocusRing} from "~/client/design/focus_ring";
-import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
-import {Spacing} from "~/shared/design/spacing";
-import {assertSpacing} from "~/shared/design/spacing";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {sprinkles} from "~/shared/styles/styles";
-import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema";
+import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
+import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {Box} from "~/client/design/box.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
+import {Spacing} from "~/shared/design/spacing.js";
+import {assertSpacing} from "~/shared/design/spacing.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {sprinkles} from "~/shared/styles/styles.js";
+import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
 
 export function TaskDetailNotesField({
     notesContent,

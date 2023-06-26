@@ -1,8 +1,8 @@
 import {Node} from "prosemirror-model";
-import {ContentMention} from "~/shared/content/content_mention";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables";
-import {ContentMentionAccountId} from "~/shared/id/types/id_types";
-import {visitProsemirrorNode} from "~/shared/prosemirror/prosemirror_visitor";
+import {ContentMention} from "~/shared/content/content_mention.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {ContentMentionAccountId} from "~/shared/id/types/id_types.js";
+import {visitProsemirrorNode} from "~/shared/prosemirror/prosemirror_visitor.js";
 
 /**
  * Get all the mentioned accounts in some content.

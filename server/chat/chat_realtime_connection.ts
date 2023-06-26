@@ -1,23 +1,23 @@
-import {WebSocketConnectionProcedures} from "~/server/cloudflare/web_socket_server";
+import {WebSocketConnectionProcedures} from "~/server/cloudflare/web_socket_server.js";
 import {
     backfillChatMessages,
     deleteChatMessage,
     sendChatMessage,
     updateChatMessageContent,
-} from "~/server/dynamo/chat_table";
-import {ProcessContext} from "~/server/dynamo/context/process_context";
+} from "~/server/dynamo/chat_table.js";
+import {ProcessContext} from "~/server/dynamo/context/process_context.js";
 import {
     BackfillMessagesFunction,
     CreateMessageFunction,
     CreateMessageModelFunction,
     DeleteMessageFunction,
     UpdateMessageContentFunction,
-} from "~/server/messaging/messaging_implementation";
-import {MessagingRealtimeConnection} from "~/server/messaging/messaging_realtime_connection";
-import {ChatMessageModel} from "~/shared/chat/chat_model";
-import {ChatRealtimeEvent, ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
-import {ChatId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types";
+} from "~/server/messaging/messaging_implementation.js";
+import {MessagingRealtimeConnection} from "~/server/messaging/messaging_realtime_connection.js";
+import {ChatMessageModel} from "~/shared/chat/chat_model.js";
+import {ChatRealtimeEvent, ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {ChatId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 
 export class ChatRealtimeConnection {
     private readonly _connection: MessagingRealtimeConnection<ChatId, ChatMessageModel>;

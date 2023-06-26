@@ -1,4 +1,4 @@
-import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
+import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 
 /**
  * Convert all properties of an object that include `undefined` to optional

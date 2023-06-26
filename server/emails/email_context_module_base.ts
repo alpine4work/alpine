@@ -1,7 +1,7 @@
-import {EmailAddress} from "~/server/emails/email_address";
-import {FromEmailAddress} from "~/server/emails/from_email_address";
-import {EmailTemplates, RenderedEmail} from "~/server/emails/internal/email_templates";
-import {ContextModuleBase} from "~/shared/context/context_module_base";
+import {EmailAddress} from "~/server/emails/email_address.js";
+import {FromEmailAddress} from "~/server/emails/from_email_address.js";
+import {EmailTemplates, RenderedEmail} from "~/server/emails/internal/email_templates.js";
+import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 
 /**
  * Context module for sending an email.
@@ -38,7 +38,7 @@ export abstract class EmailContextModuleBase<
         templateName: Template;
         templateProps: Parameters<EmailTemplates[Template]>[0];
     }) {
-        const {emailTemplates} = await import("~/server/emails/internal/email_templates");
+        const {emailTemplates} = await import("~/server/emails/internal/email_templates.js");
         const renderedEmail = emailTemplates[templateName](templateProps);
 
         await this._send(fromEmailAddress, toEmailAddress, renderedEmail);

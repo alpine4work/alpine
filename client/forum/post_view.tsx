@@ -1,7 +1,7 @@
 import {useEffect, useRef} from "react";
-import {PostListView, PostListViewRef} from "~/client/forum/post_list_view";
-import {PostCommentModel, PostModel} from "~/shared/forum/post_model";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {PostListView, PostListViewRef} from "~/client/forum/post_list_view.js";
+import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 export function PostView({
     initialPost,

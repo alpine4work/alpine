@@ -29,44 +29,44 @@ import {
     updateDocumentContentBeforeExecuteTransactionTestCheckpoint,
     updateDocumentSnapshotBeforeMovingCommentThreadTestCheckpoint,
     updateDocumentSnapshotForTest,
-} from "~/server/dynamo/documents_table";
-import {testMessagingImplementation} from "~/server/dynamo/test_helpers/jest/test_messaging_implementation";
-import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
-import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
-import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
+} from "~/server/dynamo/documents_table.js";
+import {testMessagingImplementation} from "~/server/dynamo/test_helpers/jest/test_messaging_implementation.js";
+import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
+import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
+import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space.js";
 import {
     emptyDocumentContent,
     isDocumentContent,
     DocumentContentProsemirrorSchema as schema,
-} from "~/shared/documents/document_content_schema";
+} from "~/shared/documents/document_content_schema.js";
 import {
     DocumentCommentRoomKey,
     DocumentModel,
     decodeDocumentCommentRoomKey,
     encodeDocumentCommentRoomKey,
-} from "~/shared/documents/document_model";
+} from "~/shared/documents/document_model.js";
 import {
     DataLossError,
     FailedPreconditionError,
     InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
-} from "~/shared/error/error";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
-import {assert} from "~/shared/helpers/control/assert";
-import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
-import {generateId} from "~/shared/id/id";
+} from "~/shared/error/error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
+import {generateId} from "~/shared/id/id.js";
 import {
     ContentEditorClientId,
     DocumentCommentThreadId,
     DocumentId,
-} from "~/shared/id/types/id_types";
+} from "~/shared/id/types/id_types.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
     createSimpleMessageContent,
-} from "~/shared/messaging/message_content_schema";
-import {RemoveAllMarksStep} from "~/shared/prosemirror/remove_all_marks_step";
+} from "~/shared/messaging/message_content_schema.js";
+import {RemoveAllMarksStep} from "~/shared/prosemirror/remove_all_marks_step.js";
 
 jest.useFakeTimers();
 

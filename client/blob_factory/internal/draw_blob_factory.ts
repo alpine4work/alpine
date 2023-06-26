@@ -3,10 +3,10 @@ import {interpolateHcl} from "d3-interpolate";
 import {
     BlobFactorySettings,
     blobFactoryModeFromSettings,
-} from "~/client/blob_factory/blob_factory_types";
-import {blobFactoryShaderFragSource} from "~/client/blob_factory/internal/blob_factory_shader_frag";
-import {blobFactoryShaderVertSource} from "~/client/blob_factory/internal/blob_factory_shader_vert";
-import {Gl} from "~/client/helpers/gl/gl";
+} from "~/client/blob_factory/blob_factory_types.js";
+import {blobFactoryShaderFragSource} from "~/client/blob_factory/internal/blob_factory_shader_frag.js";
+import {blobFactoryShaderVertSource} from "~/client/blob_factory/internal/blob_factory_shader_vert.js";
+import {Gl} from "~/client/helpers/gl/gl.js";
 import {
     GlBufferUsage,
     GlPixelFormat,
@@ -14,13 +14,13 @@ import {
     GlShaderType,
     GlTextureInternalFormat,
     GlVertexAttribType,
-} from "~/client/helpers/gl/gl_types";
-import {colors} from "~/shared/design/colors";
-import {ThemeColor} from "~/shared/design/theme_colors";
-import {InternalError} from "~/shared/error/error";
-import {Lazy} from "~/shared/helpers/control/lazy";
-import {Vector2} from "~/shared/helpers/geometry/vector2";
-import {invLerp} from "~/shared/helpers/number/inv_lerp";
+} from "~/client/helpers/gl/gl_types.js";
+import {colors} from "~/shared/design/colors.js";
+import {ThemeColor} from "~/shared/design/theme_colors.js";
+import {InternalError} from "~/shared/error/error.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {Vector2} from "~/shared/helpers/geometry/vector2.js";
+import {invLerp} from "~/shared/helpers/number/inv_lerp.js";
 
 export type BlobFactory = {
     setSize(size: Vector2): void;

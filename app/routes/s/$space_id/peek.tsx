@@ -1,18 +1,18 @@
 import {Outlet} from "@remix-run/react";
 import {RemixEntryContext} from "@remix-run/react";
 import {useContext, useMemo} from "react";
-import {AppContextProvider, useAppContext} from "~/client/context/app_context";
-import {usePeekContext} from "~/client/peek/peek_remix_embed";
-import {TracerContextModule} from "~/shared/context/tracer_context_module";
-import {InvalidArgumentError} from "~/shared/error/error";
-import {assert} from "~/shared/helpers/control/assert";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
-import {propagatedEventDataKey} from "~/shared/remix/json_with_schema_shared";
-import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data";
-import {tracerEventDataContextPeekMoveIntoAboveKeys} from "~/shared/tracer/helpers/tracer_event_data_context_peek_move_into_above_key";
-import {TracerRoot} from "~/shared/tracer/tracer_root";
-import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data";
+import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
+import {usePeekContext} from "~/client/peek/peek_remix_embed.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
+import {propagatedEventDataKey} from "~/shared/remix/json_with_schema_shared.js";
+import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data.js";
+import {tracerEventDataContextPeekMoveIntoAboveKeys} from "~/shared/tracer/helpers/tracer_event_data_context_peek_move_into_above_key.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.js";
+import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.js";
 
 export default function PeekLayout() {
     // Navigating to this route via URL will show you an error! This route can only

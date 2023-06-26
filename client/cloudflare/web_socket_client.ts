@@ -1,17 +1,17 @@
-import {WebSocketClientConnection} from "~/client/cloudflare/web_socket_client_connection";
-import {AppContext} from "~/client/context/app_context";
-import {ValueStore} from "~/client/helpers/store/value_store";
+import {WebSocketClientConnection} from "~/client/cloudflare/web_socket_client_connection.js";
+import {AppContext} from "~/client/context/app_context.js";
+import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {
     WebSocketProtocolBase,
     WebSocketProtocolEventType,
     WebSocketProtocolProceduresType,
-} from "~/shared/cloudflare/web_socket_protocol";
-import {InternalError} from "~/shared/error/error";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
-import {assert} from "~/shared/helpers/control/assert";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
+} from "~/shared/cloudflare/web_socket_protocol.js";
+import {InternalError} from "~/shared/error/error.js";
+import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 const reconnectTimeoutBaseMs = 1200;
 const maxReconnectTimeoutMs = 2500;

@@ -1,17 +1,20 @@
 import {Key, RefObject, useEffect, useMemo, useRef, useState} from "react";
-import {Box} from "~/client/design/box";
-import {useConstant} from "~/client/helpers/lifecycle/use_constant";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {LocalTask, useLocalTasksState} from "~/client/tasks/demo_1/internal/local_tasks_state_old";
-import {TaskRow} from "~/client/tasks/demo_1/internal/task_row";
-import {TaskRowView, TaskRowViewRef} from "~/client/tasks/demo_1/internal/task_row_view";
-import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
-import {NotFoundError} from "~/shared/error/error";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {LazyMap} from "~/shared/helpers/control/lazy_map";
-import {LocalTaskId} from "~/shared/id/types/id_types";
-import {tasksStyles} from "~/shared/styles/styles";
+import {Box} from "~/client/design/box.js";
+import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {
+    LocalTask,
+    useLocalTasksState,
+} from "~/client/tasks/demo_1/internal/local_tasks_state_old.js";
+import {TaskRow} from "~/client/tasks/demo_1/internal/task_row.js";
+import {TaskRowView, TaskRowViewRef} from "~/client/tasks/demo_1/internal/task_row_view.js";
+import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
+import {NotFoundError} from "~/shared/error/error.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
+import {LocalTaskId} from "~/shared/id/types/id_types.js";
+import {tasksStyles} from "~/shared/styles/styles.js";
 
 // TODO(calebmer): Some stuff this view needs:
 //

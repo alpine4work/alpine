@@ -1,12 +1,12 @@
-import {Gl} from "~/client/helpers/gl/gl";
+import {Gl} from "~/client/helpers/gl/gl.js";
 import {
     GlTextureFilter,
     GlTextureFormat,
     GlTextureWrap,
     glEnum,
-} from "~/client/helpers/gl/gl_types";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
+} from "~/client/helpers/gl/gl_types.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 export type GlTexture2dData = {
     readonly data: ArrayBufferView;

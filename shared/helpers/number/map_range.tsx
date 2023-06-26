@@ -1,5 +1,5 @@
-import {invLerp} from "~/shared/helpers/number/inv_lerp";
-import {lerp} from "~/shared/helpers/number/lerp";
+import {invLerp} from "~/shared/helpers/number/inv_lerp.js";
+import {lerp} from "~/shared/helpers/number/lerp.js";
 
 /**
  * Maps number `n` from the range `a1`-`b1` to `a2`-`b2`.

@@ -1,5 +1,5 @@
 import emojiRegex from "emoji-regex";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 
 /**
  * Iterate through all emojis in a string.

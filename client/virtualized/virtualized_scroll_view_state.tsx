@@ -4,16 +4,16 @@ import createTree, {
     Node as TreeNode,
 } from "functional-red-black-tree";
 import {Key, ReactNode} from "react";
-import {OutOfRangeError, UnimplementedError} from "~/shared/error/error";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
-import {clamp} from "~/shared/helpers/number/clamp";
+import {OutOfRangeError, UnimplementedError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
 import {
     OrderKey,
     generateOrderKeyBetween,
     generateOrderKeysBetween,
-} from "~/shared/helpers/sort/order_key";
+} from "~/shared/helpers/sort/order_key.js";
 
 /**
  * The height of the virtualization window. Will be larger than the view height

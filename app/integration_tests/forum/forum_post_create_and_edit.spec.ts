@@ -1,10 +1,10 @@
 import {expect, test} from "@playwright/test";
-import {createTestServer} from "~/app/integration_tests/helpers/create_test_server";
-import {createChannel, createPost} from "~/server/dynamo/forum_table";
-import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
-import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
-import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
-import {createSimplePostContent} from "~/shared/forum/post_content_schema";
+import {createTestServer} from "~/app/integration_tests/helpers/create_test_server.js";
+import {createChannel, createPost} from "~/server/dynamo/forum_table.js";
+import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
+import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
+import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space.js";
+import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 
 const modifier = process.platform === "darwin" ? "Meta" : "Control";
 

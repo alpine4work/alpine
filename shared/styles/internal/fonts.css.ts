@@ -7,9 +7,9 @@
  */
 
 import {assignVars, createGlobalTheme, fontFace, globalStyle} from "@vanilla-extract/css";
-import {RemLength, mobilePlatformMediaQuery} from "~/shared/design/spacing";
-import {assert} from "~/shared/helpers/control/assert";
-import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
+import {RemLength, mobilePlatformMediaQuery} from "~/shared/design/spacing.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 // Font metrics taken from:
 // https://opentype.js.org/font-inspector.html

@@ -1,6 +1,6 @@
 import * as cdk from "aws-cdk-lib";
 import {Construct} from "constructs";
-import {getAllDynamoTableSchemas} from "~/server/dynamo/get_all_dynamo_table_schemas";
+import {getAllDynamoTableSchemas} from "~/server/dynamo/get_all_dynamo_table_schemas.js";
 
 /**
  * Adds all DynamoDB AWS resources to the provided scope.

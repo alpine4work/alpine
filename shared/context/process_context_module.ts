@@ -1,6 +1,6 @@
-import {ContextModuleBase} from "~/shared/context/context_module_base";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
-import {assert} from "~/shared/helpers/control/assert";
+import {ContextModuleBase} from "~/shared/context/context_module_base.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
  * This context provides information about the process our code is running in

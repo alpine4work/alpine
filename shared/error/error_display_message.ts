@@ -1,9 +1,9 @@
-import {InternalError} from "~/shared/error/error";
+import {InternalError} from "~/shared/error/error.js";
 import {
     ErrorDisplayMessage,
     ErrorDisplayMessageLinkSegment,
     ErrorDisplayMessageSegment,
-} from "~/shared/error/types/error_display_message_type";
+} from "~/shared/error/types/error_display_message_type.js";
 
 /**
  * Error messages are intended for developers, not for users. Error messages

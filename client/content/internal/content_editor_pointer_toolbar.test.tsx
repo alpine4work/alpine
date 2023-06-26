@@ -6,15 +6,15 @@ import {EditorState, TextSelection, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import React, {useState} from "react";
 import {act} from "react-dom/test-utils";
-import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor";
-import {ContentEditorState} from "~/client/content/content_editor_state";
-import {OverlayScopeContextProvider} from "~/client/design/overlay";
-import {TooltipCoordinationContextProvider} from "~/client/design/tooltip";
-import {emptyContentReferences} from "~/shared/content/content_references";
+import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor.js";
+import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {TooltipCoordinationContextProvider} from "~/client/design/tooltip.js";
+import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {
     DocumentWithoutTitleContentProsemirrorSchema,
     emptyDocumentWithoutTitleContent,
-} from "~/shared/documents/document_content_schema";
+} from "~/shared/documents/document_content_schema.js";
 
 jest.useFakeTimers();
 

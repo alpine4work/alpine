@@ -1,5 +1,5 @@
-import {ErrorCode, getErrorCodeName} from "~/shared/error/error_code";
-import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type";
+import {ErrorCode, getErrorCodeName} from "~/shared/error/error_code.js";
+import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 
 /**
  * An exception in our codebase that interrupts the normal flow of execution.

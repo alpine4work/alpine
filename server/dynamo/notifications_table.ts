@@ -1,64 +1,67 @@
 import {addMinutes, differenceInMinutes} from "date-fns";
-import {getAccount} from "~/server/dynamo/accounts_table";
-import {authorizeChatAccessForAccount, getChat} from "~/server/dynamo/chat_table";
+import {getAccount} from "~/server/dynamo/accounts_table.js";
+import {authorizeChatAccessForAccount, getChat} from "~/server/dynamo/chat_table.js";
 import {
     ActionContext,
     SessionActionContext,
     SystemActionContext,
-} from "~/server/dynamo/context/action_context";
+} from "~/server/dynamo/context/action_context.js";
 import {
     getDocumentAndCommentThreadsWithInitialComments,
     getDocumentCommentAuthorId,
     getDocumentCommentThreadNotificationSubscribers,
     getDocumentPreview,
-} from "~/server/dynamo/documents_table";
+} from "~/server/dynamo/documents_table.js";
 import {
     getChannelPreview,
     getPost,
     getPostAuthorAndChannelPreview,
     getPostNotificationSubscribers,
-} from "~/server/dynamo/forum_table";
-import {getContentReferencesForNode} from "~/server/dynamo/helpers/get_content_references";
+} from "~/server/dynamo/forum_table.js";
+import {getContentReferencesForNode} from "~/server/dynamo/helpers/get_content_references.js";
 import {
     DynamoGeneralRealtimeTableSchema,
     DynamoGeneralRealtimeTableSchemaGetTypes,
-} from "~/server/dynamo/internal/dynamo_general_realtime_table_schema";
-import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
-import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
-import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
-import {authorizeSpaceAccess, expensivelyGetAllSpaceAccounts} from "~/server/dynamo/spaces_table";
-import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint";
-import {AccountModel} from "~/shared/accounts/account_model";
-import {ChatModel} from "~/shared/chat/chat_model";
-import {getContentSnippet} from "~/shared/content/get_content_snippet";
+} from "~/server/dynamo/internal/dynamo_general_realtime_table_schema.js";
+import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema.js";
+import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema.js";
+import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error.js";
+import {
+    authorizeSpaceAccess,
+    expensivelyGetAllSpaceAccounts,
+} from "~/server/dynamo/spaces_table.js";
+import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {ChatModel} from "~/shared/chat/chat_model.js";
+import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
     DocumentModel,
-} from "~/shared/documents/document_model";
+} from "~/shared/documents/document_model.js";
 import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,
-} from "~/shared/dynamo/dynamo_general_realtime_types";
-import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings";
-import {CancelledError, NotFoundError} from "~/shared/error/error";
+} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {CancelledError, NotFoundError} from "~/shared/error/error.js";
 import {
     PostContent,
     PostContentSchema,
     assertPostContent,
-} from "~/shared/forum/post_content_schema";
-import {PostModel} from "~/shared/forum/post_model";
-import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_all_promises";
-import {assert} from "~/shared/helpers/control/assert";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {iterableFind} from "~/shared/helpers/iterable/iterable_find";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
-import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable";
-import {randomInteger} from "~/shared/helpers/number/random_integer";
-import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of";
-import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
-import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
+} from "~/shared/forum/post_content_schema.js";
+import {PostModel} from "~/shared/forum/post_model.js";
+import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
+import {randomInteger} from "~/shared/helpers/number/random_integer.js";
+import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of.js";
+import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {
     AccountId,
     ChannelId,
@@ -69,13 +72,13 @@ import {
     NotificationEventId,
     PostId,
     SpaceId,
-} from "~/shared/id/types/id_types";
+} from "~/shared/id/types/id_types.js";
 import {
     MessageContent,
     MessageContentSchema,
     assertMessageContent,
-} from "~/shared/messaging/message_content_schema";
-import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/messaging/messaging_shared_styles";
+} from "~/shared/messaging/message_content_schema.js";
+import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/messaging/messaging_shared_styles.js";
 import {
     InboxChannelPostsEntryModel,
     InboxChatEntryModel,
@@ -86,8 +89,8 @@ import {
     InboxItemModelSchema,
     InboxModel,
     InboxPostCommentsEntryModel,
-} from "~/shared/notifications/inbox_model";
-import {Schema, SchemaType} from "~/shared/schema/schema";
+} from "~/shared/notifications/inbox_model.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
  * The initial generation of a new inbox.

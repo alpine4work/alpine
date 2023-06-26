@@ -7,9 +7,9 @@ import {
     updateChannelDescription,
     updateChannelName,
     updatePostContent,
-} from "~/server/dynamo/forum_table";
-import {implementRpc} from "~/server/rpc/internal/implement_rpc";
-import * as definition from "~/shared/rpc/forum_rpc_definitions";
+} from "~/server/dynamo/forum_table.js";
+import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
+import * as definition from "~/shared/rpc/forum_rpc_definitions.js";
 
 implementRpc(definition.updateChannelName, async (context, input) => {
     await updateChannelName(await context.actor.authenticate(), input);

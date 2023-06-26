@@ -1,6 +1,6 @@
 import {Tray} from "phosphor-react";
-import {Box} from "~/client/design/box";
-import {spacing} from "~/shared/design/spacing";
+import {Box} from "~/client/design/box.js";
+import {spacing} from "~/shared/design/spacing.js";
 
 export function InboxViewEntriesEmpty({filter}: {filter: "New" | "Archive"}) {
     return (

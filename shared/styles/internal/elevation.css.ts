@@ -1,11 +1,11 @@
 import {assignVars, createGlobalTheme, globalStyle} from "@vanilla-extract/css";
-import {colors} from "~/shared/design/colors";
-import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
+import {colors} from "~/shared/design/colors.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {
     CssVarFunction,
     darkColorSchemeSelector,
     greyElevatedClassName,
-} from "~/shared/styles/internal/color_scheme.css";
+} from "~/shared/styles/internal/color_scheme.css.js";
 
 /**
  * CSS box shadows used to simulate elevation in our product.

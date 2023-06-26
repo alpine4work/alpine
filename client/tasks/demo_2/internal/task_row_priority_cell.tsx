@@ -1,19 +1,19 @@
 import {Ref, forwardRef, useImperativeHandle, useRef, useState} from "react";
-import {Box} from "~/client/design/box";
-import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support";
+import {Box} from "~/client/design/box.js";
+import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
 import {
     TaskPriorityInput,
     TaskPriorityInputRef,
-} from "~/client/tasks/demo_2/internal/task_priority_input";
+} from "~/client/tasks/demo_2/internal/task_priority_input.js";
 import {
     taskRowViewColumnPaddingX,
     taskRowViewColumnWidth,
     taskRowViewMinHeight,
-} from "~/client/tasks/demo_2/internal/task_row_shared_styles";
-import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {tasksStyles} from "~/shared/styles/styles";
-import {TaskPriority} from "~/shared/tasks/task_priority";
+} from "~/client/tasks/demo_2/internal/task_row_shared_styles.js";
+import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {tasksStyles} from "~/shared/styles/styles.js";
+import {TaskPriority} from "~/shared/tasks/task_priority.js";
 
 export type TaskRowPriorityCellRef = {
     focus(): void;

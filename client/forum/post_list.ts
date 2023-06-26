@@ -1,19 +1,19 @@
-import {MessageList} from "~/client/messaging/message_list";
-import {VirtualizedTree} from "~/client/virtualized/virtualized_tree";
+import {MessageList} from "~/client/messaging/message_list.js";
+import {VirtualizedTree} from "~/client/virtualized/virtualized_tree.js";
 import {
     FailedPreconditionError,
     InternalError,
     InvalidArgumentError,
     NotFoundError,
     OutOfRangeError,
-} from "~/shared/error/error";
-import {ChannelModel} from "~/shared/forum/channel_model";
-import {PostCommentModel, PostModel} from "~/shared/forum/post_model";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
-import {PostId, WebSocketConnectionId} from "~/shared/id/types/id_types";
-import {OptimisticMessageModel} from "~/shared/messaging/message_model";
-import {MessagingTypingState} from "~/shared/messaging/messaging_realtime_protocol";
+} from "~/shared/error/error.js";
+import {ChannelModel} from "~/shared/forum/channel_model.js";
+import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
+import {PostId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
+import {MessagingTypingState} from "~/shared/messaging/messaging_realtime_protocol.js";
 
 export type PostListChannelHeader = {
     readonly channel: ChannelModel;

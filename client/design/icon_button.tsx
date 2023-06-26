@@ -11,19 +11,19 @@ import {
     useState,
 } from "react";
 import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";
-import {Box} from "~/client/design/box";
-import {buttonPressedOverlayOpacity} from "~/client/design/button";
-import {FocusRing} from "~/client/design/focus_ring";
-import {OverlayPlacement} from "~/client/design/overlay";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
-import {useShowToast} from "~/client/design/toast";
-import {Tooltip, defaultTooltipOffset} from "~/client/design/tooltip";
-import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
-import {Spacing, spacing} from "~/shared/design/spacing";
-import {createTimeout} from "~/shared/helpers/async/timeout";
-import {assert} from "~/shared/helpers/control/assert";
-import {cast} from "~/shared/helpers/control/cast";
-import {Sprinkles, spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
+import {Box} from "~/client/design/box.js";
+import {buttonPressedOverlayOpacity} from "~/client/design/button.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {OverlayPlacement} from "~/client/design/overlay.js";
+import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {useShowToast} from "~/client/design/toast.js";
+import {Tooltip, defaultTooltipOffset} from "~/client/design/tooltip.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {Spacing, spacing} from "~/shared/design/spacing.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {cast} from "~/shared/helpers/control/cast.js";
+import {Sprinkles, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 
 const IconButtonForwardRef = forwardRef(IconButton);
 export {IconButtonForwardRef as IconButton};

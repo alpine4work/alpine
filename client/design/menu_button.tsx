@@ -13,27 +13,27 @@ import {
     useState,
 } from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
-import {Box} from "~/client/design/box";
-import {FocusRing} from "~/client/design/focus_ring";
-import {OverlayPlacement} from "~/client/design/overlay";
+import {Box} from "~/client/design/box.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {OverlayPlacement} from "~/client/design/overlay.js";
 import {
     OverlayTriggerButton,
     OverlayTriggerButtonChildrenProps,
     OverlayTriggerButtonState,
-} from "~/client/design/overlay_trigger";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
-import {useShowToast} from "~/client/design/toast";
-import {Tooltip, defaultTooltipOffset} from "~/client/design/tooltip";
-import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
-import {Spacing, spacing} from "~/shared/design/spacing";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array";
-import {createTimeout} from "~/shared/helpers/async/timeout";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
+} from "~/client/design/overlay_trigger.js";
+import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {useShowToast} from "~/client/design/toast.js";
+import {Tooltip, defaultTooltipOffset} from "~/client/design/tooltip.js";
+import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {Spacing, spacing} from "~/shared/design/spacing.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 
 // TODO(calebmer): Implement the mobile action sheet version of our menu
 // component.

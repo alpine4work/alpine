@@ -1,7 +1,7 @@
 import {CalendarDate, maxDate, minDate} from "@internationalized/date";
-import {assert} from "~/shared/helpers/control/assert";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {AccountId, LocalTaskCollectionId} from "~/shared/id/types/id_types";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {AccountId, LocalTaskCollectionId} from "~/shared/id/types/id_types.js";
 import {
     TaskQueryCollectionsFilter,
     TaskQueryFilter,
@@ -10,7 +10,7 @@ import {
     TaskQueryFilterDateOperationDate,
     TaskQueryPriorityFilter,
     TaskQueryStatusFilter,
-} from "~/shared/tasks/task_query_filter";
+} from "~/shared/tasks/task_query_filter.js";
 
 type NonEmptyReadonlySet<T> = ReadonlySet<T> & {readonly _NonEmptyReadonlySet: never};
 

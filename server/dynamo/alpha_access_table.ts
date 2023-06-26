@@ -3,38 +3,38 @@ import {
     authorizeInternalAccess,
     checkAccountEmailAddressDoesNotExistTransactionEntry,
     createAccountForAlphaTransactionEntries,
-} from "~/server/dynamo/accounts_table";
+} from "~/server/dynamo/accounts_table.js";
 import {
     ActionContext,
     MaybeSessionActionContext,
     SessionActionContext,
-} from "~/server/dynamo/context/action_context";
-import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
-import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
-import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
-import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
-import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error";
-import {createSpaceAccountForAlphaTransactionEntries} from "~/server/dynamo/spaces_table";
-import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address";
-import {FromEmailAddress} from "~/server/emails/from_email_address";
+} from "~/server/dynamo/context/action_context.js";
+import {DynamoContext} from "~/server/dynamo/context/dynamo_context.js";
+import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants.js";
+import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema.js";
+import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema.js";
+import {isDynamoConditionCheckError} from "~/server/dynamo/internal/is_dynamo_condition_check_error.js";
+import {createSpaceAccountForAlphaTransactionEntries} from "~/server/dynamo/spaces_table.js";
+import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
+import {FromEmailAddress} from "~/server/emails/from_email_address.js";
 import {
     AlphaAccessRequestDecisionSchema,
     AlphaAccessRequestModel,
-} from "~/shared/alpha/alpha_access_request_model";
+} from "~/shared/alpha/alpha_access_request_model.js";
 import {
     AlphaConfiguration,
     AlphaConfigurationSchema,
-} from "~/shared/alpha/alpha_configuration_schema";
-import {FailedPreconditionError, InternalError, NotFoundError} from "~/shared/error/error";
-import {errorDisplayMessage} from "~/shared/error/error_display_message";
-import {assert} from "~/shared/helpers/control/assert";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable";
-import {filterMapAsyncIterableIterator} from "~/shared/helpers/iterable/filter_map_async_iterable_iterator";
-import {generateId} from "~/shared/id/id";
-import {AccountId} from "~/shared/id/types/id_types";
-import {LabelStringSchema} from "~/shared/schema/label_string_schema";
-import {Schema} from "~/shared/schema/schema";
+} from "~/shared/alpha/alpha_configuration_schema.js";
+import {FailedPreconditionError, InternalError, NotFoundError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
+import {filterMapAsyncIterableIterator} from "~/shared/helpers/iterable/filter_map_async_iterable_iterator.js";
+import {generateId} from "~/shared/id/id.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
+import {LabelStringSchema} from "~/shared/schema/label_string_schema.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 const AlphaAccessTable = DynamoTableSchema.new({
     name: "AlphaAccess",

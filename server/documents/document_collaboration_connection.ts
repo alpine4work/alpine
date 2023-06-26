@@ -1,11 +1,11 @@
-import {WebSocketConnectionProcedures} from "~/server/cloudflare/web_socket_server";
+import {WebSocketConnectionProcedures} from "~/server/cloudflare/web_socket_server.js";
 import {
     DocumentCollaborationContentManager,
     DocumentCollaborationContentManagerOptimisticCommentThread,
-} from "~/server/documents/document_collaboration_content_manager";
-import {getAccount} from "~/server/dynamo/accounts_table";
-import {ActionContext} from "~/server/dynamo/context/action_context";
-import {ProcessContext} from "~/server/dynamo/context/process_context";
+} from "~/server/documents/document_collaboration_content_manager.js";
+import {getAccount} from "~/server/dynamo/accounts_table.js";
+import {ActionContext} from "~/server/dynamo/context/action_context.js";
+import {ProcessContext} from "~/server/dynamo/context/process_context.js";
 import {
     backfillDocumentComments,
     createDocumentComment,
@@ -15,37 +15,37 @@ import {
     getDocumentCommentsFromStart,
     getDocumentPreviewIfExists,
     updateDocumentCommentContent,
-} from "~/server/dynamo/documents_table";
+} from "~/server/dynamo/documents_table.js";
 import {
     getContentReferencesForNode,
     getContentReferencesForSteps,
-} from "~/server/dynamo/helpers/get_content_references";
-import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint";
-import {MessagingRealtimeConnection} from "~/server/messaging/messaging_realtime_connection";
+} from "~/server/dynamo/helpers/get_content_references.js";
+import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
+import {MessagingRealtimeConnection} from "~/server/messaging/messaging_realtime_connection.js";
 import {
     DocumentCollaborationEvent,
     DocumentCollaborationPresenceState,
     DocumentCollaborationProtocol,
-} from "~/shared/documents/document_collaboration_protocol";
+} from "~/shared/documents/document_collaboration_protocol.js";
 import {
     DocumentCommentModel,
     DocumentCommentRoomKey,
     DocumentCommentThreadModel,
     decodeDocumentCommentRoomKey,
     encodeDocumentCommentRoomKey,
-} from "~/shared/documents/document_model";
-import {FailedPreconditionError, InternalError, NotFoundError} from "~/shared/error/error";
-import {AsyncMutex} from "~/shared/helpers/async/async_mutex";
-import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
-import {DefaultMap} from "~/shared/helpers/map/default_map";
+} from "~/shared/documents/document_model.js";
+import {FailedPreconditionError, InternalError, NotFoundError} from "~/shared/error/error.js";
+import {AsyncMutex} from "~/shared/helpers/async/async_mutex.js";
+import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {
     DocumentCommentThreadId,
     DocumentId,
     WebSocketConnectionId,
-} from "~/shared/id/types/id_types";
-import {TracerSpan} from "~/shared/tracer/tracer_span";
+} from "~/shared/id/types/id_types.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export const documentCollaborationConnectionBeforeBackfillMessagesTestCheckpoint =
     new TestCheckpoint<{documentId: DocumentId; commentThreadId: DocumentCommentThreadId}>();

@@ -1,40 +1,40 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {AddMarkStep, RemoveMarkStep, ReplaceStep} from "prosemirror-transform";
-import {WebSocketServerTestConnection} from "~/server/cloudflare/web_socket_server";
-import {DocumentCollaborationConnection} from "~/server/documents/document_collaboration_connection";
+import {WebSocketServerTestConnection} from "~/server/cloudflare/web_socket_server.js";
+import {DocumentCollaborationConnection} from "~/server/documents/document_collaboration_connection.js";
 import {
     documentCollaborationContentManagerBeforePersistTestCheckpoint,
     documentCollaborationContentManagerBeforeUpdateTestCheckpoint,
-} from "~/server/documents/document_collaboration_content_manager";
-import {DocumentCollaborationDurableObject} from "~/server/documents/document_collaboration_durable_object";
+} from "~/server/documents/document_collaboration_content_manager.js";
+import {DocumentCollaborationDurableObject} from "~/server/documents/document_collaboration_durable_object.js";
 import {
     createDocument,
     createDocumentComment,
     getDocument,
     getDocumentComment,
     updateDocumentContent,
-} from "~/server/dynamo/documents_table";
-import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
-import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
-import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
-import {emptyContentReferences} from "~/shared/content/content_references";
-import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol";
-import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references";
+} from "~/server/dynamo/documents_table.js";
+import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
+import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
+import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space.js";
+import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
+import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {
     emptyDocumentContent,
     DocumentContentProsemirrorSchema as schema,
-} from "~/shared/documents/document_content_schema";
+} from "~/shared/documents/document_content_schema.js";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
     DocumentModel,
-} from "~/shared/documents/document_model";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error";
-import {wait} from "~/shared/helpers/async/wait";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
-import {generateId} from "~/shared/id/id";
-import {ContentEditorClientId, DocumentCommentThreadId} from "~/shared/id/types/id_types";
-import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema";
+} from "~/shared/documents/document_model.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {wait} from "~/shared/helpers/async/wait.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {generateId} from "~/shared/id/id.js";
+import {ContentEditorClientId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 
 const context = createTestContext();
 const {connectForTest} = DocumentCollaborationDurableObject.test(context);

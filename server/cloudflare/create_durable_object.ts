@@ -1,47 +1,50 @@
 import {jwtVerify} from "jose";
-import {createAwsContextModulesFromEnv} from "~/server/aws/create_aws_context_modules_from_env";
+import {createAwsContextModulesFromEnv} from "~/server/aws/create_aws_context_modules_from_env.js";
 import {
     WebSocketServerConnectionBase,
     WebSocketServerTestConnection,
-} from "~/server/cloudflare/web_socket_server";
-import {Session} from "~/server/dynamo/accounts_table";
+} from "~/server/cloudflare/web_socket_server.js";
+import {Session} from "~/server/dynamo/accounts_table.js";
 import {
     ActionContext,
     ActionContextModules,
     SessionActionContext,
-} from "~/server/dynamo/context/action_context";
+} from "~/server/dynamo/context/action_context.js";
 import {
     ActorContextModule,
     SessionActorContextModule,
     SystemActorContextModule,
     UnidentifiedActorContextModule,
-} from "~/server/dynamo/context/actor_context_module";
-import {unauthenticatedSessionError} from "~/server/dynamo/context/helpers/unauthenticated_session_error";
-import {NotificationsContextModule} from "~/server/dynamo/context/notifications_context_module";
-import {ProcessContext, ProcessContextModulesBase} from "~/server/dynamo/context/process_context";
-import {DynamoBatchContextModule} from "~/server/dynamo/dynamo_context_module";
-import {Queue} from "~/server/helpers/types/cloudflare_queues";
-import {createServerTracer} from "~/server/tracer/server_tracer";
-import {traceFetchResponse} from "~/server/tracer/trace_fetch_response";
-import {WebSocketProtocolBase} from "~/shared/cloudflare/web_socket_protocol";
-import {CacheContextModule} from "~/shared/context/cache_context_module";
-import {Context} from "~/shared/context/context";
-import {ProcessContextModule} from "~/shared/context/process_context_module";
-import {TracerContextModule} from "~/shared/context/tracer_context_module";
+} from "~/server/dynamo/context/actor_context_module.js";
+import {unauthenticatedSessionError} from "~/server/dynamo/context/helpers/unauthenticated_session_error.js";
+import {NotificationsContextModule} from "~/server/dynamo/context/notifications_context_module.js";
+import {
+    ProcessContext,
+    ProcessContextModulesBase,
+} from "~/server/dynamo/context/process_context.js";
+import {DynamoBatchContextModule} from "~/server/dynamo/dynamo_context_module.js";
+import {Queue} from "~/server/helpers/types/cloudflare_queues.js";
+import {createServerTracer} from "~/server/tracer/server_tracer.js";
+import {traceFetchResponse} from "~/server/tracer/trace_fetch_response.js";
+import {WebSocketProtocolBase} from "~/shared/cloudflare/web_socket_protocol.js";
+import {CacheContextModule} from "~/shared/context/cache_context_module.js";
+import {Context} from "~/shared/context/context.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {
     FailedPreconditionError,
     InternalError,
     InvalidArgumentError,
     UnimplementedError,
-} from "~/shared/error/error";
-import {isSystemError} from "~/shared/error/is_system_error_code";
-import {assert} from "~/shared/helpers/control/assert";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
-import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types";
-import {Schema, SchemaSerializedValue} from "~/shared/schema/schema";
-import {DurableObjectServiceName, TracerRoot} from "~/shared/tracer/tracer_root";
+} from "~/shared/error/error.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
+import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {DurableObjectServiceName, TracerRoot} from "~/shared/tracer/tracer_root.js";
 
 /**
  * Environment object provided to a Durable Object.

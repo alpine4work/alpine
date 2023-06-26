@@ -1,15 +1,15 @@
 import type {EntryContext} from "@remix-run/cloudflare";
 import {RemixServer} from "@remix-run/react";
 import {renderToString} from "react-dom/server";
-import {AppContextProvider} from "~/client/context/app_context";
-import {ReactContextModule} from "~/client/context/react_context_module";
-import {LoaderContext} from "~/server/remix/loader_context";
-import {TracerContextModule} from "~/shared/context/tracer_context_module";
-import {isErrorCode} from "~/shared/error/error_code";
-import {ErrorSchema} from "~/shared/error/error_schema";
-import {isSystemErrorCode} from "~/shared/error/is_system_error_code";
-import {assert} from "~/shared/helpers/control/assert";
-import {getExceptionTracerEventData} from "~/shared/tracer/helpers/get_exception_tracer_event_data";
+import {AppContextProvider} from "~/client/context/app_context.js";
+import {ReactContextModule} from "~/client/context/react_context_module.js";
+import {LoaderContext} from "~/server/remix/loader_context.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {isErrorCode} from "~/shared/error/error_code.js";
+import {ErrorSchema} from "~/shared/error/error_schema.js";
+import {isSystemErrorCode} from "~/shared/error/is_system_error_code.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {getExceptionTracerEventData} from "~/shared/tracer/helpers/get_exception_tracer_event_data.js";
 
 // We've patched Remix so that when it serializes and deserializes errors it
 // looks for this global and uses it.

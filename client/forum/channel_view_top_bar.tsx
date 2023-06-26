@@ -1,30 +1,30 @@
 import {CaretDown} from "phosphor-react";
 import {useEffect, useId, useRef, useState} from "react";
-import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
-import {ContentEditorState} from "~/client/content/content_editor_state";
-import {useAppContext} from "~/client/context/app_context";
-import {Box} from "~/client/design/box";
-import {Button} from "~/client/design/button";
-import {FocusRing} from "~/client/design/focus_ring";
-import {MenuButton} from "~/client/design/menu_button";
-import {defaultModalMaxWidth} from "~/client/design/modal";
-import {ModalDialog} from "~/client/design/modal_dialog";
-import {ModalWithButtons, ModalWithButtonsRef} from "~/client/design/modal_with_buttons";
-import {TextInput, textInputClassName} from "~/client/design/text_input";
+import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
+import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {useAppContext} from "~/client/context/app_context.js";
+import {Box} from "~/client/design/box.js";
+import {Button} from "~/client/design/button.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {MenuButton} from "~/client/design/menu_button.js";
+import {defaultModalMaxWidth} from "~/client/design/modal.js";
+import {ModalDialog} from "~/client/design/modal_dialog.js";
+import {ModalWithButtons, ModalWithButtonsRef} from "~/client/design/modal_with_buttons.js";
+import {TextInput, textInputClassName} from "~/client/design/text_input.js";
 import {
     postListViewAsideMaxWidth,
     postListViewMarginX,
     postViewMaxWidth,
-} from "~/client/forum/post_list_view";
-import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard";
-import {useIsMobile} from "~/client/remix/use_is_mobile";
-import {isContentEmpty} from "~/shared/content/is_content_empty";
-import {addRemLengths, spacing} from "~/shared/design/spacing";
-import {ChannelModel} from "~/shared/forum/channel_model";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema";
-import {updateChannelDescription, updateChannelName} from "~/shared/rpc/forum_rpc_definitions";
-import {sprinkles} from "~/shared/styles/styles";
+} from "~/client/forum/post_list_view.js";
+import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {isContentEmpty} from "~/shared/content/is_content_empty.js";
+import {addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {ChannelModel} from "~/shared/forum/channel_model.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
+import {updateChannelDescription, updateChannelName} from "~/shared/rpc/forum_rpc_definitions.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 
 export function ChannelViewTopBar({
     channel,

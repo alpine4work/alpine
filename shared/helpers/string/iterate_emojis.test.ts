@@ -1,4 +1,4 @@
-import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis";
+import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 
 function massage(iterable: Iterable<{index: number; emoji: string}>) {
     return Array.from(iterable, ({emoji}) => emoji);

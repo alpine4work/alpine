@@ -1,73 +1,76 @@
-import {getAccount, getAccountIfExists} from "~/server/dynamo/accounts_table";
+import {getAccount, getAccountIfExists} from "~/server/dynamo/accounts_table.js";
 import {
     ActionContext,
     SessionActionContext,
     SystemActionContext,
-} from "~/server/dynamo/context/action_context";
-import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
-import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
-import {getContentReferencesForNode} from "~/server/dynamo/helpers/get_content_references";
+} from "~/server/dynamo/context/action_context.js";
+import {DynamoContext} from "~/server/dynamo/context/dynamo_context.js";
+import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants.js";
+import {getContentReferencesForNode} from "~/server/dynamo/helpers/get_content_references.js";
 import {
     applyMentionCountByAccountIdDifferenceFromContentUpdate,
     getMentionCountByAccountIdInContent,
-} from "~/server/dynamo/helpers/get_mentioned_account_ids_in_content";
-import {getMentionedAccountIdsInContent} from "~/server/dynamo/helpers/get_mentioned_account_ids_in_content";
-import {createMessagePayloadModel} from "~/server/dynamo/helpers/messaging/create_message_payload_model";
-import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/dynamo/helpers/messaging/get_message_change_log_expiration_time_from_change_time";
-import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
-import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
+} from "~/server/dynamo/helpers/get_mentioned_account_ids_in_content.js";
+import {getMentionedAccountIdsInContent} from "~/server/dynamo/helpers/get_mentioned_account_ids_in_content.js";
+import {createMessagePayloadModel} from "~/server/dynamo/helpers/messaging/create_message_payload_model.js";
+import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/dynamo/helpers/messaging/get_message_change_log_expiration_time_from_change_time.js";
+import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema.js";
+import {
+    DynamoTableItemType,
+    DynamoTableSchema,
+} from "~/server/dynamo/internal/dynamo_table_schema.js";
 import {
     getNotificationMessageContentSnippet,
     getNotificationPostContentSnippet,
-} from "~/server/dynamo/notifications_table";
-import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table";
-import {AccountModel} from "~/shared/accounts/account_model";
-import {ContextCache} from "~/shared/context/cache_context_module";
+} from "~/server/dynamo/notifications_table.js";
+import {authorizeSpaceAccess} from "~/server/dynamo/spaces_table.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {
     DataLossError,
     FailedPreconditionError,
     InternalError,
     NotFoundError,
     PermissionDeniedError,
-} from "~/shared/error/error";
-import {errorDisplayMessage} from "~/shared/error/error_display_message";
-import {ChannelModel, ChannelPreviewModel} from "~/shared/forum/channel_model";
-import {PostContent, PostContentSchema} from "~/shared/forum/post_content_schema";
+} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {ChannelModel, ChannelPreviewModel} from "~/shared/forum/channel_model.js";
+import {PostContent, PostContentSchema} from "~/shared/forum/post_content_schema.js";
 import {
     PostCommentModel,
     PostModel,
     maxPostPreviewCommentAuthorCount,
-} from "~/shared/forum/post_model";
-import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises";
-import {assert} from "~/shared/helpers/control/assert";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable";
-import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
-import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
-import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array";
-import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
-import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
-import {generateId} from "~/shared/id/id";
+} from "~/shared/forum/post_model.js";
+import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
+import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
+import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {generateId} from "~/shared/id/id.js";
 import {
     AccountId,
     ChannelId,
     ContentMentionAccountId,
     PostId,
     SpaceId,
-} from "~/shared/id/types/id_types";
-import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema";
+} from "~/shared/id/types/id_types.js";
+import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
 import {
     MessageContent,
     MessageContentSchema,
     emptyMessageContent,
-} from "~/shared/messaging/message_content_schema";
-import {MessagePayloadSchema} from "~/shared/messaging/message_model";
-import {LabelStringSchema} from "~/shared/schema/label_string_schema";
-import {Schema} from "~/shared/schema/schema";
+} from "~/shared/messaging/message_content_schema.js";
+import {MessagePayloadSchema} from "~/shared/messaging/message_model.js";
+import {LabelStringSchema} from "~/shared/schema/label_string_schema.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 const ForumTable = DynamoTableSchema.new({
     name: "Forum",

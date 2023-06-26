@@ -1,5 +1,5 @@
-import {captureResult, unwrapResult} from "~/shared/helpers/control/capture_result";
-import {Result} from "~/shared/helpers/control/result";
+import {captureResult, unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {Result} from "~/shared/helpers/control/result.js";
 
 /**
  * A lazily computed value. We don't compute the value until `get()` is called

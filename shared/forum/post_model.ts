@@ -1,10 +1,10 @@
-import {AccountModel} from "~/shared/accounts/account_model";
-import {ChannelPreviewModel} from "~/shared/forum/channel_model";
-import {PostContentWithReferencesSchema} from "~/shared/forum/post_content_schema";
-import {PostId, SpaceId} from "~/shared/id/types/id_types";
-import {MessageModel, MessagePayloadModelSchema} from "~/shared/messaging/message_model";
-import {Model} from "~/shared/schema/model/model";
-import {Schema} from "~/shared/schema/schema";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
+import {PostContentWithReferencesSchema} from "~/shared/forum/post_content_schema.js";
+import {PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {MessageModel, MessagePayloadModelSchema} from "~/shared/messaging/message_model.js";
+import {Model} from "~/shared/schema/model/model.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export const maxPostPreviewCommentAuthorCount = 5;
 

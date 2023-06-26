@@ -5,9 +5,9 @@ import {
     dynamoKeyAttributeMinCharCode,
     isDynamoKeyAttribute,
     serializeReversedDynamoKeyAttribute,
-} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
-import {assert} from "~/shared/helpers/control/assert";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
+} from "~/server/dynamo/internal/dynamo_key_attribute_schema.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 
 test("key attributes can be a reasonable set of ASCII characters", () => {
     const chars = [];

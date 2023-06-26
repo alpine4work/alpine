@@ -1,6 +1,6 @@
 import {useCallback, useEffect, useMemo, useRef} from "react";
 import {useLocation} from "react-router-dom";
-import {useNavigate} from "~/client/remix/use_navigate";
+import {useNavigate} from "~/client/remix/use_navigate.js";
 
 /**
  * Convenient React-style state for a string that is persisted in the URL's

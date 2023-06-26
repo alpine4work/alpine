@@ -9,23 +9,23 @@ import {
     useState,
 } from "react";
 import {createPortal} from "react-dom";
-import {Box} from "~/client/design/box";
-import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction";
-import {MenuAction, MenuItem, defaultMenuWidth} from "~/client/design/menu_button";
-import {ModalDialog} from "~/client/design/modal_dialog";
-import {OverlayScopeContextProvider} from "~/client/design/overlay";
-import {OverlayAnimated} from "~/client/design/overlay_animated";
-import {isMac} from "~/client/helpers/browser/is_mac";
-import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element";
-import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event";
-import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref";
-import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref";
-import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
-import {createTimeout} from "~/shared/helpers/async/timeout";
-import {assert} from "~/shared/helpers/control/assert";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {sprinkles} from "~/shared/styles/styles";
+import {Box} from "~/client/design/box.js";
+import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.js";
+import {MenuAction, MenuItem, defaultMenuWidth} from "~/client/design/menu_button.js";
+import {ModalDialog} from "~/client/design/modal_dialog.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {OverlayAnimated} from "~/client/design/overlay_animated.js";
+import {isMac} from "~/client/helpers/browser/is_mac.js";
+import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
+import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
+import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 
 const contextMenuEventActionsSymbol = Symbol("actions");
 

@@ -4,27 +4,27 @@ import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {RefObject, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {FocusScope} from "react-aria";
-import {ContentEditorCommentInputFloater} from "~/client/content/internal/content_editor_comment_input_floater";
-import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker";
+import {ContentEditorCommentInputFloater} from "~/client/content/internal/content_editor_comment_input_floater.js";
+import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
 import {
     ContentEditorHighlightSelector,
     ContentEditorHighlightSelectorRef,
-} from "~/client/content/internal/content_editor_highlight_selector";
-import {ContentEditorLinkInput} from "~/client/content/internal/content_editor_link_input";
-import {ContentEditorMentionFloater} from "~/client/content/internal/content_editor_mention_floater";
-import {ContentEditorPointerToolbar} from "~/client/content/internal/content_editor_pointer_toolbar";
-import {getMarksSpanningAcrossEntireRange} from "~/client/content/internal/content_editor_prosemirror_helpers";
-import {Box} from "~/client/design/box";
-import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction";
-import {OverlayRef} from "~/client/design/overlay";
-import {OverlayAnimated} from "~/client/design/overlay_animated";
-import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {ContentProsemirrorSchema} from "~/shared/content/content_schema";
-import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
-import {assert} from "~/shared/helpers/control/assert";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {WebSocketConnectionId} from "~/shared/id/types/id_types";
-import {overlayFadeOutAnimationDurationMs} from "~/shared/styles/styles";
+} from "~/client/content/internal/content_editor_highlight_selector.js";
+import {ContentEditorLinkInput} from "~/client/content/internal/content_editor_link_input.js";
+import {ContentEditorMentionFloater} from "~/client/content/internal/content_editor_mention_floater.js";
+import {ContentEditorPointerToolbar} from "~/client/content/internal/content_editor_pointer_toolbar.js";
+import {getMarksSpanningAcrossEntireRange} from "~/client/content/internal/content_editor_prosemirror_helpers.js";
+import {Box} from "~/client/design/box.js";
+import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.js";
+import {OverlayRef} from "~/client/design/overlay.js";
+import {OverlayAnimated} from "~/client/design/overlay_animated.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {overlayFadeOutAnimationDurationMs} from "~/shared/styles/styles.js";
 
 export type ContentEditorPointerToolbarFloaterState = {
     readonly type: "PointerToolbar";

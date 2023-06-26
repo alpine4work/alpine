@@ -1,15 +1,15 @@
 import {useRef} from "react";
 import {mergeProps, useButton, useHover} from "react-aria";
-import {Box} from "~/client/design/box";
-import {FocusRing} from "~/client/design/focus_ring";
-import {MenuButton} from "~/client/design/menu_button";
-import {TaskCheckbox} from "~/client/tasks/demo_2/internal/task_checkbox";
-import {TaskQueryFilterOperatorEditor} from "~/client/tasks/demo_2/internal/task_query_filter_operator_editor";
-import {TaskStatusCircle} from "~/client/tasks/demo_2/internal/task_status_circle";
-import {addRemLengths, spacing} from "~/shared/design/spacing";
-import {isNonNullableOrFalse} from "~/shared/helpers/control/is_non_nullable_or_false";
-import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles";
-import {TaskQueryStatusFilter} from "~/shared/tasks/task_query_filter";
+import {Box} from "~/client/design/box.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {MenuButton} from "~/client/design/menu_button.js";
+import {TaskCheckbox} from "~/client/tasks/demo_2/internal/task_checkbox.js";
+import {TaskQueryFilterOperatorEditor} from "~/client/tasks/demo_2/internal/task_query_filter_operator_editor.js";
+import {TaskStatusCircle} from "~/client/tasks/demo_2/internal/task_status_circle.js";
+import {addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {isNonNullableOrFalse} from "~/shared/helpers/control/is_non_nullable_or_false.js";
+import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles.js";
+import {TaskQueryStatusFilter} from "~/shared/tasks/task_query_filter.js";
 
 export function TaskQueryStatusFilterOperationEditor({
     filter,

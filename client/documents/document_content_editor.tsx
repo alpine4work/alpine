@@ -2,68 +2,75 @@ import {AnimationControls, spring, timeline} from "motion";
 import {CaretDown, CaretUp, SpinnerGap, X} from "phosphor-react";
 import {redo, undo} from "prosemirror-history";
 import {Memo, Ref, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
-import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
-import {createCommentThreadMetaKey} from "~/client/content/content_editor_state";
-import {Box} from "~/client/design/box";
-import {ContextMenuActions} from "~/client/design/context_menu";
-import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px";
-import {IconButton} from "~/client/design/icon_button";
-import {OverlayScopeContextProvider} from "~/client/design/overlay";
-import {delayFullPageTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
-import {useDevConsoleTool} from "~/client/dev/dev_console";
+import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
+import {createCommentThreadMetaKey} from "~/client/content/content_editor_state.js";
+import {Box} from "~/client/design/box.js";
+import {ContextMenuActions} from "~/client/design/context_menu.js";
+import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
+import {IconButton} from "~/client/design/icon_button.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {delayFullPageTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {
     DocumentCommentThreadListView,
     DocumentCommentThreadListViewRef,
-} from "~/client/documents/document_comment_thread_list_view";
-import {documentContentClassName, documentPaddingX} from "~/client/documents/document_content_view";
+} from "~/client/documents/document_comment_thread_list_view.js";
+import {
+    documentContentClassName,
+    documentPaddingX,
+} from "~/client/documents/document_content_view.js";
 import {
     DocumentContentEditorSideDecoration,
     DocumentContentEditorSideDecorations,
-} from "~/client/documents/internal/document_content_editor_side_decorations";
-import {DocumentContentEditorWebSocketClientProcedures} from "~/client/documents/internal/document_content_editor_web_socket_client";
-import {useDocumentContentEditorPhantomSelections} from "~/client/documents/internal/use_document_content_editor_phantom_selections";
+} from "~/client/documents/internal/document_content_editor_side_decorations.js";
+import {DocumentContentEditorWebSocketClientProcedures} from "~/client/documents/internal/document_content_editor_web_socket_client.js";
+import {useDocumentContentEditorPhantomSelections} from "~/client/documents/internal/use_document_content_editor_phantom_selections.js";
 import {
     SubscribeToCommentThreadEventsFunction,
     useDocumentContentEditorWebSocket,
-} from "~/client/documents/use_document_content_editor_web_socket";
-import {isMac} from "~/client/helpers/browser/is_mac";
-import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event";
-import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {MemoObject} from "~/client/helpers/types/memo_object";
-import {usePromise} from "~/client/helpers/use_promise";
-import {useResizeObserver} from "~/client/helpers/use_resize_observer";
-import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context";
-import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing";
-import {DocumentContentWithReferences} from "~/shared/documents/document_content_references";
+} from "~/client/documents/use_document_content_editor_web_socket.js";
+import {isMac} from "~/client/helpers/browser/is_mac.js";
+import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {MemoObject} from "~/client/helpers/types/memo_object.js";
+import {usePromise} from "~/client/helpers/use_promise.js";
+import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
+import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
+import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {
     DocumentContent,
     DocumentContentProsemirrorSchema,
-} from "~/shared/documents/document_content_schema";
+} from "~/shared/documents/document_content_schema.js";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
     DocumentModel,
-} from "~/shared/documents/document_model";
-import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
-import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint";
-import {createTimeout} from "~/shared/helpers/async/timeout";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
-import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
-import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
-import {clamp} from "~/shared/helpers/number/clamp";
-import {assertId} from "~/shared/id/id";
-import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types";
-import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema";
-import {OptimisticMessageModel} from "~/shared/messaging/message_model";
-import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer";
-import {colorSchemeVars, contentSchemaStyles, spinAnimationClassName} from "~/shared/styles/styles";
+} from "~/shared/documents/document_model.js";
+import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
+import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
+import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
+import {assertId} from "~/shared/id/id.js";
+import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
+import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
+import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
+import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
+import {
+    colorSchemeVars,
+    contentSchemaStyles,
+    spinAnimationClassName,
+} from "~/shared/styles/styles.js";
 
 export const documentContentEditorSidebarWidth = spacing["96"];
 

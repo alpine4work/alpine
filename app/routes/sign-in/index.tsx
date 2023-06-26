@@ -1,23 +1,23 @@
 import {json, redirect} from "@remix-run/cloudflare";
 import {Form, Link, useTransition} from "@remix-run/react";
 import {useState} from "react";
-import {redirectToAuthenticatedHome} from "~/app/helpers/redirect_to_authenticated_home";
-import {Box} from "~/client/design/box";
-import {Button} from "~/client/design/button";
-import {ErrorInlineAlert} from "~/client/design/error_inline_alert";
-import {FocusRing} from "~/client/design/focus_ring";
-import {Spacer} from "~/client/design/spacer";
-import {TextInput} from "~/client/design/text_input";
-import {useActionDataWithSchema} from "~/client/remix/use_action_data_with_schema";
-import {regenerateOneTimePasswordSignIn} from "~/server/dynamo/accounts_table";
-import {validateEmailAddress} from "~/server/emails/email_address";
-import {jsonWithSchema} from "~/server/remix/json_with_schema";
-import {LoaderArgs} from "~/server/remix/loader_context";
-import {InvalidArgumentError} from "~/shared/error/error";
-import {ErrorSchema} from "~/shared/error/error_schema";
-import {isSystemError} from "~/shared/error/is_system_error_code";
-import {Schema, SchemaType} from "~/shared/schema/schema";
-import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles";
+import {redirectToAuthenticatedHome} from "~/app/helpers/redirect_to_authenticated_home.js";
+import {Box} from "~/client/design/box.js";
+import {Button} from "~/client/design/button.js";
+import {ErrorInlineAlert} from "~/client/design/error_inline_alert.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {Spacer} from "~/client/design/spacer.js";
+import {TextInput} from "~/client/design/text_input.js";
+import {useActionDataWithSchema} from "~/client/remix/use_action_data_with_schema.js";
+import {regenerateOneTimePasswordSignIn} from "~/server/dynamo/accounts_table.js";
+import {validateEmailAddress} from "~/server/emails/email_address.js";
+import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
+import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
+import {ErrorSchema} from "~/shared/error/error_schema.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles.js";
 
 export function meta() {
     return {

@@ -39,46 +39,46 @@ import {
 } from "react";
 import {createPortal} from "react-dom";
 import {useLocation, useNavigationType} from "react-router";
-import {Box} from "~/client/design/box";
-import {FocusRing} from "~/client/design/focus_ring";
-import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
-import {IconButton} from "~/client/design/icon_button";
-import {OverlayScopeContextProvider} from "~/client/design/overlay";
-import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event";
+import {Box} from "~/client/design/box.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
+import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
+import {IconButton} from "~/client/design/icon_button.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
 import {
     GlobalKeyDownEvent,
     GlobalKeyDownManualContextProvider,
     GlobalKeyDownManualContextProviderRef,
-} from "~/client/helpers/global_key_down_event";
-import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {usePromise} from "~/client/helpers/use_promise";
-import {loadInitialPeekDataForClient} from "~/client/peek/load_initial_peek_data_for_client";
-import {PeekRemixEmbed} from "~/client/peek/peek_remix_embed";
-import {useIsMobile} from "~/client/remix/use_is_mobile";
-import {NavigationEventContextProvider, useNavigate} from "~/client/remix/use_navigate";
+} from "~/client/helpers/global_key_down_event.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {usePromise} from "~/client/helpers/use_promise.js";
+import {loadInitialPeekDataForClient} from "~/client/peek/load_initial_peek_data_for_client.js";
+import {PeekRemixEmbed} from "~/client/peek/peek_remix_embed.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {NavigationEventContextProvider, useNavigate} from "~/client/remix/use_navigate.js";
 import {
     addRemLengths,
     convertRemLengthToPx,
     parseRemLengthNumber,
     spacing,
-} from "~/shared/design/spacing";
-import {InternalError} from "~/shared/error/error";
-import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
-import {Lazy} from "~/shared/helpers/control/lazy";
-import {generateId} from "~/shared/id/id";
-import {PeekId} from "~/shared/id/types/id_types";
+} from "~/shared/design/spacing.js";
+import {InternalError} from "~/shared/error/error.js";
+import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {generateId} from "~/shared/id/id.js";
+import {PeekId} from "~/shared/id/types/id_types.js";
 import {
     convertPeekPathToSpacePath,
     convertSpacePathToPeekPath,
-} from "~/shared/remix/peek_path_helpers";
-import {Schema} from "~/shared/schema/schema";
+} from "~/shared/remix/peek_path_helpers.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {
     colorSchemeVars,
     greyElevatedClassName,
@@ -87,7 +87,7 @@ import {
     sprinkles,
     wiggleAnimation,
     wiggleAnimationDuration,
-} from "~/shared/styles/styles";
+} from "~/shared/styles/styles.js";
 
 const peekWidth = spacing["128"];
 const peekHeight = spacing["160"];

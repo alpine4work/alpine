@@ -1,4 +1,4 @@
-import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis";
+import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 
 /**
  * Messages comprised only of a small number of emoji we render as larger

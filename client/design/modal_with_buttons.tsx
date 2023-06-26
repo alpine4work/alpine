@@ -1,13 +1,13 @@
 import {ReactNode, Ref, forwardRef, useImperativeHandle, useRef, useState} from "react";
-import {Box} from "~/client/design/box";
-import {Button} from "~/client/design/button";
-import {Modal} from "~/client/design/modal";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
-import {useShowToast} from "~/client/design/toast";
-import {RemLength, Spacing} from "~/shared/design/spacing";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
+import {Box} from "~/client/design/box.js";
+import {Button} from "~/client/design/button.js";
+import {Modal} from "~/client/design/modal.js";
+import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {useShowToast} from "~/client/design/toast.js";
+import {RemLength, Spacing} from "~/shared/design/spacing.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 
 export type ModalWithButtonsRef = {
     focusPrimaryButton(): void;

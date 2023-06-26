@@ -1,8 +1,8 @@
 import {useMemo} from "react";
-import {parseAccountName} from "~/client/accounts/internal/parse_account_name";
-import {OverlayPlacement} from "~/client/design/overlay";
-import {Tooltip} from "~/client/design/tooltip";
-import {AccountModel} from "~/shared/accounts/account_model";
+import {parseAccountName} from "~/client/accounts/internal/parse_account_name.js";
+import {OverlayPlacement} from "~/client/design/overlay.js";
+import {Tooltip} from "~/client/design/tooltip.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
 
 export function AccountShortName({
     account,

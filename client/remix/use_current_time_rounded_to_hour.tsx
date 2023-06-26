@@ -1,10 +1,10 @@
 import {CalendarDate, parseAbsolute, toCalendarDate} from "@internationalized/date";
 import {ReactNode, createContext, useContext, useEffect, useState} from "react";
-import {useClientInfo} from "~/client/remix/client_info_context";
-import {InternalError} from "~/shared/error/error";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {defaultTimeZone} from "~/shared/helpers/date/time_zone";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {InternalError} from "~/shared/error/error.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 
 /**
  * Round the provided date to the start of the current hour.

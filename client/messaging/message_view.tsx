@@ -1,57 +1,57 @@
 import {differenceInMinutes} from "date-fns";
 import {ArrowArcLeft, SpinnerGap} from "phosphor-react";
 import {Fragment, Memo, MutableRefObject, useEffect, useMemo, useRef, useState} from "react";
-import {AccountAvatar} from "~/client/accounts/account_avatar";
-import {AccountShortName} from "~/client/accounts/account_short_name";
-import {ContentView} from "~/client/content/content_view";
-import {ErrorIcon} from "~/client/design/error_icon";
-import {FocusRing} from "~/client/design/focus_ring";
-import {IconButton} from "~/client/design/icon_button";
-import {ModalDialog} from "~/client/design/modal_dialog";
-import {OverlayScopeContextProvider} from "~/client/design/overlay";
-import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date";
-import {Tooltip} from "~/client/design/tooltip";
-import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/message_delete_confirmation_dialog";
-import {MessageViewActions} from "~/client/messaging/internal/message_view_actions";
+import {AccountAvatar} from "~/client/accounts/account_avatar.js";
+import {AccountShortName} from "~/client/accounts/account_short_name.js";
+import {ContentView} from "~/client/content/content_view.js";
+import {ErrorIcon} from "~/client/design/error_icon.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {IconButton} from "~/client/design/icon_button.js";
+import {ModalDialog} from "~/client/design/modal_dialog.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date.js";
+import {Tooltip} from "~/client/design/tooltip.js";
+import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/message_delete_confirmation_dialog.js";
+import {MessageViewActions} from "~/client/messaging/internal/message_view_actions.js";
 import {
     MessageViewEditor,
     MessageViewEditorRef,
-} from "~/client/messaging/internal/message_view_editor";
-import {shouldDisplayTextAsBigEmojiMessage} from "~/client/messaging/internal/should_display_text_as_big_emoji_message";
-import {MessageEditing} from "~/client/messaging/message_editing";
-import {MessageList} from "~/client/messaging/message_list";
-import {useIsPeekAnimatingOpen} from "~/client/peek/peek_stack";
-import {useClientInfo} from "~/client/remix/client_info_context";
-import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour";
-import {emptyContentReferences} from "~/shared/content/content_references";
-import {getContentSnippet} from "~/shared/content/get_content_snippet";
+} from "~/client/messaging/internal/message_view_editor.js";
+import {shouldDisplayTextAsBigEmojiMessage} from "~/client/messaging/internal/should_display_text_as_big_emoji_message.js";
+import {MessageEditing} from "~/client/messaging/message_editing.js";
+import {MessageList} from "~/client/messaging/message_list.js";
+import {useIsPeekAnimatingOpen} from "~/client/peek/peek_stack.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
+import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {
     RemLength,
     Spacing,
     addRemLengths,
     parseRemLengthNumber,
     spacing,
-} from "~/shared/design/spacing";
-import {createTimeout} from "~/shared/helpers/async/timeout";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis";
+} from "~/shared/design/spacing.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {
     MessageContentProsemirrorSchema,
     MessageContentWithReferences,
     assertMessageContent,
-} from "~/shared/messaging/message_content_schema";
+} from "~/shared/messaging/message_content_schema.js";
 import {
     MessageModel,
     MessageModelBase,
     OptimisticMessageModel,
-} from "~/shared/messaging/message_model";
+} from "~/shared/messaging/message_model.js";
 import {
     messageViewBubbleBorderRadius,
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
     minMessageViewTimestampDividerElapsedMinutes,
-} from "~/shared/messaging/messaging_shared_styles";
+} from "~/shared/messaging/messaging_shared_styles.js";
 import {
     colorSchemeVars,
     contentSchemaStyles,
@@ -62,7 +62,7 @@ import {
     sprinkles,
     wiggleAnimation,
     wiggleAnimationDuration,
-} from "~/shared/styles/styles";
+} from "~/shared/styles/styles.js";
 
 const {paragraphFontSize} = contentSchemaStyles;
 

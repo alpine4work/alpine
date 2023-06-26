@@ -1,6 +1,6 @@
-import {Box} from "~/client/design/box";
-import {useSpacingPx} from "~/client/design/helpers/use_spacing_px";
-import {Spacing, spacing} from "~/shared/design/spacing";
+import {Box} from "~/client/design/box.js";
+import {useSpacingPx} from "~/client/design/helpers/use_spacing_px.js";
+import {Spacing, spacing} from "~/shared/design/spacing.js";
 
 export function TaskChildTasksProgressWheel({
     childTaskCount,

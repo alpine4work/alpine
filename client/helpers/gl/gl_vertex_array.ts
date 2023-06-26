@@ -1,5 +1,5 @@
-import {Gl} from "~/client/helpers/gl/gl";
-import {GlBufferUsage, glEnum} from "~/client/helpers/gl/gl_types";
+import {Gl} from "~/client/helpers/gl/gl.js";
+import {GlBufferUsage, glEnum} from "~/client/helpers/gl/gl_types.js";
 
 export class GlVertexArray {
     constructor(

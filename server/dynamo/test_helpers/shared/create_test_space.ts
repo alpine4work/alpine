@@ -1,8 +1,8 @@
-import {getSpacesTableForTest} from "~/server/dynamo/spaces_table";
-import {TestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
-import {testSharedHooks} from "~/server/dynamo/test_helpers/shared/test_shared_hooks";
-import {generateId} from "~/shared/id/id";
-import {SpaceId} from "~/shared/id/types/id_types";
+import {getSpacesTableForTest} from "~/server/dynamo/spaces_table.js";
+import {TestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
+import {testSharedHooks} from "~/server/dynamo/test_helpers/shared/test_shared_hooks.js";
+import {generateId} from "~/shared/id/id.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
 
 export type TestSpace = {
     readonly id: SpaceId;

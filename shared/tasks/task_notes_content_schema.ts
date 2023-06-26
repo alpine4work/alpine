@@ -1,13 +1,16 @@
 import {Node, Schema as ProsemirrorSchema} from "prosemirror-model";
-import {ContentReferencesSchema, emptyContentReferences} from "~/shared/content/content_references";
+import {
+    ContentReferencesSchema,
+    emptyContentReferences,
+} from "~/shared/content/content_references.js";
 import {
     contentBaseProsemirrorSchemaSpec,
     createProsemirrorSchemaSpec,
-} from "~/shared/content/content_schema";
-import {contentStructuralProsemirrorNodeSpecs} from "~/shared/content/content_schema_extra";
-import {assert} from "~/shared/helpers/control/assert";
-import {createSchemaForProsemirrorSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema";
-import {Schema, SchemaType} from "~/shared/schema/schema";
+} from "~/shared/content/content_schema.js";
+import {contentStructuralProsemirrorNodeSpecs} from "~/shared/content/content_schema_extra.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {createSchemaForProsemirrorSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 const taskNotesContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
     nodes: {

@@ -1,9 +1,9 @@
 import {useEffect} from "react";
 import {unstable_IdlePriority, unstable_scheduleCallback} from "scheduler";
-import {useAppContext} from "~/client/context/app_context";
-import {preloadRpc, useLazyLoadLoadRpc} from "~/client/rpc/use_lazy_load_rpc";
-import {useSpaceContext} from "~/client/spaces/space_context";
-import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions";
+import {useAppContext} from "~/client/context/app_context.js";
+import {preloadRpc, useLazyLoadLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 
 /**
  * Return all the accounts in this space and a Fuse.js search index for those

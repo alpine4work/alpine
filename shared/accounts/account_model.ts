@@ -1,7 +1,7 @@
-import {AccountId} from "~/shared/id/types/id_types";
-import {LabelStringSchema} from "~/shared/schema/label_string_schema";
-import {Model} from "~/shared/schema/model/model";
-import {Schema} from "~/shared/schema/schema";
+import {AccountId} from "~/shared/id/types/id_types.js";
+import {LabelStringSchema} from "~/shared/schema/label_string_schema.js";
+import {Model} from "~/shared/schema/model/model.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 /**
  * Representation of an account in our system that we can share with

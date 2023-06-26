@@ -1,12 +1,12 @@
-import {ChatMessageModel} from "~/shared/chat/chat_model";
+import {ChatMessageModel} from "~/shared/chat/chat_model.js";
 import {
     WebSocketProtocolEventType,
     defineWebSocketProtocol,
-} from "~/shared/cloudflare/web_socket_protocol";
+} from "~/shared/cloudflare/web_socket_protocol.js";
 import {
     createMessagingRealtimeEventSchemas,
     createMessagingRealtimeProcedureSchemas,
-} from "~/shared/messaging/messaging_realtime_protocol";
+} from "~/shared/messaging/messaging_realtime_protocol.js";
 
 export type ChatRealtimeEvent = WebSocketProtocolEventType<typeof ChatRealtimeProtocol>;
 

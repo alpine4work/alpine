@@ -1,5 +1,5 @@
 import {Memo, useEffect, useRef} from "react";
-import {CancelledError} from "~/shared/error/error";
+import {CancelledError} from "~/shared/error/error.js";
 
 /**
  * Consume items produced by an async iterable in a React component.

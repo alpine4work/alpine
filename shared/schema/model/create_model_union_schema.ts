@@ -1,8 +1,8 @@
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
-import {ModelClass} from "~/shared/schema/model/model";
-import {Schema, UnionSchema} from "~/shared/schema/schema";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {ModelClass} from "~/shared/schema/model/model.js";
+import {Schema, UnionSchema} from "~/shared/schema/schema.js";
 
 /**
  * Create a union schema from multiple model classes.

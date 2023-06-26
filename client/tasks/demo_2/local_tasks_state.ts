@@ -1,60 +1,64 @@
 import {toCalendarDate} from "@internationalized/date";
 import {CalendarDate, parseAbsolute, parseDate} from "@internationalized/date";
 import {MutableRefObject, useEffect, useMemo, useRef} from "react";
-import {useDevConsoleTool} from "~/client/dev/dev_console";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {Store} from "~/client/helpers/store/store";
-import {useStore} from "~/client/helpers/store/use_store";
-import {ValueStore} from "~/client/helpers/store/value_store";
-import {createTaskQuerySortsCompareFunction} from "~/client/tasks/demo_2/internal/create_task_query_sorts_compare_function";
-import {evaluateTaskQueryNormalizedFilters} from "~/client/tasks/demo_2/internal/evaluate_task_query_normalized_filters";
+import {useDevConsoleTool} from "~/client/dev/dev_console.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {Store} from "~/client/helpers/store/store.js";
+import {useStore} from "~/client/helpers/store/use_store.js";
+import {ValueStore} from "~/client/helpers/store/value_store.js";
+import {createTaskQuerySortsCompareFunction} from "~/client/tasks/demo_2/internal/create_task_query_sorts_compare_function.js";
+import {evaluateTaskQueryNormalizedFilters} from "~/client/tasks/demo_2/internal/evaluate_task_query_normalized_filters.js";
 import {
     TaskQueryNormalizedFilters,
     normalizeTaskQueryFilters,
-} from "~/client/tasks/demo_2/internal/normalize_task_query_filters";
-import {TaskQuerySort} from "~/client/tasks/demo_2/task_query_sort";
+} from "~/client/tasks/demo_2/internal/normalize_task_query_filters.js";
+import {TaskQuerySort} from "~/client/tasks/demo_2/task_query_sort.js";
 import {
     TaskAssignee,
     TaskAssigneeActiveStatus,
     TaskStatus,
     compareTaskAssigneeActiveStatus,
-} from "~/client/tasks/demo_2/task_status_button";
-import {AccountModel} from "~/shared/accounts/account_model";
-import {ThemeColor, themeColors} from "~/shared/design/theme_colors";
+} from "~/client/tasks/demo_2/task_status_button.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {ThemeColor, themeColors} from "~/shared/design/theme_colors.js";
 import {
     DataLossError,
     FailedPreconditionError,
     InvalidArgumentError,
     NotFoundError,
-} from "~/shared/error/error";
-import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {Lazy} from "~/shared/helpers/control/lazy";
-import {noop} from "~/shared/helpers/control/noop";
-import {TimeZone} from "~/shared/helpers/date/time_zone";
-import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
-import {iterableSome} from "~/shared/helpers/iterable/iterable_some";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
-import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
-import {OrderKey, generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key";
-import {generateId} from "~/shared/id/id";
-import {AccountId, LocalTaskCollectionId, LocalTaskId} from "~/shared/id/types/id_types";
-import {LabelStringSchema} from "~/shared/schema/label_string_schema";
-import {OrderKeySchema} from "~/shared/schema/order_key_schema";
-import {Schema, SchemaDeserializationError, SchemaType} from "~/shared/schema/schema";
-import {TimeZoneSchema} from "~/shared/schema/time_zone_schema";
+} from "~/shared/error/error.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {noop} from "~/shared/helpers/control/noop.js";
+import {TimeZone} from "~/shared/helpers/date/time_zone.js";
+import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
+import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
+import {
+    OrderKey,
+    generateOrderKeyBetween,
+    initialOrderKey,
+} from "~/shared/helpers/sort/order_key.js";
+import {generateId} from "~/shared/id/id.js";
+import {AccountId, LocalTaskCollectionId, LocalTaskId} from "~/shared/id/types/id_types.js";
+import {LabelStringSchema} from "~/shared/schema/label_string_schema.js";
+import {OrderKeySchema} from "~/shared/schema/order_key_schema.js";
+import {Schema, SchemaDeserializationError, SchemaType} from "~/shared/schema/schema.js";
+import {TimeZoneSchema} from "~/shared/schema/time_zone_schema.js";
 import {
     TaskNotesContentWithReferences,
     TaskNotesContentWithReferencesSchema,
     emptyTaskNotesContentWithReferences,
-} from "~/shared/tasks/task_notes_content_schema";
-import {TaskPriority, TaskPrioritySchema} from "~/shared/tasks/task_priority";
-import {TaskQueryFilter} from "~/shared/tasks/task_query_filter";
-import {TaskTitle, TaskTitleSchema, emptyTaskTitle} from "~/shared/tasks/task_title_schema";
+} from "~/shared/tasks/task_notes_content_schema.js";
+import {TaskPriority, TaskPrioritySchema} from "~/shared/tasks/task_priority.js";
+import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
+import {TaskTitle, TaskTitleSchema, emptyTaskTitle} from "~/shared/tasks/task_title_schema.js";
 
 const LocalTaskIdByOrderKeySchema = Schema.map(OrderKeySchema, Schema.id<LocalTaskId>()).transform<
     ImmutableMap<OrderKey, LocalTaskId>

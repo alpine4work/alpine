@@ -1,8 +1,8 @@
 import {MjmlText} from "mjml-react";
 import {ReactNode} from "react";
-import {Color, colors} from "~/shared/design/colors";
-import {convertRemLengthToPx, remPxByPlatform} from "~/shared/design/spacing";
-import {fontSizes, fontSizesByPlatform, fontStyles} from "~/shared/styles/styles";
+import {Color, colors} from "~/shared/design/colors.js";
+import {convertRemLengthToPx, remPxByPlatform} from "~/shared/design/spacing.js";
+import {fontSizes, fontSizesByPlatform, fontStyles} from "~/shared/styles/styles.js";
 
 export function EmailText({
     children,

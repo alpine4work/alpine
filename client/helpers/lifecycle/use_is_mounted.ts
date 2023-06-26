@@ -1,5 +1,5 @@
 import {useCallback, useRef} from "react";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 
 /**
  * Provides a function that returns true when the component is mounted and false

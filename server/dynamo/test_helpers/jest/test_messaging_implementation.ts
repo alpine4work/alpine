@@ -1,11 +1,11 @@
-import {SessionActionContext} from "~/server/dynamo/context/action_context";
-import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/dynamo/helpers/messaging/get_message_change_log_expiration_time_from_change_time";
-import {TestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
+import {SessionActionContext} from "~/server/dynamo/context/action_context.js";
+import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/dynamo/helpers/messaging/get_message_change_log_expiration_time_from_change_time.js";
+import {TestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
 import {
     TestSession,
     createTestSession,
-} from "~/server/dynamo/test_helpers/shared/create_test_session";
-import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
+} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
+import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space.js";
 import {
     BackfillMessagesFunction,
     CreateMessageFunction,
@@ -14,24 +14,24 @@ import {
     GetMessagesFromEnd,
     GetMessagesFromStart,
     UpdateMessageContentFunction,
-} from "~/server/messaging/messaging_implementation";
+} from "~/server/messaging/messaging_implementation.js";
 import {
     FailedPreconditionError,
     InternalError,
     InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
-} from "~/shared/error/error";
-import {assert} from "~/shared/helpers/control/assert";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {SpaceId} from "~/shared/id/types/id_types";
-import {MessageChange} from "~/shared/messaging/message_change_schema";
+} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
+import {MessageChange} from "~/shared/messaging/message_change_schema.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
     createSimpleMessageContent,
-} from "~/shared/messaging/message_content_schema";
-import {MessageModel} from "~/shared/messaging/message_model";
+} from "~/shared/messaging/message_content_schema.js";
+import {MessageModel} from "~/shared/messaging/message_model.js";
 
 /**
  * Wherever we want to create some space for conversation in our product we use

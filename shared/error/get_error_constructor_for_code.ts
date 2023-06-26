@@ -16,10 +16,10 @@ import {
     UnavailableError,
     UnimplementedError,
     UnknownError,
-} from "~/shared/error/error";
-import {ErrorCode} from "~/shared/error/error_code";
-import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
+} from "~/shared/error/error.js";
+import {ErrorCode} from "~/shared/error/error_code.js";
+import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 /**
  * Get a the error constructor for the provided error code.

@@ -1,7 +1,7 @@
 /// <reference types="@types/node" />
 
 import crypto from "crypto";
-import {InternalError} from "~/shared/error/error";
+import {InternalError} from "~/shared/error/error.js";
 
 // Set the Node.js `webcrypto` implementation to the `crypto` global so that
 // client code which runs in a browser has access to the web Crypto API.

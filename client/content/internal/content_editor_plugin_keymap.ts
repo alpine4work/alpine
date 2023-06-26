@@ -16,11 +16,11 @@ import {keymap} from "prosemirror-keymap";
 import {Node} from "prosemirror-model";
 import {EditorState, TextSelection, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
-import {contentEditorQuickUndoCommand} from "~/client/content/content_editor_state";
-import {createToggleMarkCommand} from "~/client/content/internal/content_editor_prosemirror_helpers";
-import {isMac} from "~/client/helpers/browser/is_mac";
-import {ContentMention} from "~/shared/content/content_mention";
-import {ContentProsemirrorSchema, maxListItemIndentation} from "~/shared/content/content_schema";
+import {contentEditorQuickUndoCommand} from "~/client/content/content_editor_state.js";
+import {createToggleMarkCommand} from "~/client/content/internal/content_editor_prosemirror_helpers.js";
+import {isMac} from "~/client/helpers/browser/is_mac.js";
+import {ContentMention} from "~/shared/content/content_mention.js";
+import {ContentProsemirrorSchema, maxListItemIndentation} from "~/shared/content/content_schema.js";
 
 type Command = (
     state: EditorState,

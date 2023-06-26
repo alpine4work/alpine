@@ -1,16 +1,16 @@
 import {Plus, SortAscending} from "phosphor-react";
-import {Box} from "~/client/design/box";
-import {Button} from "~/client/design/button";
-import {IconButton} from "~/client/design/icon_button";
-import {MenuButton} from "~/client/design/menu_button";
-import {OverlayTriggerButton} from "~/client/design/overlay_trigger";
-import {TaskQueryFilterEditor} from "~/client/tasks/demo_2/internal/task_query_filter_editor";
-import {TaskQuerySortsEditor} from "~/client/tasks/demo_2/internal/task_query_sorts_editor";
-import {LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
-import {TaskQuerySort} from "~/client/tasks/demo_2/task_query_sort";
-import {spacing} from "~/shared/design/spacing";
-import {TaskQueryFilter} from "~/shared/tasks/task_query_filter";
-import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references";
+import {Box} from "~/client/design/box.js";
+import {Button} from "~/client/design/button.js";
+import {IconButton} from "~/client/design/icon_button.js";
+import {MenuButton} from "~/client/design/menu_button.js";
+import {OverlayTriggerButton} from "~/client/design/overlay_trigger.js";
+import {TaskQueryFilterEditor} from "~/client/tasks/demo_2/internal/task_query_filter_editor.js";
+import {TaskQuerySortsEditor} from "~/client/tasks/demo_2/internal/task_query_sorts_editor.js";
+import {LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state.js";
+import {TaskQuerySort} from "~/client/tasks/demo_2/task_query_sort.js";
+import {spacing} from "~/shared/design/spacing.js";
+import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
+import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
 
 export function TaskQueryViewCustomizationBar({
     state,

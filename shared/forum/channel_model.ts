@@ -1,8 +1,8 @@
-import {ChannelId, SpaceId} from "~/shared/id/types/id_types";
-import {MessageContentWithReferencesSchema} from "~/shared/messaging/message_content_schema";
-import {LabelStringSchema} from "~/shared/schema/label_string_schema";
-import {Model} from "~/shared/schema/model/model";
-import {Schema} from "~/shared/schema/schema";
+import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {MessageContentWithReferencesSchema} from "~/shared/messaging/message_content_schema.js";
+import {LabelStringSchema} from "~/shared/schema/label_string_schema.js";
+import {Model} from "~/shared/schema/model/model.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export class ChannelModel extends Model(
     Schema.object({

@@ -1,19 +1,19 @@
 import {Node} from "prosemirror-model";
 import {Step} from "prosemirror-transform";
-import {getAccountIfExists} from "~/server/dynamo/accounts_table";
-import {ActionContext} from "~/server/dynamo/context/action_context";
-import {AccountModel} from "~/shared/accounts/account_model";
-import {ContentMention} from "~/shared/content/content_mention";
-import {ContentReferences} from "~/shared/content/content_references";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types";
+import {getAccountIfExists} from "~/server/dynamo/accounts_table.js";
+import {ActionContext} from "~/server/dynamo/context/action_context.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {ContentMention} from "~/shared/content/content_mention.js";
+import {ContentReferences} from "~/shared/content/content_references.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
     ProsemirrorVisitor,
     visitProsemirrorNode,
     visitProsemirrorStep,
-} from "~/shared/prosemirror/prosemirror_visitor";
+} from "~/shared/prosemirror/prosemirror_visitor.js";
 
 /**
  * Traverse our content, find any referenced data, and load that data. For

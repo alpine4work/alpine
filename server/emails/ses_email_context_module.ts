@@ -2,17 +2,17 @@
 // `aws4fetch` for executing any AWS commands.
 import type * as types from "@aws-sdk/client-ses";
 import {AwsClient} from "aws4fetch";
-import {EmailAddress} from "~/server/emails/email_address";
-import {EmailContextModuleBase} from "~/server/emails/email_context_module_base";
+import {EmailAddress} from "~/server/emails/email_address.js";
+import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {
     FromEmailAddress,
     getFromEmailAddress,
     getFromEmailAddressName,
-} from "~/server/emails/from_email_address";
-import {RenderedEmail} from "~/server/emails/internal/email_templates";
-import {encodeAwsUrlencodedFormat} from "~/server/helpers/aws/encode_aws_urlencoded_format";
-import {TracerContextModule} from "~/shared/context/tracer_context_module";
-import {UnknownError} from "~/shared/error/error";
+} from "~/server/emails/from_email_address.js";
+import {RenderedEmail} from "~/server/emails/internal/email_templates.js";
+import {encodeAwsUrlencodedFormat} from "~/server/helpers/aws/encode_aws_urlencoded_format.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {UnknownError} from "~/shared/error/error.js";
 
 /**
  * Send an email with AWS SES. Used in production to send emails.

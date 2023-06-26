@@ -1,6 +1,6 @@
 import {RefCallback, useCallback, useEffect, useRef} from "react";
-import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
+import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 
 /**
  * If the user pressed an element outside of the returned ref then we call the

@@ -2,15 +2,15 @@ import murmurhash from "murmurhash";
 import {Selection, TextSelection} from "prosemirror-state";
 import {Mapping, StepMap} from "prosemirror-transform";
 import {useMemo} from "react";
-import {ContentEditorPhantomSelection} from "~/client/content/content_editor";
-import {ContentEditorState} from "~/client/content/content_editor_state";
-import {defaultThemeColor, themeColors} from "~/shared/design/theme_colors";
-import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_protocol";
-import {DocumentContentWithReferences} from "~/shared/documents/document_content_references";
-import {DocumentContent} from "~/shared/documents/document_content_schema";
-import {Lazy} from "~/shared/helpers/control/lazy";
-import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
-import {WebSocketConnectionId} from "~/shared/id/types/id_types";
+import {ContentEditorPhantomSelection} from "~/client/content/content_editor.js";
+import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {defaultThemeColor, themeColors} from "~/shared/design/theme_colors.js";
+import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_protocol.js";
+import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
+import {DocumentContent} from "~/shared/documents/document_content_schema.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
+import {WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 
 export function useDocumentContentEditorPhantomSelections({
     editorState,

@@ -1,12 +1,12 @@
 import {DOMSerializer, Mark} from "prosemirror-model";
 import {MarkViewConstructor} from "prosemirror-view";
 import {To} from "react-router-dom";
-import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click";
-import {tooltipDelayMs} from "~/client/design/tooltip";
-import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event";
-import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
-import {assert} from "~/shared/helpers/control/assert";
+import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click.js";
+import {tooltipDelayMs} from "~/client/design/tooltip.js";
+import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
+import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
  * Opens the link when the node is clicked instead of selecting text. We're

@@ -1,25 +1,25 @@
-import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name";
-import {useShowToast} from "~/client/design/toast";
-import {DocumentCommentThreadListView} from "~/client/documents/document_comment_thread_list_view";
-import {documentCommentThreadCountAgainstLimit} from "~/client/documents/document_shared_styles";
-import {useDocumentContentEditorWebSocket} from "~/client/documents/use_document_content_editor_web_socket";
-import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
-import {createMetaFunction} from "~/client/remix/create_meta_function";
-import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
-import {useRootNavigate} from "~/client/remix/use_navigate";
-import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
-import {getDocumentAndCommentThreadsWithInitialComments} from "~/server/dynamo/documents_table";
-import {jsonWithSchema} from "~/server/remix/json_with_schema";
-import {LoaderArgs} from "~/server/remix/loader_context";
+import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name.js";
+import {useShowToast} from "~/client/design/toast.js";
+import {DocumentCommentThreadListView} from "~/client/documents/document_comment_thread_list_view.js";
+import {documentCommentThreadCountAgainstLimit} from "~/client/documents/document_shared_styles.js";
+import {useDocumentContentEditorWebSocket} from "~/client/documents/use_document_content_editor_web_socket.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
+import {createMetaFunction} from "~/client/remix/create_meta_function.js";
+import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
+import {useRootNavigate} from "~/client/remix/use_navigate.js";
+import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
+import {getDocumentAndCommentThreadsWithInitialComments} from "~/server/dynamo/documents_table.js";
+import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
+import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
     DocumentModel,
-} from "~/shared/documents/document_model";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types";
-import {Schema} from "~/shared/schema/schema";
+} from "~/shared/documents/document_model.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
     document: DocumentModel.schema(),

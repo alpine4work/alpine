@@ -1,7 +1,7 @@
 import Color from "color";
-import {Gl} from "~/client/helpers/gl/gl";
-import {GlTexture2d} from "~/client/helpers/gl/gl_texture_2d";
-import {Vector2} from "~/shared/helpers/geometry/vector2";
+import {Gl} from "~/client/helpers/gl/gl.js";
+import {GlTexture2d} from "~/client/helpers/gl/gl_texture_2d.js";
+import {Vector2} from "~/shared/helpers/geometry/vector2.js";
 
 export abstract class GlUniform<T> {
     value: T;

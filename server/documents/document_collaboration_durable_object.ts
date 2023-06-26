@@ -1,15 +1,15 @@
-import {createDurableObject} from "~/server/cloudflare/create_durable_object";
-import {WebSocketServer} from "~/server/cloudflare/web_socket_server";
-import {DocumentCollaborationConnection} from "~/server/documents/document_collaboration_connection";
-import {DocumentCollaborationContentManager} from "~/server/documents/document_collaboration_content_manager";
-import {ActionContext, SessionActionContext} from "~/server/dynamo/context/action_context";
-import {ProcessContext} from "~/server/dynamo/context/process_context";
-import {authorizeDocumentAccess, getDocument} from "~/server/dynamo/documents_table";
-import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol";
-import {DocumentContent} from "~/shared/documents/document_content_schema";
-import {NotFoundError} from "~/shared/error/error";
-import {DocumentId, SpaceId} from "~/shared/id/types/id_types";
-import {Schema} from "~/shared/schema/schema";
+import {createDurableObject} from "~/server/cloudflare/create_durable_object.js";
+import {WebSocketServer} from "~/server/cloudflare/web_socket_server.js";
+import {DocumentCollaborationConnection} from "~/server/documents/document_collaboration_connection.js";
+import {DocumentCollaborationContentManager} from "~/server/documents/document_collaboration_content_manager.js";
+import {ActionContext, SessionActionContext} from "~/server/dynamo/context/action_context.js";
+import {ProcessContext} from "~/server/dynamo/context/process_context.js";
+import {authorizeDocumentAccess, getDocument} from "~/server/dynamo/documents_table.js";
+import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
+import {DocumentContent} from "~/shared/documents/document_content_schema.js";
+import {NotFoundError} from "~/shared/error/error.js";
+import {DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 class DocumentCollaborationDurableObject {
     public static readonly serviceName = "DocumentCollaborationService";

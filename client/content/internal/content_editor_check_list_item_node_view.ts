@@ -1,7 +1,7 @@
 import {DOMSerializer, Node} from "prosemirror-model";
 import {EditorView, NodeView} from "prosemirror-view";
-import {contentCheckListItemIconSvg} from "~/shared/content/content_check_list_item_icon_svg";
-import {contentSchemaStyles} from "~/shared/styles/styles";
+import {contentCheckListItemIconSvg} from "~/shared/content/content_check_list_item_icon_svg.js";
+import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
 const {
     checkListItemCheckboxClassName,

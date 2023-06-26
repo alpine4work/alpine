@@ -4,14 +4,14 @@ import {
     getColorSchemeWithoutListeningIfBrowser,
     setColorScheme,
     toggleColorScheme,
-} from "~/client/helpers/color_scheme";
-import {AccountModel} from "~/shared/accounts/account_model";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
-import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
-import {generateId} from "~/shared/id/id";
-import {Schema, SchemaSerializedValue} from "~/shared/schema/schema";
+} from "~/client/helpers/color_scheme.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {generateId} from "~/shared/id/id.js";
+import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 const devConsole = {
     generateId,

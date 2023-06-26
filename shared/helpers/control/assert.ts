@@ -1,4 +1,4 @@
-import {InternalError} from "~/shared/error/error";
+import {InternalError} from "~/shared/error/error.js";
 
 /**
  * Throws an assertion error if the condition is falsy.

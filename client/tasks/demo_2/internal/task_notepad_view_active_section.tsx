@@ -1,32 +1,32 @@
 import {useDndContext, useDroppable} from "@dnd-kit/core";
 import {useId, useState} from "react";
-import {Box} from "~/client/design/box";
-import {usePeekStackContext} from "~/client/peek/peek_stack";
-import {useSpaceContext} from "~/client/spaces/space_context";
-import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/demo_2/internal/task_delete_confirmation_modal_dialog";
+import {Box} from "~/client/design/box.js";
+import {usePeekStackContext} from "~/client/peek/peek_stack.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/demo_2/internal/task_delete_confirmation_modal_dialog.js";
 import {
     TaskGridViewDraggableData,
     TaskGridViewDroppableData,
-} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
-import {TaskStatusCircle} from "~/client/tasks/demo_2/internal/task_status_circle";
-import {LocalTasksAction, LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
+} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context.js";
+import {TaskStatusCircle} from "~/client/tasks/demo_2/internal/task_status_circle.js";
+import {LocalTasksAction, LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state.js";
 import {
     TaskCardPresentationalView,
     taskCardViewMaxWidth,
-} from "~/client/tasks/demo_2/task_card_presentational_view";
+} from "~/client/tasks/demo_2/task_card_presentational_view.js";
 import {
     TaskAssigneeActiveStatus,
     compareTaskAssigneeActiveStatus,
-} from "~/client/tasks/demo_2/task_status_button";
-import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length";
-import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
-import {LocalTaskId} from "~/shared/id/types/id_types";
+} from "~/client/tasks/demo_2/task_status_button.js";
+import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
+import {LocalTaskId} from "~/shared/id/types/id_types.js";
 import {
     colorSchemeVars,
     hideScrollbarClassName,
     pressOpacityOverlayClassName,
-} from "~/shared/styles/styles";
+} from "~/shared/styles/styles.js";
 
 const taskNotepadViewActiveSectionCardTranslateDurationMs = 200;
 

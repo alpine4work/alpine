@@ -2,15 +2,15 @@ import {X} from "phosphor-react";
 import {ReactNode, useEffect, useState} from "react";
 import {FocusScope} from "react-aria";
 import {createPortal} from "react-dom";
-import {Box} from "~/client/design/box";
-import {IconButton} from "~/client/design/icon_button";
-import {OverlayScopeContextProvider, useOverlayRootPortalElement} from "~/client/design/overlay";
-import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event";
-import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {RemLength, Spacing, isRemLength, spacing} from "~/shared/design/spacing";
-import {createTimeout} from "~/shared/helpers/async/timeout";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {modalStyles, sprinkles} from "~/shared/styles/styles";
+import {Box} from "~/client/design/box.js";
+import {IconButton} from "~/client/design/icon_button.js";
+import {OverlayScopeContextProvider, useOverlayRootPortalElement} from "~/client/design/overlay.js";
+import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {RemLength, Spacing, isRemLength, spacing} from "~/shared/design/spacing.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {modalStyles, sprinkles} from "~/shared/styles/styles.js";
 
 export const defaultModalMaxWidth: Spacing = "128";
 

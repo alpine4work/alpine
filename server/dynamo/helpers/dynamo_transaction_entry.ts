@@ -1,7 +1,7 @@
 // IMPORTANT: We are only importing `@aws-sdk` for types. Use `aws4fetch`
 // for executing any AWS commands.
 import type * as types from "@aws-sdk/client-dynamodb";
-import {DynamoClient} from "~/server/dynamo/internal/dynamo_client";
+import {DynamoClient} from "~/server/dynamo/internal/dynamo_client.js";
 
 /**
  * An entry within a DynamoDB write transaction. Entries within a transaction

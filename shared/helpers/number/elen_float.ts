@@ -1,12 +1,12 @@
-import {assert} from "~/shared/helpers/control/assert";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {
     decodeElenIntegerIfPossible,
     decodeElenIntegerIfPossibleIgnoringEndIndex,
     elenIntegerNegativeChar,
     elenIntegerPositiveChar,
     encodeElenInteger,
-} from "~/shared/helpers/number/elen_integer";
-import {constructFloat, deconstructFloat} from "~/shared/helpers/number/float_representation";
+} from "~/shared/helpers/number/elen_integer.js";
+import {constructFloat, deconstructFloat} from "~/shared/helpers/number/float_representation.js";
 
 /**
  * String encoding of a float whose lexicographic order is the same as the

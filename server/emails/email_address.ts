@@ -1,9 +1,9 @@
 import {validate as validateEmail} from "email-validator";
-import {Context} from "~/shared/context/context";
-import {TracerContextModule} from "~/shared/context/tracer_context_module";
-import {InternalError, InvalidArgumentError} from "~/shared/error/error";
-import {errorDisplayMessage} from "~/shared/error/error_display_message";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer";
+import {Context} from "~/shared/context/context.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
 /**
  * A correctly formatted [email address][1] with a domain that can

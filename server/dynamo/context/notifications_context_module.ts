@@ -1,28 +1,28 @@
 import {SignJWT} from "jose";
-import {SystemActionContext} from "~/server/dynamo/context/action_context";
+import {SystemActionContext} from "~/server/dynamo/context/action_context.js";
 import {
     NotificationEvent,
     NotificationEventSchema,
     processNotificationEvent,
-} from "~/server/dynamo/notifications_table";
-import {Queue} from "~/server/helpers/types/cloudflare_queues";
-import {ContextModuleBase} from "~/shared/context/context_module_base";
-import {ProcessContextModule} from "~/shared/context/process_context_module";
-import {TracerContextModule} from "~/shared/context/tracer_context_module";
+} from "~/server/dynamo/notifications_table.js";
+import {Queue} from "~/server/helpers/types/cloudflare_queues.js";
+import {ContextModuleBase} from "~/shared/context/context_module_base.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {
     DynamoGeneralRealtimeEvent,
     createDynamoGeneralRealtimeEventSchema,
-} from "~/shared/dynamo/dynamo_general_realtime_types";
-import {InternalError} from "~/shared/error/error";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
-import {assert} from "~/shared/helpers/control/assert";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
-import {isId} from "~/shared/id/id";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types";
-import {InboxItemModelSchema} from "~/shared/notifications/inbox_model";
-import {Schema, SchemaType} from "~/shared/schema/schema";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer";
-import {TracerPropagationContextSchema} from "~/shared/tracer/tracer_propagation_context_schema";
+} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {InternalError} from "~/shared/error/error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {isId} from "~/shared/id/id.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {InboxItemModelSchema} from "~/shared/notifications/inbox_model.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
+import {TracerPropagationContextSchema} from "~/shared/tracer/tracer_propagation_context_schema.js";
 
 export const NotificationsQueueMessageSchema = Schema.object({
     event: NotificationEventSchema,

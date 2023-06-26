@@ -1,4 +1,4 @@
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 
 /**
  * Get a property on an object but the property must be an own property. We

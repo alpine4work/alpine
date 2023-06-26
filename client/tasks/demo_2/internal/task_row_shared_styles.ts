@@ -1,4 +1,4 @@
-import {RemLength, Spacing, addRemLengths, spacing} from "~/shared/design/spacing";
+import {RemLength, Spacing, addRemLengths, spacing} from "~/shared/design/spacing.js";
 
 export const taskRowViewMinHeight: Spacing = "9";
 

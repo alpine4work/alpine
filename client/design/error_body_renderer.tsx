@@ -1,7 +1,7 @@
-import {Box} from "~/client/design/box";
-import {ErrorDisplayMessageRenderer} from "~/client/design/error_display_message_renderer";
-import {ErrorIcon} from "~/client/design/error_icon";
-import {fontSizes, sprinkles} from "~/shared/styles/styles";
+import {Box} from "~/client/design/box.js";
+import {ErrorDisplayMessageRenderer} from "~/client/design/error_display_message_renderer.js";
+import {ErrorIcon} from "~/client/design/error_icon.js";
+import {fontSizes, sprinkles} from "~/shared/styles/styles.js";
 
 /**
  * Renders an error with a title at body content size.

@@ -1,4 +1,4 @@
-import {shouldDisplayTextAsBigEmojiMessage} from "~/client/messaging/internal/should_display_text_as_big_emoji_message";
+import {shouldDisplayTextAsBigEmojiMessage} from "~/client/messaging/internal/should_display_text_as_big_emoji_message.js";
 
 test("empty string is not treated as big emoji message", () => {
     const string = "";

@@ -1,4 +1,4 @@
-import {assert} from "~/shared/helpers/control/assert";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
  * Ids in our system are 128 bits of randomness encoded in 26 base-32

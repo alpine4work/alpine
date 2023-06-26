@@ -1,7 +1,7 @@
 import GraphemeSplitter from "grapheme-splitter";
 import {Node, ResolvedPos} from "prosemirror-model";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 /**
  * Get a snippet of content around the provided position. The snippet should

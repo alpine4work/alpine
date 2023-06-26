@@ -1,5 +1,9 @@
-import {convertRemLengthToPx, parseRemLengthNumber, remPxByPlatform} from "~/shared/design/spacing";
-import {fontSizesByPlatform} from "~/shared/styles/styles";
+import {
+    convertRemLengthToPx,
+    parseRemLengthNumber,
+    remPxByPlatform,
+} from "~/shared/design/spacing.js";
+import {fontSizesByPlatform} from "~/shared/styles/styles.js";
 
 test("letter spacing matches Inter tracking formula", () => {
     // Inter formula for letter spacing:

@@ -1,19 +1,19 @@
 import {DotsThree} from "phosphor-react";
 import {useRef, useState} from "react";
-import {Box} from "~/client/design/box";
-import {FocusRing} from "~/client/design/focus_ring";
-import {IconButton} from "~/client/design/icon_button";
-import {MenuButton} from "~/client/design/menu_button";
-import {ModalDialog} from "~/client/design/modal_dialog";
-import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus";
-import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growing_width";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
-import {useNavigate} from "~/client/remix/use_navigate";
-import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
-import {colorSchemeVars, sprinkles} from "~/shared/styles/styles";
+import {Box} from "~/client/design/box.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {IconButton} from "~/client/design/icon_button.js";
+import {MenuButton} from "~/client/design/menu_button.js";
+import {ModalDialog} from "~/client/design/modal_dialog.js";
+import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
+import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growing_width.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
+import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 
 export function TaskCollectionViewHeader({
     collection,

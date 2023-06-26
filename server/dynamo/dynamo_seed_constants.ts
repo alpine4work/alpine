@@ -1,7 +1,7 @@
-import {EmailAddress} from "~/server/emails/email_address";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertId} from "~/shared/id/id";
-import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types";
+import {EmailAddress} from "~/server/emails/email_address.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertId} from "~/shared/id/id.js";
+import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 
 const seedConstants = {
     adminAccountId: assertId<AccountId>("27g6s1h4ygh1zqzw5h23gqtn88"),

@@ -1,8 +1,8 @@
-import {MaybeSessionActionContextModules} from "~/server/dynamo/context/action_context";
-import {getRpcImplementationIfExists} from "~/server/rpc/get_rpc_implementation";
-import {InternalError} from "~/shared/error/error";
-import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base";
-import {RpcDefinition} from "~/shared/rpc/rpc_definition";
+import {MaybeSessionActionContextModules} from "~/server/dynamo/context/action_context.js";
+import {getRpcImplementationIfExists} from "~/server/rpc/get_rpc_implementation.js";
+import {InternalError} from "~/shared/error/error.js";
+import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
+import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
 
 /**
  * Executes RPCs locally in the current process. We lookup the RPC

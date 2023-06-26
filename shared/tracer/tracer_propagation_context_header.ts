@@ -1,4 +1,4 @@
-import {TracerSpan} from "~/shared/tracer/tracer_span";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export const tracerPropagationContextHeaderName = "cyberworlds-tracer-propagation-context";
 

@@ -1,11 +1,11 @@
 import {CalendarDate, GregorianCalendar, toCalendar} from "@internationalized/date";
-import {InvalidArgumentError} from "~/shared/error/error";
-import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64";
-import {assert} from "~/shared/helpers/control/assert";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {decodeIdInto, encodeId, idByteLength} from "~/shared/id/id";
-import {AccountId, LocalTaskCollectionId} from "~/shared/id/types/id_types";
-import {TaskPriority} from "~/shared/tasks/task_priority";
+import {InvalidArgumentError} from "~/shared/error/error.js";
+import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {decodeIdInto, encodeId, idByteLength} from "~/shared/id/id.js";
+import {AccountId, LocalTaskCollectionId} from "~/shared/id/types/id_types.js";
+import {TaskPriority} from "~/shared/tasks/task_priority.js";
 
 export type TaskQueryFilter =
     | TaskQueryStatusFilter

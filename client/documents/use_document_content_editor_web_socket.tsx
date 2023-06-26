@@ -1,22 +1,22 @@
 import {StepMap} from "prosemirror-transform";
 import {Memo, useCallback, useEffect, useRef, useState} from "react";
-import {ContentEditorState} from "~/client/content/content_editor_state";
-import {useAppContext} from "~/client/context/app_context";
+import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {useAppContext} from "~/client/context/app_context.js";
 import {
     DocumentContentEditorWebSocketClient,
     DocumentContentEditorWebSocketClientProcedures,
-} from "~/client/documents/internal/document_content_editor_web_socket_client";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {useStore} from "~/client/helpers/store/use_store";
-import {MemoObject} from "~/client/helpers/types/memo_object";
-import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_protocol";
-import {DocumentContentWithReferences} from "~/shared/documents/document_content_references";
-import {DocumentContent} from "~/shared/documents/document_content_schema";
-import {DocumentCommentModel, DocumentModel} from "~/shared/documents/document_model";
-import {Lazy} from "~/shared/helpers/control/lazy";
-import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
-import {DocumentCommentThreadId, WebSocketConnectionId} from "~/shared/id/types/id_types";
-import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol";
+} from "~/client/documents/internal/document_content_editor_web_socket_client.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useStore} from "~/client/helpers/store/use_store.js";
+import {MemoObject} from "~/client/helpers/types/memo_object.js";
+import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_protocol.js";
+import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
+import {DocumentContent} from "~/shared/documents/document_content_schema.js";
+import {DocumentCommentModel, DocumentModel} from "~/shared/documents/document_model.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
+import {DocumentCommentThreadId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 
 export type SubscribeToCommentThreadEventsFunction = Memo<
     (

@@ -1,4 +1,4 @@
-import {Color} from "~/shared/design/colors";
+import {Color} from "~/shared/design/colors.js";
 
 export const BlobFactoryDrawOutsideFlag = 1;
 export const BlobFactoryDrawInsideFlag = 2;

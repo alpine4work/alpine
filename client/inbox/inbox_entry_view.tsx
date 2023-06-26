@@ -2,22 +2,22 @@ import {differenceInHours} from "date-fns";
 import GraphemeSplitter from "grapheme-splitter";
 import {AnimationControls, animate} from "motion";
 import {ReactNode, useEffect, useMemo, useRef, useState} from "react";
-import {AccountAvatar} from "~/client/accounts/account_avatar";
-import {AccountShortName} from "~/client/accounts/account_short_name";
-import {ContentView} from "~/client/content/content_view";
-import {Box} from "~/client/design/box";
-import {PrettyNumber} from "~/client/design/pretty_number";
-import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge";
-import {useClientInfo} from "~/client/remix/client_info_context";
-import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour";
-import {useIsMobile} from "~/client/remix/use_is_mobile";
-import {useSpaceContext} from "~/client/spaces/space_context";
-import {AccountModel} from "~/shared/accounts/account_model";
-import {ContentWithReferences} from "~/shared/content/content_references";
-import {Spacing, parseRemLengthNumber} from "~/shared/design/spacing";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {AccountAvatar} from "~/client/accounts/account_avatar.js";
+import {AccountShortName} from "~/client/accounts/account_short_name.js";
+import {ContentView} from "~/client/content/content_view.js";
+import {Box} from "~/client/design/box.js";
+import {PrettyNumber} from "~/client/design/pretty_number.js";
+import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {ContentWithReferences} from "~/shared/content/content_references.js";
+import {Spacing, parseRemLengthNumber} from "~/shared/design/spacing.js";
+import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {
     InboxChannelPostsEntryModel,
     InboxChatEntryModel,
@@ -25,14 +25,14 @@ import {
     InboxDocumentNewCommentThreadsEntryModel,
     InboxEntryModel,
     InboxPostCommentsEntryModel,
-} from "~/shared/notifications/inbox_model";
+} from "~/shared/notifications/inbox_model.js";
 import {
     backgroundColorVar,
     colorSchemeVars,
     contentSchemaStyles,
     fontSizesByPlatform,
     sprinkles,
-} from "~/shared/styles/styles";
+} from "~/shared/styles/styles.js";
 
 export const inboxEntryViewMinHeight = "4rem";
 export const inboxEntryWidth: Spacing = "96";

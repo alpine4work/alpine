@@ -1,8 +1,8 @@
 import {SignJWT} from "jose";
-import {unauthenticatedSessionError} from "~/server/dynamo/context/helpers/unauthenticated_session_error";
-import {SessionCookieStorage} from "~/server/remix/session_cookie";
-import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header";
-import {TracerSpan} from "~/shared/tracer/tracer_span";
+import {unauthenticatedSessionError} from "~/server/dynamo/context/helpers/unauthenticated_session_error.js";
+import {SessionCookieStorage} from "~/server/remix/session_cookie.js";
+import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 /**
  * Send a request to a Cloudflare Durable Object created with

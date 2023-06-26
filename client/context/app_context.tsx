@@ -1,9 +1,9 @@
 import {createContext, useContext} from "react";
-import {ReactContextModule} from "~/client/context/react_context_module";
-import {Context} from "~/shared/context/context";
-import {TracerContextModule} from "~/shared/context/tracer_context_module";
-import {assert} from "~/shared/helpers/control/assert";
-import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base";
+import {ReactContextModule} from "~/client/context/react_context_module.js";
+import {Context} from "~/shared/context/context.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 
 /**
  * Context available to our React application code on both the client and on

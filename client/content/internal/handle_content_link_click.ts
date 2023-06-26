@@ -1,7 +1,7 @@
 import {To} from "react-router-dom";
-import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event";
-import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event";
-import {assert} from "~/shared/helpers/control/assert";
+import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
+import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 const pendingUrlByElement = new Map<HTMLAnchorElement, URL>();
 

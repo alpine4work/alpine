@@ -1,19 +1,19 @@
 import {CalendarDate} from "@internationalized/date";
 import {MutableRefObject, useRef, useState} from "react";
 import {useHover} from "react-aria";
-import {Box} from "~/client/design/box";
-import {FocusRing} from "~/client/design/focus_ring";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {TaskDateInput} from "~/client/tasks/demo_2/internal/task_date_input";
-import {TaskQueryFilterOperatorEditor} from "~/client/tasks/demo_2/internal/task_query_filter_operator_editor";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {clamp} from "~/shared/helpers/number/clamp";
-import {sprinkles} from "~/shared/styles/styles";
+import {Box} from "~/client/design/box.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {TaskDateInput} from "~/client/tasks/demo_2/internal/task_date_input.js";
+import {TaskQueryFilterOperatorEditor} from "~/client/tasks/demo_2/internal/task_query_filter_operator_editor.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 import {
     TaskQueryFilterDateOperation,
     TaskQueryFilterDateOperationDuration,
-} from "~/shared/tasks/task_query_filter";
+} from "~/shared/tasks/task_query_filter.js";
 
 export const taskQueryFilterDateOperationLessThanOperatorLabel = "is before";
 export const taskQueryFilterDateOperationGreaterThanOperatorLabel = "is after";

@@ -9,20 +9,20 @@ import {
     ReplaceStep,
     Step,
 } from "prosemirror-transform";
-import {InternalError, InvalidArgumentError} from "~/shared/error/error";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {hasAnyOwnProperties} from "~/shared/helpers/object/has_any_own_properties";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object";
-import {omitObject} from "~/shared/helpers/object/omit_object";
-import {quote} from "~/shared/helpers/string/quote";
-import {ExhaustiveStep} from "~/shared/prosemirror/prosemirror_exhaustive_step";
+import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {hasAnyOwnProperties} from "~/shared/helpers/object/has_any_own_properties.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
+import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {quote} from "~/shared/helpers/string/quote.js";
+import {ExhaustiveStep} from "~/shared/prosemirror/prosemirror_exhaustive_step.js";
 import {
     AddMarksAfterRemoveAllStep,
     RemoveAllMarksStep,
-} from "~/shared/prosemirror/remove_all_marks_step";
-import {Schema, SchemaDeserializationError, UnionSchema} from "~/shared/schema/schema";
+} from "~/shared/prosemirror/remove_all_marks_step.js";
+import {Schema, SchemaDeserializationError, UnionSchema} from "~/shared/schema/schema.js";
 
 declare module "prosemirror-model" {
     class Fragment {

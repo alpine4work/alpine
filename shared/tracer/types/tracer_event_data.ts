@@ -1,4 +1,4 @@
-import type {DateString} from "~/shared/helpers/date/date_string";
+import type {DateString} from "~/shared/helpers/date/date_string.js";
 import {
     AccountId,
     ChannelId,
@@ -12,8 +12,8 @@ import {
     TraceId,
     TraceSpanId,
     WebSocketConnectionId,
-} from "~/shared/id/types/id_types";
-import type {TracerEventHttpHeaderName} from "~/shared/tracer/helpers/tracer_event_http_header_names";
+} from "~/shared/id/types/id_types.js";
+import type {TracerEventHttpHeaderName} from "~/shared/tracer/helpers/tracer_event_http_header_names.js";
 
 /**
  * All data available in an event.

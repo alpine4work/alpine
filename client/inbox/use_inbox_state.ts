@@ -1,25 +1,25 @@
 import {useCallback, useEffect, useReducer, useRef, useState} from "react";
-import {useAppContext} from "~/client/context/app_context";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
-import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query";
-import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {inboxEntryViewMinHeight} from "~/client/inbox/inbox_entry_view";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context";
-import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context";
-import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view";
-import {convertRemLengthToPx} from "~/shared/design/spacing";
+import {useAppContext} from "~/client/context/app_context.js";
+import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
+import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {inboxEntryViewMinHeight} from "~/client/inbox/inbox_entry_view.js";
+import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context.js";
+import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view.js";
+import {convertRemLengthToPx} from "~/shared/design/spacing.js";
 import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,
-} from "~/shared/dynamo/dynamo_general_realtime_types";
-import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {InboxEntryModel} from "~/shared/notifications/inbox_model";
+} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {
     backfillInboxEntries,
     getInboxEntries,
     observeInbox,
-} from "~/shared/rpc/notifications_rpc_definitions";
+} from "~/shared/rpc/notifications_rpc_definitions.js";
 
 type InboxState = {
     readonly queryWithoutOptimisticUpdates: DynamoGeneralRealtimeIndexQuery<InboxEntryModel>;

@@ -1,6 +1,6 @@
-import {ChannelId, SpaceId} from "~/shared/id/types/id_types";
-import {Model} from "~/shared/schema/model/model";
-import {Schema} from "~/shared/schema/schema";
+import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {Model} from "~/shared/schema/model/model.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export class SpaceModel extends Model(
     Schema.object({

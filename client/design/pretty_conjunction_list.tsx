@@ -1,5 +1,5 @@
 import {ReactNode} from "react";
-import {interleaveArray} from "~/shared/helpers/array/interleave_array";
+import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
 
 /**
  * Join an array of strings into an English conjunction list. For example

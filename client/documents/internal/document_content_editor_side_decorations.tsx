@@ -1,16 +1,16 @@
 import {ChatCircleText} from "phosphor-react";
 import {useMemo} from "react";
 import {usePress} from "react-aria";
-import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile";
-import {Box} from "~/client/design/box";
-import {useRemPx} from "~/client/design/helpers/use_rem_px";
-import {useClientInfo} from "~/client/remix/client_info_context";
-import {AccountModel} from "~/shared/accounts/account_model";
-import {convertRemLengthToPx} from "~/shared/design/spacing";
-import {DocumentContentReferences} from "~/shared/documents/document_content_references";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
-import {AccountId, DocumentCommentThreadId} from "~/shared/id/types/id_types";
-import {colorSchemeVars, contentSchemaStyles} from "~/shared/styles/styles";
+import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
+import {Box} from "~/client/design/box.js";
+import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {convertRemLengthToPx} from "~/shared/design/spacing.js";
+import {DocumentContentReferences} from "~/shared/documents/document_content_references.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {AccountId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {colorSchemeVars, contentSchemaStyles} from "~/shared/styles/styles.js";
 
 export type DocumentContentEditorSideDecoration = {
     readonly markTop: number;

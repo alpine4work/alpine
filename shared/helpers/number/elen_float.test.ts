@@ -2,7 +2,7 @@ import {
     decodeElenFloat,
     decodeElenFloatIfPossible,
     encodeElenFloat,
-} from "~/shared/helpers/number/elen_float";
+} from "~/shared/helpers/number/elen_float.js";
 
 test("encodes integers into strings with the right lexicographic order", () => {
     const integers = [];

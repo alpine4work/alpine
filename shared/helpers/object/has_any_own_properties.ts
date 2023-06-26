@@ -1,4 +1,4 @@
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 
 /**
  * Does the provided object have any own properties?

@@ -3,7 +3,7 @@ import {
     EmailTemplates,
     RenderedEmail,
     emailTemplates,
-} from "~/server/emails/internal/email_templates";
+} from "~/server/emails/internal/email_templates.js";
 
 type NonEmptyArray<Value> = [Value, ...Array<Value>];
 

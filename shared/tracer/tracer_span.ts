@@ -1,16 +1,16 @@
-import {assert} from "~/shared/helpers/control/assert";
-import {LinkedList, NonEmptyLinkedList} from "~/shared/helpers/immutable/linked_list";
-import {generateId} from "~/shared/id/id";
-import {TraceId, TraceSpanId} from "~/shared/id/types/id_types";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {LinkedList, NonEmptyLinkedList} from "~/shared/helpers/immutable/linked_list.js";
+import {generateId} from "~/shared/id/id.js";
+import {TraceId, TraceSpanId} from "~/shared/id/types/id_types.js";
 import {
     TracerEventFlatData,
     buildTracerEventFlatData,
-} from "~/shared/tracer/helpers/build_tracer_event_flat_data";
-import {getExceptionTracerEventData} from "~/shared/tracer/helpers/get_exception_tracer_event_data";
-import {TracerBase} from "~/shared/tracer/tracer_base";
-import {TracerEvent} from "~/shared/tracer/tracer_event";
-import {TracerRoot} from "~/shared/tracer/tracer_root";
-import {TracerEventData, TracerEventFullData} from "~/shared/tracer/types/tracer_event_data";
+} from "~/shared/tracer/helpers/build_tracer_event_flat_data.js";
+import {getExceptionTracerEventData} from "~/shared/tracer/helpers/get_exception_tracer_event_data.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {TracerEvent} from "~/shared/tracer/tracer_event.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.js";
+import {TracerEventData, TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.js";
 
 export type TracerSpanPropagationContext = {
     readonly traceId: TraceId;

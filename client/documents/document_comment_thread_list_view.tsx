@@ -10,56 +10,56 @@ import {
     useRef,
     useState,
 } from "react";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
+import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {
     documentCommentInputMinHeight,
     documentCommentThreadListViewMarginBottom,
     documentCommentThreadListViewMarginTop,
     documentCommentThreadListViewMarginY,
     documentCommentThreadPreviewHeight,
-} from "~/client/documents/document_shared_styles";
-import {createDocumentCommentThreadSnippetCollector} from "~/client/documents/internal/create_document_comment_thread_snippet_collector";
-import {DocumentCommentInput} from "~/client/documents/internal/document_comment_input";
-import {DocumentCommentThreadPreview} from "~/client/documents/internal/document_comment_thread_preview";
-import {DocumentContentEditorWebSocketClientProcedures} from "~/client/documents/internal/document_content_editor_web_socket_client";
-import {SubscribeToCommentThreadEventsFunction} from "~/client/documents/use_document_content_editor_web_socket";
-import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {MemoObject} from "~/client/helpers/types/memo_object";
-import {useStableJsonValue} from "~/client/helpers/use_stable_json_value";
-import {useStableValue} from "~/client/helpers/use_stable_value";
-import {useMessageEditing} from "~/client/messaging/message_editing";
-import {MessageList, MessageListItem} from "~/client/messaging/message_list";
-import {bufferedMessageViewHeight} from "~/client/messaging/message_view";
-import {renderMessageListItem} from "~/client/messaging/messaging_view";
-import {tryLoadingMessages} from "~/client/messaging/try_loading_messages";
-import {useIsMobile} from "~/client/remix/use_is_mobile";
-import {useSpaceContext} from "~/client/spaces/space_context";
+} from "~/client/documents/document_shared_styles.js";
+import {createDocumentCommentThreadSnippetCollector} from "~/client/documents/internal/create_document_comment_thread_snippet_collector.js";
+import {DocumentCommentInput} from "~/client/documents/internal/document_comment_input.js";
+import {DocumentCommentThreadPreview} from "~/client/documents/internal/document_comment_thread_preview.js";
+import {DocumentContentEditorWebSocketClientProcedures} from "~/client/documents/internal/document_content_editor_web_socket_client.js";
+import {SubscribeToCommentThreadEventsFunction} from "~/client/documents/use_document_content_editor_web_socket.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {MemoObject} from "~/client/helpers/types/memo_object.js";
+import {useStableJsonValue} from "~/client/helpers/use_stable_json_value.js";
+import {useStableValue} from "~/client/helpers/use_stable_value.js";
+import {useMessageEditing} from "~/client/messaging/message_editing.js";
+import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
+import {bufferedMessageViewHeight} from "~/client/messaging/message_view.js";
+import {renderMessageListItem} from "~/client/messaging/messaging_view.js";
+import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
-} from "~/client/virtualized/virtualized_scroll_view";
-import {VirtualizedTree} from "~/client/virtualized/virtualized_tree";
-import {Spacing, addRemLengths, spacing} from "~/shared/design/spacing";
-import {DocumentContentWithReferences} from "~/shared/documents/document_content_references";
-import {UncheckedDocumentContentSchema} from "~/shared/documents/document_content_schema";
+} from "~/client/virtualized/virtualized_scroll_view.js";
+import {VirtualizedTree} from "~/client/virtualized/virtualized_tree.js";
+import {Spacing, addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
+import {UncheckedDocumentContentSchema} from "~/shared/documents/document_content_schema.js";
 import {
     DocumentCommentModel,
     DocumentCommentRoomKey,
     DocumentCommentThreadModel,
     decodeDocumentCommentRoomKey,
-} from "~/shared/documents/document_model";
-import {OutOfRangeError} from "~/shared/error/error";
-import {wait} from "~/shared/helpers/async/wait";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
-import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types";
-import {OptimisticMessageModel} from "~/shared/messaging/message_model";
-import {Schema} from "~/shared/schema/schema";
-import {sprinkles} from "~/shared/styles/styles";
+} from "~/shared/documents/document_model.js";
+import {OutOfRangeError} from "~/shared/error/error.js";
+import {wait} from "~/shared/helpers/async/wait.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
+import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
+import {Schema} from "~/shared/schema/schema.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 
 const documentCommentThreadListViewMarginX: Spacing = "4";
 const documentCommentThreadListViewMaxWidth: Spacing = "128";

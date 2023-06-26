@@ -1,5 +1,5 @@
-import {HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client";
-import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root";
+import {HoneycombTracerClient} from "~/server/tracer/honeycomb_tracer_client.js";
+import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.js";
 
 /**
  * Create a tracer for a service running in a server Cloudflare

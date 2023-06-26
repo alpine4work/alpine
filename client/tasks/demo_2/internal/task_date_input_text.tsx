@@ -3,19 +3,19 @@ import {CalendarBlank} from "phosphor-react";
 import {useRef, useState} from "react";
 import {AriaDateFieldProps, mergeProps, useDateField, useDateSegment} from "react-aria";
 import {DateFieldState, DateFieldStateOptions, DateSegment, useDateFieldState} from "react-stately";
-import {Box} from "~/client/design/box";
-import {FocusRingBox, useIsFocusRingVisible} from "~/client/design/focus_ring";
+import {Box} from "~/client/design/box.js";
+import {FocusRingBox, useIsFocusRingVisible} from "~/client/design/focus_ring.js";
 import {
     getLastFocusableElementIfExists,
     getNextFocusableElementIfExists,
-} from "~/client/design/helpers/get_next_focusable_element";
-import {Overlay} from "~/client/design/overlay";
-import {isMac} from "~/client/helpers/browser/is_mac";
-import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
-import {useClientInfo} from "~/client/remix/client_info_context";
-import {spacing} from "~/shared/design/spacing";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles";
+} from "~/client/design/helpers/get_next_focusable_element.js";
+import {Overlay} from "~/client/design/overlay.js";
+import {isMac} from "~/client/helpers/browser/is_mac.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {spacing} from "~/shared/design/spacing.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles.js";
 
 export function TaskDateInputText({
     date,

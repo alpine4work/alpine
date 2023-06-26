@@ -1,10 +1,10 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
-import {MenuAction} from "~/client/design/menu_button";
-import {TaskStatusCircle} from "~/client/tasks/demo_2/internal/task_status_circle";
-import {TaskAssignee, TaskStatus} from "~/client/tasks/demo_2/task_status_button";
-import {AccountModel} from "~/shared/accounts/account_model";
-import {TimeZone} from "~/shared/helpers/date/time_zone";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key";
+import {MenuAction} from "~/client/design/menu_button.js";
+import {TaskStatusCircle} from "~/client/tasks/demo_2/internal/task_status_circle.js";
+import {TaskAssignee, TaskStatus} from "~/client/tasks/demo_2/task_status_button.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {TimeZone} from "~/shared/helpers/date/time_zone.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 
 export function getTaskStatusMenuActions({
     timeZone,

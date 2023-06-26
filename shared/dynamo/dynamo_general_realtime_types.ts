@@ -3,8 +3,8 @@ import {
     DynamoIndexCursorSchema,
     DynamoItemKey,
     DynamoItemKeySchema,
-} from "~/shared/dynamo/dynamo_opaque_strings";
-import {ObjectSchema, Schema} from "~/shared/schema/schema";
+} from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {ObjectSchema, Schema} from "~/shared/schema/schema.js";
 
 /**
  * The result of reading an individual item from a realtime DynamoDB table.

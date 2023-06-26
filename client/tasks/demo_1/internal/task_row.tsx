@@ -1,5 +1,5 @@
-import {LocalTask} from "~/client/tasks/demo_1/internal/local_tasks_state_old";
-import {LocalTaskId} from "~/shared/id/types/id_types";
+import {LocalTask} from "~/client/tasks/demo_1/internal/local_tasks_state_old.js";
+import {LocalTaskId} from "~/shared/id/types/id_types.js";
 
 export type TaskRow = TaskNormalRow | TaskInteractiveGhostRow | TaskDecorativeGhostRow;
 

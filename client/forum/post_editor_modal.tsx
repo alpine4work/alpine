@@ -1,22 +1,22 @@
 import {useEffect, useId, useRef, useState} from "react";
-import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor";
-import {ContentEditorState} from "~/client/content/content_editor_state";
-import {useAppContext} from "~/client/context/app_context";
-import {Box} from "~/client/design/box";
-import {Button} from "~/client/design/button";
-import {Modal} from "~/client/design/modal";
-import {ModalDialog} from "~/client/design/modal_dialog";
-import {useShowToast} from "~/client/design/toast";
-import {PostContentViewHeader} from "~/client/forum/post_content_view_header";
-import {postViewMaxWidth} from "~/client/forum/post_list_view";
-import {isContentEmpty} from "~/shared/content/is_content_empty";
-import {parseRemLengthNumber, spacing} from "~/shared/design/spacing";
-import {PostContentWithReferences} from "~/shared/forum/post_content_schema";
-import {PostModel} from "~/shared/forum/post_model";
-import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {updatePostContent} from "~/shared/rpc/forum_rpc_definitions";
-import {sprinkles} from "~/shared/styles/styles";
+import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
+import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {useAppContext} from "~/client/context/app_context.js";
+import {Box} from "~/client/design/box.js";
+import {Button} from "~/client/design/button.js";
+import {Modal} from "~/client/design/modal.js";
+import {ModalDialog} from "~/client/design/modal_dialog.js";
+import {useShowToast} from "~/client/design/toast.js";
+import {PostContentViewHeader} from "~/client/forum/post_content_view_header.js";
+import {postViewMaxWidth} from "~/client/forum/post_list_view.js";
+import {isContentEmpty} from "~/shared/content/is_content_empty.js";
+import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
+import {PostModel} from "~/shared/forum/post_model.js";
+import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {updatePostContent} from "~/shared/rpc/forum_rpc_definitions.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 
 export function PostEditorModal({
     post,

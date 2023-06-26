@@ -1,4 +1,4 @@
-import {InternalError} from "~/shared/error/error";
+import {InternalError} from "~/shared/error/error.js";
 
 /**
  * We use [gRPC status codes][1] for our error codes. gRPC status codes are

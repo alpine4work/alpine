@@ -2,9 +2,9 @@ import {
     getChatMessagesFromEnd,
     getChatMessagesFromStart,
     sendChatMessage,
-} from "~/server/dynamo/chat_table";
-import {implementRpc} from "~/server/rpc/internal/implement_rpc";
-import * as definition from "~/shared/rpc/chat_rpc_definitions";
+} from "~/server/dynamo/chat_table.js";
+import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
+import * as definition from "~/shared/rpc/chat_rpc_definitions.js";
 
 implementRpc(definition.getChatMessagesFromStart, async (context, input) => {
     return getChatMessagesFromStart(await context.actor.authenticate(), input);

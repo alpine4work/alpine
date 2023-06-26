@@ -1,7 +1,7 @@
 import {useLoaderData} from "@remix-run/react";
 import {useMemo} from "react";
-import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema";
-import {Schema} from "~/shared/schema/schema";
+import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 /**
  * Returns the data from our loader after deserializing with a schema.

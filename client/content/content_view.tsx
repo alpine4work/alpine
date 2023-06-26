@@ -1,21 +1,21 @@
 import classNames from "classnames";
 import {Memo, useEffect, useId, useMemo, useRef, useState} from "react";
-import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click";
-import {renderContentFragmentToHtml} from "~/client/content/render_content_to_html";
-import {FocusRing} from "~/client/design/focus_ring";
-import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date";
-import {Tooltip} from "~/client/design/tooltip";
-import {useNavigate} from "~/client/remix/use_navigate";
-import {useSpaceContext} from "~/client/spaces/space_context";
-import {ContentWithReferences} from "~/shared/content/content_references";
-import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator";
-import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
-import {ProsemirrorHtmlSerializationDecoration} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
-import {contentSchemaStyles, contentViewStyles, emojiFontFamily} from "~/shared/styles/styles";
+import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click.js";
+import {renderContentFragmentToHtml} from "~/client/content/render_content_to_html.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {PrettyAbsoluteDateTooltipContent} from "~/client/design/pretty_absolute_date.js";
+import {Tooltip} from "~/client/design/tooltip.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {ContentWithReferences} from "~/shared/content/content_references.js";
+import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
+import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
+import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {ProsemirrorHtmlSerializationDecoration} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
+import {contentSchemaStyles, contentViewStyles, emojiFontFamily} from "~/shared/styles/styles.js";
 
 const {docClassName, linkClassName, emptyTitleClassName, emptyBodyClassName, paragraphClassName} =
     contentSchemaStyles;

@@ -1,7 +1,7 @@
 import {json} from "@remix-run/cloudflare";
 import {Outlet} from "@remix-run/react";
-import {authorizeInternalAccess} from "~/server/dynamo/accounts_table";
-import {LoaderArgs} from "~/server/remix/loader_context";
+import {authorizeInternalAccess} from "~/server/dynamo/accounts_table.js";
+import {LoaderArgs} from "~/server/remix/loader_context.js";
 
 // The loader only performs authorization. We don't need to reload on
 // page change.

@@ -12,24 +12,24 @@ import {
     useOption,
 } from "react-aria";
 import {ComboBoxState, Item, useSingleSelectListState} from "react-stately";
-import {Box} from "~/client/design/box";
-import {Button} from "~/client/design/button";
-import {FocusRing} from "~/client/design/focus_ring";
-import {OverlayTriggerButton} from "~/client/design/overlay_trigger";
-import {useShowToast} from "~/client/design/toast";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {useNavigate} from "~/client/remix/use_navigate";
-import {useSpaceContext} from "~/client/spaces/space_context";
-import {TaskCollectionOption} from "~/client/tasks/demo_2/internal/task_collection_option";
-import {TaskCollectionsListBoxCreateCollectionOption} from "~/client/tasks/demo_2/internal/task_collections_list_box_create_collection_option";
-import {TaskCollectionsListBoxInstructionalPlaceholder} from "~/client/tasks/demo_2/internal/task_collections_list_box_instructional_placeholder";
-import {LocalTaskCollection, LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
-import {spacing} from "~/shared/design/spacing";
-import {assert} from "~/shared/helpers/control/assert";
-import {noop} from "~/shared/helpers/control/noop";
-import {generateId, isId} from "~/shared/id/id";
-import {LocalTaskCollectionId} from "~/shared/id/types/id_types";
-import {sprinkles} from "~/shared/styles/styles";
+import {Box} from "~/client/design/box.js";
+import {Button} from "~/client/design/button.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {OverlayTriggerButton} from "~/client/design/overlay_trigger.js";
+import {useShowToast} from "~/client/design/toast.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {TaskCollectionOption} from "~/client/tasks/demo_2/internal/task_collection_option.js";
+import {TaskCollectionsListBoxCreateCollectionOption} from "~/client/tasks/demo_2/internal/task_collections_list_box_create_collection_option.js";
+import {TaskCollectionsListBoxInstructionalPlaceholder} from "~/client/tasks/demo_2/internal/task_collections_list_box_instructional_placeholder.js";
+import {LocalTaskCollection, LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state.js";
+import {spacing} from "~/shared/design/spacing.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {noop} from "~/shared/helpers/control/noop.js";
+import {generateId, isId} from "~/shared/id/id.js";
+import {LocalTaskCollectionId} from "~/shared/id/types/id_types.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 
 export function TaskLayoutTopBarCollectionsButton({
     state,

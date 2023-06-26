@@ -1,4 +1,4 @@
-import {isSystemError} from "~/shared/error/is_system_error_code";
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
 
 /**
  * Runs multiple promises in parallel. Should generally be used instead of

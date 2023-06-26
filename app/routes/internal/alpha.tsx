@@ -1,29 +1,29 @@
 import {ReactNode, useMemo, useState} from "react";
-import {useAppContext} from "~/client/context/app_context";
-import {Box} from "~/client/design/box";
-import {Button} from "~/client/design/button";
-import {Spacer} from "~/client/design/spacer";
-import {TextInput} from "~/client/design/text_input";
-import {useClientInfo} from "~/client/remix/client_info_context";
-import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
-import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
+import {useAppContext} from "~/client/context/app_context.js";
+import {Box} from "~/client/design/box.js";
+import {Button} from "~/client/design/button.js";
+import {Spacer} from "~/client/design/spacer.js";
+import {TextInput} from "~/client/design/text_input.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
+import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {
     getAlphaConfiguration,
     getUndecidedAlphaAccessRequests,
-} from "~/server/dynamo/alpha_access_table";
-import {jsonWithSchema} from "~/server/remix/json_with_schema";
-import {LoaderArgs} from "~/server/remix/loader_context";
-import {AlphaAccessRequestModel} from "~/shared/alpha/alpha_access_request_model";
-import {AlphaConfigurationSchema} from "~/shared/alpha/alpha_configuration_schema";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
-import {SpaceId} from "~/shared/id/types/id_types";
+} from "~/server/dynamo/alpha_access_table.js";
+import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
+import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {AlphaAccessRequestModel} from "~/shared/alpha/alpha_access_request_model.js";
+import {AlphaConfigurationSchema} from "~/shared/alpha/alpha_configuration_schema.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
 import {
     approveAlphaAccessRequest,
     denyAlphaAccessRequest,
     saveAlphaConfiguration,
-} from "~/shared/rpc/alpha_rpc_definitions";
-import {Schema} from "~/shared/schema/schema";
-import {sprinkles} from "~/shared/styles/styles";
+} from "~/shared/rpc/alpha_rpc_definitions.js";
+import {Schema} from "~/shared/schema/schema.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 
 export function meta() {
     return {

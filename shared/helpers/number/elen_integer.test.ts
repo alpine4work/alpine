@@ -1,4 +1,4 @@
-import {decodeElenInteger, encodeElenInteger} from "~/shared/helpers/number/elen_integer";
+import {decodeElenInteger, encodeElenInteger} from "~/shared/helpers/number/elen_integer.js";
 
 test("encodes integers into strings with the right lexicographic order", () => {
     const integers = [];

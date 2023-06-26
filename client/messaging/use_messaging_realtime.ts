@@ -1,16 +1,16 @@
 import {Memo, useEffect, useRef, useState} from "react";
-import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {MessageList} from "~/client/messaging/message_list";
-import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {MessageModel} from "~/shared/messaging/message_model";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {MessageList} from "~/client/messaging/message_list.js";
+import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
+import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {MessageModel} from "~/shared/messaging/message_model.js";
 import {
     BackfillMessagesProcedure,
     BackfillMessagesProcedureOutput,
     MessagingRealtimeEvent,
-} from "~/shared/messaging/messaging_realtime_protocol";
+} from "~/shared/messaging/messaging_realtime_protocol.js";
 
 /**
  * Sets up a realtime connection for the provided post. Making sure comments

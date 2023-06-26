@@ -1,10 +1,10 @@
 import {fireEvent, render, screen} from "@testing-library/react";
 import {EditorView} from "prosemirror-view";
 import React, {useState} from "react";
-import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor";
-import {ContentEditorState} from "~/client/content/content_editor_state";
-import {emptyContentReferences} from "~/shared/content/content_references";
-import {emptyDocumentWithoutTitleContent} from "~/shared/documents/document_content_schema";
+import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor.js";
+import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {emptyDocumentWithoutTitleContent} from "~/shared/documents/document_content_schema.js";
 
 function TestContentEditor() {
     const [state, setState] = useState(() =>

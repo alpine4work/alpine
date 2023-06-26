@@ -1,29 +1,29 @@
-import {AppContext} from "~/client/context/app_context";
-import {webSocketExpirationTimeoutMs} from "~/shared/cloudflare/web_socket_expiration_timeout_ms";
+import {AppContext} from "~/client/context/app_context.js";
+import {webSocketExpirationTimeoutMs} from "~/shared/cloudflare/web_socket_expiration_timeout_ms.js";
 import {
     WebSocketProtocolBase,
     WebSocketProtocolEventType,
     WebSocketProtocolProceduresType,
-} from "~/shared/cloudflare/web_socket_protocol";
+} from "~/shared/cloudflare/web_socket_protocol.js";
 import {
     WebSocketMessageFromClient,
     WebSocketMessageFromServer,
     createWebSocketMessageFromClientSchema,
     createWebSocketMessageFromServerSchema,
-} from "~/shared/cloudflare/web_socket_schema";
-import {UnavailableError} from "~/shared/error/error";
-import {InternalError} from "~/shared/error/error";
-import {errorDisplayMessage} from "~/shared/error/error_display_message";
-import {createInterval} from "~/shared/helpers/async/interval";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
-import {assert} from "~/shared/helpers/control/assert";
-import {EventEmitter} from "~/shared/helpers/control/event_emitter";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {quote} from "~/shared/helpers/string/quote";
-import {generateId} from "~/shared/id/id";
-import {WebSocketProcedureRequestId} from "~/shared/id/types/id_types";
-import {Schema, SchemaDeserializationError} from "~/shared/schema/schema";
+} from "~/shared/cloudflare/web_socket_schema.js";
+import {UnavailableError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {createInterval} from "~/shared/helpers/async/interval.js";
+import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {quote} from "~/shared/helpers/string/quote.js";
+import {generateId} from "~/shared/id/id.js";
+import {WebSocketProcedureRequestId} from "~/shared/id/types/id_types.js";
+import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
 
 type WebsocketClientConnectionState =
     | {

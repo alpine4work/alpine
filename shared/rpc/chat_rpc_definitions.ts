@@ -1,8 +1,8 @@
-import {ChatMessageModel} from "~/shared/chat/chat_model";
-import {ChatId} from "~/shared/id/types/id_types";
-import {MessageContentSchema} from "~/shared/messaging/message_content_schema";
-import {defineRpc} from "~/shared/rpc/internal/define_rpc";
-import {Schema} from "~/shared/schema/schema";
+import {ChatMessageModel} from "~/shared/chat/chat_model.js";
+import {ChatId} from "~/shared/id/types/id_types.js";
+import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
+import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export const getChatMessagesFromStart = defineRpc({
     name: "getChatMessagesFromStart",

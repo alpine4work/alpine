@@ -1,5 +1,5 @@
-import {InternalError} from "~/shared/error/error";
-import {omitFromStackTrace} from "~/shared/helpers/control/omit_from_stack_trace";
+import {InternalError} from "~/shared/error/error.js";
+import {omitFromStackTrace} from "~/shared/helpers/control/omit_from_stack_trace.js";
 
 /**
  * Exhaustiveness check for TypeScript. When you call this function TypeScript

@@ -1,35 +1,35 @@
-import {SessionActionContext} from "~/server/dynamo/context/action_context";
-import {ProcessContext} from "~/server/dynamo/context/process_context";
-import {RoomInterface} from "~/server/dynamo/test_helpers/jest/test_messaging_implementation";
-import {TestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
+import {SessionActionContext} from "~/server/dynamo/context/action_context.js";
+import {ProcessContext} from "~/server/dynamo/context/process_context.js";
+import {RoomInterface} from "~/server/dynamo/test_helpers/jest/test_messaging_implementation.js";
+import {TestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
 import {
     TestSession,
     createTestSession,
-} from "~/server/dynamo/test_helpers/shared/create_test_session";
-import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
+} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
+import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space.js";
 import {
     CreateMessageFunction,
     CreateMessageModelFunction,
     DeleteMessageFunction,
     UpdateMessageContentFunction,
-} from "~/server/messaging/messaging_implementation";
+} from "~/server/messaging/messaging_implementation.js";
 import {
     messagingRealtimeBackfillMessagesBeforeFlushTestCheckpoint,
     messagingRealtimeCreateMessageBeforeSendTestCheckpoint,
-} from "~/server/messaging/messaging_realtime_connection";
-import {emptyContentReferences} from "~/shared/content/content_references";
-import {UnimplementedError} from "~/shared/error/error";
-import {SpaceId} from "~/shared/id/types/id_types";
+} from "~/server/messaging/messaging_realtime_connection.js";
+import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {UnimplementedError} from "~/shared/error/error.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
 import {
     MessageContentWithReferences,
     createSimpleMessageContent,
-} from "~/shared/messaging/message_content_schema";
-import {MessageModel} from "~/shared/messaging/message_model";
+} from "~/shared/messaging/message_content_schema.js";
+import {MessageModel} from "~/shared/messaging/message_model.js";
 import {
     MessagingRealtimeEvent,
     MessagingRealtimeProcedures,
-} from "~/shared/messaging/messaging_realtime_protocol";
-import {TracerSpan} from "~/shared/tracer/tracer_span";
+} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export type TestMessagingRealtimeConnectionProcedures<Message extends MessageModel> = {
     [Key in keyof MessagingRealtimeProcedures<Message>]: (

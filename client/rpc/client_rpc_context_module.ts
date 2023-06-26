@@ -1,20 +1,20 @@
-import {TracerContextModule} from "~/shared/context/tracer_context_module";
-import {InternalError, UnavailableError} from "~/shared/error/error";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
-import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error";
-import {assert} from "~/shared/helpers/control/assert";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {InternalError, UnavailableError} from "~/shared/error/error.js";
+import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {
     RpcHttpBatchCallInputSchema,
     RpcHttpBatchCallOutputSchema,
     RpcHttpCallInputSchema,
     RpcHttpCallOutputSchema,
-} from "~/shared/rpc/helpers/rpc_http_schema";
-import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base";
-import {RpcDefinition} from "~/shared/rpc/rpc_definition";
-import {SchemaDeserializationError, SchemaSerializedValue} from "~/shared/schema/schema";
-import {fetchWithTracerAndReturnSpan} from "~/shared/tracer/fetch_with_tracer";
-import {TracerSpan} from "~/shared/tracer/tracer_span";
+} from "~/shared/rpc/helpers/rpc_http_schema.js";
+import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
+import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
+import {SchemaDeserializationError, SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {fetchWithTracerAndReturnSpan} from "~/shared/tracer/fetch_with_tracer.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 /**
  * Executes an RPC in the web browser. Uses cookies stored in the browser to

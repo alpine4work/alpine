@@ -1,5 +1,5 @@
 import {useMemo} from "react";
-import {useClientInfo} from "~/client/remix/client_info_context";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 
 /**
  * Format a number as a human readable string. In English adds thousands

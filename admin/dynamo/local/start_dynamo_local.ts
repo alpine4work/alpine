@@ -1,12 +1,12 @@
 import {spawn} from "child_process";
 import fs from "fs-extra";
 import path from "path";
-import {runfilesPath} from "~/admin/helpers/runfiles_path";
-import {waitForProcessExit} from "~/admin/helpers/wait_for_process_exit";
-import {waitForProcessSpawn} from "~/admin/helpers/wait_for_process_spawn";
-import {DeadlineExceededError} from "~/shared/error/error";
-import {assert} from "~/shared/helpers/control/assert";
-import {Lazy} from "~/shared/helpers/control/lazy";
+import {runfilesPath} from "~/admin/helpers/runfiles_path.js";
+import {waitForProcessExit} from "~/admin/helpers/wait_for_process_exit.js";
+import {waitForProcessSpawn} from "~/admin/helpers/wait_for_process_spawn.js";
+import {DeadlineExceededError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
 
 const javaPathPromise = new Lazy(async () => {
     const javaPathPath = path.join(runfilesPath, "cyberworlds/admin/dynamo/local/java_path.txt");

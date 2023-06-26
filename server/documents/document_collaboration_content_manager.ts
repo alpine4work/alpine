@@ -1,34 +1,38 @@
 import {Node} from "prosemirror-model";
 import {Step} from "prosemirror-transform";
-import {DocumentCollaborationStepCache} from "~/server/documents/document_collaboration_step_cache";
-import {getAccount} from "~/server/dynamo/accounts_table";
-import {ActionContext, SessionActionContext} from "~/server/dynamo/context/action_context";
-import {ProcessContext} from "~/server/dynamo/context/process_context";
+import {DocumentCollaborationStepCache} from "~/server/documents/document_collaboration_step_cache.js";
+import {getAccount} from "~/server/dynamo/accounts_table.js";
+import {ActionContext, SessionActionContext} from "~/server/dynamo/context/action_context.js";
+import {ProcessContext} from "~/server/dynamo/context/process_context.js";
 import {
     batchGetDocumentCommentThreadsIfExists,
     getUpdateDocumentContentResult,
     updateDocumentContent,
-} from "~/server/dynamo/documents_table";
-import {getContentReferencesForSteps} from "~/server/dynamo/helpers/get_content_references";
-import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint";
-import {AccountModel} from "~/shared/accounts/account_model";
+} from "~/server/dynamo/documents_table.js";
+import {getContentReferencesForSteps} from "~/server/dynamo/helpers/get_content_references.js";
+import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
 import {
     DocumentCollaborationEvent,
     DocumentCollaborationPresenceState,
-} from "~/shared/documents/document_collaboration_protocol";
-import {DocumentContent, isDocumentContent} from "~/shared/documents/document_content_schema";
-import {DocumentCommentThreadModel} from "~/shared/documents/document_model";
-import {FailedPreconditionError, InternalError, InvalidArgumentError} from "~/shared/error/error";
-import {isSystemError} from "~/shared/error/is_system_error_code";
-import {AsyncMutex} from "~/shared/helpers/async/async_mutex";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
-import {assert} from "~/shared/helpers/control/assert";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
-import {assertId} from "~/shared/id/id";
+} from "~/shared/documents/document_collaboration_protocol.js";
+import {DocumentContent, isDocumentContent} from "~/shared/documents/document_content_schema.js";
+import {DocumentCommentThreadModel} from "~/shared/documents/document_model.js";
+import {
+    FailedPreconditionError,
+    InternalError,
+    InvalidArgumentError,
+} from "~/shared/error/error.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {AsyncMutex} from "~/shared/helpers/async/async_mutex.js";
+import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {assertId} from "~/shared/id/id.js";
 import {
     AccountId,
     ContentEditorClientId,
@@ -36,14 +40,14 @@ import {
     DocumentId,
     SpaceId,
     WebSocketConnectionId,
-} from "~/shared/id/types/id_types";
-import {MessageContent} from "~/shared/messaging/message_content_schema";
-import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema";
+} from "~/shared/id/types/id_types.js";
+import {MessageContent} from "~/shared/messaging/message_content_schema.js";
+import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema.js";
 import {
     ProsemirrorVisitor,
     visitProsemirrorNode,
     visitProsemirrorStep,
-} from "~/shared/prosemirror/prosemirror_visitor";
+} from "~/shared/prosemirror/prosemirror_visitor.js";
 
 export const documentCollaborationContentManagerBeforeUpdateTestCheckpoint =
     new TestCheckpoint<DocumentId>();

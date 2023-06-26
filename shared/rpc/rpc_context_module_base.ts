@@ -1,5 +1,5 @@
-import {ContextModuleBase} from "~/shared/context/context_module_base";
-import {RpcDefinition} from "~/shared/rpc/rpc_definition";
+import {ContextModuleBase} from "~/shared/context/context_module_base.js";
+import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
 
 /**
  * Context module for executing an RPC from anywhere.

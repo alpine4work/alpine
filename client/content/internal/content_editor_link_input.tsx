@@ -3,13 +3,13 @@ import {Mark} from "prosemirror-model";
 import {EditorView} from "prosemirror-view";
 import {RefObject, useEffect, useRef, useState} from "react";
 import {useButton, useHover} from "react-aria";
-import {Box} from "~/client/design/box";
-import {FocusRing} from "~/client/design/focus_ring";
-import {Tooltip} from "~/client/design/tooltip";
-import {spacing} from "~/shared/design/spacing";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {sprinkles} from "~/shared/styles/styles";
+import {Box} from "~/client/design/box.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {Tooltip} from "~/client/design/tooltip.js";
+import {spacing} from "~/shared/design/spacing.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 
 export function ContentEditorLinkInput({
     viewRef,

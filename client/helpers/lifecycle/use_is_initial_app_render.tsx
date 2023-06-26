@@ -1,7 +1,7 @@
 import {injectUseIsSSRImplementation} from "@react-aria/ssr";
 import {ReactNode, createContext, useContext, useEffect, useState} from "react";
-import {InternalError} from "~/shared/error/error";
-import {assert} from "~/shared/helpers/control/assert";
+import {InternalError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 const AppInitialRenderContext = createContext<boolean | null>(null);
 

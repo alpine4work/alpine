@@ -1,15 +1,15 @@
-import {authorizeSpaceAccessWithOptimisticSessionAccountId} from "~/server/dynamo/spaces_table";
-import {LoaderArgs} from "~/server/remix/loader_context";
-import {getRpcImplementationIfExists} from "~/server/rpc/get_rpc_implementation";
-import {InvalidArgumentError, NotFoundError} from "~/shared/error/error";
-import {isSystemError} from "~/shared/error/is_system_error_code";
-import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises";
-import {SpaceId} from "~/shared/id/types/id_types";
+import {authorizeSpaceAccessWithOptimisticSessionAccountId} from "~/server/dynamo/spaces_table.js";
+import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {getRpcImplementationIfExists} from "~/server/rpc/get_rpc_implementation.js";
+import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
 import {
     RpcHttpCallInputSchema,
     RpcHttpCallOutputSchema,
-} from "~/shared/rpc/helpers/rpc_http_schema";
-import {Schema} from "~/shared/schema/schema";
+} from "~/shared/rpc/helpers/rpc_http_schema.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export async function action({request, context, span, params}: LoaderArgs) {
     try {

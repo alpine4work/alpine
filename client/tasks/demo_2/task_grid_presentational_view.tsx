@@ -14,13 +14,13 @@ import {
     useRef,
     useState,
 } from "react";
-import {Box} from "~/client/design/box";
-import {useOutsideInteraction} from "~/client/design/helpers/use_outside_interaction";
-import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event";
-import {useConstant} from "~/client/helpers/lifecycle/use_constant";
-import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
-import {TaskGridViewCapabilities} from "~/client/tasks/demo_2/internal/task_grid_view_capabilities";
-import {TaskGridViewDndContext} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
+import {Box} from "~/client/design/box.js";
+import {useOutsideInteraction} from "~/client/design/helpers/use_outside_interaction.js";
+import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
+import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
+import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
+import {TaskGridViewCapabilities} from "~/client/tasks/demo_2/internal/task_grid_view_capabilities.js";
+import {TaskGridViewDndContext} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context.js";
 import {
     taskRowViewCollectionsColumnWidth,
     taskRowViewColumnPaddingX,
@@ -29,24 +29,24 @@ import {
     taskRowViewFirstColumnWidth,
     taskRowViewLastColumnPaddingRight,
     taskRowViewMinHeight,
-} from "~/client/tasks/demo_2/internal/task_row_shared_styles";
-import {TaskRowViewDroppable} from "~/client/tasks/demo_2/internal/task_row_view_droppable";
-import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
+} from "~/client/tasks/demo_2/internal/task_row_shared_styles.js";
+import {TaskRowViewDroppable} from "~/client/tasks/demo_2/internal/task_row_view_droppable.js";
+import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state.js";
 import {
     TaskRowPresentationalView,
     TaskRowPresentationalViewRef,
-} from "~/client/tasks/demo_2/task_row_presentational_view";
-import {TaskAssignee, TaskStatus} from "~/client/tasks/demo_2/task_status_button";
-import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
-import {ThemeColor} from "~/shared/design/theme_colors";
-import {emptyArray} from "~/shared/helpers/array/empty_array";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {LazyMap} from "~/shared/helpers/control/lazy_map";
-import {noop} from "~/shared/helpers/control/noop";
-import {LocalTaskCollectionId} from "~/shared/id/types/id_types";
-import {colorSchemeVars} from "~/shared/styles/styles";
-import {TaskPriority} from "~/shared/tasks/task_priority";
-import {TaskTitle, emptyTaskTitle} from "~/shared/tasks/task_title_schema";
+} from "~/client/tasks/demo_2/task_row_presentational_view.js";
+import {TaskAssignee, TaskStatus} from "~/client/tasks/demo_2/task_status_button.js";
+import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
+import {ThemeColor} from "~/shared/design/theme_colors.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
+import {noop} from "~/shared/helpers/control/noop.js";
+import {LocalTaskCollectionId} from "~/shared/id/types/id_types.js";
+import {colorSchemeVars} from "~/shared/styles/styles.js";
+import {TaskPriority} from "~/shared/tasks/task_priority.js";
+import {TaskTitle, emptyTaskTitle} from "~/shared/tasks/task_title_schema.js";
 
 export const minTaskCountToShowTopGhostTask = 7;
 

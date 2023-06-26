@@ -1,6 +1,6 @@
-import {AlphaConfigurationSchema} from "~/shared/alpha/alpha_configuration_schema";
-import {defineRpc} from "~/shared/rpc/internal/define_rpc";
-import {LabelStringSchema} from "~/shared/schema/label_string_schema";
+import {AlphaConfigurationSchema} from "~/shared/alpha/alpha_configuration_schema.js";
+import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
+import {LabelStringSchema} from "~/shared/schema/label_string_schema.js";
 
 export const approveAlphaAccessRequest = defineRpc({
     name: "approveAlphaAccessRequest",

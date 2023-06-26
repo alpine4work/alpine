@@ -1,5 +1,5 @@
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
+import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 
 /**
  * Determines if two plain objects are shallowly equal to one another. Looks at

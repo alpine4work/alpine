@@ -1,5 +1,5 @@
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
-import {BlockInference} from "~/shared/helpers/types/block_inference";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {BlockInference} from "~/shared/helpers/types/block_inference.js";
 
 /**
  * A map where you provide a function to generate default values in the

@@ -1,4 +1,4 @@
-import {Color} from "~/shared/design/colors";
+import {Color} from "~/shared/design/colors.js";
 
 /**
  * All the possible highlight colors for our content schema highlight

@@ -1,5 +1,5 @@
-import {ContentMentionAccountId} from "~/shared/id/types/id_types";
-import {Schema, SchemaType} from "~/shared/schema/schema";
+import {ContentMentionAccountId} from "~/shared/id/types/id_types.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 export type ContentMention = SchemaType<typeof ContentMentionSchema>;
 

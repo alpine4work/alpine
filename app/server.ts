@@ -2,43 +2,46 @@ import {AppLoadContext} from "@remix-run/cloudflare";
 import {createRequestHandler, handleAsset} from "@remix-run/cloudflare-workers";
 import * as build from "@remix-run/dev/server-build";
 import {parse as parseCookieHeader} from "cookie";
-import {defaultClientInfo, defaultMobileClientInfo} from "~/client/remix/client_info_context";
-import {createAwsContextModulesFromEnv} from "~/server/aws/create_aws_context_modules_from_env";
-import {fetchFromDurableObjectStub} from "~/server/cloudflare/fetch_from_durable_object_stub";
-import {Session} from "~/server/dynamo/accounts_table";
-import {SystemActionContextModules} from "~/server/dynamo/context/action_context";
+import {defaultClientInfo, defaultMobileClientInfo} from "~/client/remix/client_info_context.js";
+import {createAwsContextModulesFromEnv} from "~/server/aws/create_aws_context_modules_from_env.js";
+import {fetchFromDurableObjectStub} from "~/server/cloudflare/fetch_from_durable_object_stub.js";
+import {Session} from "~/server/dynamo/accounts_table.js";
+import {SystemActionContextModules} from "~/server/dynamo/context/action_context.js";
 import {
     MaybeSessionActorContextModule,
     SystemActorContextModule,
-} from "~/server/dynamo/context/actor_context_module";
+} from "~/server/dynamo/context/actor_context_module.js";
 import {
     NotificationsContextModule,
     NotificationsQueueMessageSchema,
-} from "~/server/dynamo/context/notifications_context_module";
-import {DynamoBatchContextModule, DynamoContextModule} from "~/server/dynamo/dynamo_context_module";
-import {processNotificationEvent} from "~/server/dynamo/notifications_table";
-import {seedDynamo} from "~/server/dynamo/seed_dynamo";
-import {EmailContextModuleBase} from "~/server/emails/email_context_module_base";
-import {MessageBatch, Queue} from "~/server/helpers/types/cloudflare_queues";
+} from "~/server/dynamo/context/notifications_context_module.js";
+import {
+    DynamoBatchContextModule,
+    DynamoContextModule,
+} from "~/server/dynamo/dynamo_context_module.js";
+import {processNotificationEvent} from "~/server/dynamo/notifications_table.js";
+import {seedDynamo} from "~/server/dynamo/seed_dynamo.js";
+import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
+import {MessageBatch, Queue} from "~/server/helpers/types/cloudflare_queues.js";
 import {
     LoaderContext,
     LoaderContextModule,
     LoaderContextModules,
-} from "~/server/remix/loader_context";
-import {SessionCookieStorage} from "~/server/remix/session_cookie";
-import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module";
-import {createServerTracer} from "~/server/tracer/server_tracer";
-import {traceFetchResponse} from "~/server/tracer/trace_fetch_response";
-import {CacheContextModule} from "~/shared/context/cache_context_module";
-import {Context} from "~/shared/context/context";
-import {ProcessContextModule} from "~/shared/context/process_context_module";
-import {TracerContextModule} from "~/shared/context/tracer_context_module";
-import {InternalError} from "~/shared/error/error";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {serializeDateString} from "~/shared/helpers/date/date_string";
-import {ClientInfoSchema} from "~/shared/remix/client_info";
-import {Schema} from "~/shared/schema/schema";
+} from "~/server/remix/loader_context.js";
+import {SessionCookieStorage} from "~/server/remix/session_cookie.js";
+import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
+import {createServerTracer} from "~/server/tracer/server_tracer.js";
+import {traceFetchResponse} from "~/server/tracer/trace_fetch_response.js";
+import {CacheContextModule} from "~/shared/context/cache_context_module.js";
+import {Context} from "~/shared/context/context.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {InternalError} from "~/shared/error/error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {serializeDateString} from "~/shared/helpers/date/date_string.js";
+import {ClientInfoSchema} from "~/shared/remix/client_info.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 type AppWorkerEnv = {
     DocumentCollaborationDurableObjectNamespace: DurableObjectNamespace;
@@ -461,7 +464,7 @@ function handleQueue(batch: MessageBatch, env: AppWorkerEnv, executionContext: E
 
 export default {fetch: handleFetch, queue: handleQueue};
 
-export {DocumentCollaborationDurableObject} from "~/server/documents/document_collaboration_durable_object";
-export {PostRealtimeDurableObject} from "~/server/forum/post_realtime_durable_object";
-export {ChatRealtimeDurableObject} from "~/server/chat/chat_realtime_durable_object";
-export {MyAccountDurableObject} from "~/server/notifications/my_account_durable_object";
+export {DocumentCollaborationDurableObject} from "~/server/documents/document_collaboration_durable_object.js";
+export {PostRealtimeDurableObject} from "~/server/forum/post_realtime_durable_object.js";
+export {ChatRealtimeDurableObject} from "~/server/chat/chat_realtime_durable_object.js";
+export {MyAccountDurableObject} from "~/server/notifications/my_account_durable_object.js";

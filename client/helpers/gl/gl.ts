@@ -1,10 +1,10 @@
-import {GlProgram} from "~/client/helpers/gl/gl_program";
-import {GlShader} from "~/client/helpers/gl/gl_shader";
-import {GlTexture2d} from "~/client/helpers/gl/gl_texture_2d";
-import {GlShaderType, GlTextureFormat} from "~/client/helpers/gl/gl_types";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {getOwnProperty} from "~/shared/helpers/object/get_own_property";
+import {GlProgram} from "~/client/helpers/gl/gl_program.js";
+import {GlShader} from "~/client/helpers/gl/gl_shader.js";
+import {GlTexture2d} from "~/client/helpers/gl/gl_texture_2d.js";
+import {GlShaderType, GlTextureFormat} from "~/client/helpers/gl/gl_types.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {getOwnProperty} from "~/shared/helpers/object/get_own_property.js";
 
 export class Gl {
     readonly gl: WebGL2RenderingContext;

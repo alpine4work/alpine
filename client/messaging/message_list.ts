@@ -1,18 +1,18 @@
 import createTree, {Tree} from "functional-red-black-tree";
-import {InvalidArgumentError, OutOfRangeError} from "~/shared/error/error";
-import {assert} from "~/shared/helpers/control/assert";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
-import {Id} from "~/shared/id/id";
-import {WebSocketConnectionId} from "~/shared/id/types/id_types";
-import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema";
+import {InvalidArgumentError, OutOfRangeError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
+import {Id} from "~/shared/id/id.js";
+import {WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
 import {
     MessageModel,
     OptimisticMessageModel,
     areMessagePayloadModelsEqual,
     getLastChangedMessage,
-} from "~/shared/messaging/message_model";
-import {MessagingTypingState} from "~/shared/messaging/messaging_realtime_protocol";
+} from "~/shared/messaging/message_model.js";
+import {MessagingTypingState} from "~/shared/messaging/messaging_realtime_protocol.js";
 
 export type MessageListItem<Message extends MessageModel> =
     | MessageListLoadedItem<Message>

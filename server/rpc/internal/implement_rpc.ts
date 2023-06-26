@@ -1,9 +1,9 @@
-import {MaybeSessionActionContext} from "~/server/dynamo/context/action_context";
-import {assert} from "~/shared/helpers/control/assert";
-import {quote} from "~/shared/helpers/string/quote";
-import {BlockInference} from "~/shared/helpers/types/block_inference";
-import {RpcDefinition} from "~/shared/rpc/rpc_definition";
-import {SchemaSerializedValue} from "~/shared/schema/schema";
+import {MaybeSessionActionContext} from "~/server/dynamo/context/action_context.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {quote} from "~/shared/helpers/string/quote.js";
+import {BlockInference} from "~/shared/helpers/types/block_inference.js";
+import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 export type RpcImplementation = {
     execute(

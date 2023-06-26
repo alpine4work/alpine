@@ -1,5 +1,5 @@
-import {isSystemError} from "~/shared/error/is_system_error_code";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 
 /**
  * Function that allows the user to perform a couple transformations on an

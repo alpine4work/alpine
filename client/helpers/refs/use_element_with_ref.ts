@@ -1,6 +1,6 @@
 import {LegacyRef, ReactElement, Ref, cloneElement, useMemo} from "react";
-import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
-import {assert} from "~/shared/helpers/control/assert";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
  * Clones a React element and merges the provided ref with the element's

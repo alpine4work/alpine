@@ -1,14 +1,14 @@
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {Memo, Ref, RefObject, forwardRef, useCallback, useLayoutEffect, useRef} from "react";
-import {Box} from "~/client/design/box";
-import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs";
+import {Box} from "~/client/design/box.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {
     addResizeListenerForElement,
     removeResizeListenerForElement,
-} from "~/client/helpers/use_resize_observer";
-import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask";
-import {assert} from "~/shared/helpers/control/assert";
+} from "~/client/helpers/use_resize_observer.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 const ContentEditorCursorTrackerForwardRef = forwardRef(ContentEditorCursorTracker);
 export {ContentEditorCursorTrackerForwardRef as ContentEditorCursorTracker};

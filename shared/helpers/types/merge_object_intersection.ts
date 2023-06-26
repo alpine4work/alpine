@@ -1,4 +1,4 @@
-import {IdentityType} from "~/shared/helpers/types/identity_type";
+import {IdentityType} from "~/shared/helpers/types/identity_type.js";
 
 /**
  * Takes an object intersection type and merges it into a single object type for

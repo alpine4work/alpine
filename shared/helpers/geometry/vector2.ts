@@ -1,5 +1,5 @@
-import {clamp} from "~/shared/helpers/number/clamp";
-import {lerp} from "~/shared/helpers/number/lerp";
+import {clamp} from "~/shared/helpers/number/clamp.js";
+import {lerp} from "~/shared/helpers/number/lerp.js";
 
 /**
  * A [vector][1] in two dimensions. Vectors are made up of a distance

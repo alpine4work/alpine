@@ -12,29 +12,29 @@ import {
     useRef,
     useState,
 } from "react";
-import {isMac} from "~/client/helpers/browser/is_mac";
-import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
-import {LocalTasksAction} from "~/client/tasks/demo_1/internal/local_tasks_state_old";
+import {isMac} from "~/client/helpers/browser/is_mac.js";
+import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
+import {LocalTasksAction} from "~/client/tasks/demo_1/internal/local_tasks_state_old.js";
 import {
     TaskInteractiveGhostRow,
     TaskNormalRow,
     TaskRow,
-} from "~/client/tasks/demo_1/internal/task_row";
-import {TaskRowViewRef} from "~/client/tasks/demo_1/internal/task_row_view";
-import {Spacing} from "~/shared/design/spacing";
-import {UnimplementedError} from "~/shared/error/error";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
+} from "~/client/tasks/demo_1/internal/task_row.js";
+import {TaskRowViewRef} from "~/client/tasks/demo_1/internal/task_row_view.js";
+import {Spacing} from "~/shared/design/spacing.js";
+import {UnimplementedError} from "~/shared/error/error.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {
     contentSchemaStyles,
     hideScrollbarClassName,
     sprinkles,
     tasksStyles,
-} from "~/shared/styles/styles";
-import {assertTaskTitle, emptyTaskTitle} from "~/shared/tasks/task_title_schema";
+} from "~/shared/styles/styles.js";
+import {assertTaskTitle, emptyTaskTitle} from "~/shared/tasks/task_title_schema.js";
 
 export const taskRowTitleInputHeight: Spacing = "9";
 

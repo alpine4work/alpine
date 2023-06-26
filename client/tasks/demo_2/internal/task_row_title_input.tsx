@@ -11,27 +11,27 @@ import {
     useRef,
     useState,
 } from "react";
-import {isMac} from "~/client/helpers/browser/is_mac";
-import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
-import {TaskGridViewCapabilities} from "~/client/tasks/demo_2/internal/task_grid_view_capabilities";
-import {taskRowViewMinHeight} from "~/client/tasks/demo_2/internal/task_row_shared_styles";
-import {TaskRowTitleChildTasksButton} from "~/client/tasks/demo_2/internal/task_row_title_child_tasks_button";
-import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
-import {Spacing, spacing} from "~/shared/design/spacing";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {noop} from "~/shared/helpers/control/noop";
-import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
+import {isMac} from "~/client/helpers/browser/is_mac.js";
+import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
+import {TaskGridViewCapabilities} from "~/client/tasks/demo_2/internal/task_grid_view_capabilities.js";
+import {taskRowViewMinHeight} from "~/client/tasks/demo_2/internal/task_row_shared_styles.js";
+import {TaskRowTitleChildTasksButton} from "~/client/tasks/demo_2/internal/task_row_title_child_tasks_button.js";
+import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
+import {Spacing, spacing} from "~/shared/design/spacing.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {noop} from "~/shared/helpers/control/noop.js";
+import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {
     contentSchemaStyles,
     hideScrollbarClassName,
     inputPlaceholderStyles,
     sprinkles,
     tasksStyles,
-} from "~/shared/styles/styles";
-import {TaskTitle, assertTaskTitle} from "~/shared/tasks/task_title_schema";
+} from "~/shared/styles/styles.js";
+import {TaskTitle, assertTaskTitle} from "~/shared/tasks/task_title_schema.js";
 
 const taskRowTitleInputSingleLineHeight: Spacing = taskRowViewMinHeight;
 

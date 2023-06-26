@@ -1,14 +1,14 @@
 // IMPORTANT: We are only importing `@aws-sdk` for types. Use
 // the `aws4fetch` module for executing any AWS commands.
 import type * as types from "@aws-sdk/client-dynamodb";
-import {InternalError} from "~/shared/error/error";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {InternalError} from "~/shared/error/error.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {
     JsonStringifiableUint8Array,
     SchemaSerializedObjectValue,
     SchemaSerializedValue,
-} from "~/shared/schema/schema";
+} from "~/shared/schema/schema.js";
 
 /**
  * The DynamoDB API has this awkward format where the type for all values must

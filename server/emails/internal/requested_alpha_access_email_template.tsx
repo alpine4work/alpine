@@ -1,9 +1,9 @@
 import {Mjml, MjmlBody, MjmlColumn, MjmlFont, MjmlHead, MjmlSection, MjmlTitle} from "mjml-react";
-import {EmailText} from "~/server/emails/internal/helpers/email_text";
-import {colors} from "~/shared/design/colors";
-import {defaultThemeColor} from "~/shared/design/theme_colors";
-import {interleaveArray} from "~/shared/helpers/array/interleave_array";
-import {fontStyles} from "~/shared/styles/styles";
+import {EmailText} from "~/server/emails/internal/helpers/email_text.js";
+import {colors} from "~/shared/design/colors.js";
+import {defaultThemeColor} from "~/shared/design/theme_colors.js";
+import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
+import {fontStyles} from "~/shared/styles/styles.js";
 
 /**
  * Very basic email only sent to internal users. This design isn't high enough

@@ -1,27 +1,27 @@
 import {SpinnerGap} from "phosphor-react";
 import {Memo, useCallback, useEffect, useRef, useState} from "react";
-import {Box} from "~/client/design/box";
-import {useRemPx} from "~/client/design/helpers/use_rem_px";
-import {useShowToast} from "~/client/design/toast";
-import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query";
-import {usePromise} from "~/client/helpers/use_promise";
-import {InboxEntryView, inboxEntryViewMinHeight} from "~/client/inbox/inbox_entry_view";
-import {InboxViewEntriesEmpty} from "~/client/inbox/inbox_view_entries_empty";
-import {InboxViewTopBarModeToggleButton} from "~/client/inbox/inbox_view_top_bar_mode_toggle_button";
-import {useInboxState} from "~/client/inbox/use_inbox_state";
-import {usePeekStackContext} from "~/client/peek/peek_stack";
+import {Box} from "~/client/design/box.js";
+import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
+import {useShowToast} from "~/client/design/toast.js";
+import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query.js";
+import {usePromise} from "~/client/helpers/use_promise.js";
+import {InboxEntryView, inboxEntryViewMinHeight} from "~/client/inbox/inbox_entry_view.js";
+import {InboxViewEntriesEmpty} from "~/client/inbox/inbox_view_entries_empty.js";
+import {InboxViewTopBarModeToggleButton} from "~/client/inbox/inbox_view_top_bar_mode_toggle_button.js";
+import {useInboxState} from "~/client/inbox/use_inbox_state.js";
+import {usePeekStackContext} from "~/client/peek/peek_stack.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
-} from "~/client/virtualized/virtualized_scroll_view";
-import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/spacing";
-import {DynamoGeneralRealtimeIndexQueryResult} from "~/shared/dynamo/dynamo_general_realtime_types";
-import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
-import {InboxEntryModel} from "~/shared/notifications/inbox_model";
-import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles";
+} from "~/client/virtualized/virtualized_scroll_view.js";
+import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {DynamoGeneralRealtimeIndexQueryResult} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
+import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles.js";
 
 const spaceLayoutTopBarInboxOverlayHeaderHeight: Spacing = "9";
 

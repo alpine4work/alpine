@@ -1,30 +1,38 @@
 import {differenceInHours, differenceInMinutes} from "date-fns";
-import {ActionContext, MaybeSessionActionContext} from "~/server/dynamo/context/action_context";
-import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
-import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
-import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
-import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
-import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
-import {authorizeSpaceAccess, isAccountMemberOfSpace} from "~/server/dynamo/spaces_table";
-import {EmailAddress} from "~/server/emails/email_address";
-import {FromEmailAddress} from "~/server/emails/from_email_address";
-import {AccountModel} from "~/shared/accounts/account_model";
-import {ContextCache} from "~/shared/context/cache_context_module";
+import {ActionContext, MaybeSessionActionContext} from "~/server/dynamo/context/action_context.js";
+import {DynamoContext} from "~/server/dynamo/context/dynamo_context.js";
+import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants.js";
+import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry.js";
+import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema.js";
+import {
+    DynamoTableItemType,
+    DynamoTableSchema,
+} from "~/server/dynamo/internal/dynamo_table_schema.js";
+import {authorizeSpaceAccess, isAccountMemberOfSpace} from "~/server/dynamo/spaces_table.js";
+import {EmailAddress} from "~/server/emails/email_address.js";
+import {FromEmailAddress} from "~/server/emails/from_email_address.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {
     FailedPreconditionError,
     InternalError,
     NotFoundError,
     PermissionDeniedError,
-} from "~/shared/error/error";
-import {errorDisplayMessage} from "~/shared/error/error_display_message";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {generateId} from "~/shared/id/id";
-import {AccountId, ContentMentionAccountId, SessionId, SpaceId} from "~/shared/id/types/id_types";
-import {LabelStringSchema} from "~/shared/schema/label_string_schema";
-import {Schema} from "~/shared/schema/schema";
+} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {generateId} from "~/shared/id/id.js";
+import {
+    AccountId,
+    ContentMentionAccountId,
+    SessionId,
+    SpaceId,
+} from "~/shared/id/types/id_types.js";
+import {LabelStringSchema} from "~/shared/schema/label_string_schema.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 const AccountsTable = DynamoTableSchema.new({
     name: "Accounts",

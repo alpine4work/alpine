@@ -1,5 +1,5 @@
 import {Node} from "prosemirror-model";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 
 /**
  * Helper for extracting information from a ProseMirror document in an

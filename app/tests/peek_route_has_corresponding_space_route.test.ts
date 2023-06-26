@@ -1,6 +1,6 @@
 import fs from "fs-extra";
 import path from "path";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 
 test("every peek route has a corresponding space route", async () => {
     const workspacePath = process.cwd();

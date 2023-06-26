@@ -10,7 +10,7 @@ import {
 import {
     AddMarksAfterRemoveAllStep,
     RemoveAllMarksStep,
-} from "~/shared/prosemirror/remove_all_marks_step";
+} from "~/shared/prosemirror/remove_all_marks_step.js";
 
 /**
  * `Step`s have a `jsonID` property used when serializing to/from JSON. This

@@ -1,9 +1,9 @@
-import {ContextModuleBase, ContextModuleModulesType} from "~/shared/context/context_module_base";
-import {ProcessContextModule} from "~/shared/context/process_context_module";
-import {InternalError} from "~/shared/error/error";
-import {assert} from "~/shared/helpers/control/assert";
-import {Replace} from "~/shared/helpers/types/replace";
-import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection";
+import {ContextModuleBase, ContextModuleModulesType} from "~/shared/context/context_module_base.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {InternalError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
+import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection.js";
 
 /**
  * The context abstraction is designed for passing shared environment

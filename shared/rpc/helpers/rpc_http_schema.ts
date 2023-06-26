@@ -1,5 +1,5 @@
-import {ErrorSchema} from "~/shared/error/error_schema";
-import {Schema} from "~/shared/schema/schema";
+import {ErrorSchema} from "~/shared/error/error_schema.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export const RpcHttpCallInputSchema = Schema.object({
     name: Schema.string,

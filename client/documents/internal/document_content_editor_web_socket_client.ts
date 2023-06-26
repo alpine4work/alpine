@@ -4,48 +4,48 @@ import {
     WebSocketClient,
     WebSocketClientProcedures,
     WebSocketClientState,
-} from "~/client/cloudflare/web_socket_client";
+} from "~/client/cloudflare/web_socket_client.js";
 import {
     ContentEditorReferencesAction,
     ContentEditorState,
     createCommentThreadMetaKey,
-} from "~/client/content/content_editor_state";
-import {AppContext} from "~/client/context/app_context";
-import {Store} from "~/client/helpers/store/store";
-import {ValueStore} from "~/client/helpers/store/value_store";
-import {AccountModel} from "~/shared/accounts/account_model";
-import {WebSocketProtocolProceduresType} from "~/shared/cloudflare/web_socket_protocol";
+} from "~/client/content/content_editor_state.js";
+import {AppContext} from "~/client/context/app_context.js";
+import {Store} from "~/client/helpers/store/store.js";
+import {ValueStore} from "~/client/helpers/store/value_store.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {WebSocketProtocolProceduresType} from "~/shared/cloudflare/web_socket_protocol.js";
 import {
     DocumentCollaborationPresenceState,
     DocumentCollaborationProtocol,
-} from "~/shared/documents/document_collaboration_protocol";
+} from "~/shared/documents/document_collaboration_protocol.js";
 import {
     DocumentContentReferences,
     DocumentContentWithReferences,
     mergeDocumentContentReferences,
-} from "~/shared/documents/document_content_references";
-import {DocumentContent, isDocumentContent} from "~/shared/documents/document_content_schema";
-import {DocumentCommentModel, DocumentModel} from "~/shared/documents/document_model";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout";
-import {assert} from "~/shared/helpers/control/assert";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {Lazy} from "~/shared/helpers/control/lazy";
-import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
-import {pickObject} from "~/shared/helpers/object/pick_object";
+} from "~/shared/documents/document_content_references.js";
+import {DocumentContent, isDocumentContent} from "~/shared/documents/document_content_schema.js";
+import {DocumentCommentModel, DocumentModel} from "~/shared/documents/document_model.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {
     ContentEditorClientId,
     DocumentCommentThreadId,
     DocumentId,
     WebSocketConnectionId,
-} from "~/shared/id/types/id_types";
+} from "~/shared/id/types/id_types.js";
 import {
     MessageContent,
     MessageContentWithReferences,
-} from "~/shared/messaging/message_content_schema";
-import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol";
-import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema";
+} from "~/shared/messaging/message_content_schema.js";
+import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema.js";
 
 export type DocumentContentEditorState = {
     /**

@@ -1,4 +1,4 @@
-import {getOrCreateChatForAccounts, sendChatMessage} from "~/server/dynamo/chat_table";
+import {getOrCreateChatForAccounts, sendChatMessage} from "~/server/dynamo/chat_table.js";
 import {
     archiveInboxEntry,
     getInboxEntries,
@@ -6,18 +6,18 @@ import {
     notificationEventBeforeProcessingTestCheckpoint,
     observeInbox,
     unarchiveInboxEntry,
-} from "~/server/dynamo/notifications_table";
+} from "~/server/dynamo/notifications_table.js";
 import {
     createNotificationsScenario,
     massageInboxEntriesQuery,
-} from "~/server/dynamo/test_helpers/jest/notifications_table_test_helpers";
-import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
-import {AccountModel} from "~/shared/accounts/account_model";
-import {emptyContentReferences} from "~/shared/content/content_references";
-import {ProcessContextModule} from "~/shared/context/process_context_module";
-import {PermissionDeniedError} from "~/shared/error/error";
-import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema";
-import {InboxChatEntryModel} from "~/shared/notifications/inbox_model";
+} from "~/server/dynamo/test_helpers/jest/notifications_table_test_helpers.js";
+import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {PermissionDeniedError} from "~/shared/error/error.js";
+import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
+import {InboxChatEntryModel} from "~/shared/notifications/inbox_model.js";
 
 const context = createTestContext();
 

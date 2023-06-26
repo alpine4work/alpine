@@ -1,6 +1,6 @@
 import {ReactNode} from "react";
-import {Box} from "~/client/design/box";
-import {OverlayScopeContextProvider} from "~/client/design/overlay";
+import {Box} from "~/client/design/box.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 
 /**
  * Routes that render under `/s/$space_id` should generally render

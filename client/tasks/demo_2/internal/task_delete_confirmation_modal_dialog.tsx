@@ -1,7 +1,7 @@
-import {ModalDialog} from "~/client/design/modal_dialog";
-import {PrettyNumber} from "~/client/design/pretty_number";
-import {LocalTasksAction, LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
-import {LocalTaskId} from "~/shared/id/types/id_types";
+import {ModalDialog} from "~/client/design/modal_dialog.js";
+import {PrettyNumber} from "~/client/design/pretty_number.js";
+import {LocalTasksAction, LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state.js";
+import {LocalTaskId} from "~/shared/id/types/id_types.js";
 
 export function TaskDeleteConfirmationModalDialog({
     state,

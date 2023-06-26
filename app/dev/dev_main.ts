@@ -5,15 +5,15 @@ import http from "http";
 import {networkInterfaces} from "os";
 import path from "path";
 import WebSocket from "ws";
-import {startDynamoLocal} from "~/admin/dynamo/local/start_dynamo_local";
-import {devEnvPaths} from "~/admin/helpers/dev_env_paths";
-import {parseDotenv} from "~/admin/helpers/parse_dotenv";
-import {createLocalServer} from "~/app/local/create_local_server";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
-import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting";
-import {createTimeout} from "~/shared/helpers/async/timeout";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {quote} from "~/shared/helpers/string/quote";
+import {startDynamoLocal} from "~/admin/dynamo/local/start_dynamo_local.js";
+import {devEnvPaths} from "~/admin/helpers/dev_env_paths.js";
+import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
+import {createLocalServer} from "~/app/local/create_local_server.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 
 const env = parseDotenv();
 

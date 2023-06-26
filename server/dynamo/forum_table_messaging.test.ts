@@ -9,12 +9,12 @@ import {
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
     updatePostCommentContent,
-} from "~/server/dynamo/forum_table";
-import {testMessagingImplementation} from "~/server/dynamo/test_helpers/jest/test_messaging_implementation";
-import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
-import {createSimplePostContent} from "~/shared/forum/post_content_schema";
-import {generateId} from "~/shared/id/id";
-import {PostId} from "~/shared/id/types/id_types";
+} from "~/server/dynamo/forum_table.js";
+import {testMessagingImplementation} from "~/server/dynamo/test_helpers/jest/test_messaging_implementation.js";
+import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
+import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
+import {generateId} from "~/shared/id/id.js";
+import {PostId} from "~/shared/id/types/id_types.js";
 
 const context = createTestContext();
 

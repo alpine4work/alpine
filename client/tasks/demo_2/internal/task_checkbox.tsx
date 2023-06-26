@@ -1,7 +1,7 @@
 import {Check} from "phosphor-react";
-import {Box} from "~/client/design/box";
-import {addRemLengths, spacing} from "~/shared/design/spacing";
-import {colorSchemeVars} from "~/shared/styles/styles";
+import {Box} from "~/client/design/box.js";
+import {addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {colorSchemeVars} from "~/shared/styles/styles.js";
 
 export function TaskCheckbox({isChecked}: {isChecked: boolean}) {
     return (

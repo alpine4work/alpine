@@ -1,5 +1,5 @@
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {TaskPriority} from "~/shared/tasks/task_priority";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {TaskPriority} from "~/shared/tasks/task_priority.js";
 
 export function getTaskPriorityName(priority: TaskPriority | "Null" | null): string {
     switch (priority) {

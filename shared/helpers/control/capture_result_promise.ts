@@ -1,4 +1,4 @@
-import {Result} from "~/shared/helpers/control/result";
+import {Result} from "~/shared/helpers/control/result.js";
 
 /**
  * Captures the result of a function which is either a normal return or an

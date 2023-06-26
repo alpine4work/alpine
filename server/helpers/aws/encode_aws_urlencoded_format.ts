@@ -1,11 +1,11 @@
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {
     JsonStringifiableUint8Array,
     SchemaSerializedArrayValue,
     SchemaSerializedObjectValue,
     SchemaSerializedValue,
-} from "~/shared/schema/schema";
+} from "~/shared/schema/schema.js";
 
 /**
  * Encodes an object into the `application/x-www-form-urlencoded` format used

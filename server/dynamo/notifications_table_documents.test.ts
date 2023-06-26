@@ -4,31 +4,31 @@ import {
     createDocument,
     createDocumentComment,
     updateDocumentContent,
-} from "~/server/dynamo/documents_table";
+} from "~/server/dynamo/documents_table.js";
 import {
     getInboxEntries,
     notificationEventAfterProcessingTestCheckpoint,
     notificationEventBeforeProcessingTestCheckpoint,
-} from "~/server/dynamo/notifications_table";
+} from "~/server/dynamo/notifications_table.js";
 import {
     createNotificationsScenario,
     massageInboxEntriesQuery,
-} from "~/server/dynamo/test_helpers/jest/notifications_table_test_helpers";
-import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
-import {emptyContentReferences} from "~/shared/content/content_references";
-import {ProcessContextModule} from "~/shared/context/process_context_module";
+} from "~/server/dynamo/test_helpers/jest/notifications_table_test_helpers.js";
+import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
+import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {
     DocumentContentProsemirrorSchema,
     emptyDocumentContent,
-} from "~/shared/documents/document_content_schema";
-import {DocumentPreviewModel} from "~/shared/documents/document_model";
-import {generateId} from "~/shared/id/id";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
-import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema";
+} from "~/shared/documents/document_content_schema.js";
+import {DocumentPreviewModel} from "~/shared/documents/document_model.js";
+import {generateId} from "~/shared/id/id.js";
+import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 import {
     InboxDocumentCommentThreadEntryModel,
     InboxDocumentNewCommentThreadsEntryModel,
-} from "~/shared/notifications/inbox_model";
+} from "~/shared/notifications/inbox_model.js";
 
 const context = createTestContext();
 

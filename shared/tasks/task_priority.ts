@@ -1,4 +1,4 @@
-import {Schema} from "~/shared/schema/schema";
+import {Schema} from "~/shared/schema/schema.js";
 
 export type TaskPriority = "Low" | "Medium" | "High" | "Urgent";
 

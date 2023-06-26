@@ -19,10 +19,10 @@ import {Command, EditorState, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {Memo, ReactNode, RefObject, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {mergeProps, useButton} from "react-aria";
-import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker";
-import {ContentEditorHighlightSelector} from "~/client/content/internal/content_editor_highlight_selector";
-import {ContentEditorLinkInput} from "~/client/content/internal/content_editor_link_input";
-import {openCommentInputFloaterMetaKey} from "~/client/content/internal/content_editor_plugin_keymap";
+import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
+import {ContentEditorHighlightSelector} from "~/client/content/internal/content_editor_highlight_selector.js";
+import {ContentEditorLinkInput} from "~/client/content/internal/content_editor_link_input.js";
+import {openCommentInputFloaterMetaKey} from "~/client/content/internal/content_editor_plugin_keymap.js";
 import {
     areAllNodesBlockType,
     areAllNodesListItemType,
@@ -30,21 +30,21 @@ import {
     createToggleListItemsCommand,
     createToggleMarkCommand,
     getMarksSpanningAcrossEntireRange,
-} from "~/client/content/internal/content_editor_prosemirror_helpers";
-import {Box} from "~/client/design/box";
-import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction";
-import {Overlay, OverlayRef} from "~/client/design/overlay";
-import {OverlayAnimated} from "~/client/design/overlay_animated";
-import {Tooltip, TooltipRef, TooltipState} from "~/client/design/tooltip";
-import {isMac} from "~/client/helpers/browser/is_mac";
-import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by";
-import {useConstant} from "~/client/helpers/lifecycle/use_constant";
-import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref";
-import {ContentProsemirrorSchema} from "~/shared/content/content_schema";
-import {spacing} from "~/shared/design/spacing";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range";
+} from "~/client/content/internal/content_editor_prosemirror_helpers.js";
+import {Box} from "~/client/design/box.js";
+import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.js";
+import {Overlay, OverlayRef} from "~/client/design/overlay.js";
+import {OverlayAnimated} from "~/client/design/overlay_animated.js";
+import {Tooltip, TooltipRef, TooltipState} from "~/client/design/tooltip.js";
+import {isMac} from "~/client/helpers/browser/is_mac.js";
+import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
+import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
+import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
+import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
+import {spacing} from "~/shared/design/spacing.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 import {
     overlayAnimateContainerClassName,
     overlayAnimateFadeInClassName,
@@ -52,7 +52,7 @@ import {
     overlayFadeInAnimationDurationMs,
     overlayFadeOutAnimationDurationMs,
     sprinkles,
-} from "~/shared/styles/styles";
+} from "~/shared/styles/styles.js";
 
 export function ContentEditorPointerToolbar({
     state,

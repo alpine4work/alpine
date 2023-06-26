@@ -1,10 +1,10 @@
 import {decode as decodeHtmlEntities} from "html-entities";
 import {render} from "mjml-react";
 import {ComponentProps} from "react";
-import {AlphaAccessRequestApprovedEmailTemplate} from "~/server/emails/internal/alpha_access_request_approved_email_template";
-import {RequestedAlphaAccessEmailTemplate} from "~/server/emails/internal/requested_alpha_access_email_template";
-import {SignInEmailTemplate} from "~/server/emails/internal/sign_in_email_template";
-import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
+import {AlphaAccessRequestApprovedEmailTemplate} from "~/server/emails/internal/alpha_access_request_approved_email_template.js";
+import {RequestedAlphaAccessEmailTemplate} from "~/server/emails/internal/requested_alpha_access_email_template.js";
+import {SignInEmailTemplate} from "~/server/emails/internal/sign_in_email_template.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 const emailTemplateComponents = {
     SignIn: SignInEmailTemplate,

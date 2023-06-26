@@ -1,10 +1,10 @@
 import dotenv, {DotenvParseOutput} from "dotenv";
 import fs from "fs-extra";
 import path from "path";
-import {runfilesPath} from "~/admin/helpers/runfiles_path";
-import {assert} from "~/shared/helpers/control/assert";
-import {Lazy} from "~/shared/helpers/control/lazy";
-import {isIdentifier} from "~/shared/helpers/string/is_identifier";
+import {runfilesPath} from "~/admin/helpers/runfiles_path.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
 
 /**
  * Parses our `.env` files synchronously and returns an object with the

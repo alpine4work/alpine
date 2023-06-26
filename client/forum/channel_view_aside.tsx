@@ -1,8 +1,8 @@
-import {ContentView} from "~/client/content/content_view";
-import {Box} from "~/client/design/box";
-import {postListViewMarginY} from "~/client/forum/post_list_view";
-import {ChannelModel} from "~/shared/forum/channel_model";
-import {sprinkles} from "~/shared/styles/styles";
+import {ContentView} from "~/client/content/content_view.js";
+import {Box} from "~/client/design/box.js";
+import {postListViewMarginY} from "~/client/forum/post_list_view.js";
+import {ChannelModel} from "~/shared/forum/channel_model.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 
 export function ChannelViewAside({channel}: {channel: ChannelModel}) {
     return (

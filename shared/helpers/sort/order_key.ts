@@ -1,8 +1,8 @@
 // This code was derived from:
 // https://observablehq.com/@dgreensp/implementing-fractional-indexing
 
-import {InvalidArgumentError} from "~/shared/error/error";
-import {assert} from "~/shared/helpers/control/assert";
+import {InvalidArgumentError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
  * Order keys provide a way to sort lists in a collaboratively edited

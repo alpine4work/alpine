@@ -1,17 +1,17 @@
 import {useSearchParams} from "react-router-dom";
-import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name";
-import {PostView} from "~/client/forum/post_view";
-import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
-import {createMetaFunction} from "~/client/remix/create_meta_function";
-import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
-import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
-import {getPostAndInitialComments} from "~/server/dynamo/forum_table";
-import {jsonWithSchema} from "~/server/remix/json_with_schema";
-import {LoaderArgs} from "~/server/remix/loader_context";
-import {PostCommentModel, PostModel} from "~/shared/forum/post_model";
-import {PostId} from "~/shared/id/types/id_types";
-import {Schema} from "~/shared/schema/schema";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
+import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name.js";
+import {PostView} from "~/client/forum/post_view.js";
+import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
+import {createMetaFunction} from "~/client/remix/create_meta_function.js";
+import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
+import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
+import {getPostAndInitialComments} from "~/server/dynamo/forum_table.js";
+import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
+import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
+import {PostId} from "~/shared/id/types/id_types.js";
+import {Schema} from "~/shared/schema/schema.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({
     post: PostModel.schema(),

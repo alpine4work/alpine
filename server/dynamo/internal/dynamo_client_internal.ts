@@ -2,17 +2,17 @@
 // the `aws4fetch` module for executing any AWS commands.
 import type * as types from "@aws-sdk/client-dynamodb";
 import {AwsClient} from "aws4fetch";
-import {classifyDynamoError} from "~/server/dynamo/internal/classify_dynamo_error";
+import {classifyDynamoError} from "~/server/dynamo/internal/classify_dynamo_error.js";
 import {
     isConstructedDynamoTableSchemaIndexName,
     isConstructedDynamoTableSchemaName,
-} from "~/server/dynamo/internal/dynamo_table_schema";
-import {assert} from "~/shared/helpers/control/assert";
-import {generateId} from "~/shared/id/id";
-import {TraceId, TraceSpanId} from "~/shared/id/types/id_types";
-import {TracerBase} from "~/shared/tracer/tracer_base";
-import {TracerSpan} from "~/shared/tracer/tracer_span";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
+} from "~/server/dynamo/internal/dynamo_table_schema.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {generateId} from "~/shared/id/id.js";
+import {TraceId, TraceSpanId} from "~/shared/id/types/id_types.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 /**
  * Type-safe DynamoDB client that can be executed in a Cloudflare Workers

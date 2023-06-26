@@ -3,25 +3,25 @@
 import type * as types from "@aws-sdk/client-dynamodb";
 import {AwsClient} from "aws4fetch";
 import jsonStableStringify from "json-stable-stringify";
-import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
+import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry.js";
 import {
     fromDynamoAttributeValueObject,
     intoDynamoAttributeValue,
     intoDynamoAttributeValueObject,
-} from "~/server/dynamo/internal/dynamo_attribute_value";
-import {DynamoClientInternal} from "~/server/dynamo/internal/dynamo_client_internal";
-import {DeadlineExceededError, InternalError, InvalidArgumentError} from "~/shared/error/error";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
-import {assert} from "~/shared/helpers/control/assert";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
-import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
-import {isObject} from "~/shared/helpers/object/is_object";
-import {quote} from "~/shared/helpers/string/quote";
-import {SchemaSerializedObjectValue, SchemaSerializedValue} from "~/shared/schema/schema";
-import {TracerBase} from "~/shared/tracer/tracer_base";
+} from "~/server/dynamo/internal/dynamo_attribute_value.js";
+import {DynamoClientInternal} from "~/server/dynamo/internal/dynamo_client_internal.js";
+import {DeadlineExceededError, InternalError, InvalidArgumentError} from "~/shared/error/error.js";
+import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
+import {quote} from "~/shared/helpers/string/quote.js";
+import {SchemaSerializedObjectValue, SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 const originalSetTimeout = setTimeout;
 

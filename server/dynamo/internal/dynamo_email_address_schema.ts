@@ -1,9 +1,9 @@
 import {
     EmailAddress,
     validateEmailAddressWithoutCheckingDomainMxDnsRecords,
-} from "~/server/emails/email_address";
-import {LabelStringSchema} from "~/shared/schema/label_string_schema";
-import {SchemaDeserializationError} from "~/shared/schema/schema";
+} from "~/server/emails/email_address.js";
+import {LabelStringSchema} from "~/shared/schema/label_string_schema.js";
+import {SchemaDeserializationError} from "~/shared/schema/schema.js";
 
 /**
  * Schema for validating email addresses stored in DynamoDB.

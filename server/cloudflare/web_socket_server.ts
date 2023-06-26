@@ -1,35 +1,39 @@
-import {Session} from "~/server/dynamo/accounts_table";
-import {SessionActionContext} from "~/server/dynamo/context/action_context";
-import {SessionActorContextModule} from "~/server/dynamo/context/actor_context_module";
-import {ProcessContext} from "~/server/dynamo/context/process_context";
-import {DynamoBatchContextModule} from "~/server/dynamo/dynamo_context_module";
-import {validateTracerEventFlatDataForPropagation} from "~/server/tracer/validate_tracer_event_flat_data";
-import {webSocketExpirationTimeoutMs} from "~/shared/cloudflare/web_socket_expiration_timeout_ms";
+import {Session} from "~/server/dynamo/accounts_table.js";
+import {SessionActionContext} from "~/server/dynamo/context/action_context.js";
+import {SessionActorContextModule} from "~/server/dynamo/context/actor_context_module.js";
+import {ProcessContext} from "~/server/dynamo/context/process_context.js";
+import {DynamoBatchContextModule} from "~/server/dynamo/dynamo_context_module.js";
+import {validateTracerEventFlatDataForPropagation} from "~/server/tracer/validate_tracer_event_flat_data.js";
+import {webSocketExpirationTimeoutMs} from "~/shared/cloudflare/web_socket_expiration_timeout_ms.js";
 import {
     WebSocketProtocolBase,
     WebSocketProtocolEventType,
     WebSocketProtocolProceduresType,
-} from "~/shared/cloudflare/web_socket_protocol";
+} from "~/shared/cloudflare/web_socket_protocol.js";
 import {
     WebSocketMessageFromClient,
     WebSocketMessageFromServer,
     createWebSocketMessageFromClientSchema,
     createWebSocketMessageFromServerSchema,
-} from "~/shared/cloudflare/web_socket_schema";
-import {CacheContextModule} from "~/shared/context/cache_context_module";
-import {TracerContextModule} from "~/shared/context/tracer_context_module";
-import {FailedPreconditionError, InvalidArgumentError, NotFoundError} from "~/shared/error/error";
-import {isSystemError} from "~/shared/error/is_system_error_code";
-import {Interval, createInterval} from "~/shared/helpers/async/interval";
-import {assert} from "~/shared/helpers/control/assert";
-import {EventEmitter} from "~/shared/helpers/control/event_emitter";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
-import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
-import {generateId} from "~/shared/id/id";
-import {AccountId, SessionId, WebSocketConnectionId} from "~/shared/id/types/id_types";
-import {Schema} from "~/shared/schema/schema";
-import {TracerSpan} from "~/shared/tracer/tracer_span";
+} from "~/shared/cloudflare/web_socket_schema.js";
+import {CacheContextModule} from "~/shared/context/cache_context_module.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {
+    FailedPreconditionError,
+    InvalidArgumentError,
+    NotFoundError,
+} from "~/shared/error/error.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {Interval, createInterval} from "~/shared/helpers/async/interval.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {generateId} from "~/shared/id/id.js";
+import {AccountId, SessionId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {Schema} from "~/shared/schema/schema.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export type WebSocketConnectionProcedures<Protocol extends WebSocketProtocolBase> =
     _WebSocketConnectionProcedures<WebSocketProtocolProceduresType<Protocol>>;

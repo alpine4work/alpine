@@ -1,9 +1,9 @@
-import "~/server/dynamo/all_dynamo_tables";
+import "~/server/dynamo/all_dynamo_tables.js";
 
 import {
     getAllConstructedDynamoTableSchemaIndexNames,
     getAllConstructedDynamoTableSchemas,
-} from "~/server/dynamo/internal/dynamo_table_schema";
+} from "~/server/dynamo/internal/dynamo_table_schema.js";
 
 /**
  * Get all the `DynamoTableSchema`s in our codebase. Importing this file will

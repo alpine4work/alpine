@@ -1,8 +1,8 @@
-import {SystemActorContextModule} from "~/server/dynamo/context/actor_context_module";
-import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
-import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
-import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
-import {generateId} from "~/shared/id/id";
+import {SystemActorContextModule} from "~/server/dynamo/context/actor_context_module.js";
+import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
+import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
+import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space.js";
+import {generateId} from "~/shared/id/id.js";
 
 const context = createTestContext();
 const space = createTestSpace(context);

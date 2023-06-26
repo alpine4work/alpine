@@ -1,13 +1,13 @@
 import {assignInlineVars} from "@vanilla-extract/dynamic";
 import classNames from "classnames";
 import {Node, ParseRule, Schema as ProsemirrorSchema, SchemaSpec} from "prosemirror-model";
-import {ContentMention, ContentMentionSchema} from "~/shared/content/content_mention";
-import {clamp} from "~/shared/helpers/number/clamp";
-import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol";
-import {isId} from "~/shared/id/id";
-import {AccountId} from "~/shared/id/types/id_types";
-import {Schema} from "~/shared/schema/schema";
-import {contentSchemaStyles} from "~/shared/styles/styles";
+import {ContentMention, ContentMentionSchema} from "~/shared/content/content_mention.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
+import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol.js";
+import {isId} from "~/shared/id/id.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
+import {Schema} from "~/shared/schema/schema.js";
+import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
 declare module "prosemirror-model" {
     interface AttributeSpec {

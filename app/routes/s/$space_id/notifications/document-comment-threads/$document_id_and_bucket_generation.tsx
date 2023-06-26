@@ -1,27 +1,27 @@
 import {MetaFunction} from "@remix-run/server-runtime";
-import {useShowToast} from "~/client/design/toast";
-import {DocumentCommentThreadListView} from "~/client/documents/document_comment_thread_list_view";
-import {documentCommentThreadCountAgainstLimit} from "~/client/documents/document_shared_styles";
-import {useDocumentContentEditorWebSocket} from "~/client/documents/use_document_content_editor_web_socket";
-import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
-import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
-import {useRootNavigate} from "~/client/remix/use_navigate";
-import {metaTitlePostfix} from "~/client/remix/use_update_meta_title";
-import {getInboxDocumentNewCommentThreadsEntryCommentThreads} from "~/server/dynamo/notifications_table";
-import {jsonWithSchema} from "~/server/remix/json_with_schema";
-import {LoaderArgs} from "~/server/remix/loader_context";
+import {useShowToast} from "~/client/design/toast.js";
+import {DocumentCommentThreadListView} from "~/client/documents/document_comment_thread_list_view.js";
+import {documentCommentThreadCountAgainstLimit} from "~/client/documents/document_shared_styles.js";
+import {useDocumentContentEditorWebSocket} from "~/client/documents/use_document_content_editor_web_socket.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
+import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
+import {useRootNavigate} from "~/client/remix/use_navigate.js";
+import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
+import {getInboxDocumentNewCommentThreadsEntryCommentThreads} from "~/server/dynamo/notifications_table.js";
+import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
+import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
     DocumentModel,
-} from "~/shared/documents/document_model";
-import {InvalidArgumentError} from "~/shared/error/error";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {isId} from "~/shared/id/id";
-import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types";
-import {Schema} from "~/shared/schema/schema";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
+} from "~/shared/documents/document_model.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {isId} from "~/shared/id/id.js";
+import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {Schema} from "~/shared/schema/schema.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({
     document: DocumentModel.schema(),

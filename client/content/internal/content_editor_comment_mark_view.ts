@@ -1,10 +1,10 @@
 import {DOMSerializer} from "prosemirror-model";
 import {MarkViewConstructor} from "prosemirror-view";
-import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event";
-import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint";
-import {assert} from "~/shared/helpers/control/assert";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
-import {contentSchemaStyles} from "~/shared/styles/styles";
+import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
+import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
 export function createContentEditorCommentMarkViewConstructor({
     openCommentThread,

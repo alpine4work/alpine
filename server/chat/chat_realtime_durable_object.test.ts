@@ -1,10 +1,10 @@
-import {ChatRealtimeDurableObject} from "~/server/chat/chat_realtime_durable_object";
-import {getOrCreateChatForAccounts} from "~/server/dynamo/chat_table";
-import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
-import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
-import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
-import {PermissionDeniedError} from "~/shared/error/error";
-import {generateId} from "~/shared/id/id";
+import {ChatRealtimeDurableObject} from "~/server/chat/chat_realtime_durable_object.js";
+import {getOrCreateChatForAccounts} from "~/server/dynamo/chat_table.js";
+import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
+import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
+import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space.js";
+import {PermissionDeniedError} from "~/shared/error/error.js";
+import {generateId} from "~/shared/id/id.js";
 
 const context = createTestContext();
 const {connectForTest} = ChatRealtimeDurableObject.test(context);

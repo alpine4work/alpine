@@ -1,5 +1,5 @@
 import {DependencyList, useEffect, useRef} from "react";
-import {useEvent} from "~/client/helpers/lifecycle/use_event";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 
 /**
  * Hook to debug why a React effect is re-running. You pass in a list of

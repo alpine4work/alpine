@@ -2,9 +2,9 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 // eslint-disable-next-line only-erasable-types
-import {generateId} from "~/shared/id/id";
+import {generateId} from "~/shared/id/id.js";
 
-import type {Id} from "~/shared/id/id";
+import type {Id} from "~/shared/id/id.js";
 
 // Ok
 type T1 = {a: number; b: number; c: number};

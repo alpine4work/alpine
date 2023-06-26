@@ -1,5 +1,5 @@
 import {Node} from "prosemirror-model";
-import {assert} from "~/shared/helpers/control/assert";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
  * Is the provided content completely empty?

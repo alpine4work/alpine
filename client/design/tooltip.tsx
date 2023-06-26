@@ -15,32 +15,32 @@ import {
     useRef,
     useState,
 } from "react";
-import {Box} from "~/client/design/box";
-import {setElementAttributesWithCleanup} from "~/client/design/helpers/set_element_attributes_with_cleanup";
+import {Box} from "~/client/design/box.js";
+import {setElementAttributesWithCleanup} from "~/client/design/helpers/set_element_attributes_with_cleanup.js";
 import {
     Overlay,
     OverlayPlacement,
     OverlayRef,
     useIsWaitingForOverlayPortalElement,
-} from "~/client/design/overlay";
-import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants";
-import {useConstant} from "~/client/helpers/lifecycle/use_constant";
-import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref";
-import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref";
-import {Spacing} from "~/shared/design/spacing";
-import {createTimeout} from "~/shared/helpers/async/timeout";
-import {assert} from "~/shared/helpers/control/assert";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
+} from "~/client/design/overlay.js";
+import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
+import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
+import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
+import {Spacing} from "~/shared/design/spacing.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {
     overlayAnimateContainerClassName,
     overlayAnimateFadeInClassName,
     overlayAnimateFadeOutClassName,
     overlayFadeInAnimationDurationMs,
     overlayFadeOutAnimationDurationMs,
-} from "~/shared/styles/styles";
+} from "~/shared/styles/styles.js";
 
 /**
  * Time it takes before we present a tooltip to the user if the user has

@@ -1,13 +1,13 @@
 import {CaretDown, Plus, User, UserPlus, Users} from "phosphor-react";
-import {Box} from "~/client/design/box";
-import {Button} from "~/client/design/button";
-import {MenuButton} from "~/client/design/menu_button";
-import {useNavigate} from "~/client/remix/use_navigate";
-import {useSpaceContext} from "~/client/spaces/space_context";
-import {TaskLayoutTopBarCollectionsButton} from "~/client/tasks/demo_2/internal/task_layout_top_bar_collections_button";
-import {useLocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
-import {serializeTaskQuerySortsSearchParam} from "~/client/tasks/demo_2/task_query_sort";
-import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter";
+import {Box} from "~/client/design/box.js";
+import {Button} from "~/client/design/button.js";
+import {MenuButton} from "~/client/design/menu_button.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {TaskLayoutTopBarCollectionsButton} from "~/client/tasks/demo_2/internal/task_layout_top_bar_collections_button.js";
+import {useLocalTasksState} from "~/client/tasks/demo_2/local_tasks_state.js";
+import {serializeTaskQuerySortsSearchParam} from "~/client/tasks/demo_2/task_query_sort.js";
+import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
 
 export function TaskLayoutTopBar({
     isNotepadTabActive,

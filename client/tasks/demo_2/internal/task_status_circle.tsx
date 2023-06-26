@@ -1,8 +1,8 @@
 import {Check} from "phosphor-react";
-import {Box} from "~/client/design/box";
-import {buttonPressedOverlayOpacity} from "~/client/design/button";
-import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
-import {colorSchemeVars, sprinkles} from "~/shared/styles/styles";
+import {Box} from "~/client/design/box.js";
+import {buttonPressedOverlayOpacity} from "~/client/design/button.js";
+import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 
 export function TaskStatusCircle({
     status,

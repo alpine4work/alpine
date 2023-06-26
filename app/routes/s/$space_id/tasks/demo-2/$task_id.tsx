@@ -1,13 +1,13 @@
 import {json} from "@remix-run/server-runtime";
 import {useParams} from "react-router";
-import {Box} from "~/client/design/box";
-import {OverlayScopeContextProvider} from "~/client/design/overlay";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
-import {useLocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
-import {taskDetailPresentationalViewMaxWidth} from "~/client/tasks/demo_2/task_detail_presentational_view";
-import {TaskView} from "~/client/tasks/demo_2/task_view";
-import {LocalTaskId} from "~/shared/id/types/id_types";
-import {Schema} from "~/shared/schema/schema";
+import {Box} from "~/client/design/box.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useLocalTasksState} from "~/client/tasks/demo_2/local_tasks_state.js";
+import {taskDetailPresentationalViewMaxWidth} from "~/client/tasks/demo_2/task_detail_presentational_view.js";
+import {TaskView} from "~/client/tasks/demo_2/task_view.js";
+import {LocalTaskId} from "~/shared/id/types/id_types.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export function loader() {
     return json({});

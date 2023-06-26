@@ -1,27 +1,30 @@
-import {getAccount} from "~/server/dynamo/accounts_table";
+import {getAccount} from "~/server/dynamo/accounts_table.js";
 import {
     ActionContext,
     ActionContextBase,
     MaybeSessionActionContext,
-} from "~/server/dynamo/context/action_context";
-import {DynamoContext} from "~/server/dynamo/context/dynamo_context";
-import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants";
-import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry";
-import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema";
-import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
-import {AccountModel} from "~/shared/accounts/account_model";
-import {ContextCache} from "~/shared/context/cache_context_module";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error";
-import {errorDisplayMessage} from "~/shared/error/error_display_message";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
-import {assert} from "~/shared/helpers/control/assert";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array";
-import {getMaxId, getMinId} from "~/shared/id/id";
-import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types";
-import {LabelStringSchema} from "~/shared/schema/label_string_schema";
-import {Schema} from "~/shared/schema/schema";
-import {SpaceModel} from "~/shared/spaces/space_model";
+} from "~/server/dynamo/context/action_context.js";
+import {DynamoContext} from "~/server/dynamo/context/dynamo_context.js";
+import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants.js";
+import {DynamoTransactionEntry} from "~/server/dynamo/helpers/dynamo_transaction_entry.js";
+import {DynamoKeyAttributeSchema} from "~/server/dynamo/internal/dynamo_key_attribute_schema.js";
+import {
+    DynamoTableItemType,
+    DynamoTableSchema,
+} from "~/server/dynamo/internal/dynamo_table_schema.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {ContextCache} from "~/shared/context/cache_context_module.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
+import {getMaxId, getMinId} from "~/shared/id/id.js";
+import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {LabelStringSchema} from "~/shared/schema/label_string_schema.js";
+import {Schema} from "~/shared/schema/schema.js";
+import {SpaceModel} from "~/shared/spaces/space_model.js";
 
 const SpacesTable = DynamoTableSchema.new({
     name: "Spaces",

@@ -1,5 +1,5 @@
-import {assert} from "~/shared/helpers/control/assert";
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 
 const safeStringTag = Symbol("safe");
 

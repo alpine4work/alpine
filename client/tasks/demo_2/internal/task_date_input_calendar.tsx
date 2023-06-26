@@ -22,18 +22,18 @@ import {
     useHover,
 } from "react-aria";
 import {CalendarState, CalendarStateOptions, useCalendarState} from "react-stately";
-import {Box} from "~/client/design/box";
-import {Button} from "~/client/design/button";
-import {IconButton} from "~/client/design/icon_button";
-import {Spacer} from "~/client/design/spacer";
-import {useClientInfo} from "~/client/remix/client_info_context";
-import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour";
-import {spacing} from "~/shared/design/spacing";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal";
-import {sprinkles} from "~/shared/styles/styles";
+import {Box} from "~/client/design/box.js";
+import {Button} from "~/client/design/button.js";
+import {IconButton} from "~/client/design/icon_button.js";
+import {Spacer} from "~/client/design/spacer.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
+import {spacing} from "~/shared/design/spacing.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 
 export function TaskDateInputCalendar({
     date,

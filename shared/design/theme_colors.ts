@@ -1,4 +1,4 @@
-import {Color} from "~/shared/design/colors";
+import {Color} from "~/shared/design/colors.js";
 
 /**
  * Theme color names like `red`, `blue`, and `green`.

@@ -1,4 +1,4 @@
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 /**
  * Keys in the event object's `context` object we want to move into

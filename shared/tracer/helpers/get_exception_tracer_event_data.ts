@@ -1,7 +1,7 @@
-import {ErrorBase} from "~/shared/error/error";
-import {ErrorCode, getErrorCodeName} from "~/shared/error/error_code";
-import {renderDebugErrorDisplayMessage} from "~/shared/error/render_debug_error_display_message";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data";
+import {ErrorBase} from "~/shared/error/error.js";
+import {ErrorCode, getErrorCodeName} from "~/shared/error/error_code.js";
+import {renderDebugErrorDisplayMessage} from "~/shared/error/render_debug_error_display_message.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 /**
  * Gets the `TracerEventData` for an exception.

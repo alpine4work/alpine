@@ -2,20 +2,20 @@ import {
     createChannel,
     deletePostComment,
     updatePostCommentContent,
-} from "~/server/dynamo/forum_table";
-import {createPost, createPostComment} from "~/server/dynamo/forum_table";
+} from "~/server/dynamo/forum_table.js";
+import {createPost, createPostComment} from "~/server/dynamo/forum_table.js";
 import {
     TestMessagingRealtimeConnectionProcedures,
     testMessagingRealtimeImplementation,
-} from "~/server/dynamo/test_helpers/jest/test_messaging_realtime_implementation";
-import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
-import {PostRealtimeConnection} from "~/server/forum/post_realtime_connection";
-import {createSimplePostContent} from "~/shared/forum/post_content_schema";
-import {PostCommentModel} from "~/shared/forum/post_model";
-import {cast} from "~/shared/helpers/control/cast";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
-import {generateId} from "~/shared/id/id";
-import {PostId} from "~/shared/id/types/id_types";
+} from "~/server/dynamo/test_helpers/jest/test_messaging_realtime_implementation.js";
+import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
+import {PostRealtimeConnection} from "~/server/forum/post_realtime_connection.js";
+import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
+import {PostCommentModel} from "~/shared/forum/post_model.js";
+import {cast} from "~/shared/helpers/control/cast.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {generateId} from "~/shared/id/id.js";
+import {PostId} from "~/shared/id/types/id_types.js";
 
 const context = createTestContext();
 

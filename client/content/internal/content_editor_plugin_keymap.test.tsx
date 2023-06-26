@@ -6,11 +6,11 @@ import {EditorState, TextSelection, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import React, {useState} from "react";
 import {act} from "react-dom/test-utils";
-import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor";
-import {ContentEditorState} from "~/client/content/content_editor_state";
-import {emptyContentReferences} from "~/shared/content/content_references";
-import {emptyDocumentWithoutTitleContent} from "~/shared/documents/document_content_schema";
-import {assert} from "~/shared/helpers/control/assert";
+import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor.js";
+import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {emptyDocumentWithoutTitleContent} from "~/shared/documents/document_content_schema.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 function TestContentEditor() {
     const [state, setState] = useState(() =>

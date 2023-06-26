@@ -1,7 +1,7 @@
 import jsonStableStringify from "json-stable-stringify";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver";
-import {assert} from "~/shared/helpers/control/assert";
-import {SchemaSerializedValue} from "~/shared/schema/schema";
+import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 /**
  * A test helper for emulating race conditions. You can add a `waitForTest()`

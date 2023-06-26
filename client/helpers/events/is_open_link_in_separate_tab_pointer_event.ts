@@ -1,5 +1,5 @@
 import {PressEvent} from "@react-types/shared";
-import {isMac} from "~/client/helpers/browser/is_mac";
+import {isMac} from "~/client/helpers/browser/is_mac.js";
 
 /**
  * Is this a click event that on an `<a>` element would open the URL in a

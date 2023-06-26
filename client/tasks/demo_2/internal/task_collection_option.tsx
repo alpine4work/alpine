@@ -1,13 +1,13 @@
 import {differenceInMonths, differenceInYears} from "date-fns";
 import {SpinnerGap} from "phosphor-react";
 import {useEffect, useState} from "react";
-import {Box} from "~/client/design/box";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
-import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour";
-import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
-import {spacing} from "~/shared/design/spacing";
-import {createTimeout} from "~/shared/helpers/async/timeout";
-import {spinAnimationClassName} from "~/shared/styles/styles";
+import {Box} from "~/client/design/box.js";
+import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
+import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state.js";
+import {spacing} from "~/shared/design/spacing.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {spinAnimationClassName} from "~/shared/styles/styles.js";
 
 export function TaskCollectionOption({
     collection,

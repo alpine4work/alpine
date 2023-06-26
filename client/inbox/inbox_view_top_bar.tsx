@@ -1,20 +1,23 @@
 import {ArrowRight, CaretDown, CaretUp, Check} from "phosphor-react";
 import {useRef, useState} from "react";
-import {useAppContext} from "~/client/context/app_context";
-import {Box} from "~/client/design/box";
-import {Button} from "~/client/design/button";
-import {IconButton} from "~/client/design/icon_button";
-import {useShowToast} from "~/client/design/toast";
-import {isMac} from "~/client/helpers/browser/is_mac";
-import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event";
-import {inboxEntryWidth} from "~/client/inbox/inbox_entry_view";
-import {InboxViewTopBarModeToggleButton} from "~/client/inbox/inbox_view_top_bar_mode_toggle_button";
-import {useNavigate} from "~/client/remix/use_navigate";
-import {useSpaceContext} from "~/client/spaces/space_context";
-import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {InboxEntryModel} from "~/shared/notifications/inbox_model";
-import {archiveInboxEntry, unarchiveInboxEntry} from "~/shared/rpc/notifications_rpc_definitions";
+import {useAppContext} from "~/client/context/app_context.js";
+import {Box} from "~/client/design/box.js";
+import {Button} from "~/client/design/button.js";
+import {IconButton} from "~/client/design/icon_button.js";
+import {useShowToast} from "~/client/design/toast.js";
+import {isMac} from "~/client/helpers/browser/is_mac.js";
+import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
+import {inboxEntryWidth} from "~/client/inbox/inbox_entry_view.js";
+import {InboxViewTopBarModeToggleButton} from "~/client/inbox/inbox_view_top_bar_mode_toggle_button.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
+import {
+    archiveInboxEntry,
+    unarchiveInboxEntry,
+} from "~/shared/rpc/notifications_rpc_definitions.js";
 
 export function InboxViewTopBar({
     filter,

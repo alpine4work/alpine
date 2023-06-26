@@ -1,4 +1,4 @@
-import {randomFloat} from "~/shared/helpers/number/random_float";
+import {randomFloat} from "~/shared/helpers/number/random_float.js";
 
 /**
  * Generates a random integer between `a` and `b`.

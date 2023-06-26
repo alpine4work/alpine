@@ -1,20 +1,20 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep, Step} from "prosemirror-transform";
-import {DocumentCollaborationStepCache} from "~/server/documents/document_collaboration_step_cache";
+import {DocumentCollaborationStepCache} from "~/server/documents/document_collaboration_step_cache.js";
 import {
     createDocument,
     getDocumentContentStepsTestCounter,
     updateDocumentContent,
-} from "~/server/dynamo/documents_table";
-import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
-import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
-import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
+} from "~/server/dynamo/documents_table.js";
+import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
+import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
+import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space.js";
 import {
     emptyDocumentContent,
     DocumentContentProsemirrorSchema as schema,
-} from "~/shared/documents/document_content_schema";
-import {FailedPreconditionError} from "~/shared/error/error";
-import {generateId} from "~/shared/id/id";
+} from "~/shared/documents/document_content_schema.js";
+import {FailedPreconditionError} from "~/shared/error/error.js";
+import {generateId} from "~/shared/id/id.js";
 
 const context = createTestContext();
 const space = createTestSpace(context);

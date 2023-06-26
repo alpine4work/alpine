@@ -1,15 +1,18 @@
 /* eslint-disable @typescript-eslint/no-misused-promises */
 
 import {useCallback, useRef} from "react";
-import {chatMessagingHeader} from "~/client/chat/chat_view";
-import {useWebSocket} from "~/client/cloudflare/use_web_socket";
-import {useAppContext} from "~/client/context/app_context";
-import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {MessagingView} from "~/client/messaging/messaging_view";
-import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model";
-import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol";
-import {InternalError} from "~/shared/error/error";
-import {getChatMessagesFromEnd, getChatMessagesFromStart} from "~/shared/rpc/chat_rpc_definitions";
+import {chatMessagingHeader} from "~/client/chat/chat_view.js";
+import {useWebSocket} from "~/client/cloudflare/use_web_socket.js";
+import {useAppContext} from "~/client/context/app_context.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {MessagingView} from "~/client/messaging/messaging_view.js";
+import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
+import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
+import {InternalError} from "~/shared/error/error.js";
+import {
+    getChatMessagesFromEnd,
+    getChatMessagesFromStart,
+} from "~/shared/rpc/chat_rpc_definitions.js";
 
 export function NewChatMessagingView({
     selectedChat,

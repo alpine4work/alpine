@@ -1,15 +1,15 @@
-import {createDurableObject} from "~/server/cloudflare/create_durable_object";
-import {WebSocketServer} from "~/server/cloudflare/web_socket_server";
-import {getAccountIfExists} from "~/server/dynamo/accounts_table";
-import {ActionContext} from "~/server/dynamo/context/action_context";
-import {MyAccountInboxRealtimeEventTransactionSchema} from "~/server/dynamo/context/notifications_context_module";
-import {ProcessContext} from "~/server/dynamo/context/process_context";
-import {MyAccountConnection} from "~/server/notifications/my_account_connection";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {AccountId} from "~/shared/id/types/id_types";
-import {MyAccountProtocol} from "~/shared/notifications/my_account_protocol";
-import {Schema} from "~/shared/schema/schema";
+import {createDurableObject} from "~/server/cloudflare/create_durable_object.js";
+import {WebSocketServer} from "~/server/cloudflare/web_socket_server.js";
+import {getAccountIfExists} from "~/server/dynamo/accounts_table.js";
+import {ActionContext} from "~/server/dynamo/context/action_context.js";
+import {MyAccountInboxRealtimeEventTransactionSchema} from "~/server/dynamo/context/notifications_context_module.js";
+import {ProcessContext} from "~/server/dynamo/context/process_context.js";
+import {MyAccountConnection} from "~/server/notifications/my_account_connection.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
+import {MyAccountProtocol} from "~/shared/notifications/my_account_protocol.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 class MyAccountDurableObject {
     public static readonly serviceName = "MyAccountService";

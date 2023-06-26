@@ -1,4 +1,12 @@
-import {decodeId, encodeId, generateId, getMaxId, getMinId, idLength, isId} from "~/shared/id/id";
+import {
+    decodeId,
+    encodeId,
+    generateId,
+    getMaxId,
+    getMinId,
+    idLength,
+    isId,
+} from "~/shared/id/id.js";
 
 test("max ID and min ID are IDs", () => {
     expect(isId(getMinId())).toEqual(true);

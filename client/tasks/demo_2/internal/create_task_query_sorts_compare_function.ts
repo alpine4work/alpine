@@ -1,7 +1,7 @@
-import {LocalTask} from "~/client/tasks/demo_2/local_tasks_state";
-import {TaskQuerySort} from "~/client/tasks/demo_2/task_query_sort";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
+import {LocalTask} from "~/client/tasks/demo_2/local_tasks_state.js";
+import {TaskQuerySort} from "~/client/tasks/demo_2/task_query_sort.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 
 /**
  * Create a function that will compare two tasks based on our sorts from the

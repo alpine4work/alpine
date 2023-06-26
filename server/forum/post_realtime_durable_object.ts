@@ -1,13 +1,13 @@
-import {createDurableObject} from "~/server/cloudflare/create_durable_object";
-import {WebSocketServer} from "~/server/cloudflare/web_socket_server";
-import {ActionContext, SessionActionContext} from "~/server/dynamo/context/action_context";
-import {ProcessContext} from "~/server/dynamo/context/process_context";
-import {authorizePostAccess} from "~/server/dynamo/forum_table";
-import {PostRealtimeConnection} from "~/server/forum/post_realtime_connection";
-import {NotFoundError} from "~/shared/error/error";
-import {PostRealtimeProtocol} from "~/shared/forum/post_realtime_protocol";
-import {PostId, SpaceId} from "~/shared/id/types/id_types";
-import {Schema} from "~/shared/schema/schema";
+import {createDurableObject} from "~/server/cloudflare/create_durable_object.js";
+import {WebSocketServer} from "~/server/cloudflare/web_socket_server.js";
+import {ActionContext, SessionActionContext} from "~/server/dynamo/context/action_context.js";
+import {ProcessContext} from "~/server/dynamo/context/process_context.js";
+import {authorizePostAccess} from "~/server/dynamo/forum_table.js";
+import {PostRealtimeConnection} from "~/server/forum/post_realtime_connection.js";
+import {NotFoundError} from "~/shared/error/error.js";
+import {PostRealtimeProtocol} from "~/shared/forum/post_realtime_protocol.js";
+import {PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 class PostRealtimeDurableObject {
     public static readonly serviceName = "PostRealtimeService";

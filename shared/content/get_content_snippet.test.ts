@@ -3,13 +3,13 @@ import {
     ContentNodes,
     getContentSnippet,
     setMaxLineGraphemeCountForTest,
-} from "~/shared/content/get_content_snippet";
+} from "~/shared/content/get_content_snippet.js";
 import {
     DocumentContentProsemirrorSchema,
     DocumentWithoutTitleContentProsemirrorSchema as schema,
-} from "~/shared/documents/document_content_schema";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types";
-import {generateId} from "~/shared/id/id";
+} from "~/shared/documents/document_content_schema.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
+import {generateId} from "~/shared/id/id.js";
 
 // NOTE(calebmer): These tests were written with the constant 237. Instead of
 // updating the tests to work with the new constant I'm hardcoding the old one

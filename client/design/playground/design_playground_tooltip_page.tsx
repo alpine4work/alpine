@@ -1,10 +1,10 @@
-import {Box} from "~/client/design/box";
-import {Button} from "~/client/design/button";
-import {OverlayPlacement} from "~/client/design/overlay";
-import {DesignPlaygroundScrollPreview} from "~/client/design/playground/helpers/design_playground_scroll_preview";
-import {Tooltip} from "~/client/design/tooltip";
-import {useUrlSearchParamBooleanState} from "~/client/remix/use_url_search_param_boolean_state";
-import {useUrlSearchParamState} from "~/client/remix/use_url_search_param_state";
+import {Box} from "~/client/design/box.js";
+import {Button} from "~/client/design/button.js";
+import {OverlayPlacement} from "~/client/design/overlay.js";
+import {DesignPlaygroundScrollPreview} from "~/client/design/playground/helpers/design_playground_scroll_preview.js";
+import {Tooltip} from "~/client/design/tooltip.js";
+import {useUrlSearchParamBooleanState} from "~/client/remix/use_url_search_param_boolean_state.js";
+import {useUrlSearchParamState} from "~/client/remix/use_url_search_param_state.js";
 
 // TODO(calebmer): Use actual design system select element
 

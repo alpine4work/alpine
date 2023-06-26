@@ -1,7 +1,7 @@
-import {InternalError} from "~/shared/error/error";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
-import {SchemaSerializedValueDescription} from "~/shared/schema/types/schema_description_types";
+import {InternalError} from "~/shared/error/error.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {SchemaSerializedValueDescription} from "~/shared/schema/types/schema_description_types.js";
 
 const checkingNextSchemasByLastSchema = new Map<
     SchemaSerializedValueDescription,

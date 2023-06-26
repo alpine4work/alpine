@@ -1,23 +1,23 @@
-import {WebSocketConnectionProcedures} from "~/server/cloudflare/web_socket_server";
-import {ProcessContext} from "~/server/dynamo/context/process_context";
+import {WebSocketConnectionProcedures} from "~/server/cloudflare/web_socket_server.js";
+import {ProcessContext} from "~/server/dynamo/context/process_context.js";
 import {
     backfillPostComments,
     createPostComment,
     deletePostComment,
     updatePostCommentContent,
-} from "~/server/dynamo/forum_table";
+} from "~/server/dynamo/forum_table.js";
 import {
     BackfillMessagesFunction,
     CreateMessageFunction,
     CreateMessageModelFunction,
     DeleteMessageFunction,
     UpdateMessageContentFunction,
-} from "~/server/messaging/messaging_implementation";
-import {MessagingRealtimeConnection} from "~/server/messaging/messaging_realtime_connection";
-import {PostCommentModel} from "~/shared/forum/post_model";
-import {PostRealtimeEvent, PostRealtimeProtocol} from "~/shared/forum/post_realtime_protocol";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable";
-import {PostId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types";
+} from "~/server/messaging/messaging_implementation.js";
+import {MessagingRealtimeConnection} from "~/server/messaging/messaging_realtime_connection.js";
+import {PostCommentModel} from "~/shared/forum/post_model.js";
+import {PostRealtimeEvent, PostRealtimeProtocol} from "~/shared/forum/post_realtime_protocol.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {PostId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 
 export class PostRealtimeConnection {
     private readonly _connection: MessagingRealtimeConnection<PostId, PostCommentModel>;

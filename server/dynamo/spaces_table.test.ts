@@ -1,9 +1,9 @@
-import {expensivelyGetAllSpaceAccounts} from "~/server/dynamo/spaces_table";
-import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
-import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
-import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
-import {PermissionDeniedError} from "~/shared/error/error";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
+import {expensivelyGetAllSpaceAccounts} from "~/server/dynamo/spaces_table.js";
+import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
+import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
+import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space.js";
+import {PermissionDeniedError} from "~/shared/error/error.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 
 const context = createTestContext();
 const spaceA = createTestSpace(context);

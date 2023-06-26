@@ -1,5 +1,5 @@
 import {AwsClient} from "aws4fetch";
-import {InternalError} from "~/shared/error/error";
+import {InternalError} from "~/shared/error/error.js";
 
 export function createAwsClientFromEnv(env: {
     AWS_ACCESS_KEY_ID?: string;

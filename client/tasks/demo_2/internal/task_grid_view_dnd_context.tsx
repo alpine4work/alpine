@@ -12,30 +12,30 @@ import type {MouseSensorProps} from "@dnd-kit/core/dist/sensors";
 import {CalendarDate, parseAbsolute, toCalendarDate} from "@internationalized/date";
 import {ReactNode, RefObject, createContext, useContext, useState} from "react";
 import {createPortal} from "react-dom";
-import {Box} from "~/client/design/box";
-import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
-import {useClientInfo} from "~/client/remix/client_info_context";
-import {useSpaceContext} from "~/client/spaces/space_context";
-import {taskRowViewMinHeight} from "~/client/tasks/demo_2/internal/task_row_shared_styles";
-import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
-import {TaskCardPresentationalView} from "~/client/tasks/demo_2/task_card_presentational_view";
+import {Box} from "~/client/design/box.js";
+import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {taskRowViewMinHeight} from "~/client/tasks/demo_2/internal/task_row_shared_styles.js";
+import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state.js";
+import {TaskCardPresentationalView} from "~/client/tasks/demo_2/task_card_presentational_view.js";
 import {
     TaskAssignee,
     TaskAssigneeActiveStatus,
     TaskStatus,
     TaskStatusButton,
     compareTaskAssigneeActiveStatus,
-} from "~/client/tasks/demo_2/task_status_button";
-import {spacing} from "~/shared/design/spacing";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {noop} from "~/shared/helpers/control/noop";
-import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key";
-import {LocalTaskId} from "~/shared/id/types/id_types";
-import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
-import {contentSchemaStyles} from "~/shared/styles/styles";
-import {TaskPriority} from "~/shared/tasks/task_priority";
-import {TaskTitle} from "~/shared/tasks/task_title_schema";
+} from "~/client/tasks/demo_2/task_status_button.js";
+import {spacing} from "~/shared/design/spacing.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {noop} from "~/shared/helpers/control/noop.js";
+import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {LocalTaskId} from "~/shared/id/types/id_types.js";
+import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
+import {contentSchemaStyles} from "~/shared/styles/styles.js";
+import {TaskPriority} from "~/shared/tasks/task_priority.js";
+import {TaskTitle} from "~/shared/tasks/task_title_schema.js";
 
 const TaskGridViewHasDndContext = createContext(false);
 

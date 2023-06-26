@@ -1,10 +1,10 @@
 import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {RefObject} from "react";
-import {ContentEditorPhantomSelection} from "~/client/content/content_editor";
-import {useContentEditorTracker} from "~/client/content/internal/content_editor_cursor_tracker";
-import {spacing} from "~/shared/design/spacing";
-import {sprinkles} from "~/shared/styles/styles";
+import {ContentEditorPhantomSelection} from "~/client/content/content_editor.js";
+import {useContentEditorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
+import {spacing} from "~/shared/design/spacing.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 
 export function ContentEditorPhantomSelectionCursor({
     state,

@@ -4,19 +4,19 @@ import {
     DocumentBlobFactory,
     DocumentBlobFactorySettings,
     useDocumentBlobSettings,
-} from "~/client/blob_factory/document_blobs";
-import {ContentView} from "~/client/content/content_view";
-import {Box} from "~/client/design/box";
-import {IconButton} from "~/client/design/icon_button";
-import {ColorSchemeToggleButton} from "~/client/design/playground/color_scheme_toggle_button";
-import {TextInput} from "~/client/design/text_input";
-import {useConstant} from "~/client/helpers/lifecycle/use_constant";
-import {useResizeObserver} from "~/client/helpers/use_resize_observer";
-import {emptyContentReferences} from "~/shared/content/content_references";
-import {themeColors} from "~/shared/design/theme_colors";
-import {dummyDocumentContent} from "~/shared/documents/dummy_document_content";
-import {generateId} from "~/shared/id/id";
-import {sprinkles} from "~/shared/styles/styles";
+} from "~/client/blob_factory/document_blobs.js";
+import {ContentView} from "~/client/content/content_view.js";
+import {Box} from "~/client/design/box.js";
+import {IconButton} from "~/client/design/icon_button.js";
+import {ColorSchemeToggleButton} from "~/client/design/playground/color_scheme_toggle_button.js";
+import {TextInput} from "~/client/design/text_input.js";
+import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
+import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
+import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {themeColors} from "~/shared/design/theme_colors.js";
+import {dummyDocumentContent} from "~/shared/documents/dummy_document_content.js";
+import {generateId} from "~/shared/id/id.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 
 export function DocumentBlobsPlayground() {
     const [seed, setSeed] = useState<string>(generateId());

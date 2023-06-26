@@ -1,6 +1,6 @@
-import {assert} from "~/shared/helpers/control/assert";
-import {mapObjectValues} from "~/shared/helpers/object/map_object_values";
-import {isIdentifier} from "~/shared/helpers/string/is_identifier";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
 import {
     ObjectSchema,
     ObjectSchemaConfigBase,
@@ -9,7 +9,7 @@ import {
     UnionSchema,
     UnionSchemaObjectConfigBase,
     UnionSchemaObjectConfigType,
-} from "~/shared/schema/schema";
+} from "~/shared/schema/schema.js";
 
 export type WebSocketProtocolBase = WebSocketProtocol<
     {[name: string]: {input: any; output: any}},

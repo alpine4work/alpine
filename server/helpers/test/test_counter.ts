@@ -1,6 +1,6 @@
 import jsonStableStringify from "json-stable-stringify";
-import {assert} from "~/shared/helpers/control/assert";
-import {SchemaSerializedValue} from "~/shared/schema/schema";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 /**
  * A test helper for determining how often a given operation happens over the

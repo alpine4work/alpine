@@ -1,8 +1,11 @@
-import {TracerEventFlatDataSchema} from "~/server/tracer/tracer_event_data_schema";
-import {InvalidArgumentError} from "~/shared/error/error";
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object";
-import {SchemaSerializedValue, withSchemaDeserializationStackFrame} from "~/shared/schema/schema";
-import {TracerEventFlatData} from "~/shared/tracer/helpers/build_tracer_event_flat_data";
+import {TracerEventFlatDataSchema} from "~/server/tracer/tracer_event_data_schema.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
+import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
+import {
+    SchemaSerializedValue,
+    withSchemaDeserializationStackFrame,
+} from "~/shared/schema/schema.js";
+import {TracerEventFlatData} from "~/shared/tracer/helpers/build_tracer_event_flat_data.js";
 
 /**
  * Validates that the provided data matches matches the expected shape of an

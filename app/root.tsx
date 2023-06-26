@@ -17,48 +17,48 @@ import {IconContext} from "phosphor-react";
 import prosemirrorStylesHref from "prosemirror-view/style/prosemirror.css";
 import {Context} from "react";
 import {useCallback, useContext, useEffect, useMemo} from "react";
-import type {LoaderData as InboxLoaderData} from "~/app/routes/s/$space_id/inbox";
-import {AppContextProvider, useAppContext} from "~/client/context/app_context";
-import {Box} from "~/client/design/box";
-import {ErrorBodyRenderer} from "~/client/design/error_body_renderer";
-import {OverlayScopeContextProvider} from "~/client/design/overlay";
-import {ToastContextProvider} from "~/client/design/toast";
-import {TooltipCoordinationContextProvider} from "~/client/design/tooltip";
+import type {LoaderData as InboxLoaderData} from "~/app/routes/s/$space_id/inbox.js";
+import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
+import {Box} from "~/client/design/box.js";
+import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {ToastContextProvider} from "~/client/design/toast.js";
+import {TooltipCoordinationContextProvider} from "~/client/design/tooltip.js";
 import {
     InitializeColorSchemeScript,
     getColorSchemeWithoutListeningIfBrowser,
-} from "~/client/helpers/color_scheme";
-import {GlobalKeyDownRootContextProvider} from "~/client/helpers/global_key_down_event";
-import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render";
-import {useStableValue} from "~/client/helpers/use_stable_value";
-import {ClientInfoContextProvider, defaultClientInfo} from "~/client/remix/client_info_context";
-import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema";
-import {CurrentTimeContextProvider} from "~/client/remix/use_current_time_rounded_to_hour";
-import {IsMobileContextProvider} from "~/client/remix/use_is_mobile";
+} from "~/client/helpers/color_scheme.js";
+import {GlobalKeyDownRootContextProvider} from "~/client/helpers/global_key_down_event.js";
+import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useStableValue} from "~/client/helpers/use_stable_value.js";
+import {ClientInfoContextProvider, defaultClientInfo} from "~/client/remix/client_info_context.js";
+import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
+import {CurrentTimeContextProvider} from "~/client/remix/use_current_time_rounded_to_hour.js";
+import {IsMobileContextProvider} from "~/client/remix/use_is_mobile.js";
 import {
     RootNavigationContextProvider,
     WaitForNavigationContextProvider,
-} from "~/client/remix/use_navigate";
-import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title";
-import {jsonWithSchema} from "~/server/remix/json_with_schema";
-import {LoaderArgs} from "~/server/remix/loader_context";
-import {spacing} from "~/shared/design/spacing";
-import {NotFoundError, UnknownError} from "~/shared/error/error";
-import {errorDisplayMessage} from "~/shared/error/error_display_message";
-import {ErrorSchema} from "~/shared/error/error_schema";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
-import {quote} from "~/shared/helpers/string/quote";
-import {ClientInfoSchema} from "~/shared/remix/client_info";
-import {propagatedEventDataKey} from "~/shared/remix/json_with_schema_shared";
-import {Schema} from "~/shared/schema/schema";
-import {sprinkles} from "~/shared/styles/styles";
-import sharedStylesHref from "~/shared/styles/styles.css";
-import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data";
-import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data";
+} from "~/client/remix/use_navigate.js";
+import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title.js";
+import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
+import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {spacing} from "~/shared/design/spacing.js";
+import {NotFoundError, UnknownError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {ErrorSchema} from "~/shared/error/error_schema.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
+import {quote} from "~/shared/helpers/string/quote.js";
+import {ClientInfoSchema} from "~/shared/remix/client_info.js";
+import {propagatedEventDataKey} from "~/shared/remix/json_with_schema_shared.js";
+import {Schema} from "~/shared/schema/schema.js";
+import {sprinkles} from "~/shared/styles/styles.js";
+import sharedStylesHref from "~/shared/styles/styles.css.js";
+import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data.js";
+import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.js";
 
 export function meta() {
     return {

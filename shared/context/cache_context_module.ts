@@ -1,7 +1,7 @@
-import {Context} from "~/shared/context/context";
-import {ContextModuleBase} from "~/shared/context/context_module_base";
-import {DefaultMap} from "~/shared/helpers/map/default_map";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value";
+import {Context} from "~/shared/context/context.js";
+import {ContextModuleBase} from "~/shared/context/context_module_base.js";
+import {DefaultMap} from "~/shared/helpers/map/default_map.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 
 /**
  * A context module used for caching values for the lifetime of a context. Used

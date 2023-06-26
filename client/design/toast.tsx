@@ -13,20 +13,20 @@ import {
     useRef,
     useState,
 } from "react";
-import {Box} from "~/client/design/box";
-import {ErrorDisplayMessageRenderer} from "~/client/design/error_display_message_renderer";
-import {ErrorIcon} from "~/client/design/error_icon";
-import {IconButton} from "~/client/design/icon_button";
-import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants";
-import {useDevConsoleTool} from "~/client/dev/dev_console";
-import {spacing} from "~/shared/design/spacing";
-import {InternalError, InvalidArgumentError} from "~/shared/error/error";
-import {createTimeout} from "~/shared/helpers/async/timeout";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {cast} from "~/shared/helpers/control/cast";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {clamp} from "~/shared/helpers/number/clamp";
-import {toastStyles} from "~/shared/styles/styles";
+import {Box} from "~/client/design/box.js";
+import {ErrorDisplayMessageRenderer} from "~/client/design/error_display_message_renderer.js";
+import {ErrorIcon} from "~/client/design/error_icon.js";
+import {IconButton} from "~/client/design/icon_button.js";
+import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
+import {useDevConsoleTool} from "~/client/dev/dev_console.js";
+import {spacing} from "~/shared/design/spacing.js";
+import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {cast} from "~/shared/helpers/control/cast.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
+import {toastStyles} from "~/shared/styles/styles.js";
 
 // Error toasts should be visible long enough for the user to read but short
 // enough so that the user can try again. Or if the user is already trying

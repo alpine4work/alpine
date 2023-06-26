@@ -22,19 +22,19 @@ import {
     useOption,
 } from "react-aria";
 import {ComboBoxState, ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
-import {Box} from "~/client/design/box";
-import {FocusRing} from "~/client/design/focus_ring";
-import {OverlayAnimated} from "~/client/design/overlay_animated";
-import {defaultTooltipOffset} from "~/client/design/tooltip";
-import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growing_width";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {getTaskPriorityName} from "~/client/tasks/demo_2/internal/get_task_priority_name";
-import {TaskPriorityIcon} from "~/client/tasks/demo_2/internal/task_priority_icon";
-import {spacing} from "~/shared/design/spacing";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {colorSchemeVars, sprinkles, tasksStyles} from "~/shared/styles/styles";
-import {TaskPriority} from "~/shared/tasks/task_priority";
+import {Box} from "~/client/design/box.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {OverlayAnimated} from "~/client/design/overlay_animated.js";
+import {defaultTooltipOffset} from "~/client/design/tooltip.js";
+import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growing_width.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {getTaskPriorityName} from "~/client/tasks/demo_2/internal/get_task_priority_name.js";
+import {TaskPriorityIcon} from "~/client/tasks/demo_2/internal/task_priority_icon.js";
+import {spacing} from "~/shared/design/spacing.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {colorSchemeVars, sprinkles, tasksStyles} from "~/shared/styles/styles.js";
+import {TaskPriority} from "~/shared/tasks/task_priority.js";
 
 type TaskPriorityInputItem = {readonly key: TaskPriority | "Null"};
 

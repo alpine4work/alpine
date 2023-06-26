@@ -1,6 +1,6 @@
 import {NodeSpec} from "prosemirror-model";
-import {Schema} from "~/shared/schema/schema";
-import {contentSchemaStyles} from "~/shared/styles/styles";
+import {Schema} from "~/shared/schema/schema.js";
+import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
 const {dividerClassName, headingLevel1ClassName, headingLevel2ClassName, headingLevel3ClassName} =
     contentSchemaStyles;

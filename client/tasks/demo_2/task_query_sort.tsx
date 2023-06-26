@@ -1,7 +1,7 @@
-import {InvalidArgumentError} from "~/shared/error/error";
-import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64";
-import {assert} from "~/shared/helpers/control/assert";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {InvalidArgumentError} from "~/shared/error/error.js";
+import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 export type TaskQuerySort =
     | TaskQueryStatusSort

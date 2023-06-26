@@ -2,39 +2,39 @@ import classNames from "classnames";
 import {differenceInHours} from "date-fns";
 import {Bell} from "phosphor-react";
 import {useCallback, useEffect, useRef, useState} from "react";
-import {useAppContext} from "~/client/context/app_context";
-import {Box} from "~/client/design/box";
-import {useRemPx} from "~/client/design/helpers/use_rem_px";
-import {IconButton} from "~/client/design/icon_button";
-import {Overlay} from "~/client/design/overlay";
-import {tooltipDelayMs} from "~/client/design/tooltip";
-import {defaultTooltipOffset} from "~/client/design/tooltip";
-import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {inboxEntryViewMinHeight, inboxEntryWidth} from "~/client/inbox/inbox_entry_view";
-import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge";
-import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour";
-import {useNavigate} from "~/client/remix/use_navigate";
+import {useAppContext} from "~/client/context/app_context.js";
+import {Box} from "~/client/design/box.js";
+import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
+import {IconButton} from "~/client/design/icon_button.js";
+import {Overlay} from "~/client/design/overlay.js";
+import {tooltipDelayMs} from "~/client/design/tooltip.js";
+import {defaultTooltipOffset} from "~/client/design/tooltip.js";
+import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {inboxEntryViewMinHeight, inboxEntryWidth} from "~/client/inbox/inbox_entry_view.js";
+import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge.js";
+import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
 import {
     SpaceLayoutTopBarInboxOverlay,
     spaceLayoutTopBarInboxOverlayHeight,
-} from "~/client/spaces/layout/internal/space_layout_top_bar_inbox_overlay";
-import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context";
-import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_scroll_view_state";
-import {convertRemLengthToPx, spacing} from "~/shared/design/spacing";
+} from "~/client/spaces/layout/internal/space_layout_top_bar_inbox_overlay.js";
+import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context.js";
+import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_scroll_view_state.js";
+import {convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
 import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeItem,
-} from "~/shared/dynamo/dynamo_general_realtime_types";
-import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate";
-import {createTimeout} from "~/shared/helpers/async/timeout";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {Lazy} from "~/shared/helpers/control/lazy";
-import {InboxEntryModel, InboxModel} from "~/shared/notifications/inbox_model";
+} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {InboxEntryModel, InboxModel} from "~/shared/notifications/inbox_model.js";
 import {
     getInboxEntries,
     getInboxWithStrongReadConsistency,
-} from "~/shared/rpc/notifications_rpc_definitions";
+} from "~/shared/rpc/notifications_rpc_definitions.js";
 import {
     backgroundColorVar,
     greyElevatedClassName,
@@ -43,7 +43,7 @@ import {
     overlayAnimateFadeOutClassName,
     overlayFadeInAnimationDurationMs,
     overlayFadeOutAnimationDurationMs,
-} from "~/shared/styles/styles";
+} from "~/shared/styles/styles.js";
 
 export function SpaceLayoutTopBarInboxButton({
     initialInbox,

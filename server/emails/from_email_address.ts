@@ -1,4 +1,4 @@
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 /**
  * Email addresses we are allowed to send email from. We have a handful of

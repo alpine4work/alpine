@@ -1,5 +1,5 @@
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property";
-import {ObjectSchema, Schema} from "~/shared/schema/schema";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
+import {ObjectSchema, Schema} from "~/shared/schema/schema.js";
 
 /**
  * The type of an immutable model object class.

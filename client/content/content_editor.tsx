@@ -27,47 +27,47 @@ import {
     ContentEditorState,
     getContentEditorFloaterState,
     setContentEditorFloaterState,
-} from "~/client/content/content_editor_state";
-import {ContentView} from "~/client/content/content_view";
-import {createContentEditorCheckListItemNodeView} from "~/client/content/internal/content_editor_check_list_item_node_view";
-import {createContentEditorCommentMarkViewConstructor} from "~/client/content/internal/content_editor_comment_mark_view";
-import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer";
-import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser";
-import {ContentEditorFloater} from "~/client/content/internal/content_editor_floater";
-import {createContentEditorLinkMarkViewConstructor} from "~/client/content/internal/content_editor_link_mark_view";
-import {createContentEditorMentionNodeViewConstructor} from "~/client/content/internal/content_editor_mention_node_view";
-import {createContentEditorOrderedListItemNodeView} from "~/client/content/internal/content_editor_ordered_list_item_node_view";
-import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/content_editor_phantom_selection_cursor";
-import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer";
-import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools";
-import {FocusRing} from "~/client/design/focus_ring";
-import {isMac} from "~/client/helpers/browser/is_mac";
-import {isVirtualKeyboardEvent} from "~/client/helpers/events/is_virtual_keyboard_event";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
-import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority";
-import {useNavigate} from "~/client/remix/use_navigate";
-import {useSpaceContext} from "~/client/spaces/space_context";
-import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts";
-import {ContentWithReferences} from "~/shared/content/content_references";
-import {ContentProsemirrorSchema} from "~/shared/content/content_schema";
-import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty";
-import {ThemeColor} from "~/shared/design/theme_colors";
-import {documentFallbackTitle} from "~/shared/documents/document_fallback_title";
-import {UnimplementedError} from "~/shared/error/error";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis";
-import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol";
-import {generateId} from "~/shared/id/id";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types";
-import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer";
-import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range";
+} from "~/client/content/content_editor_state.js";
+import {ContentView} from "~/client/content/content_view.js";
+import {createContentEditorCheckListItemNodeView} from "~/client/content/internal/content_editor_check_list_item_node_view.js";
+import {createContentEditorCommentMarkViewConstructor} from "~/client/content/internal/content_editor_comment_mark_view.js";
+import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
+import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser.js";
+import {ContentEditorFloater} from "~/client/content/internal/content_editor_floater.js";
+import {createContentEditorLinkMarkViewConstructor} from "~/client/content/internal/content_editor_link_mark_view.js";
+import {createContentEditorMentionNodeViewConstructor} from "~/client/content/internal/content_editor_mention_node_view.js";
+import {createContentEditorOrderedListItemNodeView} from "~/client/content/internal/content_editor_ordered_list_item_node_view.js";
+import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/content_editor_phantom_selection_cursor.js";
+import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
+import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {isMac} from "~/client/helpers/browser/is_mac.js";
+import {isVirtualKeyboardEvent} from "~/client/helpers/events/is_virtual_keyboard_event.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
+import {ContentWithReferences} from "~/shared/content/content_references.js";
+import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
+import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
+import {ThemeColor} from "~/shared/design/theme_colors.js";
+import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
+import {UnimplementedError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
+import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol.js";
+import {generateId} from "~/shared/id/id.js";
+import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
+import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 import {
     colorSchemeVars,
     contentEditorStyles,
     contentSchemaStyles,
     emojiFontFamily,
-} from "~/shared/styles/styles";
+} from "~/shared/styles/styles.js";
 
 const {docClassName, emptyBodyClassName, emptyTitleClassName} = contentSchemaStyles;
 

@@ -1,11 +1,11 @@
 import {ReactNode, useEffect, useId, useRef} from "react";
-import {Box} from "~/client/design/box";
-import {ModalWithButtons, ModalWithButtonsRef} from "~/client/design/modal_with_buttons";
-import {parseRemLengthNumber, spacing} from "~/shared/design/spacing";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {lerp} from "~/shared/helpers/number/lerp";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise";
-import {sprinkles} from "~/shared/styles/styles";
+import {Box} from "~/client/design/box.js";
+import {ModalWithButtons, ModalWithButtonsRef} from "~/client/design/modal_with_buttons.js";
+import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {lerp} from "~/shared/helpers/number/lerp.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 
 /**
  * Present information to the user, blocking their experience, and ask them to

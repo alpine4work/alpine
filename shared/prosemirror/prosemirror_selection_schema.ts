@@ -1,7 +1,7 @@
 import {Node} from "prosemirror-model";
 import {Selection} from "prosemirror-state";
-import {FailedPreconditionError} from "~/shared/error/error";
-import {Schema, SchemaDeserializationError, SchemaSerializedValue} from "~/shared/schema/schema";
+import {FailedPreconditionError} from "~/shared/error/error.js";
+import {Schema, SchemaDeserializationError, SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 /**
  * A schema representing a Prosemirror `Selection` object.

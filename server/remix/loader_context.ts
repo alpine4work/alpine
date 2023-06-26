@@ -1,12 +1,12 @@
 import {ServerRoute} from "@remix-run/server-runtime";
-import {MaybeSessionActionContextModules} from "~/server/dynamo/context/action_context";
-import {SessionCookie} from "~/server/remix/session_cookie";
-import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module";
-import {Context} from "~/shared/context/context";
-import {ContextModuleBase} from "~/shared/context/context_module_base";
-import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection";
-import {ClientInfo} from "~/shared/remix/client_info";
-import {TracerSpan} from "~/shared/tracer/tracer_span";
+import {MaybeSessionActionContextModules} from "~/server/dynamo/context/action_context.js";
+import {SessionCookie} from "~/server/remix/session_cookie.js";
+import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
+import {Context} from "~/shared/context/context.js";
+import {ContextModuleBase} from "~/shared/context/context_module_base.js";
+import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
+import {ClientInfo} from "~/shared/remix/client_info.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export type LoaderContext = Context<LoaderContextModules>;
 

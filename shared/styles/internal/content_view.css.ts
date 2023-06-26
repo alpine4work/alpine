@@ -1,7 +1,10 @@
 import {globalStyle, style} from "@vanilla-extract/css";
-import {colorSchemeVars} from "~/shared/styles/internal/color_scheme.css";
-import {paragraphClassName, paragraphFontSize} from "~/shared/styles/internal/content_schema.css";
-import {fontSizes} from "~/shared/styles/internal/fonts.css";
+import {colorSchemeVars} from "~/shared/styles/internal/color_scheme.css.js";
+import {
+    paragraphClassName,
+    paragraphFontSize,
+} from "~/shared/styles/internal/content_schema.css.js";
+import {fontSizes} from "~/shared/styles/internal/fonts.css.js";
 
 export const truncatedHeight = paragraphFontSize.lineHeight;
 

@@ -1,5 +1,5 @@
-import {DocumentContentSchema} from "~/shared/documents/document_content_schema";
-import {Lazy} from "~/shared/helpers/control/lazy";
+import {DocumentContentSchema} from "~/shared/documents/document_content_schema.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
 
 export const dummyDocumentContent = new Lazy(() => {
     return DocumentContentSchema.deserialize({

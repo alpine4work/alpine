@@ -1,5 +1,5 @@
 import {useCallback} from "react";
-import {useUrlSearchParamState} from "~/client/remix/use_url_search_param_state";
+import {useUrlSearchParamState} from "~/client/remix/use_url_search_param_state.js";
 
 /**
  * Convenient React-style state for a boolean that is persisted in the URL's

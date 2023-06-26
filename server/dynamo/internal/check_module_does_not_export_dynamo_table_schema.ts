@@ -1,6 +1,6 @@
-import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema";
-import {InternalError} from "~/shared/error/error";
-import {quote} from "~/shared/helpers/string/quote";
+import {DynamoTableSchema} from "~/server/dynamo/internal/dynamo_table_schema.js";
+import {InternalError} from "~/shared/error/error.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 
 /**
  * Verify that a module object does not export a `DynamoTableSchema`. We expect

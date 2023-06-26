@@ -4,6 +4,6 @@
 // it needs `Store` during its initialization. So we have this level of
 // indirection to ensure `MappedStore` is imported first.
 
-import "~/client/helpers/store/mapped_store";
+import "~/client/helpers/store/mapped_store.js";
 
-export {Store} from "~/client/helpers/store/internal/store";
+export {Store} from "~/client/helpers/store/internal/store.js";

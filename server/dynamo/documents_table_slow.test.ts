@@ -18,17 +18,17 @@ import {
     getDocumentsTableForTest,
     updateDocumentContent,
     updateDocumentSnapshotBeforeDeletingStepsTestCheckpoint,
-} from "~/server/dynamo/documents_table";
-import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context";
-import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session";
-import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space";
-import {ProcessContextModule} from "~/shared/context/process_context_module";
+} from "~/server/dynamo/documents_table.js";
+import {createTestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
+import {createTestSession} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
+import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {
     emptyDocumentContent,
     DocumentContentProsemirrorSchema as schema,
-} from "~/shared/documents/document_content_schema";
-import {assert} from "~/shared/helpers/control/assert";
-import {generateId} from "~/shared/id/id";
+} from "~/shared/documents/document_content_schema.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {generateId} from "~/shared/id/id.js";
 
 jest.setTimeout(1000 * 20);
 

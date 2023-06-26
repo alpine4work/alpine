@@ -1,6 +1,6 @@
-import {TaskCollectionChipBase} from "~/client/tasks/demo_2/internal/task_collection_chip_base";
-import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
-import {parseRemLengthNumber, spacing} from "~/shared/design/spacing";
+import {TaskCollectionChipBase} from "~/client/tasks/demo_2/internal/task_collection_chip_base.js";
+import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state.js";
+import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 
 /**
  * At maximum width, two task collection chips should fit on a line. Subtract

@@ -1,7 +1,7 @@
-import {isPromiseLike} from "~/shared/helpers/async/is_promise_like";
-import {PromiseState} from "~/shared/helpers/async/promise_state";
-import {assert} from "~/shared/helpers/control/assert";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {isPromiseLike} from "~/shared/helpers/async/is_promise_like.js";
+import {PromiseState} from "~/shared/helpers/async/promise_state.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 /**
  * Same as a promise except `PromiseImmediate.then()` will call its callbacks

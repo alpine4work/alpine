@@ -1,6 +1,6 @@
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {MessageContentWithReferencesSchema} from "~/shared/messaging/message_content_schema";
-import {Schema, SchemaType} from "~/shared/schema/schema";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {MessageContentWithReferencesSchema} from "~/shared/messaging/message_content_schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 export type MessageChange = SchemaType<typeof MessageChangeSchema>;
 

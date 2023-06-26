@@ -1,24 +1,24 @@
 import {useEffect, useState} from "react";
 import {useParams, useSearchParams} from "react-router-dom";
-import TasksViewRouteWrapper from "~/app/routes/s/$space_id/tasks/demo-2/view";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render";
-import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
-import {useLocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
-import {TaskCollectionView} from "~/client/tasks/demo_2/task_collection_view";
+import TasksViewRouteWrapper from "~/app/routes/s/$space_id/tasks/demo-2/view.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
+import {useLocalTasksState} from "~/client/tasks/demo_2/local_tasks_state.js";
+import {TaskCollectionView} from "~/client/tasks/demo_2/task_collection_view.js";
 import {
     deserializeTaskQuerySortsSearchParam,
     serializeTaskQuerySortsSearchParam,
-} from "~/client/tasks/demo_2/task_query_sort";
-import {getTaskQueryFilterReferences} from "~/server/dynamo/helpers/get_task_query_filter_references";
-import {jsonWithSchema} from "~/server/remix/json_with_schema";
-import {LoaderArgs} from "~/server/remix/loader_context";
-import {LocalTaskCollectionId, SpaceId} from "~/shared/id/types/id_types";
-import {Schema} from "~/shared/schema/schema";
+} from "~/client/tasks/demo_2/task_query_sort.js";
+import {getTaskQueryFilterReferences} from "~/server/dynamo/helpers/get_task_query_filter_references.js";
+import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
+import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {LocalTaskCollectionId, SpaceId} from "~/shared/id/types/id_types.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {
     deserializeTaskQueryFiltersSearchParam,
     serializeTaskQueryFiltersSearchParam,
-} from "~/shared/tasks/task_query_filter";
-import {TaskQueryFilterReferencesSchema} from "~/shared/tasks/task_query_filter_references";
+} from "~/shared/tasks/task_query_filter.js";
+import {TaskQueryFilterReferencesSchema} from "~/shared/tasks/task_query_filter_references.js";
 
 const LoaderSchema = Schema.object({
     filterReferences: TaskQueryFilterReferencesSchema,

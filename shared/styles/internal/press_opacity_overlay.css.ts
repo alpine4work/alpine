@@ -1,7 +1,10 @@
 import {style} from "@vanilla-extract/css";
-import {colors} from "~/shared/design/colors";
-import {darkColorSchemeSelector, invertedColors} from "~/shared/styles/internal/color_scheme.css";
-import {extrapolateHighlightColor} from "~/shared/styles/internal/helpers/extrapolate_highlight_color";
+import {colors} from "~/shared/design/colors.js";
+import {
+    darkColorSchemeSelector,
+    invertedColors,
+} from "~/shared/styles/internal/color_scheme.css.js";
+import {extrapolateHighlightColor} from "~/shared/styles/internal/helpers/extrapolate_highlight_color.js";
 
 const opacity = 0.1;
 

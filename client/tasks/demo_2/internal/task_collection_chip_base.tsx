@@ -1,11 +1,11 @@
 import {X} from "phosphor-react";
 import {ReactNode, Ref, forwardRef} from "react";
 import {usePress} from "react-aria";
-import {Box} from "~/client/design/box";
-import {IconButton} from "~/client/design/icon_button";
-import {Spacing, addRemLengths, spacing} from "~/shared/design/spacing";
-import {ThemeColor} from "~/shared/design/theme_colors";
-import {omitObject} from "~/shared/helpers/object/omit_object";
+import {Box} from "~/client/design/box.js";
+import {IconButton} from "~/client/design/icon_button.js";
+import {Spacing, addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {ThemeColor} from "~/shared/design/theme_colors.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
 
 export const taskCollectionChipHeight: Spacing = "5";
 export const taskCollectionChipPaddingY: Spacing = "0.5";

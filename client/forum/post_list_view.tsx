@@ -13,65 +13,68 @@ import {
     useRef,
     useState,
 } from "react";
-import {useAppContext} from "~/client/context/app_context";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px";
-import {Spacer} from "~/client/design/spacer";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants";
-import {ChannelViewHeader, channelViewHeaderMinHeight} from "~/client/forum/channel_view_header";
+import {useAppContext} from "~/client/context/app_context.js";
+import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
+import {Spacer} from "~/client/design/spacer.js";
+import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {ChannelViewHeader, channelViewHeaderMinHeight} from "~/client/forum/channel_view_header.js";
 import {
     PostCommentInput,
     PostRealtimeProcedures,
     postCommentInputMinHeight,
-} from "~/client/forum/post_comment_input";
-import {PostContentView, postContentViewMinHeight} from "~/client/forum/post_content_view";
-import {PostEditorModal} from "~/client/forum/post_editor_modal";
+} from "~/client/forum/post_comment_input.js";
+import {PostContentView, postContentViewMinHeight} from "~/client/forum/post_content_view.js";
+import {PostEditorModal} from "~/client/forum/post_editor_modal.js";
 import {
     PostCommentsState,
     PostList,
     PostListChannelHeader,
     PostListPostContentItem,
-} from "~/client/forum/post_list";
-import {PostShimmer} from "~/client/forum/post_shimmer";
-import {useEvent} from "~/client/helpers/lifecycle/use_event";
-import {useResizeObserver} from "~/client/helpers/use_resize_observer";
-import {useMessageEditing} from "~/client/messaging/message_editing";
-import {MessageShimmer} from "~/client/messaging/message_shimmer";
+} from "~/client/forum/post_list.js";
+import {PostShimmer} from "~/client/forum/post_shimmer.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
+import {useMessageEditing} from "~/client/messaging/message_editing.js";
+import {MessageShimmer} from "~/client/messaging/message_shimmer.js";
 import {
     MessageView,
     messageViewMarginY,
     messageViewMinHeight,
-} from "~/client/messaging/message_view";
+} from "~/client/messaging/message_view.js";
 import {
     MessagingTypingIndicators,
     messagingTypingIndicatorsMinHeight,
-} from "~/client/messaging/messaging_typing_indicators";
-import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view";
-import {tryLoadingMessages} from "~/client/messaging/try_loading_messages";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context";
-import {useIsMobile} from "~/client/remix/use_is_mobile";
+} from "~/client/messaging/messaging_typing_indicators.js";
+import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
+import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
+import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
-} from "~/client/virtualized/virtualized_scroll_view";
+} from "~/client/virtualized/virtualized_scroll_view.js";
 import {
     RemLength,
     Spacing,
     addRemLengths,
     convertRemLengthToPx,
     spacing,
-} from "~/shared/design/spacing";
-import {InternalError} from "~/shared/error/error";
-import {PostCommentModel, PostModel} from "~/shared/forum/post_model";
-import {wait} from "~/shared/helpers/async/wait";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping";
-import {clamp} from "~/shared/helpers/number/clamp";
-import {PostId} from "~/shared/id/types/id_types";
-import {getPostCommentsFromEnd, getPostCommentsFromStart} from "~/shared/rpc/forum_rpc_definitions";
-import {spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
+} from "~/shared/design/spacing.js";
+import {InternalError} from "~/shared/error/error.js";
+import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
+import {wait} from "~/shared/helpers/async/wait.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
+import {PostId} from "~/shared/id/types/id_types.js";
+import {
+    getPostCommentsFromEnd,
+    getPostCommentsFromStart,
+} from "~/shared/rpc/forum_rpc_definitions.js";
+import {spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 
 export const postListViewMarginX: Spacing = "4";
 

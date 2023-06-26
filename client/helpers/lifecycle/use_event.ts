@@ -1,7 +1,7 @@
 import React, {Memo, useCallback, useRef} from "react";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {InternalError} from "~/shared/error/error";
-import {assert} from "~/shared/helpers/control/assert";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {InternalError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 const reactDispatchersSeenDuringRender = new Set();
 

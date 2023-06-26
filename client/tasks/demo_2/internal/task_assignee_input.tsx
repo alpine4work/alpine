@@ -22,26 +22,26 @@ import {
     useOption,
 } from "react-aria";
 import {ComboBoxState, ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
-import {AccountAvatar} from "~/client/accounts/account_avatar";
-import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name";
-import {Box} from "~/client/design/box";
-import {FocusRing} from "~/client/design/focus_ring";
-import {OverlayAnimated} from "~/client/design/overlay_animated";
-import {defaultTooltipOffset} from "~/client/design/tooltip";
-import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growing_width";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {useSpaceContext} from "~/client/spaces/space_context";
-import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts";
-import {TaskNoAccountAvatar} from "~/client/tasks/demo_2/internal/task_no_account_avatar";
-import {AccountModel} from "~/shared/accounts/account_model";
-import {spacing} from "~/shared/design/spacing";
-import {emptyArray} from "~/shared/helpers/array/empty_array";
-import {assert} from "~/shared/helpers/control/assert";
-import {assertExists} from "~/shared/helpers/control/assert_exists";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {assertId} from "~/shared/id/id";
-import {AccountId} from "~/shared/id/types/id_types";
-import {colorSchemeVars, sprinkles, tasksStyles} from "~/shared/styles/styles";
+import {AccountAvatar} from "~/client/accounts/account_avatar.js";
+import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name.js";
+import {Box} from "~/client/design/box.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {OverlayAnimated} from "~/client/design/overlay_animated.js";
+import {defaultTooltipOffset} from "~/client/design/tooltip.js";
+import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growing_width.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
+import {TaskNoAccountAvatar} from "~/client/tasks/demo_2/internal/task_no_account_avatar.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {spacing} from "~/shared/design/spacing.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assertId} from "~/shared/id/id.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
+import {colorSchemeVars, sprinkles, tasksStyles} from "~/shared/styles/styles.js";
 
 const nullAssigneeLabel = "Nobody";
 

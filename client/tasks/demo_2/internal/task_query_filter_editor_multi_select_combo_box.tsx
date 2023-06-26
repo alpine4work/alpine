@@ -11,15 +11,15 @@ import {
     useOption,
 } from "react-aria";
 import {ComboBoxState, Item, useListState} from "react-stately";
-import {Box} from "~/client/design/box";
-import {FocusRing} from "~/client/design/focus_ring";
-import {OverlayTriggerButton} from "~/client/design/overlay_trigger";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
-import {TaskCheckbox} from "~/client/tasks/demo_2/internal/task_checkbox";
-import {Spacing, spacing} from "~/shared/design/spacing";
-import {emptyArray} from "~/shared/helpers/array/empty_array";
-import {noop} from "~/shared/helpers/control/noop";
-import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/styles/styles";
+import {Box} from "~/client/design/box.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {OverlayTriggerButton} from "~/client/design/overlay_trigger.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {TaskCheckbox} from "~/client/tasks/demo_2/internal/task_checkbox.js";
+import {Spacing, spacing} from "~/shared/design/spacing.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {noop} from "~/shared/helpers/control/noop.js";
+import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 
 export type TaskQueryFilterEditorMultiSelectComboBoxItem<Key extends string> = {
     readonly key: Key;

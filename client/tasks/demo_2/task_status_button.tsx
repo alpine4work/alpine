@@ -2,16 +2,16 @@ import {CalendarDate, parseAbsolute, toCalendarDate} from "@internationalized/da
 import {compareDesc} from "date-fns";
 import {useRef} from "react";
 import {useButton} from "react-aria";
-import {FocusRing} from "~/client/design/focus_ring";
-import {useClientInfo} from "~/client/remix/client_info_context";
-import {useSpaceContext} from "~/client/spaces/space_context";
-import {TaskStatusCircle} from "~/client/tasks/demo_2/internal/task_status_circle";
-import {AccountModel} from "~/shared/accounts/account_model";
-import {TimeZone} from "~/shared/helpers/date/time_zone";
-import {OrderKey} from "~/shared/helpers/sort/order_key";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings";
-import {AccountId} from "~/shared/id/types/id_types";
-import {sprinkles} from "~/shared/styles/styles";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {TaskStatusCircle} from "~/client/tasks/demo_2/internal/task_status_circle.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {TimeZone} from "~/shared/helpers/date/time_zone.js";
+import {OrderKey} from "~/shared/helpers/sort/order_key.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 
 export type TaskStatus =
     | {readonly type: "Open"}

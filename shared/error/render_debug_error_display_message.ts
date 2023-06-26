@@ -1,5 +1,5 @@
-import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 /**
  * Render the error display message with any sensitive text redacted (with [box

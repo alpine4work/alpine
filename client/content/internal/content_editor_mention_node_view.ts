@@ -1,10 +1,10 @@
 import classNames from "classnames";
 import {NodeViewConstructor} from "prosemirror-view";
-import {getContentMentionText} from "~/client/accounts/get_content_mention_text";
-import {getContentEditorReferences} from "~/client/content/content_editor_state";
-import {AccountModel} from "~/shared/accounts/account_model";
-import {ContentMention} from "~/shared/content/content_mention";
-import {contentSchemaStyles} from "~/shared/styles/styles";
+import {getContentMentionText} from "~/client/accounts/get_content_mention_text.js";
+import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
+import {ContentMention} from "~/shared/content/content_mention.js";
+import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
 const {mentionClassName, currentAccountMentionClassName, mentionAtClassName, mentionTextClassName} =
     contentSchemaStyles;

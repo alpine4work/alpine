@@ -1,6 +1,6 @@
 import {useEffect, useMemo, useState} from "react";
-import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate";
-import {PromiseState} from "~/shared/helpers/async/promise_state";
+import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
+import {PromiseState} from "~/shared/helpers/async/promise_state.js";
 
 /**
  * Use the value of a promise in a React component. If the promise fails we
