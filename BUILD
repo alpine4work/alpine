@@ -100,7 +100,7 @@ copy_to_bin(
     visibility = ["//visibility:public"],
 )
 
-filegroup(
+copy_to_bin(
     name = "env_files",
     srcs = glob([".env*"]),
     visibility = ["//visibility:public"],

@@ -3,9 +3,10 @@ Macros for building TypeScript projects in the style of our codebase. Along
 with any related tests for the project.
 """
 
-load("@aspect_rules_swc//swc:defs.bzl", _swc_compile = "swc_compile")
+load("@aspect_rules_swc//swc:defs.bzl", "swc", _swc_compile = "swc_compile")
 load("@aspect_rules_ts//ts:defs.bzl", _ts_project = "ts_project")
 load("@aspect_rules_js//js:providers.bzl", "JsInfo")
+load("@bazel_skylib//lib:partial.bzl", "partial")
 load("@npm//:prettier/package_json.bzl", prettier_bin = "bin")
 load("@npm//:eslint/package_json.bzl", eslint_bin = "bin")
 load("@npm//:typescript/package_json.bzl", typescript_bin = "bin")
@@ -52,10 +53,15 @@ def ts_project(
         srcs = srcs,
         deps = deps,
         tsconfig = "//:tsconfig",
-        transpiler = swc_compile,
+        transpiler = partial.make(swc, **_SWC_KWARGS),
         declaration = True,
         resolve_json_module = True,
         allow_js = True,
+        # Bazel Workers are currently incompatible with TypeScript v5. We should
+        # re-enable this once `rules_ts` is fixed. It's fine to not use workers for
+        # type checking since it's out of the critical dev path.
+        # https://github.com/aspect-build/rules_ts/issues/361
+        supports_workers = False,
         **kwargs
     )
 
@@ -136,13 +142,19 @@ def ts_project(
                 size = "small",
             )
 
+_SWC_KWARGS = {
+    "swcrc": "//admin/typescript:typescript_swc_config",
+    "source_maps": True,
+}
+
 def swc_compile(**kwargs):
     kwargs["map_outs"] = ["{}.map".format(js_out) for js_out in kwargs["js_outs"]]
+    kwargs.update(**_SWC_KWARGS)
+
+    # Needs to be a string before passing into `swc_compile()`
     kwargs["source_maps"] = "true"
-    return _swc_compile(
-        swcrc = "//admin/typescript:typescript_swc_config",
-        **kwargs
-    )
+
+    return _swc_compile(**kwargs)
 
 def ts_lint_and_format_test(
         name,
