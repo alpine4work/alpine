@@ -15,6 +15,7 @@ ts_project(
         "//:node_modules/@types/jest",
         "//:node_modules/@types/react",
         "//:node_modules/@types/scheduler",
+        "//:node_modules/classnames",
         "//:node_modules/color",
         "//:node_modules/dedent",
         "//:node_modules/react",

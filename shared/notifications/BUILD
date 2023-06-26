@@ -7,6 +7,7 @@ ts_project(
         "//:node_modules/history",
         "//shared/accounts",
         "//shared/documents",
+        "//shared/dynamo",
         "//shared/error",
         "//shared/forum",
         "//shared/id",

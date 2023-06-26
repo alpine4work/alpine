@@ -18,7 +18,6 @@ import {
     TaskQueryFilterEditorMultiSelectComboBoxItem,
 } from "~/client/tasks/demo_2/internal/task_query_filter_editor_multi_select_combo_box";
 import {TaskQueryFilterOperatorEditor} from "~/client/tasks/demo_2/internal/task_query_filter_operator_editor";
-import {TaskQueryFilterAccountOperation} from "~/client/tasks/demo_2/task_query_filter";
 import {AccountModel} from "~/shared/accounts/account_model";
 import {missingAccountName} from "~/shared/accounts/missing_account_name";
 import {assert} from "~/shared/helpers/control/assert";
@@ -28,6 +27,7 @@ import {iterableFindIndex} from "~/shared/helpers/iterable/iterable_find_index";
 import {isId} from "~/shared/id/id";
 import {AccountId} from "~/shared/id/types/id_types";
 import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles";
+import {TaskQueryFilterAccountOperation} from "~/shared/tasks/task_query_filter";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references";
 
 export function TaskQueryFilterAccountOperationEditor({

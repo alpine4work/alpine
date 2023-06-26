@@ -87,7 +87,14 @@ export function usePrettyAbsoluteDateFormatter({
                 .replace(/, (\d+:\d+)/, " at $1")
                 .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
         };
-    }, [currentTime, locale, shouldExcludeTime, shouldIncludeSeconds, timeZone]);
+    }, [
+        currentTime,
+        locale,
+        shouldExcludeTime,
+        shouldIncludeSeconds,
+        shouldIncludeWeekday,
+        timeZone,
+    ]);
 }
 
 /**

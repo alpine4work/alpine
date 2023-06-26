@@ -6,14 +6,14 @@ import {FocusRing} from "~/client/design/focus_ring";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {TaskDateInput} from "~/client/tasks/demo_2/internal/task_date_input";
 import {TaskQueryFilterOperatorEditor} from "~/client/tasks/demo_2/internal/task_query_filter_operator_editor";
-import {
-    TaskQueryFilterDateOperation,
-    TaskQueryFilterDateOperationDuration,
-} from "~/client/tasks/demo_2/task_query_filter";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {clamp} from "~/shared/helpers/number/clamp";
 import {sprinkles} from "~/shared/styles/styles";
+import {
+    TaskQueryFilterDateOperation,
+    TaskQueryFilterDateOperationDuration,
+} from "~/shared/tasks/task_query_filter";
 
 export const taskQueryFilterDateOperationLessThanOperatorLabel = "is before";
 export const taskQueryFilterDateOperationGreaterThanOperatorLabel = "is after";

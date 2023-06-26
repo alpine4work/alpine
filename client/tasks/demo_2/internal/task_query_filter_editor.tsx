@@ -14,9 +14,9 @@ import {TaskQueryFilterOperatorEditor} from "~/client/tasks/demo_2/internal/task
 import {TaskQueryPriorityFilterOperationEditor} from "~/client/tasks/demo_2/internal/task_query_priority_filter_operation_editor";
 import {TaskQueryStatusFilterOperationEditor} from "~/client/tasks/demo_2/internal/task_query_status_filter_operation_editor";
 import {LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
-import {TaskQueryFilter} from "~/client/tasks/demo_2/task_query_filter";
 import {spacing} from "~/shared/design/spacing";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {TaskQueryFilter} from "~/shared/tasks/task_query_filter";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references";
 
 export function TaskQueryFilterEditor({

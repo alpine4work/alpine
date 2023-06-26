@@ -320,7 +320,7 @@ export async function getOptimisticChatId(
     // applications! However, we do not need security guarantees here, this is a
     // performance optimization. We use MD5 since it is fast and it outputs as
     // 128-bit value. Our `Id`s our 128-bit so this aligns quite well.
-    return encodeId(new Uint8Array(await hashMd5(optimisticChatIdHashKey))) as ChatId;
+    return encodeId<ChatId>(new Uint8Array(await hashMd5(optimisticChatIdHashKey)));
 }
 
 let webCryptoSupportsMd5Hash = true;

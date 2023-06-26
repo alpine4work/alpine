@@ -6,10 +6,10 @@ import {MenuButton} from "~/client/design/menu_button";
 import {TaskCheckbox} from "~/client/tasks/demo_2/internal/task_checkbox";
 import {TaskQueryFilterOperatorEditor} from "~/client/tasks/demo_2/internal/task_query_filter_operator_editor";
 import {TaskStatusCircle} from "~/client/tasks/demo_2/internal/task_status_circle";
-import {TaskQueryStatusFilter} from "~/client/tasks/demo_2/task_query_filter";
 import {addRemLengths, spacing} from "~/shared/design/spacing";
 import {isNonNullableOrFalse} from "~/shared/helpers/control/is_non_nullable_or_false";
 import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles";
+import {TaskQueryStatusFilter} from "~/shared/tasks/task_query_filter";
 
 export function TaskQueryStatusFilterOperationEditor({
     filter,

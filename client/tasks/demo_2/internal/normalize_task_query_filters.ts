@@ -1,4 +1,7 @@
 import {CalendarDate, maxDate, minDate} from "@internationalized/date";
+import {assert} from "~/shared/helpers/control/assert";
+import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {AccountId, LocalTaskCollectionId} from "~/shared/id/types/id_types";
 import {
     TaskQueryCollectionsFilter,
     TaskQueryFilter,
@@ -7,10 +10,7 @@ import {
     TaskQueryFilterDateOperationDate,
     TaskQueryPriorityFilter,
     TaskQueryStatusFilter,
-} from "~/client/tasks/demo_2/task_query_filter";
-import {assert} from "~/shared/helpers/control/assert";
-import {exhaustive} from "~/shared/helpers/control/exhaustive";
-import {AccountId, LocalTaskCollectionId} from "~/shared/id/types/id_types";
+} from "~/shared/tasks/task_query_filter";
 
 type NonEmptyReadonlySet<T> = ReadonlySet<T> & {readonly _NonEmptyReadonlySet: never};
 

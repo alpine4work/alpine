@@ -30,11 +30,11 @@ import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growin
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning";
 import {getTaskPriorityName} from "~/client/tasks/demo_2/internal/get_task_priority_name";
 import {TaskPriorityIcon} from "~/client/tasks/demo_2/internal/task_priority_icon";
-import {TaskPriority} from "~/client/tasks/demo_2/local_tasks_state";
 import {spacing} from "~/shared/design/spacing";
 import {assert} from "~/shared/helpers/control/assert";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {colorSchemeVars, sprinkles, tasksStyles} from "~/shared/styles/styles";
+import {TaskPriority} from "~/shared/tasks/task_priority";
 
 type TaskPriorityInputItem = {readonly key: TaskPriority | "Null"};
 

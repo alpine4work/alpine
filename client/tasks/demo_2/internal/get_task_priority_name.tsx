@@ -1,5 +1,5 @@
-import {TaskPriority} from "~/client/tasks/demo_2/local_tasks_state";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
+import {TaskPriority} from "~/shared/tasks/task_priority";
 
 export function getTaskPriorityName(priority: TaskPriority | "Null" | null): string {
     switch (priority) {

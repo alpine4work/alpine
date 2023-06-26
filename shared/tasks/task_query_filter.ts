@@ -1,11 +1,11 @@
 import {CalendarDate, GregorianCalendar, toCalendar} from "@internationalized/date";
-import {TaskPriority} from "~/client/tasks/demo_2/local_tasks_state";
 import {InvalidArgumentError} from "~/shared/error/error";
 import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64";
 import {assert} from "~/shared/helpers/control/assert";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {decodeIdInto, encodeId, idByteLength} from "~/shared/id/id";
 import {AccountId, LocalTaskCollectionId} from "~/shared/id/types/id_types";
+import {TaskPriority} from "~/shared/tasks/task_priority";
 
 export type TaskQueryFilter =
     | TaskQueryStatusFilter

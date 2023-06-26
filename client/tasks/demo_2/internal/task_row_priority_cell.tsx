@@ -10,10 +10,10 @@ import {
     taskRowViewColumnWidth,
     taskRowViewMinHeight,
 } from "~/client/tasks/demo_2/internal/task_row_shared_styles";
-import {TaskPriority} from "~/client/tasks/demo_2/local_tasks_state";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {tasksStyles} from "~/shared/styles/styles";
+import {TaskPriority} from "~/shared/tasks/task_priority";
 
 export type TaskRowPriorityCellRef = {
     focus(): void;

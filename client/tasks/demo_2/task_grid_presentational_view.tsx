@@ -31,7 +31,7 @@ import {
     taskRowViewMinHeight,
 } from "~/client/tasks/demo_2/internal/task_row_shared_styles";
 import {TaskRowViewDroppable} from "~/client/tasks/demo_2/internal/task_row_view_droppable";
-import {LocalTaskCollection, TaskPriority} from "~/client/tasks/demo_2/local_tasks_state";
+import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
 import {
     TaskRowPresentationalView,
     TaskRowPresentationalViewRef,
@@ -45,6 +45,7 @@ import {LazyMap} from "~/shared/helpers/control/lazy_map";
 import {noop} from "~/shared/helpers/control/noop";
 import {LocalTaskCollectionId} from "~/shared/id/types/id_types";
 import {colorSchemeVars} from "~/shared/styles/styles";
+import {TaskPriority} from "~/shared/tasks/task_priority";
 import {TaskTitle, emptyTaskTitle} from "~/shared/tasks/task_title_schema";
 
 export const minTaskCountToShowTopGhostTask = 7;

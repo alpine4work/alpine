@@ -6,8 +6,8 @@ import {useNavigate} from "~/client/remix/use_navigate";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {TaskLayoutTopBarCollectionsButton} from "~/client/tasks/demo_2/internal/task_layout_top_bar_collections_button";
 import {useLocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
-import {serializeTaskQueryFiltersSearchParam} from "~/client/tasks/demo_2/task_query_filter";
 import {serializeTaskQuerySortsSearchParam} from "~/client/tasks/demo_2/task_query_sort";
+import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter";
 
 export function TaskLayoutTopBar({
     isNotepadTabActive,

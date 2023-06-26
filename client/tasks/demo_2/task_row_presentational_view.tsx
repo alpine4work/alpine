@@ -53,7 +53,7 @@ import {
     TaskRowTitleInputRef,
 } from "~/client/tasks/demo_2/internal/task_row_title_input";
 import {TaskRowViewDroppable} from "~/client/tasks/demo_2/internal/task_row_view_droppable";
-import {LocalTaskCollection, TaskPriority} from "~/client/tasks/demo_2/local_tasks_state";
+import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
 import {TaskAssignee, TaskStatus, TaskStatusButton} from "~/client/tasks/demo_2/task_status_button";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
 import {AccountModel} from "~/shared/accounts/account_model";
@@ -62,6 +62,7 @@ import {ThemeColor} from "~/shared/design/theme_colors";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {LocalTaskCollectionId} from "~/shared/id/types/id_types";
 import {colorSchemeVars, contentSchemaStyles, sprinkles, tasksStyles} from "~/shared/styles/styles";
+import {TaskPriority} from "~/shared/tasks/task_priority";
 import {TaskTitle} from "~/shared/tasks/task_title_schema";
 
 export type TaskRowPresentationalViewRef = {

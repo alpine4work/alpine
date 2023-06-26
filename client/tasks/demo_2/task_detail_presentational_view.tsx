@@ -32,7 +32,7 @@ import {TaskDateInput} from "~/client/tasks/demo_2/internal/task_date_input";
 import {TaskDetailNotesField} from "~/client/tasks/demo_2/internal/task_detail_notes_field";
 import {TaskDetailTitleInput} from "~/client/tasks/demo_2/internal/task_detail_title_input";
 import {TaskPriorityInput} from "~/client/tasks/demo_2/internal/task_priority_input";
-import {LocalTaskCollection, TaskPriority} from "~/client/tasks/demo_2/local_tasks_state";
+import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
 import {
     TaskGridPresentationalView,
     TaskGridPresentationalViewProps,
@@ -45,6 +45,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {LocalTaskCollectionId} from "~/shared/id/types/id_types";
 import {sprinkles} from "~/shared/styles/styles";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema";
+import {TaskPriority} from "~/shared/tasks/task_priority";
 import {TaskTitle} from "~/shared/tasks/task_title_schema";
 
 export const taskDetailPresentationalViewMaxWidth: Spacing = "160";

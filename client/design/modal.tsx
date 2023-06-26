@@ -1,5 +1,5 @@
 import {X} from "phosphor-react";
-import {ReactNode, useEffect, useId, useState} from "react";
+import {ReactNode, useEffect, useState} from "react";
 import {FocusScope} from "react-aria";
 import {createPortal} from "react-dom";
 import {Box} from "~/client/design/box";
@@ -83,7 +83,6 @@ export function Modal({
         useOverlayRootPortalElement(),
         "Can not render modal before portal element is available",
     );
-    const titleId = useId();
     const [isFadingOut, setIsFadingOut] = useState(false);
 
     const onCloseWithoutAnimation = useEvent(_onCloseWithoutAnimation);
@@ -140,7 +139,7 @@ export function Modal({
                         <section
                             role="alertdialog"
                             aria-modal="true"
-                            aria-labelledby={titleId}
+                            aria-labelledby={ariaLabelledBy}
                             aria-describedby={ariaDescribedBy}
                             className={sprinkles({
                                 position: "relative",

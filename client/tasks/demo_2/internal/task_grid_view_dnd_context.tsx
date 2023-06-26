@@ -17,7 +17,7 @@ import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_prio
 import {useClientInfo} from "~/client/remix/client_info_context";
 import {useSpaceContext} from "~/client/spaces/space_context";
 import {taskRowViewMinHeight} from "~/client/tasks/demo_2/internal/task_row_shared_styles";
-import {LocalTaskCollection, TaskPriority} from "~/client/tasks/demo_2/local_tasks_state";
+import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
 import {TaskCardPresentationalView} from "~/client/tasks/demo_2/task_card_presentational_view";
 import {
     TaskAssignee,
@@ -34,6 +34,7 @@ import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/or
 import {LocalTaskId} from "~/shared/id/types/id_types";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
 import {contentSchemaStyles} from "~/shared/styles/styles";
+import {TaskPriority} from "~/shared/tasks/task_priority";
 import {TaskTitle} from "~/shared/tasks/task_title_schema";
 
 const TaskGridViewHasDndContext = createContext(false);

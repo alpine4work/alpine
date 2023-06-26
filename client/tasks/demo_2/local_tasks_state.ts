@@ -13,7 +13,6 @@ import {
     TaskQueryNormalizedFilters,
     normalizeTaskQueryFilters,
 } from "~/client/tasks/demo_2/internal/normalize_task_query_filters";
-import {TaskQueryFilter} from "~/client/tasks/demo_2/task_query_filter";
 import {TaskQuerySort} from "~/client/tasks/demo_2/task_query_sort";
 import {
     TaskAssignee,
@@ -53,6 +52,8 @@ import {
     TaskNotesContentWithReferencesSchema,
     emptyTaskNotesContentWithReferences,
 } from "~/shared/tasks/task_notes_content_schema";
+import {TaskPriority, TaskPrioritySchema} from "~/shared/tasks/task_priority";
+import {TaskQueryFilter} from "~/shared/tasks/task_query_filter";
 import {TaskTitle, TaskTitleSchema, emptyTaskTitle} from "~/shared/tasks/task_title_schema";
 
 const LocalTaskIdByOrderKeySchema = Schema.map(OrderKeySchema, Schema.id<LocalTaskId>()).transform<
@@ -66,10 +67,6 @@ const CalendarDateSchema = Schema.string.transform<CalendarDate>({
     serialize: date => date.toString(),
     deserialize: date => parseDate(date),
 });
-
-export type TaskPriority = "Low" | "Medium" | "High" | "Urgent";
-
-const TaskPrioritySchema = Schema.enum<TaskPriority>(["Low", "Medium", "High", "Urgent"]);
 
 export type LocalTask = SchemaType<typeof LocalTaskSchema>;
 

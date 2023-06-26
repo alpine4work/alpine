@@ -1,4 +1,4 @@
-import {isFocusVisible, setInteractionModality} from "@react-aria/interactions";
+import {isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
 import Fuse from "fuse.js";
 import {CaretDown, MagnifyingGlass, SpinnerGap, X} from "phosphor-react";

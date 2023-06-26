@@ -7,9 +7,9 @@ import {OverlayTriggerButton} from "~/client/design/overlay_trigger";
 import {TaskQueryFilterEditor} from "~/client/tasks/demo_2/internal/task_query_filter_editor";
 import {TaskQuerySortsEditor} from "~/client/tasks/demo_2/internal/task_query_sorts_editor";
 import {LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
-import {TaskQueryFilter} from "~/client/tasks/demo_2/task_query_filter";
 import {TaskQuerySort} from "~/client/tasks/demo_2/task_query_sort";
 import {spacing} from "~/shared/design/spacing";
+import {TaskQueryFilter} from "~/shared/tasks/task_query_filter";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references";
 
 export function TaskQueryViewCustomizationBar({

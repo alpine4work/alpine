@@ -5,6 +5,7 @@ ts_project(
     test_deps = ["//:node_modules/expect-type"],
     visibility = ["//visibility:public"],
     deps = [
+        "//:node_modules/@types/escape-html",
         "//:node_modules/@types/functional-red-black-tree",
         "//:node_modules/@types/jest",
         "//:node_modules/date-fns",

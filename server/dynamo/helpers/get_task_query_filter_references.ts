@@ -1,9 +1,9 @@
-import {TaskQueryFilter} from "~/client/tasks/demo_2/task_query_filter";
 import {getAccount} from "~/server/dynamo/accounts_table";
 import {ActionContext} from "~/server/dynamo/context/action_context";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises";
 import {exhaustive} from "~/shared/helpers/control/exhaustive";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types";
+import {TaskQueryFilter} from "~/shared/tasks/task_query_filter";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references";
 
 /**

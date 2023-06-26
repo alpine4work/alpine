@@ -21,12 +21,13 @@ import {
 } from "~/client/tasks/demo_2/internal/task_collection_chip";
 import {TaskGridViewDraggableData} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context";
 import {TaskPriorityIcon} from "~/client/tasks/demo_2/internal/task_priority_icon";
-import {LocalTaskCollection, TaskPriority} from "~/client/tasks/demo_2/local_tasks_state";
+import {LocalTaskCollection} from "~/client/tasks/demo_2/local_tasks_state";
 import {TaskAssignee, TaskStatus, TaskStatusButton} from "~/client/tasks/demo_2/task_status_button";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing";
 import {LocalTaskId} from "~/shared/id/types/id_types";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html";
 import {contentSchemaStyles, pressOpacityOverlayClassName} from "~/shared/styles/styles";
+import {TaskPriority} from "~/shared/tasks/task_priority";
 import {TaskTitle} from "~/shared/tasks/task_title_schema";
 
 export const taskCardViewMaxWidth = "96";

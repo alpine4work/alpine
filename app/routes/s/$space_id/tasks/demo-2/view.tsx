@@ -4,10 +4,6 @@ import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_a
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema";
 import {useLocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
 import {
-    deserializeTaskQueryFiltersSearchParam,
-    serializeTaskQueryFiltersSearchParam,
-} from "~/client/tasks/demo_2/task_query_filter";
-import {
     deserializeTaskQuerySortsSearchParam,
     serializeTaskQuerySortsSearchParam,
 } from "~/client/tasks/demo_2/task_query_sort";
@@ -17,6 +13,10 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema";
 import {LoaderArgs} from "~/server/remix/loader_context";
 import {SpaceId} from "~/shared/id/types/id_types";
 import {Schema} from "~/shared/schema/schema";
+import {
+    deserializeTaskQueryFiltersSearchParam,
+    serializeTaskQueryFiltersSearchParam,
+} from "~/shared/tasks/task_query_filter";
 import {TaskQueryFilterReferencesSchema} from "~/shared/tasks/task_query_filter_references";
 
 const LoaderSchema = Schema.object({

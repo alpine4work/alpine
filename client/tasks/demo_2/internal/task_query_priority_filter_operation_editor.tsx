@@ -6,9 +6,9 @@ import {MenuButton} from "~/client/design/menu_button";
 import {TaskCheckbox} from "~/client/tasks/demo_2/internal/task_checkbox";
 import {TaskPriorityIcon} from "~/client/tasks/demo_2/internal/task_priority_icon";
 import {TaskQueryFilterOperatorEditor} from "~/client/tasks/demo_2/internal/task_query_filter_operator_editor";
-import {TaskQueryPriorityFilter} from "~/client/tasks/demo_2/task_query_filter";
 import {isNonNullableOrFalse} from "~/shared/helpers/control/is_non_nullable_or_false";
 import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles";
+import {TaskQueryPriorityFilter} from "~/shared/tasks/task_query_filter";
 
 export function TaskQueryPriorityFilterOperationEditor({
     filter,

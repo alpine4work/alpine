@@ -5,11 +5,11 @@ import {TaskQueryGridView} from "~/client/tasks/demo_2/internal/task_query_grid_
 import {TaskQueryViewCustomizationBar} from "~/client/tasks/demo_2/internal/task_query_view_customization_bar";
 import {LocalTasksAction, LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
 import {TaskGridPresentationalViewRef} from "~/client/tasks/demo_2/task_grid_presentational_view";
-import {TaskQueryFilter} from "~/client/tasks/demo_2/task_query_filter";
 import {TaskQuerySort} from "~/client/tasks/demo_2/task_query_sort";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection";
 import {assertExists} from "~/shared/helpers/control/assert_exists";
 import {tasksStyles} from "~/shared/styles/styles";
+import {TaskQueryFilter} from "~/shared/tasks/task_query_filter";
 import {
     TaskQueryFilterReferences,
     mergeTaskQueryFilterReferences,

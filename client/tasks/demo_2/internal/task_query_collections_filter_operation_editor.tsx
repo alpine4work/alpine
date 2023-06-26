@@ -10,12 +10,12 @@ import {
 } from "~/client/tasks/demo_2/internal/task_query_filter_editor_multi_select_combo_box";
 import {TaskQueryFilterOperatorEditor} from "~/client/tasks/demo_2/internal/task_query_filter_operator_editor";
 import {LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state";
-import {TaskQueryCollectionsFilter} from "~/client/tasks/demo_2/task_query_filter";
 import {assert} from "~/shared/helpers/control/assert";
 import {iterableFindIndex} from "~/shared/helpers/iterable/iterable_find_index";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable";
 import {LocalTaskCollectionId} from "~/shared/id/types/id_types";
 import {inputPlaceholderStyles} from "~/shared/styles/styles";
+import {TaskQueryCollectionsFilter} from "~/shared/tasks/task_query_filter";
 
 export function TaskQueryCollectionsFilterOperationEditor({
     state,

@@ -19,12 +19,12 @@ import {
     TaskGridPresentationalViewRef,
     minTaskCountToShowTopGhostTask,
 } from "~/client/tasks/demo_2/task_grid_presentational_view";
-import {TaskQueryFilter} from "~/client/tasks/demo_2/task_query_filter";
 import {TaskQuerySort} from "~/client/tasks/demo_2/task_query_sort";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
 import {OrderKey} from "~/shared/helpers/sort/order_key";
 import {generateId} from "~/shared/id/id";
 import {LocalTaskCollectionId, LocalTaskId} from "~/shared/id/types/id_types";
+import {TaskQueryFilter} from "~/shared/tasks/task_query_filter";
 
 type TaskCollectionGridViewRowPosition =
     | {

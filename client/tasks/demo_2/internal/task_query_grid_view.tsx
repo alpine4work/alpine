@@ -18,12 +18,12 @@ import {
     TaskGridPresentationalViewRef,
     minTaskCountToShowTopGhostTask,
 } from "~/client/tasks/demo_2/task_grid_presentational_view";
-import {TaskQueryFilter} from "~/client/tasks/demo_2/task_query_filter";
 import {TaskQuerySort} from "~/client/tasks/demo_2/task_query_sort";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable";
 import {OrderKey} from "~/shared/helpers/sort/order_key";
 import {generateId} from "~/shared/id/id";
 import {LocalTaskId} from "~/shared/id/types/id_types";
+import {TaskQueryFilter} from "~/shared/tasks/task_query_filter";
 
 type TaskQueryGridViewRowPosition =
     | {
@@ -482,27 +482,27 @@ function TaskQueryGridView(
                     {parentPositionStack, task: {id: childTaskId}},
                     titleSelection,
                 ) => {
-                    const parentPosition =
-                        parentPositionStack[parentPositionStack.length - 1] ?? null;
-
-                    const onLayoutEffect = () => {
-                        // TODO(calebmer): A production implementation probably shouldn't do an
-                        // O(n) loop here.
-                        const newIndex = taskRowsRef.current.findIndex(
-                            ({task, parentPositionStack: otherParentPositionStack}) =>
-                                task.id === childTaskId &&
-                                otherParentPositionStack.length === parentPositionStack.length - 1,
-                        );
-
-                        if (newIndex >= 0) {
-                            gridViewRef.current?.focusTaskRowTitleSelection(
-                                newIndex,
-                                titleSelection,
-                            );
-                        }
-                    };
-
                     // NOCOMMIT: Do an equivalent thing here?
+                    // const parentPosition =
+                    //     parentPositionStack[parentPositionStack.length - 1] ?? null;
+                    //
+                    // const onLayoutEffect = () => {
+                    //     // TODO(calebmer): A production implementation probably shouldn't do an
+                    //     // O(n) loop here.
+                    //     const newIndex = taskRowsRef.current.findIndex(
+                    //         ({task, parentPositionStack: otherParentPositionStack}) =>
+                    //             task.id === childTaskId &&
+                    //             otherParentPositionStack.length === parentPositionStack.length - 1,
+                    //     );
+                    //
+                    //     if (newIndex >= 0) {
+                    //         gridViewRef.current?.focusTaskRowTitleSelection(
+                    //             newIndex,
+                    //             titleSelection,
+                    //         );
+                    //     }
+                    // };
+                    //
                     // if (parentPosition) {
                     //     if (parentPosition.isRoot) {
                     //         dispatch({
@@ -562,14 +562,14 @@ function TaskQueryGridView(
                         return;
                     }
 
-                    const position =
-                        unnest === 0
-                            ? belowTaskRow.position
-                            : belowTaskRow.parentPositionStack[
-                                  belowTaskRow.parentPositionStack.length - unnest
-                              ] ?? belowTaskRow.position;
-
                     // NOCOMMIT: Do an equivalent thing here?
+                    // const position =
+                    //     unnest === 0
+                    //         ? belowTaskRow.position
+                    //         : belowTaskRow.parentPositionStack[
+                    //               belowTaskRow.parentPositionStack.length - unnest
+                    //           ] ?? belowTaskRow.position;
+                    //
                     // if (position.isRoot) {
                     //     dispatch({
                     //         type: "MoveTaskToNotepad",
