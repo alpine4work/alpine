@@ -1,8 +1,40 @@
+diff --git a/dist/import.mjs b/dist/import.mjs
+index 4c3bacad099f18c8a2c3d7f108fa083bd83b0d9a..19a91d218596bc797ee21b4eb3cf0f9efa1e628d 100644
+--- a/dist/import.mjs
++++ b/dist/import.mjs
+@@ -808,8 +808,13 @@ function $a1ea59d68270f0dd$export$f8168d8dd8fd66e6(props) {
+ // See https://github.com/facebook/react/tree/cc7c1aece46a6b69b41958d731e0fd27c94bfc6c/packages/react-interactions
+ 
+ 
+-
+-let $507fabe10e71c6fb$var$currentModality = null;
++// NOTE(calebmer): Default modality to `pointer`. The types say modality is
++// non-null which isn't quite true. We expect pointer interaction to be the
++// dominant modality users use for our app. Also we found this fixes a bug with
++// our document editor when clicking in the sidebar jumps the cursor to the
++// start of the document because of a `useInteractionModality()` hook
++// scheduling a high priority update.
++let $507fabe10e71c6fb$var$currentModality = "pointer";
+ let $507fabe10e71c6fb$var$changeHandlers = new Set();
+ let $507fabe10e71c6fb$var$hasSetupGlobalListeners = false;
+ let $507fabe10e71c6fb$var$hasEventBeforeFocus = false;
+@@ -1282,7 +1287,10 @@ function $e0b6e0b68ec7f50f$var$isValidEvent(event, ref) {
+                 return e.isDefaultPrevented();
+             },
+             stopPropagation () {
+-                console.error("stopPropagation is now the default behavior for events in React Spectrum. You can use continuePropagation() to revert this behavior.");
++                // NOTE(calebmer): Our style guide recommends calling both
++                // `event.preventDefault()` and `event.stopPropagation()` for `keydown` events.
++                // Don't warn when we do this. Treat repeat calls a noop like regular
++                // DOM events.
+             },
+             continuePropagation () {
+                 shouldStopPropagation = false;
 diff --git a/dist/main.js b/dist/main.js
-index 0f276e6806a9de2d4603617dedca32c9907990de..ef8cae6c341592be3ba104e93476b6b36d1d8ddd 100644
+index b4115b501a23f92a4cbe3fcbfe0b3495053590dd..e8ba90fbb4d45e6f8fd360db7ea391c8f744c1f6 100644
 --- a/dist/main.js
 +++ b/dist/main.js
-@@ -727,7 +727,13 @@ function $5cb73d0ce355b0dc$export$f8168d8dd8fd66e6(props) {
+@@ -833,7 +833,13 @@ function $5cb73d0ce355b0dc$export$f8168d8dd8fd66e6(props) {
  
  
  
@@ -13,15 +45,15 @@ index 0f276e6806a9de2d4603617dedca32c9907990de..ef8cae6c341592be3ba104e93476b6b3
 +// our document editor when clicking in the sidebar jumps the cursor to the
 +// start of the document because of a `useInteractionModality()` hook
 +// scheduling a high priority update.
-+let $e77252a287ef94ab$var$currentModality = 'pointer';
++let $e77252a287ef94ab$var$currentModality = "pointer";
  let $e77252a287ef94ab$var$changeHandlers = new Set();
  let $e77252a287ef94ab$var$hasSetupGlobalListeners = false;
  let $e77252a287ef94ab$var$hasEventBeforeFocus = false;
-@@ -1140,7 +1146,10 @@ function $951fbcbbca8db6ce$export$48d1ea6320830260(handler) {
+@@ -1306,7 +1312,10 @@ function $edcfa848c42f94f4$var$isValidEvent(event, ref) {
                  return e.isDefaultPrevented();
              },
              stopPropagation () {
--                console.error('stopPropagation is now the default behavior for events in React Spectrum. You can use continuePropagation() to revert this behavior.');
+-                console.error("stopPropagation is now the default behavior for events in React Spectrum. You can use continuePropagation() to revert this behavior.");
 +                // NOTE(calebmer): Our style guide recommends calling both
 +                // `event.preventDefault()` and `event.stopPropagation()` for `keydown` events.
 +                // Don't warn when we do this. Treat repeat calls a noop like regular
@@ -30,10 +62,10 @@ index 0f276e6806a9de2d4603617dedca32c9907990de..ef8cae6c341592be3ba104e93476b6b3
              continuePropagation () {
                  shouldStopPropagation = false;
 diff --git a/dist/module.js b/dist/module.js
-index bb5ec5424a79bf1e9cf1b7719348035224bb75b6..fcdff6e36656fe6098ea9bd017533f5292bd2f56 100644
+index 4c3bacad099f18c8a2c3d7f108fa083bd83b0d9a..20b0f6a9211ad3bb4df32c89b34645dd6be49065 100644
 --- a/dist/module.js
 +++ b/dist/module.js
-@@ -703,7 +703,13 @@ function $a1ea59d68270f0dd$export$f8168d8dd8fd66e6(props) {
+@@ -809,7 +809,13 @@ function $a1ea59d68270f0dd$export$f8168d8dd8fd66e6(props) {
  
  
  
@@ -44,15 +76,15 @@ index bb5ec5424a79bf1e9cf1b7719348035224bb75b6..fcdff6e36656fe6098ea9bd017533f52
 +// our document editor when clicking in the sidebar jumps the cursor to the
 +// start of the document because of a `useInteractionModality()` hook
 +// scheduling a high priority update.
-+let $507fabe10e71c6fb$var$currentModality = 'pointer';
++let $507fabe10e71c6fb$var$currentModality = "pointer";
  let $507fabe10e71c6fb$var$changeHandlers = new Set();
  let $507fabe10e71c6fb$var$hasSetupGlobalListeners = false;
  let $507fabe10e71c6fb$var$hasEventBeforeFocus = false;
-@@ -1116,7 +1122,10 @@ function $93925083ecbb358c$export$48d1ea6320830260(handler) {
+@@ -1282,7 +1288,10 @@ function $e0b6e0b68ec7f50f$var$isValidEvent(event, ref) {
                  return e.isDefaultPrevented();
              },
              stopPropagation () {
--                console.error('stopPropagation is now the default behavior for events in React Spectrum. You can use continuePropagation() to revert this behavior.');
+-                console.error("stopPropagation is now the default behavior for events in React Spectrum. You can use continuePropagation() to revert this behavior.");
 +                // NOTE(calebmer): Our style guide recommends calling both
 +                // `event.preventDefault()` and `event.stopPropagation()` for `keydown` events.
 +                // Don't warn when we do this. Treat repeat calls a noop like regular
@@ -77,10 +109,10 @@ index 5733c7e4221092879a6409ca983e919edff0da87..d748e49c5cda985cc5ae9f07edd7d2c7
        continuePropagation() {
          shouldStopPropagation = false;
 diff --git a/src/useFocusVisible.ts b/src/useFocusVisible.ts
-index 3ff3761744e9e8d5cef3a67591792410691e19f3..74f0fa07dc3cceb846ffb843ee4cf6a3709e1a4f 100644
+index 60fd6b5a77f5d9f26ffdb6e750e11a0cab6923e4..db1066703ef1c941ab6ee4c422b98931bf93c1f9 100644
 --- a/src/useFocusVisible.ts
 +++ b/src/useFocusVisible.ts
-@@ -34,7 +34,13 @@ export interface FocusVisibleResult {
+@@ -35,7 +35,13 @@ export interface FocusVisibleResult {
    isFocusVisible: boolean
  }
  

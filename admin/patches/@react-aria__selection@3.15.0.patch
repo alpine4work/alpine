@@ -1,0 +1,138 @@
+diff --git a/dist/import.mjs b/dist/import.mjs
+index 082d6d995a730880885197b993084b26ff5cde35..0f604e5f4c289da58e0ee0786e61a8ef7a60ec19 100644
+--- a/dist/import.mjs
++++ b/dist/import.mjs
+@@ -310,15 +310,25 @@ function $ae20dd8cbca75726$export$d6daf82dcd84e87c(options) {
+     }, []);
+     // If not virtualized, scroll the focused element into view when the focusedKey changes.
+     // When virtualized, Virtualizer handles this internally.
++    //
++    // NOTE(calebmer): Use our preferred scroll behavior for selectable collections.
++    // We implement this behavior elsewhere in the product like
++    // `<ContentEditorMentionFloater>`. Consolidate?
++    //
++    // 1. Don't scroll on hover. Only scroll on mouse movement.
++    // 2. If scrolling to the first or last element then completely scroll the view.
+     (0, $eCAIO$useEffect)(()=>{
+         let modality = (0, $eCAIO$getInteractionModality)();
+         if (!isVirtualized && manager.isFocused && manager.focusedKey != null && (scrollRef === null || scrollRef === void 0 ? void 0 : scrollRef.current)) {
+             let element = scrollRef.current.querySelector(`[data-key="${manager.focusedKey}"]`);
+-            if (element) {
+-                (0, $eCAIO$scrollIntoView)(scrollRef.current, element);
+-                if (modality === "keyboard") (0, $eCAIO$scrollIntoViewport)(element, {
+-                    containingElement: ref.current
+-                });
++            if (element && modality === 'keyboard') {
++                if (!element.previousSibling) {
++                    scrollRef.current.scrollTop = 0;
++                } else if (!element.nextSibling) {
++                    scrollRef.current.scrollTop = scrollRef.current.scrollHeight - scrollRef.current.clientHeight;
++                } else {
++                    (0, $eCAIO$scrollIntoView)(scrollRef.current, element);
++                }
+             }
+         }
+     }, [
+diff --git a/dist/main.js b/dist/main.js
+index 149bb229227e5d37235f544f75f20797da27ffe2..f030bf3f3c454171a1133666ff87e596f95be3c6 100644
+--- a/dist/main.js
++++ b/dist/main.js
+@@ -319,15 +319,25 @@ function $b6837c2f80a3c32f$export$d6daf82dcd84e87c(options) {
+     }, []);
+     // If not virtualized, scroll the focused element into view when the focusedKey changes.
+     // When virtualized, Virtualizer handles this internally.
++    //
++    // NOTE(calebmer): Use our preferred scroll behavior for selectable collections.
++    // We implement this behavior elsewhere in the product like
++    // `<ContentEditorMentionFloater>`. Consolidate?
++    //
++    // 1. Don't scroll on hover. Only scroll on mouse movement.
++    // 2. If scrolling to the first or last element then completely scroll the view.
+     (0, $glPPV$react.useEffect)(()=>{
+         let modality = (0, $glPPV$reactariainteractions.getInteractionModality)();
+         if (!isVirtualized && manager.isFocused && manager.focusedKey != null && (scrollRef === null || scrollRef === void 0 ? void 0 : scrollRef.current)) {
+             let element = scrollRef.current.querySelector(`[data-key="${manager.focusedKey}"]`);
+-            if (element) {
+-                (0, $glPPV$reactariautils.scrollIntoView)(scrollRef.current, element);
+-                if (modality === "keyboard") (0, $glPPV$reactariautils.scrollIntoViewport)(element, {
+-                    containingElement: ref.current
+-                });
++            if (element && modality === 'keyboard') {
++                if (!element.previousSibling) {
++                    scrollRef.current.scrollTop = 0;
++                } else if (!element.nextSibling) {
++                    scrollRef.current.scrollTop = scrollRef.current.scrollHeight - scrollRef.current.clientHeight;
++                } else {
++                    $glPPV$reactariautils.scrollIntoView(scrollRef.current, element);
++                }
+             }
+         }
+     }, [
+diff --git a/dist/module.js b/dist/module.js
+index 082d6d995a730880885197b993084b26ff5cde35..0f604e5f4c289da58e0ee0786e61a8ef7a60ec19 100644
+--- a/dist/module.js
++++ b/dist/module.js
+@@ -310,15 +310,25 @@ function $ae20dd8cbca75726$export$d6daf82dcd84e87c(options) {
+     }, []);
+     // If not virtualized, scroll the focused element into view when the focusedKey changes.
+     // When virtualized, Virtualizer handles this internally.
++    //
++    // NOTE(calebmer): Use our preferred scroll behavior for selectable collections.
++    // We implement this behavior elsewhere in the product like
++    // `<ContentEditorMentionFloater>`. Consolidate?
++    //
++    // 1. Don't scroll on hover. Only scroll on mouse movement.
++    // 2. If scrolling to the first or last element then completely scroll the view.
+     (0, $eCAIO$useEffect)(()=>{
+         let modality = (0, $eCAIO$getInteractionModality)();
+         if (!isVirtualized && manager.isFocused && manager.focusedKey != null && (scrollRef === null || scrollRef === void 0 ? void 0 : scrollRef.current)) {
+             let element = scrollRef.current.querySelector(`[data-key="${manager.focusedKey}"]`);
+-            if (element) {
+-                (0, $eCAIO$scrollIntoView)(scrollRef.current, element);
+-                if (modality === "keyboard") (0, $eCAIO$scrollIntoViewport)(element, {
+-                    containingElement: ref.current
+-                });
++            if (element && modality === 'keyboard') {
++                if (!element.previousSibling) {
++                    scrollRef.current.scrollTop = 0;
++                } else if (!element.nextSibling) {
++                    scrollRef.current.scrollTop = scrollRef.current.scrollHeight - scrollRef.current.clientHeight;
++                } else {
++                    (0, $eCAIO$scrollIntoView)(scrollRef.current, element);
++                }
+             }
+         }
+     }, [
+diff --git a/src/useSelectableCollection.ts b/src/useSelectableCollection.ts
+index 355370c4c14f7074d16330bc35da0cb46f21176a..33177baf15351821aff93a87feff73211a229994 100644
+--- a/src/useSelectableCollection.ts
++++ b/src/useSelectableCollection.ts
+@@ -364,14 +364,24 @@ export function useSelectableCollection(options: AriaSelectableCollectionOptions
+ 
+   // If not virtualized, scroll the focused element into view when the focusedKey changes.
+   // When virtualized, Virtualizer handles this internally.
++  //
++  // NOTE(calebmer): Use our preferred scroll behavior for selectable collections.
++  // We implement this behavior elsewhere in the product like
++  // `<ContentEditorMentionFloater>`. Consolidate?
++  //
++  // 1. Don't scroll on hover. Only scroll on mouse movement.
++  // 2. If scrolling to the first or last element then completely scroll the view.
+   useEffect(() => {
+     let modality = getInteractionModality();
+     if (!isVirtualized && manager.isFocused && manager.focusedKey != null && scrollRef?.current) {
+       let element = scrollRef.current.querySelector(`[data-key="${manager.focusedKey}"]`) as HTMLElement;
+-      if (element) {
+-        scrollIntoView(scrollRef.current, element);
+-        if (modality === 'keyboard') {
+-          scrollIntoViewport(element, {containingElement: ref.current});
++      if (element && modality === 'keyboard') {
++        if (!element.previousSibling) {
++          scrollRef.current.scrollTop = 0;
++        } else if (!element.nextSibling) {
++          scrollRef.current.scrollTop = scrollRef.current.scrollHeight - scrollRef.current.clientHeight;
++        } else {
++          scrollIntoView(scrollRef.current, element);
+         }
+       }
+     }

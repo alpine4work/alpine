@@ -333,6 +333,8 @@ test("can leave multiple comments on a document and navigate between them", asyn
     await page.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).click();
     await expect(page.getByText("Test comment content 1")).toBeVisible();
 
+    await page.getByRole("textbox", {name: "Document"}).focus();
+
     // Moving the mouse should open the styling toolbar.
     await page.evaluate("dev.contentEditor.setTextSelection(23, 26)");
     await page.mouse.move(0, 0);
