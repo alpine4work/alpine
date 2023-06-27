@@ -1,4 +1,4 @@
-import Fuse from "fuse.js";
+import _Fuse from "fuse.js";
 import {MutableRefObject, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
@@ -29,6 +29,9 @@ import {AccountId} from "~/shared/id/types/id_types.js";
 import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles.js";
 import {TaskQueryFilterAccountOperation} from "~/shared/tasks/task_query_filter.js";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
+
+// Node.js ESM interop (#node-esm-migration)
+const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
 
 export function TaskQueryFilterAccountOperationEditor({
     inputLabel,

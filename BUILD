@@ -1,26 +1,30 @@
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
+load("//admin/node:package_light_json.bzl", "package_light_json")
 load("//admin/typescript:typescript.bzl", "ts_lint_and_format_test")
 
 npm_link_all_packages(name = "node_modules")
 
 exports_files([
     "package.json",
-    "prettier.config.js",
+    "prettier.config.cjs",
     ".prettierignore",
-    ".eslintrc.js",
+    ".eslintrc.cjs",
     ".eslintignore",
     "tsconfig.json",
     "tsconfig.bazel.json",
-    "remix.config.js",
+    "remix.config.cjs",
 ])
 
 ts_config(
     name = "tsconfig",
     src = "tsconfig.bazel.json",
     visibility = ["//visibility:public"],
-    deps = ["tsconfig.json"],
+    deps = [
+        "package_light_json_file",
+        "tsconfig.json",
+    ],
 )
 
 ROOT_LINT_AND_FORMAT_EXTENSIONS = [
@@ -29,6 +33,7 @@ ROOT_LINT_AND_FORMAT_EXTENSIONS = [
     "ts",
     "tsx",
     "mjs",
+    "cjs",
     "json",
     "md",
     "yaml",
@@ -60,11 +65,12 @@ alias(
     visibility = ["//visibility:public"],
 )
 
+package_light_json(visibility = ["//visibility:public"])
+
 copy_to_bin(
     name = "remix_config_files",
     srcs = [
-        "package.json",
-        "remix.config.js",
+        "remix.config.cjs",
         "tsconfig.json",
     ],
     visibility = ["//visibility:public"],
@@ -81,13 +87,13 @@ copy_to_bin(
 
 copy_to_bin(
     name = "jest_config_file",
-    srcs = ["jest.config.js"],
+    srcs = ["jest.config.cjs"],
     visibility = ["//visibility:public"],
 )
 
 copy_to_bin(
     name = "playwright_config_file",
-    srcs = ["playwright.config.js"],
+    srcs = ["playwright.config.cjs"],
     visibility = ["//visibility:public"],
 )
 

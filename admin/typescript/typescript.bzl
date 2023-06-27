@@ -121,9 +121,14 @@ def ts_project(
                     "--colors",
                     # Use our custom Jest config.
                     "--config",
-                    "jest.config.js",
+                    "jest.config.cjs",
                     # Each test run is only for a single file.
                     "{}/{}".format(native.package_name(), test_src_js),
+                ],
+                node_options = [
+                    # Enable Node.js and Jest's experimental ES Modules support.
+                    # https://jestjs.io/docs/ecmascript-modules
+                    "--experimental-vm-modules",
                 ],
                 data = _dedupe_labels(deps + test_deps + test_data + [
                                           "//:node_modules/@juggle/resize-observer",
@@ -133,6 +138,7 @@ def ts_project(
                                           "//:node_modules/jest-environment-jsdom",
                                           "//:node_modules/node-fetch",
                                           "//:jest_config_file",
+                                          "//:package_light_json_file",
                                           "//admin/jest:jest_config_files",
                                           "{}_src".format(test_name),
                                           "{}_transpile".format(name),
@@ -144,7 +150,7 @@ def ts_project(
 
 _SWC_KWARGS = {
     "swcrc": "//admin/typescript:typescript_swc_config",
-    # "source_maps": True,
+    "source_maps": True,
 }
 
 def swc_compile(**kwargs):
@@ -177,6 +183,7 @@ def ts_lint_and_format_test(
             "**/*.ts",
             "**/*.tsx",
             "**/*.mjs",
+            "**/*.cjs",
             "**/*.json",
             "**/*.md",
         ])
@@ -189,7 +196,7 @@ def ts_lint_and_format_test(
         args = ["--check", native.package_name()],
         copy_data_to_bin = False,
         data = _dedupe_labels(srcs + [
-            "//:prettier.config.js",
+            "//:prettier.config.cjs",
             "//:.prettierignore",
         ]),
         size = "small",
@@ -210,7 +217,7 @@ def ts_lint_and_format_test(
             "0",
             # Bazel will strip color if necessary.
             "--color",
-        ] + [src.replace("$", "$$") for src in srcs if src.endswith(".js") or src.endswith(".jsx") or src.endswith(".ts") or src.endswith(".tsx") or src.endswith(".mjs")],
+        ] + [src.replace("$", "$$") for src in srcs if src.endswith(".js") or src.endswith(".jsx") or src.endswith(".ts") or src.endswith(".tsx") or src.endswith(".mjs") or src.endswith(".cjs")],
         chdir = native.package_name(),
         copy_data_to_bin = False,
         data = _dedupe_labels(srcs + [
@@ -222,7 +229,7 @@ def ts_lint_and_format_test(
             "//:node_modules/eslint-plugin-testing-library",
             "//:node_modules/react",
             "//:node_modules/typescript",
-            "//:.eslintrc.js",
+            "//:.eslintrc.cjs",
             "//:.eslintignore",
             "//:package.json",
             "//:tsconfig.json",

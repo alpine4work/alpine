@@ -42,6 +42,7 @@ def _ts_sources_aspect_impl(target, ctx):
                     src.extension == "ts" or
                     src.extension == "tsx" or
                     src.extension == "mjs" or
+                    src.extension == "cjs" or
                     src.extension == "json" or
                     src.extension == "css"):
                     sources_files.append(copy_file_to_bin_action(ctx, src))

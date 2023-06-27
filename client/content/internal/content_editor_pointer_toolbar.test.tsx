@@ -16,7 +16,7 @@ import {
     emptyDocumentWithoutTitleContent,
 } from "~/shared/documents/document_content_schema.js";
 
-jest.useFakeTimers();
+import.meta.jest.useFakeTimers();
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
 
@@ -86,7 +86,7 @@ test("shows the toolbar when a range of content is selected", () => {
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(4))));
     act(() => {
-        jest.runOnlyPendingTimers();
+        import.meta.jest.runOnlyPendingTimers();
     });
 
     expect(screen.queryByLabelText("Bold")).not.toBeInTheDocument();
@@ -95,7 +95,7 @@ test("shows the toolbar when a range of content is selected", () => {
         state.tr.setSelection(new TextSelection(state.doc.resolve(4), state.doc.resolve(13))),
     );
     act(() => {
-        jest.runOnlyPendingTimers();
+        import.meta.jest.runOnlyPendingTimers();
     });
 
     expect(screen.getByLabelText("Bold")).toBeInTheDocument();
@@ -124,7 +124,7 @@ test("shows the toolbar when there's a pointer interaction modality", () => {
         state.tr.setSelection(new TextSelection(state.doc.resolve(4), state.doc.resolve(13))),
     );
     act(() => {
-        jest.runOnlyPendingTimers();
+        import.meta.jest.runOnlyPendingTimers();
     });
     expect(screen.queryByLabelText("Bold")).not.toBeInTheDocument();
 
@@ -132,7 +132,7 @@ test("shows the toolbar when there's a pointer interaction modality", () => {
         setInteractionModality("pointer");
     });
     act(() => {
-        jest.runOnlyPendingTimers();
+        import.meta.jest.runOnlyPendingTimers();
     });
 
     expect(screen.getByLabelText("Bold")).toBeInTheDocument();
@@ -155,7 +155,7 @@ test("shows the toolbar when the editor is focused", () => {
 
     dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(4))));
     act(() => {
-        jest.runOnlyPendingTimers();
+        import.meta.jest.runOnlyPendingTimers();
     });
 
     expect(screen.queryByLabelText("Bold")).not.toBeInTheDocument();
@@ -164,7 +164,7 @@ test("shows the toolbar when the editor is focused", () => {
         state.tr.setSelection(new TextSelection(state.doc.resolve(4), state.doc.resolve(13))),
     );
     act(() => {
-        jest.runOnlyPendingTimers();
+        import.meta.jest.runOnlyPendingTimers();
     });
 
     expect(screen.queryByLabelText("Bold")).not.toBeInTheDocument();
@@ -173,7 +173,7 @@ test("shows the toolbar when the editor is focused", () => {
         getTextbox().focus();
     });
     act(() => {
-        jest.runOnlyPendingTimers();
+        import.meta.jest.runOnlyPendingTimers();
     });
 
     expect(screen.getByLabelText("Bold")).toBeInTheDocument();
@@ -200,7 +200,7 @@ test("toggles headings on", () => {
         state.tr.setSelection(new TextSelection(state.doc.resolve(4), state.doc.resolve(13))),
     );
     act(() => {
-        jest.runOnlyPendingTimers();
+        import.meta.jest.runOnlyPendingTimers();
     });
 
     act(() => {
@@ -239,7 +239,7 @@ test("toggles headings off", () => {
         state.tr.setSelection(new TextSelection(state.doc.resolve(4), state.doc.resolve(13))),
     );
     act(() => {
-        jest.runOnlyPendingTimers();
+        import.meta.jest.runOnlyPendingTimers();
     });
 
     act(() => {
@@ -292,7 +292,7 @@ test("toggles headings on when there's already a heading of that level", () => {
         state.tr.setSelection(new TextSelection(state.doc.resolve(4), state.doc.resolve(13))),
     );
     act(() => {
-        jest.runOnlyPendingTimers();
+        import.meta.jest.runOnlyPendingTimers();
     });
 
     act(() => {
@@ -331,7 +331,7 @@ test("converts headings of another level", () => {
         state.tr.setSelection(new TextSelection(state.doc.resolve(4), state.doc.resolve(13))),
     );
     act(() => {
-        jest.runOnlyPendingTimers();
+        import.meta.jest.runOnlyPendingTimers();
     });
 
     act(() => {
@@ -370,7 +370,7 @@ test("toggles list on", () => {
         state.tr.setSelection(new TextSelection(state.doc.resolve(4), state.doc.resolve(13))),
     );
     act(() => {
-        jest.runOnlyPendingTimers();
+        import.meta.jest.runOnlyPendingTimers();
     });
 
     act(() => {
@@ -415,7 +415,7 @@ test("toggles list off", () => {
         state.tr.setSelection(new TextSelection(state.doc.resolve(4), state.doc.resolve(13))),
     );
     act(() => {
-        jest.runOnlyPendingTimers();
+        import.meta.jest.runOnlyPendingTimers();
     });
 
     act(() => {
@@ -476,7 +476,7 @@ test("toggles list on even when there's already a list item of that type", () =>
         state.tr.setSelection(new TextSelection(state.doc.resolve(4), state.doc.resolve(15))),
     );
     act(() => {
-        jest.runOnlyPendingTimers();
+        import.meta.jest.runOnlyPendingTimers();
     });
 
     act(() => {
@@ -523,7 +523,7 @@ test("toggles list on even when there's already a list item of a different type"
         state.tr.setSelection(new TextSelection(state.doc.resolve(4), state.doc.resolve(15))),
     );
     act(() => {
-        jest.runOnlyPendingTimers();
+        import.meta.jest.runOnlyPendingTimers();
     });
 
     act(() => {
@@ -574,7 +574,7 @@ test("toggles list on even when the entire list is a different type with some in
         state.tr.setSelection(new TextSelection(state.doc.resolve(5), state.doc.resolve(17))),
     );
     act(() => {
-        jest.runOnlyPendingTimers();
+        import.meta.jest.runOnlyPendingTimers();
     });
 
     act(() => {

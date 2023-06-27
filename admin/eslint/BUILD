@@ -10,6 +10,8 @@ ts_project(
 
 filegroup(
     name = "eslint_custom_rules",
-    srcs = glob(["rules/*.js"]),
+    # An empty `rules/package.json` is there so we can use the `.js` extension
+    # while our rules are written in CommonJS.
+    srcs = ["rules/package.json"] + glob(["rules/*.js"]),
     visibility = ["//visibility:public"],
 )

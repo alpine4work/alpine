@@ -33,11 +33,11 @@ esbuild(
             "**/*.test.tsx",
         ],
     ),
-    config = "internal/styles_esbuild_config.js",
+    config = "internal/styles_esbuild_config.cjs",
     entry_point = "internal/styles.ts",
     # Leave font face `url()`s alone.
     external = ["*.woff2"],
-    format = "cjs",
+    format = "esm",
     output = "styles.js",
     output_css = "styles.css",
     platform = "neutral",

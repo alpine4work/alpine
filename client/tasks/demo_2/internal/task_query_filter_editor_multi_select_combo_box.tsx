@@ -203,7 +203,6 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<Key extends string>({
             autoFocus: false,
             shouldFocusWrap: false,
             items: searchedItems,
-            children: renderItem,
         },
         comboBoxState,
     );

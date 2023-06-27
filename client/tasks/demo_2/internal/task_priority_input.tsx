@@ -1,6 +1,6 @@
 import {getInteractionModality, isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
-import Fuse from "fuse.js";
+import _Fuse from "fuse.js";
 import {Check, MagnifyingGlass} from "phosphor-react";
 import {
     Ref,
@@ -35,6 +35,9 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {colorSchemeVars, sprinkles, tasksStyles} from "~/shared/styles/styles.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
+
+// Node.js ESM interop (#node-esm-migration)
+const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
 
 type TaskPriorityInputItem = {readonly key: TaskPriority | "Null"};
 

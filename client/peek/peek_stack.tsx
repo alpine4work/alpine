@@ -522,23 +522,21 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
     );
 }
 
-const mockPeekStackContextForTest: PeekStackContext | null =
-    typeof jest !== "undefined"
-        ? {
-              push: () => {
-                  throw new InternalError(
-                      "Can not push peeks in tests unless you render your component in `<PeekStackContext>`",
-                  );
-              },
-          }
-        : null;
+const mockPeekStackContextForTest: PeekStackContext | null = import.meta.jest
+    ? {
+          push: () => {
+              throw new InternalError(
+                  "Can not push peeks in tests unless you render your component in `<PeekStackContext>`",
+              );
+          },
+      }
+    : null;
 
 export function usePeekStackContext(): PeekStackContext {
     const peekStackContext = useContext(PeekStackContext);
 
     // Provide a mock context implementation in unit tests so components don't throw.
-    if (typeof jest !== "undefined" && mockPeekStackContextForTest)
-        return mockPeekStackContextForTest;
+    if (import.meta.jest && mockPeekStackContextForTest) return mockPeekStackContextForTest;
 
     assert(peekStackContext, "Must render in a `<PeekStackContext>` to use peeks");
 

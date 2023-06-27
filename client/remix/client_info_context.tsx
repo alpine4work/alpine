@@ -101,7 +101,7 @@ export function useClientInfo(): ClientInfo {
     if (clientInfo === null) {
         // In Jest tests use a dummy date context instead of requiring a root
         // context provider.
-        if (typeof jest !== "undefined") {
+        if (import.meta.jest) {
             return defaultClientInfo;
         }
 

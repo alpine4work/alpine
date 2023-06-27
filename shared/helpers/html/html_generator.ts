@@ -1,5 +1,5 @@
 import escapeHtml from "escape-html";
-import voidHtmlTagNames from "html-tags/void";
+import voidHtmlTagNames from "html-tags/void.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
 import {quote} from "~/shared/helpers/string/quote.js";

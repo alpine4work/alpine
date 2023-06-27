@@ -344,7 +344,7 @@ export async function regenerateOneTimePasswordSignIn(
     // happens in test environments since we don't want developers to have access
     // to one time password.
     if (oneTimePasswordSignInEmailsForTest !== null) {
-        assert(typeof jest !== "undefined");
+        assert(import.meta.jest);
         oneTimePasswordSignInEmailsForTest.push({emailAddress, oneTimePassword: password});
     }
 
@@ -403,7 +403,7 @@ let oneTimePasswordSignInEmailsForTest: Array<{
 export async function captureOneTimePasswordSignInEmailsForTest(
     action: () => Promise<void>,
 ): Promise<Array<{emailAddress: string; oneTimePassword: string}>> {
-    assert(typeof jest !== "undefined");
+    assert(import.meta.jest);
 
     const previousOneTimePasswordLoginEmailsForTest = oneTimePasswordSignInEmailsForTest;
     oneTimePasswordSignInEmailsForTest = [];

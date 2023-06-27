@@ -33,7 +33,7 @@ index e4d0f683dbc1126f6171a3d35c9f8a5ee04f06e3..aa9849b808f0cd0c078ce071fba75d2a
  declare type SprinkleProps<Args extends ReadonlyArray<any>> = Args extends [
      infer L,
 diff --git a/dist/declarations/src/index.d.ts b/dist/declarations/src/index.d.ts
-index 26ec59864cee75af2d5f7cd39cf9ce02da1052ea..69fa65da9a04f3538a59277d82a6e9aff037c288 100644
+index 26ec59864cee75af2d5f7cd39cf9ce02da1052ea..0f442230e5d78beb66ff1863dacfa21551171550 100644
 --- a/dist/declarations/src/index.d.ts
 +++ b/dist/declarations/src/index.d.ts
 @@ -9,7 +9,12 @@ declare type BaseConditions = {
@@ -50,3 +50,12 @@ index 26ec59864cee75af2d5f7cd39cf9ce02da1052ea..69fa65da9a04f3538a59277d82a6e9af
  };
  declare type ShorthandOptions<Properties extends AtomicProperties, Shorthands extends {
      [shorthandName: string]: Array<keyof Properties>;
+@@ -113,3 +118,8 @@ export declare function createSprinkles<Args extends ReadonlyArray<SprinklesProp
+ export declare const createAtomicStyles: typeof defineProperties;
+ /** @deprecated - Use `createSprinkles` */
+ export declare const createAtomsFn: typeof createSprinkles;
++
++// NOTE(calebmer): Export types used by `createSprinkles()` so TypeScript can
++// reference them instead of trying to import the private
++// `createSprinkles.d.ts` file.
++export { SprinklesProperties, SprinklesFn };

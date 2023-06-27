@@ -275,7 +275,7 @@ export function createDurableObject<
                 idName: string,
             ) => Promise<ReturnType<NonNullable<DurableObject["connectForTest"]>>>;
         } {
-            assert(typeof jest !== "undefined");
+            assert(import.meta.jest);
 
             const objectByIdName = new Map<string, Promise<DurableObject>>();
             let connections: Array<

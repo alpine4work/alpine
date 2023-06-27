@@ -305,7 +305,7 @@ let maxLineGraphemeCount = 197;
  * Allow Jest tests to modify the `maxLineGraphemeCount` constant.
  */
 export function setMaxLineGraphemeCountForTest(newMaxLineGraphemeCount: number) {
-    assert(typeof jest !== "undefined");
+    assert(import.meta.jest);
     maxLineGraphemeCount = newMaxLineGraphemeCount;
 }
 

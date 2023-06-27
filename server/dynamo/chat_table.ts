@@ -342,7 +342,7 @@ async function hashMd5(data: ArrayBuffer): Promise<ArrayBuffer> {
         if (
             isObject(error) &&
             typeof error.message === "string" &&
-            error.message.includes("Unrecognized name")
+            error.message.includes("Unrecognized algorithm name")
         ) {
             webCryptoSupportsMd5Hash = false;
             return hashMd5WithNodeModule(data);
@@ -351,13 +351,15 @@ async function hashMd5(data: ArrayBuffer): Promise<ArrayBuffer> {
     }
 }
 
-function hashMd5WithNodeModule(data: ArrayBuffer): ArrayBuffer {
+async function hashMd5WithNodeModule(data: ArrayBuffer): Promise<ArrayBuffer> {
     // We don't have `@types/node` for this package so TypeScript doesn't know
     // about the `require()` function. We can't expect the error since when type
     // checking globally TypeScript does know about the `require()` function.
     // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
     // @ts-ignore
-    const crypto = require("crypto");
+    // TODO(calebmer): When we get rid of Cloudflare Workers support here we should
+    // import `crypto` up top!
+    const crypto = await import("crypto");
     return crypto.createHash("md5").update(new Uint8Array(data)).digest().buffer;
 }
 

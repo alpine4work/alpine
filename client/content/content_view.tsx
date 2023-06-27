@@ -80,8 +80,9 @@ export function ContentView({
 }) {
     // Don't get the current account when running in a unit test so we don't need
     // to render a space context when testing this component.
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const currentAccount = typeof jest === "undefined" ? useSpaceContext().currentAccount : null;
+    const currentAccount =
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        !import.meta.jest ? useSpaceContext().currentAccount : null;
 
     const ref = useRef<HTMLDivElement>(null);
 

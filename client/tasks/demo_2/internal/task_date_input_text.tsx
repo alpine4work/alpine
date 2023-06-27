@@ -57,8 +57,8 @@ export function TaskDateInputText({
         createCalendar,
         "aria-label": ariaLabel,
         "aria-labelledby": ariaLabelledBy,
+        value: date,
         // The types are wrong. These hooks actually support `CalendarDate | null`.
-        value: date as DateValue,
         onChange: onDateChange as (value: DateValue) => void,
     };
 

@@ -1,4 +1,5 @@
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 // This file should only run in a Node.js test environment. Either Jest
 // or Playwright.
@@ -13,4 +14,7 @@ export const testSharedHooks: {
     afterAll: (action: () => Promise<void>) => void;
     beforeEach: (action: () => Promise<void>) => void;
     afterEach: (action: () => Promise<void>) => void;
-} = typeof jest !== "undefined" ? globalThis : require("@playwright/test").test;
+} = import.meta.jest
+    ? globalThis
+    : // Set by `playwright_setup.mjs`
+      assertExists((globalThis as any).__playwrightTest);

@@ -1,5 +1,5 @@
-load("//admin/typescript:typescript.bzl", "ts_lint_and_format_test")
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("//admin/typescript:typescript.bzl", "ts_lint_and_format_test")
 
 ts_lint_and_format_test(
     name = "jest",
@@ -7,6 +7,6 @@ ts_lint_and_format_test(
 
 copy_to_bin(
     name = "jest_config_files",
-    srcs = glob(["**/*.js"]),
+    srcs = glob(["**/*.cjs"]),
     visibility = ["//visibility:public"],
 )

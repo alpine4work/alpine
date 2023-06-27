@@ -1,4 +1,4 @@
-import Fuse from "fuse.js";
+import _Fuse from "fuse.js";
 import GraphemeSplitter from "grapheme-splitter";
 import {Fragment, useMemo, useState} from "react";
 import {Box} from "~/client/design/box.js";
@@ -16,6 +16,9 @@ import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {LocalTaskCollectionId} from "~/shared/id/types/id_types.js";
 import {inputPlaceholderStyles} from "~/shared/styles/styles.js";
 import {TaskQueryCollectionsFilter} from "~/shared/tasks/task_query_filter.js";
+
+// Node.js ESM interop (#node-esm-migration)
+const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
 
 export function TaskQueryCollectionsFilterOperationEditor({
     state,

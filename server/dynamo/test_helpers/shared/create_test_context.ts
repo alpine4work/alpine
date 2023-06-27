@@ -61,7 +61,7 @@ export function createTestContext(): TestContext {
     //
     // The timeout shouldn't be too long since it will make it harder to debug
     // actual test failures due to timeout.
-    if (typeof jest !== "undefined") jest.setTimeout(1000 * 10);
+    if (import.meta.jest) import.meta.jest.setTimeout(1000 * 10);
 
     const tracer = TracerRoot.new({
         serviceName: "Test",

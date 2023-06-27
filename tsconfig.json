@@ -23,8 +23,8 @@
          *                                  Module                                    *
         \* ========================================================================== */
 
-        "module": "esnext",
-        "moduleResolution": "node",
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
         "resolveJsonModule": true,
         "isolatedModules": true,
         "esModuleInterop": true,

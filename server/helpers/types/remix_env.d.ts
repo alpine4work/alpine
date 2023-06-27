@@ -8,3 +8,10 @@ declare module "__STATIC_CONTENT_MANIFEST" {
     // eslint-disable-next-line only-erasable-types, import/no-default-export
     export default manifestJson;
 }
+
+// Remix expects exactly this import path but with Node.js ESM resolution the
+// correct convention is to start using the `.js` extension.
+declare module "@remix-run/dev/server-build" {
+    // eslint-disable-next-line only-erasable-types
+    export * from "@remix-run/dev/server-build.js";
+}

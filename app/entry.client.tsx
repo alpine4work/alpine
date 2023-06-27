@@ -1,5 +1,4 @@
-import {RemixBrowser} from "@remix-run/react";
-import {RouteModule} from "@remix-run/react/dist/routeModules";
+import {RemixBrowser, RouteModule} from "@remix-run/react";
 import {startTransition} from "react";
 import {hydrateRoot} from "react-dom/client";
 import {AppContext, AppContextProvider} from "~/client/context/app_context.js";

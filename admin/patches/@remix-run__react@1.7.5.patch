@@ -100,10 +100,10 @@ index ad1f483ff08866b12944c5c36bb6b4e55dd71e7e..adf80ab55b28001e1b30bd94c8781b29
    await prefetchStyleLinks(routeModule);
    return routeModule;
 diff --git a/dist/index.d.ts b/dist/index.d.ts
-index f4cf93355c80de06a2497d8589fc375f0defac63..988ce35445ca68db180419dd022d23963424b4bd 100644
+index f4cf93355c80de06a2497d8589fc375f0defac63..2f2e7d0a17c308db3cc251a42c00b58d5aa18bb6 100644
 --- a/dist/index.d.ts
 +++ b/dist/index.d.ts
-@@ -13,3 +13,13 @@ export { ScrollRestoration } from "./scroll-restoration";
+@@ -13,3 +13,14 @@ export { ScrollRestoration } from "./scroll-restoration";
  export type { RemixServerProps } from "./server";
  export { RemixServer } from "./server";
  export type { Fetcher } from "./transition";
@@ -117,6 +117,7 @@ index f4cf93355c80de06a2497d8589fc375f0defac63..988ce35445ca68db180419dd022d2396
 +export { loadRouteModuleWithBlockingLinks } from "./transition";
 +export type { ClientRoute } from "./routes";
 +export type { AppState } from "./errors";
++export type { RouteModule } from "./routeModules";
 diff --git a/dist/index.js b/dist/index.js
 index f0f257179dc33aeb11dc060867afcfbaf3b69c62..547b1d46f3b7654b5ac7c4c50bbbd3fc2a157361 100644
 --- a/dist/index.js

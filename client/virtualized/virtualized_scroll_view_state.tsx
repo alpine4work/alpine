@@ -23,7 +23,7 @@ export function getVirtualizationWindowHeight(viewHeight: number): number {
     // In Jest tests, our virtualization window height is a simple constant. This
     // makes it easier to write tests since you can correctly predict which items
     // should be visible with mental math.
-    if (typeof jest !== "undefined" && shouldMockVirtualizationWindowHeightForTest) {
+    if (import.meta.jest && shouldMockVirtualizationWindowHeightForTest) {
         return viewHeight * 2;
     }
 
@@ -43,7 +43,7 @@ export function getVirtualizationWindowHeight(viewHeight: number): number {
 let shouldMockVirtualizationWindowHeightForTest = true;
 
 export function withRealVirtualizationWindowHeightForTest(action: () => void) {
-    assert(typeof jest !== "undefined");
+    assert(import.meta.jest);
 
     const originalShouldMockVirtualizationWindowHeightForTest =
         shouldMockVirtualizationWindowHeightForTest;

@@ -55,8 +55,8 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {ClientInfoSchema} from "~/shared/remix/client_info.js";
 import {propagatedEventDataKey} from "~/shared/remix/json_with_schema_shared.js";
 import {Schema} from "~/shared/schema/schema.js";
+import sharedStylesHref from "~/shared/styles/styles.css";
 import {sprinkles} from "~/shared/styles/styles.js";
-import sharedStylesHref from "~/shared/styles/styles.css.js";
 import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data.js";
 import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.js";
 

@@ -1,4 +1,5 @@
 {
+    "type": "module",
     "private": true,
     "name": "cyberworlds",
     "version": "0.0.0",
@@ -70,7 +71,7 @@
         "@vanilla-extract/sprinkles": "^1.5.0",
         "aws-cdk": "2.43.1",
         "aws-cdk-lib": "2.42.0",
-        "aws4fetch": "^1.0.17",
+        "aws4fetch": "1.0.17",
         "axe-core": "4.4.3",
         "bcrypt": "^5.1.0",
         "browserify-zlib": "0.1.4",
@@ -195,7 +196,8 @@
             "@react-aria/datepicker@3.4.1": "admin/patches/@react-aria__datepicker@3.4.1.patch",
             "@react-aria/interactions@3.15.1": "admin/patches/@react-aria__interactions@3.15.1.patch",
             "@react-aria/selection@3.15.0": "admin/patches/@react-aria__selection@3.15.0.patch",
-            "@react-aria/ssr@3.6.0": "admin/patches/@react-aria__ssr@3.6.0.patch"
+            "@react-aria/ssr@3.6.0": "admin/patches/@react-aria__ssr@3.6.0.patch",
+            "aws4fetch@1.0.17": "admin/patches/aws4fetch@1.0.17.patch"
         },
         "allowedDeprecatedVersions": {
             "@types/keyv": "4.2.0",

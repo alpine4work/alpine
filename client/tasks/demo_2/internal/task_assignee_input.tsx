@@ -1,6 +1,6 @@
 import {getInteractionModality, isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
-import Fuse from "fuse.js";
+import _Fuse from "fuse.js";
 import {Check, MagnifyingGlass} from "phosphor-react";
 import {
     Ref,
@@ -42,6 +42,9 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {assertId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {colorSchemeVars, sprinkles, tasksStyles} from "~/shared/styles/styles.js";
+
+// Node.js ESM interop (#node-esm-migration)
+const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
 
 const nullAssigneeLabel = "Nobody";
 

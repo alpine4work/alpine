@@ -14,7 +14,7 @@ import {
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 
 // Notification table test helpers can only be used in Jest.
-assert(typeof jest !== "undefined");
+assert(import.meta.jest);
 
 // We create a new scenario for every test so the inbox isn't shared between
 // test runs.

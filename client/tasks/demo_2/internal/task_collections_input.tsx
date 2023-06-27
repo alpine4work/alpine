@@ -1,6 +1,6 @@
 import {getInteractionModality, isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
-import Fuse from "fuse.js";
+import _Fuse from "fuse.js";
 import {Lock, MagnifyingGlass, Plus} from "phosphor-react";
 import {
     KeyboardEvent,
@@ -58,6 +58,9 @@ import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {LocalTaskCollectionId} from "~/shared/id/types/id_types.js";
 import {inputPlaceholderStyles, sprinkles, tasksStyles} from "~/shared/styles/styles.js";
+
+// Node.js ESM interop (#node-esm-migration)
+const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
 
 type TaskDetailCollectionsFieldItem =
     | TaskDetailCollectionsFieldCollectionItem
@@ -636,7 +639,7 @@ function TaskDetailCollectionsFieldListBox({
         let createCollectionButtonItem: Node<TaskDetailCollectionsFieldItem> | null = null;
 
         for (const item of comboBoxState.collection) {
-            if (item.value.type === "CreateCollection") {
+            if (item.value!.type === "CreateCollection") {
                 createCollectionButtonItem = item;
             } else {
                 itemsWithoutCreateCollectionButton.push(

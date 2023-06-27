@@ -1,5 +1,5 @@
-import isValidDate from "date-fns/isValid";
-import parseISO from "date-fns/parseISO";
+import isValidDate from "date-fns/isValid/index.js";
+import parseISO from "date-fns/parseISO/index.js";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";

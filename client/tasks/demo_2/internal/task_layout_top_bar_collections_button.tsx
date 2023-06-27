@@ -1,6 +1,6 @@
 import {isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
-import Fuse from "fuse.js";
+import _Fuse from "fuse.js";
 import {CaretDown, MagnifyingGlass, Plus} from "phosphor-react";
 import {ReactNode, RefObject, cloneElement, isValidElement, useMemo, useRef, useState} from "react";
 import {
@@ -30,6 +30,9 @@ import {noop} from "~/shared/helpers/control/noop.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {LocalTaskCollectionId} from "~/shared/id/types/id_types.js";
 import {sprinkles} from "~/shared/styles/styles.js";
+
+// Node.js ESM interop (#node-esm-migration)
+const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
 
 export function TaskLayoutTopBarCollectionsButton({
     state,
@@ -297,7 +300,6 @@ function TaskLayoutTopBarCollectionsComboBoxOverlay({
             autoFocus: false,
             shouldFocusWrap: false,
             items: searchedItems,
-            children: renderItem,
         },
         comboBoxState,
     );
@@ -368,7 +370,7 @@ function TaskLayoutTopBarCollectionsListBox({
         let createCollectionButtonItem: Node<TaskLayoutTopBarCollectionsComboBoxItem> | null = null;
 
         for (const item of comboBoxState.collection) {
-            if (item.value.type === "CreateCollection") {
+            if (item.value!.type === "CreateCollection") {
                 createCollectionButtonItem = item;
             } else {
                 itemsWithoutCreateCollectionButton.push(

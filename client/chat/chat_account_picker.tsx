@@ -1,6 +1,6 @@
 import {isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
-import Fuse from "fuse.js";
+import _Fuse from "fuse.js";
 import {CaretDown, MagnifyingGlass, SpinnerGap, X} from "phosphor-react";
 import {
     KeyboardEvent,
@@ -52,6 +52,9 @@ import {
     spinAnimationClassName,
     sprinkles,
 } from "~/shared/styles/styles.js";
+
+// Node.js ESM interop (#node-esm-migration)
+const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
 
 type ChatAccountPickerItem =
     | {

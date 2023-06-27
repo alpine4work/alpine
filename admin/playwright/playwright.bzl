@@ -117,9 +117,16 @@ def playwright_test(
 
     bin.playwright_binary(
         name = "{}_bin".format(name),
-        data = ["{}_src".format(name), "//admin/jest:jest_config_files"] + deps + data,
-        # Use the same Jest setup script to setup our environment for Playwright tests.
-        node_options = node_options + ["-r", "./admin/jest/jest_setup_server.js"],
+        data = [
+            "{}_src".format(name),
+            "//admin/jest:jest_config_files",
+            "//admin/playwright:playwright_setup_file",
+        ] + deps + data,
+        node_options = node_options + [
+            # Use the same Jest setup script to setup our environment for Playwright tests.
+            "--require=./admin/jest/jest_setup_server.cjs",
+            "--import=./admin/playwright/playwright_setup.mjs",
+        ],
     )
 
     # Alias that defaults to running our Chromium test for the file.

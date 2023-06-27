@@ -1,0 +1,21 @@
+diff --git a/package.json b/package.json
+index 4ea1e456ccb0ceb242fd7dca3873a736e802e35c..b4c0a0425bac28b14d3ebd84e842a60f0f56efa5 100644
+--- a/package.json
++++ b/package.json
+@@ -10,11 +10,11 @@
+   "browser": "dist/aws4fetch.umd.js",
+   "exports": {
+     ".": {
+-      "import": "./dist/aws4fetch.esm.mjs",
+-      "worker": "./dist/aws4fetch.esm.js",
+-      "browser": "./dist/aws4fetch.umd.js",
+-      "require": "./dist/aws4fetch.cjs.js",
+-      "default": "./dist/aws4fetch.umd.js"
++      "import": {"types": "./dist/main.d.ts", "default": "./dist/aws4fetch.esm.mjs"},
++      "worker": {"types": "./dist/main.d.ts", "default": "./dist/aws4fetch.esm.js"},
++      "browser": {"types": "./dist/main.d.ts", "default": "./dist/aws4fetch.umd.js"},
++      "require": {"types": "./dist/main.d.ts", "default": "./dist/aws4fetch.cjs.js"},
++      "default": {"types": "./dist/main.d.ts", "default": "./dist/aws4fetch.umd.js"}
+     }
+   },
+   "types": "dist/main.d.ts",
