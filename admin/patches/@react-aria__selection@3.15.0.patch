@@ -1,17 +1,8 @@
 diff --git a/dist/import.mjs b/dist/import.mjs
-index b7f59c1ff16472ec3db0487957c6f6aad2794ff1..6e4b3f64205282e7a8949fc623738045d1d3f678 100644
+index 082d6d995a730880885197b993084b26ff5cde35..0f604e5f4c289da58e0ee0786e61a8ef7a60ec19 100644
 --- a/dist/import.mjs
 +++ b/dist/import.mjs
-@@ -2,7 +2,7 @@ import {useRef as $eCAIO$useRef, useEffect as $eCAIO$useEffect, useMemo as $eCAI
- import {getFocusableTreeWalker as $eCAIO$getFocusableTreeWalker, focusSafely as $eCAIO$focusSafely} from "@react-aria/focus";
- import {focusWithoutScrolling as $eCAIO$focusWithoutScrolling, useEvent as $eCAIO$useEvent, scrollIntoView as $eCAIO$scrollIntoView, scrollIntoViewport as $eCAIO$scrollIntoViewport, mergeProps as $eCAIO$mergeProps, isAppleDevice as $eCAIO$isAppleDevice, isMac as $eCAIO$isMac} from "@react-aria/utils";
- import {useLocale as $eCAIO$useLocale, useCollator as $eCAIO$useCollator} from "@react-aria/i18n";
--import {usePress as $eCAIO$usePress, useLongPress as $eCAIO$useLongPress} from "@react-aria/interactions";
-+import {usePress as $eCAIO$usePress, useLongPress as $eCAIO$useLongPress, getInteractionModality} from "@react-aria/interactions";
- 
- /*
-  * Copyright 2020 Adobe. All rights reserved.
-@@ -303,14 +303,25 @@ function $ae20dd8cbca75726$export$d6daf82dcd84e87c(options) {
+@@ -310,15 +310,25 @@ function $ae20dd8cbca75726$export$d6daf82dcd84e87c(options) {
      }, []);
      // If not virtualized, scroll the focused element into view when the focusedKey changes.
      // When virtualized, Virtualizer handles this internally.
@@ -23,12 +14,12 @@ index b7f59c1ff16472ec3db0487957c6f6aad2794ff1..6e4b3f64205282e7a8949fc623738045
 +    // 1. Don't scroll on hover. Only scroll on mouse movement.
 +    // 2. If scrolling to the first or last element then completely scroll the view.
      (0, $eCAIO$useEffect)(()=>{
-+        let modality = getInteractionModality();
-         if (!isVirtualized && manager.focusedKey && (scrollRef === null || scrollRef === void 0 ? void 0 : scrollRef.current)) {
+         let modality = (0, $eCAIO$getInteractionModality)();
+         if (!isVirtualized && manager.isFocused && manager.focusedKey != null && (scrollRef === null || scrollRef === void 0 ? void 0 : scrollRef.current)) {
              let element = scrollRef.current.querySelector(`[data-key="${manager.focusedKey}"]`);
 -            if (element) {
 -                (0, $eCAIO$scrollIntoView)(scrollRef.current, element);
--                (0, $eCAIO$scrollIntoViewport)(element, {
+-                if (modality === "keyboard") (0, $eCAIO$scrollIntoViewport)(element, {
 -                    containingElement: ref.current
 -                });
 +            if (element && modality === 'keyboard') {
@@ -43,10 +34,10 @@ index b7f59c1ff16472ec3db0487957c6f6aad2794ff1..6e4b3f64205282e7a8949fc623738045
          }
      }, [
 diff --git a/dist/main.js b/dist/main.js
-index f870c4da0d6464eaa909739ec1928533f0ad1f7a..9c7cb7865de0f9356c18f7566a0f265e8fa7f323 100644
+index 149bb229227e5d37235f544f75f20797da27ffe2..f030bf3f3c454171a1133666ff87e596f95be3c6 100644
 --- a/dist/main.js
 +++ b/dist/main.js
-@@ -312,14 +312,24 @@ function $b6837c2f80a3c32f$export$d6daf82dcd84e87c(options) {
+@@ -319,15 +319,25 @@ function $b6837c2f80a3c32f$export$d6daf82dcd84e87c(options) {
      }, []);
      // If not virtualized, scroll the focused element into view when the focusedKey changes.
      // When virtualized, Virtualizer handles this internally.
@@ -58,11 +49,12 @@ index f870c4da0d6464eaa909739ec1928533f0ad1f7a..9c7cb7865de0f9356c18f7566a0f265e
 +    // 1. Don't scroll on hover. Only scroll on mouse movement.
 +    // 2. If scrolling to the first or last element then completely scroll the view.
      (0, $glPPV$react.useEffect)(()=>{
-         if (!isVirtualized && manager.focusedKey && (scrollRef === null || scrollRef === void 0 ? void 0 : scrollRef.current)) {
+         let modality = (0, $glPPV$reactariainteractions.getInteractionModality)();
+         if (!isVirtualized && manager.isFocused && manager.focusedKey != null && (scrollRef === null || scrollRef === void 0 ? void 0 : scrollRef.current)) {
              let element = scrollRef.current.querySelector(`[data-key="${manager.focusedKey}"]`);
 -            if (element) {
 -                (0, $glPPV$reactariautils.scrollIntoView)(scrollRef.current, element);
--                (0, $glPPV$reactariautils.scrollIntoViewport)(element, {
+-                if (modality === "keyboard") (0, $glPPV$reactariautils.scrollIntoViewport)(element, {
 -                    containingElement: ref.current
 -                });
 +            if (element && modality === 'keyboard') {
@@ -77,19 +69,10 @@ index f870c4da0d6464eaa909739ec1928533f0ad1f7a..9c7cb7865de0f9356c18f7566a0f265e
          }
      }, [
 diff --git a/dist/module.js b/dist/module.js
-index b7f59c1ff16472ec3db0487957c6f6aad2794ff1..6e4b3f64205282e7a8949fc623738045d1d3f678 100644
+index 082d6d995a730880885197b993084b26ff5cde35..0f604e5f4c289da58e0ee0786e61a8ef7a60ec19 100644
 --- a/dist/module.js
 +++ b/dist/module.js
-@@ -2,7 +2,7 @@ import {useRef as $eCAIO$useRef, useEffect as $eCAIO$useEffect, useMemo as $eCAI
- import {getFocusableTreeWalker as $eCAIO$getFocusableTreeWalker, focusSafely as $eCAIO$focusSafely} from "@react-aria/focus";
- import {focusWithoutScrolling as $eCAIO$focusWithoutScrolling, useEvent as $eCAIO$useEvent, scrollIntoView as $eCAIO$scrollIntoView, scrollIntoViewport as $eCAIO$scrollIntoViewport, mergeProps as $eCAIO$mergeProps, isAppleDevice as $eCAIO$isAppleDevice, isMac as $eCAIO$isMac} from "@react-aria/utils";
- import {useLocale as $eCAIO$useLocale, useCollator as $eCAIO$useCollator} from "@react-aria/i18n";
--import {usePress as $eCAIO$usePress, useLongPress as $eCAIO$useLongPress} from "@react-aria/interactions";
-+import {usePress as $eCAIO$usePress, useLongPress as $eCAIO$useLongPress, getInteractionModality} from "@react-aria/interactions";
- 
- /*
-  * Copyright 2020 Adobe. All rights reserved.
-@@ -303,14 +303,25 @@ function $ae20dd8cbca75726$export$d6daf82dcd84e87c(options) {
+@@ -310,15 +310,25 @@ function $ae20dd8cbca75726$export$d6daf82dcd84e87c(options) {
      }, []);
      // If not virtualized, scroll the focused element into view when the focusedKey changes.
      // When virtualized, Virtualizer handles this internally.
@@ -101,12 +84,12 @@ index b7f59c1ff16472ec3db0487957c6f6aad2794ff1..6e4b3f64205282e7a8949fc623738045
 +    // 1. Don't scroll on hover. Only scroll on mouse movement.
 +    // 2. If scrolling to the first or last element then completely scroll the view.
      (0, $eCAIO$useEffect)(()=>{
-+        let modality = getInteractionModality();
-         if (!isVirtualized && manager.focusedKey && (scrollRef === null || scrollRef === void 0 ? void 0 : scrollRef.current)) {
+         let modality = (0, $eCAIO$getInteractionModality)();
+         if (!isVirtualized && manager.isFocused && manager.focusedKey != null && (scrollRef === null || scrollRef === void 0 ? void 0 : scrollRef.current)) {
              let element = scrollRef.current.querySelector(`[data-key="${manager.focusedKey}"]`);
 -            if (element) {
 -                (0, $eCAIO$scrollIntoView)(scrollRef.current, element);
--                (0, $eCAIO$scrollIntoViewport)(element, {
+-                if (modality === "keyboard") (0, $eCAIO$scrollIntoViewport)(element, {
 -                    containingElement: ref.current
 -                });
 +            if (element && modality === 'keyboard') {
@@ -121,18 +104,10 @@ index b7f59c1ff16472ec3db0487957c6f6aad2794ff1..6e4b3f64205282e7a8949fc623738045
          }
      }, [
 diff --git a/src/useSelectableCollection.ts b/src/useSelectableCollection.ts
-index 515a7bb4267bbe92ad5dc2702bf6ea469bdc857c..7525fc4ff0d0aa292b3b9098763ea4b5d69c987d 100644
+index 355370c4c14f7074d16330bc35da0cb46f21176a..33177baf15351821aff93a87feff73211a229994 100644
 --- a/src/useSelectableCollection.ts
 +++ b/src/useSelectableCollection.ts
-@@ -18,6 +18,7 @@ import {isCtrlKeyPressed, isNonContiguousSelectionModifier} from './utils';
- import {MultipleSelectionManager} from '@react-stately/selection';
- import {useLocale} from '@react-aria/i18n';
- import {useTypeSelect} from './useTypeSelect';
-+import {getInteractionModality} from '@react-aria/interactions';
- 
- export interface AriaSelectableCollectionOptions {
-   /**
-@@ -355,12 +356,25 @@ export function useSelectableCollection(options: AriaSelectableCollectionOptions
+@@ -364,14 +364,24 @@ export function useSelectableCollection(options: AriaSelectableCollectionOptions
  
    // If not virtualized, scroll the focused element into view when the focusedKey changes.
    // When virtualized, Virtualizer handles this internally.
@@ -144,12 +119,13 @@ index 515a7bb4267bbe92ad5dc2702bf6ea469bdc857c..7525fc4ff0d0aa292b3b9098763ea4b5
 +  // 1. Don't scroll on hover. Only scroll on mouse movement.
 +  // 2. If scrolling to the first or last element then completely scroll the view.
    useEffect(() => {
-+    let modality = getInteractionModality();
-     if (!isVirtualized && manager.focusedKey && scrollRef?.current) {
+     let modality = getInteractionModality();
+     if (!isVirtualized && manager.isFocused && manager.focusedKey != null && scrollRef?.current) {
        let element = scrollRef.current.querySelector(`[data-key="${manager.focusedKey}"]`) as HTMLElement;
 -      if (element) {
 -        scrollIntoView(scrollRef.current, element);
--        scrollIntoViewport(element, {containingElement: ref.current});
+-        if (modality === 'keyboard') {
+-          scrollIntoViewport(element, {containingElement: ref.current});
 +      if (element && modality === 'keyboard') {
 +        if (!element.previousSibling) {
 +          scrollRef.current.scrollTop = 0;
@@ -157,7 +133,6 @@ index 515a7bb4267bbe92ad5dc2702bf6ea469bdc857c..7525fc4ff0d0aa292b3b9098763ea4b5
 +          scrollRef.current.scrollTop = scrollRef.current.scrollHeight - scrollRef.current.clientHeight;
 +        } else {
 +          scrollIntoView(scrollRef.current, element);
-+        }
+         }
        }
      }
-   }, [isVirtualized, scrollRef, manager.focusedKey, ref]);
