@@ -10,6 +10,7 @@ const env = parseDotenv();
 module.exports = {
     future: {
         v2_routeConvention: true,
+        v2_errorBoundary: true,
     },
     server: "./app/server.js",
     serverBuildPath: "./app/build/server.js",
@@ -17,8 +18,8 @@ module.exports = {
     ignoredRouteFiles: ["**/.*"],
     devServerPort: env.DEV_SERVER_PORT ? parseInt(env.DEV_SERVER_PORT, 10) : undefined,
     publicPath: "/build/",
-    serverConditions: "worker",
-    serverMainFields: "browser, module, main",
+    serverConditions: ["worker"],
+    serverMainFields: ["browser", "module", "main"],
     serverModuleFormat: "esm",
     serverPlatform: "neutral",
     serverDependenciesToBundle: "all",

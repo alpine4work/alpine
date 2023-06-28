@@ -7,9 +7,7 @@ import {
     UNSAFE_RemixContext as RemixContext,
     Scripts,
     ScrollRestoration,
-    ThrownResponse,
     loadRouteModuleWithBlockingLinks,
-    useCatch,
 } from "@remix-run/react";
 import {IconContext} from "phosphor-react";
 import prosemirrorStylesHref from "prosemirror-view/style/prosemirror.css";
@@ -18,7 +16,9 @@ import {
     DataRouteObject,
     UNSAFE_DataRouterContext as DataRouterContext,
     UNSAFE_DataRouterStateContext as DataRouterStateContext,
+    isRouteErrorResponse,
     matchRoutes,
+    useRouteError,
 } from "react-router";
 import type {LoaderData as InboxLoaderData} from "~/app/routes/s.$spaceId.inbox.js";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
@@ -95,7 +95,7 @@ export function loader({context}: LoaderArgs) {
     });
 }
 
-export default function Root({error}: {error?: unknown}) {
+export default function Root() {
     const remixContext = useContext(RemixContext);
     assert(remixContext, "Expected Remix context");
 
@@ -164,26 +164,34 @@ export default function Root({error}: {error?: unknown}) {
         [dataRouterStateContext.loaderData.root],
     );
 
-    const caught = useCatch() as ThrownResponse | undefined;
+    const routeError = useRouteError();
 
-    const caughtResponseError = useMemo(() => {
-        if (!caught) return undefined;
-        if (caught.status === 404)
-            return new NotFoundError("Route not found", {
-                displayMessage: errorDisplayMessage`The page you opened could not be found. If you got here from a broken link let us know at ${errorDisplayMessage.supportLink}`,
-            });
-        return new UnknownError(
-            quote`Response thrown with status ${caught.status} ${caught.statusText}`,
-        );
-    }, [caught]);
+    const error = useMemo(() => {
+        if (!routeError) return undefined;
+
+        if (isRouteErrorResponse(routeError)) {
+            if (routeError.status === 404)
+                return new NotFoundError("Route not found", {
+                    displayMessage: errorDisplayMessage`The page you opened could not be found. If you got here from a broken link let us know at ${errorDisplayMessage.supportLink}`,
+                });
+
+            return new UnknownError(
+                quote`Response thrown with status ${routeError.status} ${routeError.statusText}`,
+            );
+        }
+
+        return routeError;
+    }, [routeError]);
 
     const children =
         error !== undefined ? (
-            <RootErrorRenderer error={error} />
-        ) : caughtResponseError !== undefined ? (
             <RootErrorRenderer
-                error={caughtResponseError}
-                title={caught?.status === 404 ? "Could not find content" : undefined}
+                error={error}
+                title={
+                    isRouteErrorResponse(routeError) && routeError.status === 404
+                        ? "Could not find content"
+                        : undefined
+                }
             />
         ) : (
             <Outlet />
@@ -289,7 +297,6 @@ function RootErrorRenderer({error: _error, title}: {error: unknown; title?: stri
 // if Remix navigates between root and error boundary we don't remount the
 // HTML. (Which appears to cause CSS to flash off.)
 export const ErrorBoundary = Root;
-export const CatchBoundary = Root;
 
 const wasPatchedSymbol = Symbol("wasPatched");
 
