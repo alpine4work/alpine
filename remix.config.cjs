@@ -8,15 +8,21 @@ const env = parseDotenv();
 
 /** @type {import('@remix-run/dev').AppConfig} */
 module.exports = {
-    serverBuildTarget: "cloudflare-workers",
-    server: "./app/server.js",
-    assetsBuildDirectory: "./app/public/build",
-    serverBuildPath: "./app/build/server.js",
-    ignoredRouteFiles: ["**/.*"],
-    devServerPort: env.DEV_SERVER_PORT ? parseInt(env.DEV_SERVER_PORT, 10) : undefined,
     future: {
         v2_routeConvention: true,
     },
+    server: "./app/server.js",
+    serverBuildPath: "./app/build/server.js",
+    assetsBuildDirectory: "./app/public/build",
+    ignoredRouteFiles: ["**/.*"],
+    devServerPort: env.DEV_SERVER_PORT ? parseInt(env.DEV_SERVER_PORT, 10) : undefined,
+    publicPath: "/build/",
+    serverConditions: "worker",
+    serverMainFields: "browser, module, main",
+    serverModuleFormat: "esm",
+    serverPlatform: "neutral",
+    serverDependenciesToBundle: "all",
+    serverMinify: true,
 };
 
 // Copy of `admin/helpers/parse_dotenv.ts`. Hard to figure out how to include
