@@ -127,6 +127,23 @@ export function usePeekRemixEmbedRouter() {
                 const router = createRouter({
                     history: {
                         ...history,
+
+                        // Spreading copies the current value of getters so manually override
+                        // the getters.
+                        // https://github.com/remix-run/react-router/blob/bc2552840147206716544e5cdcdb54f649f9193f/packages/router/history.ts#L276-L284
+                        get index() {
+                            return history.index;
+                        },
+                        get entries() {
+                            return history.entries;
+                        },
+                        get action() {
+                            return history.action;
+                        },
+                        get location() {
+                            return history.location;
+                        },
+
                         // By default, memory history will return a URL with the domain
                         // `http://localhost` (no port). Make sure to use the right domain.
                         createURL: to => new URL(history.createHref(to), window.location.origin),
@@ -143,7 +160,8 @@ export function usePeekRemixEmbedRouter() {
                 const peekRouter: PeekRemixEmbedRouter = {
                     ...router,
 
-                    // Spreading does not copy getters so we need to manually override the getters.
+                    // Spreading copies the current value of getters so manually override
+                    // the getters.
                     // https://github.com/remix-run/react-router/blob/bc2552840147206716544e5cdcdb54f649f9193f/packages/router/router.ts#L2508-L2516
                     get basename() {
                         return router.basename;
@@ -219,7 +237,8 @@ export function PeekRemixEmbed({
         return {
             ...originalRouter,
 
-            // Spreading does not copy getters so we need to manually override the getters.
+            // Spreading copies the current value of getters so manually override
+            // the getters.
             // https://github.com/remix-run/react-router/blob/bc2552840147206716544e5cdcdb54f649f9193f/packages/router/router.ts#L2508-L2516
             get basename() {
                 return originalRouter.basename;
