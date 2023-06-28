@@ -1,0 +1,146 @@
+diff --git a/dist/index.js b/dist/index.js
+index 5e9d570eaffa2c55e3903bbbd6981f5330e6d890..4e3ae362ffe0930f25c18874784b17aca84b501e 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -879,7 +879,8 @@ function RouterProvider(_ref) {
+   let {
+     fallbackElement,
+     router,
+-    future
++    future,
++    dangerouslyAllowNesting
+   } = _ref;
+   // Need to use a layout effect here so we are subscribed early enough to
+   // pick up on any render-driven redirects/navigations (useEffect/<Navigate>)
+@@ -929,7 +930,8 @@ function RouterProvider(_ref) {
+     basename: basename,
+     location: state.location,
+     navigationType: state.historyAction,
+-    navigator: navigator
++    navigator: navigator,
++    dangerouslyAllowNesting: dangerouslyAllowNesting
+   }, state.initialized ? /*#__PURE__*/React.createElement(DataRoutes, {
+     routes: router.routes,
+     state: state
+@@ -1054,9 +1056,13 @@ function Router(_ref5) {
+     location: locationProp,
+     navigationType = Action.Pop,
+     navigator,
+-    static: staticProp = false
++    static: staticProp = false,
++    dangerouslyAllowNesting = false,
+   } = _ref5;
+-  !!useInRouterContext() ? process.env.NODE_ENV !== "production" ? UNSAFE_invariant(false, "You cannot render a <Router> inside another <Router>." + " You should never have more than one in your app.") : UNSAFE_invariant(false) : void 0;
++  // NOTE(calebmer): We need nested router support for implementing peeks.
++  // Taking full responsibility for any nested router issues. Acknowledge this
++  // is not officially supported by calling the prop "dangerous".
++  !(!useInRouterContext() || dangerouslyAllowNesting) ? process.env.NODE_ENV !== "production" ? UNSAFE_invariant(false, "You cannot render a <Router> inside another <Router>." + " You should never have more than one in your app.") : UNSAFE_invariant(false) : void 0;
+ 
+   // Preserve trailing slashes on basename, so we can let the user control
+   // the enforcement of trailing slashes throughout the app
+diff --git a/dist/lib/components.d.ts b/dist/lib/components.d.ts
+index 49086d020b6121d05213b0554c1f4f30b35f81ce..aa668dce6b0eed1955cd52ed690dd0db26ed470f 100644
+--- a/dist/lib/components.d.ts
++++ b/dist/lib/components.d.ts
+@@ -9,6 +9,10 @@ export interface RouterProviderProps {
+     fallbackElement?: React.ReactNode;
+     router: RemixRouter;
+     future?: FutureConfig;
++    // NOTE(calebmer): We need nested router support for implementing peeks.
++    // Taking full responsibility for any nested router issues. Acknowledge this
++    // is not officially supported by calling the prop "dangerous".
++    dangerouslyAllowNesting?: boolean;
+ }
+ /**
+  * Given a Remix Router instance, render the appropriate UI
+@@ -102,6 +106,10 @@ export interface RouterProps {
+     navigationType?: NavigationType;
+     navigator: Navigator;
+     static?: boolean;
++    // NOTE(calebmer): We need nested router support for implementing peeks.
++    // Taking full responsibility for any nested router issues. Acknowledge this
++    // is not officially supported by calling the prop "dangerous".
++    dangerouslyAllowNesting?: boolean;
+ }
+ /**
+  * Provides location context for the rest of the app.
+diff --git a/dist/react-router.development.js b/dist/react-router.development.js
+index 307080dc1b458a04f3a340a8160a4b73feb49ba3..8706c5105922df33ccd02572ac4c60eea5a59e5a 100644
+--- a/dist/react-router.development.js
++++ b/dist/react-router.development.js
+@@ -797,7 +797,8 @@ const startTransitionImpl = React[START_TRANSITION];
+ function RouterProvider({
+   fallbackElement,
+   router,
+-  future
++  future,
++  dangerouslyAllowNesting
+ }) {
+   // Need to use a layout effect here so we are subscribed early enough to
+   // pick up on any render-driven redirects/navigations (useEffect/<Navigate>)
+@@ -846,7 +847,8 @@ function RouterProvider({
+     basename: basename,
+     location: state.location,
+     navigationType: state.historyAction,
+-    navigator: navigator
++    navigator: navigator,
++    dangerouslyAllowNesting
+   }, state.initialized ? /*#__PURE__*/React.createElement(DataRoutes, {
+     routes: router.routes,
+     state: state
+@@ -967,9 +969,13 @@ function Router({
+   location: locationProp,
+   navigationType = Action.Pop,
+   navigator,
+-  static: staticProp = false
++  static: staticProp = false,
++  dangerouslyAllowNesting = false,
+ }) {
+-  !!useInRouterContext() ? UNSAFE_invariant(false, `You cannot render a <Router> inside another <Router>.` + ` You should never have more than one in your app.`)  : void 0;
++  // NOTE(calebmer): We need nested router support for implementing peeks.
++  // Taking full responsibility for any nested router issues. Acknowledge this
++  // is not officially supported by calling the prop "dangerous".
++  !(!useInRouterContext() || dangerouslyAllowNesting) ? UNSAFE_invariant(false, `You cannot render a <Router> inside another <Router>.` + ` You should never have more than one in your app.`)  : void 0;
+   // Preserve trailing slashes on basename, so we can let the user control
+   // the enforcement of trailing slashes throughout the app
+   let basename = basenameProp.replace(/^\/*/, "/");
+diff --git a/dist/umd/react-router.development.js b/dist/umd/react-router.development.js
+index 97aca4a68094049fbc8db939d4fdb4af394aa505..15cb11692838ec30919289bf35d5e186cb36c9aa 100644
+--- a/dist/umd/react-router.development.js
++++ b/dist/umd/react-router.development.js
+@@ -901,7 +901,8 @@
+     let {
+       fallbackElement,
+       router,
+-      future
++      future,
++      dangerouslyAllowNesting
+     } = _ref;
+     // Need to use a layout effect here so we are subscribed early enough to
+     // pick up on any render-driven redirects/navigations (useEffect/<Navigate>)
+@@ -951,7 +952,8 @@
+       basename: basename,
+       location: state.location,
+       navigationType: state.historyAction,
+-      navigator: navigator
++      navigator: navigator,
++      dangerouslyAllowNesting: dangerouslyAllowNesting
+     }, state.initialized ? /*#__PURE__*/React__namespace.createElement(DataRoutes, {
+       routes: router.routes,
+       state: state
+@@ -1076,9 +1078,13 @@
+       location: locationProp,
+       navigationType = router.Action.Pop,
+       navigator,
+-      static: staticProp = false
++      static: staticProp = false,
++      dangerouslyAllowNesting = false,
+     } = _ref5;
+-    !!useInRouterContext() ? router.UNSAFE_invariant(false, "You cannot render a <Router> inside another <Router>." + " You should never have more than one in your app.")  : void 0;
++    // NOTE(calebmer): We need nested router support for implementing peeks.
++    // Taking full responsibility for any nested router issues. Acknowledge this
++    // is not officially supported by calling the prop "dangerous".
++    !(!useInRouterContext() || dangerouslyAllowNesting) ? router.UNSAFE_invariant(false, "You cannot render a <Router> inside another <Router>." + " You should never have more than one in your app.")  : void 0;
+ 
+     // Preserve trailing slashes on basename, so we can let the user control
+     // the enforcement of trailing slashes throughout the app

@@ -2,16 +2,15 @@ import {ClientRect, DndContext, DraggableAttributes, Modifier, useDraggable} fro
 import {SyntheticListenerMap} from "@dnd-kit/core/dist/hooks/utilities";
 import {PressEvent} from "@react-types/shared";
 import {useTransition} from "@remix-run/react";
-import {ClientRoute, RemixEntryContext, matchClientRoutes} from "@remix-run/react";
 import {
     Action,
+    HydrationState,
     Location,
     MemoryHistory,
-    To,
     createMemoryHistory,
     createPath,
-    parsePath,
-} from "history";
+    resolvePath,
+} from "@remix-run/router";
 import {animate, spring} from "motion";
 import {
     ArrowLeft,
@@ -38,7 +37,14 @@ import {
     useState,
 } from "react";
 import {createPortal} from "react-dom";
-import {useLocation, useNavigationType} from "react-router";
+import {
+    DataRouteObject,
+    UNSAFE_DataRouterContext as DataRouterContext,
+    To,
+    matchRoutes,
+    useLocation,
+    useNavigationType,
+} from "react-router";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
@@ -55,7 +61,11 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
 import {loadInitialPeekDataForClient} from "~/client/peek/load_initial_peek_data_for_client.js";
-import {PeekRemixEmbed} from "~/client/peek/peek_remix_embed.js";
+import {
+    PeekRemixEmbed,
+    PeekRemixEmbedRouter,
+    usePeekRemixEmbedRouter,
+} from "~/client/peek/peek_remix_embed.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {NavigationEventContextProvider, useNavigate} from "~/client/remix/use_navigate.js";
 import {
@@ -98,8 +108,8 @@ const peekUnderlayOffset = spacing["2"];
 type PeekStackEntry = {
     readonly id: PeekId;
     readonly history: MemoryHistory;
+    readonly routerPromise: Lazy<PromiseImmediate<PeekRemixEmbedRouter>>;
     readonly autoFocus: boolean;
-    readonly loaderDataRef: Lazy<PromiseImmediate<MutableRefObject<{[key: string]: unknown}>>>;
 };
 
 type PeekStackState = {
@@ -246,8 +256,9 @@ const initialPeekStackState: PeekStackState = {
 };
 
 export function PeekStackContextProvider({children}: {children?: ReactNode}) {
-    const remixEntryContext = useContext(RemixEntryContext);
-    assert(remixEntryContext, "Expected Remix entry context");
+    const dataRouterContext = useContext(DataRouterContext);
+    assert(dataRouterContext, "Expected data router context");
+
     const isMobile = useIsMobile();
 
     const stackRef = useRef<PeekStackRef>(null);
@@ -265,16 +276,19 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
         }
     }, [isMobile, _state]);
 
+    const {peekRoutes, createPeekRouter} = usePeekRemixEmbedRouter();
+
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     const push = useEvent(async (to: To, {focus = false}: {focus?: boolean} = {}) => {
-        const peekPath = convertSpacePathToPeekPath(to);
+        const path = resolvePath(to, dataRouterContext.router.state.location.pathname);
+        const peekPath = convertSpacePathToPeekPath(path);
         if (!peekPath) throw new InternalError("Can only open peek for a space route");
 
         // If the top of the peek stack is the URL we're navigating to then do nothing.
         // Wiggle the stack as a response to the user's interaction.
         if (
             state.stack[0]?.history.location.pathname === peekPath.pathname &&
-            state.stack[0].history.location.search === peekPath.search
+            state.stack[0]!.history.location.search === peekPath.search
         ) {
             stackRef.current?.wiggle();
             return;
@@ -282,21 +296,31 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
 
         const abortController = new AbortController();
 
-        const {loaderData} = await loadInitialPeekDataForClient(
-            remixEntryContext.clientRoutes,
+        const {loaderData, errors} = await loadInitialPeekDataForClient(
+            peekRoutes,
             peekPath,
             abortController.signal,
         );
+
+        const history = createMemoryHistory({
+            initialEntries: [peekPath],
+        });
+
+        const router = createPeekRouter({
+            history,
+            hydrationData: {
+                loaderData,
+                errors,
+            },
+        });
 
         dispatch({
             type: "Push",
             entry: {
                 id: generateId(),
-                history: createMemoryHistory({
-                    initialEntries: [peekPath],
-                }),
+                history,
+                routerPromise: new Lazy(() => PromiseImmediate.resolve(router)),
                 autoFocus: focus,
-                loaderDataRef: new Lazy(() => PromiseImmediate.resolve({current: loaderData})),
             },
         });
     });
@@ -324,7 +348,7 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
 
         preloadRestoreStackRef.current?.abortController.abort();
 
-        const result = restorePeekStack(transition.location.key, remixEntryContext.clientRoutes);
+        const result = restorePeekStack(transition.location.key, peekRoutes, createPeekRouter);
         if (result === null) {
             preloadRestoreStackRef.current = null;
             return;
@@ -334,7 +358,7 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
             ...result,
             location: transition.location,
         };
-    }, [remixEntryContext.clientRoutes, transition.location, transition.state]);
+    }, [createPeekRouter, peekRoutes, transition.location, transition.state]);
 
     // If we are expanding a peek then we want to exclude it from our stored peek
     // stack so if the user navigates back it is not open.
@@ -363,7 +387,7 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
             result = preloadRestoreStackRef.current;
             preloadRestoreStackRef.current = null;
         } else {
-            result = restorePeekStack(location.key, remixEntryContext.clientRoutes);
+            result = restorePeekStack(location.key, peekRoutes, createPeekRouter);
         }
 
         if (result === null) {
@@ -376,7 +400,7 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
         }
 
         dispatch({type: "Restore", stack: result.stack});
-    }, [location.key, navigationType, remixEntryContext.clientRoutes, state]);
+    }, [createPeekRouter, peekRoutes, location.key, navigationType, state]);
 
     useEffect(() => {
         const handleVisibilityChange = () => {
@@ -426,13 +450,16 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
                         // will instead push a peek.
                         if (options?.replace) return {preventDefault: false};
 
-                        const path = typeof to === "string" ? parsePath(to) : to;
+                        const path = resolvePath(
+                            to,
+                            dataRouterContext.router.state.location.pathname,
+                        );
 
                         // Don't open a peek if it's the URL we're navigating to is the same as the
                         // current URL.
                         if (
-                            (path.pathname ?? "/") === location.pathname &&
-                            (path.search ?? "") === location.search
+                            path.pathname === location.pathname &&
+                            path.search === location.search
                         ) {
                             return {preventDefault: false};
                         }
@@ -440,14 +467,11 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
                         // Determine whether there is a peek route for the path we are navigating to.
                         const peekPath = convertSpacePathToPeekPath(path);
                         if (!peekPath) return {preventDefault: false};
-                        const peekRouteMatches = matchClientRoutes(
-                            remixEntryContext.clientRoutes,
-                            peekPath.pathname,
-                        );
+                        const peekRouteMatches = matchRoutes(peekRoutes, peekPath.pathname);
                         if (!peekRouteMatches) return {preventDefault: false};
 
-                        const routeMatches = matchClientRoutes(
-                            remixEntryContext.clientRoutes,
+                        const routeMatches = matchRoutes(
+                            dataRouterContext.router.routes,
                             path.pathname ?? "/",
                         );
 
@@ -1205,16 +1229,16 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
         dispatch({type: "Pop"});
     };
 
-    const loaderDataRefResult = usePromise(entry.loaderDataRef.get());
+    const routerResult = usePromise(entry.routerPromise.get());
 
     // Once we've finished loading the data the peek whose content we're rendering,
     // start loading the data for the next peek in the stack so that it's ready
     // when we close our current peek.
     useEffect(() => {
-        if (!loaderDataRefResult.isPending) {
-            void state.stack[index + 1]?.loaderDataRef.get();
+        if (!routerResult.isPending) {
+            void state.stack[index + 1]?.routerPromise.get();
         }
-    }, [index, loaderDataRefResult.isPending, state.stack]);
+    }, [index, routerResult.isPending, state.stack]);
 
     const [historyPosition, setHistoryPosition] = useState(() => ({
         index: entry.history.index,
@@ -1222,7 +1246,9 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
     }));
 
     useEffect(() => {
-        const update = () =>
+        if (routerResult.isPending) return;
+
+        const update = () => {
             setHistoryPosition(historyPosition => {
                 const newHistoryPosition = {
                     index: entry.history.index,
@@ -1232,11 +1258,12 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
                     ? newHistoryPosition
                     : historyPosition;
             });
+        };
 
         update();
 
-        return entry.history.listen(update);
-    }, [entry.history]);
+        return routerResult.value.subscribe(update);
+    }, [entry.history, routerResult.isPending, routerResult.value]);
 
     return (
         <PeekIsAnimatingOpenContext.Provider value={isAnimatingOpen}>
@@ -1372,12 +1399,11 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
                             </IconButton>
                         </Box>
                     </Box>
-                    {!loaderDataRefResult.isPending ? (
+                    {!routerResult.isPending ? (
                         <PeekRemixEmbed
                             peekId={entry.id}
                             withMobileLayout={true}
-                            loaderDataRef={loaderDataRefResult.value}
-                            history={entry.history}
+                            router={routerResult.value}
                             onGoBackOverflow={() => dispatch({type: "Pop"})}
                         />
                     ) : (
@@ -1444,7 +1470,14 @@ function storePeekStack(locationKey: string, stack: ReadonlyArray<PeekStackEntry
 
 function restorePeekStack(
     locationKey: string,
-    routes: Array<ClientRoute>,
+    peekRoutes: Array<DataRouteObject>,
+    createPeekRouter: ({
+        history,
+        hydrationData,
+    }: {
+        history: MemoryHistory;
+        hydrationData?: HydrationState;
+    }) => PeekRemixEmbedRouter,
 ): {
     abortController: AbortController;
     stack: Array<PeekStackEntry>;
@@ -1472,27 +1505,30 @@ function restorePeekStack(
         return {
             id: entry.id,
             history,
-            autoFocus: false,
-            loaderDataRef: new Lazy(() =>
+            routerPromise: new Lazy(() =>
                 PromiseImmediate.resolve(
                     (async () => {
-                        const {loaderData} = await loadInitialPeekDataForClient(
-                            routes,
+                        const {loaderData, errors} = await loadInitialPeekDataForClient(
+                            peekRoutes,
                             history.location,
                             abortController.signal,
                         );
 
-                        return {current: loaderData};
+                        return createPeekRouter({
+                            history,
+                            hydrationData: {loaderData, errors},
+                        });
                     })(),
                 ),
             ),
+            autoFocus: false,
         };
     });
 
     // Start preloading the data for the first entry in the stack. So that
     // hopefully when we render, all the data is available and the user doesn't see
     // a loading spinner.
-    void stack[0]?.loaderDataRef.get();
+    void stack[0]?.routerPromise.get();
 
     return {
         abortController,

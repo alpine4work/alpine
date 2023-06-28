@@ -1,4 +1,4 @@
-import {Path, To, parsePath} from "history";
+import {Path} from "@remix-run/router";
 
 const spacePathRegExp = /^(\/s\/[^/]+\/)(?!peek)(.*)$/;
 const peekPathRegExp = /^(\/s\/[^/]+)\/peek(\/.*)$/;
@@ -6,8 +6,7 @@ const peekPathRegExp = /^(\/s\/[^/]+)\/peek(\/.*)$/;
 /**
  * Is the provided path a peek path?
  */
-export function isPeekPath(to: To): boolean {
-    const path = typeof to === "string" ? parsePath(to) : to;
+export function isPeekPath(path: Path): boolean {
     return peekPathRegExp.test(path.pathname ?? "/");
 }
 
@@ -16,17 +15,14 @@ export function isPeekPath(to: To): boolean {
  * to a peek URL within the space. Does not guarantee that a peek route
  * actually exists for the URL.
  */
-export function convertSpacePathToPeekPath(to: To): Path | null {
-    const path = typeof to === "string" ? parsePath(to) : to;
-    const match = (path.pathname ?? "/").match(spacePathRegExp);
+export function convertSpacePathToPeekPath(path: Path): Path | null {
+    const match = path.pathname.match(spacePathRegExp);
     if (!match) return null;
 
     const pathnamePart1 = match[1]!;
     const pathnamePart2 = match[2]!;
 
     return {
-        search: "",
-        hash: "",
         ...path,
         pathname: `${pathnamePart1}peek/${pathnamePart2}`,
     };
@@ -38,17 +34,14 @@ export function convertSpacePathToPeekPath(to: To): Path | null {
  *
  * Will return `null` if the provided path is not a peek path.
  */
-export function convertPeekPathToSpacePath(to: To): Path | null {
-    const path = typeof to === "string" ? parsePath(to) : to;
-    const match = (path.pathname ?? "/").match(peekPathRegExp);
+export function convertPeekPathToSpacePath(path: Path): Path | null {
+    const match = path.pathname.match(peekPathRegExp);
     if (!match) return null;
 
     const pathnamePart1 = match[1]!;
     const pathnamePart2 = match[2]!;
 
     return {
-        search: "",
-        hash: "",
         ...path,
         pathname: `${pathnamePart1}${pathnamePart2}`,
     };

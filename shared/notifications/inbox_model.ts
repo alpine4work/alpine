@@ -1,4 +1,4 @@
-import {To} from "history";
+import {Path, resolvePath} from "@remix-run/router";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {DocumentPreviewModel} from "~/shared/documents/document_model.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
@@ -68,7 +68,7 @@ export const InboxEntryKeySchema = Schema.union({
 interface InboxEntryModelInterface {
     readonly type: string;
     getKey(): InboxEntryKey;
-    getPath(): To;
+    getPath(): Path;
 }
 
 export class InboxChatEntryModel
@@ -95,8 +95,8 @@ export class InboxChatEntryModel
         return {type: "Chat", chatId: this.chatId};
     }
 
-    public getPath(): To {
-        return `/s/${this.spaceId}/chat/${this.chatId}`;
+    public getPath(): Path {
+        return resolvePath(`/s/${this.spaceId}/chat/${this.chatId}`);
     }
 }
 
@@ -127,8 +127,8 @@ export class InboxPostCommentsEntryModel
         return {type: "PostComments", postId: this.postId};
     }
 
-    public getPath(): To {
-        return `/s/${this.spaceId}/posts/${this.postId}`;
+    public getPath(): Path {
+        return resolvePath(`/s/${this.spaceId}/posts/${this.postId}`);
     }
 }
 
@@ -162,8 +162,10 @@ export class InboxChannelPostsEntryModel
         };
     }
 
-    public getPath(): To {
-        return `/s/${this.spaceId}/notifications/channel-posts/${this.channel.id}-${this.bucketGeneration}`;
+    public getPath(): Path {
+        return resolvePath(
+            `/s/${this.spaceId}/notifications/channel-posts/${this.channel.id}-${this.bucketGeneration}`,
+        );
     }
 }
 
@@ -196,8 +198,10 @@ export class InboxDocumentCommentThreadEntryModel
         };
     }
 
-    public getPath(): To {
-        return `/s/${this.spaceId}/documents/${this.document.id}/comments/${this.commentThreadId}`;
+    public getPath(): Path {
+        return resolvePath(
+            `/s/${this.spaceId}/documents/${this.document.id}/comments/${this.commentThreadId}`,
+        );
     }
 }
 
@@ -231,8 +235,10 @@ export class InboxDocumentNewCommentThreadsEntryModel
         };
     }
 
-    public getPath(): To {
-        return `/s/${this.spaceId}/notifications/document-comment-threads/${this.document.id}-${this.bucketGeneration}`;
+    public getPath(): Path {
+        return resolvePath(
+            `/s/${this.spaceId}/notifications/document-comment-threads/${this.document.id}-${this.bucketGeneration}`,
+        );
     }
 }
 

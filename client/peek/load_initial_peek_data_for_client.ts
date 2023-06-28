@@ -1,57 +1,73 @@
-import {ClientRoute, matchClientRoutes} from "@remix-run/react";
-import {Path} from "history";
-import {NotFoundError} from "~/shared/error/error.js";
+import {Path, matchRoutes} from "@remix-run/router";
+import {DataRouteObject} from "react-router";
+import {CancelledError, NotFoundError} from "~/shared/error/error.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 
 /**
  * We have a server version of this too: `loadInitialPeekDataForServer()`.
  */
+// NOTE(calebmer): This probably doesn't support a wide range of Remix features
+// including redirects and deferred data. But it supports enough for our
+// critical path.
 export async function loadInitialPeekDataForClient(
-    routes: Array<ClientRoute>,
-    peekPath: Path,
+    peekRoutes: Array<DataRouteObject>,
+    path: Path,
     signal: AbortSignal,
 ): Promise<{
     loaderData: {[key: string]: unknown};
+    errors: {[key: string]: unknown} | null;
 }> {
-    const routeMatches = matchClientRoutes(routes, peekPath.pathname);
-    if (!routeMatches) throw new NotFoundError("Peek route not found");
+    const routeMatches = matchRoutes(peekRoutes, path.pathname);
+    if (!routeMatches) throw new NotFoundError("Route not found");
 
-    const url = new URL(`${peekPath.pathname}${peekPath.search ?? ""}`, window.location.origin);
-
-    const results = await runAllPromises(
-        routeMatches
-            // Only run peek loaders. The `root` loader and `/s/$space_id` loader are run at
-            // the root of our app.
-            .filter(match => match.route.id.startsWith("routes/s/$space_id/peek"))
-            .map(async match => {
-                try {
-                    const value = await match.route.loader?.({
-                        params: match.params,
-                        url,
-                        signal,
-                    });
-                    return {
-                        match,
-                        value,
-                    };
-                } catch (error) {
-                    return {
-                        match,
-                        value: error,
-                    };
-                }
-            }),
-    );
+    const url = new URL(`${path.pathname}${path.search ?? ""}`, window.location.origin);
+    const request = new Request(url, {signal});
 
     const loaderData: {[key: string]: unknown} = {};
+    let errors: {[key: string]: unknown} | null = null;
 
-    for (const result of results) {
-        if (result.value !== undefined) {
-            loaderData[result.match.route.id] = result.value;
-        }
-    }
+    await runAllPromises(
+        routeMatches.map(async match => {
+            const abortPromiseResolver = createPromiseResolver<never>();
+            const handleAbort = () =>
+                abortPromiseResolver.reject(new CancelledError("Route loader aborted"));
+            request.signal.addEventListener("abort", handleAbort);
+
+            try {
+                const result = await Promise.race([
+                    match.route.loader?.({
+                        request,
+                        params: match.params,
+                    }),
+                    abortPromiseResolver.promise,
+                ]);
+
+                loaderData[match.route.id] = await processLoaderResult(result);
+            } catch (error) {
+                (errors ??= {})[match.route.id] = await processLoaderResult(error);
+            } finally {
+                request.signal.removeEventListener("abort", handleAbort);
+            }
+        }),
+    );
 
     return {
         loaderData,
+        errors,
     };
+}
+
+async function processLoaderResult(result: unknown): Promise<unknown> {
+    if (!(result instanceof Response)) return result;
+
+    const contentType = result.headers.get("Content-Type");
+
+    // Derived from:
+    // https://github.com/remix-run/react-router/blob/bc2552840147206716544e5cdcdb54f649f9193f/packages/router/router.ts#L3649-L3656
+    if (contentType && /\bapplication\/json\b/.test(contentType)) {
+        return result.json();
+    } else {
+        return result.text();
+    }
 }

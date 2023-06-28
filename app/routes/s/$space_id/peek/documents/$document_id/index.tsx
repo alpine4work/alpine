@@ -1,6 +1,6 @@
 export {
     loader,
     meta,
-    unstable_shouldReload,
+    shouldRevalidate,
     default,
 } from "~/app/routes/s/$space_id/documents/$document_id/index.js";

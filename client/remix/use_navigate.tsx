@@ -42,6 +42,9 @@ export function useNavigate(): Memo<NavigateFunction> {
             "Must render in a `<WaitForNavigationContext>` to use this navigation function",
         );
 
+    // TODO(calebmer): The new `@remix-run/router` implementation returns a promise
+    // from its `navigate()` function. Can we use that instead of watching the
+    // transition here?
     const navigate = useCallback(
         (to: To | number, options?: NavigateOptions) => {
             if (waitForNextNavigation === null) return unsupportedNavigateForTest();

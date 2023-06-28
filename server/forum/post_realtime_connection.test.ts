@@ -1,9 +1,10 @@
 import {
     createChannel,
+    createPost,
+    createPostComment,
     deletePostComment,
     updatePostCommentContent,
 } from "~/server/dynamo/forum_table.js";
-import {createPost, createPostComment} from "~/server/dynamo/forum_table.js";
 import {
     TestMessagingRealtimeConnectionProcedures,
     testMessagingRealtimeImplementation,

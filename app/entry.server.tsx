@@ -58,13 +58,20 @@ export default async function handleRequest(
 
         // Manually override the status code if an error with our codebase's
         // `ErrorCode` was thrown.
-        const error: {[key: string]: unknown} | undefined = remixContext.appState.error;
-        responseStatusCode =
-            typeof error?.code === "number" && isErrorCode(error.code)
-                ? isSystemErrorCode(error.code)
-                    ? 500
-                    : 400
-                : responseStatusCode;
+        responseStatusCode = remixContext.staticHandlerContext.errors
+            ? Object.values(remixContext.staticHandlerContext.errors).some(
+                  error =>
+                      typeof error.code === "number" &&
+                      isErrorCode(error.code) &&
+                      isSystemErrorCode(error.code),
+              )
+                ? responseStatusCode >= 500 && responseStatusCode < 600
+                    ? responseStatusCode
+                    : 500
+                : responseStatusCode >= 400 && responseStatusCode < 500
+                ? responseStatusCode
+                : 400
+            : responseStatusCode;
 
         responseHeaders.set("Content-Type", "text/html");
 

@@ -1,9 +1,11 @@
 "use strict";
 
 const worker = require("@bazel/worker");
-const remixCompiler = require("@remix-run/dev/dist/compiler/remixCompiler");
-const {logCompileFailure} = require("@remix-run/dev/dist/compiler/onCompileFailure");
+const {create: createCompiler} = require("@remix-run/dev/dist/compiler/compiler");
+const {logger} = require("@remix-run/dev/dist/tux/logger");
+const {createFileWatchCache} = require("@remix-run/dev/dist/compiler/fileWatchCache");
 const {readConfig} = require("@remix-run/dev/dist/config");
+const {logThrown} = require("@remix-run/dev/dist/compiler/utils/log");
 
 let compilerPromise;
 
@@ -12,24 +14,27 @@ async function run() {
         compilerPromise = (async () => {
             const config = await readConfig();
 
-            return remixCompiler.createRemixCompiler(config, {
-                mode: process.env.COMPILATION_MODE === "opt" ? "production" : "development",
-                sourcemap: process.env.COMPILATION_MODE === "opt" ? false : true,
+            return createCompiler({
+                config,
+                options: {
+                    mode: process.env.COMPILATION_MODE === "opt" ? "production" : "development",
+                    sourcemap: process.env.COMPILATION_MODE === "opt" ? false : true,
+                },
+                fileWatchCache: createFileWatchCache(),
+                logger,
             });
         })();
     }
 
-    let failed = false;
     const compiler = await compilerPromise;
 
-    await remixCompiler.compile(compiler, {
-        onCompileFailure: failure => {
-            logCompileFailure(failure);
-            failed = true;
-        },
-    });
-
-    return !failed;
+    try {
+        await compiler.compile();
+        return true;
+    } catch (error) {
+        logThrown(error);
+        return false;
+    }
 }
 
 if (!worker.runAsWorker(process.argv)) {

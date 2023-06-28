@@ -5,7 +5,7 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
 
 // The loader only performs authorization. We don't need to reload on
 // page change.
-export const unstable_shouldReload = () => false;
+export const shouldRevalidate = () => false;
 
 export async function loader({context}: LoaderArgs) {
     await authorizeInternalAccess(await context.actor.authenticate());

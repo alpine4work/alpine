@@ -1,4 +1,4 @@
-import {Link, ShouldReloadFunction, useParams} from "@remix-run/react";
+import {Link, ShouldRevalidateFunction, useParams} from "@remix-run/react";
 import {Code, Desktop, DeviceMobileCamera, EnvelopeSimple, IconContext} from "phosphor-react";
 import {ReactNode, useRef} from "react";
 import {useButton} from "react-aria";
@@ -49,14 +49,17 @@ const LoaderSchema = Schema.object({
 });
 
 // If only the `view` search param on the URL changed, we don't need to reload.
-export const unstable_shouldReload: ShouldReloadFunction = ({url: _url, prevUrl: _prevUrl}) => {
-    const url = new URL(_url);
-    const prevUrl = new URL(_prevUrl);
+export const shouldRevalidate: ShouldRevalidateFunction = ({
+    currentUrl: _currentUrl,
+    nextUrl: _nextUrl,
+}) => {
+    const currentUrl = new URL(_currentUrl);
+    const nextUrl = new URL(_nextUrl);
 
-    url.searchParams.delete("view");
-    prevUrl.searchParams.delete("view");
+    nextUrl.searchParams.delete("view");
+    currentUrl.searchParams.delete("view");
 
-    return url.toString() !== prevUrl.toString();
+    return nextUrl.toString() !== currentUrl.toString();
 };
 
 export async function loader({params}: LoaderArgs) {

@@ -1,0 +1,126 @@
+diff --git a/dist/server.d.ts b/dist/server.d.ts
+index c6cb3565e9619a2586bcdb9ae3eb03afd9fefb3f..aedbc4d76168cd1d604ff72f859f1cef3cdbf414 100644
+--- a/dist/server.d.ts
++++ b/dist/server.d.ts
+@@ -17,6 +17,10 @@ export interface StaticRouterProviderProps {
+     router: RemixRouter;
+     hydrate?: boolean;
+     nonce?: string;
++    // NOTE(calebmer): We need nested router support for implementing peeks.
++    // Taking full responsibility for any nested router issues. Acknowledge this
++    // is not officially supported by calling the prop "dangerous".
++    dangerouslyAllowNesting?: boolean;
+ }
+ /**
+  * A Data Router that may not navigate to any other location. This is useful
+diff --git a/dist/server.js b/dist/server.js
+index ebdee7d10567e0fe3795d37f5896f872b60ae0bb..09b206ae5218d34f533de6c649ce4f8132e2dd5d 100644
+--- a/dist/server.js
++++ b/dist/server.js
+@@ -65,7 +65,8 @@ function StaticRouterProvider({
+   context,
+   router: router$1,
+   hydrate = true,
+-  nonce
++  nonce,
++  dangerouslyAllowNesting
+ }) {
+   !(router$1 && context) ? process.env.NODE_ENV !== "production" ? router.UNSAFE_invariant(false, "You must provide `router` and `context` to <StaticRouterProvider>") : router.UNSAFE_invariant(false) : void 0;
+   let dataRouterContext = {
+@@ -101,7 +102,8 @@ function StaticRouterProvider({
+     location: state.location,
+     navigationType: state.historyAction,
+     navigator: dataRouterContext.navigator,
+-    static: dataRouterContext.static
++    static: dataRouterContext.static,
++    dangerouslyAllowNesting: dangerouslyAllowNesting
+   }, /*#__PURE__*/React__namespace.createElement(DataRoutes, {
+     routes: router$1.routes,
+     state: state
+diff --git a/dist/server.mjs b/dist/server.mjs
+index 62511060783e9fc59bb8fa4b289c0a9c1d81c616..3856b85f52b2cff2aa02f5be5b03f492f5a64489 100644
+--- a/dist/server.mjs
++++ b/dist/server.mjs
+@@ -41,7 +41,8 @@ function StaticRouterProvider({
+   context,
+   router,
+   hydrate = true,
+-  nonce
++  nonce,
++  dangerouslyAllowNesting
+ }) {
+   !(router && context) ? process.env.NODE_ENV !== "production" ? UNSAFE_invariant(false, "You must provide `router` and `context` to <StaticRouterProvider>") : UNSAFE_invariant(false) : void 0;
+   let dataRouterContext = {
+@@ -77,7 +78,8 @@ function StaticRouterProvider({
+     location: state.location,
+     navigationType: state.historyAction,
+     navigator: dataRouterContext.navigator,
+-    static: dataRouterContext.static
++    static: dataRouterContext.static,
++    dangerouslyAllowNesting: dangerouslyAllowNesting
+   }, /*#__PURE__*/React.createElement(DataRoutes, {
+     routes: router.routes,
+     state: state
+diff --git a/server.d.ts b/server.d.ts
+index c6cb3565e9619a2586bcdb9ae3eb03afd9fefb3f..aedbc4d76168cd1d604ff72f859f1cef3cdbf414 100644
+--- a/server.d.ts
++++ b/server.d.ts
+@@ -17,6 +17,10 @@ export interface StaticRouterProviderProps {
+     router: RemixRouter;
+     hydrate?: boolean;
+     nonce?: string;
++    // NOTE(calebmer): We need nested router support for implementing peeks.
++    // Taking full responsibility for any nested router issues. Acknowledge this
++    // is not officially supported by calling the prop "dangerous".
++    dangerouslyAllowNesting?: boolean;
+ }
+ /**
+  * A Data Router that may not navigate to any other location. This is useful
+diff --git a/server.js b/server.js
+index ebdee7d10567e0fe3795d37f5896f872b60ae0bb..09b206ae5218d34f533de6c649ce4f8132e2dd5d 100644
+--- a/server.js
++++ b/server.js
+@@ -65,7 +65,8 @@ function StaticRouterProvider({
+   context,
+   router: router$1,
+   hydrate = true,
+-  nonce
++  nonce,
++  dangerouslyAllowNesting
+ }) {
+   !(router$1 && context) ? process.env.NODE_ENV !== "production" ? router.UNSAFE_invariant(false, "You must provide `router` and `context` to <StaticRouterProvider>") : router.UNSAFE_invariant(false) : void 0;
+   let dataRouterContext = {
+@@ -101,7 +102,8 @@ function StaticRouterProvider({
+     location: state.location,
+     navigationType: state.historyAction,
+     navigator: dataRouterContext.navigator,
+-    static: dataRouterContext.static
++    static: dataRouterContext.static,
++    dangerouslyAllowNesting: dangerouslyAllowNesting
+   }, /*#__PURE__*/React__namespace.createElement(DataRoutes, {
+     routes: router$1.routes,
+     state: state
+diff --git a/server.mjs b/server.mjs
+index 62511060783e9fc59bb8fa4b289c0a9c1d81c616..3856b85f52b2cff2aa02f5be5b03f492f5a64489 100644
+--- a/server.mjs
++++ b/server.mjs
+@@ -41,7 +41,8 @@ function StaticRouterProvider({
+   context,
+   router,
+   hydrate = true,
+-  nonce
++  nonce,
++  dangerouslyAllowNesting
+ }) {
+   !(router && context) ? process.env.NODE_ENV !== "production" ? UNSAFE_invariant(false, "You must provide `router` and `context` to <StaticRouterProvider>") : UNSAFE_invariant(false) : void 0;
+   let dataRouterContext = {
+@@ -77,7 +78,8 @@ function StaticRouterProvider({
+     location: state.location,
+     navigationType: state.historyAction,
+     navigator: dataRouterContext.navigator,
+-    static: dataRouterContext.static
++    static: dataRouterContext.static,
++    dangerouslyAllowNesting: dangerouslyAllowNesting
+   }, /*#__PURE__*/React.createElement(DataRoutes, {
+     routes: router.routes,
+     state: state

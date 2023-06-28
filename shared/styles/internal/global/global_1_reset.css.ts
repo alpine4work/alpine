@@ -115,7 +115,9 @@ globalStyle("button, input, optgroup, select, textarea", {
     padding: 0,
 });
 
-globalStyle("input[type='text']", {
+// `:where()` has a specificity of 0. So a sprinkles CSS class that sets
+// background color can override it.
+globalStyle(":where(input[type='text'])", {
     // Remove default background color.
     backgroundColor: "transparent",
 });

@@ -1,22 +1,25 @@
 import {LinkDescriptor} from "@remix-run/cloudflare";
 import {
-    ClientRoute,
     Links,
     LiveReload,
     Meta,
     Outlet,
+    UNSAFE_RemixContext as RemixContext,
     Scripts,
     ScrollRestoration,
     ThrownResponse,
     loadRouteModuleWithBlockingLinks,
-    matchClientRoutes,
     useCatch,
 } from "@remix-run/react";
-import {RemixEntryContext} from "@remix-run/react";
 import {IconContext} from "phosphor-react";
 import prosemirrorStylesHref from "prosemirror-view/style/prosemirror.css";
-import {Context} from "react";
-import {useCallback, useContext, useEffect, useMemo} from "react";
+import {Context, useCallback, useContext, useEffect, useMemo} from "react";
+import {
+    DataRouteObject,
+    UNSAFE_DataRouterContext as DataRouterContext,
+    UNSAFE_DataRouterStateContext as DataRouterStateContext,
+    matchRoutes,
+} from "react-router";
 import type {LoaderData as InboxLoaderData} from "~/app/routes/s/$space_id/inbox.js";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -76,7 +79,7 @@ export function links(): Array<LinkDescriptor> {
 }
 
 // The loader returns constants. We don't need to reload on page change.
-export const unstable_shouldReload = () => false;
+export const shouldRevalidate = () => false;
 
 const LoaderSchema = Schema.object({
     initialTime: Schema.date,
@@ -93,22 +96,32 @@ export function loader({context}: LoaderArgs) {
 }
 
 export default function Root({error}: {error?: unknown}) {
-    const remixEntryContext = useContext(RemixEntryContext);
-    assert(remixEntryContext, "Expected Remix entry context");
+    const remixContext = useContext(RemixContext);
+    assert(remixContext, "Expected Remix context");
+
+    const dataRouterContext = useContext(DataRouterContext);
+    assert(dataRouterContext, "Expected data router context");
+
+    const dataRouterStateContext = useContext(DataRouterStateContext);
+    assert(dataRouterStateContext, "Expected data router state context");
 
     // Monkey patch the Remix entry context. In a `useMemo()` so it only happens if
     // the context object changes.
-    useMemo(() => patchRemixEntryContext(remixEntryContext), [remixEntryContext]);
+    useMemo(
+        () => patchRemixContext(remixContext, dataRouterContext),
+        [dataRouterContext, remixContext],
+    );
 
     let context = useAppContext();
 
     // Add propagated event data to our tracer so that child React components
     // log events with the right context.
     context = useMemo(() => {
-        const routeData = Object.values(remixEntryContext.routeData);
+        const loaderData = Object.values(dataRouterStateContext.loaderData);
 
         const propagatedEventData = Array.from(
-            filterMapIterable(routeData, data => {
+            filterMapIterable(loaderData, data => {
+                if (!data) return null;
                 if (!hasOwnProperty(data, propagatedEventDataKey)) return null;
                 return data[propagatedEventDataKey] as TracerEventFullData;
             }),
@@ -116,7 +129,7 @@ export default function Root({error}: {error?: unknown}) {
 
         if (propagatedEventData.length === 0) return context;
         return context.tracer.withPropagatedData(mergeTracerEventData(propagatedEventData));
-    }, [remixEntryContext.routeData, context]);
+    }, [dataRouterStateContext.loaderData, context]);
 
     // If there are any unhandled browser errors then report them with our tracer.
     // We put uncaught error handling here because we want it to include propagated
@@ -145,10 +158,10 @@ export default function Root({error}: {error?: unknown}) {
     // deserialize the data for this route.
     const loaderData = useMemo(
         () =>
-            remixEntryContext.routeData.root
-                ? getLoaderDataWithSchema(LoaderSchema, remixEntryContext.routeData.root)
+            dataRouterStateContext.loaderData.root
+                ? getLoaderDataWithSchema(LoaderSchema, dataRouterStateContext.loaderData.root)
                 : null,
-        [remixEntryContext.routeData.root],
+        [dataRouterStateContext.loaderData.root],
     );
 
     const caught = useCatch() as ThrownResponse | undefined;
@@ -280,28 +293,34 @@ export const CatchBoundary = Root;
 
 const wasPatchedSymbol = Symbol("wasPatched");
 
-function patchRemixEntryContext(
-    context: typeof RemixEntryContext extends Context<infer T> ? NonNullable<T> : never,
+function patchRemixContext(
+    remixContext: typeof RemixContext extends Context<infer T> ? NonNullable<T> : never,
+    dataRouterContext: typeof DataRouterContext extends Context<infer T> ? NonNullable<T> : never,
 ) {
-    const routeMatches = matchClientRoutes(
-        context.clientRoutes,
+    const routeMatches = matchRoutes(
+        dataRouterContext.router.routes,
         // A URL that will match the inbox route object. The string we put in the place
         // of `$space_id` shouldn't matter.
         "/s/$space_id/inbox",
     );
 
-    const inboxRoute: ClientRoute & {[wasPatchedSymbol]?: boolean} = assertExists(
+    const inboxRoute: DataRouteObject & {[wasPatchedSymbol]?: boolean} = assertExists(
         routeMatches?.find(match => match.route.id === "routes/s/$space_id/inbox")?.route,
         "Couldn't find inbox client route",
     );
 
-    // Only patch the loader once...
-    if (!inboxRoute[wasPatchedSymbol]) {
+    // Only patch the loader once on the client. (Loader property is not available
+    // on the server.)
+    if (typeof window !== "undefined" && !inboxRoute[wasPatchedSymbol]) {
         inboxRoute[wasPatchedSymbol] = true;
 
         const originalLoader = assertExists(inboxRoute.loader, "Inbox route should have a loader");
         inboxRoute.loader = async options => {
-            const data: InboxLoaderData = await originalLoader(options);
+            const result = await originalLoader(options);
+
+            const data = (
+                result instanceof Response ? await result.json() : result
+            ) as InboxLoaderData;
 
             // Load any extra modules we need for opening the inbox.
             //
@@ -316,8 +335,8 @@ function patchRemixEntryContext(
                 await runAllPromises(
                     data.peekData.loadExtraRouteIds.map(routeId =>
                         loadRouteModuleWithBlockingLinks(
-                            context.manifest.routes[routeId]!,
-                            context.routeModules,
+                            remixContext.manifest.routes[routeId]!,
+                            remixContext.routeModules,
                         ),
                     ),
                 );

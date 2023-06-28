@@ -1,4 +1,4 @@
-import {ShouldReloadFunction, useSearchParams} from "@remix-run/react";
+import {ShouldRevalidateFunction, useSearchParams} from "@remix-run/react";
 import {useEffect} from "react";
 import {DocumentContentEditor} from "~/client/documents/document_content_editor.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
@@ -98,17 +98,20 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {document}}) => ({
 }));
 
 // We don't need to reload when certain search params change.
-export const unstable_shouldReload: ShouldReloadFunction = ({url: _url, prevUrl: _prevUrl}) => {
-    const url = new URL(_url);
-    const prevUrl = new URL(_prevUrl);
+export const shouldRevalidate: ShouldRevalidateFunction = ({
+    currentUrl: _currentUrl,
+    nextUrl: _nextUrl,
+}) => {
+    const currentUrl = new URL(_currentUrl);
+    const nextUrl = new URL(_nextUrl);
 
-    url.searchParams.delete("create");
-    prevUrl.searchParams.delete("create");
+    nextUrl.searchParams.delete("create");
+    currentUrl.searchParams.delete("create");
 
-    url.searchParams.delete("comments");
-    prevUrl.searchParams.delete("comments");
+    nextUrl.searchParams.delete("comments");
+    currentUrl.searchParams.delete("comments");
 
-    return url.toString() !== prevUrl.toString();
+    return nextUrl.toString() !== currentUrl.toString();
 };
 
 export default function DocumentRoute() {
@@ -121,7 +124,7 @@ export default function DocumentRoute() {
         if (searchParams.has("create")) {
             const newSearchParams = new URLSearchParams(searchParams);
             newSearchParams.delete("create");
-            setSearchParams(newSearchParams);
+            setSearchParams(newSearchParams, {replace: true});
         }
     }, [searchParams, setSearchParams]);
 

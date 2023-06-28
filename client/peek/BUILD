@@ -8,9 +8,9 @@ ts_project(
     ],
     deps = [
         "//:node_modules/@dnd-kit/core",
+        "//:node_modules/@remix-run/router",
         "//:node_modules/@types/react",
         "//:node_modules/@types/react-dom",
-        "//:node_modules/history",
         "//:node_modules/motion",
         "//:node_modules/react",
         "//:node_modules/react-dom",

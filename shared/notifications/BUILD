@@ -4,7 +4,7 @@ ts_project(
     name = "notifications",
     visibility = ["//visibility:public"],
     deps = [
-        "//:node_modules/history",
+        "//:node_modules/@remix-run/router",
         "//shared/accounts",
         "//shared/documents",
         "//shared/dynamo",

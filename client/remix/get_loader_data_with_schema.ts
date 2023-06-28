@@ -13,7 +13,7 @@ export function getLoaderDataWithSchema<Value>(
     serializedValue: SchemaSerializedValue & {[deserializedValueSymbol]?: Value},
 ): Value {
     // Optimization: When on the server, use the original deserialized value
-    // instead wasting CPU time on deserialization.
+    // instead of wasting CPU time on deserialization.
     if (typeof window === "undefined") {
         assert(serializedValue[deserializedValueSymbol]);
         return serializedValue[deserializedValueSymbol];

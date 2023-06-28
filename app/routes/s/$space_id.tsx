@@ -1,4 +1,4 @@
-import {Outlet, ShouldReloadFunction} from "@remix-run/react";
+import {Outlet, ShouldRevalidateFunction} from "@remix-run/react";
 import {LinkDescriptor} from "@remix-run/server-runtime";
 import {useEffect} from "react";
 import {Box} from "~/client/design/box.js";
@@ -37,8 +37,8 @@ export function links(): Array<LinkDescriptor> {
 }
 
 // Run the loader again when the space ID changes.
-export const unstable_shouldReload: ShouldReloadFunction = ({url, prevUrl}) =>
-    url.pathname.split("/")[1] !== prevUrl.pathname.split("/")[1];
+export const shouldRevalidate: ShouldRevalidateFunction = ({currentParams, nextParams}) =>
+    currentParams["space_id"] !== nextParams["space_id"];
 
 export async function loader({context, params}: LoaderArgs) {
     const spaceId = Schema.id<SpaceId>().deserialize(params.space_id ?? null);

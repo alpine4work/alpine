@@ -1,6 +1,5 @@
 import classNames from "classnames";
-import {Ref, forwardRef} from "react";
-import {InputHTMLAttributes} from "react";
+import {InputHTMLAttributes, Ref, forwardRef} from "react";
 
 const InputWithAutoGrowingWidthForwardRef = forwardRef(InputWithAutoGrowingWidth);
 export {InputWithAutoGrowingWidthForwardRef as InputWithAutoGrowingWidth};

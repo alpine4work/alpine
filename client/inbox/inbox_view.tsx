@@ -1,16 +1,12 @@
-import {RemixEntryContext} from "@remix-run/react";
-import {MemoryHistory, createMemoryHistory, createPath} from "history";
-import {SpinnerGap} from "phosphor-react";
 import {
-    Memo,
-    MutableRefObject,
-    useCallback,
-    useContext,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-} from "react";
+    HydrationState,
+    MemoryHistory,
+    createMemoryHistory,
+    createPath,
+    resolvePath,
+} from "@remix-run/router";
+import {SpinnerGap} from "phosphor-react";
+import {Memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
@@ -33,7 +29,11 @@ import {InboxViewEntriesEmpty} from "~/client/inbox/inbox_view_entries_empty.js"
 import {InboxViewTopBar} from "~/client/inbox/inbox_view_top_bar.js";
 import {useInboxState} from "~/client/inbox/use_inbox_state.js";
 import {loadInitialPeekDataForClient} from "~/client/peek/load_initial_peek_data_for_client.js";
-import {PeekRemixEmbed} from "~/client/peek/peek_remix_embed.js";
+import {
+    PeekRemixEmbed,
+    PeekRemixEmbedRouter,
+    usePeekRemixEmbedRouter,
+} from "~/client/peek/peek_remix_embed.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
@@ -49,7 +49,6 @@ import {createInterval} from "~/shared/helpers/async/interval.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {generateId} from "~/shared/id/id.js";
@@ -66,7 +65,7 @@ export type InboxViewPeek = {
     readonly key: DynamoItemKey | null;
     readonly initialPath: string;
     readonly history: MemoryHistory;
-    readonly loaderDataRefPromise: PromiseImmediate<MutableRefObject<{[key: string]: unknown}>>;
+    readonly routerPromise: PromiseImmediate<PeekRemixEmbedRouter>;
 };
 
 type InboxViewPeekState = {
@@ -85,11 +84,10 @@ export function InboxView({
 }: {
     filter: "New" | "Archive";
     initialEntriesResult: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>;
-    initialPeekData: {path: string; loaderData: unknown} | null;
+    initialPeekData: {path: string; hydrationData: HydrationState} | null;
     onPeekChange: (peek: InboxViewPeek | null) => void;
 }) {
-    const remixEntryContext = useContext(RemixEntryContext);
-    assert(remixEntryContext, "Expected Remix entry context");
+    const {peekRoutes, createPeekRouter} = usePeekRemixEmbedRouter();
 
     const {query, updateQueryOptimistically, itemsDeletedByLastChangeForAnimation, tryLoadingMore} =
         useInboxState({
@@ -112,9 +110,7 @@ export function InboxView({
             for (let i = 0; i < itemCount; i++) {
                 const item = query.getItem(i);
                 if (item.type === "Loaded") {
-                    const path = item.item.model.getPath();
-                    const pathString = typeof path !== "string" ? createPath(path) : path;
-                    if (pathString === initialPath) {
+                    if (createPath(item.item.model.getPath()) === initialPath) {
                         return item.item.key;
                     }
                 }
@@ -133,18 +129,23 @@ export function InboxView({
         }
 
         const initialPath = createPath(
-            assertExists(convertPeekPathToSpacePath(initialPeekData.path)),
+            assertExists(convertPeekPathToSpacePath(resolvePath(initialPeekData.path))),
         );
+
+        const history = createMemoryHistory({initialEntries: [initialPeekData.path]});
 
         return {
             activePeek: {
                 id: generateId(),
                 key: findItemKeyForPathIfExists(initialPath),
                 initialPath,
-                history: createMemoryHistory({initialEntries: [initialPeekData.path]}),
-                loaderDataRefPromise: PromiseImmediate.resolve({
-                    current: initialPeekData.loaderData as {[key: string]: unknown},
-                }),
+                history,
+                routerPromise: PromiseImmediate.resolve(
+                    createPeekRouter({
+                        history,
+                        hydrationData: initialPeekData.hydrationData,
+                    }),
+                ),
             },
             transition: null,
         };
@@ -225,13 +226,19 @@ export function InboxView({
         const peekPath = convertSpacePathToPeekPath(spacePath);
         if (!peekPath) throw new InternalError("Can only render peek for a space route");
 
-        const loaderDataRefPromise = (async () => {
-            const {loaderData} = await loadInitialPeekDataForClient(
-                remixEntryContext.clientRoutes,
+        const history = createMemoryHistory({initialEntries: [peekPath]});
+
+        const routerPromise = (async () => {
+            const hydrationData = await loadInitialPeekDataForClient(
+                peekRoutes,
                 peekPath,
                 abortController.signal,
             );
-            return {current: loaderData};
+
+            return createPeekRouter({
+                history,
+                hydrationData,
+            });
         })();
 
         const pendingPromiseResolver = createPromiseResolver();
@@ -243,8 +250,8 @@ export function InboxView({
                     id: generateId(),
                     key: entry.key,
                     initialPath: typeof spacePath !== "string" ? createPath(spacePath) : spacePath,
-                    history: createMemoryHistory({initialEntries: [peekPath]}),
-                    loaderDataRefPromise: PromiseImmediate.resolve(loaderDataRefPromise),
+                    history,
+                    routerPromise: PromiseImmediate.resolve(routerPromise),
                 },
                 pendingPromiseResolver,
             },
@@ -278,7 +285,7 @@ export function InboxView({
         //
         // - Our data promise resolves
         // - Our loading indicator delay finishes
-        transition.peek.loaderDataRefPromise.then(acceptTransition, acceptTransition);
+        transition.peek.routerPromise.then(acceptTransition, acceptTransition);
         const timeout = createTimeout(
             acceptTransition,
             delayFullPageTransitionLoadingIndicatorLimitMs,
@@ -766,7 +773,7 @@ function InboxViewPeekContent({
         }) => void
     >;
 }) {
-    const loaderDataRefResult = usePromise(peek.loaderDataRefPromise);
+    const routerResult = usePromise(peek.routerPromise);
 
     const onCreateMessageOptimistically = useEvent((promise: Promise<unknown>) => {
         // We may not have an entry if the path in the URL is no longer in the inbox
@@ -803,15 +810,14 @@ function InboxViewPeekContent({
 
     return (
         <Box width="full" height="full" overflow="hidden" display="flex" flexDirection="column">
-            {!loaderDataRefResult.isPending ? (
+            {!routerResult.isPending ? (
                 <InboxPeekContextProvider
                     onCreateMessageOptimistically={onCreateMessageOptimistically}
                 >
                     <PeekRemixEmbed
                         peekId={peek.id}
                         withMobileLayout={false}
-                        loaderDataRef={loaderDataRefResult.value}
-                        history={peek.history}
+                        router={routerResult.value}
                     />
                 </InboxPeekContextProvider>
             ) : (

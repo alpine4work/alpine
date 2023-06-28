@@ -11,8 +11,7 @@ import {
     createWebSocketMessageFromClientSchema,
     createWebSocketMessageFromServerSchema,
 } from "~/shared/cloudflare/web_socket_schema.js";
-import {UnavailableError} from "~/shared/error/error.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError, UnavailableError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {createInterval} from "~/shared/helpers/async/interval.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";

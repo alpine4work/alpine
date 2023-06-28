@@ -1,16 +1,9 @@
-import {
-    ServerRoute,
-    callRouteLoader,
-    extractData,
-    matchServerRoutes,
-} from "@remix-run/server-runtime";
-import {Path, To, createPath} from "history";
+import {Path, createPath} from "@remix-run/router";
+import {ServerRoute, callRouteLoaderRR, matchServerRoutes} from "@remix-run/server-runtime";
 import {LoaderContext} from "~/server/remix/loader_context.js";
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {convertSpacePathToPeekPath} from "~/shared/remix/peek_path_helpers.js";
-import {SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
 
 /**
  * We have a client version of this too: `loadInitialPeekDataForClient()`.
@@ -18,54 +11,74 @@ import {SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
 export async function loadInitialPeekDataForServer(
     context: LoaderContext,
     request: Request,
-    routes: Array<ServerRoute>,
-    spacePath: To,
+    peekRoutes: Array<ServerRoute>,
+    spacePath: Path,
 ): Promise<{
     peekPath: Path;
-    loaderData: {[key: string]: SchemaSerializedObjectValue};
+    hydrationData: {
+        loaderData: {[key: string]: unknown};
+        errors: {[key: string]: unknown} | null;
+    };
     loadExtraRouteIds: Array<string>;
 }> {
     const peekPath = convertSpacePathToPeekPath(spacePath);
     if (!peekPath) throw new InvalidArgumentError("Can only open peek for a space route");
 
-    const routeMatches = matchServerRoutes(routes, peekPath.pathname);
+    const routeMatches = matchServerRoutes(peekRoutes, peekPath.pathname);
     if (!routeMatches) throw new NotFoundError("Peek route not found");
 
     const loadExtraRouteIds: Array<string> = [];
 
-    const results = await runAllPromises(
-        routeMatches
-            // Only run peek loaders. The `root` loader and `/s/$space_id` loader are run at
-            // the root of our app.
-            .filter(match => match.route.id.startsWith("routes/s/$space_id/peek"))
-            .map(async match => {
+    const loaderData: {[key: string]: unknown} = {};
+    let errors: {[key: string]: unknown} | null = null;
+
+    await runAllPromises(
+        routeMatches.map(async match => {
+            if (match.route.id.startsWith("routes/s/$space_id/peek")) {
                 loadExtraRouteIds.push(match.route.id);
+            }
 
-                if (!match.route.module.loader) return null;
+            if (!match.route.module.loader) return null;
 
-                const response = await callRouteLoader({
+            try {
+                const result = await callRouteLoaderRR({
                     loadContext: context,
-                    routeId: match.route.id,
                     loader: match.route.module.loader,
                     params: match.params,
                     request: new Request(new URL(createPath(peekPath), request.url)),
+                    routeId: match.route.id,
                     // We add this parameter in a `@remix-run/server-runtime` patch.
                     // @ts-expect-error
-                    routes,
+                    routes: peekRoutes,
                 });
 
-                return [
-                    match.route.id,
-                    (await extractData(response)) as SchemaSerializedObjectValue,
-                ] as const;
-            }),
+                loaderData[match.route.id] = await processLoaderResult(result);
+            } catch (error) {
+                (errors ??= {})[match.route.id] = await processLoaderResult(error);
+            }
+        }),
     );
-
-    const loaderData = Object.fromEntries(results.filter(isNonNullable));
 
     return {
         peekPath,
-        loaderData,
+        hydrationData: {loaderData, errors},
         loadExtraRouteIds,
     };
+}
+
+async function processLoaderResult(result: unknown): Promise<unknown> {
+    if (!(result instanceof Response)) return result;
+
+    const contentType = result.headers.get("Content-Type");
+
+    // Derived from:
+    // https://github.com/remix-run/react-router/blob/bc2552840147206716544e5cdcdb54f649f9193f/packages/router/router.ts#L3649-L3656
+    if (contentType && /\bapplication\/json\b/.test(contentType)) {
+        // NOTE(calebmer): If this response was constructed by `json()` then avoid
+        // parsing it again which is wasteful.
+        const originalData = (result as any)[Symbol.for("remix.response.json")];
+        return originalData !== undefined ? originalData : await result.json();
+    } else {
+        return result.text();
+    }
 }

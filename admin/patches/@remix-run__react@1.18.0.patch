@@ -1,0 +1,172 @@
+diff --git a/dist/data.js b/dist/data.js
+index b3b935f5b72a1b1d9aa71247f791389c4fc9a918..a49504d9c484d778684823b8fea2fb3ba244dc23 100644
+--- a/dist/data.js
++++ b/dist/data.js
+@@ -75,6 +75,13 @@ async function fetchData(request, routeId, retry = 0) {
+   });
+   if (isErrorResponse(response)) {
+     let data = await response.json();
++    // NOTE(calebmer): We want to use our own error serialization/deserialization
++    // logic instead of the default logic Remix comes out of the box with. To do
++    // this we inject a global. Ideally there would be some first-class way other
++    // than injection to do this.
++    if (typeof __remixErrorSchema !== "undefined") {
++      return __remixErrorSchema.deserialize(data);
++    }
+     let error = new Error(data.message);
+     error.stack = data.stack;
+     return error;
+diff --git a/dist/errors.js b/dist/errors.js
+index f4dd34fae394d3bfb43f4ad2c03f431c4fb4e680..f3c344a8d46c8de44385d2e00bdf69f5bb6a9447 100644
+--- a/dist/errors.js
++++ b/dist/errors.js
+@@ -29,9 +29,17 @@ function deserializeErrors(errors) {
+     if (val && val.__type === "RouteErrorResponse") {
+       serialized[key] = new router.ErrorResponse(val.status, val.statusText, val.data, val.internal === true);
+     } else if (val && val.__type === "Error") {
+-      let error = new Error(val.message);
+-      error.stack = val.stack;
+-      serialized[key] = error;
++      // NOTE(calebmer): We want to use our own error serialization/deserialization
++      // logic instead of the default logic Remix comes out of the box with. To do
++      // this we inject a global. Ideally there would be some first-class way other
++      // than injection to do this.
++      if (typeof __remixErrorSchema !== "undefined") {
++        serialized[key] = __remixErrorSchema.deserialize(val);
++      } else {
++        let error = new Error(val.message);
++        error.stack = val.stack;
++        serialized[key] = error;
++      }
+     } else {
+       serialized[key] = val;
+     }
+diff --git a/dist/esm/data.js b/dist/esm/data.js
+index 2727874a01c5ec6fb5cb032fad9b4bed5344dbfd..91e0c4d65ca2a16fe5d295bc5a572c22d3fb161b 100644
+--- a/dist/esm/data.js
++++ b/dist/esm/data.js
+@@ -71,6 +71,13 @@ async function fetchData(request, routeId, retry = 0) {
+   });
+   if (isErrorResponse(response)) {
+     let data = await response.json();
++    // NOTE(calebmer): We want to use our own error serialization/deserialization
++    // logic instead of the default logic Remix comes out of the box with. To do
++    // this we inject a global. Ideally there would be some first-class way other
++    // than injection to do this.
++    if (typeof __remixErrorSchema !== "undefined") {
++      return __remixErrorSchema.deserialize(data);
++    }
+     let error = new Error(data.message);
+     error.stack = data.stack;
+     return error;
+diff --git a/dist/esm/errors.js b/dist/esm/errors.js
+index b27cbfd5626a825c27e5fcf83a54b9e509d08acf..ebf58e10815bbbe326a40dadc781cc1ad2dd227d 100644
+--- a/dist/esm/errors.js
++++ b/dist/esm/errors.js
+@@ -25,9 +25,17 @@ function deserializeErrors(errors) {
+     if (val && val.__type === "RouteErrorResponse") {
+       serialized[key] = new ErrorResponse(val.status, val.statusText, val.data, val.internal === true);
+     } else if (val && val.__type === "Error") {
+-      let error = new Error(val.message);
+-      error.stack = val.stack;
+-      serialized[key] = error;
++      // NOTE(calebmer): We want to use our own error serialization/deserialization
++      // logic instead of the default logic Remix comes out of the box with. To do
++      // this we inject a global. Ideally there would be some first-class way other
++      // than injection to do this.
++      if (typeof __remixErrorSchema !== "undefined") {
++        serialized[key] = __remixErrorSchema.deserialize(val);
++      } else {
++        let error = new Error(val.message);
++        error.stack = val.stack;
++        serialized[key] = error;
++      }
+     } else {
+       serialized[key] = val;
+     }
+diff --git a/dist/esm/index.js b/dist/esm/index.js
+index 08846c4605214228051c9ba21216a70dc8d015c3..08900bfc3a4045ea63b75385f7baec61ae270946 100644
+--- a/dist/esm/index.js
++++ b/dist/esm/index.js
+@@ -14,3 +14,8 @@ export { Await, Link, Links, LiveReload, Meta, NavLink, PrefetchPageLinks, Scrip
+ export { useCatch } from './errorBoundaries.js';
+ export { ScrollRestoration } from './scroll-restoration.js';
+ export { RemixServer } from './server.js';
++
++// NOTE(calebmer): Export some extra Remix internals that we use. By exporting
++// these internals we make it harder to upgrade Remix and take responsibility
++// for correct usage of this dependency's internals.
++export { loadRouteModuleWithBlockingLinks } from './routes.js';
+diff --git a/dist/esm/routes.js b/dist/esm/routes.js
+index 76d512bf71729951e5c45dce97c9423f7308d250..b1238a970d5a4dcc8078b3586081ddde273a9cfc 100644
+--- a/dist/esm/routes.js
++++ b/dist/esm/routes.js
+@@ -105,7 +105,7 @@ function createShouldRevalidate(route, routeModules, needsRevalidation) {
+     return arg.defaultShouldRevalidate;
+   };
+ }
+-async function loadRouteModuleWithBlockingLinks(route, routeModules) {
++export async function loadRouteModuleWithBlockingLinks(route, routeModules) {
+   let routeModule = await loadRouteModule(route, routeModules);
+   await prefetchStyleLinks(routeModule);
+   return routeModule;
+diff --git a/dist/index.d.ts b/dist/index.d.ts
+index e16d76beb57831a7a4f2032e44bb2c82a383f434..23acf202e7fdd60888dec842b734029ef293e784 100644
+--- a/dist/index.d.ts
++++ b/dist/index.d.ts
+@@ -14,3 +14,8 @@ export { RemixServer } from "./server";
+ export type { Fetcher } from "./transition";
+ export type { FutureConfig as UNSAFE_FutureConfig, AssetsManifest as UNSAFE_AssetsManifest, RemixContextObject as UNSAFE_RemixContextObject, } from "./entry";
+ export type { EntryRoute as UNSAFE_EntryRoute, RouteManifest as UNSAFE_RouteManifest, } from "./routes";
++
++// NOTE(calebmer): Export some extra Remix internals that we use. By exporting
++// these internals we make it harder to upgrade Remix and take responsibility
++// for correct usage of this dependency's internals.
++export { loadRouteModuleWithBlockingLinks } from "./routes";
+diff --git a/dist/index.js b/dist/index.js
+index 0218e81d4f2e1a86771874e261489b96ee986556..44d9db8d5dbac824e5c6b5e9340e57737c5f909c 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -18,6 +18,7 @@ var components = require('./components.js');
+ var errorBoundaries = require('./errorBoundaries.js');
+ var scrollRestoration = require('./scroll-restoration.js');
+ var server = require('./server.js');
++var routes = require('./routes.js');
+ 
+ 
+ 
+@@ -136,3 +137,8 @@ exports.useTransition = components.useTransition;
+ exports.useCatch = errorBoundaries.useCatch;
+ exports.ScrollRestoration = scrollRestoration.ScrollRestoration;
+ exports.RemixServer = server.RemixServer;
++
++// NOTE(calebmer): Export some extra Remix internals that we use. By exporting
++// these internals we make it harder to upgrade Remix and take responsibility
++// for correct usage of this dependency's internals.
++exports.loadRouteModuleWithBlockingLinks = routes.loadRouteModuleWithBlockingLinks;
+diff --git a/dist/routes.d.ts b/dist/routes.d.ts
+index f9e34d7b58f4c3abbdf5382fcb95f71d6322ac9f..7fa23c7a1381f4b232f52def1c201e2acf002cd5 100644
+--- a/dist/routes.d.ts
++++ b/dist/routes.d.ts
+@@ -1,5 +1,5 @@
+ import type { DataRouteObject } from "react-router-dom";
+-import type { RouteModules } from "./routeModules";
++import type { RouteModules, RouteModule } from "./routeModules";
+ import type { FutureConfig } from "./entry";
+ export interface RouteManifest<Route> {
+     [routeId: string]: Route;
+@@ -23,4 +23,5 @@ export interface EntryRoute extends Route {
+ export declare function createServerRoutes(manifest: RouteManifest<EntryRoute>, routeModules: RouteModules, future: FutureConfig, parentId?: string, routesByParentId?: Record<string, Omit<EntryRoute, "children">[]>): DataRouteObject[];
+ export declare function createClientRoutesWithHMRRevalidationOptOut(needsRevalidation: Set<string>, manifest: RouteManifest<EntryRoute>, routeModulesCache: RouteModules, future: FutureConfig): DataRouteObject[];
+ export declare function createClientRoutes(manifest: RouteManifest<EntryRoute>, routeModulesCache: RouteModules, future: FutureConfig, parentId?: string, routesByParentId?: Record<string, Omit<EntryRoute, "children">[]>, needsRevalidation?: Set<string>): DataRouteObject[];
++export function loadRouteModuleWithBlockingLinks(route: EntryRoute, routeModules: RouteModules): Promise<RouteModule>;
+ export {};
+diff --git a/dist/routes.js b/dist/routes.js
+index 9ecc80713a04b565997423181c8c7091bb969be4..1b89aa583ea49434925f2111032044439627d6a4 100644
+--- a/dist/routes.js
++++ b/dist/routes.js
+@@ -179,3 +179,4 @@ function getRedirect(response) {
+ 
+ exports.createClientRoutes = createClientRoutes;
+ exports.createServerRoutes = createServerRoutes;
++exports.loadRouteModuleWithBlockingLinks = loadRouteModuleWithBlockingLinks;

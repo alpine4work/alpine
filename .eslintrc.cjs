@@ -71,6 +71,15 @@ module.exports = {
         // Prettier wraps/unwraps operators as it sees fit.
         "no-mixed-operators": "off",
 
+        // Unused expressions are dead code, you may delete them.
+        "no-unused-expressions": "off",
+        "@typescript-eslint/no-unused-expressions": "warn",
+
+        // Constructor's that don't assign to `this` are dead code, you may
+        // delete them.
+        "no-useless-constructor": "off",
+        "@typescript-eslint/no-useless-constructor": "warn",
+
         // Allow re-declaring types and values. For example `type Foo` and
         // `const Foo` in the same file should be ok.
         "no-redeclare": "off",
@@ -102,6 +111,9 @@ module.exports = {
         // Sometimes code is more readable when functions come before classes or
         // enums or values they depend on.
         "@typescript-eslint/no-use-before-define": "off",
+
+        // `this` aliasing is useful when working with immutable classes.
+        "@typescript-eslint/no-this-alias": "off",
 
         // Remove `{}` and `object` from the ban types rule. The default lint rule
         // is too picky.

@@ -1,6 +1,8 @@
-import {RemixEntryContext, ShouldReloadFunction} from "@remix-run/react";
-import {createPath} from "history";
+import {UNSAFE_RemixContext as RemixContext, ShouldRevalidateFunction} from "@remix-run/react";
+import {HydrationState, createPath} from "@remix-run/router";
+import {ServerRoute} from "@remix-run/server-runtime";
 import {useContext} from "react";
+import {resolvePath} from "react-router";
 import {Box} from "~/client/design/box.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {inboxEntryViewMinHeight} from "~/client/inbox/inbox_entry_view.js";
@@ -16,6 +18,7 @@ import {createDynamoGeneralRealtimeIndexQuerySchema} from "~/shared/dynamo/dynam
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
@@ -28,7 +31,10 @@ const LoaderSchema = Schema.object({
     entriesResult: createDynamoGeneralRealtimeIndexQuerySchema(InboxEntryModelSchema),
     peekData: Schema.object({
         path: Schema.string,
-        loaderData: Schema.unknown,
+        hydrationData: Schema.object({
+            loaderData: Schema.unknown,
+            errors: Schema.unknown,
+        }) as Schema<HydrationState>,
         loadExtraRouteIds: Schema.array(Schema.string),
     }).nullable(),
 });
@@ -37,11 +43,29 @@ export const meta = createMetaFunction(LoaderSchema, ({}) => ({
     title: "Inbox",
 }));
 
-export async function loader({params, context, request, serverRoutes}: LoaderArgs) {
+export async function loader({params, context, request, serverRoutes: routes}: LoaderArgs) {
     const url = new URL(request.url);
     const spaceId = Schema.id<SpaceId>().deserialize(params.space_id ?? null);
     const selectedParam = url.searchParams.get("selected");
     const filter = url.searchParams.get("tab") === "old" ? "Archive" : "New";
+
+    assert(routes.length === 1);
+    const rootRoute = routes[0]!;
+    assert(rootRoute.id === "root");
+    const spaceRoute = assertExists(
+        rootRoute.children?.find(route => route.id === "routes/s/$space_id"),
+    );
+    const spacePeekRoute = assertExists(
+        spaceRoute.children?.find(route => route.id === "routes/s/$space_id/peek"),
+    );
+    const peekRoutes: Array<ServerRoute> = [
+        {
+            id: spaceRoute.id,
+            path: spaceRoute.path,
+            children: [spacePeekRoute],
+            module: {default: () => null},
+        },
+    ];
 
     const [entriesResult, _peekData] = await runAllPromises([
         getInboxEntries(await context.actor.authenticate(), {
@@ -57,9 +81,11 @@ export async function loader({params, context, request, serverRoutes}: LoaderArg
             if (!selectedParam) return null;
 
             const textDecoder = new TextDecoder();
-            const selectedPath = textDecoder.decode(decodeBase64(selectedParam, "Rfc4648Url"));
+            const selectedPath = resolvePath(
+                textDecoder.decode(decodeBase64(selectedParam, "Rfc4648Url")),
+            );
 
-            return loadInitialPeekDataForServer(context, request, serverRoutes, selectedPath);
+            return loadInitialPeekDataForServer(context, request, peekRoutes, selectedPath);
         })(),
     ]);
 
@@ -68,7 +94,7 @@ export async function loader({params, context, request, serverRoutes}: LoaderArg
             ? await loadInitialPeekDataForServer(
                   context,
                   request,
-                  serverRoutes,
+                  peekRoutes,
                   entriesResult.items[0]!.model.getPath(),
               )
             : _peekData;
@@ -79,7 +105,7 @@ export async function loader({params, context, request, serverRoutes}: LoaderArg
         peekData: peekData
             ? {
                   path: createPath(peekData.peekPath),
-                  loaderData: peekData.loaderData,
+                  hydrationData: peekData.hydrationData,
                   loadExtraRouteIds: peekData.loadExtraRouteIds,
               }
             : null,
@@ -87,19 +113,22 @@ export async function loader({params, context, request, serverRoutes}: LoaderArg
 }
 
 // We don't need to reload when certain search params change.
-export const unstable_shouldReload: ShouldReloadFunction = ({url: _url, prevUrl: _prevUrl}) => {
-    const url = new URL(_url);
-    const prevUrl = new URL(_prevUrl);
+export const shouldRevalidate: ShouldRevalidateFunction = ({
+    currentUrl: _currentUrl,
+    nextUrl: _nextUrl,
+}) => {
+    const currentUrl = new URL(_currentUrl);
+    const nextUrl = new URL(_nextUrl);
 
-    url.searchParams.delete("selected");
-    prevUrl.searchParams.delete("selected");
+    nextUrl.searchParams.delete("selected");
+    currentUrl.searchParams.delete("selected");
 
-    return url.toString() !== prevUrl.toString();
+    return nextUrl.toString() !== currentUrl.toString();
 };
 
 export default function InboxRoute() {
-    const remixEntryContext = useContext(RemixEntryContext);
-    assert(remixEntryContext, "Expected Remix entry context");
+    const remixContext = useContext(RemixContext);
+    assert(remixContext, "Expected Remix context");
     const isInitialAppRender = useIsInitialAppRender();
     const {filter, entriesResult, peekData} = useLoaderDataWithSchema(LoaderSchema);
 
@@ -149,7 +178,7 @@ export default function InboxRoute() {
                 // `entry.client.js` looks for this global and will wait for these modules to
                 // load before beginning React hydration.
                 //
-                // https://github.com/remix-run/remix/blob/32337757eba981e5d9705e40ad084d9d5c2d2bf2/packages/remix-react/components.tsx#L804
+                // https://github.com/remix-run/remix/blob/40a4d7d5e25eb5edc9a622278ab111d881c7c155/packages/remix-react/components.tsx#L895
                 //
                 // IMPORTANT: This only works on server-side rendering! For client-side
                 // navigation we patch the client-side loader function. See the
@@ -158,7 +187,7 @@ export default function InboxRoute() {
                     {Array.from(
                         new Set(
                             flatMapIterable(peekData.loadExtraRouteIds, routeId => {
-                                const route = remixEntryContext.manifest.routes[routeId]!;
+                                const route = remixContext.manifest.routes[routeId]!;
                                 return [...(route.imports ?? []), route.module];
                             }),
                         ),
@@ -175,7 +204,7 @@ export default function InboxRoute() {
                                         `window.__extraRemixRouteModules.push({id: ${JSON.stringify(
                                             routeId,
                                         )}, modulePromise: import(${JSON.stringify(
-                                            remixEntryContext.manifest.routes[routeId]!.module,
+                                            remixContext.manifest.routes[routeId]!.module,
                                         )})});\n`,
                                 )
                                 .join("")}`,

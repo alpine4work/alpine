@@ -1,10 +1,14 @@
 import {Outlet} from "@remix-run/react";
-import {RemixEntryContext} from "@remix-run/react";
 import {useContext, useMemo} from "react";
+import {UNSAFE_DataRouterStateContext as DataRouterStateContext} from "react-router";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
+import {Box} from "~/client/design/box.js";
+import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
+import {useStableValue} from "~/client/helpers/use_stable_value.js";
 import {usePeekContext} from "~/client/peek/peek_remix_embed.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
+import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
@@ -23,15 +27,15 @@ export default function PeekLayout() {
     if (!peekContext)
         throw new InvalidArgumentError("May only render peek routes in an embedded peek component");
 
-    const remixEntryContext = useContext(RemixEntryContext);
-    assert(remixEntryContext, "Expected Remix entry context");
+    const dataRouterStateContext = useContext(DataRouterStateContext);
+    assert(dataRouterStateContext, "Expected data router state context");
 
     let context = useAppContext();
 
     // Add propagated event data to our tracer so that child React components
     // log events with the right context.
     context = useMemo(() => {
-        const routeData = Object.values(remixEntryContext.routeData);
+        const loaderData = Object.values(dataRouterStateContext.loaderData);
 
         const tracer = context.tracer.getTracer();
 
@@ -74,7 +78,8 @@ export default function PeekLayout() {
 
         const propagatedEventData = [
             replacePropagatedEventData,
-            ...filterMapIterable(routeData, data => {
+            ...filterMapIterable(loaderData, data => {
+                if (!data) return null;
                 if (!hasOwnProperty(data, propagatedEventDataKey)) return null;
                 return data[propagatedEventDataKey] as TracerEventFullData;
             }),
@@ -85,11 +90,26 @@ export default function PeekLayout() {
                 tracer.withReplacedPropagatedData(mergeTracerEventData(propagatedEventData)),
             ),
         });
-    }, [remixEntryContext.routeData, context, peekContext.id]);
+    }, [dataRouterStateContext.loaderData, context, peekContext.id]);
 
     return (
         <AppContextProvider value={context}>
             <Outlet />
         </AppContextProvider>
+    );
+}
+
+export function ErrorBoundary({error: _error}: {error: unknown}) {
+    // It appears that Remix does not `useMemo()` its error object. So stabilize
+    // the object reference here. Our error rendering components use referential
+    // identity to determine whether we need to log the error.
+    const error = useStableValue(ErrorSchema, _error);
+
+    return (
+        <Box display="flex" justifyContent="center">
+            <Box width="full" maxWidth="128" paddingX="5" paddingTop="10" paddingBottom="8">
+                <ErrorBodyRenderer title="Could not show content" error={error} />
+            </Box>
+        </Box>
     );
 }

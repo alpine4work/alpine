@@ -1,4 +1,4 @@
-import {RemixBrowser, RouteModule} from "@remix-run/react";
+import {RemixBrowser} from "@remix-run/react";
 import {startTransition} from "react";
 import {hydrateRoot} from "react-dom/client";
 import {AppContext, AppContextProvider} from "~/client/context/app_context.js";
@@ -55,8 +55,12 @@ function main() {
     attachDevConsoleNotInProduction();
 }
 
-const extraRemixRouteModules: Array<{id: string; modulePromise: Promise<RouteModule>}> | undefined =
-    (window as any).__extraRemixRouteModules;
+const extraRemixRouteModules:
+    | Array<{
+          id: string;
+          modulePromise: Promise<(typeof globalThis)["__remixRouteModules"][string]>;
+      }>
+    | undefined = (window as any).__extraRemixRouteModules;
 
 // If there was a `<script>` that injected some extra route modules, wait for
 // them to load and put them in our route modules object before hydrating
