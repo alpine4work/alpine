@@ -14,6 +14,9 @@ module.exports = {
     serverBuildPath: "./app/build/server.js",
     ignoredRouteFiles: ["**/.*"],
     devServerPort: env.DEV_SERVER_PORT ? parseInt(env.DEV_SERVER_PORT, 10) : undefined,
+    future: {
+        v2_routeConvention: true,
+    },
 };
 
 // Copy of `admin/helpers/parse_dotenv.ts`. Hard to figure out how to include

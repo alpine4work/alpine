@@ -32,7 +32,12 @@ def _remix_app_impl(ctx):
         outputs = outputs,
         mnemonic = "RemixCompile",
         progress_message = "Compiling {}".format(ctx.label),
-        execution_requirements = {"supports-workers": "1"},
+        execution_requirements = {
+            # NOTE(calebmer): The Remix compiler is not hermetic. It reads the files in the
+            # `routes` directory and treats it as configuration, for instance.
+            #
+            # "supports-workers": "1",
+        },
     )
 
     return [

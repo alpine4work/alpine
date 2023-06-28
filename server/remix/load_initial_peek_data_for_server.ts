@@ -34,7 +34,7 @@ export async function loadInitialPeekDataForServer(
 
     await runAllPromises(
         routeMatches.map(async match => {
-            if (match.route.id.startsWith("routes/s/$space_id/peek")) {
+            if (match.route.id.startsWith("routes/s.$spaceId.peek")) {
                 loadExtraRouteIds.push(match.route.id);
             }
 

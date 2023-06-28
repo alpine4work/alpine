@@ -477,13 +477,13 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
 
                         // So sometimes we have routes like that look like this:
                         //
-                        // - `route/s/$space_id/tasks/$task_id`
-                        // - `route/s/$space_id/tasks/view`
-                        // - `route/s/$space_id/peek/tasks/$task_id`
+                        // - `route/s/$spaceId/tasks/$taskId`
+                        // - `route/s/$spaceId/tasks/view`
+                        // - `route/s/$spaceId/peek/tasks/$taskId`
                         //
-                        // When you navigate to `/s/$space_id/tasks/view` it correctly picks the view
+                        // When you navigate to `/s/$spaceId/tasks/view` it correctly picks the view
                         // route instead of the wildcard route. But when navigating to a peek
-                        // `/s/$space_id/peek/tasks/view` matches the `$task_id` wildcard peek route.
+                        // `/s/$spaceId/peek/tasks/view` matches the `$taskId` wildcard peek route.
                         //
                         // We don't want the peek to open in this case and instead we want the full
                         // page route to open. So the way we detect this case is by trying to match the
@@ -491,8 +491,8 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
                         // compare the `params` object of the last match since the last match will have
                         // all the accumulated wildcard values.
                         //
-                        // So the main path match will be `{space_id: '...'}` while the peek path match
-                        // will be `{space_id: '...', task_id: 'view'}`. These are not equal and it
+                        // So the main path match will be `{spaceId: '...'}` while the peek path match
+                        // will be `{spaceId: '...', taskId: 'view'}`. These are not equal and it
                         // tells us we shouldn't open this route in a peek.
                         //
                         // Admittedly, this is a little hacky.

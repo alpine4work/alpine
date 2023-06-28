@@ -81,6 +81,24 @@ index aa35b4b724b363a955a1a6091c0ce4f523d5b0d6..aa783ead0ca1357e34adadec3ebc71b7
        let pattern = `(//# sourceMappingURL=)(.*)${escapedFilename}`;
        let contents = Buffer.from(file.contents).toString("utf-8");
        contents = contents.replace(new RegExp(pattern), `$1${filename}`);
+diff --git a/dist/config/flat-routes.js b/dist/config/flat-routes.js
+index 3f394c82055229325aeafd04301664df1a3cb9c7..8d27f117cafd79c9410ad6cb4294b39908a46018 100644
+--- a/dist/config/flat-routes.js
++++ b/dist/config/flat-routes.js
+@@ -89,7 +89,12 @@ function flatRoutes(appDirectory, ignoredFilePatterns = [], prefix = "routes") {
+     // If it's a directory, don't recurse into it, instead just look for a route module
+     if (entry.isDirectory()) {
+       route = findRouteModuleForFolder(appDirectory, filepath, ignoredFileRegex);
+-    } else if (entry.isFile()) {
++    } else if (
++      entry.isFile() &&
++      // NOTE(calebmer): Ignore source maps which will be in the `routes` directory due to
++      // our Bazel build.
++      !entry.name.endsWith(".map")
++    ) {
+       route = findRouteModuleForFile(appDirectory, filepath, ignoredFileRegex);
+     }
+     if (route) routes.push(route);
 diff --git a/dist/config/routesConvention.js b/dist/config/routesConvention.js
 index ca84eda743956c49910b1083fe6d02f390f20495..cdb48c77efba15b81ee349b2d1bcc80e68f1f07a 100644
 --- a/dist/config/routesConvention.js

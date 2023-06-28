@@ -20,7 +20,7 @@ import {
     UNSAFE_DataRouterStateContext as DataRouterStateContext,
     matchRoutes,
 } from "react-router";
-import type {LoaderData as InboxLoaderData} from "~/app/routes/s/$space_id/inbox.js";
+import type {LoaderData as InboxLoaderData} from "~/app/routes/s.$spaceId.inbox.js";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
@@ -300,12 +300,12 @@ function patchRemixContext(
     const routeMatches = matchRoutes(
         dataRouterContext.router.routes,
         // A URL that will match the inbox route object. The string we put in the place
-        // of `$space_id` shouldn't matter.
-        "/s/$space_id/inbox",
+        // of `$spaceId` shouldn't matter.
+        "/s/$spaceId/inbox",
     );
 
     const inboxRoute: DataRouteObject & {[wasPatchedSymbol]?: boolean} = assertExists(
-        routeMatches?.find(match => match.route.id === "routes/s/$space_id/inbox")?.route,
+        routeMatches?.find(match => match.route.id === "routes/s.$spaceId.inbox")?.route,
         "Couldn't find inbox client route",
     );
 
