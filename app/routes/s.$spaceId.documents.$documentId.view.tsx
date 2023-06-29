@@ -26,9 +26,9 @@ export async function loader({params, context}: LoaderArgs) {
     return jsonWithSchema(LoaderSchema, {document}, {propagateEventData});
 }
 
-export const meta = createMetaFunction(LoaderSchema, ({data: {document}}) => ({
-    title: document.getTitle(),
-}));
+export const meta = createMetaFunction(LoaderSchema, ({data: {document}}) => [
+    {title: document.getTitle()},
+]);
 
 export default function DocumentViewRoute() {
     const {document} = useLoaderDataWithSchema(LoaderSchema);

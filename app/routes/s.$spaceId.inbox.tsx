@@ -39,9 +39,7 @@ const LoaderSchema = Schema.object({
     }).nullable(),
 });
 
-export const meta = createMetaFunction(LoaderSchema, ({}) => ({
-    title: "Inbox",
-}));
+export const meta = createMetaFunction(LoaderSchema, ({}) => [{title: "Inbox"}]);
 
 export async function loader({params, context, request, serverRoutes: routes}: LoaderArgs) {
     const url = new URL(request.url);

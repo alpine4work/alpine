@@ -93,9 +93,9 @@ export async function loader({params, context, request}: LoaderArgs) {
     return jsonWithSchema(LoaderSchema, {document, commentThreadResult}, {propagateEventData});
 }
 
-export const meta = createMetaFunction(LoaderSchema, ({data: {document}}) => ({
-    title: document.getTitle(),
-}));
+export const meta = createMetaFunction(LoaderSchema, ({data: {document}}) => [
+    {title: document.getTitle()},
+]);
 
 // We don't need to reload when certain search params change.
 export const shouldRevalidate: ShouldRevalidateFunction = ({

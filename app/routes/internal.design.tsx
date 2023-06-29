@@ -5,9 +5,7 @@ import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
 export function meta() {
-    return {
-        title: `Design Playground${metaTitlePostfix}`,
-    };
+    return [{title: `Design Playground${metaTitlePostfix}`}];
 }
 
 export default function DesignPlaygroundRoute() {

@@ -70,11 +70,7 @@ export async function loader({params, context}: LoaderArgs) {
     );
 }
 
-export const meta: MetaFunction = () => {
-    return {
-        title: `New posts notification${metaTitlePostfix}`,
-    };
-};
+export const meta = () => [{title: `New posts notification${metaTitlePostfix}`}];
 
 export default function ChannelPostsRoute({withMobileLayout}: {withMobileLayout?: boolean}) {
     const context = useAppContext();

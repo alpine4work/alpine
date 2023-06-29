@@ -50,11 +50,13 @@ export async function loader({params, context}: LoaderArgs) {
     );
 }
 
-export const meta = createMetaFunction(LoaderSchema, ({data: {post}}) => ({
-    title: `Post by ${getAccountShortNameWithoutFullNameTooltip(post.author)} in ${
-        post.channel.name
-    }${metaTitlePostfix}`,
-}));
+export const meta = createMetaFunction(LoaderSchema, ({data: {post}}) => [
+    {
+        title: `Post by ${getAccountShortNameWithoutFullNameTooltip(post.author)} in ${
+            post.channel.name
+        }${metaTitlePostfix}`,
+    },
+]);
 
 export default function PostRoute({withMobileLayout}: {withMobileLayout?: boolean}) {
     const [searchParams] = useSearchParams();

@@ -61,11 +61,13 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {commentThread}}) =
         return {title: `Document comment thread${metaTitlePostfix}`};
     }
 
-    return {
-        title: `Document comment thread by ${getAccountShortNameWithoutFullNameTooltip(
-            commentThread.commentAuthors[0]!,
-        )}${metaTitlePostfix}`,
-    };
+    return [
+        {
+            title: `Document comment thread by ${getAccountShortNameWithoutFullNameTooltip(
+                commentThread.commentAuthors[0]!,
+            )}${metaTitlePostfix}`,
+        },
+    ];
 });
 
 export default function DocumentCommentThreadRoute({

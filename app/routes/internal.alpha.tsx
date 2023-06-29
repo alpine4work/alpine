@@ -26,9 +26,7 @@ import {Schema} from "~/shared/schema/schema.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
 export function meta() {
-    return {
-        title: `Closed Alpha Management${metaTitlePostfix}`,
-    };
+    return [{title: `Closed Alpha Management${metaTitlePostfix}`}];
 }
 
 const LoaderSchema = Schema.object({

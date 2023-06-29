@@ -20,9 +20,7 @@ import {Schema} from "~/shared/schema/schema.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
 export function meta() {
-    return {
-        title: `Email Playground${metaTitlePostfix}`,
-    };
+    return [{title: `Email Playground${metaTitlePostfix}`}];
 }
 
 const LoaderSchema = Schema.object({

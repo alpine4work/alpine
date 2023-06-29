@@ -1,5 +1,4 @@
 import {useTransition} from "@remix-run/react";
-import {MetaFunction} from "@remix-run/server-runtime";
 import {useEffect} from "react";
 import {useLocation, useSearchParams} from "react-router-dom";
 import {ChatAccountPicker} from "~/client/chat/chat_account_picker.js";
@@ -33,11 +32,7 @@ const LoaderSchema = Schema.object({
     suggestedChats: Schema.array(ChatModel.schema()),
 });
 
-export const meta: MetaFunction = () => {
-    return {
-        title: `New chat message${metaTitlePostfix}`,
-    };
-};
+export const meta = () => [{title: `New chat message${metaTitlePostfix}`}];
 
 export async function loader({request, context: _context, params}: LoaderArgs) {
     const context = await _context.actor.authenticate();

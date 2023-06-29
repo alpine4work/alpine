@@ -80,11 +80,7 @@ export async function loader({params, context}: LoaderArgs) {
     );
 }
 
-export const meta: MetaFunction = () => {
-    return {
-        title: `New document comment threads notification${metaTitlePostfix}`,
-    };
-};
+export const meta = () => [{title: `New document comment threads notification${metaTitlePostfix}`}];
 
 export default function DocumentNewCommentThreadsRoute({
     withMobileLayout,

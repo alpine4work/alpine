@@ -50,7 +50,13 @@ function ChatViewTopBar({chat}: {chat: ChatModel}) {
     const isMobile = useIsMobile();
     const {currentAccount} = useSpaceContext();
     assert(chat.accounts.length > 0);
-    const otherChatAccounts = chat.accounts.filter(account => account.id !== currentAccount.id);
+
+    // Exclude the current user from the list of accounts we display on top of the
+    // chat unless this is a one-person chat with only the current user.
+    const otherChatAccounts =
+        chat.accounts.length === 1 && chat.accounts[0]!.id === currentAccount.id
+            ? [currentAccount]
+            : chat.accounts.filter(account => account.id !== currentAccount.id);
 
     const padding: Spacing = isMobile ? "3" : "5";
 

@@ -34,9 +34,7 @@ import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles.js";
 // quotes too.
 
 export function meta() {
-    return {
-        title: "Request access to Cyberworlds",
-    };
+    return [{title: "Request access to Cyberworlds"}];
 }
 
 export async function loader({context}: LoaderArgs) {

@@ -3,6 +3,7 @@ import {useParams} from "react-router";
 import {Box} from "~/client/design/box.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {metaDefaultTitle} from "~/client/remix/use_update_meta_title.js";
 import {useLocalTasksState} from "~/client/tasks/demo_2/local_tasks_state.js";
 import {taskDetailPresentationalViewMaxWidth} from "~/client/tasks/demo_2/task_detail_presentational_view.js";
 import {TaskView} from "~/client/tasks/demo_2/task_view.js";
@@ -13,7 +14,9 @@ export function loader() {
     return json({});
 }
 
-export function meta() {}
+export function meta() {
+    return [{title: metaDefaultTitle}];
+}
 
 export default function TaskRoute({withMobileLayout}: {withMobileLayout?: boolean}) {
     const isInitialAppRender = useIsInitialAppRender();

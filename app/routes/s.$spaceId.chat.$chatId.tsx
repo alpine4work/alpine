@@ -48,24 +48,26 @@ export async function loader({context: _context, params}: LoaderArgs) {
     );
 }
 
-export const meta = createMetaFunction(LoaderSchema, ({data: {chat}, getParentsData}) => {
-    const spaceRouteData = getParentsData("routes/s.$space-id", SpaceRouteLoaderSchema);
+export const meta = createMetaFunction(LoaderSchema, ({data: {chat}, getParentData}) => {
+    const spaceRouteData = getParentData("routes/s.$spaceId", SpaceRouteLoaderSchema);
 
     assert(chat.accounts.length > 0);
     const otherChatAccounts = chat.accounts.filter(
         account => account.id !== spaceRouteData?.currentAccount.id,
     );
 
-    return {
-        title:
-            otherChatAccounts.length === 0
-                ? `Chat with yourself${metaTitlePostfix}`
-                : `Chat with ${joinPrettyConjunctionList(
-                      otherChatAccounts.map(account =>
-                          getAccountShortNameWithoutFullNameTooltip(account),
-                      ),
-                  )}${metaTitlePostfix}`,
-    };
+    return [
+        {
+            title:
+                otherChatAccounts.length === 0
+                    ? `Chat with yourself${metaTitlePostfix}`
+                    : `Chat with ${joinPrettyConjunctionList(
+                          otherChatAccounts.map(account =>
+                              getAccountShortNameWithoutFullNameTooltip(account),
+                          ),
+                      )}${metaTitlePostfix}`,
+        },
+    ];
 });
 
 export default function ChatRoute({withMobileLayout}: {withMobileLayout?: boolean}) {

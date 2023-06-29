@@ -45,9 +45,9 @@ export async function loader({params, context: unauthenticatedContext}: LoaderAr
     return jsonWithSchema(LoaderSchema, {channel, channelPostsResult}, {propagateEventData});
 }
 
-export const meta = createMetaFunction(LoaderSchema, ({data: {channel}}) => ({
-    title: channel.name,
-}));
+export const meta = createMetaFunction(LoaderSchema, ({data: {channel}}) => [
+    {title: channel.name},
+]);
 
 export default function ChannelRoute() {
     const {channel, channelPostsResult} = useLoaderDataWithSchema(LoaderSchema);

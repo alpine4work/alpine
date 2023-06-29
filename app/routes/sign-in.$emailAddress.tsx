@@ -19,11 +19,11 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
 export function meta() {
-    return {
-        title: "Sign in to Cyberworlds",
+    return [
+        {title: "Sign in to Cyberworlds"},
         // Ask Google to not index this page.
-        robots: "noindex",
-    };
+        {name: "robots", content: "noindex"},
+    ];
 }
 
 export async function loader({request, context}: LoaderArgs) {
