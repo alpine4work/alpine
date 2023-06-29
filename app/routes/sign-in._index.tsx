@@ -1,5 +1,5 @@
 import {json, redirect} from "@remix-run/cloudflare";
-import {Form, Link, useTransition} from "@remix-run/react";
+import {Form, Link, useNavigation} from "@remix-run/react";
 import {useState} from "react";
 import {redirectToAuthenticatedHome} from "~/app/helpers/redirect_to_authenticated_home.js";
 import {Box} from "~/client/design/box.js";
@@ -132,7 +132,7 @@ export default function SignInPage() {
                         variant="accent"
                         shouldSubmitForm={true}
                         fullWidth={true}
-                        isPending={useTransition().state === "submitting"}
+                        isPending={useNavigation().state === "submitting"}
                         isDisabled={!isFormValid}
                     >
                         Sign in

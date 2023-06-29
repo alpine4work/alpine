@@ -1,6 +1,5 @@
-import {useTransition} from "@remix-run/react";
 import {useEffect} from "react";
-import {useLocation, useSearchParams} from "react-router-dom";
+import {useLocation, useNavigation, useSearchParams} from "react-router-dom";
 import {ChatAccountPicker} from "~/client/chat/chat_account_picker.js";
 import {NewChatMessagingView} from "~/client/chat/new_chat_messaging_view.js";
 import {Box} from "~/client/design/box.js";
@@ -108,10 +107,10 @@ export default function NewChatRoute({withMobileLayout = false}: {withMobileLayo
         }
     }, [location.key, searchParams, selectedAccounts, setSearchParams, stateKey]);
 
-    const transition = useTransition();
+    const navigation = useNavigation();
 
     const isAccountPickerPending =
-        transition.state === "loading" && transition.location.pathname === location.pathname;
+        navigation.state === "loading" && navigation.location.pathname === location.pathname;
 
     const [shouldShowAccountPickerPendingSpinner, setShouldShowAccountPickerPendingSpinner] =
         useStateWithDependencies(false, [isAccountPickerPending]);

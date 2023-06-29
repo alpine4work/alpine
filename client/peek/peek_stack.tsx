@@ -1,7 +1,6 @@
 import {ClientRect, DndContext, DraggableAttributes, Modifier, useDraggable} from "@dnd-kit/core";
 import {SyntheticListenerMap} from "@dnd-kit/core/dist/hooks/utilities";
 import {PressEvent} from "@react-types/shared";
-import {useTransition} from "@remix-run/react";
 import {
     Action,
     HydrationState,
@@ -43,6 +42,7 @@ import {
     To,
     matchRoutes,
     useLocation,
+    useNavigation,
     useNavigationType,
 } from "react-router";
 import {Box} from "~/client/design/box.js";
@@ -326,7 +326,7 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
     });
 
     const location = useLocation();
-    const transition = useTransition();
+    const navigation = useNavigation();
     const navigationType = useNavigationType();
 
     // If we are navigating to a location with a peek stack we need to restore then
@@ -338,17 +338,17 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
         stack: ReadonlyArray<PeekStackEntry>;
     } | null>(null);
     useEffect(() => {
-        if (transition.state !== "loading") {
+        if (navigation.state !== "loading") {
             preloadRestoreStackRef.current?.abortController.abort();
             preloadRestoreStackRef.current = null;
             return;
         }
 
-        if (preloadRestoreStackRef.current?.location.key === transition.location.key) return;
+        if (preloadRestoreStackRef.current?.location.key === navigation.location.key) return;
 
         preloadRestoreStackRef.current?.abortController.abort();
 
-        const result = restorePeekStack(transition.location.key, peekRoutes, createPeekRouter);
+        const result = restorePeekStack(navigation.location.key, peekRoutes, createPeekRouter);
         if (result === null) {
             preloadRestoreStackRef.current = null;
             return;
@@ -356,9 +356,9 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
 
         preloadRestoreStackRef.current = {
             ...result,
-            location: transition.location,
+            location: navigation.location,
         };
-    }, [createPeekRouter, peekRoutes, transition.location, transition.state]);
+    }, [createPeekRouter, peekRoutes, navigation.location, navigation.state]);
 
     // If we are expanding a peek then we want to exclude it from our stored peek
     // stack so if the user navigates back it is not open.

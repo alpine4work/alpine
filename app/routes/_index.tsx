@@ -1,5 +1,5 @@
 import {json} from "@remix-run/cloudflare";
-import {Form, Link, useTransition} from "@remix-run/react";
+import {Form, Link, useNavigation} from "@remix-run/react";
 import {useEffect, useId, useMemo, useState} from "react";
 import {redirectToAuthenticatedHome} from "~/app/helpers/redirect_to_authenticated_home.js";
 import {
@@ -122,7 +122,7 @@ export default function HomePage() {
 
     const isFormValid = name.length > 0 && emailAddress.length > 0 && emailAddress.includes("@");
 
-    const transition = useTransition();
+    const navigation = useNavigation();
     const actionData = useActionDataWithSchema(ActionSchema);
 
     const [dismissedActionData, setDismissedActionData] = useState<SchemaType<
@@ -133,12 +133,12 @@ export default function HomePage() {
 
     // If the form submission was successful, clear our inputs.
     useEffect(() => {
-        if (transition.state === "idle" && actionData?.ok) {
+        if (navigation.state === "idle" && actionData?.ok) {
             setName("");
             setEmailAddress("");
             setMessage("");
         }
-    }, [actionData?.ok, transition.state]);
+    }, [actionData?.ok, navigation.state]);
 
     return (
         <Box
@@ -252,7 +252,7 @@ export default function HomePage() {
                             variant="accent"
                             shouldSubmitForm={true}
                             isDisabled={!isFormValid}
-                            isPending={transition.state === "submitting"}
+                            isPending={navigation.state === "submitting"}
                         >
                             Request
                         </Button>

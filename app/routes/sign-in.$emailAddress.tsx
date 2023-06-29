@@ -1,5 +1,5 @@
 import {json, redirect} from "@remix-run/cloudflare";
-import {Form, useParams, useSubmit, useTransition} from "@remix-run/react";
+import {Form, useNavigation, useParams, useSubmit} from "@remix-run/react";
 import {useEffect, useRef, useState} from "react";
 import {redirectToAuthenticatedHome} from "~/app/helpers/redirect_to_authenticated_home.js";
 import {Box} from "~/client/design/box.js";
@@ -98,7 +98,7 @@ export default function SignInEmailCodePage() {
     const isFormValid = oneTimePassword.length === 6;
 
     const actionData = useActionDataWithSchema(ActionSchema);
-    const transition = useTransition();
+    const navigation = useNavigation();
 
     const [dismissedActionData, setDismissedActionData] = useState<SchemaType<
         typeof ActionSchema
@@ -123,18 +123,18 @@ export default function SignInEmailCodePage() {
     };
 
     useEffect(() => {
-        if (transition.state === "idle") {
+        if (navigation.state === "idle") {
             setIsDisabledForSubmit(false);
         }
-    }, [transition.state]);
+    }, [navigation.state]);
 
     const hasError = actionData ? !actionData.ok : false;
     useEffect(() => {
-        if (transition.state === "idle" && hasError && inputRef.current) {
+        if (navigation.state === "idle" && hasError && inputRef.current) {
             setOneTimePassword("");
             inputRef.current.focus();
         }
-    }, [hasError, transition.state]);
+    }, [hasError, navigation.state]);
 
     useLayoutEffectWithoutServerSideWarning(() => {
         // this is a bit of a hack. the browser will scroll the input to the left, to keep the input

@@ -1,4 +1,3 @@
-import {useTransition} from "@remix-run/react";
 import {Memo, ReactNode, createContext, useCallback, useContext, useEffect, useRef} from "react";
 import {
     NavigateOptions,
@@ -92,7 +91,6 @@ function unsupportedNavigateForTest(): never {
 const WaitForNavigationContext = createContext<(() => Promise<void>) | null>(null);
 
 export function WaitForNavigationContextProvider({children}: {children?: ReactNode}) {
-    const transition = useTransition();
     const location = useLocation();
     const isMounted = useIsMounted();
 
@@ -115,7 +113,7 @@ export function WaitForNavigationContextProvider({children}: {children?: ReactNo
                 return true;
             },
         );
-    }, [location, transition.location, transition.state]);
+    }, [location]);
 
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     const waitForNextNavigation = useEvent((): Promise<void> => {
