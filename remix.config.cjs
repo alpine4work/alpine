@@ -15,21 +15,18 @@ module.exports = {
         v2_meta: true,
         v2_headers: true,
     },
+    appDirectory: "./app",
+    assetsBuildDirectory: "./app/public/build",
     server: "./app/server.js",
     serverBuildPath: "./app/build/server.js",
-    assetsBuildDirectory: "./app/public/build",
-    ignoredRouteFiles: ["**/.*"],
-    devServerPort: env.DEV_SERVER_PORT ? parseInt(env.DEV_SERVER_PORT, 10) : undefined,
-    publicPath: "/build/",
-    serverConditions: ["worker"],
-    serverMainFields: ["browser", "module", "main"],
+    serverMainFields: ["module", "main"],
     serverModuleFormat: "esm",
-    serverPlatform: "neutral",
-    serverDependenciesToBundle: "all",
-    serverMinify: true,
+    serverPlatform: "node",
+    devServerPort: env.DEV_SERVER_PORT ? parseInt(env.DEV_SERVER_PORT, 10) : undefined,
+    ignoredRouteFiles: ["**/.*"],
 };
 
-// Copy of `admin/helpers/parse_dotenv.ts`. Hard to figure out how to include
+// Copy of `admin/helpers/parse_dotenv.ts`. Hard to figure out how to import
 // other files in this one.
 function parseDotenv() {
     const nodeEnv = process.env.NODE_ENV ?? "development";

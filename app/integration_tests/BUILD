@@ -4,6 +4,7 @@ ts_playwright_tests(
     name = "integration_tests",
     data = ["//app"],
     node_options = [
+        # NOCOMMIT: Do I need this?
         # Support for Cloudflare modules format.
         # https://miniflare.dev/core/modules
         "--experimental-vm-modules",

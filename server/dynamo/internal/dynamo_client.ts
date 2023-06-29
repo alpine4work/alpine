@@ -721,7 +721,6 @@ type DynamoClientKeyBatch<Input, Output> = {
  * not batched.
  *
  * We batch at the action level so that unrelated requests do not share IO.
- * It's an error to share IO across requests in Cloudflare Workers.
  */
 export class DynamoClientBatchContext {
     private readonly _scheduledBatchByBatcher = new Map<

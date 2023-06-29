@@ -1,8 +1,4 @@
-import {
-    Session as RawSession,
-    SessionStorage,
-    createCookieSessionStorage,
-} from "@remix-run/cloudflare";
+import {Session as RawSession, SessionStorage, createCookieSessionStorage} from "@remix-run/node";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, BrowserId, SessionId} from "~/shared/id/types/id_types.js";

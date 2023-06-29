@@ -1,3 +1,4 @@
+import {createHash} from "crypto";
 import {subDays} from "date-fns";
 import murmurhash from "murmurhash";
 import {getAccount} from "~/server/dynamo/accounts_table.js";
@@ -37,7 +38,6 @@ import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iter
 import {parallelFilterMapLimitAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_filter_map_limit_async_iterable_to_array.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {decodeIdInto, encodeId, generateId} from "~/shared/id/id.js";
 import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -323,44 +323,11 @@ export async function getOptimisticChatId(
     // applications! However, we do not need security guarantees here, this is a
     // performance optimization. We use MD5 since it is fast and it outputs as
     // 128-bit value. Our `Id`s our 128-bit so this aligns quite well.
-    return encodeId<ChatId>(new Uint8Array(await hashMd5(optimisticChatIdHashKey)));
+    return encodeId<ChatId>(new Uint8Array(hashMd5(optimisticChatIdHashKey)));
 }
 
-let webCryptoSupportsMd5Hash = true;
-
-async function hashMd5(data: ArrayBuffer): Promise<ArrayBuffer> {
-    if (!webCryptoSupportsMd5Hash) {
-        return hashMd5WithNodeModule(data);
-    }
-
-    try {
-        // MD5 is supported by the Cloudflare WebCrypto implementation but is
-        // non-standard because it is insecure.
-        // https://developers.cloudflare.com/workers/runtime-apis/web-crypto#supported-algorithms
-        return await crypto.subtle.digest("MD5", data);
-    } catch (error) {
-        if (
-            isObject(error) &&
-            typeof error.message === "string" &&
-            error.message.includes("Unrecognized algorithm name")
-        ) {
-            webCryptoSupportsMd5Hash = false;
-            return hashMd5WithNodeModule(data);
-        }
-        throw error;
-    }
-}
-
-async function hashMd5WithNodeModule(data: ArrayBuffer): Promise<ArrayBuffer> {
-    // We don't have `@types/node` for this package so TypeScript doesn't know
-    // about the `require()` function. We can't expect the error since when type
-    // checking globally TypeScript does know about the `require()` function.
-    // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
-    // @ts-ignore
-    // TODO(calebmer): When we get rid of Cloudflare Workers support here we should
-    // import `crypto` up top!
-    const crypto = await import("crypto");
-    return crypto.createHash("md5").update(new Uint8Array(data)).digest().buffer;
+function hashMd5(data: ArrayBuffer): ArrayBuffer {
+    return createHash("md5").update(new Uint8Array(data)).digest().buffer;
 }
 
 /**

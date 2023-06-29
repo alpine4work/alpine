@@ -1,4 +1,4 @@
-import {redirect} from "@remix-run/cloudflare";
+import {redirect} from "@remix-run/router";
 import {getAlphaConfiguration} from "~/server/dynamo/alpha_access_table.js";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context.js";
 

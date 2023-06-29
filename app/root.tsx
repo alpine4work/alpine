@@ -1,4 +1,3 @@
-import {LinkDescriptor} from "@remix-run/cloudflare";
 import {
     Links,
     LiveReload,
@@ -9,6 +8,7 @@ import {
     ScrollRestoration,
     loadRouteModuleWithBlockingLinks,
 } from "@remix-run/react";
+import {LinkDescriptor} from "@remix-run/server-runtime";
 import {IconContext} from "phosphor-react";
 import prosemirrorStylesHref from "prosemirror-view/style/prosemirror.css";
 import {Context, useCallback, useContext, useEffect, useMemo} from "react";

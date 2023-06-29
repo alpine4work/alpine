@@ -7,11 +7,11 @@ import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.js";
  */
 export function createServerTracer({
     serviceName,
-    env,
+    honeycombApiKey,
     waitUntil,
 }: {
     serviceName: TracerServiceName;
-    env: {DEV_SERVER_PORT?: string; HONEYCOMB_API_KEY?: string};
+    honeycombApiKey: string | undefined;
     waitUntil: (promise: Promise<unknown>) => void;
 }): TracerRoot {
     let lastTime: number | null = null;
@@ -42,9 +42,9 @@ export function createServerTracer({
             // provided to us by `dev_main.ts` setting a global.
             if (
                 process.env.NODE_ENV !== "production" &&
-                typeof (globalThis as any).__writeDevTracerEvent === "function"
+                typeof globalThis.__writeDevTracerEvent === "function"
             ) {
-                (globalThis as any).__writeDevTracerEvent({
+                globalThis.__writeDevTracerEvent({
                     time: event.time,
                     data: event.getFlatData(),
                 });
@@ -52,9 +52,9 @@ export function createServerTracer({
         },
     });
 
-    const honeycombClient = env.HONEYCOMB_API_KEY
+    const honeycombClient = honeycombApiKey
         ? new HoneycombTracerClient({
-              apiKey: env.HONEYCOMB_API_KEY,
+              apiKey: honeycombApiKey,
               tracer,
               waitUntil,
           })

@@ -7,6 +7,10 @@ ES Modules.
 
 By using `package_light.json` our Bazel packages will not need to be rebuilt
 whenever any dependency is changed.
+
+`package_light.json` has a couple dependencies copied from `package.json`.
+These are dependency versions that the Remix compiler or some eslint
+plugins need.
 """
 
 load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file_action")

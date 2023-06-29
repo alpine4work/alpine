@@ -24,6 +24,8 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 import {TracerPropagationContextSchema} from "~/shared/tracer/tracer_propagation_context_schema.js";
 
+// NOCOMMIT: Notifications need to work in a new way not that they're on Node.js?
+
 export const NotificationsQueueMessageSchema = Schema.object({
     event: NotificationEventSchema,
     tracerContext: TracerPropagationContextSchema,
@@ -66,19 +68,20 @@ export class NotificationsContextModule extends NotificationsContextModuleBase {
     private readonly _sessionCookieSecret: string;
 
     constructor(env: {
-        NotificationsQueue: Queue;
-        MyAccountDurableObjectNamespace: DurableObjectNamespace;
-        SESSION_COOKIE_SECRET?: string;
+        // NOCOMMIT
+        // NotificationsQueue: Queue;
+        // MyAccountDurableObjectNamespace: DurableObjectNamespace;
+        // SESSION_COOKIE_SECRET?: string;
     }) {
         super();
-        this._notificationQueue = env.NotificationsQueue;
-        this._myAccountDurableObjectNamespace = env.MyAccountDurableObjectNamespace;
+        // this._notificationQueue = env.NotificationsQueue;
+        // this._myAccountDurableObjectNamespace = env.MyAccountDurableObjectNamespace;
 
-        const sessionCookieSecret = env.SESSION_COOKIE_SECRET;
-        if (!sessionCookieSecret)
-            throw new InternalError("Missing `SESSION_COOKIE_SECRET` environment variable");
+        // const sessionCookieSecret = env.SESSION_COOKIE_SECRET;
+        // if (!sessionCookieSecret)
+        //     throw new InternalError("Missing `SESSION_COOKIE_SECRET` environment variable");
 
-        this._sessionCookieSecret = sessionCookieSecret;
+        // this._sessionCookieSecret = sessionCookieSecret;
     }
 
     public override sendNotificationEvent(event: NotificationEvent) {

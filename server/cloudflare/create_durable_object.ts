@@ -1,5 +1,5 @@
 import {jwtVerify} from "jose";
-import {createAwsContextModulesFromEnv} from "~/server/aws/create_aws_context_modules_from_env.js";
+import {createAwsContextModules} from "~/server/aws/create_aws_context_modules.js";
 import {
     WebSocketServerConnectionBase,
     WebSocketServerTestConnection,
@@ -123,11 +123,17 @@ export function createDurableObject<
 
             this._tracer = createServerTracer({
                 serviceName,
-                env,
+                // TODO(calebmer): If we are running an adhoc script against our production
+                // database then events should go to our production Honeycomb environment?
+                honeycombApiKey: env.HONEYCOMB_API_KEY,
                 waitUntil: promise => state.waitUntil(promise),
             });
 
-            const awsContextModules = createAwsContextModulesFromEnv(env);
+            const awsContextModules = createAwsContextModules({
+                awsAccessKeyId: env.AWS_ACCESS_KEY_ID,
+                awsSecretAccessKey: env.AWS_SECRET_ACCESS_KEY,
+                dynamoLocalPort: env.DYNAMO_LOCAL_PORT,
+            });
 
             this._processContextModulesBase = {
                 ...awsContextModules,

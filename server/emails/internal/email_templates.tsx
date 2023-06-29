@@ -37,10 +37,10 @@ export type RenderedEmail = {
  * A map of template names to functions which will generate HTML for the
  * template. Uses `mjml-react` under the hood.
  *
- * We have this level of indirection because we need to take care to not put
- * `mjml-react` in our main bundle or it will cause the Cloudflare Worker
- * startup time to be too slow. This way callers can reference a string key
- * instead of importing a component that pulls in `mjml-react`.
+ * We have this level of indirection because when we were running on Cloudflare
+ * Workers we needed to lazy load `mjml-react` for script startup performance.
+ * This way callers can reference a string key instead of importing a component
+ * that pulls in `mjml-react`.
  */
 export const emailTemplates = mapObjectValues(
     emailTemplateComponents,

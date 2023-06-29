@@ -1,4 +1,4 @@
-import {json} from "@remix-run/cloudflare";
+import {json} from "@remix-run/router";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 import {BlockInference} from "~/shared/helpers/types/block_inference.js";

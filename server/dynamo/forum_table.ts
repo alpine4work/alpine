@@ -641,10 +641,9 @@ async function createPostModelFromItem(
  */
 export async function getPostAuthorAndChannelPreview(context: ActionContext, postId: PostId) {
     // NOTE(calebmer): Ideally we'd use `getPartialItem()` here but it doesn't
-    // batch into one network request so while we're on Cloudflare Workers we find
-    // ourselves hitting the Cloudflare Workers sub-request limit. Switch this back
-    // to `getPartialItem()` if we switch away from Cloudflare Workers for running
-    // DynamoDB reads.
+    // batch into one network request. When we ran on Cloudflare Workers we'd find
+    // ourselves hitting the sub-request limit. Consider switching back to
+    // `getPartialItem()` now that this code doesn't run on Cloudflare Workers.
     const postItem = await ForumTable.getItem(context, {
         partitionType: "Post",
         sortRangeType: "Attributes",

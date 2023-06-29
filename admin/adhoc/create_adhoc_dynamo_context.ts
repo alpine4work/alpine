@@ -20,7 +20,7 @@ export async function createAdhocDynamoContext({
         serviceName: "Adhoc",
         // TODO(calebmer): If we are running an adhoc script against our production
         // database then events should go to our production Honeycomb environment?
-        env,
+        honeycombApiKey: env.HONEYCOMB_API_KEY,
         // Node.js automatically waits for all promises to finish before exiting
         // the process.
         waitUntil: promise => {

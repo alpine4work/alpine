@@ -42,6 +42,8 @@ export async function traceFetchResponse(
                 method: request.method,
                 scheme: requestUrl.protocol.slice(0, -1),
                 target: `${requestUrl.pathname}${requestUrl.search}`,
+                // NOCOMMIT: What do we do not in Cloudflare?
+                //
                 // We depend on Cloudflare to set the `cf-connecting-ip` header on our request
                 // to get the IP address.
                 // https://developers.cloudflare.com/fundamentals/get-started/reference/http-request-headers

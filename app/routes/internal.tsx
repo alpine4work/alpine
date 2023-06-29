@@ -1,5 +1,5 @@
-import {json} from "@remix-run/cloudflare";
 import {Outlet} from "@remix-run/react";
+import {json} from "@remix-run/router";
 import {authorizeInternalAccess} from "~/server/dynamo/accounts_table.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 

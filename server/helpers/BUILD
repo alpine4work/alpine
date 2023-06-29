@@ -8,7 +8,6 @@ ts_project(
     ],
     deps = [
         "//:node_modules/@cloudflare/workers-types",
-        "//:node_modules/@remix-run/cloudflare",
         "//:node_modules/@remix-run/dev",
         "//:node_modules/@types/jest",
         "//:node_modules/@types/json-stable-stringify",

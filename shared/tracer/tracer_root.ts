@@ -37,8 +37,6 @@ export type DurableObjectServiceName =
 // TODO(calebmer): Tracer stuff
 // - Apply source map to error stack trace on server
 // - Redact URLs
-// - Maybe in Cloudflare workers, whenever `getTime` is called we should do
-//   some light IO to progress the time? Maybe a cache read or something?
 // - Add [Refinery tail-based sampling](https://docs.honeycomb.io/manage-data-volume/refinery/)
 // - When we add sampling, send all events to Redshift for more complete
 //   analysis

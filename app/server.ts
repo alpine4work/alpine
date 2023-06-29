@@ -1,33 +1,32 @@
-import {AppLoadContext} from "@remix-run/cloudflare";
-import {createRequestHandler, handleAsset} from "@remix-run/cloudflare-workers";
+import "~/app/helpers/install_remix_globals.js";
+
 import * as build from "@remix-run/dev/server-build";
+import {
+    Headers,
+    Request,
+    RequestInit,
+    Response,
+    createRequestHandler,
+    writeReadableStreamToWritable,
+} from "@remix-run/node";
 import {parse as parseCookieHeader} from "cookie";
+import {
+    IncomingHttpHeaders,
+    IncomingMessage,
+    STATUS_CODES,
+    ServerResponse,
+    createServer,
+} from "http";
+import {PassThrough} from "stream";
+import {parseArgs} from "util";
 import {defaultClientInfo, defaultMobileClientInfo} from "~/client/remix/client_info_context.js";
-import {createAwsContextModulesFromEnv} from "~/server/aws/create_aws_context_modules_from_env.js";
-import {fetchFromDurableObjectStub} from "~/server/cloudflare/fetch_from_durable_object_stub.js";
+import {createAwsContextModules} from "~/server/aws/create_aws_context_modules.js";
 import {Session} from "~/server/dynamo/accounts_table.js";
-import {SystemActionContextModules} from "~/server/dynamo/context/action_context.js";
-import {
-    MaybeSessionActorContextModule,
-    SystemActorContextModule,
-} from "~/server/dynamo/context/actor_context_module.js";
-import {
-    NotificationsContextModule,
-    NotificationsQueueMessageSchema,
-} from "~/server/dynamo/context/notifications_context_module.js";
-import {
-    DynamoBatchContextModule,
-    DynamoContextModule,
-} from "~/server/dynamo/dynamo_context_module.js";
-import {processNotificationEvent} from "~/server/dynamo/notifications_table.js";
+import {MaybeSessionActorContextModule} from "~/server/dynamo/context/actor_context_module.js";
+import {NotificationsContextModule} from "~/server/dynamo/context/notifications_context_module.js";
+import {DynamoBatchContextModule} from "~/server/dynamo/dynamo_context_module.js";
 import {seedDynamo} from "~/server/dynamo/seed_dynamo.js";
-import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
-import {MessageBatch, Queue} from "~/server/helpers/types/cloudflare_queues.js";
-import {
-    LoaderContext,
-    LoaderContextModule,
-    LoaderContextModules,
-} from "~/server/remix/loader_context.js";
+import {LoaderContextModule, LoaderContextModules} from "~/server/remix/loader_context.js";
 import {SessionCookieStorage} from "~/server/remix/session_cookie.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
@@ -37,233 +36,78 @@ import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {ClientInfoSchema} from "~/shared/remix/client_info.js";
-import {Schema} from "~/shared/schema/schema.js";
 
-type AppWorkerEnv = {
-    DocumentCollaborationDurableObjectNamespace: DurableObjectNamespace;
-    PostRealtimeDurableObjectNamespace: DurableObjectNamespace;
-    ChatRealtimeDurableObjectNamespace: DurableObjectNamespace;
-    MyAccountDurableObjectNamespace: DurableObjectNamespace;
-    NotificationsQueue: Queue;
-    DEV_SERVER_PORT?: string;
-    DYNAMO_LOCAL_PORT?: string;
-    SESSION_COOKIE_SECRET?: string;
-    AWS_SECRET_ACCESS_KEY?: string;
-    AWS_ACCESS_KEY_ID?: string;
-    HONEYCOMB_API_KEY?: string;
-    __STATIC_CONTENT?: string;
-};
+// NOCOMMIT: Add back durable objects and queues!
 
-const contextSymbol = Symbol("context");
-
-const handleRequest = createRequestHandler({
-    build,
-    getLoadContext(event: FetchEvent & {[contextSymbol]?: LoaderContext}) {
-        const context = assertExists(event[contextSymbol]);
-        return context as any as AppLoadContext;
+const {
+    values: {
+        port: portString,
+        sessionCookieSecret,
+        awsAccessKeyId,
+        awsSecretAccessKey,
+        honeycombApiKey,
+        devServerPort,
+        dynamoLocalPort,
+        shouldSeedDynamo,
+    },
+} = parseArgs({
+    options: {
+        port: {type: "string"},
+        sessionCookieSecret: {type: "string"},
+        awsAccessKeyId: {type: "string"},
+        awsSecretAccessKey: {type: "string"},
+        honeycombApiKey: {type: "string"},
+        devServerPort: {type: "string"},
+        dynamoLocalPort: {type: "string"},
+        shouldSeedDynamo: {type: "boolean"},
     },
 });
 
-// Cache some shared resources across requests.
-let sharedResources: {
-    env: AppWorkerEnv;
-    sessionCookieSecret: string;
-    sessionCookieStorage: SessionCookieStorage;
-    awsContextModules: {
-        dynamo: DynamoContextModule;
-        email: EmailContextModuleBase;
-    };
-} | null = null;
+if (!portString) throw new InternalError("Missing `port` arg");
+if (!sessionCookieSecret) throw new InternalError("Missing `sessionCookieSecret` arg");
 
-function getSharedResources(env: AppWorkerEnv) {
-    // An env object that is referentially equal will be passed in as long as
-    // environment variables remain the same.
-    // https://developers.cloudflare.com/workers/runtime-apis/fetch-event/#parameters
-    if (sharedResources === null || sharedResources.env !== env) {
-        const sessionCookieSecret = env.SESSION_COOKIE_SECRET;
-        if (!sessionCookieSecret)
-            throw new InternalError("Missing `SESSION_COOKIE_SECRET` environment variable");
+const port = parseInt(portString, 10);
 
-        const sessionCookieStorage = new SessionCookieStorage({
-            // The session cookie domain is not set in development because we may be
-            // accessing from a proxied domain or an IP address on a mobile device.
-            domain: process.env.NODE_ENV === "production" ? "cyberworlds.dev" : null,
-            secret: sessionCookieSecret,
-        });
+const sessionCookieStorage = new SessionCookieStorage({
+    // The session cookie domain is not set in development because we may be
+    // accessing from a proxied domain or an IP address on a mobile device.
+    domain: process.env.NODE_ENV === "production" ? "cyberworlds.dev" : null,
+    secret: sessionCookieSecret,
+});
 
-        sharedResources = {
-            env,
-            sessionCookieSecret,
-            sessionCookieStorage,
-            awsContextModules: createAwsContextModulesFromEnv(env),
-        };
-    }
-    return sharedResources;
-}
-
-// See: https://github.com/cloudflare/wrangler/pull/2126
-const staticContentManifestPromise =
-    process.env.NODE_ENV === "production"
-        ? import("__STATIC_CONTENT_MANIFEST").then(manifestJson => JSON.parse(manifestJson.default))
-        : null;
+const awsContextModules = createAwsContextModules({
+    awsAccessKeyId,
+    awsSecretAccessKey,
+    dynamoLocalPort,
+});
 
 let hasSeededDynamo = false;
 
-async function handleFetch(
-    request: Request,
-    env: AppWorkerEnv,
-    executionContext: ExecutionContext,
-): Promise<Response> {
+const handleRequest = createRequestHandler(build, process.env.NODE_ENV);
+
+const server = createServer((req, res) => {
+    const request = createRequest(req);
     const url = new URL(request.url);
-
-    // We implement the time API route directly in our Cloudflare Worker body and
-    // put it before all other work.
-    //
-    // We use this route to implement [clock synchronization with NTP][1].
-    //
-    // Normally, NTP needs the time of both server packet reception and server
-    // packet transmission to work. But Cloudflare only updates the clock during IO
-    // (not synchronous CPU work, see [security model][2]) so we only have the time
-    // at which our worker received the request. That's fine, that time can be both
-    // the server start time and server end time and we pretend like the server
-    // response was less than 1ms.
-    //
-    // So we want to respond to this route the absolute fastest Cloudflare Workers
-    // can allow so that the route time is as close to under 1ms as possible. Which
-    // is why we put this route handler first before all other processing.
-    //
-    // [1]: https://en.wikipedia.org/wiki/Network_Time_Protocol
-    // [2]: https://developers.cloudflare.com/workers/learning/security-model/
-    if (url.pathname === "/api/time") {
-        return new Response(JSON.stringify({time: Date.now()}), {
-            status: 200,
-            headers: {"content-type": "application/json"},
-        });
-    }
-
-    const resources = getSharedResources(env);
-
-    // In development we have middleware on our HTTP server that serves static
-    // files from the file system instead of a Cloudflare KV namespace.
-    if (process.env.NODE_ENV === "production") {
-        // Backwards compatibility with Cloudflare service worker syntax. (Instead of
-        // Cloudflare module syntax.)
-        // https://developers.cloudflare.com/workers/runtime-apis/fetch-event
-        const event: FetchEvent & {[contextSymbol]?: LoaderContext} = Object.assign(
-            new Event("fetch"),
-            {
-                request,
-                waitUntil: (promise: Promise<any>) => executionContext.waitUntil(promise),
-                passThroughOnException: () => executionContext.passThroughOnException(),
-                respondWith: () => {
-                    throw new InternalError("Can not respond through fetch event stub");
-                },
-            },
-        );
-
-        const response = await handleAsset(event, build, {
-            ASSET_NAMESPACE: env.__STATIC_CONTENT,
-            ASSET_MANIFEST: await staticContentManifestPromise,
-        });
-        if (response) return response;
-    }
 
     // Create a new tracer for every request because we need a Honeycomb client and
     // the Honeycomb client needs `executionContext.waitUntil()` which is request
     // scoped. Tracers are cheap to construct so this is fine.
     const tracer = createServerTracer({
         serviceName: "AppServer",
-        env,
-        waitUntil: promise => executionContext.waitUntil(promise),
+        honeycombApiKey,
+        waitUntil: promise => {
+            // We don't need to extend the lifetime of our Node.js process with a promise.
+            // If the tracer throws an error, well, there's nowhere else to send the error.
+            promise.catch(error => {
+                // eslint-disable-next-line no-console
+                console.error(error);
+            });
+        },
     });
 
-    // Don't trace asset requests. If we do one day trace asset requests we should
-    // do it with a low sample rate.
-    return traceFetchResponse(tracer, request, url, async (span, request) => {
-        // Backwards compatibility with Cloudflare service worker syntax. (Instead of
-        // Cloudflare module syntax.)
-        // https://developers.cloudflare.com/workers/runtime-apis/fetch-event
-        const event: FetchEvent & {[contextSymbol]?: LoaderContext} = Object.assign(
-            new Event("fetch"),
-            {
-                request,
-                waitUntil: (promise: Promise<any>) => executionContext.waitUntil(promise),
-                passThroughOnException: () => executionContext.passThroughOnException(),
-                respondWith: () => {
-                    throw new InternalError("Can not respond through fetch event stub");
-                },
-            },
-        );
-
-        if (url.pathname.startsWith("/durable-objects/")) {
-            const path = url.pathname.slice("/durable-objects/".length).split("/");
-            switch (path[0]) {
-                case "documents": {
-                    const documentId = Schema.id().deserialize(path[1] ?? null);
-                    const pathname = `/${path.slice(2).join("/")}`;
-
-                    return fetchFromDurableObjectStub({
-                        durableObjectNamespace: env.DocumentCollaborationDurableObjectNamespace,
-                        sessionCookieSecret: resources.sessionCookieSecret,
-                        sessionCookieStorage: resources.sessionCookieStorage,
-                        request,
-                        pathname,
-                        idName: documentId,
-                        span,
-                    });
-                }
-                case "posts": {
-                    const postId = Schema.id().deserialize(path[1] ?? null);
-                    const pathname = `/${path.slice(2).join("/")}`;
-
-                    return fetchFromDurableObjectStub({
-                        durableObjectNamespace: env.PostRealtimeDurableObjectNamespace,
-                        sessionCookieSecret: resources.sessionCookieSecret,
-                        sessionCookieStorage: resources.sessionCookieStorage,
-                        request,
-                        pathname,
-                        idName: postId,
-                        span,
-                    });
-                }
-                case "chat": {
-                    const chatId = Schema.id().deserialize(path[1] ?? null);
-                    const pathname = `/${path.slice(2).join("/")}`;
-
-                    return fetchFromDurableObjectStub({
-                        durableObjectNamespace: env.ChatRealtimeDurableObjectNamespace,
-                        sessionCookieSecret: resources.sessionCookieSecret,
-                        sessionCookieStorage: resources.sessionCookieStorage,
-                        request,
-                        pathname,
-                        idName: chatId,
-                        span,
-                    });
-                }
-                case "my-account": {
-                    const accountId = Schema.id().deserialize(path[1] ?? null);
-                    const pathname = `/${path.slice(2).join("/")}`;
-
-                    return fetchFromDurableObjectStub({
-                        durableObjectNamespace: env.MyAccountDurableObjectNamespace,
-                        sessionCookieSecret: resources.sessionCookieSecret,
-                        sessionCookieStorage: resources.sessionCookieStorage,
-                        request,
-                        pathname,
-                        idName: accountId,
-                        span,
-                    });
-                }
-                default:
-                    return new Response("Durable object not found", {status: 404});
-            }
-        }
-
-        return resources.sessionCookieStorage.with(request, sessionCookiePromise => {
+    const responsePromise = traceFetchResponse(tracer, request, url, (span, request) => {
+        return sessionCookieStorage.with(request, sessionCookiePromise => {
             const cookieHeader = request.headers.get("cookie");
             const clientInfoCookieString = cookieHeader
                 ? parseCookieHeader(cookieHeader)["client-info"]
@@ -275,7 +119,6 @@ async function handleFetch(
                     clientInfo = ClientInfoSchema.deserialize(JSON.parse(clientInfoCookieString));
                 } catch {
                     // Ignore any errors when parsing the client info cookie.
-                    // TODO(calebmer): We should report it in an event though?
                 }
             } else {
                 // Device detection with user-agent parsing is generally bad and should be
@@ -294,37 +137,34 @@ async function handleFetch(
                 }
             }
 
-            return Context.with<LoaderContextModules, Response>(
+            return Context.with<LoaderContextModules, globalThis.Response>(
                 {
-                    ...resources.awsContextModules,
+                    ...awsContextModules,
                     process: new ProcessContextModule({
-                        waitUntil: promise =>
-                            executionContext.waitUntil(
-                                // Don't crash the process when there's an uncaught promise exception in
-                                // `waitUntil()` but definitely log it.
-                                promise.catch(error => {
-                                    // eslint-disable-next-line no-console
-                                    if (process.env.NODE_ENV !== "production") console.error(error);
+                        waitUntil: promise => {
+                            // Don't crash the process when there's an uncaught promise exception in
+                            // `waitUntil()` but definitely log it.
+                            promise.catch(error => {
+                                // eslint-disable-next-line no-console
+                                if (process.env.NODE_ENV !== "production") console.error(error);
 
-                                    tracer.logUncaughtException(
-                                        "Uncaught exception in `waitUntil()`",
-                                        error,
-                                    );
-                                }),
-                            ),
+                                tracer.logUncaughtException(
+                                    "Uncaught exception in `waitUntil()`",
+                                    error,
+                                );
+                            });
+                        },
                     }),
                     tracer: new TracerContextModule(span),
                     rpc: new LocalRpcContextModule(),
                     loader: new LoaderContextModule({
                         sessionCookiePromise,
                         clientInfo,
-                        devServerPort: env.DEV_SERVER_PORT
-                            ? parseInt(env.DEV_SERVER_PORT, 10)
-                            : null,
+                        devServerPort: devServerPort ? parseInt(devServerPort, 10) : null,
                     }),
                     cache: new CacheContextModule(),
                     dynamoBatchContext: new DynamoBatchContextModule(),
-                    notifications: new NotificationsContextModule(env),
+                    notifications: new NotificationsContextModule({}),
 
                     actor: new MaybeSessionActorContextModule(async context => {
                         const sessionCookie = await sessionCookiePromise;
@@ -352,119 +192,106 @@ async function handleFetch(
                         return session;
                     }),
                 },
-                async context => {
+                context => {
                     // The first time our server process runs in development, seed DynamoDB with
                     // some initial data. The seed function should be idempotent.
                     if (
                         process.env.NODE_ENV !== "production" &&
-                        (globalThis as any).__shouldSeedDynamo &&
+                        shouldSeedDynamo &&
                         !hasSeededDynamo
                     ) {
                         hasSeededDynamo = true;
-                        context.process.waitUntil(
-                            (async () => {
-                                try {
-                                    await seedDynamo(context);
-                                } catch (error) {
-                                    // If there is an error, log it but don't crash the process.
-                                    // eslint-disable-next-line no-console
-                                    console.error(
-                                        InternalError.from(error, "Failed to seed DynamoDB data"),
-                                    );
-                                }
-                            })(),
-                        );
+                        context.process.waitUntil(async () => {
+                            try {
+                                await seedDynamo(context);
+                            } catch (error) {
+                                // If there is an error, log it but don't crash the process.
+                                // eslint-disable-next-line no-console
+                                console.error(
+                                    InternalError.from(error, "Failed to seed DynamoDB data"),
+                                );
+                            }
+                        });
                     }
 
-                    event[contextSymbol] = context;
-                    const response = await handleRequest(event);
-                    return response;
+                    return handleRequest(request, context);
                 },
             );
         });
     });
-}
 
-function handleQueue(batch: MessageBatch, env: AppWorkerEnv, executionContext: ExecutionContext) {
-    const resources = getSharedResources(env);
+    responsePromise.then(
+        response => sendResponse(res, response as Response),
+        error => {
+            // Errors should be caught and handled by this point. So this error handler is
+            // for unexpected internal code failures.
+            // eslint-disable-next-line no-console
+            console.error(error);
 
-    // Create a new tracer for every queue execution because we need a Honeycomb
-    // client and the Honeycomb client needs `executionContext.waitUntil()` which
-    // is request scoped. Tracers are cheap to construct so this is fine.
-    const tracer = createServerTracer({
-        serviceName: "AppQueue",
-        env,
-        waitUntil: promise => executionContext.waitUntil(promise),
-    });
-
-    return runAllPromises(
-        batch.messages.map(message => {
-            const promise = tracer.withSpan("Process queue message", async span => {
-                span.addData({
-                    queue: {
-                        name: batch.queue,
-                        messageId: message.id,
-                        messageTime: serializeDateString(message.timestamp),
-                    },
-                });
-
-                if (batch.queue !== "notifications-queue")
-                    throw new InternalError("Unrecognized queue name");
-
-                const {event, tracerContext} = NotificationsQueueMessageSchema.deserialize(
-                    message.body,
-                );
-
-                span.link({
-                    traceId: tracerContext.traceId,
-                    spanId: tracerContext.parentId,
-                });
-
-                const waitPromises: Array<Promise<void>> = [];
-
-                // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
-                await Context.with<SystemActionContextModules, void>(
-                    {
-                        ...resources.awsContextModules,
-                        process: new ProcessContextModule({
-                            // Instead of using `executionContext.waitUntil()`, we want to directly wait
-                            // for all relevant promises to finish in this span.
-                            waitUntil: promise => waitPromises.push(promise),
-                        }),
-                        tracer: new TracerContextModule(span),
-                        cache: new CacheContextModule(),
-                        dynamoBatchContext: new DynamoBatchContextModule(),
-                        notifications: new NotificationsContextModule(env),
-                        actor: new SystemActorContextModule(event.spaceId),
-                    },
-                    context => processNotificationEvent(context, event),
-                );
-
-                // Acknowledge the message once it's done processing.
-                //
-                // TODO(calebmer): I don't think `ack()` is implemented on our version
-                // of Miniflare? Remove this when upgrading.
-                if (message.ack) message.ack();
-
-                await runAllPromises(waitPromises);
-            });
-
-            return promise.catch(error => {
-                // Ignore errors. They are reported as a part of the above trace...
-                //
-                // Unless we are in development, then it is very useful to see errors in
-                // the console.
-                //
-                // eslint-disable-next-line no-console
-                if (process.env.NODE_ENV !== "production") console.error(error);
-            });
-        }),
+            res.writeHead(500, {"content-type": "text/plain"});
+            res.write(STATUS_CODES[res.statusCode]);
+            res.end();
+        },
     );
+});
+
+server.listen(port);
+
+/**
+ * Convert a Node.js request object to a WhatWG fetch request object.
+ */
+function createRequest(req: IncomingMessage): Request {
+    const protocol = "http";
+    const host = req.headers.host;
+    const url = `${protocol}://${host!}${req.url!}`;
+
+    const init: RequestInit = {
+        method: req.method,
+        headers: createRequestHeaders(req.headers),
+    };
+
+    if (req.method !== "GET" && req.method !== "HEAD") {
+        init.body = req.pipe(new PassThrough({highWaterMark: 16384}));
+    }
+
+    return new Request(url, init);
 }
 
-export default {fetch: handleFetch, queue: handleQueue};
+/**
+ * Convert a Node.js request headers object to a WhatWG fetch request
+ * headers object.
+ */
+function createRequestHeaders(reqHeaders: IncomingHttpHeaders): Headers {
+    const headers = new Headers();
 
-export {DocumentCollaborationDurableObject} from "~/server/documents/document_collaboration_durable_object.js";
-export {PostRealtimeDurableObject} from "~/server/forum/post_realtime_durable_object.js";
-export {ChatRealtimeDurableObject} from "~/server/chat/chat_realtime_durable_object.js";
-export {MyAccountDurableObject} from "~/server/notifications/my_account_durable_object.js";
+    for (const [key, values] of Object.entries(reqHeaders)) {
+        if (values) {
+            if (Array.isArray(values)) {
+                for (const value of values) {
+                    headers.append(key, value);
+                }
+            } else {
+                headers.set(key, values);
+            }
+        }
+    }
+
+    return headers;
+}
+
+/**
+ * Convert a WhatWG response object to a Node.js response.
+ */
+async function sendResponse(res: ServerResponse, response: Response) {
+    res.statusCode = response.status;
+
+    for (const [key, values] of Object.entries(response.headers.raw())) {
+        res.setHeader(key, values);
+    }
+
+    if (response.body) {
+        await writeReadableStreamToWritable(response.body, res);
+    } else {
+        res.end();
+    }
+}

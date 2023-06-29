@@ -29,7 +29,6 @@ export type ActionContextModulesBase = ProcessContextModulesBase & {
      * context are batched.
      *
      * We batch at the action level so that unrelated requests do not share IO.
-     * It's an error to share IO across requests in Cloudflare Workers.
      */
     dynamoBatchContext: DynamoBatchContextModule;
 };

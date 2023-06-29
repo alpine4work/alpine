@@ -1,4 +1,4 @@
-import {createAwsClientFromEnv} from "~/server/aws/create_aws_client_from_env.js";
+import {createAwsClient} from "~/server/aws/create_aws_client.js";
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
@@ -9,15 +9,22 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
  * Create the context modules that depend on AWS from an environment object
  * passed into a Cloudflare Worker.
  */
-export function createAwsContextModulesFromEnv(env: {
-    AWS_ACCESS_KEY_ID?: string;
-    AWS_SECRET_ACCESS_KEY?: string;
-    DYNAMO_LOCAL_PORT?: string;
+export function createAwsContextModules({
+    awsAccessKeyId,
+    awsSecretAccessKey,
+    dynamoLocalPort,
+}: {
+    awsAccessKeyId: string | undefined;
+    awsSecretAccessKey: string | undefined;
+    dynamoLocalPort: string | undefined;
 }): {
     dynamo: DynamoContextModule;
     email: EmailContextModuleBase;
 } {
-    const awsClient = createAwsClientFromEnv(env);
+    const awsClient = createAwsClient({
+        awsAccessKeyId,
+        awsSecretAccessKey,
+    });
 
     return {
         dynamo: DynamoContextModule.new(
@@ -26,8 +33,8 @@ export function createAwsContextModulesFromEnv(env: {
                 ? "https://dynamodb.us-east-1.amazonaws.com"
                 : `http://localhost:${parseInt(
                       assertExists(
-                          env.DYNAMO_LOCAL_PORT,
-                          "Environment variable `DYNAMO_LOCAL_PORT` must be set when running DynamoDB locally",
+                          dynamoLocalPort,
+                          "DynamoDB local port must be provided when running DynamoDB locally",
                       ),
                       10,
                   )}`,

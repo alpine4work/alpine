@@ -1068,10 +1068,6 @@ export const documentContentCacheEvictionTimeoutMs = 1000 * 60 * 5;
  * the database. If there is another process updating our document content then
  * the cache may not be up-to-date!
  */
-// NOTE(calebmer): Reconsider this cache now that we use Cloudflare Durable
-// Objects for updates! We still want to avoid loading the document from the
-// database every update, but this cache is currently a little heavy handed if
-// that's all we care about. At least it's well tested.
 export class DocumentContentCacheForUpdate {
     private readonly _entries = new DocumentContentCacheForUpdateEntries();
 

@@ -148,6 +148,9 @@ const AccountsTable = DynamoTableSchema.new({
                              * [1]: https://github.com/dcodeIO/bcrypt.js
                              * [2]: https://community.cloudflare.com/t/options-for-password-hashing/138077
                              */
+                            // NOTE(calebmer, 2023-06-29): The above decision was made when this code ran
+                            // in Cloudflare instead of Node.js. Now it's perfectly fine (and desirable!)
+                            // to use the Node.js bcrypt module.
                             password: Schema.string,
                             failedAttemptCount: Schema.integer,
                             lastFailedAttemptTime: Schema.date.nullable(),
@@ -352,9 +355,9 @@ export async function regenerateOneTimePasswordSignIn(
     // setting a global function.
     if (
         process.env.NODE_ENV !== "production" &&
-        typeof (globalThis as any).__logOneTimePassword === "function"
+        typeof globalThis.__logOneTimePassword === "function"
     ) {
-        (globalThis as any).__logOneTimePassword({emailAddress, oneTimePassword: password});
+        globalThis.__logOneTimePassword({emailAddress, oneTimePassword: password});
     }
 
     await context.email.send({

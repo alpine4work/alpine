@@ -7,7 +7,7 @@ ts_project(
         "//server:__subpackages__",
     ],
     deps = [
-        "//:node_modules/@remix-run/cloudflare",
+        "//:node_modules/@remix-run/node",
         "//:node_modules/@remix-run/server-runtime",
         "//server/dynamo",
         "//server/helpers",

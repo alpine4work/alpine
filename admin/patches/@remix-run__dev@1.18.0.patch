@@ -61,7 +61,7 @@ index 10850b2ec9650954dab23be2fd838ae41354e911..583b8bfdbbf6415a956f605f3997a873
 +    // NOTE(calebmer): Cloudflare uses this weird module import syntax to
 +    // support worker site static assets.
 +    // See: https://github.com/cloudflare/wrangler/pull/2126
-+    external: ctx.config.serverConditions.includes("worker") ? ["__STATIC_CONTENT_MANIFEST"] : undefined,
++    external: ctx.config.serverConditions && ctx.config.serverConditions.includes("worker") ? ["__STATIC_CONTENT_MANIFEST"] : undefined,
    };
  };
  const create = async (ctx, refs) => {

@@ -15,8 +15,10 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 /**
- * Type-safe DynamoDB client that can be executed in a Cloudflare Workers
- * environment and traces all actions.
+ * Type-safe DynamoDB client. We initially created this abstraction when our
+ * app server ran in Cloudflare Workers so couldn't use the AWS SDK. Now we
+ * probably still need this class (because it implements tracing) but we can
+ * call the AWS SDK directly.
  *
  * This DynamoDB client directly executes DynamoDB actions without
  * modification. The `DynamoClient` class provides a more JavaScript friendly
