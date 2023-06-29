@@ -20,9 +20,7 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles.js";
 
 export function meta() {
-    return {
-        title: "Sign in to Cyberworlds",
-    };
+    return [{title: "Sign in to Cyberworlds"}];
 }
 
 export async function loader({request, context}: LoaderArgs) {

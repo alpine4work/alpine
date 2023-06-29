@@ -58,7 +58,7 @@ export async function loader({params, context}: LoaderArgs) {
 
 export const meta = createMetaFunction(LoaderSchema, ({data: {commentThread}}) => {
     if (commentThread.commentAuthors.length === 0) {
-        return {title: `Document comment thread${metaTitlePostfix}`};
+        return [{title: `Document comment thread${metaTitlePostfix}`}];
     }
 
     return [

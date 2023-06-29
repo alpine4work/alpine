@@ -292,7 +292,7 @@ export default function SignInEmailCodePage() {
                         variant="accent"
                         shouldSubmitForm={true}
                         fullWidth={true}
-                        isPending={isDisabledForSubmit || transition.state === "submitting"}
+                        isPending={isDisabledForSubmit || navigation.state === "submitting"}
                         isDisabled={!isFormValid}
                     >
                         Sign in

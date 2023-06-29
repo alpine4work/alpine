@@ -1,4 +1,4 @@
-import {LinkDescriptor, MetaFunction} from "@remix-run/cloudflare";
+import {LinkDescriptor} from "@remix-run/cloudflare";
 import {
     Links,
     LiveReload,

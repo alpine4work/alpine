@@ -1,4 +1,3 @@
-import {MetaFunction} from "@remix-run/server-runtime";
 import {useAppContext} from "~/client/context/app_context.js";
 import {postContentViewMinHeight} from "~/client/forum/post_content_view.js";
 import {PostListView} from "~/client/forum/post_list_view.js";

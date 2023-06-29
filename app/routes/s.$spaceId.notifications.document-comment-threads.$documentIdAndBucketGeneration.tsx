@@ -1,4 +1,3 @@
-import {MetaFunction} from "@remix-run/server-runtime";
 import {useShowToast} from "~/client/design/toast.js";
 import {DocumentCommentThreadListView} from "~/client/documents/document_comment_thread_list_view.js";
 import {documentCommentThreadCountAgainstLimit} from "~/client/documents/document_shared_styles.js";
