@@ -13,7 +13,10 @@ import {
     updatePostCommentContent,
     updatePostContent,
 } from "~/server/dynamo/forum_table.js";
+import {getContentReferencesForNode} from "~/server/dynamo/helpers/get_content_references.js";
 import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
+import {PostCommentModel} from "~/shared/forum/post_model.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import * as definition from "~/shared/rpc/forum_rpc_definitions.js";
 
 implementRpc(definition.updateChannelName, {visibility: ["AppClient"]}, async (context, input) => {
@@ -79,16 +82,49 @@ implementRpc(
 implementRpc(
     definition.createPostComment,
     {visibility: ["PostRealtimeService"]},
-    (context, input) => {
-        return createPostComment(context.actor.authorizeSession(), input);
+    async (unknownContext, input) => {
+        const context = unknownContext.actor.authorizeSession();
+
+        const [{index, createdTime}, author, contentReferences] = await runAllPromises([
+            createPostComment(context.actor.authorizeSession(), input),
+            context.actor.getAccount(),
+            authorizePostAccess(context, input.postId).then(({spaceId}) =>
+                getContentReferencesForNode(context, spaceId, input.content),
+            ),
+        ]);
+
+        const comment = new PostCommentModel({
+            postId: input.postId,
+            index,
+            createdTime,
+            author,
+            payload: {
+                type: "Content",
+                parentMessageIndex: input.parentCommentIndex,
+                content: {
+                    doc: input.content,
+                    references: contentReferences,
+                },
+                contentUpdatedTime: null,
+            },
+        });
+
+        return {comment};
     },
 );
 
 implementRpc(
     definition.updatePostCommentContent,
     {visibility: ["PostRealtimeService"]},
-    (context, input) => {
-        return updatePostCommentContent(context.actor.authorizeSession(), input);
+    async (context, input) => {
+        const [{contentUpdatedTime}, contentReferences] = await runAllPromises([
+            updatePostCommentContent(context.actor.authorizeSession(), input),
+            authorizePostAccess(context.actor.authorizeSession(), input.postId).then(({spaceId}) =>
+                getContentReferencesForNode(context, spaceId, input.content),
+            ),
+        ]);
+
+        return {contentUpdatedTime, contentReferences};
     },
 );
 

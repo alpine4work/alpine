@@ -1,10 +1,4 @@
-import {
-    createChannel,
-    createPost,
-    createPostComment,
-    deletePostComment,
-    updatePostCommentContent,
-} from "~/server/dynamo/forum_table.js";
+import {createChannel, createPost} from "~/server/dynamo/forum_table.js";
 import {
     TestMessagingRealtimeConnectionProcedures,
     testMessagingRealtimeImplementation,
@@ -17,6 +11,11 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {generateId} from "~/shared/id/id.js";
 import {PostId} from "~/shared/id/types/id_types.js";
+import {
+    createPostComment,
+    deletePostComment,
+    updatePostCommentContent,
+} from "~/shared/rpc/forum_rpc_definitions.js";
 
 const context = createTestContext();
 
@@ -134,16 +133,13 @@ testMessagingRealtimeImplementation<PostId, TestPostRealtimeConnection>(context,
         context,
         {roomKey: postId, parentMessageIndex: parentCommentIndex, content},
     ) {
-        const comment = await createPostComment(context, {
+        const {comment} = await createPostComment(context, {
             postId,
             parentCommentIndex,
             content,
         });
 
-        return {
-            index: comment.index,
-            createdTime: comment.createdTime,
-        };
+        return comment;
     },
     async updateMessageContent(context, {roomKey: postId, messageIndex: commentIndex, content}) {
         return updatePostCommentContent(context, {

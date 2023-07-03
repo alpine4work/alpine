@@ -51,13 +51,13 @@ beforeAll(async () => {
                 appServicePrivateKey: appServiceKeyPair.privateKey,
             }),
             EdgeServiceFamilyTokenAgent.new({
-                issuer: "EdgeService",
+                serviceName: "EdgeService",
                 appServicePublicKey: appServiceKeyPair.publicKey,
                 edgeServiceFamilyPublicKey: edgeServiceFamilyKeyPair.publicKey,
                 edgeServiceFamilyPrivateKey: edgeServiceFamilyKeyPair.privateKey,
             }),
             EdgeServiceFamilyTokenAgent.new({
-                issuer: "DocumentCollaborationService",
+                serviceName: "DocumentCollaborationService",
                 appServicePublicKey: appServiceKeyPair.publicKey,
                 edgeServiceFamilyPublicKey: edgeServiceFamilyKeyPair.publicKey,
                 edgeServiceFamilyPrivateKey: edgeServiceFamilyKeyPair.privateKey,

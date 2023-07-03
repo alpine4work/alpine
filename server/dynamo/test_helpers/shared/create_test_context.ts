@@ -3,17 +3,23 @@ import fs from "fs-extra";
 import getPort from "get-port";
 import path from "path";
 import {DynamoLocal, startDynamoLocal} from "~/admin/dynamo/local/start_dynamo_local.js";
+import {
+    WorkerSessionActionContext,
+    WorkerSystemActionContext,
+} from "~/server/cloudflare/context/worker_action_context.js";
 import {Session, SessionItem} from "~/server/dynamo/accounts_table.js";
 import {
-    AppAmbiguousActionContext,
+    AppUnknownActionContext,
     AppSessionActionContext,
+    AppSessionActionContextModules,
     AppSystemActionContext,
+    AppSystemActionContextModules,
 } from "~/server/dynamo/context/app_action_context.js";
 import {
-    AppUnknownActorContextModule,
     AppSessionActorContextModule,
     AppSystemActorContextModule,
     AppUnidentifiedActorContextModule,
+    AppUnknownActorContextModule,
 } from "~/server/dynamo/context/app_actor_context_module.js";
 import {
     AppProcessContext,
@@ -26,13 +32,16 @@ import {
 } from "~/server/dynamo/dynamo_context_module.js";
 import {testSharedHooks} from "~/server/dynamo/test_helpers/shared/test_shared_hooks.js";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
+import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
@@ -41,12 +50,38 @@ import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 assert(process.release.name === "node");
 assert(process.env.NODE_ENV === "test");
 
+export type TestSessionActionContext = Context<TestSessionActionContextModules>;
+
+export type TestSessionActionContextModules = MergeObjectIntersection<
+    AppSessionActionContextModules & {
+        rpc: LocalRpcContextModule;
+    }
+>;
+
+export type TestSystemActionContext = Context<TestSystemActionContextModules>;
+
+export type TestSystemActionContextModules = MergeObjectIntersection<
+    AppSystemActionContextModules & {
+        rpc: LocalRpcContextModule;
+    }
+>;
+
 export type TestContext = AppProcessContext & {
     getDynamoLocalPort(): number;
-    unauthenticatedAction(): AppAmbiguousActionContext;
-    action(session: {item: SessionItem}): AppSessionActionContext;
-    systemAction(spaceId: SpaceId): AppSystemActionContext;
+    unauthenticatedAction(): AppUnknownActionContext;
+    action(session: {item: SessionItem}): TestSessionActionContext;
+    systemAction(spaceId: SpaceId): TestSystemActionContext;
 };
+
+// Should be able to use a `TestSessionActionContext` for code expecting an app
+// action context or a worker action context.
+assertAssignableTypes<TestSessionActionContext, AppSessionActionContext>();
+assertAssignableTypes<TestSessionActionContext, WorkerSessionActionContext>();
+
+// Should be able to use a `TestSystemActionContextModules` for code expecting an app
+// action context or a worker action context.
+assertAssignableTypes<TestSystemActionContext, AppSystemActionContext>();
+assertAssignableTypes<TestSystemActionContext, WorkerSystemActionContext>();
 
 /**
  * Create a mock test context for Jest tests. It executes all DynamoDB commands
@@ -81,7 +116,7 @@ export function createTestContext(): TestContext {
         return dynamoLocal.port;
     };
 
-    const createUnauthenticatedSessionContext = (): AppAmbiguousActionContext => {
+    const createUnauthenticatedSessionContext = (): AppUnknownActionContext => {
         return processContextBase.clone({
             cache: new CacheContextModule(),
             dynamoBatchContext: new DynamoBatchContextModule(),
@@ -89,19 +124,21 @@ export function createTestContext(): TestContext {
         });
     };
 
-    const createSessionContext = (session: {item: SessionItem}): AppSessionActionContext => {
+    const createSessionContext = (session: {item: SessionItem}): TestSessionActionContext => {
         return processContextBase.clone({
             cache: new CacheContextModule(),
             dynamoBatchContext: new DynamoBatchContextModule(),
-            actor: new AppSessionActorContextModule(Session.test(session.item)),
+            actor: AppSessionActorContextModule.dangerouslyNew("Test", Session.test(session.item)),
+            rpc: new LocalRpcContextModule(),
         });
     };
 
-    const createSystemContext = (spaceId: SpaceId): AppSystemActionContext => {
+    const createSystemContext = (spaceId: SpaceId): TestSystemActionContext => {
         return processContextBase.clone({
             cache: new CacheContextModule(),
             dynamoBatchContext: new DynamoBatchContextModule(),
-            actor: AppSystemActorContextModule.dangerouslyNew(spaceId),
+            actor: AppSystemActorContextModule.dangerouslyNew("Test", spaceId),
+            rpc: new LocalRpcContextModule(),
         });
     };
 

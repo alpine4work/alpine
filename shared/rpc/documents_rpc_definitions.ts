@@ -161,8 +161,7 @@ export const createDocumentComment = defineRpc({
         content: MessageContentSchema,
     },
     output: {
-        index: Schema.integer,
-        createdTime: Schema.date,
+        comment: DocumentCommentModel.schema(),
     },
 });
 
@@ -176,6 +175,7 @@ export const updateDocumentCommentContent = defineRpc({
     },
     output: {
         contentUpdatedTime: Schema.date,
+        contentReferences: ContentReferencesSchema,
     },
 });
 

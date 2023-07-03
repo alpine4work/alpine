@@ -550,18 +550,6 @@ export class DocumentCollaborationConnection {
                 mapIterable(this._iterateOtherConnections(), connection =>
                     connection._commentThreadConnectionById.getOrSetDefault(commentThreadId),
                 ),
-            createMessageModel: ({roomKey, index, createdTime, author, payload}) => {
-                const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
-
-                return new DocumentCommentModel({
-                    documentId,
-                    commentThreadId,
-                    index,
-                    createdTime,
-                    author,
-                    payload,
-                });
-            },
             createMessage: async (
                 context,
                 {roomKey, parentMessageIndex: parentCommentIndex, content},
@@ -579,17 +567,14 @@ export class DocumentCollaborationConnection {
                     );
                 }
 
-                const comment = await createDocumentComment(context, {
+                const {comment} = await createDocumentComment(context, {
                     documentId,
                     commentThreadId,
                     parentCommentIndex,
                     content,
                 });
 
-                return {
-                    index: comment.index,
-                    createdTime: comment.createdTime,
-                };
+                return comment;
             },
             updateMessageContent: async (
                 context,

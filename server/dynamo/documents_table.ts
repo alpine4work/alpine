@@ -3711,21 +3711,35 @@ export async function backfillDocumentComments(
         await runAllPromises([
             documentItemPromise,
             commentThreadItemPromise,
-            getDocumentCommentsFromStartAssumingAuthorizedCommentThread(context, {
-                documentId,
-                commentThreadId,
-                getSpaceId: () => documentItemPromise.then(({spaceId}) => spaceId),
-                limit: newCommentLimit,
-                afterCommentIndex: clientCommentCount - 1,
-                beforeCommentIndex: null,
-            }),
+            getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
+                // Use a strong read consistency when backfilling. This guarantees the caller
+                // will observe all realtime events before this function call. Realtime events
+                // that happen during the function call may be missed. You should be subscribed
+                // to new realtime events before starting to backfill.
+                context.dynamo.setDefaultReadConsistency("Strong"),
+                {
+                    documentId,
+                    commentThreadId,
+                    getSpaceId: () => documentItemPromise.then(({spaceId}) => spaceId),
+                    limit: newCommentLimit,
+                    afterCommentIndex: clientCommentCount - 1,
+                    beforeCommentIndex: null,
+                },
+            ),
             runAllPromises([documentItemPromise, commentThreadItemPromise]).then(
                 ([documentItem, commentThreadItem]) =>
-                    queryDocumentCommentChangeLogAssumingAuthorizedDocumentCommentThread(context, {
-                        documentItem,
-                        commentThreadItem,
-                        lastCommentChangeTime: clientLastCommentChangeTime,
-                    }),
+                    queryDocumentCommentChangeLogAssumingAuthorizedDocumentCommentThread(
+                        // Use a strong read consistency when backfilling. This guarantees the caller
+                        // will observe all realtime events before this function call. Realtime events
+                        // that happen during the function call may be missed. You should be subscribed
+                        // to new realtime events before starting to backfill.
+                        context.dynamo.setDefaultReadConsistency("Strong"),
+                        {
+                            documentItem,
+                            commentThreadItem,
+                            lastCommentChangeTime: clientLastCommentChangeTime,
+                        },
+                    ),
             ),
             documentItemPromise.then(({spaceId}) => authorizeSpaceAccess(context, spaceId)),
         ]);

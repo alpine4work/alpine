@@ -120,7 +120,7 @@ export async function runProcess(
  * Gets a subset of `process.env` that we want to propagate to child processes.
  */
 export function getProcessEnvToPropagate() {
-    const env: {[key: string]: string | undefined} = {
+    const env: NodeJS.ProcessEnv = {
         PATH: process.env.PATH,
         NODE_ENV: process.env.NODE_ENV,
         RUNFILES: process.env.RUNFILES,

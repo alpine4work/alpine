@@ -5,7 +5,6 @@ import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
 import {LocalServer, createLocalServer} from "~/app/local/create_local_server.js";
 import {TestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
 import {TestSession} from "~/server/dynamo/test_helpers/shared/create_test_session.js";
-import {SessionCookieStorage} from "~/server/tokens/session_cookie.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -72,10 +71,8 @@ export function createTestServer(
 
     const sessionCookieSecret = assertExists(env.SESSION_COOKIE_SECRET);
 
-    const sessionCookieStorage = new SessionCookieStorage({
-        domain: "localhost",
-        secret: sessionCookieSecret,
-    });
+    // NOCOMMIT
+    const sessionCookieStorage = null as any;
 
     const signIn = async (browserContext: BrowserContext, session: TestSession) => {
         const sessionCookieHeader = await sessionCookieStorage.getCookieHeaderForTest(

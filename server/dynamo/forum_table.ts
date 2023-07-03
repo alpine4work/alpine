@@ -640,15 +640,30 @@ async function createPostModelFromItem(
  * the post.
  */
 export async function getPostAuthorAndChannelPreview(context: AppActionContext, postId: PostId) {
-    // NOTE(calebmer): Ideally we'd use `getPartialItem()` here but it doesn't
-    // batch into one network request. When we ran on Cloudflare Workers we'd find
-    // ourselves hitting the sub-request limit. Consider switching back to
-    // `getPartialItem()` now that this code doesn't run on Cloudflare Workers.
-    const postItem = await ForumTable.getItem(context, {
-        partitionType: "Post",
-        sortRangeType: "Attributes",
-        postId,
-    });
+    // TODO(calebmer): Implement batching for `getPartialItem()` right now it bails
+    // out of batching.
+    //
+    // Two ways I'd like batching to work:
+    //
+    // 1. If requesting different keys with the same attributes, batch into one
+    //    request. This solves inbox which loads many post authors and channel
+    //    previews at once to render inbox entries.
+    //
+    // 2. If requesting one key with two different sets of attributes (or an
+    //    attribute subset of another batch), batch into one request. This solves
+    //    an `authorizePostAccess()` and `updatePostCommentContent()` running in
+    //    parallel which both get the same item but different attributes.
+    const postItem = await ForumTable.getPartialItem(
+        context,
+        {
+            partitionType: "Post",
+            sortRangeType: "Attributes",
+            postId,
+        },
+        {
+            attributes: ["spaceId", "authorId", "channelId"],
+        },
+    );
 
     const [author, channel] = await runAllPromises([
         getAccount(context, postItem.spaceId, postItem.authorId),
@@ -1680,18 +1695,32 @@ export async function backfillPostComments(
     const [postItem, {comments, otherReferencedComments}, commentChangesResult] =
         await runAllPromises([
             postItemPromise,
-            getPostCommentsFromStartAssumingAuthorizedPost(context, {
-                postId,
-                getSpaceId: () => postItemPromise.then(({spaceId}) => spaceId),
-                limit: newCommentLimit,
-                afterCommentIndex: clientCommentCount - 1,
-                beforeCommentIndex: null,
-            }),
+            getPostCommentsFromStartAssumingAuthorizedPost(
+                // Use a strong read consistency when backfilling. This guarantees the caller
+                // will observe all realtime events before this function call. Realtime events
+                // that happen during the function call may be missed. You should be subscribed
+                // to new realtime events before starting to backfill.
+                context.dynamo.setDefaultReadConsistency("Strong"),
+                {
+                    postId,
+                    getSpaceId: () => postItemPromise.then(({spaceId}) => spaceId),
+                    limit: newCommentLimit,
+                    afterCommentIndex: clientCommentCount - 1,
+                    beforeCommentIndex: null,
+                },
+            ),
             postItemPromise.then(postItem =>
-                queryPostCommentChangeLogAssumingAuthorizedPost(context, {
-                    postItem,
-                    lastCommentChangeTime: clientLastCommentChangeTime,
-                }),
+                queryPostCommentChangeLogAssumingAuthorizedPost(
+                    // Use a strong read consistency when backfilling. This guarantees the caller
+                    // will observe all realtime events before this function call. Realtime events
+                    // that happen during the function call may be missed. You should be subscribed
+                    // to new realtime events before starting to backfill.
+                    context.dynamo.setDefaultReadConsistency("Strong"),
+                    {
+                        postItem,
+                        lastCommentChangeTime: clientLastCommentChangeTime,
+                    },
+                ),
             ),
             postItemPromise.then(({channelId}) => authorizeChannelAccess(context, channelId)),
         ]);

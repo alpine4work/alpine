@@ -53,7 +53,7 @@ export async function startDynamoLocal({
             String(port),
         ],
         {
-            env: {},
+            env: {NODE_ENV: "development"},
             stdio: ["ignore", "ignore", "ignore"],
         },
     );

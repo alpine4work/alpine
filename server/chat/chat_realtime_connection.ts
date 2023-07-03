@@ -1,14 +1,12 @@
-import {WorkerSessionActionContext} from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {WebSocketConnectionProcedures} from "~/server/cloudflare/web_socket_server.js";
 import {
     BackfillMessagesFunction,
     CreateMessageFunction,
-    CreateMessageModelFunction,
     DeleteMessageFunction,
+    MessagingRealtimeConnection,
     UpdateMessageContentFunction,
-} from "~/server/messaging/messaging_implementation.js";
-import {MessagingRealtimeConnection} from "~/server/messaging/messaging_realtime_connection.js";
+} from "~/server/messaging/messaging_realtime_connection.js";
 import {ChatMessageModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeEvent, ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -48,7 +46,6 @@ export class ChatRealtimeConnection {
             iterateOtherConnections: () =>
                 mapIterable(iterateOtherConnections(), connection => connection._connection),
 
-            createMessageModel,
             createMessage,
             updateMessageContent,
             deleteMessage,
@@ -73,37 +70,22 @@ export class ChatRealtimeConnection {
     }
 }
 
-const createMessageModel: CreateMessageModelFunction<ChatId, ChatMessageModel> = ({
-    roomKey: chatId,
-    index,
-    createdTime,
-    author,
-    payload,
-}) => {
-    return new ChatMessageModel({
-        chatId,
-        index,
-        createdTime,
-        author,
-        payload,
-    });
-};
-
-const createMessage: CreateMessageFunction<WorkerSessionActionContext, ChatId> = async (
+const createMessage: CreateMessageFunction<ChatId, ChatMessageModel> = async (
     context,
     {roomKey: chatId, parentMessageIndex, content},
 ) => {
-    return sendChatMessage(context, {
+    const {message} = await sendChatMessage(context, {
         chatId,
         parentMessageIndex,
         content,
     });
+    return message;
 };
 
-const updateMessageContent: UpdateMessageContentFunction<
-    WorkerSessionActionContext,
-    ChatId
-> = async (context, {roomKey: chatId, messageIndex, content}) => {
+const updateMessageContent: UpdateMessageContentFunction<ChatId> = async (
+    context,
+    {roomKey: chatId, messageIndex, content},
+) => {
     return updateChatMessageContent(context, {
         chatId,
         messageIndex,
@@ -111,18 +93,14 @@ const updateMessageContent: UpdateMessageContentFunction<
     });
 };
 
-const deleteMessage: DeleteMessageFunction<WorkerSessionActionContext, ChatId> = async (
+const deleteMessage: DeleteMessageFunction<ChatId> = async (
     context,
     {roomKey: chatId, messageIndex},
 ) => {
     return deleteChatMessage(context, {chatId, messageIndex});
 };
 
-const backfillMessages: BackfillMessagesFunction<
-    WorkerSessionActionContext,
-    ChatId,
-    ChatMessageModel
-> = async (
+const backfillMessages: BackfillMessagesFunction<ChatId, ChatMessageModel> = async (
     context,
     {roomKey: chatId, clientMessageCount, clientLastMessageChangeTime, newMessageLimit},
 ) => {

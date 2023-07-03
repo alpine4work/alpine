@@ -3,6 +3,17 @@ import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
 
+export const getAccount = defineRpc({
+    name: "getAccount",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        accountId: Schema.id<AccountId>(),
+    },
+    output: {
+        account: AccountModel.schema(),
+    },
+});
+
 export const getAccountIfExists = defineRpc({
     name: "getAccountIfExists",
     input: {

@@ -1,5 +1,6 @@
+import {WorkerSessionActionContext} from "~/server/cloudflare/context/worker_action_context.js";
+import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {AppSessionActionContext} from "~/server/dynamo/context/app_action_context.js";
-import {AppProcessContext} from "~/server/dynamo/context/app_process_context.js";
 import {RoomInterface} from "~/server/dynamo/test_helpers/jest/test_messaging_implementation.js";
 import {TestContext} from "~/server/dynamo/test_helpers/shared/create_test_context.js";
 import {
@@ -9,14 +10,12 @@ import {
 import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space.js";
 import {
     CreateMessageFunction,
-    CreateMessageModelFunction,
     DeleteMessageFunction,
     UpdateMessageContentFunction,
-} from "~/server/messaging/messaging_implementation.js";
-import {
     messagingRealtimeBackfillMessagesBeforeFlushTestCheckpoint,
     messagingRealtimeCreateMessageBeforeSendTestCheckpoint,
 } from "~/server/messaging/messaging_realtime_connection.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
@@ -24,7 +23,7 @@ import {
     MessageContentWithReferences,
     createSimpleMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
-import {MessageModel} from "~/shared/messaging/message_model.js";
+import {MessageModel, MessagePayloadModel} from "~/shared/messaging/message_model.js";
 import {
     MessagingRealtimeEvent,
     MessagingRealtimeProcedures,
@@ -33,7 +32,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export type TestMessagingRealtimeConnectionProcedures<Message extends MessageModel> = {
     [Key in keyof MessagingRealtimeProcedures<Message>]: (
-        context: AppSessionActionContext,
+        context: WorkerSessionActionContext,
         input: Parameters<MessagingRealtimeProcedures<Message>[Key]>[0],
         span: TracerSpan,
     ) => ReturnType<MessagingRealtimeProcedures<Message>[Key]>;
@@ -77,17 +76,23 @@ export function testMessagingRealtimeImplementation<
             spaceId: SpaceId;
             roomKey: RoomKey;
             sendEvent: (
-                context: AppProcessContext,
+                context: WorkerProcessContext,
                 message: MessagingRealtimeEvent<MessageModel<RoomKey>>,
             ) => void;
             sendEventToOthers: (
-                context: AppProcessContext,
+                context: WorkerProcessContext,
                 message: MessagingRealtimeEvent<MessageModel<RoomKey>>,
             ) => void;
             iterateOtherConnections: () => Iterable<Connection>;
         }) => Connection;
-        createMessageModel: CreateMessageModelFunction<RoomKey, MessageModel<RoomKey>>;
-        createMessage: CreateMessageFunction<RoomKey>;
+        createMessageModel: (options: {
+            roomKey: RoomKey;
+            index: number;
+            createdTime: Date;
+            author: AccountModel;
+            payload: MessagePayloadModel;
+        }) => MessageModel<RoomKey>;
+        createMessage: CreateMessageFunction<RoomKey, MessageModel<RoomKey>>;
         updateMessageContent: UpdateMessageContentFunction<RoomKey>;
         deleteMessage: DeleteMessageFunction<RoomKey>;
     },

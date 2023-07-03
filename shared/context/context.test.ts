@@ -462,12 +462,4 @@ test("can't construct a context with a module that's already been bound", () => 
     Context.new({
         test: contextModule,
     });
-
-    Context.new({
-        test: context1.test.unbind(),
-    });
-
-    Context.new({
-        test: contextModule.unbind(),
-    });
 });

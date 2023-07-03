@@ -3,17 +3,9 @@ import {
     WorkerSessionActionContext,
 } from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
-import {getContentReferencesForNode} from "~/server/dynamo/helpers/get_content_references.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
-import {
-    BackfillMessagesFunction,
-    CreateMessageFunction,
-    CreateMessageModelFunction,
-    DeleteMessageFunction,
-    UpdateMessageContentFunction,
-} from "~/server/messaging/messaging_implementation.js";
+import {ContentReferences} from "~/shared/content/content_references.js";
 import {AsyncMutex} from "~/shared/helpers/async/async_mutex.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {AccountId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
@@ -24,6 +16,82 @@ import {
     MessagingRealtimeEvent,
     MessagingTypingState,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
+import {getAccount} from "~/shared/rpc/accounts_rpc_definitions.js";
+
+/**
+ * Create a new message in a room.
+ */
+export type CreateMessageFunction<RoomKey extends string, Message extends MessageModel<RoomKey>> = (
+    context: WorkerSessionActionContext,
+    options: {
+        roomKey: RoomKey;
+        parentMessageIndex: number | null;
+        content: MessageContent;
+    },
+) => Promise<Message>;
+
+/**
+ * Update the content of a message.
+ *
+ * We will record the time at which the content was updated and show that the
+ * message was edited.
+ */
+export type UpdateMessageContentFunction<RoomKey extends string> = (
+    context: WorkerSessionActionContext,
+    options: {
+        roomKey: RoomKey;
+        messageIndex: number;
+        content: MessageContent;
+    },
+) => Promise<{
+    contentUpdatedTime: Date;
+    contentReferences: ContentReferences;
+}>;
+
+/**
+ * Delete a message.
+ */
+export type DeleteMessageFunction<RoomKey extends string> = (
+    context: WorkerSessionActionContext,
+    options: {
+        roomKey: RoomKey;
+        messageIndex: number;
+    },
+) => Promise<{
+    deletedTime: Date;
+}>;
+
+/**
+ * Backfill messages and message changes the client is missing. Realtime could
+ * be implemented by polling this method. However, this method is also
+ * important for implementing push-based realtime as it fills the gap between
+ * when data was loaded and when we connected to our realtime WebSocket.
+ */
+export type BackfillMessagesFunction<
+    RoomKey extends string,
+    Message extends MessageModel<RoomKey>,
+> = (
+    context: WorkerSessionActionContext,
+    options: {
+        roomKey: RoomKey;
+        clientMessageCount: number;
+        clientLastMessageChangeTime: Date | null;
+        newMessageLimit: number;
+    },
+) => Promise<{
+    messageCount: number;
+    lastMessageChangeTime: Date | null;
+    newMessages: ReadonlyArray<Message>;
+    newOtherReferencedMessages: ReadonlyArray<Message>;
+    messageChangesResult:
+        | {
+              type: "Available";
+              changes: ReadonlyArray<MessageChange>;
+          }
+        | {
+              type: "Unavailable";
+          };
+}>;
 
 export const messagingRealtimeBackfillMessagesBeforeFlushTestCheckpoint =
     new TestCheckpoint<AccountId>();
@@ -49,18 +117,10 @@ export class MessagingRealtimeConnection<
     private readonly _iterateOtherConnections: () => Iterable<
         MessagingRealtimeConnection<RoomKey, Message>
     >;
-    private readonly _createMessageModel: CreateMessageModelFunction<RoomKey, Message>;
-    private readonly _createMessage: CreateMessageFunction<WorkerSessionActionContext, RoomKey>;
-    private readonly _updateMessageContent: UpdateMessageContentFunction<
-        WorkerSessionActionContext,
-        RoomKey
-    >;
-    private readonly _deleteMessage: DeleteMessageFunction<WorkerSessionActionContext, RoomKey>;
-    private readonly _backfillMessages: BackfillMessagesFunction<
-        WorkerSessionActionContext,
-        RoomKey,
-        Message
-    >;
+    private readonly _createMessage: CreateMessageFunction<RoomKey, Message>;
+    private readonly _updateMessageContent: UpdateMessageContentFunction<RoomKey>;
+    private readonly _deleteMessage: DeleteMessageFunction<RoomKey>;
+    private readonly _backfillMessages: BackfillMessagesFunction<RoomKey, Message>;
 
     /**
      * True while we are backfilling messages.
@@ -102,7 +162,6 @@ export class MessagingRealtimeConnection<
         sendEvent,
         sendEventToOthers,
         iterateOtherConnections,
-        createMessageModel,
         createMessage,
         updateMessageContent,
         deleteMessage,
@@ -117,11 +176,10 @@ export class MessagingRealtimeConnection<
             event: MessagingRealtimeEvent<Message>,
         ) => void;
         iterateOtherConnections: () => Iterable<MessagingRealtimeConnection<RoomKey, Message>>;
-        createMessageModel: CreateMessageModelFunction<RoomKey, Message>;
-        createMessage: CreateMessageFunction<WorkerSessionActionContext, RoomKey>;
-        updateMessageContent: UpdateMessageContentFunction<WorkerSessionActionContext, RoomKey>;
-        deleteMessage: DeleteMessageFunction<WorkerSessionActionContext, RoomKey>;
-        backfillMessages: BackfillMessagesFunction<WorkerSessionActionContext, RoomKey, Message>;
+        createMessage: CreateMessageFunction<RoomKey, Message>;
+        updateMessageContent: UpdateMessageContentFunction<RoomKey>;
+        deleteMessage: DeleteMessageFunction<RoomKey>;
+        backfillMessages: BackfillMessagesFunction<RoomKey, Message>;
     }) {
         this._connectionId = connectionId;
         this._spaceId = spaceId;
@@ -129,7 +187,6 @@ export class MessagingRealtimeConnection<
         this._sendEvent = sendEvent;
         this._sendEventToOthers = sendEventToOthers;
         this._iterateOtherConnections = iterateOtherConnections;
-        this._createMessageModel = createMessageModel;
         this._createMessage = createMessage;
         this._updateMessageContent = updateMessageContent;
         this._deleteMessage = deleteMessage;
@@ -292,18 +349,12 @@ export class MessagingRealtimeConnection<
                 newMessages,
                 newOtherReferencedMessages,
                 messageChangesResult,
-            } = await this._backfillMessages(
-                // Use a strong read consistency here so our durable object doesn't miss a
-                // message and stall (the connection queues new messages but never flushes
-                // because we missed an earlier message).
-                context.dynamo.setDefaultReadConsistency("Strong"),
-                {
-                    roomKey: this._roomKey,
-                    clientMessageCount,
-                    clientLastMessageChangeTime,
-                    newMessageLimit,
-                },
-            );
+            } = await this._backfillMessages(context, {
+                roomKey: this._roomKey,
+                clientMessageCount,
+                clientLastMessageChangeTime,
+                newMessageLimit,
+            });
 
             await messagingRealtimeBackfillMessagesBeforeFlushTestCheckpoint.waitForTest(
                 context.actor.getAccountId(),
@@ -362,15 +413,11 @@ export class MessagingRealtimeConnection<
         context: WorkerSessionActionContext,
         {parentMessageIndex, content}: {parentMessageIndex: number | null; content: MessageContent},
     ): Promise<{}> {
-        const [{index, createdTime}, author, contentReferences] = await runAllPromises([
-            this._createMessage(context, {
-                roomKey: this._roomKey,
-                parentMessageIndex,
-                content,
-            }),
-            context.actor.getAccount(),
-            getContentReferencesForNode(context, this._spaceId, content),
-        ]);
+        const newMessage = await this._createMessage(context, {
+            roomKey: this._roomKey,
+            parentMessageIndex,
+            content,
+        });
 
         await messagingRealtimeCreateMessageBeforeSendTestCheckpoint.waitForTest(
             context.actor.getAccountId(),
@@ -379,22 +426,6 @@ export class MessagingRealtimeConnection<
         await this._typingState.run(async (typingState, setTypingState) => {
             // We clear the connection's typing state after they send a message.
             setTypingState(null);
-
-            const newMessage = this._createMessageModel({
-                roomKey: this._roomKey,
-                index,
-                createdTime,
-                author,
-                payload: {
-                    type: "Content",
-                    parentMessageIndex,
-                    content: {
-                        doc: content,
-                        references: contentReferences,
-                    },
-                    contentUpdatedTime: null,
-                },
-            });
 
             MessagingRealtimeConnection._sendNewMessageAndClearTypingState(
                 context,
@@ -426,14 +457,11 @@ export class MessagingRealtimeConnection<
             content: MessageContent;
         },
     ): Promise<{}> {
-        const [{contentUpdatedTime}, contentReferences] = await runAllPromises([
-            this._updateMessageContent(context, {
-                roomKey: this._roomKey,
-                messageIndex,
-                content,
-            }),
-            getContentReferencesForNode(context, this._spaceId, content),
-        ]);
+        const {contentUpdatedTime, contentReferences} = await this._updateMessageContent(context, {
+            roomKey: this._roomKey,
+            messageIndex,
+            content,
+        });
 
         const messageChange: MessageChange = {
             type: "UpdateContent",
@@ -483,10 +511,15 @@ export class MessagingRealtimeConnection<
         await this._typingState.run(async (oldTypingState, setTypingState) => {
             if (oldTypingState !== null) return;
 
+            const {account} = await getAccount(context, {
+                spaceId: this._spaceId,
+                accountId: context.actor.getAccountId(),
+            });
+
             const typingState: MessagingTypingState = {
                 isTyping: true,
                 startTime: new Date(),
-                account: await context.actor.getAccount(),
+                account,
             };
 
             setTypingState(typingState);

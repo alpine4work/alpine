@@ -1,7 +1,7 @@
 import {differenceInHours, differenceInMinutes} from "date-fns";
 import {
     AppActionContext,
-    AppAmbiguousActionContext,
+    AppUnknownActionContext,
 } from "~/server/dynamo/context/app_action_context.js";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/dynamo_seed_constants.js";
@@ -300,7 +300,7 @@ export function createAccountForAlphaTransactionEntries({
  * provided email address. Sends the password to the account's email address.
  */
 export async function regenerateOneTimePasswordSignIn(
-    context: AppAmbiguousActionContext,
+    context: AppUnknownActionContext,
     emailAddress: EmailAddress,
 ): Promise<void> {
     const generatedTime = new Date();

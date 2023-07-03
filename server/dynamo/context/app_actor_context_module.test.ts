@@ -10,7 +10,7 @@ const session = createTestSession(context, space);
 
 test("can not escalate process context into system context", () => {
     expect(() =>
-        context.clone({actor: AppSystemActorContextModule.dangerouslyNew(generateId())}),
+        context.clone({actor: AppSystemActorContextModule.dangerouslyNew("Test", generateId())}),
     ).toThrow();
 });
 
@@ -18,6 +18,6 @@ test("can not escalate request context into system context", () => {
     expect(() =>
         context
             .action(session)
-            .clone({actor: AppSystemActorContextModule.dangerouslyNew(generateId())}),
+            .clone({actor: AppSystemActorContextModule.dangerouslyNew("Test", generateId())}),
     ).toThrow();
 });

@@ -1,4 +1,5 @@
 import {AccountModel} from "~/shared/accounts/account_model.js";
+import {ContentReferencesSchema} from "~/shared/content/content_references.js";
 import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -128,8 +129,7 @@ export const createPostComment = defineRpc({
         content: MessageContentSchema,
     },
     output: {
-        index: Schema.integer,
-        createdTime: Schema.date,
+        comment: PostCommentModel.schema(),
     },
 });
 
@@ -142,6 +142,7 @@ export const updatePostCommentContent = defineRpc({
     },
     output: {
         contentUpdatedTime: Schema.date,
+        contentReferences: ContentReferencesSchema,
     },
 });
 

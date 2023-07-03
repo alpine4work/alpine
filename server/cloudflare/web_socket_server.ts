@@ -1,9 +1,6 @@
 import {WorkerSessionActionContext} from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerSessionActorContextModule} from "~/server/cloudflare/context/worker_actor_context_module.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
-import {WorkerRpcContextModule} from "~/server/cloudflare/context/worker_rpc_context_module.js";
-import {Session} from "~/server/dynamo/accounts_table.js";
-import {AppSessionActorContextModule} from "~/server/dynamo/context/app_actor_context_module.js";
 import {DynamoBatchContextModule} from "~/server/dynamo/dynamo_context_module.js";
 import {validateTracerEventFlatDataForPropagation} from "~/server/tracer/validate_tracer_event_flat_data.js";
 import {webSocketExpirationTimeoutMs} from "~/shared/cloudflare/web_socket_expiration_timeout_ms.js";
@@ -20,11 +17,7 @@ import {
 } from "~/shared/cloudflare/web_socket_schema.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {
-    FailedPreconditionError,
-    InvalidArgumentError,
-    NotFoundError,
-} from "~/shared/error/error.js";
+import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {Interval, createInterval} from "~/shared/helpers/async/interval.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -34,6 +27,7 @@ import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.j
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SessionId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
@@ -226,7 +220,7 @@ export class WebSocketServer<
             connection: actualConnection,
             sessionId: connectActionContext.actor.getSessionId(),
             accountId: connectActionContext.actor.getAccountId(),
-            rpcContextModule: connectActionContext.rpc.unbind(),
+            rpcContextModule: connectActionContext.rpc.clone(),
         });
 
         assert(!this._connections.has(connection.id));
@@ -457,6 +451,7 @@ export class WebSocketServer<
         const connection = new WebSocketServerTestConnectionWrapper({
             id: connectionId,
             processContext: connectionProcessContext,
+            rpcContextModule: connectActionContext.rpc.clone(),
             messageFromClientSchema: this._messageFromClientSchema,
             messageFromServerSchema: this._messageFromServerSchema,
             connection: actualConnection,
@@ -561,7 +556,7 @@ class WebSocketServerConnectionWrapper<
     public readonly connection: Connection;
     private readonly _sessionId: SessionId;
     private readonly _accountId: AccountId;
-    private readonly _rpcContextModule: WorkerRpcContextModule;
+    private readonly _rpcContextModule: RpcContextModuleBase;
     private _lastMessageTimeMs: number = Date.now();
 
     /**
@@ -597,7 +592,7 @@ class WebSocketServerConnectionWrapper<
         connection: Connection;
         sessionId: SessionId;
         accountId: AccountId;
-        rpcContextModule: WorkerRpcContextModule;
+        rpcContextModule: RpcContextModuleBase;
     }) {
         this.id = id;
         this._processContext = processContext;
@@ -937,6 +932,7 @@ class WebSocketServerTestConnectionWrapper<
     public readonly id: WebSocketConnectionId;
     public readonly connection: Connection;
     private readonly _processContext: WorkerProcessContext;
+    private readonly _rpcContextModule: RpcContextModuleBase;
     private readonly _messageFromClientSchema: Schema<WebSocketMessageFromClient<Protocol>>;
     private readonly _messageFromServerSchema: Schema<WebSocketMessageFromServer<Protocol>>;
     private readonly _sessionId: SessionId;
@@ -949,6 +945,7 @@ class WebSocketServerTestConnectionWrapper<
     constructor({
         id,
         processContext,
+        rpcContextModule,
         messageFromClientSchema,
         messageFromServerSchema,
         connection,
@@ -957,6 +954,7 @@ class WebSocketServerTestConnectionWrapper<
     }: {
         id: WebSocketConnectionId;
         processContext: WorkerProcessContext;
+        rpcContextModule: RpcContextModuleBase;
         messageFromClientSchema: Schema<WebSocketMessageFromClient<Protocol>>;
         messageFromServerSchema: Schema<WebSocketMessageFromServer<Protocol>>;
         connection: Connection;
@@ -969,6 +967,7 @@ class WebSocketServerTestConnectionWrapper<
         this.id = id;
         this.connection = connection;
         this._processContext = processContext;
+        this._rpcContextModule = rpcContextModule;
         this._messageFromClientSchema = messageFromClientSchema;
         this._messageFromServerSchema = messageFromServerSchema;
         this._sessionId = sessionId;
@@ -984,20 +983,15 @@ class WebSocketServerTestConnectionWrapper<
         const output = await this._processContext.tracer.withSpan(
             "Received test WebSocket message",
             async (context, span) => {
-                // TODO(calebmer): Can we at least give this some kind of TTL in-memory cache??
-                const session = await Session.getIfExists(
-                    context,
-                    this._sessionId,
-                    this._sessionAccountId,
-                );
-                if (!session)
-                    throw new NotFoundError("Session was revoked after the connection began");
-
                 return context.with(
                     {
                         cache: new CacheContextModule(),
                         dynamoBatchContext: new DynamoBatchContextModule(),
-                        actor: new AppSessionActorContextModule(session),
+                        actor: WorkerSessionActorContextModule.dangerouslyNew(
+                            this._sessionId,
+                            this._sessionAccountId,
+                        ),
+                        rpc: this._rpcContextModule,
                     },
                     (context: WorkerSessionActionContext) => {
                         // Thrown errors should be handled by the test. We do not send acknowledgement

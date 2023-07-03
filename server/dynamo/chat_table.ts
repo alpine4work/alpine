@@ -29,6 +29,7 @@ import {
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error.js";
+import {PromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -678,12 +679,12 @@ export function sendChatMessage(
     return context.dynamo.retryTransaction(async context => {
         const [chatItem] = await runAllPromiseThunks(
             async () => {
-                const chatItem = await ChatTable.getItemIfExists(context, {
+                const chatItem = await ChatTable.getItem(context, {
                     partitionType: "Chat",
                     sortRangeType: "Attributes",
                     chatId,
                 });
-                if (!chatItem) throw new NotFoundError("Chat not found");
+
                 await authorizeChatAccessWithItem(context, chatItem);
                 return chatItem;
             },
@@ -799,7 +800,7 @@ export async function authorizeChatAccessForAccount(
         (async () => {
             switch (context.actor.type) {
                 case "Session": {
-                    // We already are already loading our chat account item above.
+                    // We already are loading our session's chat account item above.
                     if (context.actor.getAccountId() === accountId) return;
 
                     const chatAccountItem = await ChatTable.getItemIfExists(context, {
@@ -817,7 +818,8 @@ export async function authorizeChatAccessForAccount(
                     break;
                 }
                 case "System": {
-                    // If we have access to the space, we have access to the chat...
+                    // If we have access to the space (authorized above), we have access to
+                    // the chat...
                     break;
                 }
                 default:
@@ -1117,21 +1119,18 @@ export function updateChatMessageContent(
 }> {
     return context.dynamo.retryTransaction(async context => {
         const [chatItem, chatMessageItem] = await runAllPromises([
-            ChatTable.getItemIfExists(context, {
+            ChatTable.getItem(context, {
                 partitionType: "Chat",
                 sortRangeType: "Attributes",
                 chatId,
             }),
-            ChatTable.getItemIfExists(context, {
+            ChatTable.getItem(context, {
                 partitionType: "Chat",
                 sortRangeType: "Messages",
                 chatId,
                 messageIndex,
             }),
         ]);
-
-        if (!chatItem) throw new NotFoundError("Chat not found");
-        if (!chatMessageItem) throw new NotFoundError("Chat message not found");
 
         await authorizeChatAccessWithItem(context, chatItem);
 
@@ -1676,18 +1675,32 @@ export async function backfillChatMessages(
     const [chatItem, {messages, otherReferencedMessages}, messageChangesResult] =
         await runAllPromises([
             chatItemPromise,
-            getChatMessagesFromStartAssumingAuthorizedChat(context, {
-                chatId,
-                getSpaceId: () => chatItemPromise.then(({spaceId}) => spaceId),
-                limit: newMessageLimit,
-                afterMessageIndex: clientMessageCount - 1,
-                beforeMessageIndex: null,
-            }),
+            getChatMessagesFromStartAssumingAuthorizedChat(
+                // Use a strong read consistency when backfilling. This guarantees the caller
+                // will observe all realtime events before this function call. Realtime events
+                // that happen during the function call may be missed. You should be subscribed
+                // to new realtime events before starting to backfill.
+                context.dynamo.setDefaultReadConsistency("Strong"),
+                {
+                    chatId,
+                    getSpaceId: () => chatItemPromise.then(({spaceId}) => spaceId),
+                    limit: newMessageLimit,
+                    afterMessageIndex: clientMessageCount - 1,
+                    beforeMessageIndex: null,
+                },
+            ),
             chatItemPromise.then(chatItem =>
-                queryChatMessageChangeLogAssumingAuthorizedPost(context, {
-                    chatItem,
-                    lastMessageChangeTime: clientLastMessageChangeTime,
-                }),
+                queryChatMessageChangeLogAssumingAuthorizedPost(
+                    // Use a strong read consistency when backfilling. This guarantees the caller
+                    // will observe all realtime events before this function call. Realtime events
+                    // that happen during the function call may be missed. You should be subscribed
+                    // to new realtime events before starting to backfill.
+                    context.dynamo.setDefaultReadConsistency("Strong"),
+                    {
+                        chatItem,
+                        lastMessageChangeTime: clientLastMessageChangeTime,
+                    },
+                ),
             ),
             chatItemPromise.then(chatItem => authorizeChatAccessWithItem(context, chatItem)),
         ]);

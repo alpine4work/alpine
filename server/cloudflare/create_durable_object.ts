@@ -3,7 +3,7 @@ import {
     WorkerActionContextModules,
     WorkerSessionActionContext,
 } from "~/server/cloudflare/context/worker_action_context.js";
-import {WorkerActorContextModule} from "~/server/cloudflare/context/worker_actor_context_module.js";
+import {createWorkerActorContextModule} from "~/server/cloudflare/context/worker_actor_context_module.js";
 import {
     WorkerProcessContext,
     WorkerProcessContextModules,
@@ -185,7 +185,7 @@ export function createDurableObject<
                             // this request.
                             tracer: new TracerContextModule(span),
                             cache: new CacheContextModule(),
-                            actor: await WorkerActorContextModule.new(
+                            actor: await createWorkerActorContextModule(
                                 tokenAgent,
                                 authorizationHeaderToken,
                             ),

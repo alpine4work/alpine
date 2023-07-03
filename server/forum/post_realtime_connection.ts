@@ -1,14 +1,12 @@
-import {WorkerSessionActionContext} from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {WebSocketConnectionProcedures} from "~/server/cloudflare/web_socket_server.js";
 import {
     BackfillMessagesFunction,
     CreateMessageFunction,
-    CreateMessageModelFunction,
     DeleteMessageFunction,
+    MessagingRealtimeConnection,
     UpdateMessageContentFunction,
-} from "~/server/messaging/messaging_implementation.js";
-import {MessagingRealtimeConnection} from "~/server/messaging/messaging_realtime_connection.js";
+} from "~/server/messaging/messaging_realtime_connection.js";
 import {PostCommentModel} from "~/shared/forum/post_model.js";
 import {PostRealtimeEvent, PostRealtimeProtocol} from "~/shared/forum/post_realtime_protocol.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -49,7 +47,6 @@ export class PostRealtimeConnection {
             iterateOtherConnections: () =>
                 mapIterable(iterateOtherConnections(), connection => connection._connection),
 
-            createMessageModel,
             createMessage,
             updateMessageContent,
             deleteMessage,
@@ -109,42 +106,23 @@ export class PostRealtimeConnection {
     }
 }
 
-const createMessageModel: CreateMessageModelFunction<PostId, PostCommentModel> = ({
-    roomKey: postId,
-    index,
-    createdTime,
-    author,
-    payload,
-}) => {
-    return new PostCommentModel({
-        postId,
-        index,
-        createdTime,
-        author,
-        payload,
-    });
-};
-
-const createMessage: CreateMessageFunction<WorkerSessionActionContext, PostId> = async (
+const createMessage: CreateMessageFunction<PostId, PostCommentModel> = async (
     context,
     {roomKey: postId, parentMessageIndex: parentCommentIndex, content},
 ) => {
-    const comment = await createPostComment(context, {
+    const {comment} = await createPostComment(context, {
         postId,
         parentCommentIndex,
         content,
     });
 
-    return {
-        index: comment.index,
-        createdTime: comment.createdTime,
-    };
+    return comment;
 };
 
-const updateMessageContent: UpdateMessageContentFunction<
-    WorkerSessionActionContext,
-    PostId
-> = async (context, {roomKey: postId, messageIndex: commentIndex, content}) => {
+const updateMessageContent: UpdateMessageContentFunction<PostId> = async (
+    context,
+    {roomKey: postId, messageIndex: commentIndex, content},
+) => {
     return updatePostCommentContent(context, {
         postId,
         commentIndex,
@@ -152,18 +130,14 @@ const updateMessageContent: UpdateMessageContentFunction<
     });
 };
 
-const deleteMessage: DeleteMessageFunction<WorkerSessionActionContext, PostId> = async (
+const deleteMessage: DeleteMessageFunction<PostId> = async (
     context,
     {roomKey: postId, messageIndex: commentIndex},
 ) => {
     return deletePostComment(context, {postId, commentIndex});
 };
 
-const backfillMessages: BackfillMessagesFunction<
-    WorkerSessionActionContext,
-    PostId,
-    PostCommentModel
-> = async (
+const backfillMessages: BackfillMessagesFunction<PostId, PostCommentModel> = async (
     context,
     {
         roomKey: postId,

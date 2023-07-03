@@ -13,9 +13,13 @@ import {
     updateDocumentCommentContent,
     updateDocumentContent,
 } from "~/server/dynamo/documents_table.js";
-import {getContentReferences} from "~/server/dynamo/helpers/get_content_references.js";
+import {
+    getContentReferences,
+    getContentReferencesForNode,
+} from "~/server/dynamo/helpers/get_content_references.js";
 import {getDocumentContentReferences} from "~/server/dynamo/helpers/get_document_content_references.js";
 import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
+import {DocumentCommentModel} from "~/shared/documents/document_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import * as definition from "~/shared/rpc/documents_rpc_definitions.js";
 
@@ -117,16 +121,50 @@ implementRpc(
 implementRpc(
     definition.createDocumentComment,
     {visibility: ["DocumentCollaborationService"]},
-    (context, input) => {
-        return createDocumentComment(context.actor.authorizeSession(), input);
+    async (unknownContext, input) => {
+        const context = unknownContext.actor.authorizeSession();
+
+        const [{index, createdTime}, author, contentReferences] = await runAllPromises([
+            createDocumentComment(context.actor.authorizeSession(), input),
+            context.actor.getAccount(),
+            authorizeDocumentAccess(context, input.documentId).then(({spaceId}) =>
+                getContentReferencesForNode(context, spaceId, input.content),
+            ),
+        ]);
+
+        const comment = new DocumentCommentModel({
+            documentId: input.documentId,
+            commentThreadId: input.commentThreadId,
+            index,
+            createdTime,
+            author,
+            payload: {
+                type: "Content",
+                parentMessageIndex: input.parentCommentIndex,
+                content: {
+                    doc: input.content,
+                    references: contentReferences,
+                },
+                contentUpdatedTime: null,
+            },
+        });
+
+        return {comment};
     },
 );
 
 implementRpc(
     definition.updateDocumentCommentContent,
     {visibility: ["DocumentCollaborationService"]},
-    (context, input) => {
-        return updateDocumentCommentContent(context.actor.authorizeSession(), input);
+    async (context, input) => {
+        const [{contentUpdatedTime}, contentReferences] = await runAllPromises([
+            updateDocumentCommentContent(context.actor.authorizeSession(), input),
+            authorizeDocumentAccess(context.actor.authorizeSession(), input.documentId).then(
+                ({spaceId}) => getContentReferencesForNode(context, spaceId, input.content),
+            ),
+        ]);
+
+        return {contentUpdatedTime, contentReferences};
     },
 );
 

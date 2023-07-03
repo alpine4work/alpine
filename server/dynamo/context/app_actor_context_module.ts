@@ -1,5 +1,10 @@
 import {Session} from "~/server/dynamo/accounts_table.js";
 import {DynamoContextModule} from "~/server/dynamo/dynamo_context_module.js";
+import {
+    ActorContextModuleBase,
+    SessionActorContextModule,
+    SystemActorContextModule,
+} from "~/server/helpers/actor_context_module_interface.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {TokenServiceName} from "~/server/tokens/token_agent.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
@@ -16,7 +21,7 @@ import {TracerServiceName} from "~/shared/tracer/tracer_root.js";
 /**
  * Services that may perform an action against our system.
  */
-export type AppActorServiceName = "AppClient" | TokenServiceName;
+export type AppActorServiceName = "Test" | "AppClient" | TokenServiceName;
 
 assertAssignableTypes<AppActorServiceName, TracerServiceName>();
 
@@ -28,7 +33,7 @@ assertAssignableTypes<AppActorServiceName, TracerServiceName>();
  */
 export type AppActorContextModule = AppSessionActorContextModule | AppSystemActorContextModule;
 
-interface AppActorContextModuleBase extends ContextModuleBase {
+interface AppActorContextModuleBase extends ActorContextModuleBase {
     /**
      * Throws a `PermissionDeniedError` error if we are not a session actor.
      * Otherwise returns a context with the correct type for the `actor` module.
@@ -36,16 +41,16 @@ interface AppActorContextModuleBase extends ContextModuleBase {
      * System actors can do a lot but they can't do things like establish a
      * persistent realtime durable object connection.
      */
-    authorizeSession<Modules extends {actor: AppActorContextModuleBase}>(
-        this: ContextModuleBase<Modules> & AppActorContextModuleBase,
+    authorizeSession<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
     ): Context<Replace<Modules, {actor: AppSessionActorContextModule}>>;
 
     /**
      * Throws a `PermissionDeniedError` error if we are not a system actor.
      * Otherwise returns a context with the correct type for the `actor` module.
      */
-    authorizeSystem<Modules extends {actor: AppActorContextModuleBase}>(
-        this: ContextModuleBase<Modules> & AppActorContextModuleBase,
+    authorizeSystem<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
     ): Context<Replace<Modules, {actor: AppSystemActorContextModule}>>;
 }
 
@@ -124,7 +129,7 @@ export class AppUnknownActorContextModule<
  */
 export class AppSessionActorContextModule
     extends AppUnknownActorContextModule
-    implements AppActorContextModuleBase
+    implements AppActorContextModuleBase, SessionActorContextModule
 {
     public readonly type = "Session";
 
@@ -165,14 +170,14 @@ export class AppSessionActorContextModule
         return this._context as any;
     }
 
-    public authorizeSession<Modules extends {actor: AppActorContextModuleBase}>(
-        this: ContextModuleBase<Modules> & AppActorContextModuleBase,
+    public authorizeSession<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
     ): Context<Replace<Modules, {actor: AppSessionActorContextModule}>> {
         return (this as any)._context;
     }
 
-    public authorizeSystem<Modules extends {actor: AppActorContextModuleBase}>(
-        this: ContextModuleBase<Modules> & AppActorContextModuleBase,
+    public authorizeSystem<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
     ): Context<Replace<Modules, {actor: AppSystemActorContextModule}>> {
         throw new PermissionDeniedError("Session actor is not a system actor");
     }
@@ -212,7 +217,7 @@ export class AppSessionActorContextModule
  */
 export class AppSystemActorContextModule
     extends AppUnknownActorContextModule
-    implements AppActorContextModuleBase
+    implements AppActorContextModuleBase, SystemActorContextModule
 {
     public readonly type = "System";
 
@@ -222,9 +227,9 @@ export class AppSystemActorContextModule
      * Name of the service which initiated the current action. Only services that
      * can sign tokens can create a system actor context.
      */
-    public readonly serviceName: TokenServiceName;
+    public readonly serviceName: "Test" | TokenServiceName;
 
-    private constructor(serviceName: TokenServiceName, spaceId: SpaceId) {
+    private constructor(serviceName: "Test" | TokenServiceName, spaceId: SpaceId) {
         super(() => Promise.resolve(this));
         this.serviceName = serviceName;
         this._spaceId = spaceId;
@@ -234,7 +239,7 @@ export class AppSystemActorContextModule
      * Dangerous since if an attacker can pass arbitrary input they can get
      * wide ranging information about any space.
      */
-    public static dangerouslyNew(serviceName: TokenServiceName, spaceId: SpaceId) {
+    public static dangerouslyNew(serviceName: "Test" | TokenServiceName, spaceId: SpaceId) {
         return new AppSystemActorContextModule(serviceName, spaceId);
     }
 
@@ -251,14 +256,14 @@ export class AppSystemActorContextModule
         return this._context as any;
     }
 
-    public authorizeSession<Modules extends {actor: AppActorContextModuleBase}>(
-        this: ContextModuleBase<Modules> & AppActorContextModuleBase,
+    public authorizeSession<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
     ): Context<Replace<Modules, {actor: AppSessionActorContextModule}>> {
         throw new PermissionDeniedError("System actor is not a session actor");
     }
 
-    public authorizeSystem<Modules extends {actor: AppActorContextModuleBase}>(
-        this: ContextModuleBase<Modules> & AppActorContextModuleBase,
+    public authorizeSystem<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
     ): Context<Replace<Modules, {actor: AppSystemActorContextModule}>> {
         return (this as any)._context;
     }

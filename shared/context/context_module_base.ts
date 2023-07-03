@@ -43,22 +43,6 @@ export class ContextModuleBase<Modules extends {[key: string]: ContextModuleBase
             "Can not access the context property until this context module is bound to a context object",
         );
     }
-
-    /**
-     * If this context module is bound to a context then this function returns an
-     * instance of the module that's not bound to the context module.
-     *
-     * Anything mutable in the context module shares the same reference between the
-     * two modules.
-     *
-     * This is an advanced method you can use this if you are constructing a new
-     * context with a different lifetime or different module types and want it to
-     * share some context modules.
-     */
-    public unbind() {
-        if (!Object.getOwnPropertyDescriptor(this, "_context")) return this;
-        return Object.getPrototypeOf(this);
-    }
 }
 
 /**

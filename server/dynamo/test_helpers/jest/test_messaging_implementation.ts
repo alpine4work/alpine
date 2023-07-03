@@ -7,15 +7,6 @@ import {
 } from "~/server/dynamo/test_helpers/shared/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/shared/create_test_space.js";
 import {
-    BackfillMessagesFunction,
-    CreateMessageFunction,
-    DeleteMessageFunction,
-    GetMessageFunction,
-    GetMessagesFromEnd,
-    GetMessagesFromStart,
-    UpdateMessageContentFunction,
-} from "~/server/messaging/messaging_implementation.js";
-import {
     FailedPreconditionError,
     InternalError,
     InvalidArgumentError,
@@ -27,11 +18,135 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageChange} from "~/shared/messaging/message_change_schema.js";
 import {
+    MessageContent,
     MessageContentProsemirrorSchema,
     assertMessageContent,
     createSimpleMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
-import {MessageModel} from "~/shared/messaging/message_model.js";
+import {MessageModel, MessageRoomKeyType} from "~/shared/messaging/message_model.js";
+
+/**
+ * Create a new message in a room.
+ */
+type CreateMessageFunctionForTest<RoomKey extends string> = (
+    context: AppSessionActionContext,
+    options: {
+        roomKey: RoomKey;
+        parentMessageIndex: number | null;
+        content: MessageContent;
+    },
+) => Promise<{
+    index: number;
+    createdTime: Date;
+}>;
+
+/**
+ * Get a message.
+ */
+type GetMessageFunctionForTest<Message extends MessageModel> = (
+    context: AppSessionActionContext,
+    options: {
+        roomKey: MessageRoomKeyType<Message>;
+        messageIndex: number;
+    },
+) => Promise<Message>;
+
+/**
+ * Update the content of a message.
+ *
+ * We will record the time at which the content was updated and show that the
+ * message was edited.
+ */
+type UpdateMessageContentFunctionForTest<RoomKey extends string> = (
+    context: AppSessionActionContext,
+    options: {
+        roomKey: RoomKey;
+        messageIndex: number;
+        content: MessageContent;
+    },
+) => Promise<{
+    contentUpdatedTime: Date;
+}>;
+
+/**
+ * Delete a message.
+ */
+type DeleteMessageFunctionForTest<RoomKey extends string> = (
+    context: AppSessionActionContext,
+    options: {
+        roomKey: RoomKey;
+        messageIndex: number;
+    },
+) => Promise<{
+    deletedTime: Date;
+}>;
+
+/**
+ * Load a range of messages starting from the beginning of the room (or
+ * starting after a message ID) and loading forwards in time.
+ */
+type GetMessagesFromStartForTest<Message extends MessageModel> = (
+    context: AppSessionActionContext,
+    options: {
+        roomKey: MessageRoomKeyType<Message>;
+        limit: number;
+        afterMessageIndex: number | null;
+        beforeMessageIndex: number | null;
+    },
+) => Promise<{
+    messageCount: number;
+    messages: Array<Message>;
+    otherReferencedMessages: Array<Message>;
+    lastMessageChangeTime: Date | null;
+}>;
+
+/**
+ * Load a range of messages starting from the end of the room (or
+ * starting before a message ID) and loading backwards in time.
+ */
+type GetMessagesFromEndForTest<Message extends MessageModel> = (
+    context: AppSessionActionContext,
+    options: {
+        roomKey: MessageRoomKeyType<Message>;
+        limit: number;
+        afterMessageIndex: number | null;
+        beforeMessageIndex: number | null;
+    },
+) => Promise<{
+    messageCount: number;
+    messages: Array<Message>;
+    otherReferencedMessages: Array<Message>;
+    lastMessageChangeTime: Date | null;
+}>;
+
+/**
+ * Backfill messages and message changes the client is missing. Realtime could
+ * be implemented by polling this method. However, this method is also
+ * important for implementing push-based realtime as it fills the gap between
+ * when data was loaded and when we connected to our realtime WebSocket.
+ */
+type BackfillMessagesFunctionForTest<Message extends MessageModel> = (
+    context: AppSessionActionContext,
+    options: {
+        roomKey: MessageRoomKeyType<Message>;
+        clientMessageCount: number;
+        clientLastMessageChangeTime: Date | null;
+        newMessageLimit: number;
+    },
+) => Promise<{
+    messageCount: number;
+    lastMessageChangeTime: Date | null;
+    newMessages: ReadonlyArray<Message>;
+    newOtherReferencedMessages: ReadonlyArray<Message>;
+    messageChangesResult:
+        | {
+              type: "Available";
+              changes: ReadonlyArray<MessageChange>;
+          }
+        | {
+              type: "Unavailable";
+          };
+}>;
 
 /**
  * Wherever we want to create some space for conversation in our product we use
@@ -104,12 +219,12 @@ export type TestMessagingImplementation<RoomKey extends string> = {
     /**
      * Create a new message in a room.
      */
-    createMessage: CreateMessageFunction<RoomKey>;
+    createMessage: CreateMessageFunctionForTest<RoomKey>;
 
     /**
      * Get a message.
      */
-    getMessage: GetMessageFunction<RoomKey, MessageModel<RoomKey>>;
+    getMessage: GetMessageFunctionForTest<MessageModel<RoomKey>>;
 
     /**
      * Update the content of a message.
@@ -117,24 +232,24 @@ export type TestMessagingImplementation<RoomKey extends string> = {
      * We will record the time at which the content was updated and show that the
      * message was edited.
      */
-    updateMessageContent: UpdateMessageContentFunction<RoomKey>;
+    updateMessageContent: UpdateMessageContentFunctionForTest<RoomKey>;
 
     /**
      * Delete a message.
      */
-    deleteMessage: DeleteMessageFunction<RoomKey>;
+    deleteMessage: DeleteMessageFunctionForTest<RoomKey>;
 
     /**
      * Load a range of messages starting from the beginning of the room (or
      * starting after a message ID) and loading forwards in time.
      */
-    getMessagesFromStart: GetMessagesFromStart<RoomKey, MessageModel<RoomKey>>;
+    getMessagesFromStart: GetMessagesFromStartForTest<MessageModel<RoomKey>>;
 
     /**
      * Load a range of messages starting from the end of the room (or
      * starting before a message ID) and loading backwards in time.
      */
-    getMessagesFromEnd: GetMessagesFromEnd<RoomKey, MessageModel<RoomKey>>;
+    getMessagesFromEnd: GetMessagesFromEndForTest<MessageModel<RoomKey>>;
 
     /**
      * Backfill messages and message changes the client is missing. Realtime could
@@ -142,7 +257,7 @@ export type TestMessagingImplementation<RoomKey extends string> = {
      * important for implementing push-based realtime as it fills the gap between
      * when data was loaded and when we connected to our realtime WebSocket.
      */
-    backfillMessages: BackfillMessagesFunction<RoomKey, MessageModel<RoomKey>>;
+    backfillMessages: BackfillMessagesFunctionForTest<MessageModel<RoomKey>>;
 };
 
 /**
@@ -268,12 +383,12 @@ export function testMessagingImplementation<RoomKey extends string>(
     function massageMessageBackfill(result: {
         messageCount: number;
         lastMessageChangeTime: Date | null;
-        newMessages: Array<MessageModel>;
-        newOtherReferencedMessages: Array<MessageModel>;
+        newMessages: ReadonlyArray<MessageModel<RoomKey>>;
+        newOtherReferencedMessages: ReadonlyArray<MessageModel<RoomKey>>;
         messageChangesResult:
             | {
                   type: "Available";
-                  changes: Array<MessageChange>;
+                  changes: ReadonlyArray<MessageChange>;
               }
             | {
                   type: "Unavailable";

@@ -15,4 +15,10 @@ export abstract class RpcContextModuleBase<
         definition: RpcDefinition<Input, Output>,
         input: Input,
     ): Promise<Output>;
+
+    /**
+     * Clones the RPC module so it can be used in a different context. Returns an
+     * unbound context module even if the source context module is bound.
+     */
+    public abstract clone(): RpcContextModuleBase<Modules>;
 }

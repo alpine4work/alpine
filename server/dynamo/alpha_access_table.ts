@@ -6,7 +6,7 @@ import {
 } from "~/server/dynamo/accounts_table.js";
 import {
     AppActionContext,
-    AppAmbiguousActionContext,
+    AppUnknownActionContext,
     AppSessionActionContext,
 } from "~/server/dynamo/context/app_action_context.js";
 import {DynamoContext} from "~/server/dynamo/context/dynamo_context.js";
@@ -130,7 +130,7 @@ export async function seedTestAlphaConfiguration(context: DynamoContext) {
  * Can not request alpha access twice for the same email address.
  */
 export async function requestAlphaAccess(
-    context: AppAmbiguousActionContext,
+    context: AppUnknownActionContext,
     {
         name,
         emailAddress,

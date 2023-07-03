@@ -1,4 +1,4 @@
-import {AppAmbiguousActionContextModules} from "~/server/dynamo/context/app_action_context.js";
+import {AppUnknownActionContextModules} from "~/server/dynamo/context/app_action_context.js";
 import {getRpcImplementationIfExists} from "~/server/rpc/get_rpc_implementation.js";
 import {InternalError} from "~/shared/error/error.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
@@ -15,12 +15,12 @@ import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
  * important to the logic of the RPC. For example, validating a string is only
  * a single line.
  */
-export class LocalRpcContextModule extends RpcContextModuleBase<AppAmbiguousActionContextModules> {
+export class LocalRpcContextModule extends RpcContextModuleBase<AppUnknownActionContextModules> {
     public async execute<Input, Output>(
         definition: RpcDefinition<Input, Output>,
         input: Input,
     ): Promise<Output> {
-        const implementation = await getRpcImplementationIfExists(definition.name);
+        const implementation = getRpcImplementationIfExists(definition.name);
 
         if (!implementation)
             throw new InternalError("Could not find an implementation for defined RPC");
@@ -29,7 +29,14 @@ export class LocalRpcContextModule extends RpcContextModuleBase<AppAmbiguousActi
         // full serialization and deserialization pass.
         definition.inputSchema.validate?.(input);
 
-        const output = await implementation.executeWithoutSerialization(this._context, input);
+        const output = await implementation.executeWithoutSerialization(
+            await this._context.actor.authenticate(),
+            input,
+        );
         return output as Output;
+    }
+
+    public clone(): LocalRpcContextModule {
+        return new LocalRpcContextModule();
     }
 }

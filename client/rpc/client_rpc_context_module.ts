@@ -65,6 +65,10 @@ export class ClientRpcContextModule extends RpcContextModuleBase<{tracer: Tracer
             },
         );
     }
+
+    public clone(): ClientRpcContextModule {
+        return new ClientRpcContextModule();
+    }
 }
 
 type RpcCall = {

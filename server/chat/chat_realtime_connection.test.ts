@@ -1,10 +1,5 @@
 import {ChatRealtimeConnection} from "~/server/chat/chat_realtime_connection.js";
-import {
-    createChatForTest,
-    deleteChatMessage,
-    sendChatMessage,
-    updateChatMessageContent,
-} from "~/server/dynamo/chat_table.js";
+import {createChatForTest} from "~/server/dynamo/chat_table.js";
 import {
     TestMessagingRealtimeConnectionProcedures,
     testMessagingRealtimeImplementation,
@@ -14,6 +9,11 @@ import {ChatMessageModel} from "~/shared/chat/chat_model.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {generateId} from "~/shared/id/id.js";
 import {ChatId} from "~/shared/id/types/id_types.js";
+import {
+    deleteChatMessage,
+    sendChatMessage,
+    updateChatMessageContent,
+} from "~/shared/rpc/chat_rpc_definitions.js";
 
 const context = createTestContext();
 
@@ -68,16 +68,13 @@ testMessagingRealtimeImplementation<ChatId, TestChatRealtimeConnection>(context,
         });
     },
     async createMessage(context, {roomKey: chatId, parentMessageIndex, content}) {
-        const message = await sendChatMessage(context, {
+        const {message} = await sendChatMessage(context, {
             chatId,
             parentMessageIndex,
             content,
         });
 
-        return {
-            index: message.index,
-            createdTime: message.createdTime,
-        };
+        return message;
     },
     async updateMessageContent(context, {roomKey: chatId, messageIndex, content}) {
         return updateChatMessageContent(context, {

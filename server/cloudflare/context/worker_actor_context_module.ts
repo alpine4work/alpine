@@ -1,3 +1,8 @@
+import {
+    ActorContextModuleBase,
+    SessionActorContextModule,
+    SystemActorContextModule,
+} from "~/server/helpers/actor_context_module_interface.js";
 import {TokenAgentBase} from "~/server/tokens/token_agent.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
@@ -10,31 +15,32 @@ export type WorkerActorContextModule =
     | WorkerSessionActorContextModule
     | WorkerSystemActorContextModule;
 
-export const WorkerActorContextModule = {
-    /**
-     * Verify the token and return an actor context module corresponding to
-     * the token.
-     */
-    async new(tokenAgent: TokenAgentBase, token: string): Promise<WorkerActorContextModule> {
-        const {payload} = await tokenAgent.verifyToken(token);
+/**
+ * Verify the token and return an actor context module corresponding to
+ * the token.
+ */
+export async function createWorkerActorContextModule(
+    tokenAgent: TokenAgentBase,
+    token: string,
+): Promise<WorkerActorContextModule> {
+    const {payload} = await tokenAgent.verifyToken(token);
 
-        switch (payload.type) {
-            case "Session": {
-                return WorkerSessionActorContextModule.dangerouslyNew(
-                    payload.sessionId,
-                    payload.accountId,
-                );
-            }
-            case "System": {
-                return WorkerSystemActorContextModule.dangerouslyNew(payload.spaceId);
-            }
-            default:
-                throw exhaustive(payload);
+    switch (payload.type) {
+        case "Session": {
+            return WorkerSessionActorContextModule.dangerouslyNew(
+                payload.sessionId,
+                payload.accountId,
+            );
         }
-    },
-};
+        case "System": {
+            return WorkerSystemActorContextModule.dangerouslyNew(payload.spaceId);
+        }
+        default:
+            throw exhaustive(payload);
+    }
+}
 
-interface WorkerActorContextModuleBase extends ContextModuleBase {
+interface WorkerActorContextModuleBase extends ActorContextModuleBase {
     /**
      * Throws a `PermissionDeniedError` error if we are not a session actor.
      * Otherwise returns a context with the correct type for the `actor` module.
@@ -42,16 +48,16 @@ interface WorkerActorContextModuleBase extends ContextModuleBase {
      * System actors can do a lot but they can't do things like establish a
      * persistent realtime durable object connection.
      */
-    authorizeSession<Modules extends {actor: WorkerActorContextModuleBase}>(
-        this: ContextModuleBase<Modules> & WorkerActorContextModuleBase,
+    authorizeSession<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
     ): Context<Replace<Modules, {actor: WorkerSessionActorContextModule}>>;
 
     /**
      * Throws a `PermissionDeniedError` error if we are not a system actor.
      * Otherwise returns a context with the correct type for the `actor` module.
      */
-    authorizeSystem<Modules extends {actor: WorkerActorContextModuleBase}>(
-        this: ContextModuleBase<Modules> & WorkerActorContextModuleBase,
+    authorizeSystem<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
     ): Context<Replace<Modules, {actor: WorkerSystemActorContextModule}>>;
 }
 
@@ -62,7 +68,7 @@ interface WorkerActorContextModuleBase extends ContextModuleBase {
  */
 export class WorkerSessionActorContextModule
     extends ContextModuleBase
-    implements WorkerActorContextModuleBase
+    implements WorkerActorContextModuleBase, SessionActorContextModule
 {
     public readonly type = "Session";
 
@@ -91,14 +97,14 @@ export class WorkerSessionActorContextModule
         return this._accountId;
     }
 
-    public authorizeSession<Modules extends {actor: WorkerActorContextModuleBase}>(
-        this: ContextModuleBase<Modules> & WorkerActorContextModuleBase,
+    public authorizeSession<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
     ): Context<Replace<Modules, {actor: WorkerSessionActorContextModule}>> {
         return (this as any)._context;
     }
 
-    public authorizeSystem<Modules extends {actor: WorkerActorContextModuleBase}>(
-        this: ContextModuleBase<Modules> & WorkerActorContextModuleBase,
+    public authorizeSystem<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
     ): Context<Replace<Modules, {actor: WorkerSystemActorContextModule}>> {
         throw new PermissionDeniedError("Session actor is not a system actor");
     }
@@ -115,7 +121,7 @@ export class WorkerSessionActorContextModule
  */
 export class WorkerSystemActorContextModule
     extends ContextModuleBase
-    implements WorkerActorContextModuleBase
+    implements WorkerActorContextModuleBase, SystemActorContextModule
 {
     public readonly type = "System";
 
@@ -138,14 +144,14 @@ export class WorkerSystemActorContextModule
         return this._spaceId;
     }
 
-    public authorizeSession<Modules extends {actor: WorkerActorContextModuleBase}>(
-        this: ContextModuleBase<Modules> & WorkerActorContextModuleBase,
+    public authorizeSession<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
     ): Context<Replace<Modules, {actor: WorkerSessionActorContextModule}>> {
         throw new PermissionDeniedError("System actor is not a session actor");
     }
 
-    public authorizeSystem<Modules extends {actor: WorkerActorContextModuleBase}>(
-        this: ContextModuleBase<Modules> & WorkerActorContextModuleBase,
+    public authorizeSystem<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
     ): Context<Replace<Modules, {actor: WorkerSystemActorContextModule}>> {
         return (this as any)._context;
     }

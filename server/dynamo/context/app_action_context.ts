@@ -70,9 +70,9 @@ export type AppSystemActionContextModules = MergeObjectIntersection<
  * Context for actions where the actor might be a session actor but we need to
  * lazily authenticate to get an `AppActionContext`.
  */
-export type AppAmbiguousActionContext = Context<AppAmbiguousActionContextModules>;
+export type AppUnknownActionContext = Context<AppUnknownActionContextModules>;
 
-export type AppAmbiguousActionContextModules = MergeObjectIntersection<
+export type AppUnknownActionContextModules = MergeObjectIntersection<
     AppActionContextModulesBase & {
         actor: AppUnknownActorContextModule;
     }

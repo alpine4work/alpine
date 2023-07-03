@@ -1,12 +1,13 @@
-import {
-    WorkerActorContextModule,
-    WorkerSessionActorContextModule,
-} from "~/server/cloudflare/context/worker_actor_context_module.js";
 import {WorkerProcessContextModules} from "~/server/cloudflare/context/worker_process_context.js";
-import {WorkerRpcContextModule} from "~/server/cloudflare/context/worker_rpc_context_module.js";
+import {
+    ActorContextModule,
+    SessionActorContextModule,
+    SystemActorContextModule,
+} from "~/server/helpers/actor_context_module_interface.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
+import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 
 type WorkerActionContextModulesBase = WorkerProcessContextModules & {
     /**
@@ -19,8 +20,11 @@ type WorkerActionContextModulesBase = WorkerProcessContextModules & {
      * Allow executing RPCs in an action. You may only execute RPCs within the
      * context of an action because there's an actor context module with session
      * information.
+     *
+     * Allow any RPC context module (instead of just `WorkerRpcContextModule`) so
+     * that tests may use `LocalRpcContextModule`.
      */
-    rpc: WorkerRpcContextModule;
+    rpc: RpcContextModuleBase;
 };
 
 /**
@@ -30,7 +34,14 @@ export type WorkerActionContext = Context<WorkerActionContextModules>;
 
 export type WorkerActionContextModules = MergeObjectIntersection<
     WorkerActionContextModulesBase & {
-        actor: WorkerActorContextModule;
+        /**
+         * A representation of the entity acting against our systems.
+         *
+         * Uses the generic actor interface instead of `WorkerActorContextModule`
+         * (which is what we instantiate this context with) so that tests can pass in
+         * an `AppActorContextModule` which is type compatible.
+         */
+        actor: ActorContextModule;
     }
 >;
 
@@ -42,6 +53,18 @@ export type WorkerSessionActionContext = Context<WorkerSessionActionContextModul
 
 export type WorkerSessionActionContextModules = MergeObjectIntersection<
     WorkerActionContextModulesBase & {
-        actor: WorkerSessionActorContextModule;
+        actor: SessionActorContextModule;
+    }
+>;
+
+/**
+ * Generic context for handling actions against our system with a
+ * system actor.
+ */
+export type WorkerSystemActionContext = Context<WorkerSystemActionContextModules>;
+
+export type WorkerSystemActionContextModules = MergeObjectIntersection<
+    WorkerActionContextModulesBase & {
+        actor: SystemActorContextModule;
     }
 >;
